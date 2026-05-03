@@ -33,6 +33,9 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 			ID:          "msg-1",
 			StoragePath: path,
 		},
+		attachments: []maildb.Attachment{
+			{ID: "att-1", Filename: "report.pdf"},
+		},
 	}, store)
 
 	msg, err := service.GetMessage(context.Background(), "user-1", "msg-1")
@@ -42,11 +45,15 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 	if msg.TextBody != "hello body" {
 		t.Fatalf("TextBody = %q", msg.TextBody)
 	}
+	if len(msg.Attachments) != 1 || msg.Attachments[0].Filename != "report.pdf" {
+		t.Fatalf("Attachments = %+v", msg.Attachments)
+	}
 }
 
 type fakeRepository struct {
-	detail     maildb.MessageDetail
-	suppressed []string
+	detail      maildb.MessageDetail
+	attachments []maildb.Attachment
+	suppressed  []string
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -90,7 +97,7 @@ func (f *fakeRepository) DeleteMessage(context.Context, string, string) error {
 }
 
 func (f *fakeRepository) ListAttachments(context.Context, string, string) ([]maildb.Attachment, error) {
-	return nil, nil
+	return f.attachments, nil
 }
 
 func (f *fakeRepository) GetAttachment(context.Context, string, string, string) (maildb.Attachment, error) {

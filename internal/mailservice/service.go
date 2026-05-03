@@ -75,6 +75,11 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	if s.store == nil || detail.StoragePath == "" {
 		return detail, nil
 	}
+	attachments, err := s.repository.ListAttachments(ctx, userID, messageID)
+	if err != nil {
+		return maildb.MessageDetail{}, err
+	}
+	detail.Attachments = attachments
 
 	body, err := s.store.Get(ctx, detail.StoragePath)
 	if err != nil {

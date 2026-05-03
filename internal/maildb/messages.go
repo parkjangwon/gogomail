@@ -36,6 +36,7 @@ type MessageDetail struct {
 	Flags         json.RawMessage `json:"flags"`
 	StoragePath   string          `json:"storage_path"`
 	TextBody      string          `json:"text_body"`
+	Attachments   []Attachment    `json:"attachments,omitempty"`
 }
 
 type Folder struct {
