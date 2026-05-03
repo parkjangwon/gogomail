@@ -141,6 +141,12 @@ Implementation order:
 94. SMTP storage paths sanitize tenant/user/message path segments before writing `.eml` files, preserving deterministic layout without allowing generated IDs to alter directory boundaries.
 95. Outbound route definitions now support explicit SMTP ports and include the port in route pool keys, preparing Smart Host/gateway relay routing without collapsing distinct connection pools.
 96. SMTP server runtime guardrails now expose configurable read/write timeouts, max message bytes, and max recipients, wired through environment config for edge and submission modes.
+97. DSN composition preserves RFC 3464 `Original-Recipient` per-recipient fields and sanitizes DSN machine-readable values to prevent header injection in generated bounce reports.
+98. DSN recipient status composition validates RFC-shaped actions and enhanced status codes before emitting `message/delivery-status` payloads.
+99. Direct outbound SMTP reports partial RCPT delivery precisely: accepted recipients are recorded as delivered, permanent rejected recipients bounce, and only temporary rejected recipients are scheduled for retry.
+100. Direct outbound SMTP treats partial DATA success as terminal for an MX host, preventing failover from duplicating already-accepted recipients on later MX candidates.
+101. Smart-host route normalization accepts common `host:port` input while still keying pools by the normalized host and effective route port.
+102. SMTP DSN extension handling now validates supported `RET` and `NOTIFY` values, including the RFC rule that `NOTIFY=NEVER` cannot be combined with other notification requests.
 
 ## Deferred until backend contracts stabilize
 
