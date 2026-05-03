@@ -51,7 +51,7 @@ func TestNewMessageListPageBuildsNextCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewMessageListPage returned error: %v", err)
 	}
-	if !page.HasMore || page.Limit != 1 || page.NextCursor == "" {
+	if page.HasMore || page.Limit != 1 || page.NextCursor == "" {
 		t.Fatalf("page = %+v", page)
 	}
 	cursor, err := DecodeMessageListCursor(page.NextCursor)
@@ -60,5 +60,21 @@ func TestNewMessageListPageBuildsNextCursor(t *testing.T) {
 	}
 	if cursor.ID != "msg-1" || !cursor.At.Equal(ts) {
 		t.Fatalf("cursor = %+v", cursor)
+	}
+}
+
+func TestNewMessageListPageTrimsLimitPlusOne(t *testing.T) {
+	t.Parallel()
+
+	ts := time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
+	page, err := NewMessageListPage([]MessageSummary{
+		{ID: "msg-1", ReceivedAt: ts},
+		{ID: "msg-2", ReceivedAt: ts.Add(-time.Minute)},
+	}, 1)
+	if err != nil {
+		t.Fatalf("NewMessageListPage returned error: %v", err)
+	}
+	if !page.HasMore || len(page.Messages) != 1 || page.Messages[0].ID != "msg-1" {
+		t.Fatalf("page = %+v", page)
 	}
 }

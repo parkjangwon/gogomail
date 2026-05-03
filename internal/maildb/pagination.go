@@ -25,10 +25,14 @@ type MessageListPage struct {
 
 func NewMessageListPage(messages []MessageSummary, requestedLimit int) (MessageListPage, error) {
 	limit := NormalizeMessageListLimit(requestedLimit)
+	hasMore := len(messages) > limit
+	if hasMore {
+		messages = messages[:limit]
+	}
 	page := MessageListPage{
 		Messages: messages,
 		Limit:    limit,
-		HasMore:  len(messages) == limit,
+		HasMore:  hasMore,
 	}
 	if len(messages) == 0 {
 		return page, nil
