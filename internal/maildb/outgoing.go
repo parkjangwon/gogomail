@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/outbound"
+	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
 type Sender struct {
@@ -31,6 +32,7 @@ type OutgoingMessage struct {
 	To              []outbound.Address
 	Cc              []outbound.Address
 	Bcc             []outbound.Address
+	DSN             smtpd.DSNOptions
 	SentAt          time.Time
 	Size            int64
 	HasAttachment   bool
@@ -224,6 +226,7 @@ func outgoingEventPayload(messageID string, msg OutgoingMessage) ([]byte, error)
 		"to":                msg.To,
 		"cc":                msg.Cc,
 		"bcc":               msg.Bcc,
+		"dsn":               storedEventDSN(msg.DSN),
 		"subject":           msg.Subject,
 		"storage_path":      msg.StoragePath,
 		"sent_at":           msg.SentAt,

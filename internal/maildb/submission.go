@@ -89,6 +89,7 @@ func (r *Repository) RecordSubmitted(ctx context.Context, msg smtpd.SubmittedMes
 		To:          to,
 		Cc:          cc,
 		Bcc:         bcc,
+		DSN:         msg.DSN,
 		SentAt:      msg.SubmittedAt,
 		Size:        msg.Size,
 		StoragePath: msg.StoragePath,
