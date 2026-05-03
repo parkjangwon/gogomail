@@ -39,6 +39,42 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 }
 
+func TestAdminAuthAcceptsBearerToken(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		queueStats: []maildb.QueueStat{{Topic: "mail.outbound.general", Status: "pending", Count: 1}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminAuthRejectsWrongLengthToken(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+	req.Header.Set("Authorization", "Bearer secrets")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminDomainsHandler(t *testing.T) {
 	t.Parallel()
 

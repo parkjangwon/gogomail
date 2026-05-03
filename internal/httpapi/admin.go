@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -257,12 +258,21 @@ func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 		return next
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if adminTokenFromRequest(r) != token {
+		if !constantTimeTokenEqual(adminTokenFromRequest(r), token) {
 			writeError(w, http.StatusUnauthorized, "admin token is required")
 			return
 		}
 		next(w, r)
 	}
+}
+
+func constantTimeTokenEqual(got string, want string) bool {
+	got = strings.TrimSpace(got)
+	want = strings.TrimSpace(want)
+	if got == "" || want == "" || len(got) != len(want) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }
 
 func adminTokenFromRequest(r *http.Request) string {
