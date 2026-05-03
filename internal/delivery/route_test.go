@@ -87,7 +87,7 @@ func TestRoutePoolKeyIncludesFarmDomainHostAndTLSMode(t *testing.T) {
 		Domain:  "Example.NET",
 		TLSMode: DeliveryTLSRequire,
 	})
-	got := routePoolKey(route, "MX-A.Example.NET")
+	got := routePoolKey(route, "MX-A.Example.NET.")
 	want := "bulk|example.net|mx-a.example.net:25|require|auth=|identity="
 	if got != want {
 		t.Fatalf("routePoolKey = %q, want %q", got, want)
