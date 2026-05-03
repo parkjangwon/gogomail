@@ -136,6 +136,68 @@ func TestSMTPProtocolSubmissionAuthStoresMessage(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolSubmissionAuthAfterSTARTTLS(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	recorder := &submissionRecorder{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      recorder,
+		IDGenerator:   func() string { return "protocol-starttls-submission-id" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC) },
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{
+		Domain:            "submit.example.com",
+		TLSConfig:         testServerTLSConfig(t),
+		AllowInsecureAuth: false,
+	})
+	defer shutdown()
+
+	client, err := smtp.Dial(addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer client.Close()
+	if err := client.Hello("client.example.net"); err != nil {
+		t.Fatalf("Hello returned error: %v", err)
+	}
+	if ok, _ := client.Extension("STARTTLS"); !ok {
+		t.Fatal("STARTTLS extension not advertised")
+	}
+	if err := client.StartTLS(&tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}); err != nil {
+		t.Fatalf("StartTLS returned error: %v", err)
+	}
+	authLine := base64.StdEncoding.EncodeToString([]byte("\x00jangwon@example.com\x00pass"))
+	if err := protocolCommand(client, 235, "AUTH PLAIN "+authLine); err != nil {
+		t.Fatalf("AUTH PLAIN after STARTTLS returned error: %v", err)
+	}
+	if err := client.Mail("jangwon@example.com"); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := client.Rcpt("outside@example.net"); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	writer, err := client.Data()
+	if err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	raw := "Message-ID: <protocol-starttls-submission@example.com>\r\nFrom: jangwon@example.com\r\nTo: outside@example.net\r\nSubject: starttls submission\r\n\r\nbody\r\n"
+	if _, err := io.WriteString(writer, raw); err != nil {
+		t.Fatalf("write DATA returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close DATA returned error: %v", err)
+	}
+	if err := client.Quit(); err != nil {
+		t.Fatalf("Quit returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded submissions = %d, want 1", len(recorder.messages))
+	}
+}
+
 func TestSMTPProtocolRejectsUnsupportedDSNMailOptions(t *testing.T) {
 	t.Parallel()
 
