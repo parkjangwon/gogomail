@@ -112,6 +112,10 @@ Implementation order:
 65. Message detail responses include attachment metadata, and folder list responses include total/unread counts for webmail state rendering.
 66. Admin API now exposes domain and user listing read models alongside existing queue, delivery attempt, suppression, and DKIM key operations.
 67. Mail API read paths have dedicated folder/message/attachment indexes to keep webmail list/detail operations efficient as mailbox volume grows.
+68. Mail list responses now expose a stable page envelope with limit, has_more, and opaque next_cursor fields, keeping webmail list state deterministic while preserving the existing `messages` response key.
+69. Compose/send contracts now distinguish new, reply, and forward intents; reply/forward sends require a source message and mark the source as answered/forwarded after successful queueing.
+70. Draft save/update/delete and attachment-upload metadata HTTP contracts are now present, establishing the backend surface for webmail compose autosave and attachment linking.
+71. Folder count responses now include starred counts, and Admin API can update user/domain status for basic operational management.
 
 ## Deferred until backend contracts stabilize
 
