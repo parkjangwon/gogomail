@@ -271,8 +271,26 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	if err != nil {
 		return SendTextResult{}, err
 	}
+	if err := s.markSourceMessageAfterSend(ctx, req); err != nil {
+		return SendTextResult{}, err
+	}
 
 	return SendTextResult{ID: id, RFCMessageID: composed.MessageID, Farm: farm}, nil
+}
+
+func (s *Service) markSourceMessageAfterSend(ctx context.Context, req SendTextRequest) error {
+	intent, err := NormalizeComposeIntent(string(req.Intent))
+	if err != nil {
+		return err
+	}
+	switch intent {
+	case ComposeIntentReply:
+		return s.repository.SetMessageFlag(ctx, req.UserID, req.SourceMessageID, "answered", true)
+	case ComposeIntentForward:
+		return s.repository.SetMessageFlag(ctx, req.UserID, req.SourceMessageID, "forwarded", true)
+	default:
+		return nil
+	}
 }
 
 func randomObjectID() string {

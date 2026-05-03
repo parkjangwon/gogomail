@@ -57,6 +57,8 @@ type fakeRepository struct {
 	seenSuppressionRecipients []string
 	lastDraft                 SaveDraftRequest
 	lastAttachmentUpload      CreateAttachmentUploadRequest
+	lastFlagMessageID         string
+	lastFlag                  string
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -87,7 +89,9 @@ func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.Mes
 	return f.detail, nil
 }
 
-func (f *fakeRepository) SetMessageFlag(context.Context, string, string, string, bool) error {
+func (f *fakeRepository) SetMessageFlag(_ context.Context, _ string, messageID string, flag string, _ bool) error {
+	f.lastFlagMessageID = messageID
+	f.lastFlag = flag
 	return nil
 }
 
@@ -213,6 +217,27 @@ func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
 	want := []string{"user@example.net", "other@example.net"}
 	if strings.Join(repo.seenSuppressionRecipients, ",") != strings.Join(want, ",") {
 		t.Fatalf("suppression recipients = %v, want %v", repo.seenSuppressionRecipients, want)
+	}
+}
+
+func TestSendTextMarksReplySourceAnswered(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:          "user-1",
+		Intent:          ComposeIntentReply,
+		SourceMessageID: "msg-original",
+		To:              []outbound.Address{{Email: "sender@example.net"}},
+		Subject:         "Re: hello",
+		TextBody:        "body",
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+	if repo.lastFlagMessageID != "msg-original" || repo.lastFlag != "answered" {
+		t.Fatalf("flag = %q/%q", repo.lastFlagMessageID, repo.lastFlag)
 	}
 }
 
