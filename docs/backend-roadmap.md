@@ -172,6 +172,7 @@ Implementation order:
 125. Delivery observability now reports all-permanent partial failures as bounced instead of deferred, making retry dashboards reflect actual terminal outcomes.
 126. DSN report composition now aligns enhanced status classes with recipient actions (`2.x.x` delivered/relayed/expanded, `4.x.x` delayed, `5.x.x` failed) before emitting `message/delivery-status`.
 127. Delivery jobs now support RFC 5321 null reverse-path senders for DSN/bounce traffic while still validating non-empty envelope senders.
+128. Outbound farm values are normalized both when `mail.queued` events are recorded and when delivery jobs are decoded, preventing malformed farm payloads from creating invalid topics or route keys.
 
 ## Deferred until backend contracts stabilize
 
