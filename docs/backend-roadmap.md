@@ -16,6 +16,16 @@ Target outcome:
 
 Shared mail parsing lives in `internal/message` so SMTP, Mail API, future IMAP, and future POP3 use the same RFC 5322/MIME parsing behavior.
 
+SMTP receive exposes explicit pipeline hook stages:
+
+- `spooled`
+- `parsed`
+- `dedup_checked`
+- `stored`
+- `recorded`
+
+Future modules such as spam relay, image conversion, FCM/push enqueue, audit logging, attachment scanning, and indexing should attach to these explicit stages instead of being hard-coded into the SMTP engine.
+
 Implementation order:
 
 1. PostgreSQL migrations for company/domain/user/address/folder/message.

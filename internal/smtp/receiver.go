@@ -71,6 +71,7 @@ type ReceiverOptions struct {
 	Resolver        RecipientResolver
 	Recorder        MessageRecorder
 	Deduplicator    Deduplicator
+	Hooks           []Hook
 	IDGenerator     IDGenerator
 	Clock           func() time.Time
 	MaxMessageBytes int64
@@ -81,6 +82,7 @@ type Receiver struct {
 	resolver        RecipientResolver
 	recorder        MessageRecorder
 	deduplicator    Deduplicator
+	hooks           []Hook
 	idGenerator     IDGenerator
 	clock           func() time.Time
 	maxMessageBytes int64
@@ -96,6 +98,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		resolver:        opts.Resolver,
 		recorder:        recorderOrDefault(opts.Recorder),
 		deduplicator:    deduplicatorOrDefault(opts.Deduplicator),
+		hooks:           append([]Hook(nil), opts.Hooks...),
 		idGenerator:     idGenerator,
 		clock:           clockOrDefault(opts.Clock),
 		maxMessageBytes: maxMessageBytesOrDefault(opts.MaxMessageBytes),
@@ -152,6 +155,13 @@ func (s *session) Data(r io.Reader) error {
 		_ = spooled.Close()
 		_ = os.Remove(spooled.Name())
 	}()
+	if err := s.emit(context.Background(), Event{
+		Stage:        StageSpooled,
+		EnvelopeFrom: s.from,
+		Size:         size,
+	}); err != nil {
+		return err
+	}
 
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind spooled message for parse: %w", err)
@@ -159,6 +169,14 @@ func (s *session) Data(r io.Reader) error {
 	parsed, err := message.ParseEML(spooled)
 	if err != nil {
 		return fmt.Errorf("parse smtp message: %w", err)
+	}
+	if err := s.emit(context.Background(), Event{
+		Stage:        StageParsed,
+		EnvelopeFrom: s.from,
+		Parsed:       parsed,
+		Size:         size,
+	}); err != nil {
+		return err
 	}
 
 	messageID := s.receiver.idGenerator()
@@ -171,6 +189,17 @@ func (s *session) Data(r io.Reader) error {
 		if err != nil {
 			return fmt.Errorf("check duplicate message for %s: %w", recipient.Address, err)
 		}
+		if err := s.emit(context.Background(), Event{
+			Stage:        StageDedupChecked,
+			EnvelopeFrom: s.from,
+			Mailbox:      recipient,
+			Parsed:       parsed,
+			ReceivedAt:   receivedAt,
+			Size:         size,
+			Duplicate:    !shouldProcess,
+		}); err != nil {
+			return err
+		}
 		if !shouldProcess {
 			continue
 		}
@@ -182,6 +211,17 @@ func (s *session) Data(r io.Reader) error {
 		if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
 			return fmt.Errorf("store message for %s: %w", recipient.Address, err)
 		}
+		if err := s.emit(context.Background(), Event{
+			Stage:        StageStored,
+			EnvelopeFrom: s.from,
+			Mailbox:      recipient,
+			StoragePath:  path,
+			Parsed:       parsed,
+			ReceivedAt:   receivedAt,
+			Size:         size,
+		}); err != nil {
+			return err
+		}
 		if err := s.receiver.recorder.Record(context.Background(), ReceivedMessage{
 			EnvelopeFrom: s.from,
 			Mailbox:      recipient,
@@ -191,6 +231,26 @@ func (s *session) Data(r io.Reader) error {
 			Size:         size,
 		}); err != nil {
 			return fmt.Errorf("record message for %s: %w", recipient.Address, err)
+		}
+		if err := s.emit(context.Background(), Event{
+			Stage:        StageRecorded,
+			EnvelopeFrom: s.from,
+			Mailbox:      recipient,
+			StoragePath:  path,
+			Parsed:       parsed,
+			ReceivedAt:   receivedAt,
+			Size:         size,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *session) emit(ctx context.Context, event Event) error {
+	for _, hook := range s.receiver.hooks {
+		if err := hook(ctx, event); err != nil {
+			return fmt.Errorf("smtp hook %s: %w", event.Stage, err)
 		}
 	}
 	return nil

@@ -183,6 +183,77 @@ func TestSessionSkipsDuplicateMessageForRecipient(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsPipelineHooksInOrder(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {
+				CompanyID: "company-1",
+				DomainID:  "domain-1",
+				UserID:    "user-1",
+				Address:   "jangwon@example.com",
+			},
+		},
+		IDGenerator: func() string { return "hooked" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 9, 30, 0, 0, time.UTC) },
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				if event.Stage == StageStored && event.StoragePath == "" {
+					t.Fatal("StageStored event has empty StoragePath")
+				}
+				if event.Stage == StageParsed && event.Parsed.Subject != "hook me" {
+					t.Fatalf("StageParsed subject = %q", event.Parsed.Subject)
+				}
+				return nil
+			},
+		},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("JangWon@Example.COM", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	raw := strings.Join([]string{
+		"Message-ID: <hook@example.com>",
+		"From: Sender <sender@example.net>",
+		"To: JangWon <jangwon@example.com>",
+		"Subject: hook me",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+	}, "\r\n")
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	want := []Stage{
+		StageSpooled,
+		StageParsed,
+		StageDedupChecked,
+		StageStored,
+		StageRecorded,
+	}
+	if len(stages) != len(want) {
+		t.Fatalf("stages = %v, want %v", stages, want)
+	}
+	for i := range want {
+		if stages[i] != want[i] {
+			t.Fatalf("stages = %v, want %v", stages, want)
+		}
+	}
+}
+
 func TestSessionRejectsUnknownRecipient(t *testing.T) {
 	t.Parallel()
 

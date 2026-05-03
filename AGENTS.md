@@ -35,3 +35,21 @@ Parser work must be designed for high throughput and low memory use:
 - Benchmark parser changes when behavior or allocation patterns change.
 - Use `go test -bench` and allocation checks for parser-sensitive changes.
 - Treat RFC correctness and performance as joint requirements; do not trade away standards compliance for speed unless explicitly documented and approved.
+
+## SMTP pipeline extensibility
+
+The SMTP engine must keep mail processing stages clearly separated.
+
+Spam processing will be built as a separate module later, so the SMTP engine should expose stable internal stages/hooks rather than hard-code spam-specific behavior.
+
+Design SMTP receive/delivery changes so extra behavior can be attached at specific stages, such as:
+
+- image conversion
+- FCM/push notification enqueue
+- audit logging
+- spam relay handoff
+- attachment scanning
+- indexing enqueue
+- custom tenant policy
+
+Prefer explicit pipeline events over hidden side effects.
