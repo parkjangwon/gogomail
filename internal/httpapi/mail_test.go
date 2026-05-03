@@ -335,6 +335,25 @@ func TestListMessagesHandlerRejectsNegativeLimit(t *testing.T) {
 	}
 }
 
+func TestListMessagesHandlerRejectsTooLargeLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&limit=201", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "limit must be at most 200") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestGetMessageHandler(t *testing.T) {
 	t.Parallel()
 
