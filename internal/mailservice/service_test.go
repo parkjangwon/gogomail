@@ -56,6 +56,7 @@ type fakeRepository struct {
 	suppressed                []string
 	seenSuppressionRecipients []string
 	lastDraft                 SaveDraftRequest
+	lastAttachmentUpload      CreateAttachmentUploadRequest
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -132,6 +133,11 @@ func (f *fakeRepository) SaveDraft(_ context.Context, req SaveDraftRequest) (mai
 
 func (f *fakeRepository) DeleteDraft(context.Context, string, string) error {
 	return nil
+}
+
+func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req CreateAttachmentUploadRequest) (maildb.Attachment, error) {
+	f.lastAttachmentUpload = req
+	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
 }
 
 func TestSendTextStoresOutgoingMessage(t *testing.T) {
@@ -224,5 +230,24 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 	}
 	if draft.ID != "draft-1" || repo.lastDraft.Subject != "draft" {
 		t.Fatalf("draft = %+v last = %+v", draft, repo.lastDraft)
+	}
+}
+
+func TestCreateAttachmentUploadDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	attachment, err := service.CreateAttachmentUpload(context.Background(), CreateAttachmentUploadRequest{
+		UserID:   "user-1",
+		Filename: "report.pdf",
+		Size:     42,
+		MIMEType: "application/pdf",
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUpload returned error: %v", err)
+	}
+	if attachment.ID != "att-1" || repo.lastAttachmentUpload.Filename != "report.pdf" {
+		t.Fatalf("attachment = %+v last = %+v", attachment, repo.lastAttachmentUpload)
 	}
 }

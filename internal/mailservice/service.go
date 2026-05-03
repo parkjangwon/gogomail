@@ -39,6 +39,10 @@ type DraftRepository interface {
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
 }
 
+type AttachmentUploadRepository interface {
+	CreateAttachmentUpload(ctx context.Context, req CreateAttachmentUploadRequest) (maildb.Attachment, error)
+}
+
 type Service struct {
 	repository Repository
 	store      storage.Store
@@ -136,6 +140,17 @@ func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string
 
 func (s *Service) ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
 	return s.repository.ListAttachments(ctx, userID, messageID)
+}
+
+func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachmentUploadRequest) (maildb.Attachment, error) {
+	if err := ValidateCreateAttachmentUploadRequest(req); err != nil {
+		return maildb.Attachment{}, err
+	}
+	repo, ok := s.repository.(AttachmentUploadRepository)
+	if !ok {
+		return maildb.Attachment{}, fmt.Errorf("attachment upload repository is required")
+	}
+	return repo.CreateAttachmentUpload(ctx, req)
 }
 
 type AttachmentDownload struct {
