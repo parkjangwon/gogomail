@@ -1,0 +1,34 @@
+package smtpd
+
+import (
+	"testing"
+	"time"
+)
+
+func TestServerOptionDefaults(t *testing.T) {
+	t.Parallel()
+
+	if got := durationOrDefault(0, 30*time.Second); got != 30*time.Second {
+		t.Fatalf("duration default = %s", got)
+	}
+	if got := int64OrDefault(0, 25); got != 25 {
+		t.Fatalf("int64 default = %d", got)
+	}
+	if got := intOrDefault(0, 100); got != 100 {
+		t.Fatalf("int default = %d", got)
+	}
+}
+
+func TestServerOptionOverrides(t *testing.T) {
+	t.Parallel()
+
+	if got := durationOrDefault(10*time.Second, 30*time.Second); got != 10*time.Second {
+		t.Fatalf("duration override = %s", got)
+	}
+	if got := int64OrDefault(42, 25); got != 42 {
+		t.Fatalf("int64 override = %d", got)
+	}
+	if got := intOrDefault(7, 100); got != 7 {
+		t.Fatalf("int override = %d", got)
+	}
+}

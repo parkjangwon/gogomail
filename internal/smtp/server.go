@@ -21,6 +21,10 @@ type ServerOptions struct {
 	Receiver          *Receiver
 	Logger            *slog.Logger
 	TLSConfig         *tls.Config
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	MaxMessageBytes   int64
+	MaxRecipients     int
 	AllowInsecureAuth bool
 	EnableSMTPUTF8    bool
 }
@@ -46,10 +50,10 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	server.Addr = opts.Addr
 	server.Domain = opts.Domain
 	server.TLSConfig = opts.TLSConfig
-	server.ReadTimeout = 30 * time.Second
-	server.WriteTimeout = 30 * time.Second
-	server.MaxMessageBytes = 25 * 1024 * 1024
-	server.MaxRecipients = 100
+	server.ReadTimeout = durationOrDefault(opts.ReadTimeout, 30*time.Second)
+	server.WriteTimeout = durationOrDefault(opts.WriteTimeout, 30*time.Second)
+	server.MaxMessageBytes = int64OrDefault(opts.MaxMessageBytes, 25*1024*1024)
+	server.MaxRecipients = intOrDefault(opts.MaxRecipients, 100)
 	server.AllowInsecureAuth = opts.AllowInsecureAuth
 	server.EnableSMTPUTF8 = opts.EnableSMTPUTF8
 
@@ -70,6 +74,27 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 		}
 		return err
 	}
+}
+
+func durationOrDefault(value time.Duration, fallback time.Duration) time.Duration {
+	if value <= 0 {
+		return fallback
+	}
+	return value
+}
+
+func int64OrDefault(value int64, fallback int64) int64 {
+	if value <= 0 {
+		return fallback
+	}
+	return value
+}
+
+func intOrDefault(value int, fallback int) int {
+	if value <= 0 {
+		return fallback
+	}
+	return value
 }
 
 func StaticResolverFromRecipients(recipients []string) (StaticResolver, error) {
