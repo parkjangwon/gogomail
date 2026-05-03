@@ -102,3 +102,7 @@ When resuming work from a scheduled or autonomous run, first rebuild context bef
 - Check `git status --short` before editing.
 - Prefer improvements that move gogomail toward a releasable, powerful mail server rather than low-value churn.
 - Commit each autonomous improvement as a meaningful, reviewable unit.
+
+## Frontend start gate
+
+Do not start actual Next.js/frontend implementation without explicitly informing the user first and receiving direction. Backend contracts, API readiness, and design planning can continue autonomously, but creating or substantially implementing frontend apps (`apps/shell`, `apps/webmail`, `apps/admin`, shared UI packages, or real Next.js screens) requires a user-facing checkpoint before work begins.
