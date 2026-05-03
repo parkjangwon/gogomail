@@ -85,13 +85,11 @@ func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	if len(req.MessageIDs) > 500 {
 		return fmt.Errorf("too many message_ids")
 	}
+	if err := validateBulkMessageIDs(req.MessageIDs); err != nil {
+		return err
+	}
 	if !allowedMessageFlag(strings.TrimSpace(req.Flag)) {
 		return fmt.Errorf("unsupported message flag %q", req.Flag)
-	}
-	for _, id := range req.MessageIDs {
-		if strings.TrimSpace(id) == "" {
-			return fmt.Errorf("message id must not be blank")
-		}
 	}
 	return nil
 }
@@ -109,12 +107,7 @@ func ValidateBulkMessageMoveRequest(req BulkMessageMoveRequest) error {
 	if len(req.MessageIDs) > 500 {
 		return fmt.Errorf("too many message_ids")
 	}
-	for _, id := range req.MessageIDs {
-		if strings.TrimSpace(id) == "" {
-			return fmt.Errorf("message id must not be blank")
-		}
-	}
-	return nil
+	return validateBulkMessageIDs(req.MessageIDs)
 }
 
 func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
@@ -127,10 +120,20 @@ func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
 	if len(req.MessageIDs) > 500 {
 		return fmt.Errorf("too many message_ids")
 	}
-	for _, id := range req.MessageIDs {
-		if strings.TrimSpace(id) == "" {
+	return validateBulkMessageIDs(req.MessageIDs)
+}
+
+func validateBulkMessageIDs(messageIDs []string) error {
+	seen := make(map[string]struct{}, len(messageIDs))
+	for _, id := range messageIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
 			return fmt.Errorf("message id must not be blank")
 		}
+		if _, ok := seen[id]; ok {
+			return fmt.Errorf("message id %q is duplicated", id)
+		}
+		seen[id] = struct{}{}
 	}
 	return nil
 }
