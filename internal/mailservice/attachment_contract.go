@@ -2,11 +2,13 @@ package mailservice
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 )
 
 const MaxAttachmentFilenameBytes = 255
+const MaxAttachmentUploadBytes int64 = 25 << 20
 
 type CreateAttachmentUploadRequest struct {
 	UserID      string `json:"user_id"`
@@ -15,6 +17,15 @@ type CreateAttachmentUploadRequest struct {
 	Size        int64  `json:"size"`
 	MIMEType    string `json:"mime_type"`
 	StoragePath string `json:"storage_path,omitempty"`
+}
+
+type UploadAttachmentRequest struct {
+	UserID   string
+	DraftID  string
+	Filename string
+	Size     int64
+	MIMEType string
+	Body     io.Reader
 }
 
 func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) error {
@@ -38,4 +49,20 @@ func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) er
 		return fmt.Errorf("mime_type is required")
 	}
 	return nil
+}
+
+func ValidateUploadAttachmentRequest(req UploadAttachmentRequest) error {
+	if req.Body == nil {
+		return fmt.Errorf("attachment body is required")
+	}
+	if req.Size > MaxAttachmentUploadBytes {
+		return fmt.Errorf("attachment size exceeds %d bytes", MaxAttachmentUploadBytes)
+	}
+	return ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
+		UserID:   req.UserID,
+		DraftID:  req.DraftID,
+		Filename: req.Filename,
+		Size:     req.Size,
+		MIMEType: req.MIMEType,
+	})
 }

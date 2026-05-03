@@ -2,6 +2,7 @@ package mailservice
 
 import (
 	"context"
+	"io"
 	"strings"
 	"testing"
 
@@ -298,5 +299,43 @@ func TestCreateAttachmentUploadDelegatesToRepository(t *testing.T) {
 	}
 	if attachment.ID != "att-1" || repo.lastAttachmentUpload.Filename != "report.pdf" {
 		t.Fatalf("attachment = %+v last = %+v", attachment, repo.lastAttachmentUpload)
+	}
+}
+
+func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+
+	attachment, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
+		UserID:   "user-1",
+		DraftID:  "draft-1",
+		Filename: "report.pdf",
+		Size:     7,
+		MIMEType: "application/pdf",
+		Body:     strings.NewReader("content"),
+	})
+	if err != nil {
+		t.Fatalf("UploadAttachment returned error: %v", err)
+	}
+	if attachment.ID != "att-1" {
+		t.Fatalf("attachment = %+v", attachment)
+	}
+	if repo.lastAttachmentUpload.StoragePath == "" {
+		t.Fatal("StoragePath was not recorded")
+	}
+	body, err := store.Get(context.Background(), repo.lastAttachmentUpload.StoragePath)
+	if err != nil {
+		t.Fatalf("stored attachment missing: %v", err)
+	}
+	defer body.Close()
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if string(raw) != "content" {
+		t.Fatalf("stored body = %q", raw)
 	}
 }

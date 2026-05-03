@@ -177,6 +177,52 @@ func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachme
 	})
 }
 
+func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequest) (maildb.Attachment, error) {
+	if err := ValidateUploadAttachmentRequest(req); err != nil {
+		return maildb.Attachment{}, err
+	}
+	if s.store == nil {
+		return maildb.Attachment{}, fmt.Errorf("mail storage is required")
+	}
+	repo, ok := s.repository.(AttachmentUploadRepository)
+	if !ok {
+		return maildb.Attachment{}, fmt.Errorf("attachment upload repository is required")
+	}
+
+	path := strings.Join([]string{
+		"uploads",
+		strings.TrimSpace(req.UserID),
+		randomObjectID(),
+		safeObjectFilename(req.Filename),
+	}, "/")
+	if err := s.store.Put(ctx, path, io.LimitReader(req.Body, MaxAttachmentUploadBytes+1)); err != nil {
+		return maildb.Attachment{}, fmt.Errorf("store attachment upload: %w", err)
+	}
+
+	attachment, err := repo.CreateAttachmentUpload(ctx, maildb.CreateAttachmentUploadRequest{
+		UserID:      req.UserID,
+		DraftID:     req.DraftID,
+		Filename:    req.Filename,
+		Size:        req.Size,
+		MIMEType:    req.MIMEType,
+		StoragePath: path,
+	})
+	if err != nil {
+		_ = s.store.Delete(ctx, path)
+		return maildb.Attachment{}, err
+	}
+	return attachment, nil
+}
+
+func safeObjectFilename(filename string) string {
+	filename = strings.ReplaceAll(strings.TrimSpace(filename), "/", "_")
+	filename = strings.ReplaceAll(filename, `\`, "_")
+	if filename == "" {
+		return "attachment"
+	}
+	return filename
+}
+
 type AttachmentDownload struct {
 	Attachment maildb.Attachment
 	Body       io.ReadCloser
