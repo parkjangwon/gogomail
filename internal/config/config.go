@@ -19,6 +19,7 @@ type Config struct {
 	LocalRecipients        []string
 	DedupBackend           string
 	RateLimitBackend       string
+	BackpressureBackend    string
 	RcptRateLimitPerMinute int
 }
 
@@ -36,6 +37,7 @@ func Load() Config {
 		LocalRecipients:        splitCSV(os.Getenv("GOGOMAIL_LOCAL_RECIPIENTS")),
 		DedupBackend:           envOrDefault("GOGOMAIL_DEDUP_BACKEND", "none"),
 		RateLimitBackend:       envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
+		BackpressureBackend:    envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		RcptRateLimitPerMinute: intEnvOrDefault("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", 60),
 	}
 }

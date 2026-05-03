@@ -9,6 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
@@ -44,6 +45,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	var recorder smtpd.MessageRecorder
 	var deduplicator smtpd.Deduplicator
 	var rateLimiter smtpd.RateLimiter
+	var pressure smtpd.Backpressure
 	var redisClient *redis.Client
 
 	if len(cfg.LocalRecipients) > 0 {
@@ -87,6 +89,17 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		rateLimiter = ratelimit.NewRedisLimiter(redisClient, int64(cfg.RcptRateLimitPerMinute), time.Minute)
 		logger.Info("edge-mta using redis rate limiter", "addr", cfg.RedisAddr, "rcpt_per_minute", cfg.RcptRateLimitPerMinute)
 	}
+	if cfg.BackpressureBackend == "redis" {
+		if redisClient == nil {
+			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				_ = redisClient.Close()
+				return err
+			}
+		}
+		pressure = backpressure.NewRedisBackpressure(redisClient, backpressure.DefaultStateKey)
+		logger.Info("edge-mta using redis backpressure", "addr", cfg.RedisAddr)
+	}
 	if redisClient != nil {
 		defer redisClient.Close()
 	}
@@ -97,6 +110,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Recorder:     recorder,
 		Deduplicator: deduplicator,
 		RateLimiter:  rateLimiter,
+		Backpressure: pressure,
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{

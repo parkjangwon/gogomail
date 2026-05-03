@@ -51,6 +51,7 @@ GOGOMAIL_LOCAL_RECIPIENTS=admin@example.com \
 GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
 GOGOMAIL_DEDUP_BACKEND=redis \
 GOGOMAIL_RATELIMIT_BACKEND=redis \
+GOGOMAIL_BACKPRESSURE_BACKEND=redis \
 GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE=60 \
 GOGOMAIL_REDIS_ADDR=127.0.0.1:16379 \
   go run ./cmd/gogomail --mode=edge-mta
@@ -69,6 +70,13 @@ messages INSERT
 When `GOGOMAIL_DEDUP_BACKEND=redis`, edge-mta uses Redis `SET NX` with a 24-hour TTL to skip duplicate `Message-ID + recipient` deliveries.
 
 When `GOGOMAIL_RATELIMIT_BACKEND=redis`, edge-mta applies a Redis-backed fixed-window RCPT rate limit per remote address.
+
+When `GOGOMAIL_BACKPRESSURE_BACKEND=redis`, edge-mta reads `backpressure:smtp:state`.
+
+```txt
+normal/warning  -> accept DATA
+danger/critical -> reject DATA before spooling
+```
 
 Accepted messages are stored as raw `.eml` files under:
 
