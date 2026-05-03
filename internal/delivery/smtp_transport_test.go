@@ -112,6 +112,24 @@ func TestMXHostsFallsBackToDomainWhenMXLookupFails(t *testing.T) {
 	}
 }
 
+func TestDirectSMTPTransportUsesRouterHostsBeforeMX(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{
+		Router: staticRouter{route: Route{Hosts: []string{"mx-route.example.net."}}},
+		Resolver: staticMXResolver{
+			records: []*net.MX{{Host: "mx-dns.example.net.", Pref: 10}},
+		},
+	}
+	route, err := transport.route(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "general"}}, "example.net")
+	if err != nil {
+		t.Fatalf("route returned error: %v", err)
+	}
+	if len(route.Hosts) != 1 || route.Hosts[0] != "mx-route.example.net" {
+		t.Fatalf("route hosts = %+v, want router host", route.Hosts)
+	}
+}
+
 func TestDeliveryDeadlineUsesTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -147,6 +165,18 @@ func TestDeliveryDeadlineCanBeDisabled(t *testing.T) {
 type staticMXResolver struct {
 	records []*net.MX
 	err     error
+}
+
+type staticRouter struct {
+	route Route
+	err   error
+}
+
+func (r staticRouter) Route(context.Context, Job, string) (Route, error) {
+	if r.err != nil {
+		return Route{}, r.err
+	}
+	return r.route, nil
 }
 
 func (r staticMXResolver) LookupMX(context.Context, string) ([]*net.MX, error) {
