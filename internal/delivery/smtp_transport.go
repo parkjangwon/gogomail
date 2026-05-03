@@ -126,7 +126,18 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		timeout = 30 * time.Second
 	}
 	dialer := net.Dialer{Timeout: timeout}
-	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, fmt.Sprintf("%d", normalizeRoutePort(route.Port))))
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", normalizeRoutePort(route.Port)))
+	var conn net.Conn
+	var err error
+	if route.ImplicitTLS {
+		tlsDialer := tls.Dialer{
+			NetDialer: &dialer,
+			Config:    t.deliveryTLSConfig(host),
+		}
+		conn, err = tlsDialer.DialContext(ctx, "tcp", addr)
+	} else {
+		conn, err = dialer.DialContext(ctx, "tcp", addr)
+	}
 	if err != nil {
 		return fmt.Errorf("dial mx %s for %s: %w", host, route.Domain, err)
 	}
@@ -153,8 +164,10 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 	if err := client.Hello(hello); err != nil {
 		return WrapSMTPError("hello", err)
 	}
-	if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
-		return WrapSMTPError("starttls", err)
+	if !route.ImplicitTLS {
+		if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
+			return WrapSMTPError("starttls", err)
+		}
 	}
 	if routeRequiresAuth(route) {
 		if err := client.Auth(smtp.PlainAuth(route.Auth.Identity, route.Auth.Username, route.Auth.Password, host)); err != nil {

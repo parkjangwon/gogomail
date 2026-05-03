@@ -10,14 +10,15 @@ import (
 )
 
 type Route struct {
-	Farm     outbound.Farm
-	Domain   string
-	Hosts    []string
-	Port     int
-	Hello    string
-	TLSMode  DeliveryTLSMode
-	PoolName string
-	Auth     RouteAuth
+	Farm        outbound.Farm
+	Domain      string
+	Hosts       []string
+	Port        int
+	Hello       string
+	TLSMode     DeliveryTLSMode
+	ImplicitTLS bool
+	PoolName    string
+	Auth        RouteAuth
 }
 
 type RouteAuth struct {
@@ -147,7 +148,11 @@ func routePoolKey(route Route, host string) string {
 	host = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
 	authUser := strings.ToLower(strings.TrimSpace(route.Auth.Username))
 	authIdentity := strings.ToLower(strings.TrimSpace(route.Auth.Identity))
-	return pool + "|" + domain + "|" + host + ":" + strconv.Itoa(normalizeRoutePort(route.Port)) + "|" + string(normalizeDeliveryTLSMode(route.TLSMode)) + "|auth=" + authUser + "|identity=" + authIdentity
+	implicitTLS := "starttls"
+	if route.ImplicitTLS {
+		implicitTLS = "implicit_tls"
+	}
+	return pool + "|" + domain + "|" + host + ":" + strconv.Itoa(normalizeRoutePort(route.Port)) + "|" + string(normalizeDeliveryTLSMode(route.TLSMode)) + "|" + implicitTLS + "|auth=" + authUser + "|identity=" + authIdentity
 }
 
 func normalizeRoutePort(port int) int {

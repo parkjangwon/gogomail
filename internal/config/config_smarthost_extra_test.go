@@ -6,6 +6,7 @@ func TestLoadReadsDeliverySmartHostEnvironment(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST", " smtp.relay.example.net:587 ")
 	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST_PORT", "2525")
 	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", "require")
+	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST_IMPLICIT_TLS", "true")
 	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST_USERNAME", " relay-user ")
 	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST_PASSWORD", " secret ")
 	t.Setenv("GOGOMAIL_DELIVERY_SMARTHOST_IDENTITY", " tenant-a ")
@@ -20,6 +21,9 @@ func TestLoadReadsDeliverySmartHostEnvironment(t *testing.T) {
 	}
 	if cfg.DeliverySmartHostTLSMode != "require" {
 		t.Fatalf("DeliverySmartHostTLSMode = %q, want require", cfg.DeliverySmartHostTLSMode)
+	}
+	if !cfg.DeliverySmartHostImplicitTLS {
+		t.Fatal("DeliverySmartHostImplicitTLS = false, want true")
 	}
 	if cfg.DeliverySmartHostUsername != " relay-user " ||
 		cfg.DeliverySmartHostPassword != " secret " ||

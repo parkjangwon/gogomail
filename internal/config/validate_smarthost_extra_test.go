@@ -31,3 +31,14 @@ func TestValidateRejectsInvalidSmartHostPort(t *testing.T) {
 		t.Fatal("Validate() error = nil, want invalid smart-host port rejection")
 	}
 }
+
+func TestValidateRejectsConflictingImplicitSmartHostTLS(t *testing.T) {
+	cfg := Load()
+	cfg.DeliverySmartHost = "smtp.relay.example.net"
+	cfg.DeliverySmartHostImplicitTLS = true
+	cfg.DeliverySmartHostTLSMode = "disable"
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want implicit TLS conflict rejection")
+	}
+}

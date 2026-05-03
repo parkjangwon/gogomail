@@ -12,11 +12,12 @@ func TestDeliveryRouterFromConfigBuildsSmartHostRoute(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.Config{
-		DeliverySmartHost:         " SMTP.RELAY.EXAMPLE.NET:587 ",
-		DeliverySmartHostTLSMode:  "require",
-		DeliverySmartHostUsername: " relay-user ",
-		DeliverySmartHostPassword: " secret ",
-		DeliverySmartHostIdentity: " tenant-a ",
+		DeliverySmartHost:            " SMTP.RELAY.EXAMPLE.NET:587 ",
+		DeliverySmartHostTLSMode:     "require",
+		DeliverySmartHostImplicitTLS: true,
+		DeliverySmartHostUsername:    " relay-user ",
+		DeliverySmartHostPassword:    " secret ",
+		DeliverySmartHostIdentity:    " tenant-a ",
 	}
 
 	router := deliveryRouterFromConfig(cfg)
@@ -35,6 +36,9 @@ func TestDeliveryRouterFromConfigBuildsSmartHostRoute(t *testing.T) {
 	}
 	if route.TLSMode != delivery.DeliveryTLSRequire {
 		t.Fatalf("TLSMode = %q, want require", route.TLSMode)
+	}
+	if !route.ImplicitTLS {
+		t.Fatal("ImplicitTLS = false, want true")
 	}
 	if route.Auth.Username != " relay-user " || route.Auth.Identity != " tenant-a " || route.Auth.Password != " secret " {
 		t.Fatalf("Auth = %+v, want configured smart-host credentials before transport normalization", route.Auth)

@@ -123,7 +123,7 @@ func TestRoutePoolKeyIncludesFarmDomainHostAndTLSMode(t *testing.T) {
 		TLSMode: DeliveryTLSRequire,
 	})
 	got := routePoolKey(route, "MX-A.Example.NET.")
-	want := "bulk|example.net|mx-a.example.net:25|require|auth=|identity="
+	want := "bulk|example.net|mx-a.example.net:25|require|starttls|auth=|identity="
 	if got != want {
 		t.Fatalf("routePoolKey = %q, want %q", got, want)
 	}
@@ -138,9 +138,19 @@ func TestRoutePoolKeyUsesExplicitPoolName(t *testing.T) {
 		TLSMode:  DeliveryTLSDisable,
 	})
 	got := routePoolKey(route, "mx.example.net")
-	want := "provider-a|example.net|mx.example.net:2525|disable|auth=|identity="
+	want := "provider-a|example.net|mx.example.net:2525|disable|starttls|auth=|identity="
 	if got != want {
 		t.Fatalf("routePoolKey = %q, want %q", got, want)
+	}
+}
+
+func TestRoutePoolKeySeparatesImplicitTLS(t *testing.T) {
+	t.Parallel()
+
+	startTLS := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "example.net", Route{})
+	implicitTLS := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "example.net", Route{ImplicitTLS: true})
+	if routePoolKey(startTLS, "mx.example.net") == routePoolKey(implicitTLS, "mx.example.net") {
+		t.Fatal("routePoolKey collapsed STARTTLS and implicit TLS routes")
 	}
 }
 
