@@ -515,7 +515,7 @@ func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
 
 func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {
 	if tokenManager == nil {
-		userID := r.URL.Query().Get("user_id")
+		userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
 		if userID == "" {
 			writeError(w, http.StatusBadRequest, "user_id is required")
 			return "", false

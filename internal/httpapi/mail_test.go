@@ -774,6 +774,25 @@ func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
 	}
 }
 
+func TestMailRoutesTrimQueryUserID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=%20user-1%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" {
+		t.Fatalf("lastUserID = %q", service.lastUserID)
+	}
+}
+
 func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 	t.Parallel()
 
