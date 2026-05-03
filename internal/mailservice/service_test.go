@@ -435,3 +435,25 @@ func TestUploadAttachmentRejectsBodyLargerThanLimit(t *testing.T) {
 		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
 	}
 }
+
+func TestUploadAttachmentRejectsDeclaredSizeMismatch(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+
+	_, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
+		UserID:   "user-1",
+		Filename: "report.pdf",
+		Size:     99,
+		MIMEType: "application/pdf",
+		Body:     strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("UploadAttachment accepted mismatched declared size")
+	}
+	if repo.lastAttachmentUpload.Filename != "" {
+		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
+	}
+}

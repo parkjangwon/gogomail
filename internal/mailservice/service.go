@@ -215,13 +215,18 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		randomObjectID(),
 		safeObjectFilename(req.Filename),
 	}, "/")
-	limitedBody := &io.LimitedReader{R: req.Body, N: MaxAttachmentUploadBytes + 1}
+	counter := &countingReader{reader: req.Body}
+	limitedBody := &io.LimitedReader{R: counter, N: MaxAttachmentUploadBytes + 1}
 	if err := s.store.Put(ctx, path, limitedBody); err != nil {
 		return maildb.Attachment{}, fmt.Errorf("store attachment upload: %w", err)
 	}
 	if limitedBody.N == 0 {
 		_ = s.store.Delete(ctx, path)
 		return maildb.Attachment{}, fmt.Errorf("attachment body exceeds %d bytes", MaxAttachmentUploadBytes)
+	}
+	if counter.n != req.Size {
+		_ = s.store.Delete(ctx, path)
+		return maildb.Attachment{}, fmt.Errorf("attachment body size %d does not match declared size %d", counter.n, req.Size)
 	}
 
 	attachment, err := repo.CreateAttachmentUpload(ctx, maildb.CreateAttachmentUploadRequest{
@@ -237,6 +242,17 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		return maildb.Attachment{}, err
 	}
 	return attachment, nil
+}
+
+type countingReader struct {
+	reader io.Reader
+	n      int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.n += int64(n)
+	return n, err
 }
 
 func safeObjectFilename(filename string) string {
