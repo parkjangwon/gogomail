@@ -47,6 +47,7 @@ type SubmissionOptions struct {
 	Authenticator   SubmissionAuthenticator
 	Recorder        SubmissionRecorder
 	Hooks           []Hook
+	SupportSMTPUTF8 bool
 	IDGenerator     IDGenerator
 	Clock           func() time.Time
 	MaxMessageBytes int64
@@ -57,6 +58,7 @@ type SubmissionReceiver struct {
 	authenticator   SubmissionAuthenticator
 	recorder        SubmissionRecorder
 	hooks           []Hook
+	supportSMTPUTF8 bool
 	idGenerator     IDGenerator
 	clock           func() time.Time
 	maxMessageBytes int64
@@ -76,6 +78,7 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		authenticator:   opts.Authenticator,
 		recorder:        opts.Recorder,
 		hooks:           append([]Hook(nil), opts.Hooks...),
+		supportSMTPUTF8: opts.SupportSMTPUTF8,
 		idGenerator:     idGenerator,
 		clock:           clockOrDefault(opts.Clock),
 		maxMessageBytes: maxBytes,
@@ -127,9 +130,12 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 	}), nil
 }
 
-func (s *submissionSession) Mail(from string, _ *gosmtp.MailOptions) error {
+func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) error {
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
+	}
+	if opts != nil && opts.UTF8 && !s.receiver.supportSMTPUTF8 {
+		return fmt.Errorf("SMTPUTF8 is not supported")
 	}
 	normalized, err := mail.NormalizeAddress(from)
 	if err != nil {

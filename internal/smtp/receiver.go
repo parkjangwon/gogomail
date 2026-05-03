@@ -95,6 +95,7 @@ type ReceiverOptions struct {
 	Backpressure    Backpressure
 	Authenticator   Authenticator
 	RequireAuth     bool
+	SupportSMTPUTF8 bool
 	Hooks           []Hook
 	Policy          ReceivePolicy
 	IDGenerator     IDGenerator
@@ -103,18 +104,19 @@ type ReceiverOptions struct {
 }
 
 type Receiver struct {
-	store         storage.Store
-	resolver      RecipientResolver
-	recorder      MessageRecorder
-	deduplicator  Deduplicator
-	rateLimiter   RateLimiter
-	backpressure  Backpressure
-	authenticator Authenticator
-	requireAuth   bool
-	hooks         []Hook
-	policy        ReceivePolicy
-	idGenerator   IDGenerator
-	clock         func() time.Time
+	store           storage.Store
+	resolver        RecipientResolver
+	recorder        MessageRecorder
+	deduplicator    Deduplicator
+	rateLimiter     RateLimiter
+	backpressure    Backpressure
+	authenticator   Authenticator
+	requireAuth     bool
+	supportSMTPUTF8 bool
+	hooks           []Hook
+	policy          ReceivePolicy
+	idGenerator     IDGenerator
+	clock           func() time.Time
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -123,18 +125,19 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		idGenerator = randomMessageID
 	}
 	return &Receiver{
-		store:         opts.Store,
-		resolver:      opts.Resolver,
-		recorder:      recorderOrDefault(opts.Recorder),
-		deduplicator:  deduplicatorOrDefault(opts.Deduplicator),
-		rateLimiter:   rateLimiterOrDefault(opts.RateLimiter),
-		backpressure:  backpressureOrDefault(opts.Backpressure),
-		authenticator: opts.Authenticator,
-		requireAuth:   opts.RequireAuth,
-		hooks:         append([]Hook(nil), opts.Hooks...),
-		policy:        normalizePolicy(opts.Policy, opts.MaxMessageBytes),
-		idGenerator:   idGenerator,
-		clock:         clockOrDefault(opts.Clock),
+		store:           opts.Store,
+		resolver:        opts.Resolver,
+		recorder:        recorderOrDefault(opts.Recorder),
+		deduplicator:    deduplicatorOrDefault(opts.Deduplicator),
+		rateLimiter:     rateLimiterOrDefault(opts.RateLimiter),
+		backpressure:    backpressureOrDefault(opts.Backpressure),
+		authenticator:   opts.Authenticator,
+		requireAuth:     opts.RequireAuth,
+		supportSMTPUTF8: opts.SupportSMTPUTF8,
+		hooks:           append([]Hook(nil), opts.Hooks...),
+		policy:          normalizePolicy(opts.Policy, opts.MaxMessageBytes),
+		idGenerator:     idGenerator,
+		clock:           clockOrDefault(opts.Clock),
 	}
 }
 
@@ -156,9 +159,12 @@ type session struct {
 	authenticated bool
 }
 
-func (s *session) Mail(from string, _ *gosmtp.MailOptions) error {
+func (s *session) Mail(from string, opts *gosmtp.MailOptions) error {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
+	}
+	if opts != nil && opts.UTF8 && !s.receiver.supportSMTPUTF8 {
+		return fmt.Errorf("SMTPUTF8 is not supported")
 	}
 	normalized, err := mail.NormalizeAddress(from)
 	if err != nil {

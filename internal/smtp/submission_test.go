@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/emersion/go-sasl"
+	gosmtp "github.com/emersion/go-smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -36,6 +37,16 @@ func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 
 	if err := session.Mail("other@example.com", nil); err == nil {
 		t.Fatal("Mail accepted envelope sender that does not belong to authenticated user")
+	}
+}
+
+func TestSubmissionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
+	t.Parallel()
+
+	session := newAuthenticatedSubmissionSession(t, &submissionRecorder{}, storage.NewLocalStore(t.TempDir()))
+
+	if err := session.Mail("jangwon@example.com", &gosmtp.MailOptions{UTF8: true}); err == nil {
+		t.Fatal("Mail accepted SMTPUTF8 before support is enabled")
 	}
 }
 

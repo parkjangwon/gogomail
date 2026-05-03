@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/emersion/go-sasl"
+	gosmtp "github.com/emersion/go-smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -456,6 +457,25 @@ func TestSessionRequiresAuthWhenConfigured(t *testing.T) {
 	}
 	if err := session.Mail("sender@example.net", nil); err != nil {
 		t.Fatalf("Mail after auth returned error: %v", err)
+	}
+}
+
+func TestSessionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
+		},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("jangwon@example.com", &gosmtp.MailOptions{UTF8: true}); err == nil {
+		t.Fatal("Mail accepted SMTPUTF8 before support is enabled")
 	}
 }
 
