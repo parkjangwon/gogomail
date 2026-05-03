@@ -115,6 +115,60 @@ func TestSubmissionStoresAndRecordsSubmittedMessage(t *testing.T) {
 	}
 }
 
+func TestSubmissionPrependsReceivedHeaderWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	recorder := &submissionRecorder{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:             store,
+		Authenticator:     submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:          recorder,
+		AddReceivedHeader: true,
+		ReceivedDomain:    "submit.example.com",
+		IDGenerator:       func() string { return "submission-received-id" },
+		Clock:             func() time.Time { return time.Date(2026, 5, 3, 10, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, done, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	} else if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "From: Jang Won <jangwon@example.com>\r\nTo: Outside <outside@example.net>\r\nSubject: submitted\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	body, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/submission-received-id.eml")
+	if err != nil {
+		t.Fatalf("stored submitted message not found: %v", err)
+	}
+	defer body.Close()
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if !strings.HasPrefix(string(got), "Received: from unknown by submit.example.com with ESMTPA id submission-received-id; ") {
+		t.Fatalf("stored submission missing Received header: %q", got)
+	}
+}
+
 func TestSubmissionEmitsPipelineHooksInOrder(t *testing.T) {
 	t.Parallel()
 

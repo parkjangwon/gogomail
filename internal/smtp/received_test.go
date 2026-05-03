@@ -21,3 +21,13 @@ func TestBuildReceivedHeader(t *testing.T) {
 		t.Fatalf("header contains embedded newline: %q", header)
 	}
 }
+
+func TestBuildReceivedHeaderWithProtocol(t *testing.T) {
+	t.Parallel()
+
+	header := BuildReceivedHeaderWithProtocol("client.example.com", "submit.example.com", "ESMTPA", "id-1", time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC))
+
+	if !strings.Contains(header, " with ESMTPA id id-1; ") {
+		t.Fatalf("header = %q", header)
+	}
+}

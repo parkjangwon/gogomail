@@ -147,9 +147,11 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 	repository := maildb.NewRepository(db)
 	receiver := smtpd.NewSubmissionReceiver(smtpd.SubmissionOptions{
-		Store:         storage.NewLocalStore(cfg.MailstoreRoot),
-		Authenticator: repository,
-		Recorder:      repository,
+		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
+		Authenticator:     repository,
+		Recorder:          repository,
+		AddReceivedHeader: true,
+		ReceivedDomain:    cfg.SMTPDomain,
 	})
 	tlsConfig, err := smtpTLSConfig(cfg)
 	if err != nil {

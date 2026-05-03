@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -43,25 +42,29 @@ type SubmissionRecorder interface {
 }
 
 type SubmissionOptions struct {
-	Store           storage.Store
-	Authenticator   SubmissionAuthenticator
-	Recorder        SubmissionRecorder
-	Hooks           []Hook
-	SupportSMTPUTF8 bool
-	IDGenerator     IDGenerator
-	Clock           func() time.Time
-	MaxMessageBytes int64
+	Store             storage.Store
+	Authenticator     SubmissionAuthenticator
+	Recorder          SubmissionRecorder
+	Hooks             []Hook
+	SupportSMTPUTF8   bool
+	AddReceivedHeader bool
+	ReceivedDomain    string
+	IDGenerator       IDGenerator
+	Clock             func() time.Time
+	MaxMessageBytes   int64
 }
 
 type SubmissionReceiver struct {
-	store           storage.Store
-	authenticator   SubmissionAuthenticator
-	recorder        SubmissionRecorder
-	hooks           []Hook
-	supportSMTPUTF8 bool
-	idGenerator     IDGenerator
-	clock           func() time.Time
-	maxMessageBytes int64
+	store             storage.Store
+	authenticator     SubmissionAuthenticator
+	recorder          SubmissionRecorder
+	hooks             []Hook
+	supportSMTPUTF8   bool
+	addReceivedHeader bool
+	receivedDomain    string
+	idGenerator       IDGenerator
+	clock             func() time.Time
+	maxMessageBytes   int64
 }
 
 func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
@@ -74,14 +77,16 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		maxBytes = 25 * 1024 * 1024
 	}
 	return &SubmissionReceiver{
-		store:           opts.Store,
-		authenticator:   opts.Authenticator,
-		recorder:        opts.Recorder,
-		hooks:           append([]Hook(nil), opts.Hooks...),
-		supportSMTPUTF8: opts.SupportSMTPUTF8,
-		idGenerator:     idGenerator,
-		clock:           clockOrDefault(opts.Clock),
-		maxMessageBytes: maxBytes,
+		store:             opts.Store,
+		authenticator:     opts.Authenticator,
+		recorder:          opts.Recorder,
+		hooks:             append([]Hook(nil), opts.Hooks...),
+		supportSMTPUTF8:   opts.SupportSMTPUTF8,
+		addReceivedHeader: opts.AddReceivedHeader,
+		receivedDomain:    opts.ReceivedDomain,
+		idGenerator:       idGenerator,
+		clock:             clockOrDefault(opts.Clock),
+		maxMessageBytes:   maxBytes,
 	}
 }
 
@@ -190,10 +195,18 @@ func (s *submissionSession) Data(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = spooled.Close()
-		_ = os.Remove(spooled.Name())
-	}()
+	messageID := s.receiver.idGenerator()
+	submittedAt := s.receiver.clock()
+	if s.receiver.addReceivedHeader {
+		prefixed, prefixedSize, err := prependHeaderToSpool(spooled, BuildReceivedHeaderWithProtocol(s.remoteAddr, s.receiver.receivedDomain, "ESMTPA", messageID, submittedAt))
+		cleanupSpool(spooled)
+		if err != nil {
+			return err
+		}
+		spooled = prefixed
+		size = prefixedSize
+	}
+	defer cleanupSpool(spooled)
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageSpooled,
 		EnvelopeFrom:   s.from,
@@ -222,13 +235,12 @@ func (s *submissionSession) Data(r io.Reader) error {
 		return err
 	}
 
-	submittedAt := s.receiver.clock()
 	path := BuildStoragePath(Mailbox{
 		CompanyID: s.user.CompanyID,
 		DomainID:  s.user.DomainID,
 		UserID:    s.user.UserID,
 		Address:   s.user.Address,
-	}, s.receiver.idGenerator(), submittedAt)
+	}, messageID, submittedAt)
 
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind submitted message for store: %w", err)

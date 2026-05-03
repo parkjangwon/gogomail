@@ -8,6 +8,10 @@ import (
 )
 
 func BuildReceivedHeader(remoteAddr string, byDomain string, id string, at time.Time) string {
+	return BuildReceivedHeaderWithProtocol(remoteAddr, byDomain, "ESMTP", id, at)
+}
+
+func BuildReceivedHeaderWithProtocol(remoteAddr string, byDomain string, protocol string, id string, at time.Time) string {
 	from := sanitizeReceivedToken(remoteHost(remoteAddr))
 	if from == "" {
 		from = "unknown"
@@ -15,6 +19,10 @@ func BuildReceivedHeader(remoteAddr string, byDomain string, id string, at time.
 	by := sanitizeReceivedToken(byDomain)
 	if by == "" {
 		by = "localhost"
+	}
+	protocol = sanitizeReceivedToken(protocol)
+	if protocol == "" {
+		protocol = "ESMTP"
 	}
 	id = sanitizeReceivedToken(id)
 	if id == "" {
@@ -24,9 +32,10 @@ func BuildReceivedHeader(remoteAddr string, byDomain string, id string, at time.
 		at = time.Now()
 	}
 	return fmt.Sprintf(
-		"Received: from %s by %s with ESMTP id %s; %s\r\n",
+		"Received: from %s by %s with %s id %s; %s\r\n",
 		from,
 		by,
+		protocol,
 		id,
 		at.UTC().Format(time.RFC1123Z),
 	)
