@@ -389,6 +389,70 @@ func TestSMTPProtocolTrustedRelayRejectsUntrustedClient(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolSequentialTransactionsOnSameConnection(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		Recorder: recorder,
+		IDGenerator: func() string {
+			return "protocol-sequential-id"
+		},
+		Clock: func() time.Time { return time.Date(2026, 5, 4, 13, 0, 0, 0, time.UTC) },
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{Domain: "mx.example.com"})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+
+	const transactions = 12
+	for i := 0; i < transactions; i++ {
+		if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.net>"); err != nil {
+			t.Fatalf("transaction %d MAIL FROM returned error: %v", i, err)
+		}
+		if err := rawProtocolCommand(text, 250, "RCPT TO:<user@example.com>"); err != nil {
+			t.Fatalf("transaction %d RCPT TO returned error: %v", i, err)
+		}
+		if err := rawProtocolCommand(text, 354, "DATA"); err != nil {
+			t.Fatalf("transaction %d DATA returned error: %v", i, err)
+		}
+		writer := text.DotWriter()
+		raw := "Message-ID: <sequential-" + string(rune('a'+i)) + "@example.net>\r\nFrom: sender@example.net\r\nTo: user@example.com\r\nSubject: sequential\r\n\r\nbody\r\n"
+		if _, err := io.WriteString(writer, raw); err != nil {
+			t.Fatalf("transaction %d write DATA returned error: %v", i, err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatalf("transaction %d close DATA returned error: %v", i, err)
+		}
+		if _, msg, err := text.ReadResponse(250); err != nil {
+			t.Fatalf("transaction %d DATA completion returned %q, %v", i, msg, err)
+		}
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+
+	if len(recorder.messages) != transactions {
+		t.Fatalf("recorded messages = %d, want %d sequential transactions", len(recorder.messages), transactions)
+	}
+}
+
 func TestSMTPProtocolRejectsUnsupportedMailExtensions(t *testing.T) {
 	t.Parallel()
 
