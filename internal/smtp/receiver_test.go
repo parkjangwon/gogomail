@@ -187,6 +187,54 @@ func TestSessionPrependsReceivedHeaderWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestSessionGeneratesFallbackMessageIDWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {
+				CompanyID: "company-1",
+				DomainID:  "domain-1",
+				UserID:    "user-1",
+				Address:   "jangwon@example.com",
+			},
+		},
+		Recorder:    recorder,
+		IDGenerator: func() string { return "fallback-storage-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: jangwon@example.com",
+		"Subject: no message id",
+		"",
+		"body",
+	}, "\r\n")
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if !strings.HasPrefix(recorder.messages[0].Parsed.MessageID, "<missing-") {
+		t.Fatalf("fallback MessageID = %q", recorder.messages[0].Parsed.MessageID)
+	}
+}
+
 func TestSessionSkipsDuplicateMessageForRecipient(t *testing.T) {
 	t.Parallel()
 

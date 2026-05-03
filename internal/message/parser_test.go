@@ -196,3 +196,18 @@ func TestParseEMLWithOptionsLimitsAttachmentMetadata(t *testing.T) {
 		t.Fatal("AttachmentsTruncated = false, want true")
 	}
 }
+
+func TestFallbackMessageIDIsDeterministicAndRecipientOrderIndependent(t *testing.T) {
+	t.Parallel()
+
+	date := time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)
+	one := FallbackMessageID("Sender@Example.NET", []string{"b@example.com", "a@example.com"}, date, "hello")
+	two := FallbackMessageID("sender@example.net", []string{"a@example.com", "b@example.com"}, date, "hello")
+
+	if one != two {
+		t.Fatalf("fallback ids differ: %q vs %q", one, two)
+	}
+	if !strings.HasPrefix(one, "<missing-") || !strings.HasSuffix(one, "@gogomail.local>") {
+		t.Fatalf("fallback id = %q", one)
+	}
+}

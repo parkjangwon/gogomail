@@ -1,9 +1,12 @@
 package message
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -178,4 +181,22 @@ func normalizeMessageID(messageID string) string {
 		return messageID
 	}
 	return "<" + messageID + ">"
+}
+
+func FallbackMessageID(envelopeFrom string, recipients []string, date time.Time, subject string) string {
+	parts := make([]string, 0, 4+len(recipients))
+	parts = append(parts, strings.ToLower(strings.TrimSpace(envelopeFrom)))
+	normalizedRecipients := append([]string(nil), recipients...)
+	for i := range normalizedRecipients {
+		normalizedRecipients[i] = strings.ToLower(strings.TrimSpace(normalizedRecipients[i]))
+	}
+	sort.Strings(normalizedRecipients)
+	parts = append(parts, normalizedRecipients...)
+	if !date.IsZero() {
+		parts = append(parts, date.UTC().Format(time.RFC3339Nano))
+	}
+	parts = append(parts, strings.TrimSpace(subject))
+
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return "<missing-" + hex.EncodeToString(sum[:16]) + "@gogomail.local>"
 }

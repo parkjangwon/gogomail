@@ -272,6 +272,9 @@ func (s *session) Data(r io.Reader) error {
 	}); err != nil {
 		return err
 	}
+	if parsed.MessageID == "" {
+		parsed.MessageID = message.FallbackMessageID(s.from, mailboxAddresses(s.recipients), parsed.Date, parsed.Subject)
+	}
 
 	for _, recipient := range s.recipients {
 		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(context.Background(), DedupKey{
@@ -337,6 +340,14 @@ func (s *session) Data(r io.Reader) error {
 		}
 	}
 	return nil
+}
+
+func mailboxAddresses(mailboxes []Mailbox) []string {
+	addresses := make([]string, 0, len(mailboxes))
+	for _, mailbox := range mailboxes {
+		addresses = append(addresses, mailbox.Address)
+	}
+	return addresses
 }
 
 func prependHeaderToSpool(spooled *os.File, header string) (*os.File, int64, error) {
