@@ -12,6 +12,7 @@ import (
 
 type AdminService interface {
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
+	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	ListUsers(ctx context.Context, domainID string, limit int) ([]maildb.UserView, error)
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
@@ -34,6 +35,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"domains": domains})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.CreateDomainRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		domain, err := service.CreateDomain(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
 	}))
 
 	mux.HandleFunc("PATCH /admin/v1/domains/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

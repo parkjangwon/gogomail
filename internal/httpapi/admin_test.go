@@ -69,6 +69,26 @@ func TestAdminDomainsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCreateDomainHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := []byte(`{"company_id":"company-1","name":"Example.COM","quota_limit":1024}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/domains", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCreateDomain.CompanyID != "company-1" || service.lastCreateDomain.Name != "Example.COM" {
+		t.Fatalf("lastCreateDomain = %+v", service.lastCreateDomain)
+	}
+}
+
 func TestAdminUpdateDomainStatusHandler(t *testing.T) {
 	t.Parallel()
 
@@ -330,6 +350,7 @@ type fakeAdminService struct {
 	lastLimit               int
 	lastDomainID            string
 	lastDomainStatus        maildb.UpdateDomainStatusRequest
+	lastCreateDomain        maildb.CreateDomainRequest
 	lastUserStatus          maildb.UpdateUserStatusRequest
 	lastCreateDKIMKey       maildb.CreateDKIMKeyInput
 	lastDeactivateDKIMKeyID string
@@ -340,6 +361,11 @@ type fakeAdminService struct {
 func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {
 	f.lastLimit = limit
 	return f.domains, nil
+}
+
+func (f *fakeAdminService) CreateDomain(_ context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error) {
+	f.lastCreateDomain = req
+	return maildb.DomainView{ID: "domain-new", CompanyID: req.CompanyID, Name: req.Name, NameACE: req.NameACE, Status: "active"}, nil
 }
 
 func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {

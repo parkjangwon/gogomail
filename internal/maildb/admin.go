@@ -62,6 +62,13 @@ type UpdateDomainStatusRequest struct {
 	Status string `json:"status"`
 }
 
+type CreateDomainRequest struct {
+	CompanyID  string `json:"company_id"`
+	Name       string `json:"name"`
+	NameACE    string `json:"name_ace"`
+	QuotaLimit int64  `json:"quota_limit,omitempty"`
+}
+
 type UpdateUserStatusRequest struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
@@ -77,6 +84,53 @@ func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
 	default:
 		return fmt.Errorf("unsupported domain status %q", req.Status)
 	}
+}
+
+func ValidateCreateDomainRequest(req CreateDomainRequest) error {
+	if strings.TrimSpace(req.CompanyID) == "" {
+		return fmt.Errorf("company_id is required")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if req.QuotaLimit < 0 {
+		return fmt.Errorf("quota_limit must not be negative")
+	}
+	return nil
+}
+
+func (r *Repository) CreateDomain(ctx context.Context, req CreateDomainRequest) (DomainView, error) {
+	if r.db == nil {
+		return DomainView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateCreateDomainRequest(req); err != nil {
+		return DomainView{}, err
+	}
+	name := strings.ToLower(strings.TrimSpace(req.Name))
+	nameACE := strings.ToLower(strings.TrimSpace(req.NameACE))
+	if nameACE == "" {
+		nameACE = name
+	}
+
+	const query = `
+INSERT INTO domains (company_id, name, name_ace, quota_limit)
+VALUES ($1, $2, $3, NULLIF($4, 0))
+RETURNING id::text, company_id::text, name, name_ace, status, quota_used, COALESCE(quota_limit, 0), created_at`
+
+	var domain DomainView
+	if err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(req.CompanyID), name, nameACE, req.QuotaLimit).Scan(
+		&domain.ID,
+		&domain.CompanyID,
+		&domain.Name,
+		&domain.NameACE,
+		&domain.Status,
+		&domain.QuotaUsed,
+		&domain.QuotaLimit,
+		&domain.CreatedAt,
+	); err != nil {
+		return DomainView{}, fmt.Errorf("create domain: %w", err)
+	}
+	return domain, nil
 }
 
 func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
