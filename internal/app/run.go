@@ -291,7 +291,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		defer db.Close()
 
 		repository := maildb.NewRepository(db)
-		httpapi.RegisterAdminRoutes(mux, repository)
+		httpapi.RegisterAdminRoutes(mux, repository, cfg.AdminToken)
 		logger.Info("admin api routes registered")
 	}
 

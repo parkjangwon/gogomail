@@ -63,6 +63,7 @@ Implementation order:
 16. Delivery outcomes emit `mail.delivered`, `mail.bounced`, or `mail.delivery_failed` events for audit and future admin streams.
 17. Admin API exposes queue stats, delivery attempts, and suppression list read models.
 18. Admin API can retry outbox events and remove suppression entries.
+19. Admin API supports optional bearer/admin-token protection through `GOGOMAIL_ADMIN_TOKEN`.
 
 ## Deferred until backend contracts stabilize
 

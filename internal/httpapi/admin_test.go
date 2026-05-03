@@ -18,7 +18,7 @@ func TestAdminQueueHandler(t *testing.T) {
 		queueStats: []maildb.QueueStat{{Topic: "mail.outbound.general", Status: "pending", Count: 2}},
 	}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, service)
+	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
 	rec := httptest.NewRecorder()
@@ -51,7 +51,7 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 		}},
 	}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, service)
+	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10", nil)
 	rec := httptest.NewRecorder()
@@ -77,7 +77,7 @@ func TestAdminSuppressionListHandler(t *testing.T) {
 		}},
 	}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, service)
+	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/v1/suppression-list?limit=5", nil)
 	rec := httptest.NewRecorder()
@@ -96,7 +96,7 @@ func TestAdminRetryOutboxHandler(t *testing.T) {
 
 	service := &fakeAdminService{}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, service)
+	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/outbox/outbox-1/retry", nil)
 	rec := httptest.NewRecorder()
@@ -115,7 +115,7 @@ func TestAdminDeleteSuppressionHandler(t *testing.T) {
 
 	service := &fakeAdminService{}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, service)
+	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/suppression-list/suppression-1", nil)
 	rec := httptest.NewRecorder()
@@ -126,6 +126,29 @@ func TestAdminDeleteSuppressionHandler(t *testing.T) {
 	}
 	if service.lastDeleteSuppressionID != "suppression-1" {
 		t.Fatalf("lastDeleteSuppressionID = %q", service.lastDeleteSuppressionID)
+	}
+}
+
+func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

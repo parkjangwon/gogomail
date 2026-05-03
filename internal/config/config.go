@@ -36,6 +36,7 @@ type Config struct {
 	DeliveryConsumerCount   int
 	DeliveryConsumerBlock   time.Duration
 	DeliverySMTPHello       string
+	AdminToken              string
 }
 
 func Load() Config {
@@ -68,6 +69,7 @@ func Load() Config {
 		DeliveryConsumerCount:   intEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_COUNT", 50),
 		DeliveryConsumerBlock:   durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
 		DeliverySMTPHello:       envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
+		AdminToken:              envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 	}
 }
 
