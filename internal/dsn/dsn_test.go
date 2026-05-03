@@ -55,3 +55,31 @@ func TestComposeRequiresRecipientStatus(t *testing.T) {
 		t.Fatal("Compose() error = nil, want recipient requirement")
 	}
 }
+
+func TestComposeRejectsInvalidRecipientStatus(t *testing.T) {
+	t.Parallel()
+
+	_, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "lost",
+			Status:    "5.1.1",
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid dsn action") {
+		t.Fatalf("Compose() error = %v, want invalid action", err)
+	}
+
+	_, err = Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "500",
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid dsn status") {
+		t.Fatalf("Compose() error = %v, want invalid status", err)
+	}
+}

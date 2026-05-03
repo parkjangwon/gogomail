@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"mime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -94,9 +95,15 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 	if action == "" {
 		action = "failed"
 	}
+	if !validDSNAction(action) {
+		return fmt.Errorf("invalid dsn action %q", status.Action)
+	}
 	dsnStatus := strings.TrimSpace(status.Status)
 	if dsnStatus == "" {
 		dsnStatus = "5.0.0"
+	}
+	if !validEnhancedStatus(dsnStatus) {
+		return fmt.Errorf("invalid dsn status %q", status.Status)
 	}
 	if status.OriginalRecipient != "" {
 		writeDSNField(buf, "Original-Recipient", sanitizeRecipientAddressType(status.OriginalRecipient))
@@ -167,4 +174,35 @@ func sanitizeRecipientAddressType(value string) string {
 		return value
 	}
 	return "rfc822; " + strings.ToLower(strings.TrimSpace(value))
+}
+
+func validDSNAction(action string) bool {
+	switch action {
+	case "failed", "delayed", "delivered", "relayed", "expanded":
+		return true
+	default:
+		return false
+	}
+}
+
+func validEnhancedStatus(status string) bool {
+	parts := strings.Split(status, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	class, err := strconv.Atoi(parts[0])
+	if err != nil || class < 2 || class > 5 {
+		return false
+	}
+	for _, part := range parts[1:] {
+		if part == "" {
+			return false
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
 }
