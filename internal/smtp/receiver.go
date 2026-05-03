@@ -210,6 +210,7 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
+	s.clearEnvelope()
 	if err := validateMailOptions(opts, extensionSupport{
 		SMTPUTF8:   s.receiver.supportSMTPUTF8,
 		RequireTLS: s.receiver.supportRequireTLS,
@@ -228,7 +229,6 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	if err := validateSMTPUTF8Address(from, normalized, mailOptionsUTF8(opts), s.receiver.supportSMTPUTF8); err != nil {
 		return err
 	}
-	s.clearEnvelope()
 	s.from = normalized
 	s.mailStarted = true
 	s.smtpUTF8 = mailOptionsUTF8(opts)
