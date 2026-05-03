@@ -32,3 +32,10 @@ docker compose -f deploy/docker-compose.dev.yml up -d
 ```
 
 Phase 1 uses PostgreSQL, Redis Streams, and object storage. Kafka, OpenSearch, etcd, Vault, and the Next.js web apps are intentionally deferred.
+
+Run database migrations:
+
+```bash
+GOGOMAIL_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable' \
+  go run ./cmd/gogomail --migrate --mode=all-in-one
+```

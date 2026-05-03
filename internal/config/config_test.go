@@ -9,6 +9,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DATABASE_URL", "")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "")
+	t.Setenv("GOGOMAIL_MIGRATION_DIR", "")
 
 	cfg := Load()
 
@@ -24,6 +25,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.StorageBackend != "local" {
 		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)
 	}
+	if cfg.MigrationDir != "migrations" {
+		t.Fatalf("MigrationDir = %q, want migrations", cfg.MigrationDir)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -33,6 +37,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DATABASE_URL", "postgres://example")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "redis:6379")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "minio")
+	t.Setenv("GOGOMAIL_MIGRATION_DIR", "db/migrations")
 
 	cfg := Load()
 
@@ -53,5 +58,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.StorageBackend != "minio" {
 		t.Fatalf("StorageBackend = %q, want minio", cfg.StorageBackend)
+	}
+	if cfg.MigrationDir != "db/migrations" {
+		t.Fatalf("MigrationDir = %q, want db/migrations", cfg.MigrationDir)
 	}
 }

@@ -9,6 +9,7 @@ type Config struct {
 	DatabaseURL    string
 	RedisAddr      string
 	StorageBackend string
+	MigrationDir   string
 }
 
 func Load() Config {
@@ -19,6 +20,7 @@ func Load() Config {
 		DatabaseURL:    envOrDefault("GOGOMAIL_DATABASE_URL", "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"),
 		RedisAddr:      envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
 		StorageBackend: envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
+		MigrationDir:   envOrDefault("GOGOMAIL_MIGRATION_DIR", "migrations"),
 	}
 }
 
