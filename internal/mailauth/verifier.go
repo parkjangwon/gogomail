@@ -71,9 +71,10 @@ func (v Verifier) VerifyAuthentication(ctx context.Context, req smtpd.Authentica
 	spf := v.verifySPF(ctx, dns, req)
 	dkimResult := v.verifyDKIM(ctx, dns, req.RawMessage)
 	return smtpd.AuthenticationResults{
-		SPF:   spf,
-		DKIM:  dkimResult,
-		DMARC: v.evaluateDMARC(ctx, dns, req, spf, dkimResult),
+		AuthservID: strings.TrimSpace(v.AuthservID),
+		SPF:        spf,
+		DKIM:       dkimResult,
+		DMARC:      v.evaluateDMARC(ctx, dns, req, spf, dkimResult),
 	}, nil
 }
 

@@ -363,6 +363,14 @@ func (s *session) Data(r io.Reader) (err error) {
 		}); err != nil {
 			return err
 		}
+		prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, FormatAuthenticationResults(authResults))
+		cleanupSpool(spooled)
+		if err != nil {
+			return err
+		}
+		spooled = prefixed
+		size = prefixedSize
+		observedSize = size
 	}
 
 	for _, recipient := range s.recipients {

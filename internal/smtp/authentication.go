@@ -27,9 +27,10 @@ type AuthCheckResult struct {
 }
 
 type AuthenticationResults struct {
-	SPF   AuthCheckResult
-	DKIM  AuthCheckResult
-	DMARC AuthCheckResult
+	AuthservID string
+	SPF        AuthCheckResult
+	DKIM       AuthCheckResult
+	DMARC      AuthCheckResult
 }
 
 type AuthenticationRequest struct {

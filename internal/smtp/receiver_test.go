@@ -377,15 +377,17 @@ func TestSessionEmitsPipelineHooksInOrder(t *testing.T) {
 func TestSessionRunsAuthenticationVerifierAfterParse(t *testing.T) {
 	t.Parallel()
 
+	store := storage.NewLocalStore(t.TempDir())
 	recorder := &recordingRecorder{}
 	verifier := &recordingAuthVerifier{results: AuthenticationResults{
-		SPF:   AuthCheckResult{Result: AuthResultPass, Reason: "mx matched"},
-		DKIM:  AuthCheckResult{Result: AuthResultPass, Reason: "signature valid"},
-		DMARC: AuthCheckResult{Result: AuthResultPass, Reason: "aligned"},
+		AuthservID: "mx.example.com",
+		SPF:        AuthCheckResult{Result: AuthResultPass, Reason: "mx matched", Identifier: "sender@example.net"},
+		DKIM:       AuthCheckResult{Result: AuthResultPass, Reason: "signature valid", Domain: "example.net", Identifier: "@example.net"},
+		DMARC:      AuthCheckResult{Result: AuthResultPass, Reason: "aligned", Domain: "example.net"},
 	}}
 	var stages []Stage
 	receiver := NewReceiver(ReceiverOptions{
-		Store: storage.NewLocalStore(t.TempDir()),
+		Store: store,
 		Resolver: StaticResolver{
 			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
 		},
@@ -444,6 +446,21 @@ func TestSessionRunsAuthenticationVerifierAfterParse(t *testing.T) {
 	}
 	if verifier.request.EnvelopeFrom != "sender@example.net" || verifier.request.Parsed.MessageID != "<auth@example.net>" {
 		t.Fatalf("auth verifier request = %+v", verifier.request)
+	}
+	if verifier.request.RawMessage == nil {
+		t.Fatal("auth verifier raw message is nil")
+	}
+	body, err := store.Get(context.Background(), "mailstore/c/d/u/maildir/2026/05/auth-results-id.eml")
+	if err != nil {
+		t.Fatalf("stored message not found: %v", err)
+	}
+	defer body.Close()
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if !strings.Contains(string(got), "Authentication-Results: mx.example.com;") {
+		t.Fatalf("stored message missing Authentication-Results header: %q", string(got))
 	}
 }
 
