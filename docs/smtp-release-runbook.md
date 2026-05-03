@@ -92,6 +92,18 @@ Checklist:
 
 Use a controlled SMTP sink before release.
 
+Automated coverage already verifies:
+
+- outbound DSN parameters are emitted only to peers advertising `DSN`;
+- non-DSN peers receive no `RET`, `ENVID`, `NOTIFY`, or `ORCPT` parameters;
+- SMTP wire receive preserves `NOTIFY=NEVER` for downstream bounce suppression;
+- generated bounce DSNs use a null reverse path;
+- null reverse-path delivery suppresses outbound DSN request parameters;
+- RCPT-level permanent and temporary sink failures remain distinct after DATA so
+  the delivery handler can bounce permanent recipients and retry temporary ones;
+- malformed DSN xtext metadata is rejected at queue and bounce-event trust
+  boundaries.
+
 Checklist:
 
 - verify outbound DSN options are sent only when the remote advertises `DSN`;
