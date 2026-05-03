@@ -51,6 +51,18 @@ func TestValidateSendTextRequestRejectsBlankRecipientEmail(t *testing.T) {
 	}
 }
 
+func TestValidateSendTextRequestRejectsInvalidRecipientEmail(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID: "user-1",
+		To:     []outbound.Address{{Email: "not an address"}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted invalid recipient email")
+	}
+}
+
 func TestValidateSendTextRequestRejectsOversizedTextBody(t *testing.T) {
 	t.Parallel()
 

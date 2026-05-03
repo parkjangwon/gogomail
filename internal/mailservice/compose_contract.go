@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/outbound"
 )
 
@@ -72,6 +73,9 @@ func validateComposeAddresses(field string, addresses []outbound.Address) error 
 	for i, address := range addresses {
 		if strings.TrimSpace(address.Email) == "" {
 			return fmt.Errorf("%s[%d].email is required", field, i)
+		}
+		if _, err := mail.NormalizeAddress(address.Email); err != nil {
+			return fmt.Errorf("%s[%d].email is invalid: %w", field, i, err)
 		}
 	}
 	return nil
