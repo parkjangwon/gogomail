@@ -23,6 +23,9 @@ func TestAttemptsForNormalizesRecipientDomain(t *testing.T) {
 	if attempts[0].RecipientDomain != "example.net" {
 		t.Fatalf("RecipientDomain = %q, want normalized domain", attempts[0].RecipientDomain)
 	}
+	if attempts[0].EnhancedStatus != "4.0.0" {
+		t.Fatalf("EnhancedStatus = %q, want temporary default", attempts[0].EnhancedStatus)
+	}
 }
 
 func TestAttemptsForTruncatesErrorMessageAtUTF8Boundary(t *testing.T) {

@@ -24,6 +24,7 @@ type Attempt struct {
 	Recipient         string
 	RecipientDomain   string
 	Status            AttemptStatus
+	EnhancedStatus    string
 	ErrorMessage      string
 	AttemptedAt       time.Time
 	DSNReturn         string
@@ -61,6 +62,7 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 			Recipient:         recipient.Email,
 			RecipientDomain:   strings.ToLower(domain),
 			Status:            status,
+			EnhancedStatus:    enhancedStatusForAttempt(status, cause),
 			ErrorMessage:      message,
 			AttemptedAt:       attemptedAt,
 			DSNReturn:         job.DSN.Return,

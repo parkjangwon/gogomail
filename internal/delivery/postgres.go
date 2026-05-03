@@ -112,6 +112,7 @@ func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {
 		"recipient":        attempt.Recipient,
 		"recipient_domain": attempt.RecipientDomain,
 		"status":           attempt.Status,
+		"enhanced_status":  attempt.EnhancedStatus,
 		"error_message":    attempt.ErrorMessage,
 		"attempted_at":     attempt.AttemptedAt,
 	}

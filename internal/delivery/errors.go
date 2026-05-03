@@ -70,6 +70,60 @@ func IsTemporaryFailure(err error) bool {
 	return errors.As(err, &smtpErr) && smtpErr.Temporary()
 }
 
+func enhancedStatusForAttempt(status AttemptStatus, err error) string {
+	if code := enhancedStatusFromError(err); code != "" {
+		return code
+	}
+	switch status {
+	case AttemptDelivered:
+		return "2.0.0"
+	case AttemptBounced:
+		return "5.0.0"
+	default:
+		return "4.0.0"
+	}
+}
+
+func enhancedStatusFromError(err error) string {
+	var smtpErr *SMTPStatusError
+	if !errors.As(err, &smtpErr) {
+		return ""
+	}
+	class := smtpErr.Code / 100
+	for _, field := range strings.Fields(smtpErr.Message) {
+		code := trimEnhancedStatusCandidate(field)
+		if validEnhancedDeliveryStatus(code) && int(code[0]-'0') == class {
+			return code
+		}
+	}
+	return ""
+}
+
+func trimEnhancedStatusCandidate(value string) string {
+	return strings.Trim(value, " \t\r\n;:,()[]<>")
+}
+
+func validEnhancedDeliveryStatus(status string) bool {
+	parts := strings.Split(status, ".")
+	if len(parts) != 3 || len(parts[0]) != 1 {
+		return false
+	}
+	if parts[0][0] < '2' || parts[0][0] > '5' || parts[0][0] == '3' {
+		return false
+	}
+	for _, part := range parts[1:] {
+		if part == "" || len(part) > 3 {
+			return false
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 type RecipientDeliveryError struct {
 	Recipient outbound.Address
 	Err       error

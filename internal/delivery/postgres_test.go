@@ -18,6 +18,7 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 		Recipient:         "user@example.net",
 		RecipientDomain:   "example.net",
 		Status:            AttemptBounced,
+		EnhancedStatus:    "5.1.1",
 		ErrorMessage:      "550 no such user",
 		AttemptedAt:       time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
 		DSNReturn:         "HDRS",
@@ -38,6 +39,9 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 	}
 	if got["recipient"] != "user@example.net" {
 		t.Fatalf("recipient = %v", got["recipient"])
+	}
+	if got["enhanced_status"] != "5.1.1" {
+		t.Fatalf("enhanced_status = %v, want 5.1.1", got["enhanced_status"])
 	}
 	dsn, ok := got["dsn"].(map[string]any)
 	if !ok {
