@@ -57,6 +57,7 @@ func Compose(report Report) (outbound.ComposedMessage, error) {
 	writeHeader(&buf, "Subject", mime.QEncoding.Encode("utf-8", report.Subject))
 	writeHeader(&buf, "Date", report.Date.Format(time.RFC1123Z))
 	writeHeader(&buf, "Message-ID", ensureMessageID(report.MessageID))
+	writeHeader(&buf, "Auto-Submitted", "auto-replied")
 	writeHeader(&buf, "MIME-Version", "1.0")
 	writeHeader(&buf, "Content-Type", `multipart/report; report-type=delivery-status; boundary="`+boundary+`"`)
 	buf.WriteString("\r\n")
