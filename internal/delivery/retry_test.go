@@ -73,6 +73,19 @@ func TestRetryPolicyNextScheduledDelayCanDisableJitter(t *testing.T) {
 	}
 }
 
+func TestRetryPolicyNextScheduledDelayClampsHugeJitter(t *testing.T) {
+	t.Parallel()
+
+	policy := RetryPolicy{Delays: []time.Duration{10 * time.Minute}, JitterRatio: 99}
+	delay, ok := policy.NextScheduledDelay("msg-1", 0)
+	if !ok {
+		t.Fatal("NextScheduledDelay returned ok=false")
+	}
+	if delay < time.Millisecond || delay > 20*time.Minute {
+		t.Fatalf("delay = %s, want clamped jitter range", delay)
+	}
+}
+
 func TestRetrySchedulerReportsExhaustion(t *testing.T) {
 	t.Parallel()
 
