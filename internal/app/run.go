@@ -16,6 +16,7 @@ import (
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/outbox"
 	"github.com/gogomail/gogomail/internal/ratelimit"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -33,7 +34,9 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runHTTP(ctx, cfg, logger, mode)
 	case ModeEdgeMTA:
 		return runEdgeMTA(ctx, cfg, logger)
-	case ModeInboundMTA, ModeOutboundMTA, ModeDeliveryWorker, ModeBatchWorker, ModeOutboxRelay:
+	case ModeOutboxRelay:
+		return runOutboxRelay(ctx, cfg, logger)
+	case ModeInboundMTA, ModeOutboundMTA, ModeDeliveryWorker, ModeBatchWorker:
 		return waitForShutdown(ctx, logger, mode)
 	default:
 		return errors.New("unsupported mode")
@@ -119,6 +122,41 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Receiver: receiver,
 		Logger:   logger,
 	})
+}
+
+func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	relay, err := outbox.NewRelay(outbox.RelayOptions{
+		Store:        outbox.NewPostgresStore(db, cfg.OutboxRelayMaxAttempts),
+		Publisher:    outbox.NewRedisStreamPublisher(redisClient),
+		BatchSize:    cfg.OutboxRelayBatchSize,
+		PollInterval: cfg.OutboxRelayPollInterval,
+		Logger:       logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"outbox relay started",
+		"redis_addr", cfg.RedisAddr,
+		"batch_size", cfg.OutboxRelayBatchSize,
+		"poll_interval", cfg.OutboxRelayPollInterval.String(),
+		"max_attempts", cfg.OutboxRelayMaxAttempts,
+	)
+	return relay.Run(ctx)
 }
 
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {

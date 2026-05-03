@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ENV", "")
@@ -16,6 +19,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "")
+	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "")
+	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "")
+	t.Setenv("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS", "")
 
 	cfg := Load()
 
@@ -52,6 +58,15 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.RcptRateLimitPerMinute != 60 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 60", cfg.RcptRateLimitPerMinute)
 	}
+	if cfg.OutboxRelayBatchSize != 100 {
+		t.Fatalf("OutboxRelayBatchSize = %d, want 100", cfg.OutboxRelayBatchSize)
+	}
+	if cfg.OutboxRelayPollInterval != time.Second {
+		t.Fatalf("OutboxRelayPollInterval = %s, want 1s", cfg.OutboxRelayPollInterval)
+	}
+	if cfg.OutboxRelayMaxAttempts != 10 {
+		t.Fatalf("OutboxRelayMaxAttempts = %d, want 10", cfg.OutboxRelayMaxAttempts)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -68,6 +83,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "5")
+	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "25")
+	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "250ms")
+	t.Setenv("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS", "3")
 
 	cfg := Load()
 
@@ -109,5 +127,14 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.RcptRateLimitPerMinute != 5 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 5", cfg.RcptRateLimitPerMinute)
+	}
+	if cfg.OutboxRelayBatchSize != 25 {
+		t.Fatalf("OutboxRelayBatchSize = %d, want 25", cfg.OutboxRelayBatchSize)
+	}
+	if cfg.OutboxRelayPollInterval != 250*time.Millisecond {
+		t.Fatalf("OutboxRelayPollInterval = %s, want 250ms", cfg.OutboxRelayPollInterval)
+	}
+	if cfg.OutboxRelayMaxAttempts != 3 {
+		t.Fatalf("OutboxRelayMaxAttempts = %d, want 3", cfg.OutboxRelayMaxAttempts)
 	}
 }

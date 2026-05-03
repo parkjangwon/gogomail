@@ -38,6 +38,7 @@ Received mail persistence follows the Outbox Pattern:
 
 - Store `.eml` first through the storage backend.
 - Insert `messages` metadata and a `mail.event` / `mail.stored` outbox row in one PostgreSQL transaction.
+- `gogomail --mode=outbox-relay` claims pending outbox rows and publishes them to Redis Streams.
 - Keep indexing, push notifications, audit fan-out, and queue publishing asynchronous consumers of the outbox/event stream.
 
 Implementation order:
