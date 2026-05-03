@@ -52,6 +52,9 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 	if !metrics.has(MetricQueuedDecoded, MetricOK) || !metrics.has(MetricTransportDelivered, MetricOK) {
 		t.Fatalf("metrics = %+v, want decoded and delivered metrics", metrics.events)
 	}
+	if metrics.events[len(metrics.events)-1].RecipientCount != 1 {
+		t.Fatalf("last metric = %+v, want recipient count 1", metrics.events[len(metrics.events)-1])
+	}
 }
 
 func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
