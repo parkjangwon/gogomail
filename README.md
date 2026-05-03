@@ -25,6 +25,18 @@ go run ./cmd/gogomail --mode=admin-api
 go test ./...
 ```
 
+Release-oriented PostgreSQL checks are opt-in because they need a disposable
+database. They run migrations in a temporary schema and exercise draft send plus
+outbox retry behavior against real SQL:
+
+```bash
+GOGOMAIL_TEST_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable' \
+  go test ./internal/maildb ./internal/outbox
+```
+
+See `docs/smtp-release-runbook.md` for the SMTP backend release soak,
+STARTTLS/SMTPS, trusted relay, and outbound DSN/bounce smoke checklist.
+
 ## Local infrastructure
 
 ```bash
