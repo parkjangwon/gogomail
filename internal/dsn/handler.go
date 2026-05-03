@@ -200,6 +200,9 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	if event.MessageID == "" {
 		return bounceEvent{}, fmt.Errorf("bounce event is missing message_id")
 	}
+	if containsLineBreak(event.MessageID) || containsLineBreak(event.RFCMessageID) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid message identity")
+	}
 	if event.Recipient == "" {
 		return bounceEvent{}, fmt.Errorf("bounce event is missing recipient")
 	}
@@ -216,6 +219,10 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	}
 	event.Recipient = recipient
 	return event, nil
+}
+
+func containsLineBreak(value string) bool {
+	return strings.ContainsAny(value, "\r\n")
 }
 
 func shouldGenerateFailureDSN(event bounceEvent) bool {

@@ -133,6 +133,15 @@ func TestDecodeBounceEventRejectsInvalidRecipient(t *testing.T) {
 	}
 }
 
+func TestDecodeBounceEventRejectsNewlineIdentity(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodeBounceEvent([]byte("{\"event\":\"mail.bounced\",\"message_id\":\"msg-1\\nInjected\",\"recipient\":\"bad@example.net\"}"))
+	if err == nil {
+		t.Fatal("decodeBounceEvent accepted newline-bearing message identity")
+	}
+}
+
 func TestBounceHandlerDeletesStoredMessageWhenQueueFails(t *testing.T) {
 	t.Parallel()
 
