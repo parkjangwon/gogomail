@@ -20,6 +20,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API supports domain/user list, detail, create, and status updates plus queue, delivery-attempt, suppression, DKIM, retry, and delete operations.
 - Admin domain/user create validation rejects malformed domains, unsafe usernames, invalid ACE names, and mismatched primary address ownership.
 - SMTP receive/submission paths now include TCP-level protocol integration coverage for inbound delivery, AUTH PLAIN submission, policy rejection, and SMTPS.
+- SMTP wire coverage now exercises enabled/disabled extension advertisement, DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` propagation, unsupported extension rejection, STARTTLS-gated AUTH, implicit TLS, trusted relay CIDR rejection, and repeated transactions on a single connection.
+- Outbound SMTP wire coverage now verifies DSN parameters are emitted only when the remote MTA advertises DSN support, preventing accidental RFC 3461 option leakage to non-DSN peers.
 - DSN/bounce generation validates inbound event metadata before composing and queueing null reverse-path DSNs.
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
@@ -28,8 +30,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 
 - Run `go test ./...`.
 - Run `go mod tidy -diff`.
+- Run focused SMTP soak checks for repeated same-connection transactions and STARTTLS/SMTPS startup in the intended deployment environment.
 - Exercise draft-to-send against a real PostgreSQL instance with migrations applied.
 - Exercise multipart attachment upload against both local storage and the intended object storage adapter.
+- Exercise outbound DSN/bounce generation against a controlled SMTP sink, including `NOTIFY=NEVER`, null reverse-path delivery, and retry scheduling for temporary recipient failures.
 - Verify frontend contracts for error envelope parsing, upload endpoint naming, and draft send response handling.
 
 ## Intentionally out of scope for this release slice
