@@ -52,6 +52,20 @@ func TestValidateCreateUserRequestRejectsInvalidUsername(t *testing.T) {
 	}
 }
 
+func TestValidateCreateUserRequestRejectsInvalidAddress(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateUserRequest(CreateUserRequest{
+		DomainID:    "domain-1",
+		Username:    "admin",
+		DisplayName: "Admin",
+		Address:     "not an address",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateUserRequest accepted invalid address")
+	}
+}
+
 func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 	t.Parallel()
 

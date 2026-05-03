@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/mail"
 )
 
 type QueueStat struct {
@@ -126,6 +128,9 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 	}
 	if strings.TrimSpace(req.Address) == "" {
 		return fmt.Errorf("address is required")
+	}
+	if _, err := mail.NormalizeAddress(req.Address); err != nil {
+		return err
 	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
