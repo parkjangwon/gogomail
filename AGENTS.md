@@ -69,3 +69,12 @@ When designing or changing architecture:
 - Favor clear boundaries that let future modules plug in without invasive rewrites.
 
 The intended style is: elegant core, high-throughput internals, flexible extension points.
+
+## Product feel
+
+gogomail should feel like a polished, developer-friendly, modern mail server from the code outward.
+
+- Keep APIs intuitive and pleasant to use.
+- Prefer clean names, crisp boundaries, and readable flow over clever obscurity.
+- Make extension points feel intentional, not bolted on.
+- Leave the codebase feeling stylish, composed, and hackable.
