@@ -35,6 +35,15 @@ func ValidateSaveDraftRequest(req SaveDraftRequest) error {
 	if len(req.Subject) > MaxComposeSubjectBytes {
 		return fmt.Errorf("subject is too long")
 	}
+	if err := validateComposeAddresses("to", req.To); err != nil {
+		return err
+	}
+	if err := validateComposeAddresses("cc", req.Cc); err != nil {
+		return err
+	}
+	if err := validateComposeAddresses("bcc", req.Bcc); err != nil {
+		return err
+	}
 	for _, id := range req.AttachmentIDs {
 		if strings.TrimSpace(id) == "" {
 			return fmt.Errorf("attachment id must not be blank")

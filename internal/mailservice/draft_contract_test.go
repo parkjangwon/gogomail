@@ -1,6 +1,10 @@
 package mailservice
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/gogomail/gogomail/internal/outbound"
+)
 
 func TestValidateSaveDraftRequestAllowsEmptyRecipients(t *testing.T) {
 	t.Parallel()
@@ -24,6 +28,21 @@ func TestValidateSaveDraftRequestRejectsBlankAttachmentID(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("ValidateSaveDraftRequest accepted blank attachment id")
+	}
+}
+
+func TestValidateSaveDraftRequestRejectsBlankRecipientEmail(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSaveDraftRequest(SaveDraftRequest{
+		UserID: "user-1",
+		Cc:     []outbound.Address{{Name: "Missing"}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSaveDraftRequest accepted blank recipient email")
+	}
+	if got := err.Error(); got != "cc[0].email is required" {
+		t.Fatalf("error = %q", got)
 	}
 }
 
