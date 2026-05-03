@@ -2,6 +2,10 @@
 
 This document is the staging contract for a future OpenAPI specification. It is intentionally backend-only and does not start frontend implementation.
 
+The machine-readable draft now lives at `docs/openapi.yaml`. Treat that file as
+the source to refine before generating frontend clients or publishing external
+API docs.
+
 ## Contract metadata
 
 - Public mail API base path: `/api/v1`
