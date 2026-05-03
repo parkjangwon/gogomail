@@ -91,6 +91,7 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 		From:         h.postmaster,
 		To:           outbound.Address{Email: event.Sender},
 		Subject:      "Delivery Status Notification (Failure)",
+		MessageID:    bounceDSNMessageID(event, h.reportingMTA),
 		Date:         now,
 		Recipients: []RecipientStatus{{
 			Recipient:         event.Recipient,
@@ -261,6 +262,44 @@ func shouldGenerateFailureDSN(event bounceEvent) bool {
 
 func bounceDSNDedupeKey(event bounceEvent) string {
 	return "dsn:bounce:" + event.MessageID + ":" + event.Recipient
+}
+
+func bounceDSNMessageID(event bounceEvent, reportingMTA string) string {
+	local := sanitizeMessageIDLocal("dsn-" + event.MessageID + "-" + event.Recipient)
+	reportingMTA = strings.TrimSpace(reportingMTA)
+	if reportingMTA == "" {
+		reportingMTA = "localhost"
+	}
+	return "<" + local + "@" + reportingMTA + ">"
+}
+
+func sanitizeMessageIDLocal(value string) string {
+	value = sanitizeDSNValue(value)
+	var b strings.Builder
+	b.Grow(len(value))
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-.")
+	if out == "" {
+		out = "dsn"
+	}
+	if len(out) > 52 {
+		out = strings.TrimRight(out[:52], "-.")
+		if out == "" {
+			out = "dsn"
+		}
+	}
+	return out
 }
 
 func dsnStoragePath(now time.Time, messageID string) string {

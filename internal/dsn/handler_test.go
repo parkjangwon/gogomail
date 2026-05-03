@@ -78,6 +78,7 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 		"Original-Recipient: rfc822;alias+40example.net",
 		"Status: 5.1.1",
 		"Diagnostic-Code: smtp; 550 5.1.1 no such user",
+		"Message-ID: <dsn-018f0000-0000-7000-8000-000000000001-bad-example@mx.example.com>",
 	} {
 		if !strings.Contains(raw, want) {
 			t.Fatalf("stored DSN missing %q:\n%s", want, raw)
