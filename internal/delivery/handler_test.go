@@ -23,7 +23,8 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 	}
 	transport := &fakeTransport{}
 	recorder := &fakeRecorder{}
-	handler := NewHandler(store, transport, recorder, nil)
+	metrics := &fakeMetrics{}
+	handler := NewHandler(store, transport, recorder, nil).WithMetrics(metrics)
 
 	err := handler.HandleEvent(context.Background(), eventstream.Message{
 		ID: "1-0",
@@ -48,6 +49,9 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 	if len(recorder.attempts) != 1 || recorder.attempts[0].Status != AttemptDelivered {
 		t.Fatalf("attempts = %+v, want delivered attempt", recorder.attempts)
 	}
+	if !metrics.has(MetricQueuedDecoded, MetricOK) || !metrics.has(MetricTransportDelivered, MetricOK) {
+		t.Fatalf("metrics = %+v, want decoded and delivered metrics", metrics.events)
+	}
 }
 
 func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
@@ -59,7 +63,8 @@ func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	}
 	recorder := &fakeRecorder{}
 	retry := &fakeRetryScheduler{}
-	handler := NewHandler(store, &fakeTransport{err: errBoom}, recorder, retry)
+	metrics := &fakeMetrics{}
+	handler := NewHandler(store, &fakeTransport{err: errBoom}, recorder, retry).WithMetrics(metrics)
 
 	err := handler.HandleEvent(context.Background(), eventstream.Message{
 		ID: "1-0",
@@ -81,6 +86,9 @@ func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	if retry.scheduled.MessageID != "msg-1" {
 		t.Fatalf("scheduled message = %+v", retry.scheduled)
 	}
+	if !metrics.has(MetricTransportFailed, MetricFailed) || !metrics.has(MetricRetryScheduled, MetricDeferred) {
+		t.Fatalf("metrics = %+v, want failed transport and scheduled retry", metrics.events)
+	}
 }
 
 func TestHandlerDoesNotRetryPermanentSMTPFailure(t *testing.T) {
@@ -92,7 +100,8 @@ func TestHandlerDoesNotRetryPermanentSMTPFailure(t *testing.T) {
 	}
 	recorder := &fakeRecorder{}
 	retry := &fakeRetryScheduler{}
-	handler := NewHandler(store, &fakeTransport{err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"}}, recorder, retry)
+	metrics := &fakeMetrics{}
+	handler := NewHandler(store, &fakeTransport{err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"}}, recorder, retry).WithMetrics(metrics)
 
 	err := handler.HandleEvent(context.Background(), eventstream.Message{
 		ID: "1-0",
@@ -114,6 +123,9 @@ func TestHandlerDoesNotRetryPermanentSMTPFailure(t *testing.T) {
 	if retry.scheduled.MessageID != "" {
 		t.Fatalf("scheduled retry = %+v, want none", retry.scheduled)
 	}
+	if !metrics.has(MetricTransportFailed, MetricBounced) {
+		t.Fatalf("metrics = %+v, want bounced transport metric", metrics.events)
+	}
 }
 
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
@@ -122,6 +134,23 @@ func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	_, err := DecodeQueuedMessage([]byte(`{"event":"mail.stored"}`))
 	if err == nil {
 		t.Fatal("DecodeQueuedMessage accepted wrong event")
+	}
+}
+
+func TestHandlerObservesDecodeFailure(t *testing.T) {
+	t.Parallel()
+
+	metrics := &fakeMetrics{}
+	handler := NewHandler(storage.NewLocalStore(t.TempDir()), &fakeTransport{}, &fakeRecorder{}, nil).WithMetrics(metrics)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID:      "1-0",
+		Payload: []byte(`{"event":"mail.stored"}`),
+	})
+	if err == nil {
+		t.Fatal("HandleEvent accepted wrong event")
+	}
+	if !metrics.has(MetricQueuedDecoded, MetricFailed) {
+		t.Fatalf("metrics = %+v, want decode failure metric", metrics.events)
 	}
 }
 
@@ -228,4 +257,21 @@ type fakeRetryScheduler struct {
 func (s *fakeRetryScheduler) ScheduleRetry(_ context.Context, job Job, _ error) error {
 	s.scheduled = job.QueuedMessage
 	return nil
+}
+
+type fakeMetrics struct {
+	events []MetricEvent
+}
+
+func (m *fakeMetrics) ObserveDelivery(_ context.Context, event MetricEvent) {
+	m.events = append(m.events, event)
+}
+
+func (m *fakeMetrics) has(stage MetricStage, result MetricResult) bool {
+	for _, event := range m.events {
+		if event.Stage == stage && event.Result == result {
+			return true
+		}
+	}
+	return false
 }

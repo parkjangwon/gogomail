@@ -48,13 +48,19 @@ type Handler struct {
 	transport Transport
 	recorder  Recorder
 	retry     RetryScheduler
+	metrics   Metrics
 }
 
 func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
 	if recorder == nil {
 		recorder = noopRecorder{}
 	}
-	return &Handler{store: store, transport: transport, recorder: recorder, retry: retry}
+	return &Handler{store: store, transport: transport, recorder: recorder, retry: retry, metrics: noopMetrics{}}
+}
+
+func (h *Handler) WithMetrics(metrics Metrics) *Handler {
+	h.metrics = metricsOrDefault(metrics)
+	return h
 }
 
 func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
@@ -67,8 +73,10 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 
 	queued, err := DecodeQueuedMessage(msg.Payload)
 	if err != nil {
+		h.observe(ctx, MetricEvent{Stage: MetricQueuedDecoded, Result: MetricFailed, Error: err.Error()})
 		return err
 	}
+	h.observe(ctx, metricEvent(queued, MetricQueuedDecoded, MetricOK, nil))
 	if queued.StoragePath == "" {
 		return fmt.Errorf("mail.queued payload is missing storage_path")
 	}
@@ -82,9 +90,12 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 
 	if err := h.transport.Deliver(ctx, job); err != nil {
 		status := AttemptFailed
+		result := MetricFailed
 		if IsPermanentFailure(err) {
 			status = AttemptBounced
+			result = MetricBounced
 		}
+		h.observe(ctx, metricEvent(queued, MetricTransportFailed, result, err))
 		if recordErr := h.recordAttempts(ctx, job, status, err); recordErr != nil {
 			return recordErr
 		}
@@ -94,12 +105,18 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		if h.retry != nil {
 			retryErr := h.retry.ScheduleRetry(ctx, job, err)
 			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
+				if errors.Is(retryErr, ErrRetryExhausted) {
+					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
+				} else {
+					h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
+				}
 				return nil
 			}
 			return retryErr
 		}
 		return err
 	}
+	h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
 	return h.recordAttempts(ctx, job, AttemptDelivered, nil)
 }
 
@@ -191,6 +208,26 @@ func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptSta
 		}
 	}
 	return nil
+}
+
+func (h *Handler) observe(ctx context.Context, event MetricEvent) {
+	h.metrics.ObserveDelivery(ctx, event)
+}
+
+func metricEvent(queued QueuedMessage, stage MetricStage, result MetricResult, err error) MetricEvent {
+	event := MetricEvent{
+		Stage:          stage,
+		Result:         result,
+		MessageID:      queued.MessageID,
+		RFCMessageID:   queued.RFCMessageID,
+		DomainID:       queued.DomainID,
+		Farm:           string(queued.Farm),
+		RecipientCount: len(queued.Recipients()),
+	}
+	if err != nil {
+		event.Error = err.Error()
+	}
+	return event
 }
 
 var timeNow = func() time.Time {
