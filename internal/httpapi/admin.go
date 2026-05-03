@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +14,9 @@ type AdminService interface {
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
+	ListDKIMKeys(ctx context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error)
+	CreateDKIMKey(ctx context.Context, input maildb.CreateDKIMKeyInput) (string, error)
+	DeactivateDKIMKey(ctx context.Context, id string) error
 	RetryOutbox(ctx context.Context, id string) error
 	DeleteSuppressionEntry(ctx context.Context, id string) error
 }
@@ -45,6 +49,45 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"suppression_list": entries})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		keys, err := service.ListDKIMKeys(r.Context(), r.URL.Query().Get("domain_id"), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dkim_keys": keys})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var input maildb.CreateDKIMKeyInput
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		id, err := service.CreateDKIMKey(r.Context(), input)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"status": "ok", "id": id})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/dkim-keys/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		if err := service.DeactivateDKIMKey(r.Context(), id); err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

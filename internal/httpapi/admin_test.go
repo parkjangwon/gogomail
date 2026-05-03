@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -91,6 +92,74 @@ func TestAdminSuppressionListHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDKIMKeysHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		dkimKeys: []maildb.DKIMKeyView{{
+			ID:       "dkim-1",
+			DomainID: "domain-1",
+			Selector: "s1",
+			Status:   "active",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/dkim-keys?domain_id=domain-1&limit=5", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDomainID != "domain-1" {
+		t.Fatalf("lastDomainID = %q, want domain-1", service.lastDomainID)
+	}
+	if service.lastLimit != 5 {
+		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+}
+
+func TestAdminCreateDKIMKeyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{createdDKIMKeyID: "dkim-1"}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := []byte(`{"domain_id":"domain-1","selector":"s1","private_key_pem":"private","public_key_dns":"v=DKIM1; p=public"}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/dkim-keys", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCreateDKIMKey.Selector != "s1" {
+		t.Fatalf("lastCreateDKIMKey = %+v", service.lastCreateDKIMKey)
+	}
+}
+
+func TestAdminDeactivateDKIMKeyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/dkim-keys/dkim-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeactivateDKIMKeyID != "dkim-1" {
+		t.Fatalf("lastDeactivateDKIMKeyID = %q", service.lastDeactivateDKIMKeyID)
+	}
+}
+
 func TestAdminRetryOutboxHandler(t *testing.T) {
 	t.Parallel()
 
@@ -156,7 +225,12 @@ type fakeAdminService struct {
 	queueStats              []maildb.QueueStat
 	attempts                []maildb.DeliveryAttemptView
 	suppression             []maildb.SuppressionEntry
+	dkimKeys                []maildb.DKIMKeyView
+	createdDKIMKeyID        string
 	lastLimit               int
+	lastDomainID            string
+	lastCreateDKIMKey       maildb.CreateDKIMKeyInput
+	lastDeactivateDKIMKeyID string
 	lastRetryOutboxID       string
 	lastDeleteSuppressionID string
 }
@@ -173,6 +247,25 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {
 	f.lastLimit = limit
 	return f.suppression, nil
+}
+
+func (f *fakeAdminService) ListDKIMKeys(_ context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error) {
+	f.lastDomainID = domainID
+	f.lastLimit = limit
+	return f.dkimKeys, nil
+}
+
+func (f *fakeAdminService) CreateDKIMKey(_ context.Context, input maildb.CreateDKIMKeyInput) (string, error) {
+	f.lastCreateDKIMKey = input
+	if f.createdDKIMKeyID != "" {
+		return f.createdDKIMKeyID, nil
+	}
+	return "dkim-1", nil
+}
+
+func (f *fakeAdminService) DeactivateDKIMKey(_ context.Context, id string) error {
+	f.lastDeactivateDKIMKeyID = id
+	return nil
 }
 
 func (f *fakeAdminService) RetryOutbox(_ context.Context, id string) error {
