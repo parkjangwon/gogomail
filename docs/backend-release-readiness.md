@@ -28,7 +28,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - Attachment upload storage paths reject absolute, parent-traversal, backslash, and newline forms, and generated attachment object paths sanitize path segments before writing to storage.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
-- `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift.
+- `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift, registered-route drift, dangling component references, request-body omissions, message flag enum drift, and list limit contract drift.
 - `docs/smtp-release-runbook.md` now records operator-facing SMTP soak, STARTTLS, SMTPS, trusted relay, and outbound DSN/bounce smoke procedures.
 - PostgreSQL-backed integration tests can be enabled with `GOGOMAIL_TEST_DATABASE_URL` to run migrations in a temporary schema and exercise draft-to-send/outbox/retry behavior against real SQL.
 
@@ -36,6 +36,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 
 - Run `go test ./...`.
 - Run `go mod tidy -diff`.
+- Verify `docs/openapi.yaml` still matches Go routes through the `internal/httpapi` contract tests before generating frontend clients.
 - Run `GOGOMAIL_TEST_DATABASE_URL=... go test ./internal/maildb ./internal/outbox` against a disposable PostgreSQL database/schema.
 - Run focused SMTP soak checks for repeated same-connection transactions and STARTTLS/SMTPS startup in the intended deployment environment.
 - Exercise multipart attachment upload against the intended object storage adapter. Local-storage path safety, declared-size mismatch, oversize body cleanup, and metadata-after-object-write behavior are now covered in automated tests.

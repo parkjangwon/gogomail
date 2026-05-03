@@ -235,6 +235,9 @@ Implementation order:
 188. SMTP release verification now covers `NOTIFY=NEVER` over a real TCP SMTP session and controlled outbound SMTP sink recipient-classification behavior.
 189. Backend API contract metadata is centralized in code and guarded against OpenAPI drift, keeping service info and generated client contracts aligned.
 190. A backend-only OpenAPI 3.1 draft now documents the current mail/admin API surface without starting frontend implementation.
+191. OpenAPI route coverage is now tested against registered Go HTTP routes, including health probes, so backend handlers cannot drift silently from the contract.
+192. OpenAPI request bodies now describe the current JSON and multipart mutation payloads, giving future generated webmail/admin clients a stable backend contract before frontend implementation starts.
+193. OpenAPI component references, message flag enums, and list limit bounds are now guarded by tests, tightening SDK-generation readiness without changing the SMTP core or starting frontend work.
 
 ## Deferred until backend contracts stabilize
 

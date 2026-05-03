@@ -6,6 +6,11 @@ The machine-readable draft now lives at `docs/openapi.yaml`. Treat that file as
 the source to refine before generating frontend clients or publishing external
 API docs.
 
+The OpenAPI draft is intentionally guarded by backend tests. If a Go HTTP route,
+backend contract version, request body, supported message flag, list limit, or
+component reference changes, update the implementation and `docs/openapi.yaml`
+in the same commit.
+
 ## Contract metadata
 
 - Public mail API base path: `/api/v1`
@@ -55,7 +60,10 @@ Errors use the stable envelope:
 
 ## Pagination
 
-List endpoints that accept `limit` reject non-integer and nonpositive values. Message listing returns opaque `next_cursor`; clients must not parse or manufacture cursors.
+List endpoints that accept `limit` reject non-integer and nonpositive values.
+The documented client contract is `1 <= limit <= 200`, defaulting to `50`.
+Message listing returns opaque `next_cursor`; clients must not parse or
+manufacture cursors.
 
 ## Mailbox bulk actions
 
