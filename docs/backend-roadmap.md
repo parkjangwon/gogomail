@@ -61,6 +61,7 @@ Implementation order:
 14. SMTP 4xx/5xx responses are classified so 5xx hard bounces stop retry while temporary failures retry.
 15. Hard-bounced recipients are added to suppression list and blocked before future send enqueue.
 16. Delivery outcomes emit `mail.delivered`, `mail.bounced`, or `mail.delivery_failed` events for audit and future admin streams.
+17. Admin API exposes queue stats, delivery attempts, and suppression list read models.
 
 ## Deferred until backend contracts stabilize
 

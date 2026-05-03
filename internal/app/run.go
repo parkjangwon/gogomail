@@ -283,6 +283,17 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		httpapi.RegisterMailRoutes(mux, service)
 		logger.Info("mail api routes registered")
 	}
+	if mode == ModeAdminAPI {
+		db, err := database.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		repository := maildb.NewRepository(db)
+		httpapi.RegisterAdminRoutes(mux, repository)
+		logger.Info("admin api routes registered")
+	}
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
