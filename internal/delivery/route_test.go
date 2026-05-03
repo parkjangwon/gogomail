@@ -46,6 +46,20 @@ func TestNormalizeRouteAcceptsHostPortSmartHost(t *testing.T) {
 	}
 }
 
+func TestNormalizeRouteCleansBracketedIPv6SmartHost(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "Example.NET", Route{
+		Hosts: []string{"[2001:db8::25]", "[2001:db8::25]:2525"},
+	})
+	if route.Port != 2525 {
+		t.Fatalf("Port = %d, want bracketed IPv6 host port", route.Port)
+	}
+	if len(route.Hosts) != 1 || route.Hosts[0] != "2001:db8::25" {
+		t.Fatalf("Hosts = %+v, want IPv6 literal without brackets", route.Hosts)
+	}
+}
+
 func TestNormalizeRouteExplicitPortOverridesHostPort(t *testing.T) {
 	t.Parallel()
 

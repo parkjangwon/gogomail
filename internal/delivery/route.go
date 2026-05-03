@@ -74,6 +74,8 @@ func normalizeRouteHostsAndPort(hosts []string) ([]string, int) {
 			if detectedPort <= 0 {
 				detectedPort = parsedPort
 			}
+		} else {
+			host = strings.Trim(host, "[]")
 		}
 		if _, ok := seen[host]; ok {
 			continue
