@@ -164,7 +164,7 @@ func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, 
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-	const query = `
+const query = `
 SELECT
   f.id::text,
   COALESCE(f.parent_id::text, ''),
@@ -173,13 +173,22 @@ SELECT
   f.type,
   COALESCE(f.system_type, ''),
   f.order_index,
-  COUNT(m.id) FILTER (WHERE m.status = 'active') AS total,
-  COUNT(m.id) FILTER (WHERE m.status = 'active' AND COALESCE((m.flags->>'read')::boolean, false) = false) AS unread,
-  COUNT(m.id) FILTER (WHERE m.status = 'active' AND COALESCE((m.flags->>'starred')::boolean, false) = true) AS starred
+  COALESCE(c.total, 0) AS total,
+  COALESCE(c.unread, 0) AS unread,
+  COALESCE(c.starred, 0) AS starred
 FROM folders f
-LEFT JOIN messages m ON m.folder_id = f.id
+LEFT JOIN (
+  SELECT
+    folder_id,
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE COALESCE((flags->>'read')::boolean, false) = false) AS unread,
+    COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'active'
+  GROUP BY folder_id
+) c ON c.folder_id = f.id
 WHERE f.user_id = $1
-GROUP BY f.id
 ORDER BY type DESC, order_index ASC, full_path ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
