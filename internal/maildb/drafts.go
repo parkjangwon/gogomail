@@ -92,6 +92,10 @@ INSERT INTO messages (
 	); err != nil {
 		return MessageDetail{}, fmt.Errorf("insert draft: %w", err)
 	}
+	if err := bindDraftAttachments(ctx, tx, req.UserID, draft.ID, req.AttachmentIDs); err != nil {
+		return MessageDetail{}, err
+	}
+	draft.HasAttachment = len(req.AttachmentIDs) > 0
 	if err := tx.Commit(); err != nil {
 		return MessageDetail{}, fmt.Errorf("commit draft transaction: %w", err)
 	}
@@ -171,6 +175,10 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		}
 		return MessageDetail{}, fmt.Errorf("update draft: %w", err)
 	}
+	if err := bindDraftAttachments(ctx, tx, req.UserID, draft.ID, req.AttachmentIDs); err != nil {
+		return MessageDetail{}, err
+	}
+	draft.HasAttachment = len(req.AttachmentIDs) > 0
 	if err := tx.Commit(); err != nil {
 		return MessageDetail{}, fmt.Errorf("commit draft update transaction: %w", err)
 	}
@@ -235,6 +243,51 @@ RETURNING id::text`
 		return "", fmt.Errorf("create drafts folder: %w", err)
 	}
 	return folderID, nil
+}
+
+func bindDraftAttachments(ctx context.Context, tx *sql.Tx, userID string, draftID string, attachmentIDs []string) error {
+	if _, err := tx.ExecContext(ctx, `
+UPDATE attachments
+SET draft_id = NULL
+WHERE user_id = $1
+  AND draft_id = $2`, strings.TrimSpace(userID), strings.TrimSpace(draftID)); err != nil {
+		return fmt.Errorf("clear draft attachments: %w", err)
+	}
+
+	for _, attachmentID := range attachmentIDs {
+		result, err := tx.ExecContext(ctx, `
+UPDATE attachments
+SET draft_id = $3
+WHERE user_id = $1
+  AND id = $2
+  AND message_id IS NULL`, strings.TrimSpace(userID), strings.TrimSpace(attachmentID), strings.TrimSpace(draftID))
+		if err != nil {
+			return fmt.Errorf("bind draft attachment %q: %w", attachmentID, err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("inspect draft attachment bind: %w", err)
+		}
+		if affected == 0 {
+			return fmt.Errorf("attachment %q not found for draft", attachmentID)
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET has_attachment = EXISTS (
+    SELECT 1
+    FROM attachments
+    WHERE draft_id = $2
+      AND user_id = $1
+  ),
+  updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'draft'`, strings.TrimSpace(userID), strings.TrimSpace(draftID)); err != nil {
+		return fmt.Errorf("refresh draft attachment state: %w", err)
+	}
+	return nil
 }
 
 func senderForDraft(ctx context.Context, tx *sql.Tx, userID string, fromAddress string) (Sender, error) {
