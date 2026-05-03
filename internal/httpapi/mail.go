@@ -236,6 +236,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 
 		w.Header().Set("Content-Type", download.Attachment.MIMEType)
 		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Attachment.Filename))
+		w.Header().Set("Cache-Control", "no-store")
 		if download.Attachment.Size > 0 {
 			w.Header().Set("Content-Length", strconv.FormatInt(download.Attachment.Size, 10))
 		}

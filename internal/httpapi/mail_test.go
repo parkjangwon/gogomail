@@ -331,6 +331,9 @@ func TestDownloadAttachmentHandler(t *testing.T) {
 	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `filename="report.pdf"`) {
 		t.Fatalf("Content-Disposition = %q", got)
 	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
 }
 
 func TestSendMessageHandler(t *testing.T) {
