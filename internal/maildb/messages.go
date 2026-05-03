@@ -245,7 +245,7 @@ func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, 
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-const query = `
+	const query = `
 SELECT
   f.id::text,
   COALESCE(f.parent_id::text, ''),
