@@ -262,6 +262,40 @@ func TestPartialDeliveryErrorIsTerminalForMXFailover(t *testing.T) {
 	}
 }
 
+func TestTemporaryAllRecipientFailureCanFailOverToNextMX(t *testing.T) {
+	t.Parallel()
+
+	hosts := []string{}
+	transport := DirectSMTPTransport{
+		Router: staticRouter{route: Route{Hosts: []string{"mx1.example.net", "mx2.example.net"}}},
+		deliverHost: func(_ context.Context, _ Job, _ Route, host string, recipients []outbound.Address) error {
+			hosts = append(hosts, host)
+			if host == "mx1.example.net" {
+				failed := make([]RecipientDeliveryError, 0, len(recipients))
+				for _, recipient := range recipients {
+					failed = append(failed, RecipientDeliveryError{
+						Recipient: recipient,
+						Err:       &SMTPStatusError{Op: "rcpt", Code: 451, Message: "4.7.1 try later"},
+					})
+				}
+				return &PartialDeliveryError{Failed: failed}
+			}
+			return nil
+		},
+	}
+
+	err := transport.deliverDomain(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "general"}}, "example.net", []outbound.Address{
+		{Email: "one@example.net"},
+		{Email: "two@example.net"},
+	})
+	if err != nil {
+		t.Fatalf("deliverDomain returned error: %v", err)
+	}
+	if strings.Join(hosts, ",") != "mx1.example.net,mx2.example.net" {
+		t.Fatalf("hosts = %+v, want failover to second MX", hosts)
+	}
+}
+
 func TestDirectSMTPTransportAggregatesDomainPartialFailures(t *testing.T) {
 	t.Parallel()
 

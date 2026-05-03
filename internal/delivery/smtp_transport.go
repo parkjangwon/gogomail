@@ -100,6 +100,10 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 		if err := t.deliverHostFunc()(ctx, job, route, host, recipients); err != nil {
 			var partial *PartialDeliveryError
 			if errors.As(err, &partial) {
+				if len(partial.Delivered) == 0 && len(partial.Failed) > 0 && len(partial.TemporaryFailures()) == len(partial.Failed) {
+					errs = append(errs, err)
+					continue
+				}
 				return err
 			}
 			if IsPermanentFailure(err) {
