@@ -29,6 +29,7 @@ type Repository interface {
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
+	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, error)
@@ -143,6 +144,13 @@ func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessage
 
 func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
 	return s.repository.MoveMessage(ctx, userID, messageID, folderID)
+}
+
+func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error) {
+	if err := maildb.ValidateBulkMessageMoveRequest(req); err != nil {
+		return 0, err
+	}
+	return s.repository.BulkMoveMessages(ctx, req)
 }
 
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {

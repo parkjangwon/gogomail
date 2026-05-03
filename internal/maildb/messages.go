@@ -64,6 +64,12 @@ type BulkMessageFlagRequest struct {
 	Value      bool     `json:"value"`
 }
 
+type BulkMessageMoveRequest struct {
+	UserID     string   `json:"user_id,omitempty"`
+	MessageIDs []string `json:"message_ids"`
+	FolderID   string   `json:"folder_id"`
+}
+
 func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -76,6 +82,27 @@ func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	}
 	if !allowedMessageFlag(strings.TrimSpace(req.Flag)) {
 		return fmt.Errorf("unsupported message flag %q", req.Flag)
+	}
+	for _, id := range req.MessageIDs {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("message id must not be blank")
+		}
+	}
+	return nil
+}
+
+func ValidateBulkMessageMoveRequest(req BulkMessageMoveRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if strings.TrimSpace(req.FolderID) == "" {
+		return fmt.Errorf("folder_id is required")
+	}
+	if len(req.MessageIDs) == 0 {
+		return fmt.Errorf("message_ids is required")
+	}
+	if len(req.MessageIDs) > 500 {
+		return fmt.Errorf("too many message_ids")
 	}
 	for _, id := range req.MessageIDs {
 		if strings.TrimSpace(id) == "" {
@@ -575,6 +602,43 @@ WHERE user_id = $1
 		return fmt.Errorf("message %q or folder %q not found", messageID, folderID)
 	}
 	return nil
+}
+
+func (r *Repository) BulkMoveMessages(ctx context.Context, req BulkMessageMoveRequest) (int64, error) {
+	if r.db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkMessageMoveRequest(req); err != nil {
+		return 0, err
+	}
+	rawIDs, err := json.Marshal(req.MessageIDs)
+	if err != nil {
+		return 0, fmt.Errorf("encode message ids: %w", err)
+	}
+
+	const query = `
+UPDATE messages
+SET folder_id = $3,
+    updated_at = now()
+WHERE user_id = $1
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'active'
+  AND EXISTS (
+    SELECT 1
+    FROM folders
+    WHERE folders.id = $3
+      AND folders.user_id = $1
+  )`
+
+	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), string(rawIDs), strings.TrimSpace(req.FolderID))
+	if err != nil {
+		return 0, fmt.Errorf("bulk move messages: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("inspect bulk message move: %w", err)
+	}
+	return affected, nil
 }
 
 func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID string) error {

@@ -25,6 +25,7 @@ type MessageService interface {
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
+	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	SaveDraft(ctx context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error)
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
@@ -236,6 +237,29 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/messages/bulk/folder", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		var req maildb.BulkMessageMoveRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.UserID = userID
+		updated, err := service.BulkMoveMessages(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "updated": updated})
 	})
 
 	mux.HandleFunc("DELETE /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {

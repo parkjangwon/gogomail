@@ -152,6 +152,10 @@ func (f *fakeRepository) MoveMessage(context.Context, string, string, string) er
 	return nil
 }
 
+func (f *fakeRepository) BulkMoveMessages(_ context.Context, req maildb.BulkMessageMoveRequest) (int64, error) {
+	return int64(len(req.MessageIDs)), nil
+}
+
 func (f *fakeRepository) DeleteMessage(context.Context, string, string) error {
 	return nil
 }
