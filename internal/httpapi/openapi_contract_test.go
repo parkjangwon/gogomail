@@ -99,6 +99,120 @@ func TestOpenAPIDraftDocumentsSupportedMessageFlags(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for route, responseRef := range map[string]string{
+		"GET /folders":                   "#/components/responses/FolderList",
+		"POST /folders":                  "#/components/responses/Folder",
+		"PATCH /folders/{id}":            "#/components/responses/Folder",
+		"DELETE /folders/{id}":           "#/components/responses/Status",
+		"GET /messages":                  "#/components/responses/MessageListPage",
+		"GET /messages/{id}":             "#/components/responses/Message",
+		"PATCH /messages/{id}/flags":     "#/components/responses/Status",
+		"PATCH /messages/{id}/folder":    "#/components/responses/Status",
+		"PATCH /messages/bulk/flags":     "#/components/responses/BulkUpdate",
+		"PATCH /messages/bulk/folder":    "#/components/responses/BulkUpdate",
+		"POST /messages/bulk/delete":     "#/components/responses/BulkUpdate",
+		"DELETE /messages/{id}":          "#/components/responses/Status",
+		"POST /messages/send":            "#/components/responses/SendQueued",
+		"POST /drafts":                   "#/components/responses/Draft",
+		"PATCH /drafts/{id}":             "#/components/responses/Draft",
+		"DELETE /drafts/{id}":            "#/components/responses/Status",
+		"POST /drafts/{id}/send":         "#/components/responses/SendQueued",
+		"POST /attachments":              "#/components/responses/Attachment",
+		"POST /attachments/upload":       "#/components/responses/Attachment",
+		"GET /messages/{id}/attachments": "#/components/responses/AttachmentList",
+		"GET /domains":                   "#/components/responses/DomainList",
+		"GET /domains/{id}":              "#/components/responses/Domain",
+		"POST /domains":                  "#/components/responses/Domain",
+		"PATCH /domains/{id}/status":     "#/components/responses/IDStatus",
+		"PATCH /domains/{id}/quota":      "#/components/responses/IDStatus",
+		"GET /users":                     "#/components/responses/UserList",
+		"GET /users/{id}":                "#/components/responses/User",
+		"POST /users":                    "#/components/responses/User",
+		"PATCH /users/{id}/status":       "#/components/responses/IDStatus",
+		"PATCH /users/{id}/quota":        "#/components/responses/IDStatus",
+		"GET /queue":                     "#/components/responses/QueueStats",
+		"GET /delivery-attempts":         "#/components/responses/DeliveryAttempts",
+		"GET /suppression-list":          "#/components/responses/SuppressionList",
+		"DELETE /suppression-list/{id}":  "#/components/responses/IDStatus",
+		"GET /dkim-keys":                 "#/components/responses/DKIMKeyList",
+		"POST /dkim-keys":                "#/components/responses/IDStatus",
+		"DELETE /dkim-keys/{id}":         "#/components/responses/IDStatus",
+		"POST /outbox/{id}/retry":        "#/components/responses/IDStatus",
+		"GET /messages/{id}/attachments/{attachment_id}/download": "",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if responseRef == "" {
+			if strings.Contains(block, "application/json:") {
+				t.Fatalf("OpenAPI operation %s downloads bytes and must not declare a JSON envelope", route)
+			}
+			continue
+		}
+		if !strings.Contains(block, `$ref: "`+responseRef+`"`) {
+			t.Fatalf("OpenAPI operation %s must use response ref %s", route, responseRef)
+		}
+	}
+}
+
+func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for schema, key := range map[string]string{
+		"FolderListEnvelope":       "folders",
+		"FolderEnvelope":           "folder",
+		"MessageListPageEnvelope":  "messages",
+		"MessageEnvelope":          "message",
+		"DraftEnvelope":            "draft",
+		"SendQueuedEnvelope":       "message",
+		"AttachmentListEnvelope":   "attachments",
+		"AttachmentEnvelope":       "attachment",
+		"QueueStatsEnvelope":       "queues",
+		"DeliveryAttemptsEnvelope": "delivery_attempts",
+		"SuppressionListEnvelope":  "suppression_list",
+		"DKIMKeyListEnvelope":      "dkim_keys",
+		"DomainListEnvelope":       "domains",
+		"DomainEnvelope":           "domain",
+		"UserListEnvelope":         "users",
+		"UserEnvelope":             "user",
+	} {
+		block := extractOpenAPIComponentBlock(t, draft, "schemas", schema)
+		if !openAPIRequiredListContains(block, key) {
+			t.Fatalf("OpenAPI schema %s must require envelope key %q", schema, key)
+		}
+		if !strings.Contains(block, "        "+key+":") {
+			t.Fatalf("OpenAPI schema %s must expose envelope key %q", schema, key)
+		}
+	}
+}
+
+func openAPIRequiredListContains(block string, key string) bool {
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "required: [") {
+			continue
+		}
+		required := strings.TrimPrefix(line, "required: [")
+		required = strings.TrimSuffix(required, "]")
+		for _, item := range strings.Split(required, ",") {
+			if strings.TrimSpace(item) == key {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func TestOpenAPIDraftHasNoDanglingComponentRefs(t *testing.T) {
 	t.Parallel()
 
@@ -113,6 +227,43 @@ func TestOpenAPIDraftHasNoDanglingComponentRefs(t *testing.T) {
 			t.Fatalf("OpenAPI draft has dangling component ref %q", match[0])
 		}
 	}
+}
+
+func extractOpenAPIComponentBlock(t *testing.T, draft string, section string, name string) string {
+	t.Helper()
+
+	inSection := false
+	inComponent := false
+	var block strings.Builder
+	for _, line := range strings.Split(draft, "\n") {
+		if line == "components:" {
+			continue
+		}
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+			inSection = strings.TrimSuffix(strings.TrimSpace(line), ":") == section
+			inComponent = false
+			continue
+		}
+		if !inSection {
+			continue
+		}
+		if strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "      ") {
+			componentName := strings.TrimSuffix(strings.TrimSpace(line), ":")
+			if inComponent {
+				return block.String()
+			}
+			inComponent = componentName == name
+		}
+		if inComponent {
+			block.WriteString(line)
+			block.WriteByte('\n')
+		}
+	}
+	if inComponent {
+		return block.String()
+	}
+	t.Fatalf("OpenAPI component %s/%s is missing", section, name)
+	return ""
 }
 
 func openAPIComponentExists(draft string, section string, name string) bool {
