@@ -196,6 +196,29 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsReusableErrorEnvelopeResponse(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	response := extractOpenAPIComponentBlock(t, draft, "responses", "Error")
+	if !strings.Contains(response, `description: Stable structured error envelope`) {
+		t.Fatalf("OpenAPI Error response must describe the stable structured error envelope")
+	}
+	if !strings.Contains(response, `$ref: "#/components/schemas/ErrorEnvelope"`) {
+		t.Fatalf("OpenAPI Error response must point at ErrorEnvelope")
+	}
+	schema := extractOpenAPIComponentBlock(t, draft, "schemas", "ErrorEnvelope")
+	for _, required := range []string{"error", "code", "message", "status", "status_text", "error_message"} {
+		if !strings.Contains(schema, required) {
+			t.Fatalf("OpenAPI ErrorEnvelope must document %q", required)
+		}
+	}
+}
+
 func openAPIRequiredListContains(block string, key string) bool {
 	for _, line := range strings.Split(block, "\n") {
 		line = strings.TrimSpace(line)
@@ -240,6 +263,9 @@ func extractOpenAPIComponentBlock(t *testing.T, draft string, section string, na
 			continue
 		}
 		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+			if inComponent {
+				return block.String()
+			}
 			inSection = strings.TrimSuffix(strings.TrimSpace(line), ":") == section
 			inComponent = false
 			continue
