@@ -11,6 +11,7 @@ import (
 const MaxComposeSubjectBytes = 998
 const MaxComposeTextBodyBytes = 4 << 20
 const MaxComposeRecipients = 200
+const MaxComposeAttachments = 100
 
 type ComposeIntent string
 
@@ -65,6 +66,14 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 	}
 	if err := validateComposeAddresses("bcc", req.Bcc); err != nil {
 		return err
+	}
+	if len(req.AttachmentIDs) > MaxComposeAttachments {
+		return fmt.Errorf("too many attachments")
+	}
+	for _, id := range req.AttachmentIDs {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("attachment id must not be blank")
+		}
 	}
 	return nil
 }

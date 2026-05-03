@@ -116,3 +116,33 @@ func TestValidateSendTextRequestAcceptsCcOnlyDraftLikeSend(t *testing.T) {
 		t.Fatalf("ValidateSendTextRequest returned error: %v", err)
 	}
 }
+
+func TestValidateSendTextRequestRejectsBlankAttachmentID(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID:        "user-1",
+		To:            []outbound.Address{{Email: "user@example.net"}},
+		AttachmentIDs: []string{" "},
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted blank attachment id")
+	}
+}
+
+func TestValidateSendTextRequestRejectsTooManyAttachments(t *testing.T) {
+	t.Parallel()
+
+	ids := make([]string, MaxComposeAttachments+1)
+	for i := range ids {
+		ids[i] = "att"
+	}
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID:        "user-1",
+		To:            []outbound.Address{{Email: "user@example.net"}},
+		AttachmentIDs: ids,
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted too many attachment ids")
+	}
+}
