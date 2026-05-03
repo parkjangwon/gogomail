@@ -120,9 +120,19 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
+- `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`
 so consoles can reconcile optimistic updates against the affected backend id.
+
+SMTP operational administration includes trusted relay CIDR management:
+
+- `GET /admin/v1/trusted-relays`
+- `POST /admin/v1/trusted-relays`
+- `DELETE /admin/v1/trusted-relays/{id}`
+
+Trusted relay entries accept IPv4/IPv6 CIDR prefixes or plain IP addresses.
+Plain IPs are canonicalized to `/32` or `/128` before persistence.
 
 ## Deferred from this contract
 
