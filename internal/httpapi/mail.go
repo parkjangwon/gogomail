@@ -433,6 +433,10 @@ func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
 		writeError(w, http.StatusBadRequest, "limit must be an integer")
 		return 0, false
 	}
+	if limit <= 0 {
+		writeError(w, http.StatusBadRequest, "limit must be positive")
+		return 0, false
+	}
 	return limit, true
 }
 
