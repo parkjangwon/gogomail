@@ -17,6 +17,7 @@ type MessageService interface {
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
+	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
@@ -73,6 +74,30 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/messages/{id}/flags", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		var req struct {
+			Flag  string `json:"flag"`
+			Value bool   `json:"value"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if err := service.SetMessageFlag(r.Context(), userID, r.PathValue("id"), req.Flag, req.Value); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
 
 	mux.HandleFunc("POST /api/v1/messages/send", func(w http.ResponseWriter, r *http.Request) {

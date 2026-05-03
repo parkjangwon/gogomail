@@ -158,6 +158,25 @@ func TestGetMessageHandler(t *testing.T) {
 	}
 }
 
+func TestSetMessageFlagHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/messages/msg-1/flags?user_id=user-1", strings.NewReader(`{"flag":"read","value":true}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastMessageID != "msg-1" || service.lastFlag != "read" || !service.lastFlagValue {
+		t.Fatalf("flag update = id:%q flag:%q value:%v", service.lastMessageID, service.lastFlag, service.lastFlagValue)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -249,6 +268,8 @@ type fakeMessageService struct {
 	lastUserID    string
 	lastMessageID string
 	lastFolderID  string
+	lastFlag      string
+	lastFlagValue bool
 	lastLimit     int
 }
 
@@ -274,6 +295,14 @@ func (f *fakeMessageService) GetMessage(_ context.Context, userID string, messag
 	f.lastUserID = userID
 	f.lastMessageID = messageID
 	return f.detail, nil
+}
+
+func (f *fakeMessageService) SetMessageFlag(_ context.Context, userID string, messageID string, flag string, value bool) error {
+	f.lastUserID = userID
+	f.lastMessageID = messageID
+	f.lastFlag = flag
+	f.lastFlagValue = value
+	return nil
 }
 
 func (f *fakeMessageService) SendText(_ context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error) {

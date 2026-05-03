@@ -255,6 +255,46 @@ LIMIT 1`
 	return msg, nil
 }
 
+func (r *Repository) SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	flag = strings.TrimSpace(flag)
+	if !allowedMessageFlag(flag) {
+		return fmt.Errorf("unsupported message flag %q", flag)
+	}
+
+	const query = `
+UPDATE messages
+SET flags = jsonb_set(flags, $4::text[], to_jsonb($5::boolean), true),
+    updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'active'`
+
+	result, err := r.db.ExecContext(ctx, query, userID, messageID, "{"+flag+"}", value)
+	if err != nil {
+		return fmt.Errorf("set message flag: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("inspect message flag update: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("message %q not found", messageID)
+	}
+	return nil
+}
+
+func allowedMessageFlag(flag string) bool {
+	switch flag {
+	case "read", "starred", "answered", "forwarded":
+		return true
+	default:
+		return false
+	}
+}
+
 func normalizeLimit(limit int) int {
 	if limit <= 0 {
 		return 50
