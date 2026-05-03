@@ -21,3 +21,17 @@ Important standards to keep in mind include, but are not limited to:
 Use well-maintained libraries for protocol parsing/serialization where possible instead of ad-hoc string parsing.
 
 Tests for mail behavior should include protocol edge cases and RFC-shaped examples whenever practical.
+
+## EML parser performance matters
+
+The shared EML parser is on the hot path for SMTP receive, Mail API, future IMAP, future POP3, search indexing, and attachment handling.
+
+Parser work must be designed for high throughput and low memory use:
+
+- Prefer streaming readers over loading whole messages into memory.
+- Avoid unnecessary body copies.
+- Enforce maximum message/part/header sizes.
+- Keep attachment handling streaming-first.
+- Benchmark parser changes when behavior or allocation patterns change.
+- Use `go test -bench` and allocation checks for parser-sensitive changes.
+- Treat RFC correctness and performance as joint requirements; do not trade away standards compliance for speed unless explicitly documented and approved.
