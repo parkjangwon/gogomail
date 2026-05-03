@@ -65,6 +65,7 @@ Implementation order:
 18. Admin API can retry outbox events and remove suppression entries.
 19. Admin API supports optional bearer/admin-token protection through `GOGOMAIL_ADMIN_TOKEN`.
 20. Mail API supports optional HS256 JWT verification through `GOGOMAIL_AUTH_JWT_SECRET`.
+21. SMTP sessions support AUTH PLAIN hooks and optional auth-required mode for future Submission MTA.
 
 ## Deferred until backend contracts stabilize
 

@@ -2,11 +2,13 @@ package smtpd
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/emersion/go-sasl"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -415,6 +417,61 @@ func TestSessionRejectsMessageLargerThanLimit(t *testing.T) {
 		t.Fatal("oversized message was stored")
 	}
 }
+
+func TestSessionRequiresAuthWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
+		},
+		Authenticator: plainAuthenticator{username: "user", password: "pass"},
+		RequireAuth:   true,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err == nil {
+		t.Fatal("Mail accepted unauthenticated session")
+	}
+	authSession, ok := session.(interface {
+		Auth(string) (sasl.Server, error)
+	})
+	if !ok {
+		t.Fatal("session does not implement AUTH")
+	}
+	server, err := authSession.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	_, done, err := server.Next([]byte("\x00user\x00pass"))
+	if err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	}
+	if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail after auth returned error: %v", err)
+	}
+}
+
+type plainAuthenticator struct {
+	username string
+	password string
+}
+
+func (a plainAuthenticator) AuthenticatePlain(_ context.Context, _ string, username string, password string) error {
+	if username != a.username || password != a.password {
+		return errAuthTestFailed
+	}
+	return nil
+}
+
+var errAuthTestFailed = errors.New("auth failed")
 
 type recordingRecorder struct {
 	messages []ReceivedMessage

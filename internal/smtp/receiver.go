@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emersion/go-sasl"
 	gosmtp "github.com/emersion/go-smtp"
 
 	"github.com/gogomail/gogomail/internal/mail"
@@ -61,6 +62,10 @@ type Backpressure interface {
 	Accept(ctx context.Context) (bool, error)
 }
 
+type Authenticator interface {
+	AuthenticatePlain(ctx context.Context, identity string, username string, password string) error
+}
+
 type RateLimitKey struct {
 	Stage      Stage
 	RemoteAddr string
@@ -88,6 +93,8 @@ type ReceiverOptions struct {
 	Deduplicator    Deduplicator
 	RateLimiter     RateLimiter
 	Backpressure    Backpressure
+	Authenticator   Authenticator
+	RequireAuth     bool
 	Hooks           []Hook
 	Policy          ReceivePolicy
 	IDGenerator     IDGenerator
@@ -96,16 +103,18 @@ type ReceiverOptions struct {
 }
 
 type Receiver struct {
-	store        storage.Store
-	resolver     RecipientResolver
-	recorder     MessageRecorder
-	deduplicator Deduplicator
-	rateLimiter  RateLimiter
-	backpressure Backpressure
-	hooks        []Hook
-	policy       ReceivePolicy
-	idGenerator  IDGenerator
-	clock        func() time.Time
+	store         storage.Store
+	resolver      RecipientResolver
+	recorder      MessageRecorder
+	deduplicator  Deduplicator
+	rateLimiter   RateLimiter
+	backpressure  Backpressure
+	authenticator Authenticator
+	requireAuth   bool
+	hooks         []Hook
+	policy        ReceivePolicy
+	idGenerator   IDGenerator
+	clock         func() time.Time
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -114,16 +123,18 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		idGenerator = randomMessageID
 	}
 	return &Receiver{
-		store:        opts.Store,
-		resolver:     opts.Resolver,
-		recorder:     recorderOrDefault(opts.Recorder),
-		deduplicator: deduplicatorOrDefault(opts.Deduplicator),
-		rateLimiter:  rateLimiterOrDefault(opts.RateLimiter),
-		backpressure: backpressureOrDefault(opts.Backpressure),
-		hooks:        append([]Hook(nil), opts.Hooks...),
-		policy:       normalizePolicy(opts.Policy, opts.MaxMessageBytes),
-		idGenerator:  idGenerator,
-		clock:        clockOrDefault(opts.Clock),
+		store:         opts.Store,
+		resolver:      opts.Resolver,
+		recorder:      recorderOrDefault(opts.Recorder),
+		deduplicator:  deduplicatorOrDefault(opts.Deduplicator),
+		rateLimiter:   rateLimiterOrDefault(opts.RateLimiter),
+		backpressure:  backpressureOrDefault(opts.Backpressure),
+		authenticator: opts.Authenticator,
+		requireAuth:   opts.RequireAuth,
+		hooks:         append([]Hook(nil), opts.Hooks...),
+		policy:        normalizePolicy(opts.Policy, opts.MaxMessageBytes),
+		idGenerator:   idGenerator,
+		clock:         clockOrDefault(opts.Clock),
 	}
 }
 
@@ -138,13 +149,17 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 }
 
 type session struct {
-	receiver   *Receiver
-	from       string
-	recipients []Mailbox
-	remoteAddr string
+	receiver      *Receiver
+	from          string
+	recipients    []Mailbox
+	remoteAddr    string
+	authenticated bool
 }
 
 func (s *session) Mail(from string, _ *gosmtp.MailOptions) error {
+	if s.receiver.requireAuth && !s.authenticated {
+		return gosmtp.ErrAuthRequired
+	}
 	normalized, err := mail.NormalizeAddress(from)
 	if err != nil {
 		return err
@@ -154,6 +169,9 @@ func (s *session) Mail(from string, _ *gosmtp.MailOptions) error {
 }
 
 func (s *session) Rcpt(to string, _ *gosmtp.RcptOptions) error {
+	if s.receiver.requireAuth && !s.authenticated {
+		return gosmtp.ErrAuthRequired
+	}
 	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
 		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)
 	}
@@ -179,6 +197,9 @@ func (s *session) Rcpt(to string, _ *gosmtp.RcptOptions) error {
 }
 
 func (s *session) Data(r io.Reader) error {
+	if s.receiver.requireAuth && !s.authenticated {
+		return gosmtp.ErrAuthRequired
+	}
 	if s.from == "" {
 		return fmt.Errorf("mail command is required before data")
 	}
@@ -317,6 +338,26 @@ func (s *session) Reset() {
 func (s *session) Logout() error {
 	s.Reset()
 	return nil
+}
+
+func (s *session) AuthMechanisms() []string {
+	if s.receiver.authenticator == nil {
+		return nil
+	}
+	return []string{sasl.Plain}
+}
+
+func (s *session) Auth(mech string) (sasl.Server, error) {
+	if s.receiver.authenticator == nil || !strings.EqualFold(mech, sasl.Plain) {
+		return nil, gosmtp.ErrAuthUnsupported
+	}
+	return sasl.NewPlainServer(func(identity, username, password string) error {
+		if err := s.receiver.authenticator.AuthenticatePlain(context.Background(), identity, username, password); err != nil {
+			return gosmtp.ErrAuthFailed
+		}
+		s.authenticated = true
+		return nil
+	}), nil
 }
 
 func BuildStoragePath(mailbox Mailbox, messageID string, receivedAt time.Time) string {
