@@ -159,7 +159,7 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
 		Authenticator:     repository,
 		Recorder:          repository,
-		AddReceivedHeader: true,
+		AddReceivedHeader: cfg.SubmissionAddReceivedHeader,
 		ReceivedDomain:    cfg.SMTPDomain,
 		SupportSMTPUTF8:   cfg.SubmissionSupportSMTPUTF8,
 		SupportRequireTLS: cfg.SubmissionSupportRequireTLS,

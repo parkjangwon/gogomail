@@ -14,6 +14,7 @@ type Config struct {
 	SubmissionAddr              string
 	SubmissionMaxRecipients     int
 	SubmissionMaxMessageBytes   int64
+	SubmissionAddReceivedHeader bool
 	SubmissionSupportSMTPUTF8   bool
 	SubmissionSupportRequireTLS bool
 	SubmissionSupportDSN        bool
@@ -72,6 +73,7 @@ func Load() Config {
 		SubmissionAddr:              envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionMaxRecipients:     intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
 		SubmissionMaxMessageBytes:   int64EnvOrDefault("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", 25*1024*1024),
+		SubmissionAddReceivedHeader: boolEnvOrDefault("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", true),
 		SubmissionSupportSMTPUTF8:   boolEnvOrDefault("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", false),
 		SubmissionSupportRequireTLS: boolEnvOrDefault("GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS", false),
 		SubmissionSupportDSN:        boolEnvOrDefault("GOGOMAIL_SUBMISSION_SUPPORT_DSN", false),

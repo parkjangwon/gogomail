@@ -12,6 +12,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_DSN", "")
@@ -79,6 +80,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SubmissionMaxMessageBytes != 25*1024*1024 {
 		t.Fatalf("SubmissionMaxMessageBytes = %d, want 25MiB", cfg.SubmissionMaxMessageBytes)
+	}
+	if !cfg.SubmissionAddReceivedHeader {
+		t.Fatal("SubmissionAddReceivedHeader = false, want true")
 	}
 	if cfg.SubmissionSupportSMTPUTF8 {
 		t.Fatal("SubmissionSupportSMTPUTF8 = true, want false")
@@ -230,6 +234,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "25")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "1048576")
+	t.Setenv("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", "false")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", "true")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS", "true")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_DSN", "true")
@@ -297,6 +302,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.SubmissionMaxMessageBytes != 1048576 {
 		t.Fatalf("SubmissionMaxMessageBytes = %d, want 1048576", cfg.SubmissionMaxMessageBytes)
+	}
+	if cfg.SubmissionAddReceivedHeader {
+		t.Fatal("SubmissionAddReceivedHeader = true, want false")
 	}
 	if !cfg.SubmissionSupportSMTPUTF8 {
 		t.Fatal("SubmissionSupportSMTPUTF8 = false, want true")
