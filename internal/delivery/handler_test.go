@@ -340,6 +340,23 @@ func TestDecodeQueuedMessageNormalizesAndDeduplicatesRecipients(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageAllowsNullReversePath(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"dsn-1",
+		"from":{"email":""},
+		"to":[{"email":"sender@example.net"}]
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.From.Email != "" {
+		t.Fatalf("from.email = %q, want null reverse-path", queued.From.Email)
+	}
+}
+
 func TestDecodeQueuedMessagePreservesDSNOptions(t *testing.T) {
 	t.Parallel()
 
