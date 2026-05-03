@@ -27,11 +27,17 @@ func normalizeDSNRecipientOptions(address string, opts *gosmtp.RcptOptions) DSNR
 	}
 	if len(opts.Notify) > 0 {
 		recipient.Notify = make([]string, 0, len(opts.Notify))
+		seen := make(map[string]struct{}, len(opts.Notify))
 		for _, notify := range opts.Notify {
 			value := strings.ToUpper(strings.TrimSpace(string(notify)))
-			if value != "" {
-				recipient.Notify = append(recipient.Notify, value)
+			if value == "" {
+				continue
 			}
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			recipient.Notify = append(recipient.Notify, value)
 		}
 	}
 	recipient.OriginalRecipient = strings.TrimSpace(opts.OriginalRecipient)
