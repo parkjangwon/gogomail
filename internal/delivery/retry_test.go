@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 func TestRetryPolicyNextDelay(t *testing.T) {
@@ -121,5 +123,16 @@ func TestRetryErrorMessageTruncatesAtUTF8Boundary(t *testing.T) {
 	}
 	if !utf8.ValidString(message) {
 		t.Fatalf("retry error is invalid UTF-8: %q", message)
+	}
+}
+
+func TestNormalizeRetryFarmDefaultsMalformedValues(t *testing.T) {
+	t.Parallel()
+
+	if got := normalizeRetryFarm(outbound.Farm(" weird ")); got != outbound.FarmGeneral {
+		t.Fatalf("normalizeRetryFarm = %q, want general", got)
+	}
+	if got := normalizeRetryFarm(outbound.Farm("BULK")); got != outbound.FarmBulk {
+		t.Fatalf("normalizeRetryFarm = %q, want bulk", got)
 	}
 }

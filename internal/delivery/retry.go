@@ -9,6 +9,8 @@ import (
 	"hash/fnv"
 	"math"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 var ErrRetryExhausted = errors.New("delivery retry attempts exhausted")
@@ -89,13 +91,17 @@ func (s *PostgresRetryScheduler) ScheduleRetry(ctx context.Context, job Job, cau
 INSERT INTO outbox (topic, partition_key, payload, status, available_at, last_error)
 VALUES ($1, $2, $3::jsonb, 'pending', $4, $5)`
 
-	topic := "mail.outbound." + string(job.Farm)
+	topic := "mail.outbound." + string(normalizeRetryFarm(job.Farm))
 	errorMessage := retryErrorMessage(cause)
 
 	if _, err := s.db.ExecContext(ctx, query, topic, job.MessageID, string(payload), availableAt, errorMessage); err != nil {
 		return fmt.Errorf("schedule delivery retry: %w", err)
 	}
 	return nil
+}
+
+func normalizeRetryFarm(farm outbound.Farm) outbound.Farm {
+	return outbound.NormalizeFarm(farm)
 }
 
 func retryErrorMessage(cause error) string {
