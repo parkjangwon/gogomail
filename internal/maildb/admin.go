@@ -71,7 +71,7 @@ func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("domain id is required")
 	}
-	switch strings.TrimSpace(req.Status) {
+	switch normalizeAdminStatus(req.Status) {
 	case "active", "suspended", "disabled":
 		return nil
 	default:
@@ -83,7 +83,7 @@ func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("user id is required")
 	}
-	switch strings.TrimSpace(req.Status) {
+	switch normalizeAdminStatus(req.Status) {
 	case "active", "suspended", "disabled":
 		return nil
 	default:
@@ -102,7 +102,7 @@ func (r *Repository) UpdateDomainStatus(ctx context.Context, req UpdateDomainSta
 UPDATE domains
 SET status = $2,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.Status))
+WHERE id = $1`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status))
 	if err != nil {
 		return fmt.Errorf("update domain status: %w", err)
 	}
@@ -124,7 +124,7 @@ func (r *Repository) UpdateUserStatus(ctx context.Context, req UpdateUserStatusR
 UPDATE users
 SET status = $2,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.Status))
+WHERE id = $1`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status))
 	if err != nil {
 		return fmt.Errorf("update user status: %w", err)
 	}
@@ -133,6 +133,10 @@ WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.Status))
 		return fmt.Errorf("user %q not found", req.ID)
 	}
 	return nil
+}
+
+func normalizeAdminStatus(status string) string {
+	return strings.ToLower(strings.TrimSpace(status))
 }
 
 func (r *Repository) ListUsers(ctx context.Context, domainID string, limit int) ([]UserView, error) {

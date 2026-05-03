@@ -25,3 +25,11 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 		t.Fatal("ValidateUpdateUserStatusRequest accepted unknown status")
 	}
 }
+
+func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
+	t.Parallel()
+
+	if got := normalizeAdminStatus(" Suspended "); got != "suspended" {
+		t.Fatalf("status = %q, want suspended", got)
+	}
+}
