@@ -90,7 +90,13 @@ func (r *Repository) MarkDraftSent(ctx context.Context, userID string, draftID s
 		return fmt.Errorf("database handle is required")
 	}
 
-	result, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin mark draft sent transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `
 UPDATE messages AS draft
 SET status = 'deleted',
     deleted_at = now(),
@@ -109,6 +115,33 @@ WHERE draft.user_id = $1
 	affected, err := result.RowsAffected()
 	if err == nil && affected == 0 {
 		return fmt.Errorf("draft %q not found for sent message %q", draftID, sentMessageID)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE attachments
+SET draft_id = NULL,
+    message_id = $3,
+    status = 'stored'
+WHERE user_id = $1
+  AND draft_id = $2
+  AND message_id IS NULL`, strings.TrimSpace(userID), strings.TrimSpace(draftID), strings.TrimSpace(sentMessageID)); err != nil {
+		return fmt.Errorf("attach sent draft uploads: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET has_attachment = EXISTS (
+    SELECT 1
+    FROM attachments
+    WHERE message_id = $2
+      AND user_id = $1
+  ),
+  updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'active'`, strings.TrimSpace(userID), strings.TrimSpace(sentMessageID)); err != nil {
+		return fmt.Errorf("refresh sent attachment state: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit mark draft sent transaction: %w", err)
 	}
 	return nil
 }
