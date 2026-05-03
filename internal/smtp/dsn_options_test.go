@@ -12,16 +12,17 @@ func TestNormalizeDSNRecipientOptionsDeduplicatesNotify(t *testing.T) {
 
 	got := normalizeDSNRecipientOptions("User@Example.COM", &gosmtp.RcptOptions{
 		Notify: []gosmtp.DSNNotify{
+			gosmtp.DSNNotifyDelayed,
+			" success ",
 			gosmtp.DSNNotifyFailure,
 			" failure ",
-			gosmtp.DSNNotifyDelayed,
 		},
 	})
 
 	if got.Address != "user@example.com" {
 		t.Fatalf("address = %q, want normalized lowercase address", got.Address)
 	}
-	want := []string{"FAILURE", "DELAY"}
+	want := []string{"SUCCESS", "FAILURE", "DELAY"}
 	if !reflect.DeepEqual(got.Notify, want) {
 		t.Fatalf("notify = %v, want %v", got.Notify, want)
 	}

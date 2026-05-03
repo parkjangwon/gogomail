@@ -374,11 +374,28 @@ func normalizeDSNNotify(values []string) ([]string, error) {
 	if hasNever && len(normalized) > 1 {
 		return nil, fmt.Errorf("mail.queued payload has invalid dsn.notify: NEVER cannot be combined")
 	}
-	return normalized, nil
+	return orderDSNNotify(normalized), nil
 }
 
 func containsLineBreak(value string) bool {
 	return strings.ContainsAny(value, "\r\n")
+}
+
+func orderDSNNotify(values []string) []string {
+	if len(values) <= 1 {
+		return values
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		seen[value] = struct{}{}
+	}
+	ordered := values[:0]
+	for _, value := range []string{"NEVER", "SUCCESS", "FAILURE", "DELAY"} {
+		if _, ok := seen[value]; ok {
+			ordered = append(ordered, value)
+		}
+	}
+	return ordered
 }
 
 func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptStatus, cause error) error {

@@ -92,6 +92,28 @@ func TestDecodeQueuedMessageRejectsStoragePathLineBreak(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageCanonicalizesDSNNotifyOrder(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"dsn":{"recipients":[{"address":"recipient@example.net","notify":["delay","failure","SUCCESS","failure"]}]},
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	got := queued.DSN.Recipients[0].Notify
+	want := []string{"SUCCESS", "FAILURE", "DELAY"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("Notify = %v, want %v", got, want)
+	}
+}
+
 func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	t.Parallel()
 

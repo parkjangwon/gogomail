@@ -39,9 +39,27 @@ func normalizeDSNRecipientOptions(address string, opts *gosmtp.RcptOptions) DSNR
 			seen[value] = struct{}{}
 			recipient.Notify = append(recipient.Notify, value)
 		}
+		recipient.Notify = orderDSNNotify(recipient.Notify)
 	}
 	recipient.OriginalRecipient = strings.TrimSpace(opts.OriginalRecipient)
 	return recipient
+}
+
+func orderDSNNotify(values []string) []string {
+	if len(values) <= 1 {
+		return values
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		seen[value] = struct{}{}
+	}
+	ordered := values[:0]
+	for _, value := range []string{"NEVER", "SUCCESS", "FAILURE", "DELAY"} {
+		if _, ok := seen[value]; ok {
+			ordered = append(ordered, value)
+		}
+	}
+	return ordered
 }
 
 func cloneDSNOptions(opts DSNOptions) DSNOptions {
