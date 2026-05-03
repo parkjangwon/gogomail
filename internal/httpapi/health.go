@@ -27,6 +27,11 @@ type InfoResponse struct {
 	BackendContractVersion string `json:"backend_contract_version"`
 }
 
+const (
+	APIVersion             = "v1"
+	BackendContractVersion = "2026-05-04.backend-release"
+)
+
 func RegisterHealthRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health/live", writeHealth)
 	mux.HandleFunc("GET /health/ready", writeReady)
@@ -59,7 +64,7 @@ func writeInfo(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(InfoResponse{
 		Service:                "gogomail",
 		Status:                 "ok",
-		APIVersion:             "v1",
-		BackendContractVersion: "2026-05-04.backend-release",
+		APIVersion:             APIVersion,
+		BackendContractVersion: BackendContractVersion,
 	})
 }

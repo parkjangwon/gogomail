@@ -30,6 +30,9 @@ func TestInfoHandler(t *testing.T) {
 	if body.APIVersion != "v1" || body.BackendContractVersion == "" {
 		t.Fatalf("contract metadata = %+v", body)
 	}
+	if body.APIVersion != APIVersion || body.BackendContractVersion != BackendContractVersion {
+		t.Fatalf("metadata constants mismatch: body=%+v constants=%s/%s", body, APIVersion, BackendContractVersion)
+	}
 }
 
 func TestReadyHandlerIncludesChecks(t *testing.T) {
