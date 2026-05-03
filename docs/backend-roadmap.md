@@ -184,6 +184,14 @@ Implementation order:
 137. Delivery attempt metadata now records normalized recipient domains and truncates long error messages at UTF-8 boundaries for safer PostgreSQL/audit storage.
 138. Delivery throttling now emits retry scheduled and retry exhausted metrics, making deferred outbound farm/domain backpressure visible through the existing observability boundary.
 139. `inbound-mta` now starts a real SMTP receive server with its own `GOGOMAIL_INBOUND_SMTP_ADDR`, rather than acting as a placeholder mode, moving Phase 1 closer to distinct Edge and post-filter receive boundaries.
+140. SMTP server runtime extension toggles now propagate SMTPUTF8, REQUIRETLS, DSN, and BINARYMIME support into the underlying protocol server for both edge/inbound and submission modes.
+141. Delivery queue DSN metadata rejects duplicate recipient NOTIFY merges that would combine `NEVER` with other notification requests.
+142. Smart-host route normalization now handles bracketed IPv6 literals with and without explicit ports without fragmenting host lists or route pool keys.
+143. SMTP DSN `ENVID` and `ORCPT` xtext validation now enforces RFC 3461 `+HH` escaping and rejects raw `=` or malformed plus escapes.
+144. Outbound SMTP delivery now forwards DSN envelope options (`RET`, `ENVID`, `NOTIFY`, `ORCPT`) when the remote server advertises DSN support.
+145. Queued delivery DSN `ORCPT` metadata is validated at the delivery trust boundary as an RFC-shaped typed xtext recipient value before it can reach SMTP command generation.
+146. Null reverse-path delivery suppresses outbound DSN request options, reducing DSN/bounce loop risk while preserving regular recipient delivery.
+147. Outbound SMTP DSN command generation has wire-level tests that verify advertised DSN support produces RFC-shaped MAIL and RCPT parameters.
 
 ## Deferred until backend contracts stabilize
 
