@@ -38,6 +38,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "")
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "")
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", "")
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", "")
 	t.Setenv("GOGOMAIL_DKIM_ENABLED", "")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "")
@@ -134,6 +137,21 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.DeliveryTLSMode != "opportunistic" {
 		t.Fatalf("DeliveryTLSMode = %q, want opportunistic", cfg.DeliveryTLSMode)
 	}
+	wantRetryDelays := []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}
+	if len(cfg.DeliveryRetryDelays) != len(wantRetryDelays) {
+		t.Fatalf("DeliveryRetryDelays = %v, want %v", cfg.DeliveryRetryDelays, wantRetryDelays)
+	}
+	for i := range wantRetryDelays {
+		if cfg.DeliveryRetryDelays[i] != wantRetryDelays[i] {
+			t.Fatalf("DeliveryRetryDelays = %v, want %v", cfg.DeliveryRetryDelays, wantRetryDelays)
+		}
+	}
+	if cfg.DeliveryRetryJitterRatio != 0.20 {
+		t.Fatalf("DeliveryRetryJitterRatio = %f, want 0.20", cfg.DeliveryRetryJitterRatio)
+	}
+	if cfg.DeliveryRetryMaxDelay != 24*time.Hour {
+		t.Fatalf("DeliveryRetryMaxDelay = %s, want 24h", cfg.DeliveryRetryMaxDelay)
+	}
 	if cfg.DKIMEnabled {
 		t.Fatal("DKIMEnabled = true, want false")
 	}
@@ -178,6 +196,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "require")
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "1m, 5m, 1h")
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", "0.35")
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", "6h")
 	t.Setenv("GOGOMAIL_DKIM_ENABLED", "true")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "secret")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "jwt-secret")
@@ -279,6 +300,18 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DeliveryTLSMode != "require" {
 		t.Fatalf("DeliveryTLSMode = %q, want require", cfg.DeliveryTLSMode)
+	}
+	if len(cfg.DeliveryRetryDelays) != 3 ||
+		cfg.DeliveryRetryDelays[0] != time.Minute ||
+		cfg.DeliveryRetryDelays[1] != 5*time.Minute ||
+		cfg.DeliveryRetryDelays[2] != time.Hour {
+		t.Fatalf("DeliveryRetryDelays = %v, want [1m 5m 1h]", cfg.DeliveryRetryDelays)
+	}
+	if cfg.DeliveryRetryJitterRatio != 0.35 {
+		t.Fatalf("DeliveryRetryJitterRatio = %f, want 0.35", cfg.DeliveryRetryJitterRatio)
+	}
+	if cfg.DeliveryRetryMaxDelay != 6*time.Hour {
+		t.Fatalf("DeliveryRetryMaxDelay = %s, want 6h", cfg.DeliveryRetryMaxDelay)
 	}
 	if !cfg.DKIMEnabled {
 		t.Fatal("DKIMEnabled = false, want true")

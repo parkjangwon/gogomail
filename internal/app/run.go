@@ -298,6 +298,10 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	transport := delivery.NewDirectSMTPTransport()
 	transport.Hello = cfg.DeliverySMTPHello
 	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
+	retryPolicy := delivery.DefaultRetryPolicy()
+	retryPolicy.Delays = cfg.DeliveryRetryDelays
+	retryPolicy.JitterRatio = cfg.DeliveryRetryJitterRatio
+	retryPolicy.MaxDelay = cfg.DeliveryRetryMaxDelay
 	if cfg.DKIMEnabled {
 		repository := maildb.NewRepository(db)
 		transport.Transformers = append(transport.Transformers, dkim.Transformer{
@@ -317,7 +321,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 			storage.NewLocalStore(cfg.MailstoreRoot),
 			transport,
 			delivery.NewPostgresRecorder(db),
-			delivery.NewPostgresRetryScheduler(db, delivery.DefaultRetryPolicy()),
+			delivery.NewPostgresRetryScheduler(db, retryPolicy),
 		),
 		Logger: logger,
 	})

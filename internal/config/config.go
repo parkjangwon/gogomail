@@ -41,6 +41,9 @@ type Config struct {
 	DeliveryConsumerBlock       time.Duration
 	DeliverySMTPHello           string
 	DeliveryTLSMode             string
+	DeliveryRetryDelays         []time.Duration
+	DeliveryRetryJitterRatio    float64
+	DeliveryRetryMaxDelay       time.Duration
 	DKIMEnabled                 bool
 	AdminToken                  string
 	AuthJWTSecret               string
@@ -81,6 +84,9 @@ func Load() Config {
 		DeliveryConsumerBlock:       durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
 		DeliverySMTPHello:           envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 		DeliveryTLSMode:             envOrDefault("GOGOMAIL_DELIVERY_TLS_MODE", "opportunistic"),
+		DeliveryRetryDelays:         durationCSVEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_DELAYS", []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}),
+		DeliveryRetryJitterRatio:    floatEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", 0.20),
+		DeliveryRetryMaxDelay:       durationEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", 24*time.Hour),
 		DKIMEnabled:                 boolEnvOrDefault("GOGOMAIL_DKIM_ENABLED", false),
 		AdminToken:                  envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:               envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
@@ -144,4 +150,36 @@ func durationEnvOrDefault(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+func floatEnvOrDefault(key string, fallback float64) float64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func durationCSVEnvOrDefault(key string, fallback []time.Duration) []time.Duration {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return append([]time.Duration(nil), fallback...)
+	}
+	parts := strings.Split(value, ",")
+	durations := make([]time.Duration, 0, len(parts))
+	for _, part := range parts {
+		parsed, err := time.ParseDuration(strings.TrimSpace(part))
+		if err != nil {
+			return append([]time.Duration(nil), fallback...)
+		}
+		durations = append(durations, parsed)
+	}
+	if len(durations) == 0 {
+		return append([]time.Duration(nil), fallback...)
+	}
+	return durations
 }
