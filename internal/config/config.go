@@ -15,6 +15,7 @@ type Config struct {
 	SubmissionMaxRecipients     int
 	SubmissionMaxMessageBytes   int64
 	SubmissionSupportSMTPUTF8   bool
+	SubmissionSupportRequireTLS bool
 	SMTPTLSCertFile             string
 	SMTPTLSKeyFile              string
 	SubmissionAllowInsecureAuth bool
@@ -68,6 +69,7 @@ func Load() Config {
 		SubmissionMaxRecipients:     intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
 		SubmissionMaxMessageBytes:   int64EnvOrDefault("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SubmissionSupportSMTPUTF8:   boolEnvOrDefault("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", false),
+		SubmissionSupportRequireTLS: boolEnvOrDefault("GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS", false),
 		SMTPTLSCertFile:             envOrDefault("GOGOMAIL_SMTP_TLS_CERT_FILE", ""),
 		SMTPTLSKeyFile:              envOrDefault("GOGOMAIL_SMTP_TLS_KEY_FILE", ""),
 		SubmissionAllowInsecureAuth: boolEnvOrDefault("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
