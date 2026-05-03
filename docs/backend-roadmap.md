@@ -210,6 +210,9 @@ Implementation order:
 163. Null reverse-path DSN bounces no longer create suppression-list entries, preventing system-generated bounce traffic from contaminating user outbound suppression policy.
 164. Bounce DSN generation now uses deterministic storage paths, deterministic RFC-safe Message-IDs, and outbox dedupe keys so event-worker retries do not fan out duplicate DSN queue rows.
 165. DSN postmaster identity is runtime-configurable and validated at startup, supporting production-grade bounce branding without risking malformed DSN From headers.
+166. SMTP runtime configuration rejects unsafe `GOGOMAIL_SMTP_DOMAIN` values before startup, protecting SMTP banners, Received headers, and DSN reporting identities from malformed host names.
+167. Scheduled delivery retries now normalize outbound farm topics, deduplicate retry outbox rows by message/attempt/recipient set, and keep retry error storage UTF-8 safe.
+168. Outbox relay failure recording now truncates long errors at UTF-8 boundaries, keeping retry/failed-state diagnostics safe for PostgreSQL and audit surfaces.
 
 ## Deferred until backend contracts stabilize
 
