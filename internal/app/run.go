@@ -211,6 +211,12 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 }
 
 func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		_ = redisClient.Close()
@@ -228,7 +234,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		Consumer: cfg.DeliveryConsumerName,
 		Count:    int64(cfg.DeliveryConsumerCount),
 		Block:    cfg.DeliveryConsumerBlock,
-		Handler:  delivery.NewHandler(storage.NewLocalStore(cfg.MailstoreRoot), transport),
+		Handler:  delivery.NewHandler(storage.NewLocalStore(cfg.MailstoreRoot), transport, delivery.NewPostgresRecorder(db)),
 		Logger:   logger,
 	})
 	if err != nil {

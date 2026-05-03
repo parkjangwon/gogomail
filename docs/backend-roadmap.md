@@ -56,6 +56,7 @@ Implementation order:
 9. Mail API list/detail/folder endpoints.
 10. RFC 5322/MIME outbound text composer and outbound farm classifier.
 11. Delivery worker consumes `mail.outbound.general` and hands queued `.eml` messages to a pluggable SMTP transport.
+12. Delivery attempts are recorded for delivered/failed recipients as retry and bounce groundwork.
 
 ## Deferred until backend contracts stabilize
 

@@ -18,7 +18,8 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 		t.Fatalf("Put returned error: %v", err)
 	}
 	transport := &fakeTransport{}
-	handler := NewHandler(store, transport)
+	recorder := &fakeRecorder{}
+	handler := NewHandler(store, transport, recorder)
 
 	err := handler.HandleEvent(context.Background(), eventstream.Message{
 		ID: "1-0",
@@ -39,6 +40,9 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 	}
 	if !strings.Contains(transport.raw, "Subject: hello") {
 		t.Fatalf("raw = %q", transport.raw)
+	}
+	if len(recorder.attempts) != 1 || recorder.attempts[0].Status != AttemptDelivered {
+		t.Fatalf("attempts = %+v, want delivered attempt", recorder.attempts)
 	}
 }
 
@@ -68,5 +72,14 @@ func (t *fakeTransport) Deliver(ctx context.Context, job Job) error {
 		return err
 	}
 	t.raw = string(raw)
+	return nil
+}
+
+type fakeRecorder struct {
+	attempts []Attempt
+}
+
+func (r *fakeRecorder) RecordAttempt(_ context.Context, attempt Attempt) error {
+	r.attempts = append(r.attempts, attempt)
 	return nil
 }

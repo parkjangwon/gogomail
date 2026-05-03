@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -42,10 +43,14 @@ type Transport interface {
 type Handler struct {
 	store     storage.Store
 	transport Transport
+	recorder  Recorder
 }
 
-func NewHandler(store storage.Store, transport Transport) *Handler {
-	return &Handler{store: store, transport: transport}
+func NewHandler(store storage.Store, transport Transport, recorder Recorder) *Handler {
+	if recorder == nil {
+		recorder = noopRecorder{}
+	}
+	return &Handler{store: store, transport: transport, recorder: recorder}
 }
 
 func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
@@ -64,12 +69,20 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		return fmt.Errorf("mail.queued payload is missing storage_path")
 	}
 
-	return h.transport.Deliver(ctx, Job{
+	job := Job{
 		QueuedMessage: queued,
 		OpenMessage: func(openCtx context.Context) (io.ReadCloser, error) {
 			return h.store.Get(openCtx, queued.StoragePath)
 		},
-	})
+	}
+
+	if err := h.transport.Deliver(ctx, job); err != nil {
+		if recordErr := h.recordAttempts(ctx, job, AttemptFailed, err); recordErr != nil {
+			return recordErr
+		}
+		return err
+	}
+	return h.recordAttempts(ctx, job, AttemptDelivered, nil)
 }
 
 func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
@@ -98,4 +111,17 @@ func (m QueuedMessage) Recipients() []outbound.Address {
 	recipients = append(recipients, m.Cc...)
 	recipients = append(recipients, m.Bcc...)
 	return recipients
+}
+
+func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptStatus, cause error) error {
+	for _, attempt := range attemptsFor(job, status, cause, timeNow()) {
+		if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
+			return fmt.Errorf("record delivery attempt: %w", err)
+		}
+	}
+	return nil
+}
+
+var timeNow = func() time.Time {
+	return time.Now().UTC()
 }
