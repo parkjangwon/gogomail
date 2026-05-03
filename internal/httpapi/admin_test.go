@@ -39,6 +39,36 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDomainsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		domains: []maildb.DomainView{{ID: "domain-1", Name: "example.com", Status: "active"}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains?limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Domains []maildb.DomainView `json:"domains"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Domains) != 1 || body.Domains[0].Name != "example.com" {
+		t.Fatalf("domains = %+v", body.Domains)
+	}
+	if service.lastLimit != 10 {
+		t.Fatalf("lastLimit = %d", service.lastLimit)
+	}
+}
+
 func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -222,6 +252,7 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 }
 
 type fakeAdminService struct {
+	domains                 []maildb.DomainView
 	queueStats              []maildb.QueueStat
 	attempts                []maildb.DeliveryAttemptView
 	suppression             []maildb.SuppressionEntry
@@ -233,6 +264,11 @@ type fakeAdminService struct {
 	lastDeactivateDKIMKeyID string
 	lastRetryOutboxID       string
 	lastDeleteSuppressionID string
+}
+
+func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {
+	f.lastLimit = limit
+	return f.domains, nil
 }
 
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {

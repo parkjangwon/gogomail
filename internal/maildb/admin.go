@@ -33,6 +33,66 @@ type SuppressionEntry struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+type DomainView struct {
+	ID         string    `json:"id"`
+	CompanyID  string    `json:"company_id"`
+	Name       string    `json:"name"`
+	NameACE    string    `json:"name_ace"`
+	Status     string    `json:"status"`
+	QuotaUsed  int64     `json:"quota_used"`
+	QuotaLimit int64     `json:"quota_limit,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (r *Repository) ListDomains(ctx context.Context, limit int) ([]DomainView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  name,
+  name_ace,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  created_at
+FROM domains
+ORDER BY created_at DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list domains: %w", err)
+	}
+	defer rows.Close()
+
+	var domains []DomainView
+	for rows.Next() {
+		var domain DomainView
+		if err := rows.Scan(
+			&domain.ID,
+			&domain.CompanyID,
+			&domain.Name,
+			&domain.NameACE,
+			&domain.Status,
+			&domain.QuotaUsed,
+			&domain.QuotaLimit,
+			&domain.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan domain: %w", err)
+		}
+		domains = append(domains, domain)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate domains: %w", err)
+	}
+	return domains, nil
+}
+
 func (r *Repository) ListQueueStats(ctx context.Context) ([]QueueStat, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
