@@ -16,6 +16,7 @@ type Config struct {
 	SMTPDomain      string
 	MailstoreRoot   string
 	LocalRecipients []string
+	DedupBackend    string
 }
 
 func Load() Config {
@@ -30,6 +31,7 @@ func Load() Config {
 		SMTPDomain:      envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
 		MailstoreRoot:   envOrDefault("GOGOMAIL_MAILSTORE_ROOT", "var/mailstore"),
 		LocalRecipients: splitCSV(os.Getenv("GOGOMAIL_LOCAL_RECIPIENTS")),
+		DedupBackend:    envOrDefault("GOGOMAIL_DEDUP_BACKEND", "none"),
 	}
 }
 

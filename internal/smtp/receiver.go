@@ -48,6 +48,15 @@ type MessageRecorder interface {
 	Record(ctx context.Context, msg ReceivedMessage) error
 }
 
+type Deduplicator interface {
+	CheckAndSet(ctx context.Context, key DedupKey) (bool, error)
+}
+
+type DedupKey struct {
+	MessageID string
+	Recipient string
+}
+
 type ReceivedMessage struct {
 	EnvelopeFrom string
 	Mailbox      Mailbox
@@ -61,6 +70,7 @@ type ReceiverOptions struct {
 	Store           storage.Store
 	Resolver        RecipientResolver
 	Recorder        MessageRecorder
+	Deduplicator    Deduplicator
 	IDGenerator     IDGenerator
 	Clock           func() time.Time
 	MaxMessageBytes int64
@@ -70,6 +80,7 @@ type Receiver struct {
 	store           storage.Store
 	resolver        RecipientResolver
 	recorder        MessageRecorder
+	deduplicator    Deduplicator
 	idGenerator     IDGenerator
 	clock           func() time.Time
 	maxMessageBytes int64
@@ -84,6 +95,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		store:           opts.Store,
 		resolver:        opts.Resolver,
 		recorder:        recorderOrDefault(opts.Recorder),
+		deduplicator:    deduplicatorOrDefault(opts.Deduplicator),
 		idGenerator:     idGenerator,
 		clock:           clockOrDefault(opts.Clock),
 		maxMessageBytes: maxMessageBytesOrDefault(opts.MaxMessageBytes),
@@ -152,6 +164,17 @@ func (s *session) Data(r io.Reader) error {
 	messageID := s.receiver.idGenerator()
 	receivedAt := s.receiver.clock()
 	for _, recipient := range s.recipients {
+		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(context.Background(), DedupKey{
+			MessageID: parsed.MessageID,
+			Recipient: recipient.Address,
+		})
+		if err != nil {
+			return fmt.Errorf("check duplicate message for %s: %w", recipient.Address, err)
+		}
+		if !shouldProcess {
+			continue
+		}
+
 		path := BuildStoragePath(recipient, messageID, receivedAt)
 		if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 			return fmt.Errorf("rewind spooled message for store: %w", err)
@@ -221,6 +244,19 @@ func recorderOrDefault(recorder MessageRecorder) MessageRecorder {
 		return recorder
 	}
 	return noopRecorder{}
+}
+
+type noopDeduplicator struct{}
+
+func (noopDeduplicator) CheckAndSet(context.Context, DedupKey) (bool, error) {
+	return true, nil
+}
+
+func deduplicatorOrDefault(deduplicator Deduplicator) Deduplicator {
+	if deduplicator != nil {
+		return deduplicator
+	}
+	return noopDeduplicator{}
 }
 
 func spoolMessage(r io.Reader, maxBytes int64) (*os.File, int64, error) {

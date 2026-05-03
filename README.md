@@ -49,6 +49,8 @@ GOGOMAIL_SMTP_ADDR=127.0.0.1:2525 \
 GOGOMAIL_SMTP_DOMAIN=example.com \
 GOGOMAIL_LOCAL_RECIPIENTS=admin@example.com \
 GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
+GOGOMAIL_DEDUP_BACKEND=redis \
+GOGOMAIL_REDIS_ADDR=127.0.0.1:16379 \
   go run ./cmd/gogomail --mode=edge-mta
 ```
 
@@ -61,6 +63,8 @@ user_addresses -> users/domains
 folders(system_type=inbox)
 messages INSERT
 ```
+
+When `GOGOMAIL_DEDUP_BACKEND=redis`, edge-mta uses Redis `SET NX` with a 24-hour TTL to skip duplicate `Message-ID + recipient` deliveries.
 
 Accepted messages are stored as raw `.eml` files under:
 

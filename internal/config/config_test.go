@@ -13,6 +13,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "")
+	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
 
 	cfg := Load()
 
@@ -40,6 +41,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if len(cfg.LocalRecipients) != 0 {
 		t.Fatalf("LocalRecipients = %v, want empty", cfg.LocalRecipients)
 	}
+	if cfg.DedupBackend != "none" {
+		t.Fatalf("DedupBackend = %q, want none", cfg.DedupBackend)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -53,6 +57,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "mail.example.com")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "/tmp/gogomail-mailstore")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "Admin@Example.COM, user@example.com ")
+	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
 
 	cfg := Load()
 
@@ -85,5 +90,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if len(cfg.LocalRecipients) != 2 || cfg.LocalRecipients[0] != "Admin@Example.COM" || cfg.LocalRecipients[1] != "user@example.com" {
 		t.Fatalf("LocalRecipients = %v, want two parsed recipients", cfg.LocalRecipients)
+	}
+	if cfg.DedupBackend != "redis" {
+		t.Fatalf("DedupBackend = %q, want redis", cfg.DedupBackend)
 	}
 }

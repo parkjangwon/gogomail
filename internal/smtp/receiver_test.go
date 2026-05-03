@@ -130,6 +130,59 @@ func TestSessionRecordsParsedMessageMetadata(t *testing.T) {
 	}
 }
 
+func TestSessionSkipsDuplicateMessageForRecipient(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: store,
+		Resolver: StaticResolver{
+			"jangwon@example.com": {
+				CompanyID: "company-1",
+				DomainID:  "domain-1",
+				UserID:    "user-1",
+				Address:   "jangwon@example.com",
+			},
+		},
+		Recorder:     recorder,
+		Deduplicator: &duplicateDeduplicator{},
+		IDGenerator:  func() string { return "duplicate" },
+		Clock:        func() time.Time { return time.Date(2026, 5, 3, 9, 30, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("JangWon@Example.COM", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	raw := strings.Join([]string{
+		"Message-ID: <duplicate@example.com>",
+		"From: Sender <sender@example.net>",
+		"To: JangWon <jangwon@example.com>",
+		"Subject: duplicate",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+	}, "\r\n")
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 0 {
+		t.Fatalf("recorded messages = %d, want 0", len(recorder.messages))
+	}
+	if _, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/duplicate.eml"); err == nil {
+		t.Fatal("duplicate message was stored")
+	}
+}
+
 func TestSessionRejectsUnknownRecipient(t *testing.T) {
 	t.Parallel()
 
@@ -214,4 +267,10 @@ type recordingRecorder struct {
 func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) error {
 	r.messages = append(r.messages, msg)
 	return nil
+}
+
+type duplicateDeduplicator struct{}
+
+func (duplicateDeduplicator) CheckAndSet(context.Context, DedupKey) (bool, error) {
+	return false, nil
 }

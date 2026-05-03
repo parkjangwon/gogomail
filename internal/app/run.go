@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
+	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
@@ -38,6 +41,7 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	var resolver smtpd.RecipientResolver
 	var recorder smtpd.MessageRecorder
+	var deduplicator smtpd.Deduplicator
 
 	if len(cfg.LocalRecipients) > 0 {
 		staticResolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
@@ -59,10 +63,23 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		logger.Info("edge-mta using database recipient resolver and message recorder")
 	}
 
+	if cfg.DedupBackend == "redis" {
+		client := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		if err := client.Ping(ctx).Err(); err != nil {
+			_ = client.Close()
+			return err
+		}
+		defer client.Close()
+
+		deduplicator = dedup.NewRedisDeduplicator(client, 24*time.Hour)
+		logger.Info("edge-mta using redis deduplicator", "addr", cfg.RedisAddr)
+	}
+
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
-		Store:    storage.NewLocalStore(cfg.MailstoreRoot),
-		Resolver: resolver,
-		Recorder: recorder,
+		Store:        storage.NewLocalStore(cfg.MailstoreRoot),
+		Resolver:     resolver,
+		Recorder:     recorder,
+		Deduplicator: deduplicator,
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
