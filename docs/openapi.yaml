@@ -1,0 +1,362 @@
+openapi: 3.1.0
+info:
+  title: gogomail Backend API
+  version: 2026-05-04.backend-release
+  description: Backend-only contract for the first gogomail webmail/admin release slice.
+servers:
+  - url: /api/v1
+    description: Mail API
+  - url: /admin/v1
+    description: Admin API
+security:
+  - bearerAuth: []
+paths:
+  /info:
+    get:
+      summary: Service and backend contract metadata
+      responses:
+        "200":
+          description: Service info
+  /folders:
+    get:
+      summary: List folders
+      responses:
+        "200":
+          description: Folder list envelope
+    post:
+      summary: Create a user folder
+      responses:
+        "201":
+          description: Created folder envelope
+  /folders/{id}:
+    patch:
+      summary: Rename a folder
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Folder envelope
+    delete:
+      summary: Delete a folder
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /messages:
+    get:
+      summary: List messages with opaque cursor pagination
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: folder_id
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Message list page envelope
+  /messages/{id}:
+    get:
+      summary: Get message detail
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Message detail envelope
+    delete:
+      summary: Soft-delete a message
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /messages/{id}/flags:
+    patch:
+      summary: Update one message flag
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /messages/{id}/folder:
+    patch:
+      summary: Move one message to a folder
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /messages/bulk/flags:
+    patch:
+      summary: Bounded bulk flag update
+      responses:
+        "200":
+          description: Bulk update count envelope
+  /messages/bulk/folder:
+    patch:
+      summary: Bounded bulk folder move
+      responses:
+        "200":
+          description: Bulk update count envelope
+  /messages/bulk/delete:
+    post:
+      summary: Bounded bulk soft delete
+      responses:
+        "200":
+          description: Bulk update count envelope
+  /messages/{id}/attachments:
+    get:
+      summary: List message attachments
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Attachment list envelope
+  /messages/{id}/attachments/{attachment_id}/download:
+    get:
+      summary: Download an attachment
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: attachment_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Attachment bytes
+  /messages/send:
+    post:
+      summary: Compose and queue a new/reply/forward message
+      responses:
+        "202":
+          description: Queued send result
+  /drafts:
+    post:
+      summary: Save or update a draft
+      responses:
+        "200":
+          description: Draft envelope
+  /drafts/{id}:
+    patch:
+      summary: Update an existing draft
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Draft envelope
+    delete:
+      summary: Delete a draft
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /drafts/{id}/send:
+    post:
+      summary: Send an existing draft
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "202":
+          description: Queued send result
+  /attachments:
+    post:
+      summary: Reserve attachment upload metadata
+      responses:
+        "201":
+          description: Attachment envelope
+  /attachments/upload:
+    post:
+      summary: Direct multipart attachment upload
+      responses:
+        "201":
+          description: Attachment envelope
+  /queue:
+    get:
+      summary: Admin queue stats
+      responses:
+        "200":
+          description: Queue stats envelope
+  /delivery-attempts:
+    get:
+      summary: Admin delivery attempt list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Delivery attempts envelope
+  /suppression-list:
+    get:
+      summary: Admin suppression list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Suppression list envelope
+  /suppression-list/{id}:
+    delete:
+      summary: Admin remove suppression entry
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /dkim-keys:
+    get:
+      summary: Admin DKIM key list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: DKIM key list envelope
+    post:
+      summary: Admin create DKIM key
+      responses:
+        "201":
+          description: DKIM key id envelope
+  /dkim-keys/{id}:
+    delete:
+      summary: Admin deactivate DKIM key
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /outbox/{id}/retry:
+    post:
+      summary: Admin retry one outbox event
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /domains:
+    get:
+      summary: Admin domain list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Domain list envelope
+    post:
+      summary: Admin create domain
+      responses:
+        "201":
+          description: Domain envelope
+  /domains/{id}:
+    get:
+      summary: Admin domain detail
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Domain envelope
+  /domains/{id}/status:
+    patch:
+      summary: Admin update domain status
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /domains/{id}/quota:
+    patch:
+      summary: Admin update domain quota
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /users:
+    get:
+      summary: Admin user list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User list envelope
+    post:
+      summary: Admin create user
+      responses:
+        "201":
+          description: User envelope
+  /users/{id}:
+    get:
+      summary: Admin user detail
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: User envelope
+  /users/{id}/status:
+    patch:
+      summary: Admin update user status
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+  /users/{id}/quota:
+    patch:
+      summary: Admin update user quota
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Status envelope
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    adminToken:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
+  parameters:
+    PathID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 50
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, status, status_text]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            status:
+              type: integer
+            status_text:
+              type: string
+        error_message:
+          type: string
