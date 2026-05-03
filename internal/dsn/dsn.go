@@ -11,13 +11,14 @@ import (
 )
 
 type RecipientStatus struct {
-	Recipient     string
-	Action        string
-	Status        string
-	Diagnostic    string
-	RemoteMTA     string
-	FinalLogID    string
-	LastAttemptAt time.Time
+	Recipient         string
+	OriginalRecipient string
+	Action            string
+	Status            string
+	Diagnostic        string
+	RemoteMTA         string
+	FinalLogID        string
+	LastAttemptAt     time.Time
 }
 
 type Report struct {
@@ -66,9 +67,9 @@ func Compose(report Report) (outbound.ComposedMessage, error) {
 	buf.WriteString("This is an automatically generated Delivery Status Notification.\r\n\r\n")
 	buf.WriteString("--" + boundary + "\r\n")
 	buf.WriteString("Content-Type: message/delivery-status\r\n\r\n")
-	writeDSNField(&buf, "Reporting-MTA", "dns; "+report.ReportingMTA)
+	writeDSNField(&buf, "Reporting-MTA", "dns; "+sanitizeDSNValue(report.ReportingMTA))
 	if report.OriginalID != "" {
-		writeDSNField(&buf, "Original-Envelope-Id", report.OriginalID)
+		writeDSNField(&buf, "Original-Envelope-Id", sanitizeDSNValue(report.OriginalID))
 	}
 	buf.WriteString("\r\n")
 	for i, recipient := range report.Recipients {
@@ -97,11 +98,14 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 	if dsnStatus == "" {
 		dsnStatus = "5.0.0"
 	}
+	if status.OriginalRecipient != "" {
+		writeDSNField(buf, "Original-Recipient", sanitizeRecipientAddressType(status.OriginalRecipient))
+	}
 	writeDSNField(buf, "Final-Recipient", "rfc822; "+strings.ToLower(strings.TrimSpace(status.Recipient)))
 	writeDSNField(buf, "Action", action)
 	writeDSNField(buf, "Status", dsnStatus)
 	if status.RemoteMTA != "" {
-		writeDSNField(buf, "Remote-MTA", "dns; "+status.RemoteMTA)
+		writeDSNField(buf, "Remote-MTA", "dns; "+sanitizeDSNValue(status.RemoteMTA))
 	}
 	if status.Diagnostic != "" {
 		writeDSNField(buf, "Diagnostic-Code", "smtp; "+sanitizeDSNValue(status.Diagnostic))
@@ -155,4 +159,12 @@ func sanitizeDSNValue(value string) string {
 	value = strings.ReplaceAll(value, "\r", " ")
 	value = strings.ReplaceAll(value, "\n", " ")
 	return strings.Join(strings.Fields(value), " ")
+}
+
+func sanitizeRecipientAddressType(value string) string {
+	value = sanitizeDSNValue(value)
+	if strings.Contains(value, ";") {
+		return value
+	}
+	return "rfc822; " + strings.ToLower(strings.TrimSpace(value))
 }
