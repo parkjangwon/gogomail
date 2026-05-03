@@ -286,6 +286,70 @@ func TestSubmissionEmitsPipelineHooksInOrder(t *testing.T) {
 	}
 }
 
+func TestSubmissionObservesSMTPMetrics(t *testing.T) {
+	t.Parallel()
+
+	metrics := &recordingMetrics{}
+	store := storage.NewLocalStore(t.TempDir())
+	recorder := &submissionRecorder{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      recorder,
+		Metrics:       metrics,
+		IDGenerator:   func() string { return "submission-metrics-id" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 3, 11, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	if err := submission.Mail("jangwon@example.com", nil); err == nil {
+		t.Fatal("Mail accepted before AUTH")
+	}
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, done, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	} else if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-metrics@example.com>\r\nFrom: Jang Won <jangwon@example.com>\r\nTo: Outside <outside@example.net>\r\nSubject: metrics\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if !metrics.has(StageMailFrom, MetricRejected) {
+		t.Fatalf("metrics = %+v, want rejected mail event", metrics.events)
+	}
+	if !metrics.has(StageAuthenticated, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted auth event", metrics.events)
+	}
+	if !metrics.has(StageMailFrom, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted mail event", metrics.events)
+	}
+	if !metrics.has(StageRcpt, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted rcpt event", metrics.events)
+	}
+	if !metrics.has(StageRecorded, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted data/recorded event", metrics.events)
+	}
+	last := metrics.events[len(metrics.events)-1]
+	if last.Size == 0 || len(last.Recipients) != 1 || last.Recipients[0] != "outside@example.net" {
+		t.Fatalf("last metric = %+v, want size and submitted recipient", last)
+	}
+}
+
 func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorder, store storage.Store) *submissionSession {
 	t.Helper()
 

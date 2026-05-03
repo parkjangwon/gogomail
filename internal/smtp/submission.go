@@ -45,6 +45,7 @@ type SubmissionOptions struct {
 	Store             storage.Store
 	Authenticator     SubmissionAuthenticator
 	Recorder          SubmissionRecorder
+	Metrics           Metrics
 	Hooks             []Hook
 	SupportSMTPUTF8   bool
 	SupportRequireTLS bool
@@ -61,6 +62,7 @@ type SubmissionReceiver struct {
 	store             storage.Store
 	authenticator     SubmissionAuthenticator
 	recorder          SubmissionRecorder
+	metrics           Metrics
 	hooks             []Hook
 	supportSMTPUTF8   bool
 	supportRequireTLS bool
@@ -86,6 +88,7 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		store:             opts.Store,
 		authenticator:     opts.Authenticator,
 		recorder:          opts.Recorder,
+		metrics:           metricsOrDefault(opts.Metrics),
 		hooks:             append([]Hook(nil), opts.Hooks...),
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
 		supportRequireTLS: opts.SupportRequireTLS,
@@ -129,8 +132,17 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 		return nil, gosmtp.ErrAuthUnsupported
 	}
 	return sasl.NewPlainServer(func(identity, username, password string) error {
+		var authErr error
+		defer func() {
+			s.observe(context.Background(), MetricEvent{
+				Stage:  StageAuthenticated,
+				Result: metricResult(authErr),
+				Error:  metricError(authErr),
+			})
+		}()
 		user, err := s.receiver.authenticator.AuthenticatePlain(context.Background(), identity, username, password)
 		if err != nil {
+			authErr = gosmtp.ErrAuthFailed
 			return gosmtp.ErrAuthFailed
 		}
 		s.user = user
@@ -138,13 +150,22 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			Stage:          StageAuthenticated,
 			SubmissionUser: user,
 		}); err != nil {
+			authErr = err
 			return err
 		}
 		return nil
 	}), nil
 }
 
-func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) error {
+func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err error) {
+	defer func() {
+		s.observe(context.Background(), MetricEvent{
+			Stage:        StageMailFrom,
+			Result:       metricResult(err),
+			EnvelopeFrom: from,
+			Error:        metricError(err),
+		})
+	}()
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
 	}
@@ -174,7 +195,16 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) error {
 	return nil
 }
 
-func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) error {
+func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
+	defer func() {
+		s.observe(context.Background(), MetricEvent{
+			Stage:        StageRcpt,
+			Result:       metricResult(err),
+			EnvelopeFrom: s.from,
+			Recipient:    to,
+			Error:        metricError(err),
+		})
+	}()
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
 	}
@@ -200,7 +230,20 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) error {
 	return nil
 }
 
-func (s *submissionSession) Data(r io.Reader) error {
+func (s *submissionSession) Data(r io.Reader) (err error) {
+	envelopeFrom := s.from
+	recipients := append([]string(nil), s.recipients...)
+	var observedSize int64
+	defer func() {
+		s.observe(context.Background(), MetricEvent{
+			Stage:        StageRecorded,
+			Result:       metricResult(err),
+			EnvelopeFrom: envelopeFrom,
+			Recipients:   recipients,
+			Size:         observedSize,
+			Error:        metricError(err),
+		})
+	}()
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
 	}
@@ -210,12 +253,15 @@ func (s *submissionSession) Data(r io.Reader) error {
 	if len(s.recipients) == 0 {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
+	envelopeFrom = s.from
+	recipients = append([]string(nil), s.recipients...)
 	defer s.Reset()
 
 	spooled, size, err := spoolMessage(r, s.receiver.maxMessageBytes)
 	if err != nil {
 		return err
 	}
+	observedSize = size
 	messageID := s.receiver.idGenerator()
 	submittedAt := s.receiver.clock()
 	if s.receiver.addReceivedHeader {
@@ -226,6 +272,7 @@ func (s *submissionSession) Data(r io.Reader) error {
 		}
 		spooled = prefixed
 		size = prefixedSize
+		observedSize = size
 	}
 	defer cleanupSpool(spooled)
 	if err := s.emit(context.Background(), Event{
@@ -254,6 +301,7 @@ func (s *submissionSession) Data(r io.Reader) error {
 		}
 		spooled = prefixed
 		size = prefixedSize
+		observedSize = size
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageParsed,
@@ -337,6 +385,11 @@ func (s *submissionSession) emit(ctx context.Context, event Event) error {
 		}
 	}
 	return nil
+}
+
+func (s *submissionSession) observe(ctx context.Context, event MetricEvent) {
+	event.RemoteAddr = s.remoteAddr
+	s.receiver.metrics.ObserveSMTP(ctx, event)
 }
 
 func (s *submissionSession) Reset() {
