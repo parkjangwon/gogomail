@@ -33,6 +33,9 @@ func (c Config) Validate() error {
 	if c.DeliveryTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_TIMEOUT must be positive")
 	}
+	if c.SMTPMaxDKIMVerifications <= 0 {
+		return fmt.Errorf("GOGOMAIL_SMTP_MAX_DKIM_VERIFICATIONS must be positive")
+	}
 	if err := validateEnum("GOGOMAIL_SMTP_DMARC_ENFORCEMENT", c.SMTPDMARCEnforcement, "monitor", "quarantine", "reject"); err != nil {
 		return err
 	}

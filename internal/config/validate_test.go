@@ -55,6 +55,14 @@ func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNonpositiveDKIMVerificationLimit(t *testing.T) {
+	cfg := Load()
+	cfg.SMTPMaxDKIMVerifications = 0
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want DKIM verification limit rejection")
+	}
+}
+
 func TestValidateAcceptsDefaultConfig(t *testing.T) {
 	cfg := Load()
 	if err := cfg.Validate(); err != nil {
