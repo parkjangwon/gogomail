@@ -167,6 +167,12 @@ func TestSubmissionPrependsReceivedHeaderWhenConfigured(t *testing.T) {
 	if !strings.HasPrefix(string(got), "Received: from unknown by submit.example.com with ESMTPA id submission-received-id; ") {
 		t.Fatalf("stored submission missing Received header: %q", got)
 	}
+	if !strings.Contains(string(got), "\r\nMessage-ID: <submission-received-id@example.com>\r\n") {
+		t.Fatalf("stored submission missing generated Message-ID header: %q", got)
+	}
+	if recorder.messages[0].Parsed.MessageID != "<submission-received-id@example.com>" {
+		t.Fatalf("recorded MessageID = %q", recorder.messages[0].Parsed.MessageID)
+	}
 }
 
 func TestSubmissionEmitsPipelineHooksInOrder(t *testing.T) {

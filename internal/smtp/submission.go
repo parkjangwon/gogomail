@@ -224,6 +224,16 @@ func (s *submissionSession) Data(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("parse submitted message: %w", err)
 	}
+	if parsed.MessageID == "" {
+		parsed.MessageID = submittedMessageID(messageID, s.user.Address)
+		prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, "Message-ID: "+parsed.MessageID+"\r\n")
+		cleanupSpool(spooled)
+		if err != nil {
+			return err
+		}
+		spooled = prefixed
+		size = prefixedSize
+	}
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageParsed,
 		EnvelopeFrom:   s.from,
@@ -285,6 +295,18 @@ func (s *submissionSession) Data(r io.Reader) error {
 		return err
 	}
 	return nil
+}
+
+func submittedMessageID(id string, fromAddress string) string {
+	_, domain, ok := strings.Cut(strings.TrimSpace(fromAddress), "@")
+	if !ok || strings.TrimSpace(domain) == "" {
+		domain = "localhost"
+	}
+	id = sanitizeReceivedToken(id)
+	if id == "" {
+		id = randomMessageID()
+	}
+	return "<" + id + "@" + strings.ToLower(strings.TrimSpace(domain)) + ">"
 }
 
 func (s *submissionSession) emit(ctx context.Context, event Event) error {
