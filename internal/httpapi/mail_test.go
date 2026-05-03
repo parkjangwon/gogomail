@@ -278,6 +278,38 @@ func TestDeleteMessageHandler(t *testing.T) {
 	}
 }
 
+func TestListAttachmentsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		attachments: []maildb.Attachment{
+			{ID: "att-1", MessageID: "msg-1", Filename: "report.pdf", MIMEType: "application/pdf", Size: 42, Status: "stored"},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/attachments?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Attachments []maildb.Attachment `json:"attachments"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Attachments) != 1 || body.Attachments[0].Filename != "report.pdf" {
+		t.Fatalf("attachments = %+v", body.Attachments)
+	}
+	if service.lastMessageID != "msg-1" {
+		t.Fatalf("lastMessageID = %q", service.lastMessageID)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -364,6 +396,7 @@ type fakeMessageService struct {
 	folders          []maildb.Folder
 	createdFolder   maildb.Folder
 	list             []maildb.MessageSummary
+	attachments      []maildb.Attachment
 	detail           maildb.MessageDetail
 	sendResult       mailservice.SendTextResult
 	lastSend         mailservice.SendTextRequest
@@ -444,6 +477,12 @@ func (f *fakeMessageService) DeleteMessage(_ context.Context, userID string, mes
 	f.lastUserID = userID
 	f.lastDeletedID = messageID
 	return nil
+}
+
+func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
+	f.lastUserID = userID
+	f.lastMessageID = messageID
+	return f.attachments, nil
 }
 
 func (f *fakeMessageService) SendText(_ context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error) {

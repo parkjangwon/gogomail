@@ -23,6 +23,7 @@ type MessageService interface {
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
+	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
@@ -203,6 +204,20 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	})
+
+	mux.HandleFunc("GET /api/v1/messages/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		attachments, err := service.ListAttachments(r.Context(), userID, r.PathValue("id"))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"attachments": attachments})
 	})
 
 	mux.HandleFunc("POST /api/v1/messages/send", func(w http.ResponseWriter, r *http.Request) {

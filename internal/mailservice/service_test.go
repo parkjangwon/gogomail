@@ -89,6 +89,10 @@ func (f *fakeRepository) DeleteMessage(context.Context, string, string) error {
 	return nil
 }
 
+func (f *fakeRepository) ListAttachments(context.Context, string, string) ([]maildb.Attachment, error) {
+	return nil, nil
+}
+
 func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.Sender, error) {
 	return maildb.Sender{
 		CompanyID:   "company-1",
