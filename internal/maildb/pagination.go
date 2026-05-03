@@ -16,6 +16,35 @@ type MessageListCursor struct {
 	ID string    `json:"id"`
 }
 
+type MessageListPage struct {
+	Messages   []MessageSummary `json:"messages"`
+	Limit      int              `json:"limit"`
+	HasMore    bool             `json:"has_more"`
+	NextCursor string           `json:"next_cursor,omitempty"`
+}
+
+func NewMessageListPage(messages []MessageSummary, requestedLimit int) (MessageListPage, error) {
+	limit := NormalizeMessageListLimit(requestedLimit)
+	page := MessageListPage{
+		Messages: messages,
+		Limit:    limit,
+		HasMore:  len(messages) == limit,
+	}
+	if len(messages) == 0 {
+		return page, nil
+	}
+	last := messages[len(messages)-1]
+	if last.ID == "" || last.ReceivedAt.IsZero() {
+		return page, nil
+	}
+	next, err := EncodeMessageListCursor(MessageListCursor{At: last.ReceivedAt, ID: last.ID})
+	if err != nil {
+		return MessageListPage{}, err
+	}
+	page.NextCursor = next
+	return page, nil
+}
+
 func NormalizeMessageListLimit(limit int) int {
 	if limit <= 0 {
 		return MessageListDefaultLimit

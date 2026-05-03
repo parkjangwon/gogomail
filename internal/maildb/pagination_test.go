@@ -40,3 +40,25 @@ func TestNormalizeMessageListLimitCapsLargeValues(t *testing.T) {
 		t.Fatalf("max limit = %d", got)
 	}
 }
+
+func TestNewMessageListPageBuildsNextCursor(t *testing.T) {
+	t.Parallel()
+
+	ts := time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
+	page, err := NewMessageListPage([]MessageSummary{
+		{ID: "msg-1", ReceivedAt: ts},
+	}, 1)
+	if err != nil {
+		t.Fatalf("NewMessageListPage returned error: %v", err)
+	}
+	if !page.HasMore || page.Limit != 1 || page.NextCursor == "" {
+		t.Fatalf("page = %+v", page)
+	}
+	cursor, err := DecodeMessageListCursor(page.NextCursor)
+	if err != nil {
+		t.Fatalf("DecodeMessageListCursor returned error: %v", err)
+	}
+	if cursor.ID != "msg-1" || !cursor.At.Equal(ts) {
+		t.Fatalf("cursor = %+v", cursor)
+	}
+}
