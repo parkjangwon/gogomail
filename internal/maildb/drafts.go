@@ -34,6 +34,9 @@ func (r *Repository) createDraft(ctx context.Context, req SaveDraftRequest) (Mes
 	if err != nil {
 		return MessageDetail{}, err
 	}
+	if err := ensureDraftSource(ctx, tx, req.UserID, req.SourceMessageID); err != nil {
+		return MessageDetail{}, err
+	}
 	toJSON, ccJSON, bccJSON, err := draftAddressJSON(req)
 	if err != nil {
 		return MessageDetail{}, err
@@ -116,6 +119,9 @@ func (r *Repository) updateDraft(ctx context.Context, req SaveDraftRequest) (Mes
 
 	sender, err := senderForDraft(ctx, tx, req.UserID, req.From)
 	if err != nil {
+		return MessageDetail{}, err
+	}
+	if err := ensureDraftSource(ctx, tx, req.UserID, req.SourceMessageID); err != nil {
 		return MessageDetail{}, err
 	}
 	toJSON, ccJSON, bccJSON, err := draftAddressJSON(req)
@@ -296,6 +302,29 @@ WHERE user_id = $1
   AND id = $2
   AND status = 'draft'`, strings.TrimSpace(userID), strings.TrimSpace(draftID)); err != nil {
 		return fmt.Errorf("refresh draft attachment state: %w", err)
+	}
+	return nil
+}
+
+func ensureDraftSource(ctx context.Context, tx *sql.Tx, userID string, sourceMessageID string) error {
+	sourceMessageID = strings.TrimSpace(sourceMessageID)
+	if sourceMessageID == "" {
+		return nil
+	}
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM messages
+  WHERE user_id = $1
+    AND id = $2
+    AND status = 'active'
+)`, strings.TrimSpace(userID), sourceMessageID).Scan(&exists); err != nil {
+		return fmt.Errorf("verify draft source message: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("source message %q not found", sourceMessageID)
 	}
 	return nil
 }
