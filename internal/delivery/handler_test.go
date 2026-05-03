@@ -76,6 +76,42 @@ func TestDecodeQueuedMessageNormalizesStoragePath(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageNormalizesMessageIdentity(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":" msg-1 ",
+		"rfc_message_id":" <msg-1@example.com> ",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.MessageID != "msg-1" || queued.RFCMessageID != "<msg-1@example.com>" {
+		t.Fatalf("message identity = %q/%q, want trimmed values", queued.MessageID, queued.RFCMessageID)
+	}
+}
+
+func TestDecodeQueuedMessageRejectsIdentityLineBreak(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1\nbad",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "invalid message identity") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want invalid message identity", err)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsStoragePathLineBreak(t *testing.T) {
 	t.Parallel()
 

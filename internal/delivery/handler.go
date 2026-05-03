@@ -229,8 +229,13 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if queued.Event != "mail.queued" {
 		return QueuedMessage{}, fmt.Errorf("unexpected delivery event %q", queued.Event)
 	}
+	queued.MessageID = strings.TrimSpace(queued.MessageID)
+	queued.RFCMessageID = strings.TrimSpace(queued.RFCMessageID)
 	if queued.MessageID == "" {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload is missing message_id")
+	}
+	if containsLineBreak(queued.MessageID) || containsLineBreak(queued.RFCMessageID) {
+		return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid message identity")
 	}
 	queued.From.Email = strings.TrimSpace(queued.From.Email)
 	if queued.From.Email != "" {
