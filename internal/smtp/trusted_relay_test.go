@@ -45,6 +45,24 @@ func TestStaticTrustedRelaysAllowsRemoteAddrWithPort(t *testing.T) {
 	}
 }
 
+func TestStaticTrustedRelaysAllowsIPv4MappedRemoteAddr(t *testing.T) {
+	t.Parallel()
+
+	relays, err := NewStaticTrustedRelays([]string{"192.0.2.0/24"})
+	if err != nil {
+		t.Fatalf("NewStaticTrustedRelays returned error: %v", err)
+	}
+	for _, remote := range []string{"::ffff:192.0.2.25", "[::ffff:192.0.2.25]:2525"} {
+		allowed, err := relays.AllowRelay(context.Background(), remote)
+		if err != nil {
+			t.Fatalf("AllowRelay returned error: %v", err)
+		}
+		if !allowed {
+			t.Fatalf("AllowRelay(%q) = false, want true", remote)
+		}
+	}
+}
+
 func TestStaticTrustedRelaysRejectsUntrustedRemote(t *testing.T) {
 	t.Parallel()
 
