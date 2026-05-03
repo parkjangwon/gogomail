@@ -30,6 +30,7 @@ func TestComposeDeliveryStatusNotification(t *testing.T) {
 	}
 	raw := string(composed.Raw)
 	for _, want := range []string{
+		"Auto-Submitted: auto-replied",
 		"Content-Type: multipart/report; report-type=delivery-status;",
 		"Content-Type: message/delivery-status",
 		"Reporting-MTA: dns; mx.example.com",
