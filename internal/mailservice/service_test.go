@@ -59,6 +59,7 @@ type fakeRepository struct {
 	lastAttachmentUpload      maildb.CreateAttachmentUploadRequest
 	lastFlagMessageID         string
 	lastFlag                  string
+	lastPageCursor            maildb.MessageListCursor
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -69,8 +70,9 @@ func (f *fakeRepository) ListMessagesInFolder(context.Context, string, string, i
 	return nil, nil
 }
 
-func (f *fakeRepository) ListMessagesPage(context.Context, string, string, int, maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
-	return nil, nil
+func (f *fakeRepository) ListMessagesPage(_ context.Context, _ string, _ string, _ int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	f.lastPageCursor = cursor
+	return []maildb.MessageSummary{{ID: "msg-page"}}, nil
 }
 
 func (f *fakeRepository) ListFolders(context.Context, string) ([]maildb.Folder, error) {
@@ -259,6 +261,24 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 	}
 	if draft.ID != "draft-1" || repo.lastDraft.Subject != "draft" {
 		t.Fatalf("draft = %+v last = %+v", draft, repo.lastDraft)
+	}
+}
+
+func TestListMessagesPageDelegatesCursor(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	cursor := maildb.MessageListCursor{ID: "11111111-1111-1111-1111-111111111111"}
+	messages, err := service.ListMessagesPage(context.Background(), "user-1", "", 10, cursor)
+	if err != nil {
+		t.Fatalf("ListMessagesPage returned error: %v", err)
+	}
+	if len(messages) != 1 || messages[0].ID != "msg-page" {
+		t.Fatalf("messages = %+v", messages)
+	}
+	if repo.lastPageCursor.ID != cursor.ID {
+		t.Fatalf("cursor = %+v, want %+v", repo.lastPageCursor, cursor)
 	}
 }
 
