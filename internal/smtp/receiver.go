@@ -81,11 +81,24 @@ type DedupKey struct {
 type ReceivedMessage struct {
 	EnvelopeFrom   string
 	Mailbox        Mailbox
+	DSN            DSNOptions
 	StoragePath    string
 	Parsed         message.ParsedMessage
 	Authentication AuthenticationResults
 	ReceivedAt     time.Time
 	Size           int64
+}
+
+type DSNOptions struct {
+	Return     string
+	EnvelopeID string
+	Recipients []DSNRecipientOptions
+}
+
+type DSNRecipientOptions struct {
+	Address           string
+	Notify            []string
+	OriginalRecipient string
 }
 
 type ReceiverOptions struct {
@@ -178,6 +191,7 @@ type session struct {
 	receiver      *Receiver
 	from          string
 	recipients    []Mailbox
+	dsn           DSNOptions
 	remoteAddr    string
 	authenticated bool
 }
@@ -207,6 +221,8 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 		return err
 	}
 	s.from = normalized
+	s.dsn.Return = normalizeDSNReturn(opts)
+	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
 	return nil
 }
 
@@ -249,6 +265,7 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 		return smtpMailboxUnavailable("recipient %q not found", to)
 	}
 	s.recipients = append(s.recipients, mailbox)
+	s.dsn.Recipients = append(s.dsn.Recipients, normalizeDSNRecipientOptions(mailbox.Address, opts))
 	return nil
 }
 
@@ -289,6 +306,8 @@ func (s *session) Data(r io.Reader) (err error) {
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageBackpressureChecked,
 		EnvelopeFrom: s.from,
+		Recipients:   mailboxAddresses(s.recipients),
+		DSN:          s.currentDSNOptions(),
 	}); err != nil {
 		return err
 	}
@@ -314,6 +333,8 @@ func (s *session) Data(r io.Reader) (err error) {
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageSpooled,
 		EnvelopeFrom: s.from,
+		Recipients:   mailboxAddresses(s.recipients),
+		DSN:          s.currentDSNOptions(),
 		Size:         size,
 	}); err != nil {
 		return err
@@ -340,6 +361,8 @@ func (s *session) Data(r io.Reader) (err error) {
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageParsed,
 		EnvelopeFrom: s.from,
+		Recipients:   mailboxAddresses(s.recipients),
+		DSN:          s.currentDSNOptions(),
 		Parsed:       parsed,
 		Size:         size,
 	}); err != nil {
@@ -356,6 +379,7 @@ func (s *session) Data(r io.Reader) (err error) {
 			Stage:          StageAuthenticationChecked,
 			EnvelopeFrom:   s.from,
 			Recipients:     mailboxAddresses(s.recipients),
+			DSN:            s.currentDSNOptions(),
 			Parsed:         parsed,
 			Authentication: authResults,
 			ReceivedAt:     receivedAt,
@@ -385,6 +409,8 @@ func (s *session) Data(r io.Reader) (err error) {
 			Stage:          StageDedupChecked,
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
+			Recipients:     mailboxAddresses(s.recipients),
+			DSN:            s.currentDSNOptions(),
 			Parsed:         parsed,
 			Authentication: authResults,
 			ReceivedAt:     receivedAt,
@@ -408,6 +434,8 @@ func (s *session) Data(r io.Reader) (err error) {
 			Stage:          StageStored,
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
+			Recipients:     mailboxAddresses(s.recipients),
+			DSN:            s.currentDSNOptions(),
 			StoragePath:    path,
 			Parsed:         parsed,
 			Authentication: authResults,
@@ -419,6 +447,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		if err := s.receiver.recorder.Record(context.Background(), ReceivedMessage{
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
+			DSN:            s.currentDSNOptions(),
 			StoragePath:    path,
 			Parsed:         parsed,
 			Authentication: authResults,
@@ -431,6 +460,8 @@ func (s *session) Data(r io.Reader) (err error) {
 			Stage:          StageRecorded,
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
+			Recipients:     mailboxAddresses(s.recipients),
+			DSN:            s.currentDSNOptions(),
 			StoragePath:    path,
 			Parsed:         parsed,
 			Authentication: authResults,
@@ -479,6 +510,10 @@ func mailboxAddresses(mailboxes []Mailbox) []string {
 		addresses = append(addresses, mailbox.Address)
 	}
 	return addresses
+}
+
+func (s *session) currentDSNOptions() DSNOptions {
+	return cloneDSNOptions(s.dsn)
 }
 
 func prependHeaderToSpool(spooled *os.File, header string) (*os.File, int64, error) {
@@ -599,6 +634,7 @@ func metricError(err error) string {
 func (s *session) Reset() {
 	s.from = ""
 	s.recipients = nil
+	s.dsn = DSNOptions{}
 }
 
 func (s *session) Logout() error {

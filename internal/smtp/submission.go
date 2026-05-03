@@ -31,6 +31,7 @@ type SubmittedMessage struct {
 	EnvelopeFrom string
 	User         SubmissionUser
 	Recipients   []string
+	DSN          DSNOptions
 	StoragePath  string
 	Parsed       message.ParsedMessage
 	SubmittedAt  time.Time
@@ -117,6 +118,7 @@ type submissionSession struct {
 	user       SubmissionUser
 	from       string
 	recipients []string
+	dsn        DSNOptions
 	remoteAddr string
 }
 
@@ -182,10 +184,13 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
 	}
 	s.from = normalized
+	s.dsn.Return = normalizeDSNReturn(opts)
+	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageMailFrom,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
+		DSN:            s.currentDSNOptions(),
 	}); err != nil {
 		return err
 	}
@@ -219,11 +224,13 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 		return err
 	}
 	s.recipients = append(s.recipients, normalized)
+	s.dsn.Recipients = append(s.dsn.Recipients, normalizeDSNRecipientOptions(normalized, opts))
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageRcpt,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
 		Recipients:     append([]string(nil), s.recipients...),
+		DSN:            s.currentDSNOptions(),
 	}); err != nil {
 		return err
 	}
@@ -280,6 +287,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
 		Recipients:     append([]string(nil), s.recipients...),
+		DSN:            s.currentDSNOptions(),
 		Size:           size,
 	}); err != nil {
 		return err
@@ -308,6 +316,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
 		Recipients:     append([]string(nil), s.recipients...),
+		DSN:            s.currentDSNOptions(),
 		Parsed:         parsed,
 		Size:           size,
 	}); err != nil {
@@ -332,6 +341,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
 		Recipients:     append([]string(nil), s.recipients...),
+		DSN:            s.currentDSNOptions(),
 		StoragePath:    path,
 		Parsed:         parsed,
 		SubmittedAt:    submittedAt,
@@ -343,6 +353,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		EnvelopeFrom: s.from,
 		User:         s.user,
 		Recipients:   append([]string(nil), s.recipients...),
+		DSN:          s.currentDSNOptions(),
 		StoragePath:  path,
 		Parsed:       parsed,
 		SubmittedAt:  submittedAt,
@@ -356,6 +367,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
 		Recipients:     append([]string(nil), s.recipients...),
+		DSN:            s.currentDSNOptions(),
 		StoragePath:    path,
 		Parsed:         parsed,
 		SubmittedAt:    submittedAt,
@@ -395,9 +407,14 @@ func (s *submissionSession) observe(ctx context.Context, event MetricEvent) {
 	s.receiver.metrics.ObserveSMTP(ctx, event)
 }
 
+func (s *submissionSession) currentDSNOptions() DSNOptions {
+	return cloneDSNOptions(s.dsn)
+}
+
 func (s *submissionSession) Reset() {
 	s.from = ""
 	s.recipients = nil
+	s.dsn = DSNOptions{}
 }
 
 func (s *submissionSession) Logout() error {

@@ -385,6 +385,53 @@ func TestSubmissionObservesSMTPMetrics(t *testing.T) {
 	}
 }
 
+func TestSubmissionPreservesDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSession(t, recorder, store)
+	submission.receiver.supportDSN = true
+
+	if err := submission.Mail("jangwon@example.com", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnHeaders,
+		EnvelopeID: "submitted-env",
+	}); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("Outside@Example.NET", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifySuccess, gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;team@example.net",
+	}); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submitted-dsn@example.com>\r\nFrom: Jang Won <jangwon@example.com>\r\nTo: Outside <outside@example.net>\r\nSubject: dsn\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("submitted messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "HDRS" || got.EnvelopeID != "submitted-env" {
+		t.Fatalf("DSN envelope = %+v", got)
+	}
+	if len(got.Recipients) != 1 {
+		t.Fatalf("DSN recipients = %+v", got.Recipients)
+	}
+	recipient := got.Recipients[0]
+	if recipient.Address != "outside@example.net" {
+		t.Fatalf("recipient address = %q", recipient.Address)
+	}
+	if strings.Join(recipient.Notify, ",") != "SUCCESS,FAILURE" {
+		t.Fatalf("notify = %v", recipient.Notify)
+	}
+	if recipient.OriginalRecipient != "rfc822;team@example.net" {
+		t.Fatalf("original recipient = %q", recipient.OriginalRecipient)
+	}
+}
+
 func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorder, store storage.Store) *submissionSession {
 	t.Helper()
 

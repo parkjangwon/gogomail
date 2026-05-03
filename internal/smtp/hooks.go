@@ -29,6 +29,7 @@ type Event struct {
 	Mailbox        Mailbox
 	SubmissionUser SubmissionUser
 	Recipients     []string
+	DSN            DSNOptions
 	StoragePath    string
 	Parsed         message.ParsedMessage
 	Authentication AuthenticationResults

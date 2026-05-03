@@ -855,6 +855,77 @@ func TestSessionSkipsAuthenticationHookWhenVerifierDisabled(t *testing.T) {
 	}
 }
 
+func TestSessionPreservesDSNOptionsForRecorderAndHooks(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	var recordedEvent Event
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
+		},
+		Recorder:    recorder,
+		SupportDSN:  true,
+		IDGenerator: func() string { return "dsn-options-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC) },
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				if event.Stage == StageRecorded {
+					recordedEvent = event
+				}
+				return nil
+			},
+		},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnFull,
+		EnvelopeID: "env-123",
+	}); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure, gosmtp.DSNNotifyDelayed},
+		OriginalRecipient: "rfc822;alias@example.com",
+	}); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <dsn-options@example.net>\r\nFrom: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: dsn\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	for name, got := range map[string]DSNOptions{
+		"recorder": recorder.messages[0].DSN,
+		"hook":     recordedEvent.DSN,
+	} {
+		if got.Return != "FULL" || got.EnvelopeID != "env-123" {
+			t.Fatalf("%s DSN envelope = %+v", name, got)
+		}
+		if len(got.Recipients) != 1 {
+			t.Fatalf("%s DSN recipients = %+v", name, got.Recipients)
+		}
+		recipient := got.Recipients[0]
+		if recipient.Address != "jangwon@example.com" {
+			t.Fatalf("%s DSN recipient address = %q", name, recipient.Address)
+		}
+		if strings.Join(recipient.Notify, ",") != "FAILURE,DELAY" {
+			t.Fatalf("%s DSN notify = %v", name, recipient.Notify)
+		}
+		if recipient.OriginalRecipient != "rfc822;alias@example.com" {
+			t.Fatalf("%s DSN original recipient = %q", name, recipient.OriginalRecipient)
+		}
+	}
+}
+
 type recordingAuthVerifier struct {
 	results AuthenticationResults
 	request AuthenticationRequest
