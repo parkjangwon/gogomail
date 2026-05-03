@@ -14,6 +14,7 @@ type AdminService interface {
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	ListUsers(ctx context.Context, domainID string, limit int) ([]maildb.UserView, error)
+	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
@@ -59,6 +60,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"users": users})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.UpdateUserStatusRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = r.PathValue("id")
+		if err := service.UpdateUserStatus(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

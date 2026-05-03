@@ -17,3 +17,11 @@ func TestValidateUpdateDomainStatusRequestAcceptsSuspended(t *testing.T) {
 		t.Fatalf("ValidateUpdateDomainStatusRequest returned error: %v", err)
 	}
 }
+
+func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateUpdateUserStatusRequest(UpdateUserStatusRequest{ID: "user-1", Status: "paused"}); err == nil {
+		t.Fatal("ValidateUpdateUserStatusRequest accepted unknown status")
+	}
+}
