@@ -190,6 +190,38 @@ func TestDirectSMTPTransportUsesRouterHostsBeforeMX(t *testing.T) {
 	}
 }
 
+func TestDirectSMTPTransportRouteInheritsGlobalTLSMode(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{
+		TLSMode: DeliveryTLSRequire,
+		Router:  staticRouter{route: Route{Hosts: []string{"mx-route.example.net"}}},
+	}
+	route, err := transport.route(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "general"}}, "example.net")
+	if err != nil {
+		t.Fatalf("route returned error: %v", err)
+	}
+	if route.TLSMode != DeliveryTLSRequire {
+		t.Fatalf("route TLSMode = %q, want inherited global require", route.TLSMode)
+	}
+}
+
+func TestDirectSMTPTransportRouteOverrideTLSModeWins(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{
+		TLSMode: DeliveryTLSRequire,
+		Router:  staticRouter{route: Route{Hosts: []string{"mx-route.example.net"}, TLSMode: DeliveryTLSDisable}},
+	}
+	route, err := transport.route(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "general"}}, "example.net")
+	if err != nil {
+		t.Fatalf("route returned error: %v", err)
+	}
+	if route.TLSMode != DeliveryTLSDisable {
+		t.Fatalf("route TLSMode = %q, want route override disable", route.TLSMode)
+	}
+}
+
 func TestDirectSMTPTransportWrapsRouterError(t *testing.T) {
 	t.Parallel()
 

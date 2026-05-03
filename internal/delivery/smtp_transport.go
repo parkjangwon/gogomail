@@ -346,6 +346,9 @@ func (t *DirectSMTPTransport) route(ctx context.Context, job Job, domain string)
 	if err != nil {
 		return Route{}, fmt.Errorf("route delivery for %s: %w", domain, err)
 	}
+	if strings.TrimSpace(string(route.TLSMode)) == "" {
+		route.TLSMode = t.TLSMode
+	}
 	return normalizeRoute(job, domain, route), nil
 }
 
