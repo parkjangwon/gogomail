@@ -146,7 +146,25 @@ func TestRetryDedupeKeyIncludesAttemptAndRecipients(t *testing.T) {
 		To:           []outbound.Address{{Email: "User@Example.NET"}, {Email: "user@example.net"}},
 		Cc:           []outbound.Address{{Email: "other@example.net"}},
 	}})
-	if key != "retry:msg-1:3:user@example.net,other@example.net" {
+	if key != "retry:msg-1:3:other@example.net,user@example.net" {
 		t.Fatalf("retryDedupeKey = %q, want message/next-attempt/unique recipients", key)
+	}
+}
+
+func TestRetryDedupeKeyIsRecipientOrderStable(t *testing.T) {
+	t.Parallel()
+
+	left := retryDedupeKey(Job{QueuedMessage: QueuedMessage{
+		MessageID:    "msg-1",
+		RetryAttempt: 1,
+		To:           []outbound.Address{{Email: "a@example.net"}, {Email: "b@example.net"}},
+	}})
+	right := retryDedupeKey(Job{QueuedMessage: QueuedMessage{
+		MessageID:    "msg-1",
+		RetryAttempt: 1,
+		To:           []outbound.Address{{Email: "b@example.net"}, {Email: "a@example.net"}},
+	}})
+	if left != right {
+		t.Fatalf("retryDedupeKey order mismatch: %q != %q", left, right)
 	}
 }

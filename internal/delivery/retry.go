@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -112,6 +113,7 @@ func retryDedupeKey(job Job) string {
 	for _, recipient := range recipients {
 		values = append(values, strings.ToLower(strings.TrimSpace(recipient.Email)))
 	}
+	sort.Strings(values)
 	return fmt.Sprintf("retry:%s:%d:%s", strings.TrimSpace(job.MessageID), job.RetryAttempt+1, strings.Join(values, ","))
 }
 
