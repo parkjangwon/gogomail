@@ -124,6 +124,37 @@ RETURNING id::text, COALESCE(parent_id::text, ''), name, full_path, type, COALES
 	return folder, nil
 }
 
+func (r *Repository) DeleteFolder(ctx context.Context, userID string, folderID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+DELETE FROM folders
+WHERE user_id = $1
+  AND id = $2
+  AND type = 'user'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM messages
+    WHERE messages.folder_id = folders.id
+      AND messages.status = 'active'
+  )`
+
+	result, err := r.db.ExecContext(ctx, query, userID, folderID)
+	if err != nil {
+		return fmt.Errorf("delete folder: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("inspect folder delete: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("user folder %q not found or not empty", folderID)
+	}
+	return nil
+}
+
 func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

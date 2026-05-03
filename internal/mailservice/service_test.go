@@ -69,6 +69,10 @@ func (f *fakeRepository) RenameFolder(context.Context, string, string, string) (
 	return maildb.Folder{}, nil
 }
 
+func (f *fakeRepository) DeleteFolder(context.Context, string, string) error {
+	return nil
+}
+
 func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.MessageDetail, error) {
 	return f.detail, nil
 }

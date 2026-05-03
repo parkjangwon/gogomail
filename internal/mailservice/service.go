@@ -19,6 +19,7 @@ type Repository interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	CreateFolder(ctx context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error)
 	RenameFolder(ctx context.Context, userID string, folderID string, name string) (maildb.Folder, error)
+	DeleteFolder(ctx context.Context, userID string, folderID string) error
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
@@ -49,6 +50,10 @@ func (s *Service) CreateFolder(ctx context.Context, req maildb.CreateFolderReque
 
 func (s *Service) RenameFolder(ctx context.Context, userID string, folderID string, name string) (maildb.Folder, error) {
 	return s.repository.RenameFolder(ctx, userID, folderID, name)
+}
+
+func (s *Service) DeleteFolder(ctx context.Context, userID string, folderID string) error {
+	return s.repository.DeleteFolder(ctx, userID, folderID)
 }
 
 func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {

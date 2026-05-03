@@ -140,6 +140,25 @@ func TestRenameFolderHandler(t *testing.T) {
 	}
 }
 
+func TestDeleteFolderHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/folders/folder-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedFolderID != "folder-1" {
+		t.Fatalf("lastDeletedFolderID = %q", service.lastDeletedFolderID)
+	}
+}
+
 func TestListMessagesHandlerFiltersByFolder(t *testing.T) {
 	t.Parallel()
 
@@ -350,6 +369,7 @@ type fakeMessageService struct {
 	lastSend         mailservice.SendTextRequest
 	lastUserID       string
 	lastFolderName   string
+	lastDeletedFolderID string
 	lastMessageID    string
 	lastFolderID     string
 	lastMoveFolderID string
@@ -378,6 +398,12 @@ func (f *fakeMessageService) RenameFolder(_ context.Context, userID string, fold
 	f.lastFolderID = folderID
 	f.lastFolderName = name
 	return maildb.Folder{ID: folderID, Name: name, FullPath: name, Type: "user"}, nil
+}
+
+func (f *fakeMessageService) DeleteFolder(_ context.Context, userID string, folderID string) error {
+	f.lastUserID = userID
+	f.lastDeletedFolderID = folderID
+	return nil
 }
 
 func (f *fakeMessageService) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {

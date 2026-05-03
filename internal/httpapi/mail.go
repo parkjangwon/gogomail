@@ -16,6 +16,7 @@ type MessageService interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	CreateFolder(ctx context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error)
 	RenameFolder(ctx context.Context, userID string, folderID string, name string) (maildb.Folder, error)
+	DeleteFolder(ctx context.Context, userID string, folderID string) error
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
@@ -90,6 +91,19 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"folder": folder})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/folders/{id}", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if err := service.DeleteFolder(r.Context(), userID, r.PathValue("id")); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages", func(w http.ResponseWriter, r *http.Request) {
