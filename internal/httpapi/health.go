@@ -9,13 +9,25 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+type InfoResponse struct {
+	Service string `json:"service"`
+	Status  string `json:"status"`
+}
+
 func RegisterHealthRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health/live", writeHealth)
 	mux.HandleFunc("GET /health/ready", writeHealth)
+	mux.HandleFunc("GET /api/v1/info", writeInfo)
 }
 
 func writeHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(HealthResponse{Status: "ok"})
+}
+
+func writeInfo(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(InfoResponse{Service: "gogomail", Status: "ok"})
 }
