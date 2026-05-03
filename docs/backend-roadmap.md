@@ -238,6 +238,9 @@ Implementation order:
 191. OpenAPI route coverage is now tested against registered Go HTTP routes, including health probes, so backend handlers cannot drift silently from the contract.
 192. OpenAPI request bodies now describe the current JSON and multipart mutation payloads, giving future generated webmail/admin clients a stable backend contract before frontend implementation starts.
 193. OpenAPI component references, message flag enums, and list limit bounds are now guarded by tests, tightening SDK-generation readiness without changing the SMTP core or starting frontend work.
+194. HTTP list endpoints now reject over-200 limits at the API boundary, aligning runtime behavior with the OpenAPI `1 <= limit <= 200` contract before generated clients rely on it.
+195. OpenAPI operations now expose stable lower-camel `operationId` values and reusable default Error responses, improving generated-client naming and error-envelope handling.
+196. Backend release verification now has a single script entrypoint for Go tests, module tidy diff checks, optional PostgreSQL integration tests, and final git status inspection.
 
 ## Deferred until backend contracts stabilize
 

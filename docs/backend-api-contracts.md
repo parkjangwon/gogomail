@@ -11,6 +11,11 @@ backend contract version, request body, supported message flag, list limit, or
 component reference changes, update the implementation and `docs/openapi.yaml`
 in the same commit.
 
+For generated-client stability, every documented operation has a stable
+lower-camel `operationId`, protected/mutable operations reuse the default
+`components.responses.Error` response, and non-auth metadata endpoints such as
+`GET /api/v1/info` explicitly opt out of global bearer auth.
+
 ## Contract metadata
 
 - Public mail API base path: `/api/v1`
@@ -75,7 +80,7 @@ Errors use the stable envelope:
 
 ## Pagination
 
-List endpoints that accept `limit` reject non-integer and nonpositive values.
+List endpoints that accept `limit` reject non-integer, nonpositive, and over-200 values.
 The documented client contract is `1 <= limit <= 200`, defaulting to `50`.
 Message listing returns opaque `next_cursor`; clients must not parse or
 manufacture cursors.
