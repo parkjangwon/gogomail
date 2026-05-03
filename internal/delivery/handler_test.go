@@ -114,6 +114,39 @@ func TestDecodeQueuedMessageCanonicalizesDSNNotifyOrder(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageMergesDuplicateDSNRecipients(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"dsn":{"recipients":[
+			{"address":"Recipient@Example.NET","notify":["failure"],"original_recipient":"rfc822; alias@example.net"},
+			{"address":"recipient@example.net","notify":["delay","failure"],"original_recipient":"rfc822; ignored@example.net"}
+		]},
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if len(queued.DSN.Recipients) != 1 {
+		t.Fatalf("DSN recipients = %+v, want one merged recipient", queued.DSN.Recipients)
+	}
+	got := queued.DSN.Recipients[0]
+	if got.Address != "recipient@example.net" {
+		t.Fatalf("Address = %q, want normalized recipient", got.Address)
+	}
+	if strings.Join(got.Notify, ",") != "FAILURE,DELAY" {
+		t.Fatalf("Notify = %v, want merged canonical notify", got.Notify)
+	}
+	if got.OriginalRecipient != "rfc822; alias@example.net" {
+		t.Fatalf("OriginalRecipient = %q, want first non-empty ORCPT", got.OriginalRecipient)
+	}
+}
+
 func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	t.Parallel()
 

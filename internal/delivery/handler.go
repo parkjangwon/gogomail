@@ -325,6 +325,7 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 		return nil
 	}
 	normalized := queued.DSN.Recipients[:0]
+	indexByAddress := make(map[string]int, len(queued.DSN.Recipients))
 	for _, recipient := range queued.DSN.Recipients {
 		address, err := mail.NormalizeAddress(recipient.Address)
 		if err != nil {
@@ -340,10 +341,37 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 		if containsLineBreak(recipient.OriginalRecipient) {
 			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
 		}
+		if existing, ok := indexByAddress[address]; ok {
+			normalized[existing].Notify = mergeDSNNotify(normalized[existing].Notify, recipient.Notify)
+			if normalized[existing].OriginalRecipient == "" {
+				normalized[existing].OriginalRecipient = recipient.OriginalRecipient
+			}
+			continue
+		}
+		indexByAddress[address] = len(normalized)
 		normalized = append(normalized, recipient)
 	}
 	queued.DSN.Recipients = normalized
 	return nil
+}
+
+func mergeDSNNotify(left []string, right []string) []string {
+	if len(left) == 0 {
+		return append([]string(nil), right...)
+	}
+	if len(right) == 0 {
+		return left
+	}
+	seen := make(map[string]struct{}, len(left)+len(right))
+	merged := make([]string, 0, len(left)+len(right))
+	for _, value := range append(append([]string(nil), left...), right...) {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		merged = append(merged, value)
+	}
+	return orderDSNNotify(merged)
 }
 
 func normalizeDSNNotify(values []string) ([]string, error) {
