@@ -41,8 +41,40 @@ func normalizeDSNRecipientOptions(address string, opts *gosmtp.RcptOptions) DSNR
 		}
 		recipient.Notify = orderDSNNotify(recipient.Notify)
 	}
-	recipient.OriginalRecipient = strings.TrimSpace(opts.OriginalRecipient)
+	recipient.OriginalRecipient = normalizeDSNOriginalRecipient(opts)
 	return recipient
+}
+
+func normalizeDSNOriginalRecipient(opts *gosmtp.RcptOptions) string {
+	if opts == nil {
+		return ""
+	}
+	address := strings.TrimSpace(opts.OriginalRecipient)
+	if address == "" {
+		return ""
+	}
+	addressType := strings.TrimSpace(string(opts.OriginalRecipientType))
+	if addressType == "" {
+		return address
+	}
+	return strings.ToUpper(addressType) + ";" + encodeDSNXText(address)
+}
+
+func encodeDSNXText(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		if r >= 33 && r <= 126 && r != '+' && r != '=' {
+			b.WriteRune(r)
+			continue
+		}
+		for _, c := range []byte(string(r)) {
+			b.WriteByte('+')
+			const hex = "0123456789ABCDEF"
+			b.WriteByte(hex[c>>4])
+			b.WriteByte(hex[c&0x0f])
+		}
+	}
+	return b.String()
 }
 
 func orderDSNNotify(values []string) []string {

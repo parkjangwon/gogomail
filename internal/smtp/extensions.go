@@ -71,7 +71,7 @@ func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) err
 	if opts.OriginalRecipient != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ORCPT is not supported")
 	}
-	if opts.OriginalRecipient != "" && !validDSNOriginalRecipient(opts.OriginalRecipient) {
+	if opts.OriginalRecipient != "" && !validRCPTOriginalRecipient(opts) {
 		return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "invalid DSN ORCPT option")
 	}
 	return nil
@@ -156,6 +156,19 @@ func validDSNOriginalRecipient(value string) bool {
 		return false
 	}
 	return validDSNXText(encodedAddress)
+}
+
+func validRCPTOriginalRecipient(opts *gosmtp.RcptOptions) bool {
+	if opts == nil || strings.TrimSpace(opts.OriginalRecipient) == "" {
+		return true
+	}
+	if strings.TrimSpace(string(opts.OriginalRecipientType)) == "" {
+		return validDSNOriginalRecipient(opts.OriginalRecipient)
+	}
+	if !validDSNAddressType(string(opts.OriginalRecipientType)) {
+		return false
+	}
+	return validDSNXText(encodeDSNXText(strings.TrimSpace(opts.OriginalRecipient)))
 }
 
 func validDSNAddressType(value string) bool {

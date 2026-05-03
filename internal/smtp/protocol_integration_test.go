@@ -276,6 +276,77 @@ func TestSMTPProtocolRejectsUnsupportedDSNMailOptions(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolPreservesWireDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		Recorder:   recorder,
+		SupportDSN: true,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{
+		Domain:    "mx.example.com",
+		EnableDSN: true,
+	})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.net> RET=HDRS ENVID=env+2D42"); err != nil {
+		t.Fatalf("MAIL FROM with DSN options returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<user@example.com> NOTIFY=SUCCESS,FAILURE ORCPT=rfc822;user+40example.com"); err != nil {
+		t.Fatalf("RCPT TO with DSN options returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 354, "DATA"); err != nil {
+		t.Fatalf("DATA returned error: %v", err)
+	}
+	writer := text.DotWriter()
+	raw := "Message-ID: <dsn-wire@example.net>\r\nFrom: sender@example.net\r\nTo: user@example.com\r\nSubject: dsn wire\r\n\r\nbody\r\n"
+	if _, err := io.WriteString(writer, raw); err != nil {
+		t.Fatalf("write DATA returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close DATA returned error: %v", err)
+	}
+	if _, msg, err := text.ReadResponse(250); err != nil {
+		t.Fatalf("DATA completion returned %q, %v", msg, err)
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "HDRS" || got.EnvelopeID != "env-42" {
+		t.Fatalf("DSN envelope = %+v, want RET/ENVID from wire", got)
+	}
+	if len(got.Recipients) != 1 {
+		t.Fatalf("DSN recipients = %+v, want one recipient", got.Recipients)
+	}
+	recipient := got.Recipients[0]
+	if recipient.Address != "user@example.com" || strings.Join(recipient.Notify, ",") != "SUCCESS,FAILURE" || recipient.OriginalRecipient != "RFC822;user@example.com" {
+		t.Fatalf("DSN recipient = %+v, want wire NOTIFY/ORCPT", recipient)
+	}
+}
+
 func TestSMTPProtocolRejectsUnsupportedMailExtensions(t *testing.T) {
 	t.Parallel()
 
