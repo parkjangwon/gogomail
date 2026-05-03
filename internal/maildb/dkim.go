@@ -11,6 +11,7 @@ import (
 type DKIMKey struct {
 	ID            string
 	DomainID      string
+	DomainName    string
 	Selector      string
 	PrivateKeyPEM string
 	PublicKeyDNS  string
@@ -45,6 +46,7 @@ func (r *Repository) ActiveDKIMKey(ctx context.Context, domainID string) (DKIMKe
 SELECT
   id::text,
   domain_id::text,
+  COALESCE(NULLIF(d.name_ace, ''), d.name),
   selector,
   private_key_pem,
   public_key_dns,
@@ -52,8 +54,9 @@ SELECT
   created_at,
   updated_at
 FROM dkim_keys
-WHERE domain_id::text = $1
-  AND status = 'active'
+JOIN domains d ON d.id = dkim_keys.domain_id
+WHERE dkim_keys.domain_id::text = $1
+  AND dkim_keys.status = 'active'
 ORDER BY updated_at DESC
 LIMIT 1`
 
@@ -61,6 +64,7 @@ LIMIT 1`
 	if err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(domainID)).Scan(
 		&key.ID,
 		&key.DomainID,
+		&key.DomainName,
 		&key.Selector,
 		&key.PrivateKeyPEM,
 		&key.PublicKeyDNS,

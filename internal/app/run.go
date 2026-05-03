@@ -17,6 +17,7 @@ import (
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/dkim"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -292,6 +293,13 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	transport := delivery.NewDirectSMTPTransport()
 	transport.Hello = cfg.DeliverySMTPHello
+	if cfg.DKIMEnabled {
+		repository := maildb.NewRepository(db)
+		transport.Transformers = append(transport.Transformers, dkim.Transformer{
+			Signer: dkim.RFC6376Signer{KeyProvider: dkimKeyProvider{repository: repository}},
+		})
+		logger.Info("delivery worker enabled DKIM signing transformer")
+	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:   redisClient,
@@ -321,6 +329,26 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		"block", cfg.DeliveryConsumerBlock.String(),
 	)
 	return consumer.Run(ctx)
+}
+
+type dkimKeyRepository interface {
+	ActiveDKIMKey(ctx context.Context, domainID string) (maildb.DKIMKey, error)
+}
+
+type dkimKeyProvider struct {
+	repository dkimKeyRepository
+}
+
+func (p dkimKeyProvider) DKIMKey(ctx context.Context, job delivery.Job) (dkim.Key, error) {
+	key, err := p.repository.ActiveDKIMKey(ctx, job.DomainID)
+	if err != nil {
+		return dkim.Key{}, err
+	}
+	return dkim.Key{
+		Domain:        key.DomainName,
+		Selector:      key.Selector,
+		PrivateKeyPEM: key.PrivateKeyPEM,
+	}, nil
 }
 
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {

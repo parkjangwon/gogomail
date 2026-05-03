@@ -40,6 +40,7 @@ type Config struct {
 	DeliveryConsumerCount       int
 	DeliveryConsumerBlock       time.Duration
 	DeliverySMTPHello           string
+	DKIMEnabled                 bool
 	AdminToken                  string
 	AuthJWTSecret               string
 }
@@ -78,6 +79,7 @@ func Load() Config {
 		DeliveryConsumerCount:       intEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_COUNT", 50),
 		DeliveryConsumerBlock:       durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
 		DeliverySMTPHello:           envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
+		DKIMEnabled:                 boolEnvOrDefault("GOGOMAIL_DKIM_ENABLED", false),
 		AdminToken:                  envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:               envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
 	}
