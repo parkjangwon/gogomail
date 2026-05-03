@@ -53,6 +53,26 @@ Errors use the stable envelope:
 
 List endpoints that accept `limit` reject non-integer and nonpositive values. Message listing returns opaque `next_cursor`; clients must not parse or manufacture cursors.
 
+## Mailbox bulk actions
+
+Bulk mailbox mutations are bounded to 500 unique message IDs per request and only affect active messages owned by the authenticated user.
+
+- `PATCH /api/v1/messages/bulk/flags`
+  - Body: `{"message_ids":["..."],"flag":"read|starred|answered|forwarded","value":true}`
+  - Response: `{"status":"ok","updated":2}`
+- `PATCH /api/v1/messages/bulk/folder`
+  - Body: `{"message_ids":["..."],"folder_id":"..."}`
+  - Response: `{"status":"ok","updated":2}`
+- `POST /api/v1/messages/bulk/delete`
+  - Body: `{"message_ids":["..."]}`
+  - Response: `{"status":"ok","updated":2}`
+
+Bulk endpoints reject missing, blank, duplicate, or over-limit message IDs instead of silently ignoring ambiguous client intent.
+
+## Attachment lifecycle
+
+Attachment uploads start as `uploading`, become draft-bound or message-bound records when saved/sent, and stale `uploading` records can be expired by backend cleanup code. Cleanup marks rows `deleted` first and then asks the configured storage backend to remove the object, keeping database ownership checks separate from object-store lifecycle mechanics.
+
 ## Deferred from this contract
 
 - Next.js/frontend screens and shells.
