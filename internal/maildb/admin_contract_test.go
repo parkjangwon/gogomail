@@ -72,6 +72,15 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateUserQuotaRequestRejectsNegativeQuota(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateUpdateUserQuotaRequest(UpdateUserQuotaRequest{ID: "user-1", QuotaLimit: -1})
+	if err == nil {
+		t.Fatal("ValidateUpdateUserQuotaRequest accepted negative quota")
+	}
+}
+
 func TestValidateCreateUserRequestRejectsInvalidUsername(t *testing.T) {
 	t.Parallel()
 

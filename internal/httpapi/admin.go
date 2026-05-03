@@ -20,6 +20,7 @@ type AdminService interface {
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
+	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
@@ -159,6 +160,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 		}
 		req.ID = r.PathValue("id")
 		if err := service.UpdateUserStatus(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.UpdateUserQuotaRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = r.PathValue("id")
+		if err := service.UpdateUserQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}

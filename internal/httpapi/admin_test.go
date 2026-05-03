@@ -302,6 +302,25 @@ func TestAdminUpdateUserStatusHandler(t *testing.T) {
 	}
 }
 
+func TestAdminUpdateUserQuotaHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/user-1/quota", bytes.NewReader([]byte(`{"quota_limit":4096}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserQuota.ID != "user-1" || service.lastUserQuota.QuotaLimit != 4096 {
+		t.Fatalf("lastUserQuota = %+v", service.lastUserQuota)
+	}
+}
+
 func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -499,6 +518,7 @@ type fakeAdminService struct {
 	lastDomainQuota         maildb.UpdateDomainQuotaRequest
 	lastCreateDomain        maildb.CreateDomainRequest
 	lastUserStatus          maildb.UpdateUserStatusRequest
+	lastUserQuota           maildb.UpdateUserQuotaRequest
 	lastCreateUser          maildb.CreateUserRequest
 	lastCreateDKIMKey       maildb.CreateDKIMKeyInput
 	lastDeactivateDKIMKeyID string
@@ -559,6 +579,11 @@ func (f *fakeAdminService) GetUser(_ context.Context, id string) (maildb.UserVie
 
 func (f *fakeAdminService) UpdateUserStatus(_ context.Context, req maildb.UpdateUserStatusRequest) error {
 	f.lastUserStatus = req
+	return nil
+}
+
+func (f *fakeAdminService) UpdateUserQuota(_ context.Context, req maildb.UpdateUserQuotaRequest) error {
+	f.lastUserQuota = req
 	return nil
 }
 

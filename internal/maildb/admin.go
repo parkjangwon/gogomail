@@ -90,6 +90,11 @@ type UpdateUserStatusRequest struct {
 	Status string `json:"status"`
 }
 
+type UpdateUserQuotaRequest struct {
+	ID         string `json:"id"`
+	QuotaLimit int64  `json:"quota_limit"`
+}
+
 func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("domain id is required")
@@ -317,6 +322,16 @@ func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
 	}
 }
 
+func ValidateUpdateUserQuotaRequest(req UpdateUserQuotaRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("user id is required")
+	}
+	if req.QuotaLimit < 0 {
+		return fmt.Errorf("quota_limit must not be negative")
+	}
+	return nil
+}
+
 func (r *Repository) UpdateDomainStatus(ctx context.Context, req UpdateDomainStatusRequest) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
@@ -375,6 +390,28 @@ SET status = $2,
 WHERE id = $1`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status))
 	if err != nil {
 		return fmt.Errorf("update user status: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("user %q not found", req.ID)
+	}
+	return nil
+}
+
+func (r *Repository) UpdateUserQuota(ctx context.Context, req UpdateUserQuotaRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateUserQuotaRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE users
+SET quota_limit = NULLIF($2, 0),
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
+	if err != nil {
+		return fmt.Errorf("update user quota: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err == nil && affected == 0 {
