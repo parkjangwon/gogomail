@@ -56,10 +56,25 @@ func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
 			Message: "no deliverable recipients",
 		}
 	}
+	delivered := make([]outbound.Address, 0, len(job.Recipients()))
+	failures := make([]RecipientDeliveryError, 0)
 	for domain, recipients := range groups {
 		if err := t.deliverDomain(ctx, job, domain, recipients); err != nil {
-			return err
+			var partial *PartialDeliveryError
+			if errors.As(err, &partial) {
+				delivered = append(delivered, partial.Delivered...)
+				failures = append(failures, partial.Failed...)
+				continue
+			}
+			for _, recipient := range recipients {
+				failures = append(failures, RecipientDeliveryError{Recipient: recipient, Err: err})
+			}
+			continue
 		}
+		delivered = append(delivered, recipients...)
+	}
+	if len(failures) > 0 {
+		return &PartialDeliveryError{Delivered: delivered, Failed: failures}
 	}
 	return nil
 }

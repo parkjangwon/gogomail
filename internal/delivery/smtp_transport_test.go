@@ -208,7 +208,7 @@ func TestPartialDeliveryErrorIsTerminalForMXFailover(t *testing.T) {
 	}
 	errs := []error{partial}
 	transport := DirectSMTPTransport{
-		Router: staticRouter{route: Route{Hosts: []string{"127.0.0.1", "127.0.0.2"}}},
+		Router:  staticRouter{route: Route{Hosts: []string{"127.0.0.1", "127.0.0.2"}}},
 		Timeout: time.Millisecond,
 		deliverHost: func(context.Context, Job, Route, string, []outbound.Address) error {
 			err := errs[0]
@@ -223,6 +223,53 @@ func TestPartialDeliveryErrorIsTerminalForMXFailover(t *testing.T) {
 	}
 	if len(errs) != 0 {
 		t.Fatalf("remaining stub errors = %+v, want no MX retry after partial DATA success", errs)
+	}
+}
+
+func TestDirectSMTPTransportAggregatesDomainPartialFailures(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{
+		Router: staticRouter{route: Route{Hosts: []string{"mx.example.net"}}},
+		deliverHost: func(_ context.Context, _ Job, _ Route, _ string, recipients []outbound.Address) error {
+			switch recipients[0].Email {
+			case "ok@example.com":
+				return nil
+			case "temp@example.net":
+				return &SMTPStatusError{Op: "data", Code: 451, Message: "try later"}
+			case "good@example.org":
+				return &PartialDeliveryError{
+					Delivered: []outbound.Address{{Email: "good@example.org"}},
+					Failed: []RecipientDeliveryError{{
+						Recipient: outbound.Address{Email: "bad@example.org"},
+						Err:       &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"},
+					}},
+				}
+			default:
+				return nil
+			}
+		},
+	}
+	err := transport.Deliver(context.Background(), Job{QueuedMessage: QueuedMessage{
+		To: []outbound.Address{
+			{Email: "ok@example.com"},
+			{Email: "temp@example.net"},
+			{Email: "good@example.org"},
+			{Email: "bad@example.org"},
+		},
+	}})
+	var partial *PartialDeliveryError
+	if !errors.As(err, &partial) {
+		t.Fatalf("Deliver error = %v, want PartialDeliveryError", err)
+	}
+	if len(partial.Delivered) != 2 {
+		t.Fatalf("delivered = %+v, want 2 recipients", partial.Delivered)
+	}
+	if len(partial.Failed) != 2 {
+		t.Fatalf("failed = %+v, want 2 recipients", partial.Failed)
+	}
+	if got := partial.TemporaryFailures(); len(got) != 1 || got[0].Email != "temp@example.net" {
+		t.Fatalf("temporary failures = %+v, want temp@example.net only", got)
 	}
 }
 
