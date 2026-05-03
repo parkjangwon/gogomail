@@ -90,6 +90,25 @@ func TestReceiverRateLimitReturns451(t *testing.T) {
 	requireSMTPStatus(t, session.Rcpt("jangwon@example.com", nil), 451, gosmtp.EnhancedCode{4, 7, 1})
 }
 
+func TestReceiverBackpressureReturns421(t *testing.T) {
+	t.Parallel()
+
+	session := newStatusReceiverSession(t, ReceiverOptions{Backpressure: closedBackpressure{}})
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	requireSMTPStatus(t, session.Data(strings.NewReader("Subject: busy\r\n\r\nbody")), 421, gosmtp.EnhancedCode{4, 3, 2})
+}
+
+type closedBackpressure struct{}
+
+func (closedBackpressure) Accept(context.Context) (bool, error) {
+	return false, nil
+}
+
 type denyingRateLimiter struct{}
 
 func (denyingRateLimiter) Allow(context.Context, RateLimitKey) (bool, error) {
