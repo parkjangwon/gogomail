@@ -59,6 +59,12 @@ func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) erro
 		return fmt.Errorf("database handle is required")
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin record message transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	folderID, err := r.inboxFolderID(ctx, msg.Mailbox.UserID)
 	if err != nil {
 		return err
@@ -99,9 +105,10 @@ INSERT INTO messages (
   $1, $2, $3, $4, $5, $6, $7, $8,
   $9::jsonb, $10::jsonb, $11::jsonb,
   $12, $13, $14, $15, 'active'
-)`
+) RETURNING id::text`
 
-	_, err = r.db.ExecContext(
+	var insertedMessageID string
+	err = tx.QueryRowContext(
 		ctx,
 		insert,
 		msg.Mailbox.DomainID,
@@ -119,9 +126,17 @@ INSERT INTO messages (
 		msg.Size,
 		msg.Parsed.HasAttachment,
 		msg.StoragePath,
-	)
+	).Scan(&insertedMessageID)
 	if err != nil {
 		return fmt.Errorf("insert message metadata: %w", err)
+	}
+
+	if err := r.insertStoredOutbox(ctx, tx, insertedMessageID, msg); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit record message transaction: %w", err)
 	}
 	return nil
 }
@@ -143,6 +158,43 @@ LIMIT 1`
 		return "", fmt.Errorf("lookup inbox folder for user %q: %w", userID, err)
 	}
 	return folderID, nil
+}
+
+func (r *Repository) insertStoredOutbox(ctx context.Context, tx *sql.Tx, messageID string, msg smtpd.ReceivedMessage) error {
+	payload, err := storedEventPayload(messageID, msg)
+	if err != nil {
+		return err
+	}
+
+	const query = `
+INSERT INTO outbox (topic, partition_key, payload, status)
+VALUES ('mail.event', $1, $2::jsonb, 'pending')`
+
+	if _, err := tx.ExecContext(ctx, query, messageID, string(payload)); err != nil {
+		return fmt.Errorf("insert mail.stored outbox event: %w", err)
+	}
+	return nil
+}
+
+func storedEventPayload(messageID string, msg smtpd.ReceivedMessage) ([]byte, error) {
+	payload := map[string]any{
+		"event":          "mail.stored",
+		"message_id":     messageID,
+		"rfc_message_id": msg.Parsed.MessageID,
+		"company_id":     msg.Mailbox.CompanyID,
+		"domain_id":      msg.Mailbox.DomainID,
+		"user_id":        msg.Mailbox.UserID,
+		"recipient":      msg.Mailbox.Address,
+		"subject":        msg.Parsed.Subject,
+		"storage_path":   msg.StoragePath,
+		"received_at":    msg.ReceivedAt,
+		"size":           msg.Size,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal mail.stored event: %w", err)
+	}
+	return raw, nil
 }
 
 func addressesJSON(addrs []message.Address) ([]byte, error) {

@@ -34,6 +34,12 @@ SMTP receive policy is explicit and should grow as the receive boundary matures:
 - future per-IP/per-domain rate limits
 - future queue/backpressure checks
 
+Received mail persistence follows the Outbox Pattern:
+
+- Store `.eml` first through the storage backend.
+- Insert `messages` metadata and a `mail.event` / `mail.stored` outbox row in one PostgreSQL transaction.
+- Keep indexing, push notifications, audit fan-out, and queue publishing asynchronous consumers of the outbox/event stream.
+
 Implementation order:
 
 1. PostgreSQL migrations for company/domain/user/address/folder/message.
@@ -43,7 +49,8 @@ Implementation order:
 5. `.eml` persistence, shared EML parsing, and `MessageRecorder` metadata handoff.
 6. PostgreSQL-backed recorder for `messages` insert.
 7. Redis SET NX duplicate detection.
-8. Mail API list/detail/folder endpoints.
+8. PostgreSQL outbox event creation for stored mail.
+9. Mail API list/detail/folder endpoints.
 
 ## Deferred until backend contracts stabilize
 
