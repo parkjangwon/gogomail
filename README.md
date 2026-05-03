@@ -169,3 +169,24 @@ Local users authenticate against `users.password_hash`. Supported formats are:
 - `pbkdf2-sha256$<iterations>$<base64-salt>$<base64-key>`
 - `sha256:<hex>` for legacy/dev fixtures
 - `plain:<password>` only for explicit local development fixtures
+
+### Delivery smart host relay
+
+By default the delivery worker performs direct MX delivery. To relay all outbound mail through a gateway/smart host instead, configure:
+
+```bash
+GOGOMAIL_DELIVERY_SMARTHOST=smtp.relay.example.net:587
+GOGOMAIL_DELIVERY_TLS_MODE=require
+GOGOMAIL_DELIVERY_SMARTHOST_USERNAME=relay-user
+GOGOMAIL_DELIVERY_SMARTHOST_PASSWORD=relay-secret
+```
+
+For implicit TLS relay gateways, typically port 465, enable:
+
+```bash
+GOGOMAIL_DELIVERY_SMARTHOST=smtp.relay.example.net:465
+GOGOMAIL_DELIVERY_SMARTHOST_IMPLICIT_TLS=true
+GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE=require
+```
+
+`GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE` is optional; when omitted, smart-host routes inherit `GOGOMAIL_DELIVERY_TLS_MODE`.

@@ -198,6 +198,12 @@ Implementation order:
 151. Null reverse-path delivery suppresses both MAIL-level and RCPT-level outbound DSN request parameters, reducing bounce/DSN loop risk.
 152. Trusted relay authorization accepts remote address strings with TCP ports as well as bare IP addresses, keeping inbound relay policy robust across listener/test adapters.
 153. Submission listener addresses are trimmed before server startup so environment whitespace does not create invalid STARTTLS or SMTPS bind addresses.
+154. Routed delivery now inherits the global delivery TLS policy when a smart-host route does not override it, preventing `require` deployments from accidentally downgrading routed traffic to opportunistic TLS.
+155. Delivery workers can route all outbound mail through a configurable smart host using `GOGOMAIL_DELIVERY_SMARTHOST`, including explicit ports, optional route-specific TLS mode, and SMTP AUTH credentials.
+156. Smart-host delivery supports implicit TLS relay connections through `GOGOMAIL_DELIVERY_SMARTHOST_IMPLICIT_TLS`, enabling port 465 gateway operation while keeping STARTTLS and implicit TLS route pools separate.
+157. Delivery attempt events now carry DSN envelope metadata (`RET`, `ENVID`, `NOTIFY`, `ORCPT`) so downstream bounce/audit workers can generate RFC 3461-aware notifications without reparsing queue payloads.
+158. Delivery attempts preserve enhanced SMTP status codes from remote replies (for example `5.1.1` and `4.7.1`) and include them in delivery events for more accurate DSN/bounce reporting.
+159. SMTP server startup rejects implicit TLS listeners without TLS configuration, making SMTPS misconfiguration fail early with a clear operational error.
 
 ## Deferred until backend contracts stabilize
 

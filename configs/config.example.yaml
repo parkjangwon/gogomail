@@ -12,6 +12,11 @@ delivery_throttle_enabled: false
 delivery_default_concurrency: 0
 delivery_farm_concurrency: general=50,bulk=10,batch=5,transactional=100
 delivery_domain_concurrency: example.com=5
+delivery_smarthost: ""
+delivery_smarthost_port: 0
+delivery_smarthost_tls_mode: ""
+delivery_smarthost_implicit_tls: false
+delivery_smarthost_username: ""
 metrics_backend: none
 database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable
 redis_addr: localhost:16379
