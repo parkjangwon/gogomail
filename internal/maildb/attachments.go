@@ -133,6 +133,9 @@ func newUploadID() string {
 func attachmentUploadStoragePath(userID string, uploadID string, filename string) string {
 	filename = strings.ReplaceAll(strings.TrimSpace(filename), "/", "_")
 	filename = strings.ReplaceAll(filename, `\`, "_")
+	if filename == "" {
+		filename = "attachment"
+	}
 	return strings.Join([]string{"uploads", strings.TrimSpace(userID), uploadID, filename}, "/")
 }
 
