@@ -105,6 +105,20 @@ func TestValidateCreateUserRequestRejectsInvalidAddress(t *testing.T) {
 	}
 }
 
+func TestValidateCreateUserRequestRejectsMismatchedPrimaryAddress(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateUserRequest(CreateUserRequest{
+		DomainID:    "domain-1",
+		Username:    "admin",
+		DisplayName: "Admin",
+		Address:     "ops@example.com",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateUserRequest accepted mismatched primary address")
+	}
+}
+
 func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 	t.Parallel()
 

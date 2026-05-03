@@ -152,6 +152,10 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 	if _, err := mail.NormalizeAddress(req.Address); err != nil {
 		return err
 	}
+	local, _, _ := strings.Cut(strings.ToLower(strings.TrimSpace(req.Address)), "@")
+	if local != strings.ToLower(strings.TrimSpace(req.Username)) {
+		return fmt.Errorf("address local part must match username")
+	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
 	}
