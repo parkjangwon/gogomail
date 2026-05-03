@@ -173,6 +173,16 @@ Implementation order:
 126. DSN report composition now aligns enhanced status classes with recipient actions (`2.x.x` delivered/relayed/expanded, `4.x.x` delayed, `5.x.x` failed) before emitting `message/delivery-status`.
 127. Delivery jobs now support RFC 5321 null reverse-path senders for DSN/bounce traffic while still validating non-empty envelope senders.
 128. Outbound farm values are normalized both when `mail.queued` events are recorded and when delivery jobs are decoded, preventing malformed farm payloads from creating invalid topics or route keys.
+129. DSN report composition now enforces RFC-shaped enhanced status code classes/field widths and caps generated MIME boundary length, preventing malformed `message/delivery-status` reports from leaking into bounce traffic.
+130. Delivery queue decoding trims and validates storage paths plus message identity fields before storage lookup, keeping malformed queue metadata out of hot delivery and attempt/metric paths.
+131. DSN `NOTIFY` values are canonicalized at SMTP/session and delivery queue boundaries, so equivalent RFC 3461 options produce stable hook/event/retry payloads.
+132. Duplicate delivery DSN recipient metadata is merged by normalized recipient address, preserving the first ORCPT and canonical union of notify requests for accurate partial retry/bounce metadata.
+133. Direct outbound SMTP normalizes recipient domains before grouping, reducing duplicate MX/route work caused by case or DNS trailing-dot differences.
+134. SMTP DATA success is treated as terminal even if QUIT later fails, preventing retry-induced duplicate delivery after a remote MTA has already accepted the message.
+135. Smart-host route pool keys strip DNS trailing dots from host names, preventing otherwise identical routes from fragmenting connection pools.
+136. SMTP receive and submission sessions now clear stale envelope state as soon as a new `MAIL FROM` command is received, even when that command is rejected, preventing failed second MAIL commands from reusing previous RCPT state.
+137. Delivery attempt metadata now records normalized recipient domains and truncates long error messages at UTF-8 boundaries for safer PostgreSQL/audit storage.
+138. Delivery throttling now emits retry scheduled and retry exhausted metrics, making deferred outbound farm/domain backpressure visible through the existing observability boundary.
 
 ## Deferred until backend contracts stabilize
 
