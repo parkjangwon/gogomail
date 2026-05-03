@@ -12,6 +12,9 @@ func (c Config) Validate() error {
 	if (c.SMTPTLSCertFile == "") != (c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("both SMTP TLS certificate and key files are required")
 	}
+	if strings.TrimSpace(c.SubmissionSMTPSAddr) != "" && (c.SMTPTLSCertFile == "" || c.SMTPTLSKeyFile == "") {
+		return fmt.Errorf("GOGOMAIL_SUBMISSION_SMTPS_ADDR requires SMTP TLS certificate and key files")
+	}
 	if c.SMTPMaxRecipients <= 0 {
 		return fmt.Errorf("GOGOMAIL_SMTP_MAX_RECIPIENTS must be positive")
 	}

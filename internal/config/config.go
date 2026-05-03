@@ -14,6 +14,7 @@ type Config struct {
 	InboundSMTPAddr             string
 	InboundTrustedRelays        []string
 	SubmissionAddr              string
+	SubmissionSMTPSAddr         string
 	SubmissionMaxRecipients     int
 	SubmissionMaxMessageBytes   int64
 	SubmissionAddReceivedHeader bool
@@ -86,6 +87,7 @@ func Load() Config {
 		InboundSMTPAddr:             envOrDefault("GOGOMAIL_INBOUND_SMTP_ADDR", ":2526"),
 		InboundTrustedRelays:        splitCSV(envOrDefault("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "127.0.0.1/32,::1/128")),
 		SubmissionAddr:              envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
+		SubmissionSMTPSAddr:         envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxRecipients:     intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
 		SubmissionMaxMessageBytes:   int64EnvOrDefault("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SubmissionAddReceivedHeader: boolEnvOrDefault("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", true),

@@ -12,6 +12,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_INBOUND_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", "")
@@ -84,6 +85,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
+	}
+	if cfg.SubmissionSMTPSAddr != "" {
+		t.Fatalf("SubmissionSMTPSAddr = %q, want empty", cfg.SubmissionSMTPSAddr)
 	}
 	if cfg.SubmissionMaxRecipients != 100 {
 		t.Fatalf("SubmissionMaxRecipients = %d, want 100", cfg.SubmissionMaxRecipients)

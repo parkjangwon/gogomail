@@ -33,6 +33,16 @@ func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsSMTPSWithoutTLSFiles(t *testing.T) {
+	cfg := Load()
+	cfg.SubmissionSMTPSAddr = ":2465"
+	cfg.SMTPTLSCertFile = ""
+	cfg.SMTPTLSKeyFile = ""
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want SMTPS TLS file rejection")
+	}
+}
+
 func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 	tests := []struct {
 		name   string
