@@ -14,6 +14,8 @@ Target outcome:
 
 > SMTP로 메일을 넣으면 원문이 저장되고, REST API로 메일 목록/상세를 조회할 수 있다.
 
+Shared mail parsing lives in `internal/message` so SMTP, Mail API, future IMAP, and future POP3 use the same RFC 5322/MIME parsing behavior.
+
 Implementation order:
 
 1. PostgreSQL migrations for company/domain/user/address/folder/message.

@@ -13,6 +13,7 @@ import (
 	gosmtp "github.com/emersion/go-smtp"
 
 	"github.com/gogomail/gogomail/internal/mail"
+	"github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -115,6 +116,9 @@ func (s *session) Data(r io.Reader) error {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("read smtp data: %w", err)
+	}
+	if _, err := message.ParseEML(bytes.NewReader(raw)); err != nil {
+		return fmt.Errorf("parse smtp message: %w", err)
 	}
 
 	messageID := s.receiver.idGenerator()

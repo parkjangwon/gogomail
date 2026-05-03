@@ -3,6 +3,7 @@ module github.com/gogomail/gogomail
 go 1.25.7
 
 require (
+	github.com/emersion/go-message v0.18.2
 	github.com/emersion/go-smtp v0.24.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/pressly/goose/v3 v3.27.1
