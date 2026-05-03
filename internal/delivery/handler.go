@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
@@ -238,6 +239,9 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if err := normalizeQueuedRecipients(&queued); err != nil {
 		return QueuedMessage{}, err
 	}
+	if err := normalizeQueuedDSNOptions(&queued); err != nil {
+		return QueuedMessage{}, err
+	}
 	if len(queued.Recipients()) == 0 {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has no recipients")
 	}
@@ -295,6 +299,77 @@ func normalizeAddressList(field string, addresses []outbound.Address) ([]outboun
 		normalized = append(normalized, address)
 	}
 	return normalized, nil
+}
+
+func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
+	queued.DSN.Return = strings.ToUpper(strings.TrimSpace(queued.DSN.Return))
+	switch queued.DSN.Return {
+	case "", "FULL", "HDRS":
+	default:
+		return fmt.Errorf("mail.queued payload has invalid dsn.return %q", queued.DSN.Return)
+	}
+	queued.DSN.EnvelopeID = strings.TrimSpace(queued.DSN.EnvelopeID)
+	if containsLineBreak(queued.DSN.EnvelopeID) {
+		return fmt.Errorf("mail.queued payload has invalid dsn.envelope_id")
+	}
+	if len(queued.DSN.Recipients) == 0 {
+		return nil
+	}
+	normalized := queued.DSN.Recipients[:0]
+	for _, recipient := range queued.DSN.Recipients {
+		address, err := mail.NormalizeAddress(recipient.Address)
+		if err != nil {
+			return fmt.Errorf("mail.queued payload has invalid dsn recipient %q: %w", recipient.Address, err)
+		}
+		recipient.Address = address
+		notify, err := normalizeDSNNotify(recipient.Notify)
+		if err != nil {
+			return err
+		}
+		recipient.Notify = notify
+		recipient.OriginalRecipient = strings.TrimSpace(recipient.OriginalRecipient)
+		if containsLineBreak(recipient.OriginalRecipient) {
+			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
+		}
+		normalized = append(normalized, recipient)
+	}
+	queued.DSN.Recipients = normalized
+	return nil
+}
+
+func normalizeDSNNotify(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	hasNever := false
+	for _, value := range values {
+		value = strings.ToUpper(strings.TrimSpace(value))
+		if value == "" {
+			continue
+		}
+		switch value {
+		case "NEVER":
+			hasNever = true
+		case "SUCCESS", "FAILURE", "DELAYED":
+		default:
+			return nil, fmt.Errorf("mail.queued payload has invalid dsn.notify %q", value)
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+	if hasNever && len(normalized) > 1 {
+		return nil, fmt.Errorf("mail.queued payload has invalid dsn.notify: NEVER cannot be combined")
+	}
+	return normalized, nil
+}
+
+func containsLineBreak(value string) bool {
+	return strings.ContainsAny(value, "\r\n")
 }
 
 func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptStatus, cause error) error {

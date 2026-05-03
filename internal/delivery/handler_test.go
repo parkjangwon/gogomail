@@ -332,6 +332,71 @@ func TestDecodeQueuedMessagePreservesDSNOptions(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageNormalizesDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"Sender@Example.COM"},
+		"to":[{"email":"User@Example.NET"}],
+		"dsn":{
+			"return":"hdrs",
+			"envelope_id":" env-1 ",
+			"recipients":[{"address":"User@Example.NET","notify":["failure","FAILURE"," delayed "],"original_recipient":" rfc822; alias@example.net "}]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.DSN.Return != "HDRS" || queued.DSN.EnvelopeID != "env-1" {
+		t.Fatalf("DSN envelope = %+v", queued.DSN)
+	}
+	got := queued.DSN.Recipients[0]
+	if got.Address != "user@example.net" {
+		t.Fatalf("DSN recipient address = %q, want normalized", got.Address)
+	}
+	if len(got.Notify) != 2 || got.Notify[0] != "FAILURE" || got.Notify[1] != "DELAYED" {
+		t.Fatalf("DSN notify = %+v, want normalized/deduplicated", got.Notify)
+	}
+	if got.OriginalRecipient != "rfc822; alias@example.net" {
+		t.Fatalf("original recipient = %q", got.OriginalRecipient)
+	}
+}
+
+func TestDecodeQueuedMessageRejectsInvalidDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		dsn  string
+	}{
+		{name: "return", dsn: `"return":"BODY"`},
+		{name: "notify", dsn: `"recipients":[{"address":"user@example.net","notify":["MAYBE"]}]`},
+		{name: "never combined", dsn: `"recipients":[{"address":"user@example.net","notify":["NEVER","FAILURE"]}]`},
+		{name: "bad recipient", dsn: `"recipients":[{"address":"not-an-address"}]`},
+		{name: "envelope newline", dsn: `"envelope_id":"env\n1"`},
+		{name: "original recipient newline", dsn: `"recipients":[{"address":"user@example.net","original_recipient":"rfc822; alias\n@example.net"}]`},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := DecodeQueuedMessage([]byte(`{
+				"event":"mail.queued",
+				"message_id":"msg-1",
+				"from":{"email":"sender@example.com"},
+				"to":[{"email":"user@example.net"}],
+				"dsn":{` + tt.dsn + `}
+			}`))
+			if err == nil {
+				t.Fatalf("DecodeQueuedMessage accepted invalid DSN %s", tt.name)
+			}
+		})
+	}
+}
+
 func TestAttemptsForUsesDeduplicatedRecipients(t *testing.T) {
 	t.Parallel()
 
