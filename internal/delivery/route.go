@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -11,6 +12,7 @@ type Route struct {
 	Farm     outbound.Farm
 	Domain   string
 	Hosts    []string
+	Port     int
 	Hello    string
 	TLSMode  DeliveryTLSMode
 	PoolName string
@@ -31,6 +33,9 @@ func normalizeRoute(job Job, domain string, route Route) Route {
 		route.Domain = strings.ToLower(strings.TrimSpace(route.Domain))
 	}
 	route.Hosts = normalizeRouteHosts(route.Hosts)
+	if route.Port <= 0 {
+		route.Port = 25
+	}
 	route.Hello = strings.TrimSpace(route.Hello)
 	route.TLSMode = normalizeDeliveryTLSMode(route.TLSMode)
 	route.PoolName = strings.TrimSpace(route.PoolName)
@@ -61,5 +66,12 @@ func routePoolKey(route Route, host string) string {
 	}
 	domain := strings.ToLower(strings.TrimSpace(route.Domain))
 	host = strings.ToLower(strings.TrimSpace(host))
-	return pool + "|" + domain + "|" + host + "|" + string(normalizeDeliveryTLSMode(route.TLSMode))
+	return pool + "|" + domain + "|" + host + ":" + strconv.Itoa(normalizeRoutePort(route.Port)) + "|" + string(normalizeDeliveryTLSMode(route.TLSMode))
+}
+
+func normalizeRoutePort(port int) int {
+	if port <= 0 {
+		return 25
+	}
+	return port
 }

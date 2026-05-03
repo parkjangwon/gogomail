@@ -92,7 +92,7 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Ro
 		timeout = 30 * time.Second
 	}
 	dialer := net.Dialer{Timeout: timeout}
-	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, "25"))
+	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, fmt.Sprintf("%d", normalizeRoutePort(route.Port))))
 	if err != nil {
 		return fmt.Errorf("dial mx %s for %s: %w", host, route.Domain, err)
 	}
