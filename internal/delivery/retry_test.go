@@ -1,9 +1,12 @@
 package delivery
 
 import (
+	"errors"
 	"math"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestRetryPolicyNextDelay(t *testing.T) {
@@ -106,5 +109,17 @@ func TestRetrySchedulerReportsExhaustion(t *testing.T) {
 	policy := RetryPolicy{Delays: []time.Duration{time.Minute}}
 	if _, ok := policy.NextDelay(1); ok {
 		t.Fatal("NextDelay returned ok for exhausted retry")
+	}
+}
+
+func TestRetryErrorMessageTruncatesAtUTF8Boundary(t *testing.T) {
+	t.Parallel()
+
+	message := retryErrorMessage(errors.New(strings.Repeat("a", 1999) + "한"))
+	if len(message) > 2000 {
+		t.Fatalf("retry error length = %d, want <= 2000 bytes", len(message))
+	}
+	if !utf8.ValidString(message) {
+		t.Fatalf("retry error is invalid UTF-8: %q", message)
 	}
 }

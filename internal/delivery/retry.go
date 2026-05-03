@@ -90,18 +90,19 @@ INSERT INTO outbox (topic, partition_key, payload, status, available_at, last_er
 VALUES ($1, $2, $3::jsonb, 'pending', $4, $5)`
 
 	topic := "mail.outbound." + string(job.Farm)
-	errorMessage := ""
-	if cause != nil {
-		errorMessage = cause.Error()
-	}
-	if len(errorMessage) > 2000 {
-		errorMessage = errorMessage[:2000]
-	}
+	errorMessage := retryErrorMessage(cause)
 
 	if _, err := s.db.ExecContext(ctx, query, topic, job.MessageID, string(payload), availableAt, errorMessage); err != nil {
 		return fmt.Errorf("schedule delivery retry: %w", err)
 	}
 	return nil
+}
+
+func retryErrorMessage(cause error) string {
+	if cause == nil {
+		return ""
+	}
+	return truncateUTF8Bytes(cause.Error(), 2000)
 }
 
 func deterministicJitter(base time.Duration, ratio float64, key string, attempt int) time.Duration {
