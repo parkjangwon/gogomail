@@ -3,6 +3,7 @@ package delivery
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +15,10 @@ import (
 	"github.com/gogomail/gogomail/internal/outbound"
 )
 
+type MXResolver interface {
+	LookupMX(ctx context.Context, name string) ([]*net.MX, error)
+}
+
 type DeliveryTLSMode string
 
 const (
@@ -23,7 +28,7 @@ const (
 )
 
 type DirectSMTPTransport struct {
-	Resolver     *net.Resolver
+	Resolver     MXResolver
 	Timeout      time.Duration
 	Hello        string
 	TLSMode      DeliveryTLSMode
@@ -50,11 +55,28 @@ func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
 }
 
 func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain string, recipients []outbound.Address) error {
-	host, err := t.mxHost(ctx, domain)
+	hosts, err := t.mxHosts(ctx, domain)
 	if err != nil {
 		return err
 	}
+	errs := make([]error, 0, len(hosts))
+	for _, host := range hosts {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := t.deliverHost(ctx, job, host, domain, recipients); err != nil {
+			if IsPermanentFailure(err) {
+				return err
+			}
+			errs = append(errs, err)
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("deliver to %s via %d mx host(s): %w", domain, len(hosts), errors.Join(errs...))
+}
 
+func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, host string, domain string, recipients []outbound.Address) error {
 	timeout := t.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -149,19 +171,58 @@ func (t *DirectSMTPTransport) openMessage(ctx context.Context, job Job) (io.Read
 	return t.Transformers.Transform(ctx, job, message)
 }
 
-func (t *DirectSMTPTransport) mxHost(ctx context.Context, domain string) (string, error) {
+func (t *DirectSMTPTransport) mxHosts(ctx context.Context, domain string) ([]string, error) {
 	resolver := t.Resolver
 	if resolver == nil {
 		resolver = net.DefaultResolver
 	}
 	records, err := resolver.LookupMX(ctx, domain)
 	if err != nil || len(records) == 0 {
-		return domain, nil
+		return []string{domain}, nil
 	}
-	sort.Slice(records, func(i, j int) bool {
-		return records[i].Pref < records[j].Pref
+	if isNullMX(records) {
+		return nil, &SMTPStatusError{
+			Op:      "mx",
+			Code:    556,
+			Message: fmt.Sprintf("domain %s publishes null MX and does not accept mail", domain),
+		}
+	}
+	hosts := orderedMXHosts(records)
+	if len(hosts) == 0 {
+		return []string{domain}, nil
+	}
+	return hosts, nil
+}
+
+func orderedMXHosts(records []*net.MX) []string {
+	ordered := make([]*net.MX, 0, len(records))
+	for _, record := range records {
+		if record != nil {
+			ordered = append(ordered, record)
+		}
+	}
+	hosts := make([]string, 0, len(ordered))
+	if len(ordered) == 0 {
+		return hosts
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].Pref == ordered[j].Pref {
+			return ordered[i].Host < ordered[j].Host
+		}
+		return ordered[i].Pref < ordered[j].Pref
 	})
-	return strings.TrimSuffix(records[0].Host, "."), nil
+	for _, record := range ordered {
+		host := strings.TrimSpace(strings.TrimSuffix(record.Host, "."))
+		if host == "" || host == "." {
+			continue
+		}
+		hosts = append(hosts, host)
+	}
+	return hosts
+}
+
+func isNullMX(records []*net.MX) bool {
+	return len(records) == 1 && records[0] != nil && records[0].Pref == 0 && strings.TrimSpace(records[0].Host) == "."
 }
 
 func normalizeDeliveryTLSMode(mode DeliveryTLSMode) DeliveryTLSMode {

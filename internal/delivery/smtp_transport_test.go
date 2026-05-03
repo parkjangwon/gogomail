@@ -1,6 +1,8 @@
 package delivery
 
 import (
+	"context"
+	"net"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -47,4 +49,63 @@ func TestNormalizeDeliveryTLSMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOrderedMXHostsSortsByPreferenceAndHost(t *testing.T) {
+	t.Parallel()
+
+	hosts := orderedMXHosts([]*net.MX{
+		{Host: "mx-b.example.net.", Pref: 20},
+		{Host: "mx-c.example.net.", Pref: 10},
+		{Host: "mx-a.example.net.", Pref: 10},
+	})
+	want := []string{"mx-a.example.net", "mx-c.example.net", "mx-b.example.net"}
+	if len(hosts) != len(want) {
+		t.Fatalf("hosts = %+v, want %+v", hosts, want)
+	}
+	for i := range want {
+		if hosts[i] != want[i] {
+			t.Fatalf("hosts = %+v, want %+v", hosts, want)
+		}
+	}
+}
+
+func TestMXHostsRejectsNullMX(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{Resolver: staticMXResolver{
+		records: []*net.MX{{Host: ".", Pref: 0}},
+	}}
+	_, err := transport.mxHosts(context.Background(), "example.invalid")
+	if err == nil {
+		t.Fatal("mxHosts accepted null MX")
+	}
+	if !IsPermanentFailure(err) {
+		t.Fatalf("err = %v, want permanent SMTP failure", err)
+	}
+}
+
+func TestMXHostsFallsBackToDomainWhenMXLookupFails(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{Resolver: staticMXResolver{err: net.ErrClosed}}
+	hosts, err := transport.mxHosts(context.Background(), "example.net")
+	if err != nil {
+		t.Fatalf("mxHosts returned error: %v", err)
+	}
+	if len(hosts) != 1 || hosts[0] != "example.net" {
+		t.Fatalf("hosts = %+v, want fallback domain", hosts)
+	}
+}
+
+type staticMXResolver struct {
+	records []*net.MX
+	err     error
+}
+
+func (r staticMXResolver) LookupMX(context.Context, string) ([]*net.MX, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.records, nil
 }
