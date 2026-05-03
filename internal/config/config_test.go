@@ -492,3 +492,19 @@ func TestLoadFallsBackForInvalidDurationCSVEnvironment(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadFallsBackForBlankDurationCSVEnvironment(t *testing.T) {
+	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", ",,")
+
+	cfg := Load()
+
+	want := []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}
+	if len(cfg.DeliveryRetryDelays) != len(want) {
+		t.Fatalf("DeliveryRetryDelays = %v, want fallback %v", cfg.DeliveryRetryDelays, want)
+	}
+	for i := range want {
+		if cfg.DeliveryRetryDelays[i] != want[i] {
+			t.Fatalf("DeliveryRetryDelays = %v, want fallback %v", cfg.DeliveryRetryDelays, want)
+		}
+	}
+}
