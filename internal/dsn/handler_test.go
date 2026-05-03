@@ -191,6 +191,38 @@ func TestBounceHandlerUsesSingleClockSnapshot(t *testing.T) {
 	}
 }
 
+func TestBounceHandlerFormatsNamedPostmaster(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{values: map[string][]byte{}}
+	queue := &captureQueue{}
+	handler := NewBounceHandler(HandlerOptions{
+		Store:      store,
+		Queue:      queue,
+		Postmaster: "Ops Bounces <bounces@example.com>",
+		Now: func() time.Time {
+			return time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
+		},
+	})
+
+	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: []byte(`{
+		"event":"mail.bounced",
+		"message_id":"018f0000-0000-7000-8000-000000000001",
+		"sender":"sender@example.com",
+		"recipient":"bad@example.net"
+	}`)}); err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	var queued delivery.QueuedMessage
+	if err := json.Unmarshal(queue.payload, &queued); err != nil {
+		t.Fatalf("decode queued payload: %v", err)
+	}
+	raw := string(store.values[queued.StoragePath])
+	if !strings.Contains(raw, `From: Ops Bounces <bounces@example.com>`) {
+		t.Fatalf("stored DSN From header not formatted from named postmaster:\n%s", raw)
+	}
+}
+
 type failingQueue struct {
 	err error
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	netmail "net/mail"
 	"path"
 	"strings"
 	"time"
@@ -34,7 +35,7 @@ type BounceHandler struct {
 	store        storage.Store
 	queue        Queue
 	reportingMTA string
-	postmaster   string
+	postmaster   outbound.Address
 	farm         outbound.Farm
 	now          func() time.Time
 }
@@ -52,11 +53,12 @@ func NewBounceHandler(opts HandlerOptions) *BounceHandler {
 	if postmaster == "" {
 		postmaster = "postmaster@" + reportingMTA
 	}
+	postmasterAddress := parsePostmasterAddress(postmaster)
 	return &BounceHandler{
 		store:        opts.Store,
 		queue:        opts.Queue,
 		reportingMTA: reportingMTA,
-		postmaster:   postmaster,
+		postmaster:   postmasterAddress,
 		farm:         outbound.NormalizeFarm(opts.Farm),
 		now:          now,
 	}
@@ -82,7 +84,7 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 	composed, err := Compose(Report{
 		ReportingMTA: h.reportingMTA,
 		OriginalID:   event.DSN.EnvelopeID,
-		From:         outbound.Address{Name: "Mail Delivery Subsystem", Email: h.postmaster},
+		From:         h.postmaster,
 		To:           outbound.Address{Email: event.Sender},
 		Subject:      "Delivery Status Notification (Failure)",
 		Date:         now,
@@ -128,6 +130,18 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 		return err
 	}
 	return nil
+}
+
+func parsePostmasterAddress(value string) outbound.Address {
+	parsed, err := netmail.ParseAddress(strings.TrimSpace(value))
+	if err != nil {
+		return outbound.Address{Name: "Mail Delivery Subsystem", Email: strings.TrimSpace(value)}
+	}
+	name := strings.TrimSpace(parsed.Name)
+	if name == "" {
+		name = "Mail Delivery Subsystem"
+	}
+	return outbound.Address{Name: name, Email: parsed.Address}
 }
 
 type PostgresOutboxQueue struct {
