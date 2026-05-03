@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -91,6 +92,9 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	if err != nil {
 		return maildb.MessageDetail{}, err
 	}
+	if !messageFlagRead(detail.Flags) {
+		_ = s.repository.SetMessageFlag(ctx, userID, messageID, "read", true)
+	}
 	if s.store == nil || detail.StoragePath == "" {
 		return detail, nil
 	}
@@ -112,6 +116,17 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	}
 	detail.TextBody = parsed.TextBody
 	return detail, nil
+}
+
+func messageFlagRead(flags json.RawMessage) bool {
+	if len(flags) == 0 {
+		return false
+	}
+	var values map[string]bool
+	if err := json.Unmarshal(flags, &values); err != nil {
+		return false
+	}
+	return values["read"]
 }
 
 func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error {

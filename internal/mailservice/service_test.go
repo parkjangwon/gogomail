@@ -34,6 +34,7 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 		detail: maildb.MessageDetail{
 			ID:          "msg-1",
 			StoragePath: path,
+			Flags:       []byte(`{"read":true}`),
 		},
 		attachments: []maildb.Attachment{
 			{ID: "att-1", Filename: "report.pdf"},
@@ -49,6 +50,24 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 	}
 	if len(msg.Attachments) != 1 || msg.Attachments[0].Filename != "report.pdf" {
 		t.Fatalf("Attachments = %+v", msg.Attachments)
+	}
+}
+
+func TestGetMessageMarksUnreadMessageRead(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:    "msg-1",
+			Flags: []byte(`{"read":false}`),
+		},
+	}
+	service := New(repo, nil)
+	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+		t.Fatalf("GetMessage returned error: %v", err)
+	}
+	if repo.lastFlagMessageID != "msg-1" || repo.lastFlag != "read" {
+		t.Fatalf("read marker = %q/%q", repo.lastFlagMessageID, repo.lastFlag)
 	}
 }
 
