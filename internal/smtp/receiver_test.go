@@ -229,6 +229,22 @@ func TestSessionPrependsReceivedHeaderWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestBuildStoragePathSanitizesPathSegments(t *testing.T) {
+	t.Parallel()
+
+	got := BuildStoragePath(Mailbox{
+		CompanyID: "../company",
+		DomainID:  "domain/one",
+		UserID:    "user one",
+		Address:   "jangwon@example.com",
+	}, "../message/id", time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC))
+
+	want := "mailstore/company/domain-one/user-one/maildir/2026/05/message-id.eml"
+	if got != want {
+		t.Fatalf("BuildStoragePath = %q, want %q", got, want)
+	}
+}
+
 func TestSessionGeneratesFallbackMessageIDWhenMissing(t *testing.T) {
 	t.Parallel()
 

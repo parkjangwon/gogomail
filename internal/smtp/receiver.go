@@ -685,14 +685,40 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 func BuildStoragePath(mailbox Mailbox, messageID string, receivedAt time.Time) string {
 	return strings.Join([]string{
 		"mailstore",
-		mailbox.CompanyID,
-		mailbox.DomainID,
-		mailbox.UserID,
+		sanitizeStorageSegment(mailbox.CompanyID),
+		sanitizeStorageSegment(mailbox.DomainID),
+		sanitizeStorageSegment(mailbox.UserID),
 		"maildir",
 		receivedAt.Format("2006"),
 		receivedAt.Format("01"),
-		messageID + ".eml",
+		sanitizeStorageSegment(messageID) + ".eml",
 	}, "/")
+}
+
+func sanitizeStorageSegment(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "_"
+	}
+	var b strings.Builder
+	b.Grow(len(value))
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-.")
+	if out == "" {
+		return "_"
+	}
+	return out
 }
 
 func clockOrDefault(clock func() time.Time) func() time.Time {
