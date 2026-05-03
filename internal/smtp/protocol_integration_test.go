@@ -198,6 +198,47 @@ func TestSMTPProtocolSubmissionAuthAfterSTARTTLS(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolSubmissionRejectsAuthBeforeSTARTTLS(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{
+		Domain:            "submit.example.com",
+		TLSConfig:         testServerTLSConfig(t),
+		AllowInsecureAuth: false,
+	})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	authLine := base64.StdEncoding.EncodeToString([]byte("\x00jangwon@example.com\x00pass"))
+	code, msg, err := rawProtocolCommandCode(text, "AUTH PLAIN "+authLine)
+	if err != nil {
+		t.Fatalf("AUTH before STARTTLS returned transport error: %v", err)
+	}
+	if code < 500 || code > 599 {
+		t.Fatalf("AUTH before STARTTLS code = %d %q, want 5xx", code, msg)
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+}
+
 func TestSMTPProtocolRejectsUnsupportedDSNMailOptions(t *testing.T) {
 	t.Parallel()
 
