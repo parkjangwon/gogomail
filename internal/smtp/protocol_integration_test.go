@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/smtp"
+	"net/textproto"
 	"strings"
 	"testing"
 	"time"
@@ -126,6 +127,98 @@ func TestSMTPProtocolSubmissionAuthStoresMessage(t *testing.T) {
 	if string(got) != raw {
 		t.Fatalf("stored submission = %q, want raw protocol payload", got)
 	}
+}
+
+func TestSMTPProtocolRejectsUnsupportedDSNMailOptions(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{Domain: "mx.example.com"})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	code, msg, err := rawProtocolCommandCode(text, "MAIL FROM:<sender@example.net> RET=HDRS")
+	if err != nil {
+		t.Fatalf("MAIL FROM with unsupported DSN returned transport error: %v", err)
+	}
+	if code < 500 || code > 599 {
+		t.Fatalf("MAIL FROM unsupported DSN code = %d %q, want 5xx", code, msg)
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+}
+
+func TestSMTPProtocolRejectsOversizedDeclaredSize(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store:           storage.NewLocalStore(t.TempDir()),
+		Resolver:        StaticResolver{"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"}},
+		MaxMessageBytes: 10,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{Domain: "mx.example.com"})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	code, msg, err := rawProtocolCommandCode(text, "MAIL FROM:<sender@example.net> SIZE=11")
+	if err != nil {
+		t.Fatalf("MAIL FROM with oversized SIZE returned transport error: %v", err)
+	}
+	if code != 552 {
+		t.Fatalf("MAIL FROM oversized SIZE code = %d %q, want 552", code, msg)
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+}
+
+func rawProtocolCommand(text *textproto.Conn, expect int, command string) error {
+	_, _, err := rawProtocolCommandCodeExpect(text, expect, command)
+	return err
+}
+
+func rawProtocolCommandCode(text *textproto.Conn, command string) (int, string, error) {
+	return rawProtocolCommandCodeExpect(text, -1, command)
+}
+
+func rawProtocolCommandCodeExpect(text *textproto.Conn, expect int, command string) (int, string, error) {
+	id, err := text.Cmd("%s", command)
+	if err != nil {
+		return 0, "", err
+	}
+	text.StartResponse(id)
+	defer text.EndResponse(id)
+	return text.ReadResponse(expect)
 }
 
 func startProtocolTestServer(t *testing.T, backend gosmtp.Backend, opts ServerOptions) (string, func()) {
