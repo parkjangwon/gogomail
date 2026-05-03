@@ -7,7 +7,23 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
+
+type DraftForSend struct {
+	ID              string
+	UserID          string
+	Intent          string
+	SourceMessageID string
+	From            string
+	To              []outbound.Address
+	Cc              []outbound.Address
+	Bcc             []outbound.Address
+	Subject         string
+	TextBody        string
+	AttachmentIDs   []string
+}
 
 func (r *Repository) SaveDraft(ctx context.Context, req SaveDraftRequest) (MessageDetail, error) {
 	if r.db == nil {

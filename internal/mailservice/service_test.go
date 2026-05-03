@@ -62,6 +62,8 @@ type fakeRepository struct {
 	lastFlagMessageID         string
 	lastFlag                  string
 	lastPageCursor            maildb.MessageListCursor
+	lastSentDraftID           string
+	lastSentDraftMessageID    string
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -144,6 +146,23 @@ func (f *fakeRepository) SaveDraft(_ context.Context, req maildb.SaveDraftReques
 }
 
 func (f *fakeRepository) DeleteDraft(context.Context, string, string) error {
+	return nil
+}
+
+func (f *fakeRepository) GetDraftForSend(context.Context, string, string) (maildb.DraftForSend, error) {
+	return maildb.DraftForSend{
+		ID:       "draft-1",
+		UserID:   "user-1",
+		Intent:   string(ComposeIntentNew),
+		To:       []outbound.Address{{Email: "recipient@example.net"}},
+		Subject:  "draft subject",
+		TextBody: "draft body",
+	}, nil
+}
+
+func (f *fakeRepository) MarkDraftSent(_ context.Context, _ string, draftID string, sentMessageID string) error {
+	f.lastSentDraftID = draftID
+	f.lastSentDraftMessageID = sentMessageID
 	return nil
 }
 
@@ -246,6 +265,23 @@ func TestSendTextMarksReplySourceAnswered(t *testing.T) {
 	}
 	if repo.lastFlagMessageID != "msg-original" || repo.lastFlag != "answered" {
 		t.Fatalf("flag = %q/%q", repo.lastFlagMessageID, repo.lastFlag)
+	}
+}
+
+func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+	result, err := service.SendDraft(context.Background(), "user-1", "draft-1")
+	if err != nil {
+		t.Fatalf("SendDraft returned error: %v", err)
+	}
+	if result.ID != "msg-1" {
+		t.Fatalf("result = %+v", result)
+	}
+	if repo.lastSentDraftID != "draft-1" || repo.lastSentDraftMessageID != "msg-1" {
+		t.Fatalf("sent draft marker = %q/%q", repo.lastSentDraftID, repo.lastSentDraftMessageID)
 	}
 }
 

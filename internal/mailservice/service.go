@@ -40,6 +40,11 @@ type DraftRepository interface {
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
 }
 
+type DraftSendRepository interface {
+	GetDraftForSend(ctx context.Context, userID string, draftID string) (maildb.DraftForSend, error)
+	MarkDraftSent(ctx context.Context, userID string, draftID string, sentMessageID string) error
+}
+
 type AttachmentUploadRepository interface {
 	CreateAttachmentUpload(ctx context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error)
 }
@@ -266,6 +271,43 @@ type SendTextResult struct {
 	ID           string        `json:"id"`
 	RFCMessageID string        `json:"message_id"`
 	Farm         outbound.Farm `json:"farm"`
+}
+
+func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) (SendTextResult, error) {
+	userID = strings.TrimSpace(userID)
+	draftID = strings.TrimSpace(draftID)
+	if userID == "" {
+		return SendTextResult{}, fmt.Errorf("user_id is required")
+	}
+	if draftID == "" {
+		return SendTextResult{}, fmt.Errorf("draft_id is required")
+	}
+	repo, ok := s.repository.(DraftSendRepository)
+	if !ok {
+		return SendTextResult{}, fmt.Errorf("draft send repository is required")
+	}
+	draft, err := repo.GetDraftForSend(ctx, userID, draftID)
+	if err != nil {
+		return SendTextResult{}, err
+	}
+	result, err := s.SendText(ctx, SendTextRequest{
+		UserID:          userID,
+		Intent:          ComposeIntent(draft.Intent),
+		SourceMessageID: draft.SourceMessageID,
+		From:            draft.From,
+		To:              draft.To,
+		Cc:              draft.Cc,
+		Bcc:             draft.Bcc,
+		Subject:         draft.Subject,
+		TextBody:        draft.TextBody,
+	})
+	if err != nil {
+		return SendTextResult{}, err
+	}
+	if err := repo.MarkDraftSent(ctx, userID, draftID, result.ID); err != nil {
+		return SendTextResult{}, err
+	}
+	return result, nil
 }
 
 func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextResult, error) {
