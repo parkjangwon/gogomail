@@ -59,3 +59,22 @@ func TestReceiverUnknownRecipientReturns550(t *testing.T) {
 	}
 	requireSMTPStatus(t, session.Rcpt("missing@example.com", nil), 550, gosmtp.EnhancedCode{5, 1, 1})
 }
+
+func TestReceiverRecipientLimitReturns452(t *testing.T) {
+	t.Parallel()
+
+	session := newStatusReceiverSession(t, ReceiverOptions{
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d", UserID: "u1", Address: "one@example.com"},
+			"two@example.com": {CompanyID: "c", DomainID: "d", UserID: "u2", Address: "two@example.com"},
+		},
+		Policy: ReceivePolicy{MaxRecipientsPerMessage: 1},
+	})
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	requireSMTPStatus(t, session.Rcpt("two@example.com", nil), 452, gosmtp.EnhancedCode{4, 5, 3})
+}
