@@ -8,7 +8,7 @@ import (
 func TestMessageListCursorRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	want := MessageListCursor{At: time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC), ID: "msg-1"}
+	want := MessageListCursor{At: time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC), ID: "11111111-1111-1111-1111-111111111111"}
 	encoded, err := EncodeMessageListCursor(want)
 	if err != nil {
 		t.Fatalf("EncodeMessageListCursor returned error: %v", err)
@@ -46,7 +46,7 @@ func TestNewMessageListPageBuildsNextCursor(t *testing.T) {
 
 	ts := time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
 	page, err := NewMessageListPage([]MessageSummary{
-		{ID: "msg-1", ReceivedAt: ts},
+		{ID: "11111111-1111-1111-1111-111111111111", ReceivedAt: ts},
 	}, 1)
 	if err != nil {
 		t.Fatalf("NewMessageListPage returned error: %v", err)
@@ -58,8 +58,23 @@ func TestNewMessageListPageBuildsNextCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeMessageListCursor returned error: %v", err)
 	}
-	if cursor.ID != "msg-1" || !cursor.At.Equal(ts) {
+	if cursor.ID != "11111111-1111-1111-1111-111111111111" || !cursor.At.Equal(ts) {
 		t.Fatalf("cursor = %+v", cursor)
+	}
+}
+
+func TestDecodeMessageListCursorRejectsNonUUIDID(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := EncodeMessageListCursor(MessageListCursor{
+		At: time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC),
+		ID: "not-a-uuid",
+	})
+	if err != nil {
+		t.Fatalf("EncodeMessageListCursor returned error: %v", err)
+	}
+	if _, err := DecodeMessageListCursor(encoded); err == nil {
+		t.Fatal("DecodeMessageListCursor accepted non-UUID id")
 	}
 }
 

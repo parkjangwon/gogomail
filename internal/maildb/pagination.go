@@ -92,5 +92,28 @@ func DecodeMessageListCursor(value string) (MessageListCursor, error) {
 	if strings.TrimSpace(cursor.ID) == "" {
 		return MessageListCursor{}, fmt.Errorf("cursor message id is required")
 	}
+	if !isUUIDLike(cursor.ID) {
+		return MessageListCursor{}, fmt.Errorf("cursor message id must be a UUID")
+	}
 	return cursor, nil
+}
+
+func isUUIDLike(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) != 36 {
+		return false
+	}
+	for i, ch := range value {
+		switch i {
+		case 8, 13, 18, 23:
+			if ch != '-' {
+				return false
+			}
+		default:
+			if (ch < '0' || ch > '9') && (ch < 'a' || ch > 'f') {
+				return false
+			}
+		}
+	}
+	return true
 }
