@@ -146,6 +146,65 @@ func TestDecodeBounceEventRejectsNewlineIdentity(t *testing.T) {
 	}
 }
 
+func TestDecodeBounceEventRejectsInvalidEnhancedStatus(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []string{"4.2.0", "5.9999.1", "5.x.1", "5.1.1\nInjected"} {
+		_, err := decodeBounceEvent([]byte(`{
+			"event":"mail.bounced",
+			"message_id":"msg-1",
+			"sender":"sender@example.com",
+			"recipient":"bad@example.net",
+			"enhanced_status":"` + status + `"
+		}`))
+		if err == nil {
+			t.Fatalf("decodeBounceEvent accepted enhanced_status %q", status)
+		}
+	}
+}
+
+func TestDecodeBounceEventNormalizesAndValidatesNotify(t *testing.T) {
+	t.Parallel()
+
+	event, err := decodeBounceEvent([]byte(`{
+		"event":"mail.bounced",
+		"message_id":"msg-1",
+		"sender":"sender@example.com",
+		"recipient":"bad@example.net",
+		"dsn":{"notify":[" failure ","FAILURE","delay"]}
+	}`))
+	if err != nil {
+		t.Fatalf("decodeBounceEvent returned error: %v", err)
+	}
+	if strings.Join(event.DSN.Notify, ",") != "FAILURE,DELAY" {
+		t.Fatalf("notify = %v, want normalized unique values", event.DSN.Notify)
+	}
+
+	for _, payload := range []string{
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"notify":["BOGUS"]}}`,
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"notify":["NEVER","FAILURE"]}}`,
+	} {
+		if _, err := decodeBounceEvent([]byte(payload)); err == nil {
+			t.Fatalf("decodeBounceEvent accepted invalid notify payload %s", payload)
+		}
+	}
+}
+
+func TestDecodeBounceEventRejectsNewlineDSNMetadata(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodeBounceEvent([]byte(`{
+		"event":"mail.bounced",
+		"message_id":"msg-1",
+		"sender":"sender@example.com",
+		"recipient":"bad@example.net",
+		"dsn":{"envelope_id":"env-1\nInjected"}
+	}`))
+	if err == nil {
+		t.Fatal("decodeBounceEvent accepted newline-bearing DSN metadata")
+	}
+}
+
 func TestBounceHandlerDeletesStoredMessageWhenQueueFails(t *testing.T) {
 	t.Parallel()
 

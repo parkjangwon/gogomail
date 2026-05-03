@@ -219,6 +219,12 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	if containsLineBreak(event.MessageID) || containsLineBreak(event.RFCMessageID) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid message identity")
 	}
+	if containsLineBreak(event.RecipientDomain) || containsLineBreak(event.EnhancedStatus) || containsLineBreak(event.ErrorMessage) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid delivery status fields")
+	}
+	if event.EnhancedStatus != "" && (!validEnhancedStatus(event.EnhancedStatus) || !dsnStatusMatchesAction("failed", event.EnhancedStatus)) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid enhanced_status %q", event.EnhancedStatus)
+	}
 	if event.Recipient == "" {
 		return bounceEvent{}, fmt.Errorf("bounce event is missing recipient")
 	}
@@ -234,6 +240,16 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid recipient: %w", err)
 	}
 	event.Recipient = recipient
+	event.DSN.EnvelopeID = strings.TrimSpace(event.DSN.EnvelopeID)
+	event.DSN.OriginalRecipient = strings.TrimSpace(event.DSN.OriginalRecipient)
+	if containsLineBreak(event.DSN.EnvelopeID) || containsLineBreak(event.DSN.OriginalRecipient) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn metadata")
+	}
+	notify, err := normalizeBounceNotify(event.DSN.Notify)
+	if err != nil {
+		return bounceEvent{}, err
+	}
+	event.DSN.Notify = notify
 	return event, nil
 }
 
@@ -258,6 +274,37 @@ func shouldGenerateFailureDSN(event bounceEvent) bool {
 		}
 	}
 	return wantFailure
+}
+
+func normalizeBounceNotify(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	hasNever := false
+	for _, value := range values {
+		value = strings.ToUpper(strings.TrimSpace(value))
+		if value == "" {
+			continue
+		}
+		switch value {
+		case "NEVER":
+			hasNever = true
+		case "SUCCESS", "FAILURE", "DELAY":
+		default:
+			return nil, fmt.Errorf("bounce event has invalid dsn notify %q", value)
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+	if hasNever && len(normalized) > 1 {
+		return nil, fmt.Errorf("bounce event has invalid dsn notify: NEVER cannot be combined")
+	}
+	return normalized, nil
 }
 
 func bounceDSNDedupeKey(event bounceEvent) string {
