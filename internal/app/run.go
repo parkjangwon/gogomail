@@ -23,6 +23,7 @@ import (
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/outbox"
 	"github.com/gogomail/gogomail/internal/ratelimit"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
@@ -342,6 +343,25 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		})
 		logger.Info("delivery worker enabled DKIM signing transformer")
 	}
+	handler := delivery.NewHandler(
+		storage.NewLocalStore(cfg.MailstoreRoot),
+		transport,
+		delivery.NewPostgresRecorder(db),
+		delivery.NewPostgresRetryScheduler(db, retryPolicy),
+	)
+	if cfg.DeliveryThrottleEnabled {
+		handler.WithThrottler(delivery.NewInMemoryThrottler(delivery.ThrottlePolicy{
+			FarmMaxConcurrent:   deliveryFarmLimits(cfg.DeliveryFarmConcurrency),
+			DomainMaxConcurrent: cfg.DeliveryDomainConcurrency,
+			DefaultConcurrent:   cfg.DeliveryDefaultConcurrency,
+		}))
+		logger.Info(
+			"delivery throttling enabled",
+			"default_concurrency", cfg.DeliveryDefaultConcurrency,
+			"farm_limits", cfg.DeliveryFarmConcurrency,
+			"domain_limits", cfg.DeliveryDomainConcurrency,
+		)
+	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:   redisClient,
@@ -350,13 +370,8 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		Consumer: cfg.DeliveryConsumerName,
 		Count:    int64(cfg.DeliveryConsumerCount),
 		Block:    cfg.DeliveryConsumerBlock,
-		Handler: delivery.NewHandler(
-			storage.NewLocalStore(cfg.MailstoreRoot),
-			transport,
-			delivery.NewPostgresRecorder(db),
-			delivery.NewPostgresRetryScheduler(db, retryPolicy),
-		),
-		Logger: logger,
+		Handler:  handler,
+		Logger:   logger,
 	})
 	if err != nil {
 		return err
@@ -371,6 +386,14 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		"block", cfg.DeliveryConsumerBlock.String(),
 	)
 	return consumer.Run(ctx)
+}
+
+func deliveryFarmLimits(values map[string]int) map[outbound.Farm]int {
+	result := make(map[outbound.Farm]int, len(values))
+	for farm, limit := range values {
+		result[outbound.Farm(farm)] = limit
+	}
+	return result
 }
 
 type dkimKeyRepository interface {

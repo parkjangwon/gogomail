@@ -63,6 +63,10 @@ type Config struct {
 	DeliveryRetryDelays         []time.Duration
 	DeliveryRetryJitterRatio    float64
 	DeliveryRetryMaxDelay       time.Duration
+	DeliveryThrottleEnabled     bool
+	DeliveryDefaultConcurrency  int
+	DeliveryFarmConcurrency     map[string]int
+	DeliveryDomainConcurrency   map[string]int
 	DKIMEnabled                 bool
 	AdminToken                  string
 	AuthJWTSecret               string
@@ -125,6 +129,10 @@ func Load() Config {
 		DeliveryRetryDelays:         durationCSVEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_DELAYS", []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}),
 		DeliveryRetryJitterRatio:    floatEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", 0.20),
 		DeliveryRetryMaxDelay:       durationEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", 24*time.Hour),
+		DeliveryThrottleEnabled:     boolEnvOrDefault("GOGOMAIL_DELIVERY_THROTTLE_ENABLED", false),
+		DeliveryDefaultConcurrency:  intEnvOrDefault("GOGOMAIL_DELIVERY_DEFAULT_CONCURRENCY", 0),
+		DeliveryFarmConcurrency:     intMapEnvOrDefault("GOGOMAIL_DELIVERY_FARM_CONCURRENCY", nil),
+		DeliveryDomainConcurrency:   intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_CONCURRENCY", nil),
 		DKIMEnabled:                 boolEnvOrDefault("GOGOMAIL_DKIM_ENABLED", false),
 		AdminToken:                  envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:               envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
@@ -232,4 +240,36 @@ func durationCSVEnvOrDefault(key string, fallback []time.Duration) []time.Durati
 		return append([]time.Duration(nil), fallback...)
 	}
 	return durations
+}
+
+func intMapEnvOrDefault(key string, fallback map[string]int) map[string]int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return copyStringIntMap(fallback)
+	}
+	result := make(map[string]int)
+	for _, part := range strings.Split(value, ",") {
+		name, rawLimit, ok := strings.Cut(part, "=")
+		if !ok {
+			return copyStringIntMap(fallback)
+		}
+		name = strings.ToLower(strings.TrimSpace(name))
+		limit, err := strconv.Atoi(strings.TrimSpace(rawLimit))
+		if name == "" || err != nil || limit <= 0 {
+			return copyStringIntMap(fallback)
+		}
+		result[name] = limit
+	}
+	return result
+}
+
+func copyStringIntMap(in map[string]int) map[string]int {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]int, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
