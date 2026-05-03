@@ -83,3 +83,36 @@ func TestComposeRejectsInvalidRecipientStatus(t *testing.T) {
 		t.Fatalf("Compose() error = %v, want invalid status", err)
 	}
 }
+
+func TestComposeSanitizesBoundaryAndFinalRecipient(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		From:         outbound.Address{Email: "mailer-daemon@example.com"},
+		To:           outbound.Address{Email: "sender@example.net"},
+		MessageID:    "<dsn/\r\nbad@example.com>",
+		Date:         time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC),
+		Recipients: []RecipientStatus{{
+			Recipient: "User@Example.NET\r\nInjected: bad",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	if strings.Contains(raw, "gogomail-dsn-dsn/\r\nbad@example.com") {
+		t.Fatalf("boundary was not sanitized:\n%s", raw)
+	}
+	if !strings.Contains(raw, `boundary="gogomail-dsn-dsn-bad@example.com"`) {
+		t.Fatalf("raw missing sanitized boundary:\n%s", raw)
+	}
+	if !strings.Contains(raw, "Final-Recipient: rfc822; user@example.net injected: bad") {
+		t.Fatalf("raw missing sanitized final recipient:\n%s", raw)
+	}
+	if strings.Contains(raw, "\r\nInjected: bad") {
+		t.Fatalf("raw contains injected header:\n%s", raw)
+	}
+}

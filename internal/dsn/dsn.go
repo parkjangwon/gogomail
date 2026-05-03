@@ -51,7 +51,7 @@ func Compose(report Report) (outbound.ComposedMessage, error) {
 	if strings.TrimSpace(report.MessageID) == "" {
 		report.MessageID = outbound.GenerateMessageID(domainFromAddress(report.From.Email))
 	}
-	boundary := "gogomail-dsn-" + strings.Trim(report.MessageID, "<>")
+	boundary := "gogomail-dsn-" + sanitizeBoundaryToken(strings.Trim(report.MessageID, "<>"))
 
 	var buf bytes.Buffer
 	writeHeader(&buf, "From", formatAddress(report.From))
@@ -108,7 +108,7 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 	if status.OriginalRecipient != "" {
 		writeDSNField(buf, "Original-Recipient", sanitizeRecipientAddressType(status.OriginalRecipient))
 	}
-	writeDSNField(buf, "Final-Recipient", "rfc822; "+strings.ToLower(strings.TrimSpace(status.Recipient)))
+	writeDSNField(buf, "Final-Recipient", sanitizeRecipientAddressType(status.Recipient))
 	writeDSNField(buf, "Action", action)
 	writeDSNField(buf, "Status", dsnStatus)
 	if status.RemoteMTA != "" {
@@ -174,6 +174,32 @@ func sanitizeRecipientAddressType(value string) string {
 		return value
 	}
 	return "rfc822; " + strings.ToLower(strings.TrimSpace(value))
+}
+
+func sanitizeBoundaryToken(value string) string {
+	value = sanitizeDSNValue(value)
+	if value == "" {
+		return "boundary"
+	}
+	var b strings.Builder
+	b.Grow(len(value))
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' || r == '@' {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-.")
+	if out == "" {
+		return "boundary"
+	}
+	return out
 }
 
 func validDSNAction(action string) bool {
