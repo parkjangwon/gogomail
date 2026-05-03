@@ -83,3 +83,23 @@ Accepted messages are stored as raw `.eml` files under:
 ```txt
 var/mailstore/mailstore/{company_id}/{domain_id}/{user_id}/maildir/{YYYY}/{MM}/{message_id}.eml
 ```
+
+## Submit outbound mail locally
+
+`outbound-mta` exposes the authenticated SMTP Submission boundary. By default it listens on `:2587` for local development:
+
+```bash
+GOGOMAIL_SUBMISSION_ADDR=127.0.0.1:2587 \
+GOGOMAIL_SMTP_DOMAIN=example.com \
+GOGOMAIL_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable' \
+GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
+  go run ./cmd/gogomail --mode=outbound-mta
+```
+
+Submission requires `AUTH PLAIN`, verifies that `MAIL FROM` belongs to the authenticated user, stores the raw RFC 5322 `.eml`, then records the message through the existing `mail.outbound.<farm>` outbox flow.
+
+Local users authenticate against `users.password_hash`. Supported formats are:
+
+- `pbkdf2-sha256$<iterations>$<base64-salt>$<base64-key>`
+- `sha256:<hex>` for legacy/dev fixtures
+- `plain:<password>` only for explicit local development fixtures

@@ -16,13 +16,18 @@ import (
 type ServerOptions struct {
 	Addr     string
 	Domain   string
+	Backend  gosmtp.Backend
 	Receiver *Receiver
 	Logger   *slog.Logger
 }
 
 func RunServer(ctx context.Context, opts ServerOptions) error {
-	if opts.Receiver == nil {
-		return fmt.Errorf("smtp receiver is required")
+	backend := opts.Backend
+	if backend == nil {
+		backend = opts.Receiver
+	}
+	if backend == nil {
+		return fmt.Errorf("smtp backend is required")
 	}
 	if strings.TrimSpace(opts.Addr) == "" {
 		return fmt.Errorf("smtp listen address is required")
@@ -33,7 +38,7 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 		logger = slog.Default()
 	}
 
-	server := gosmtp.NewServer(opts.Receiver)
+	server := gosmtp.NewServer(backend)
 	server.Addr = opts.Addr
 	server.Domain = opts.Domain
 	server.ReadTimeout = 30 * time.Second

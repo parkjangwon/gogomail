@@ -66,6 +66,7 @@ Implementation order:
 19. Admin API supports optional bearer/admin-token protection through `GOGOMAIL_ADMIN_TOKEN`.
 20. Mail API supports optional HS256 JWT verification through `GOGOMAIL_AUTH_JWT_SECRET`.
 21. SMTP sessions support AUTH PLAIN hooks and optional auth-required mode for future Submission MTA.
+22. `outbound-mta` runs an authenticated SMTP Submission server that accepts client mail, verifies the envelope sender belongs to the authenticated user, stores the raw `.eml`, and records it through the existing outbound queue/outbox path.
 
 ## Deferred until backend contracts stabilize
 

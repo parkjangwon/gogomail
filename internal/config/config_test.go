@@ -9,6 +9,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ENV", "")
 	t.Setenv("GOGOMAIL_HTTP_ADDR", "")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_DATABASE_URL", "")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "")
@@ -46,6 +47,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SMTPAddr != ":2525" {
 		t.Fatalf("SMTPAddr = %q, want :2525", cfg.SMTPAddr)
+	}
+	if cfg.SubmissionAddr != ":2587" {
+		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
 	}
 	if cfg.StorageBackend != "local" {
 		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)
@@ -125,6 +129,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ENV", "test")
 	t.Setenv("GOGOMAIL_HTTP_ADDR", ":18080")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", ":10025")
+	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
 	t.Setenv("GOGOMAIL_DATABASE_URL", "postgres://example")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "redis:6379")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "minio")
@@ -162,6 +167,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.SMTPAddr != ":10025" {
 		t.Fatalf("SMTPAddr = %q, want :10025", cfg.SMTPAddr)
+	}
+	if cfg.SubmissionAddr != ":10587" {
+		t.Fatalf("SubmissionAddr = %q, want :10587", cfg.SubmissionAddr)
 	}
 	if cfg.DatabaseURL != "postgres://example" {
 		t.Fatalf("DatabaseURL = %q, want postgres://example", cfg.DatabaseURL)

@@ -44,7 +44,9 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runEventWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
-	case ModeInboundMTA, ModeOutboundMTA, ModeBatchWorker:
+	case ModeOutboundMTA:
+		return runSubmissionMTA(ctx, cfg, logger)
+	case ModeInboundMTA, ModeBatchWorker:
 		return waitForShutdown(ctx, logger, mode)
 	default:
 		return errors.New("unsupported mode")
@@ -129,6 +131,29 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Domain:   cfg.SMTPDomain,
 		Receiver: receiver,
 		Logger:   logger,
+	})
+}
+
+func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	repository := maildb.NewRepository(db)
+	receiver := smtpd.NewSubmissionReceiver(smtpd.SubmissionOptions{
+		Store:         storage.NewLocalStore(cfg.MailstoreRoot),
+		Authenticator: repository,
+		Recorder:      repository,
+	})
+
+	logger.Info("outbound submission mta configured", "addr", cfg.SubmissionAddr)
+	return smtpd.RunServer(ctx, smtpd.ServerOptions{
+		Addr:    cfg.SubmissionAddr,
+		Domain:  cfg.SMTPDomain,
+		Backend: receiver,
+		Logger:  logger,
 	})
 }
 
