@@ -97,6 +97,9 @@ type ReceiverOptions struct {
 	Authenticator     Authenticator
 	RequireAuth       bool
 	SupportSMTPUTF8   bool
+	SupportRequireTLS bool
+	SupportDSN        bool
+	SupportBinaryMIME bool
 	AddReceivedHeader bool
 	ReceivedDomain    string
 	Hooks             []Hook
@@ -116,6 +119,9 @@ type Receiver struct {
 	authenticator     Authenticator
 	requireAuth       bool
 	supportSMTPUTF8   bool
+	supportRequireTLS bool
+	supportDSN        bool
+	supportBinaryMIME bool
 	addReceivedHeader bool
 	receivedDomain    string
 	hooks             []Hook
@@ -139,6 +145,9 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		authenticator:     opts.Authenticator,
 		requireAuth:       opts.RequireAuth,
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
+		supportRequireTLS: opts.SupportRequireTLS,
+		supportDSN:        opts.SupportDSN,
+		supportBinaryMIME: opts.SupportBinaryMIME,
 		addReceivedHeader: opts.AddReceivedHeader,
 		receivedDomain:    opts.ReceivedDomain,
 		hooks:             append([]Hook(nil), opts.Hooks...),
@@ -170,8 +179,13 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) error {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
-	if opts != nil && opts.UTF8 && !s.receiver.supportSMTPUTF8 {
-		return fmt.Errorf("SMTPUTF8 is not supported")
+	if err := validateMailOptions(opts, extensionSupport{
+		SMTPUTF8:   s.receiver.supportSMTPUTF8,
+		RequireTLS: s.receiver.supportRequireTLS,
+		DSN:        s.receiver.supportDSN,
+		BinaryMIME: s.receiver.supportBinaryMIME,
+	}); err != nil {
+		return err
 	}
 	normalized, err := mail.NormalizeAddress(from)
 	if err != nil {
@@ -181,9 +195,12 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) error {
 	return nil
 }
 
-func (s *session) Rcpt(to string, _ *gosmtp.RcptOptions) error {
+func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) error {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
+	}
+	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
+		return err
 	}
 	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
 		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)

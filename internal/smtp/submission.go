@@ -47,6 +47,9 @@ type SubmissionOptions struct {
 	Recorder          SubmissionRecorder
 	Hooks             []Hook
 	SupportSMTPUTF8   bool
+	SupportRequireTLS bool
+	SupportDSN        bool
+	SupportBinaryMIME bool
 	AddReceivedHeader bool
 	ReceivedDomain    string
 	IDGenerator       IDGenerator
@@ -60,6 +63,9 @@ type SubmissionReceiver struct {
 	recorder          SubmissionRecorder
 	hooks             []Hook
 	supportSMTPUTF8   bool
+	supportRequireTLS bool
+	supportDSN        bool
+	supportBinaryMIME bool
 	addReceivedHeader bool
 	receivedDomain    string
 	idGenerator       IDGenerator
@@ -82,6 +88,9 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		recorder:          opts.Recorder,
 		hooks:             append([]Hook(nil), opts.Hooks...),
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
+		supportRequireTLS: opts.SupportRequireTLS,
+		supportDSN:        opts.SupportDSN,
+		supportBinaryMIME: opts.SupportBinaryMIME,
 		addReceivedHeader: opts.AddReceivedHeader,
 		receivedDomain:    opts.ReceivedDomain,
 		idGenerator:       idGenerator,
@@ -139,8 +148,13 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) error {
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
 	}
-	if opts != nil && opts.UTF8 && !s.receiver.supportSMTPUTF8 {
-		return fmt.Errorf("SMTPUTF8 is not supported")
+	if err := validateMailOptions(opts, extensionSupport{
+		SMTPUTF8:   s.receiver.supportSMTPUTF8,
+		RequireTLS: s.receiver.supportRequireTLS,
+		DSN:        s.receiver.supportDSN,
+		BinaryMIME: s.receiver.supportBinaryMIME,
+	}); err != nil {
+		return err
 	}
 	normalized, err := mail.NormalizeAddress(from)
 	if err != nil {
@@ -160,9 +174,12 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) error {
 	return nil
 }
 
-func (s *submissionSession) Rcpt(to string, _ *gosmtp.RcptOptions) error {
+func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) error {
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
+	}
+	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
+		return err
 	}
 	normalized, err := mail.NormalizeAddress(to)
 	if err != nil {
