@@ -115,6 +115,14 @@ func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {
 		"error_message":    attempt.ErrorMessage,
 		"attempted_at":     attempt.AttemptedAt,
 	}
+	if attempt.DSNReturn != "" || attempt.DSNEnvelopeID != "" || len(attempt.DSNNotify) > 0 || attempt.OriginalRecipient != "" {
+		payload["dsn"] = map[string]any{
+			"return":             attempt.DSNReturn,
+			"envelope_id":        attempt.DSNEnvelopeID,
+			"notify":             append([]string(nil), attempt.DSNNotify...),
+			"original_recipient": attempt.OriginalRecipient,
+		}
+	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal delivery attempt event: %w", err)
