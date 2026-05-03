@@ -104,6 +104,87 @@ func TestSubmissionStoresAndRecordsSubmittedMessage(t *testing.T) {
 	}
 }
 
+func TestSubmissionEmitsPipelineHooksInOrder(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	store := storage.NewLocalStore(t.TempDir())
+	recorder := &submissionRecorder{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      recorder,
+		IDGenerator:   func() string { return "hooked-submission" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 3, 11, 0, 0, 0, time.UTC) },
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				if event.Stage == StageAuthenticated && event.SubmissionUser.UserID != "user-1" {
+					t.Fatalf("authenticated user = %+v", event.SubmissionUser)
+				}
+				if event.Stage == StageParsed && event.Parsed.Subject != "hook submission" {
+					t.Fatalf("parsed subject = %q", event.Parsed.Subject)
+				}
+				if event.Stage == StageStored && event.StoragePath == "" {
+					t.Fatal("stored event has empty storage path")
+				}
+				return nil
+			},
+		},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, done, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	} else if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := strings.Join([]string{
+		"Message-ID: <hook-submission@example.com>",
+		"From: Jang Won <jangwon@example.com>",
+		"To: Outside <outside@example.net>",
+		"Subject: hook submission",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+	}, "\r\n")
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	want := []Stage{
+		StageAuthenticated,
+		StageMailFrom,
+		StageRcpt,
+		StageSpooled,
+		StageParsed,
+		StageStored,
+		StageRecorded,
+	}
+	if len(stages) != len(want) {
+		t.Fatalf("stages = %v, want %v", stages, want)
+	}
+	for i := range want {
+		if stages[i] != want[i] {
+			t.Fatalf("stages = %v, want %v", stages, want)
+		}
+	}
+}
+
 func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorder, store storage.Store) *submissionSession {
 	t.Helper()
 

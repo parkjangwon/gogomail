@@ -46,6 +46,7 @@ type SubmissionOptions struct {
 	Store           storage.Store
 	Authenticator   SubmissionAuthenticator
 	Recorder        SubmissionRecorder
+	Hooks           []Hook
 	IDGenerator     IDGenerator
 	Clock           func() time.Time
 	MaxMessageBytes int64
@@ -55,6 +56,7 @@ type SubmissionReceiver struct {
 	store           storage.Store
 	authenticator   SubmissionAuthenticator
 	recorder        SubmissionRecorder
+	hooks           []Hook
 	idGenerator     IDGenerator
 	clock           func() time.Time
 	maxMessageBytes int64
@@ -73,6 +75,7 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		store:           opts.Store,
 		authenticator:   opts.Authenticator,
 		recorder:        opts.Recorder,
+		hooks:           append([]Hook(nil), opts.Hooks...),
 		idGenerator:     idGenerator,
 		clock:           clockOrDefault(opts.Clock),
 		maxMessageBytes: maxBytes,
@@ -114,6 +117,12 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			return gosmtp.ErrAuthFailed
 		}
 		s.user = user
+		if err := s.emit(context.Background(), Event{
+			Stage:          StageAuthenticated,
+			SubmissionUser: user,
+		}); err != nil {
+			return err
+		}
 		return nil
 	}), nil
 }
@@ -130,6 +139,13 @@ func (s *submissionSession) Mail(from string, _ *gosmtp.MailOptions) error {
 		return fmt.Errorf("mail from %q is not allowed for authenticated user", normalized)
 	}
 	s.from = normalized
+	if err := s.emit(context.Background(), Event{
+		Stage:          StageMailFrom,
+		EnvelopeFrom:   s.from,
+		SubmissionUser: s.user,
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -142,6 +158,14 @@ func (s *submissionSession) Rcpt(to string, _ *gosmtp.RcptOptions) error {
 		return err
 	}
 	s.recipients = append(s.recipients, normalized)
+	if err := s.emit(context.Background(), Event{
+		Stage:          StageRcpt,
+		EnvelopeFrom:   s.from,
+		SubmissionUser: s.user,
+		Recipients:     append([]string(nil), s.recipients...),
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -164,6 +188,15 @@ func (s *submissionSession) Data(r io.Reader) error {
 		_ = spooled.Close()
 		_ = os.Remove(spooled.Name())
 	}()
+	if err := s.emit(context.Background(), Event{
+		Stage:          StageSpooled,
+		EnvelopeFrom:   s.from,
+		SubmissionUser: s.user,
+		Recipients:     append([]string(nil), s.recipients...),
+		Size:           size,
+	}); err != nil {
+		return err
+	}
 
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind submitted message for parse: %w", err)
@@ -171,6 +204,16 @@ func (s *submissionSession) Data(r io.Reader) error {
 	parsed, err := message.ParseEML(spooled)
 	if err != nil {
 		return fmt.Errorf("parse submitted message: %w", err)
+	}
+	if err := s.emit(context.Background(), Event{
+		Stage:          StageParsed,
+		EnvelopeFrom:   s.from,
+		SubmissionUser: s.user,
+		Recipients:     append([]string(nil), s.recipients...),
+		Parsed:         parsed,
+		Size:           size,
+	}); err != nil {
+		return err
 	}
 
 	submittedAt := s.receiver.clock()
@@ -187,6 +230,18 @@ func (s *submissionSession) Data(r io.Reader) error {
 	if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
 		return fmt.Errorf("store submitted message: %w", err)
 	}
+	if err := s.emit(context.Background(), Event{
+		Stage:          StageStored,
+		EnvelopeFrom:   s.from,
+		SubmissionUser: s.user,
+		Recipients:     append([]string(nil), s.recipients...),
+		StoragePath:    path,
+		Parsed:         parsed,
+		SubmittedAt:    submittedAt,
+		Size:           size,
+	}); err != nil {
+		return err
+	}
 	_, err = s.receiver.recorder.RecordSubmitted(context.Background(), SubmittedMessage{
 		EnvelopeFrom: s.from,
 		User:         s.user,
@@ -198,6 +253,27 @@ func (s *submissionSession) Data(r io.Reader) error {
 	})
 	if err != nil {
 		return fmt.Errorf("record submitted message: %w", err)
+	}
+	if err := s.emit(context.Background(), Event{
+		Stage:          StageRecorded,
+		EnvelopeFrom:   s.from,
+		SubmissionUser: s.user,
+		Recipients:     append([]string(nil), s.recipients...),
+		StoragePath:    path,
+		Parsed:         parsed,
+		SubmittedAt:    submittedAt,
+		Size:           size,
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *submissionSession) emit(ctx context.Context, event Event) error {
+	for _, hook := range s.receiver.hooks {
+		if err := hook(ctx, event); err != nil {
+			return fmt.Errorf("submission hook %s: %w", event.Stage, err)
+		}
 	}
 	return nil
 }
