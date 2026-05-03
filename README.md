@@ -61,11 +61,14 @@ For the post-filter internal receive boundary, run `inbound-mta` on its own addr
 
 ```bash
 GOGOMAIL_INBOUND_SMTP_ADDR=127.0.0.1:2526 \
+GOGOMAIL_INBOUND_TRUSTED_RELAYS=127.0.0.1/32,::1/128 \
 GOGOMAIL_SMTP_DOMAIN=example.com \
 GOGOMAIL_LOCAL_RECIPIENTS=admin@example.com \
 GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
   go run ./cmd/gogomail --mode=inbound-mta
 ```
+
+`inbound-mta` is intended for the post-filter/internal receive boundary. Set `GOGOMAIL_INBOUND_TRUSTED_RELAYS` to the Edge MTA or spam-filter relay CIDR list; untrusted remotes are rejected with an SMTP policy response before envelope state is accepted.
 
 When `GOGOMAIL_LOCAL_RECIPIENTS` is set, edge-mta uses an in-memory static recipient resolver for local development.
 
