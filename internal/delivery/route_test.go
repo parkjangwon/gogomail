@@ -32,6 +32,35 @@ func TestNormalizeRouteCleansHostsAndDefaults(t *testing.T) {
 	}
 }
 
+func TestNormalizeRouteAcceptsHostPortSmartHost(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "Example.NET", Route{
+		Hosts: []string{" SMTP.EXAMPLE.NET:587 ", "smtp.example.net"},
+	})
+	if route.Port != 587 {
+		t.Fatalf("Port = %d, want smart-host port 587", route.Port)
+	}
+	if len(route.Hosts) != 1 || route.Hosts[0] != "smtp.example.net" {
+		t.Fatalf("Hosts = %+v, want host without port", route.Hosts)
+	}
+}
+
+func TestNormalizeRouteExplicitPortOverridesHostPort(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "Example.NET", Route{
+		Hosts: []string{"smtp.example.net:587"},
+		Port:  2525,
+	})
+	if route.Port != 2525 {
+		t.Fatalf("Port = %d, want explicit route port", route.Port)
+	}
+	if len(route.Hosts) != 1 || route.Hosts[0] != "smtp.example.net" {
+		t.Fatalf("Hosts = %+v, want host without port", route.Hosts)
+	}
+}
+
 func TestRoutePoolKeyIncludesFarmDomainHostAndTLSMode(t *testing.T) {
 	t.Parallel()
 
