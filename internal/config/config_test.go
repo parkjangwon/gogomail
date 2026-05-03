@@ -37,6 +37,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
+	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", "")
@@ -134,6 +135,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.DeliverySMTPHello != "localhost" {
 		t.Fatalf("DeliverySMTPHello = %q, want localhost", cfg.DeliverySMTPHello)
 	}
+	if cfg.DeliveryTimeout != 30*time.Second {
+		t.Fatalf("DeliveryTimeout = %s, want 30s", cfg.DeliveryTimeout)
+	}
 	if cfg.DeliveryTLSMode != "opportunistic" {
 		t.Fatalf("DeliveryTLSMode = %q, want opportunistic", cfg.DeliveryTLSMode)
 	}
@@ -195,6 +199,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "5")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
+	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "45s")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "require")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "1m, 5m, 1h")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", "0.35")
@@ -297,6 +302,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DeliverySMTPHello != "mx.example.com" {
 		t.Fatalf("DeliverySMTPHello = %q, want mx.example.com", cfg.DeliverySMTPHello)
+	}
+	if cfg.DeliveryTimeout != 45*time.Second {
+		t.Fatalf("DeliveryTimeout = %s, want 45s", cfg.DeliveryTimeout)
 	}
 	if cfg.DeliveryTLSMode != "require" {
 		t.Fatalf("DeliveryTLSMode = %q, want require", cfg.DeliveryTLSMode)

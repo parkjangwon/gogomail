@@ -297,6 +297,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	transport := delivery.NewDirectSMTPTransport()
 	transport.Hello = cfg.DeliverySMTPHello
+	transport.Timeout = cfg.DeliveryTimeout
 	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
 	retryPolicy := delivery.DefaultRetryPolicy()
 	retryPolicy.Delays = cfg.DeliveryRetryDelays

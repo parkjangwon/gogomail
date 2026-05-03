@@ -40,6 +40,7 @@ type Config struct {
 	DeliveryConsumerCount       int
 	DeliveryConsumerBlock       time.Duration
 	DeliverySMTPHello           string
+	DeliveryTimeout             time.Duration
 	DeliveryTLSMode             string
 	DeliveryRetryDelays         []time.Duration
 	DeliveryRetryJitterRatio    float64
@@ -83,6 +84,7 @@ func Load() Config {
 		DeliveryConsumerCount:       intEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_COUNT", 50),
 		DeliveryConsumerBlock:       durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
 		DeliverySMTPHello:           envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
+		DeliveryTimeout:             durationEnvOrDefault("GOGOMAIL_DELIVERY_TIMEOUT", 30*time.Second),
 		DeliveryTLSMode:             envOrDefault("GOGOMAIL_DELIVERY_TLS_MODE", "opportunistic"),
 		DeliveryRetryDelays:         durationCSVEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_DELAYS", []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}),
 		DeliveryRetryJitterRatio:    floatEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", 0.20),

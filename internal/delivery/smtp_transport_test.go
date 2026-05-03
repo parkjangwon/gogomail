@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/outbound"
 )
@@ -95,6 +96,38 @@ func TestMXHostsFallsBackToDomainWhenMXLookupFails(t *testing.T) {
 	}
 	if len(hosts) != 1 || hosts[0] != "example.net" {
 		t.Fatalf("hosts = %+v, want fallback domain", hosts)
+	}
+}
+
+func TestDeliveryDeadlineUsesTimeout(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC)
+	deadline := deliveryDeadline(context.Background(), 30*time.Second, now)
+	if !deadline.Equal(now.Add(30 * time.Second)) {
+		t.Fatalf("deadline = %s, want timeout deadline", deadline)
+	}
+}
+
+func TestDeliveryDeadlinePrefersEarlierContextDeadline(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC)
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(5*time.Second))
+	defer cancel()
+
+	deadline := deliveryDeadline(ctx, 30*time.Second, now)
+	if !deadline.Equal(now.Add(5 * time.Second)) {
+		t.Fatalf("deadline = %s, want earlier context deadline", deadline)
+	}
+}
+
+func TestDeliveryDeadlineCanBeDisabled(t *testing.T) {
+	t.Parallel()
+
+	deadline := deliveryDeadline(context.Background(), 0, time.Now())
+	if !deadline.IsZero() {
+		t.Fatalf("deadline = %s, want zero deadline", deadline)
 	}
 }
 

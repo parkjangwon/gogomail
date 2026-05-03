@@ -87,6 +87,11 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, host str
 		return fmt.Errorf("dial mx %s for %s: %w", host, domain, err)
 	}
 	defer conn.Close()
+	if deadline := deliveryDeadline(ctx, timeout, time.Now()); !deadline.IsZero() {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return fmt.Errorf("set smtp session deadline for %s: %w", host, err)
+		}
+	}
 
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
@@ -223,6 +228,17 @@ func orderedMXHosts(records []*net.MX) []string {
 
 func isNullMX(records []*net.MX) bool {
 	return len(records) == 1 && records[0] != nil && records[0].Pref == 0 && strings.TrimSpace(records[0].Host) == "."
+}
+
+func deliveryDeadline(ctx context.Context, timeout time.Duration, now time.Time) time.Time {
+	var deadline time.Time
+	if timeout > 0 {
+		deadline = now.Add(timeout)
+	}
+	if ctxDeadline, ok := ctx.Deadline(); ok && (deadline.IsZero() || ctxDeadline.Before(deadline)) {
+		deadline = ctxDeadline
+	}
+	return deadline
 }
 
 func normalizeDeliveryTLSMode(mode DeliveryTLSMode) DeliveryTLSMode {
