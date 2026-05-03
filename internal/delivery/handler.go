@@ -49,6 +49,7 @@ type Handler struct {
 	recorder  Recorder
 	retry     RetryScheduler
 	metrics   Metrics
+	throttler Throttler
 }
 
 func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
@@ -60,6 +61,11 @@ func NewHandler(store storage.Store, transport Transport, recorder Recorder, ret
 
 func (h *Handler) WithMetrics(metrics Metrics) *Handler {
 	h.metrics = metricsOrDefault(metrics)
+	return h
+}
+
+func (h *Handler) WithThrottler(throttler Throttler) *Handler {
+	h.throttler = throttler
 	return h
 }
 
@@ -86,6 +92,22 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		OpenMessage: func(openCtx context.Context) (io.ReadCloser, error) {
 			return h.store.Get(openCtx, queued.StoragePath)
 		},
+	}
+
+	if h.throttler != nil {
+		release, err := h.throttler.Acquire(ctx, job)
+		if err != nil {
+			h.observe(ctx, metricEvent(queued, MetricThrottled, MetricDeferred, err))
+			if h.retry != nil {
+				if retryErr := h.retry.ScheduleRetry(ctx, job, err); retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
+					return nil
+				} else {
+					return retryErr
+				}
+			}
+			return err
+		}
+		defer release()
 	}
 
 	if err := h.transport.Deliver(ctx, job); err != nil {
