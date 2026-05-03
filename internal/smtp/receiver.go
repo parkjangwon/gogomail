@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -52,6 +53,16 @@ type Deduplicator interface {
 	CheckAndSet(ctx context.Context, key DedupKey) (bool, error)
 }
 
+type RateLimiter interface {
+	Allow(ctx context.Context, key RateLimitKey) (bool, error)
+}
+
+type RateLimitKey struct {
+	Stage      Stage
+	RemoteAddr string
+	Recipient  string
+}
+
 type DedupKey struct {
 	MessageID string
 	Recipient string
@@ -71,6 +82,7 @@ type ReceiverOptions struct {
 	Resolver        RecipientResolver
 	Recorder        MessageRecorder
 	Deduplicator    Deduplicator
+	RateLimiter     RateLimiter
 	Hooks           []Hook
 	Policy          ReceivePolicy
 	IDGenerator     IDGenerator
@@ -83,6 +95,7 @@ type Receiver struct {
 	resolver     RecipientResolver
 	recorder     MessageRecorder
 	deduplicator Deduplicator
+	rateLimiter  RateLimiter
 	hooks        []Hook
 	policy       ReceivePolicy
 	idGenerator  IDGenerator
@@ -99,6 +112,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		resolver:     opts.Resolver,
 		recorder:     recorderOrDefault(opts.Recorder),
 		deduplicator: deduplicatorOrDefault(opts.Deduplicator),
+		rateLimiter:  rateLimiterOrDefault(opts.RateLimiter),
 		hooks:        append([]Hook(nil), opts.Hooks...),
 		policy:       normalizePolicy(opts.Policy, opts.MaxMessageBytes),
 		idGenerator:  idGenerator,
@@ -106,20 +120,21 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 	}
 }
 
-func (r *Receiver) NewSession(_ *gosmtp.Conn) (gosmtp.Session, error) {
+func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 	if r.store == nil {
 		return nil, fmt.Errorf("smtp receiver store is required")
 	}
 	if r.resolver == nil {
 		return nil, fmt.Errorf("smtp receiver resolver is required")
 	}
-	return &session{receiver: r}, nil
+	return &session{receiver: r, remoteAddr: remoteAddrFromConn(conn)}, nil
 }
 
 type session struct {
 	receiver   *Receiver
 	from       string
 	recipients []Mailbox
+	remoteAddr string
 }
 
 func (s *session) Mail(from string, _ *gosmtp.MailOptions) error {
@@ -134,6 +149,18 @@ func (s *session) Mail(from string, _ *gosmtp.MailOptions) error {
 func (s *session) Rcpt(to string, _ *gosmtp.RcptOptions) error {
 	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
 		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)
+	}
+
+	allowed, err := s.receiver.rateLimiter.Allow(context.Background(), RateLimitKey{
+		Stage:      StageRcpt,
+		RemoteAddr: s.remoteAddr,
+		Recipient:  to,
+	})
+	if err != nil {
+		return fmt.Errorf("check rcpt rate limit: %w", err)
+	}
+	if !allowed {
+		return fmt.Errorf("rate limit exceeded for recipient %q", to)
 	}
 
 	mailbox, err := s.receiver.resolver.ResolveRecipient(context.Background(), to)
@@ -315,6 +342,33 @@ func deduplicatorOrDefault(deduplicator Deduplicator) Deduplicator {
 		return deduplicator
 	}
 	return noopDeduplicator{}
+}
+
+type noopRateLimiter struct{}
+
+func (noopRateLimiter) Allow(context.Context, RateLimitKey) (bool, error) {
+	return true, nil
+}
+
+func rateLimiterOrDefault(rateLimiter RateLimiter) RateLimiter {
+	if rateLimiter != nil {
+		return rateLimiter
+	}
+	return noopRateLimiter{}
+}
+
+func remoteAddrFromConn(conn *gosmtp.Conn) string {
+	if conn == nil || conn.Conn() == nil {
+		return ""
+	}
+	addr := conn.Conn().RemoteAddr()
+	if addr == nil {
+		return ""
+	}
+	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
+		return tcpAddr.IP.String()
+	}
+	return addr.String()
 }
 
 func spoolMessage(r io.Reader, maxBytes int64) (*os.File, int64, error) {

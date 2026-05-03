@@ -323,6 +323,29 @@ func TestSessionRejectsRecipientsOverPolicyLimit(t *testing.T) {
 	}
 }
 
+func TestSessionRejectsRecipientWhenRateLimited(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d", UserID: "u1", Address: "one@example.com"},
+		},
+		RateLimiter: denyRateLimiter{},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err == nil {
+		t.Fatal("Rcpt accepted recipient while rate limited")
+	}
+}
+
 func TestSessionRejectsMessageLargerThanLimit(t *testing.T) {
 	t.Parallel()
 
@@ -370,5 +393,11 @@ func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) error
 type duplicateDeduplicator struct{}
 
 func (duplicateDeduplicator) CheckAndSet(context.Context, DedupKey) (bool, error) {
+	return false, nil
+}
+
+type denyRateLimiter struct{}
+
+func (denyRateLimiter) Allow(context.Context, RateLimitKey) (bool, error) {
 	return false, nil
 }

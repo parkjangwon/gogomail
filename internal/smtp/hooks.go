@@ -10,6 +10,7 @@ import (
 type Stage string
 
 const (
+	StageRcpt         Stage = "rcpt"
 	StageSpooled      Stage = "spooled"
 	StageParsed       Stage = "parsed"
 	StageDedupChecked Stage = "dedup_checked"

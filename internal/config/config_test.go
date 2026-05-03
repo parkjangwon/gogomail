@@ -14,6 +14,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
+	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
+	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "")
 
 	cfg := Load()
 
@@ -44,6 +46,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.DedupBackend != "none" {
 		t.Fatalf("DedupBackend = %q, want none", cfg.DedupBackend)
 	}
+	if cfg.RateLimitBackend != "none" {
+		t.Fatalf("RateLimitBackend = %q, want none", cfg.RateLimitBackend)
+	}
+	if cfg.RcptRateLimitPerMinute != 60 {
+		t.Fatalf("RcptRateLimitPerMinute = %d, want 60", cfg.RcptRateLimitPerMinute)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -58,6 +66,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "/tmp/gogomail-mailstore")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "Admin@Example.COM, user@example.com ")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
+	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "redis")
+	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "5")
 
 	cfg := Load()
 
@@ -93,5 +103,11 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DedupBackend != "redis" {
 		t.Fatalf("DedupBackend = %q, want redis", cfg.DedupBackend)
+	}
+	if cfg.RateLimitBackend != "redis" {
+		t.Fatalf("RateLimitBackend = %q, want redis", cfg.RateLimitBackend)
+	}
+	if cfg.RcptRateLimitPerMinute != 5 {
+		t.Fatalf("RcptRateLimitPerMinute = %d, want 5", cfg.RcptRateLimitPerMinute)
 	}
 }

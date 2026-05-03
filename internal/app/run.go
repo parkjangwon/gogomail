@@ -15,6 +15,7 @@ import (
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/ratelimit"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -42,6 +43,8 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	var resolver smtpd.RecipientResolver
 	var recorder smtpd.MessageRecorder
 	var deduplicator smtpd.Deduplicator
+	var rateLimiter smtpd.RateLimiter
+	var redisClient *redis.Client
 
 	if len(cfg.LocalRecipients) > 0 {
 		staticResolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
@@ -64,15 +67,28 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	}
 
 	if cfg.DedupBackend == "redis" {
-		client := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
-		if err := client.Ping(ctx).Err(); err != nil {
-			_ = client.Close()
+		redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			_ = redisClient.Close()
 			return err
 		}
-		defer client.Close()
 
-		deduplicator = dedup.NewRedisDeduplicator(client, 24*time.Hour)
+		deduplicator = dedup.NewRedisDeduplicator(redisClient, 24*time.Hour)
 		logger.Info("edge-mta using redis deduplicator", "addr", cfg.RedisAddr)
+	}
+	if cfg.RateLimitBackend == "redis" {
+		if redisClient == nil {
+			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				_ = redisClient.Close()
+				return err
+			}
+		}
+		rateLimiter = ratelimit.NewRedisLimiter(redisClient, int64(cfg.RcptRateLimitPerMinute), time.Minute)
+		logger.Info("edge-mta using redis rate limiter", "addr", cfg.RedisAddr, "rcpt_per_minute", cfg.RcptRateLimitPerMinute)
+	}
+	if redisClient != nil {
+		defer redisClient.Close()
 	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
@@ -80,6 +96,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Resolver:     resolver,
 		Recorder:     recorder,
 		Deduplicator: deduplicator,
+		RateLimiter:  rateLimiter,
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
