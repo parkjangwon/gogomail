@@ -26,3 +26,19 @@ func TestDeliveryTLSConfigRaisesWeakMinVersion(t *testing.T) {
 		t.Fatalf("MinVersion = %#x, want TLS 1.2", cfg.MinVersion)
 	}
 }
+
+func TestDeliveryTLSConfigClonesOperatorConfig(t *testing.T) {
+	t.Parallel()
+
+	base := &tls.Config{ServerName: "configured.example.net", MinVersion: tls.VersionTLS13}
+	cfg := (&DirectSMTPTransport{TLSConfig: base}).deliveryTLSConfig("mx.example.net")
+	if cfg == base {
+		t.Fatal("deliveryTLSConfig returned original TLSConfig pointer")
+	}
+	if cfg.ServerName != "configured.example.net" {
+		t.Fatalf("ServerName = %q, want configured name", cfg.ServerName)
+	}
+	if cfg.MinVersion != tls.VersionTLS13 {
+		t.Fatalf("MinVersion = %#x, want TLS 1.3", cfg.MinVersion)
+	}
+}
