@@ -57,6 +57,34 @@ type CreateFolderRequest struct {
 	Name   string
 }
 
+type BulkMessageFlagRequest struct {
+	UserID     string   `json:"user_id,omitempty"`
+	MessageIDs []string `json:"message_ids"`
+	Flag       string   `json:"flag"`
+	Value      bool     `json:"value"`
+}
+
+func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if len(req.MessageIDs) == 0 {
+		return fmt.Errorf("message_ids is required")
+	}
+	if len(req.MessageIDs) > 500 {
+		return fmt.Errorf("too many message_ids")
+	}
+	if !allowedMessageFlag(strings.TrimSpace(req.Flag)) {
+		return fmt.Errorf("unsupported message flag %q", req.Flag)
+	}
+	for _, id := range req.MessageIDs {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("message id must not be blank")
+		}
+	}
+	return nil
+}
+
 func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) (Folder, error) {
 	if r.db == nil {
 		return Folder{}, fmt.Errorf("database handle is required")
@@ -479,6 +507,38 @@ WHERE user_id = $1
 		return fmt.Errorf("message %q not found", messageID)
 	}
 	return nil
+}
+
+func (r *Repository) BulkSetMessageFlag(ctx context.Context, req BulkMessageFlagRequest) (int64, error) {
+	if r.db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkMessageFlagRequest(req); err != nil {
+		return 0, err
+	}
+	rawIDs, err := json.Marshal(req.MessageIDs)
+	if err != nil {
+		return 0, fmt.Errorf("encode message ids: %w", err)
+	}
+	flag := strings.TrimSpace(req.Flag)
+
+	const query = `
+UPDATE messages
+SET flags = jsonb_set(flags, $3::text[], to_jsonb($4::boolean), true),
+    updated_at = now()
+WHERE user_id = $1
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'active'`
+
+	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), string(rawIDs), "{"+flag+"}", req.Value)
+	if err != nil {
+		return 0, fmt.Errorf("bulk set message flag: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("inspect bulk message flag update: %w", err)
+	}
+	return affected, nil
 }
 
 func (r *Repository) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {

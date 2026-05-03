@@ -144,6 +144,10 @@ func (f *fakeRepository) SetMessageFlag(_ context.Context, _ string, messageID s
 	return nil
 }
 
+func (f *fakeRepository) BulkSetMessageFlag(_ context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
+	return int64(len(req.MessageIDs)), nil
+}
+
 func (f *fakeRepository) MoveMessage(context.Context, string, string, string) error {
 	return nil
 }

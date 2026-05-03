@@ -151,6 +151,32 @@ func TestRenameFolderHandler(t *testing.T) {
 	}
 }
 
+func TestBulkSetMessageFlagsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/messages/bulk/flags?user_id=user-1", strings.NewReader(`{
+		"message_ids":["msg-1","msg-2"],
+		"flag":"read",
+		"value":true
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastBulkFlag.UserID != "user-1" || service.lastBulkFlag.Flag != "read" || !service.lastBulkFlag.Value {
+		t.Fatalf("lastBulkFlag = %+v", service.lastBulkFlag)
+	}
+	if len(service.lastBulkFlag.MessageIDs) != 2 {
+		t.Fatalf("message ids = %+v", service.lastBulkFlag.MessageIDs)
+	}
+}
+
 func TestDeleteFolderHandler(t *testing.T) {
 	t.Parallel()
 
@@ -744,6 +770,7 @@ type fakeMessageService struct {
 	lastDeletedDraftID   string
 	lastFlag             string
 	lastFlagValue        bool
+	lastBulkFlag         maildb.BulkMessageFlagRequest
 	lastLimit            int
 }
 
@@ -806,6 +833,11 @@ func (f *fakeMessageService) SetMessageFlag(_ context.Context, userID string, me
 	f.lastFlag = flag
 	f.lastFlagValue = value
 	return nil
+}
+
+func (f *fakeMessageService) BulkSetMessageFlag(_ context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
+	f.lastBulkFlag = req
+	return int64(len(req.MessageIDs)), nil
 }
 
 func (f *fakeMessageService) MoveMessage(_ context.Context, userID string, messageID string, folderID string) error {

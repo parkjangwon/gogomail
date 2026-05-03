@@ -27,6 +27,7 @@ type Repository interface {
 	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
+	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
@@ -131,6 +132,13 @@ func messageFlagRead(flags json.RawMessage) bool {
 
 func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error {
 	return s.repository.SetMessageFlag(ctx, userID, messageID, flag, value)
+}
+
+func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
+	if err := maildb.ValidateBulkMessageFlagRequest(req); err != nil {
+		return 0, err
+	}
+	return s.repository.BulkSetMessageFlag(ctx, req)
 }
 
 func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
