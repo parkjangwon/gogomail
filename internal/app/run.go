@@ -162,6 +162,7 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		ReceivedDomain:    cfg.SMTPDomain,
 		SupportSMTPUTF8:   cfg.SubmissionSupportSMTPUTF8,
 		SupportRequireTLS: cfg.SubmissionSupportRequireTLS,
+		SupportDSN:        cfg.SubmissionSupportDSN,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SubmissionMaxRecipients,
 			MaxMessageBytes:         cfg.SubmissionMaxMessageBytes,
