@@ -462,3 +462,17 @@ func TestLoadDisablesSubmissionInsecureAuthByDefaultInProduction(t *testing.T) {
 		t.Fatal("SubmissionAllowInsecureAuth = true, want false in production defaults")
 	}
 }
+
+func TestLoadFallsBackForInvalidInt64Environment(t *testing.T) {
+	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "not-a-number")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "also-bad")
+
+	cfg := Load()
+
+	if cfg.SMTPMaxMessageBytes != 25*1024*1024 {
+		t.Fatalf("SMTPMaxMessageBytes = %d, want fallback 25MiB", cfg.SMTPMaxMessageBytes)
+	}
+	if cfg.SubmissionMaxMessageBytes != 25*1024*1024 {
+		t.Fatalf("SubmissionMaxMessageBytes = %d, want fallback 25MiB", cfg.SubmissionMaxMessageBytes)
+	}
+}
