@@ -1,9 +1,12 @@
 package delivery
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"net"
+	"net/smtp"
 	"strings"
 	"testing"
 	"time"
@@ -387,6 +390,84 @@ func TestNullReversePathSuppressesOutboundDSNMailOptions(t *testing.T) {
 	}}
 	if shouldSendOutboundDSNMailOptions(job) {
 		t.Fatal("null reverse-path should not request DSN options")
+	}
+}
+
+func TestSMTPDSNOptionsAreSentOnWireWhenAdvertised(t *testing.T) {
+	t.Parallel()
+
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	lines := make(chan string, 2)
+	errs := make(chan error, 1)
+	go func() {
+		reader := bufio.NewReader(serverConn)
+		if _, err := fmt.Fprintf(serverConn, "220 mx.example.net ESMTP\r\n"); err != nil {
+			errs <- err
+			return
+		}
+		if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "EHLO ") {
+			errs <- fmt.Errorf("EHLO line = %q, err = %v", line, err)
+			return
+		}
+		if _, err := fmt.Fprintf(serverConn, "250-mx.example.net\r\n250-DSN\r\n250 8BITMIME\r\n"); err != nil {
+			errs <- err
+			return
+		}
+		for i := 0; i < 2; i++ {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				errs <- err
+				return
+			}
+			lines <- strings.TrimRight(line, "\r\n")
+			if _, err := fmt.Fprintf(serverConn, "250 ok\r\n"); err != nil {
+				errs <- err
+				return
+			}
+		}
+		errs <- nil
+	}()
+
+	client, err := smtp.NewClient(clientConn, "mx.example.net")
+	if err != nil {
+		t.Fatalf("NewClient returned error: %v", err)
+	}
+	defer client.Close()
+	if err := client.Hello("sender.example.com"); err != nil {
+		t.Fatalf("Hello returned error: %v", err)
+	}
+	job := Job{QueuedMessage: QueuedMessage{
+		From: outbound.Address{Email: "sender@example.com"},
+		DSN: DSNOptions{
+			Return:     "FULL",
+			EnvelopeID: "env+2D1",
+			Recipients: []DSNRecipientOptions{{
+				Address:           "user@example.net",
+				Notify:            []string{"FAILURE", "DELAY"},
+				OriginalRecipient: "rfc822;user+40example.net",
+			}},
+		},
+	}}
+	if err := smtpMail(client, job); err != nil {
+		t.Fatalf("smtpMail returned error: %v", err)
+	}
+	if err := smtpRcpt(client, job, outbound.Address{Email: "user@example.net"}); err != nil {
+		t.Fatalf("smtpRcpt returned error: %v", err)
+	}
+	if err := <-errs; err != nil {
+		t.Fatalf("fake SMTP server error: %v", err)
+	}
+
+	mailLine := <-lines
+	rcptLine := <-lines
+	if mailLine != "MAIL FROM:<sender@example.com> BODY=8BITMIME RET=FULL ENVID=env+2D1" {
+		t.Fatalf("MAIL line = %q", mailLine)
+	}
+	if rcptLine != "RCPT TO:<user@example.net> NOTIFY=FAILURE,DELAY ORCPT=rfc822;user+40example.net" {
+		t.Fatalf("RCPT line = %q", rcptLine)
 	}
 }
 
