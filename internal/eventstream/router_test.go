@@ -2,6 +2,7 @@ package eventstream
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -72,5 +73,29 @@ func TestMultiHandlerFansOutInOrder(t *testing.T) {
 	}
 	if len(calls) != 2 || calls[0] != "first" || calls[1] != "second" {
 		t.Fatalf("calls = %+v, want ordered fan-out", calls)
+	}
+}
+
+func TestMultiHandlerStopsOnError(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("stop")
+	calledSecond := false
+	handler := MultiHandler{
+		HandlerFunc(func(context.Context, Message) error {
+			return wantErr
+		}),
+		HandlerFunc(func(context.Context, Message) error {
+			calledSecond = true
+			return nil
+		}),
+	}
+
+	err := handler.HandleEvent(context.Background(), Message{Payload: []byte(`{"event":"mail.bounced"}`)})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("HandleEvent() error = %v, want %v", err, wantErr)
+	}
+	if calledSecond {
+		t.Fatal("second handler was called after first handler failed")
 	}
 }
