@@ -48,6 +48,43 @@ type Folder struct {
 	OrderIndex int    `json:"order_index"`
 }
 
+type CreateFolderRequest struct {
+	UserID string
+	Name   string
+}
+
+func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) (Folder, error) {
+	if r.db == nil {
+		return Folder{}, fmt.Errorf("database handle is required")
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return Folder{}, fmt.Errorf("folder name is required")
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return Folder{}, fmt.Errorf("folder name must not contain path separators")
+	}
+
+	const query = `
+INSERT INTO folders (user_id, name, full_path, type)
+VALUES ($1, $2, $2, 'user')
+RETURNING id::text, COALESCE(parent_id::text, ''), name, full_path, type, COALESCE(system_type, ''), order_index`
+
+	var folder Folder
+	if err := r.db.QueryRowContext(ctx, query, req.UserID, name).Scan(
+		&folder.ID,
+		&folder.ParentID,
+		&folder.Name,
+		&folder.FullPath,
+		&folder.Type,
+		&folder.SystemType,
+		&folder.OrderIndex,
+	); err != nil {
+		return Folder{}, fmt.Errorf("create folder: %w", err)
+	}
+	return folder, nil
+}
+
 func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

@@ -61,6 +61,10 @@ func (f *fakeRepository) ListFolders(context.Context, string) ([]maildb.Folder, 
 	return nil, nil
 }
 
+func (f *fakeRepository) CreateFolder(context.Context, maildb.CreateFolderRequest) (maildb.Folder, error) {
+	return maildb.Folder{}, nil
+}
+
 func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.MessageDetail, error) {
 	return f.detail, nil
 }

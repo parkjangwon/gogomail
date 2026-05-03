@@ -96,6 +96,31 @@ func TestListFoldersHandler(t *testing.T) {
 	}
 }
 
+func TestCreateFolderHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects"}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Folder maildb.Folder `json:"folder"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Folder.Name != "Projects" || body.Folder.Type != "user" {
+		t.Fatalf("folder = %+v", body.Folder)
+	}
+}
+
 func TestListMessagesHandlerFiltersByFolder(t *testing.T) {
 	t.Parallel()
 
@@ -299,6 +324,7 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 
 type fakeMessageService struct {
 	folders          []maildb.Folder
+	createdFolder   maildb.Folder
 	list             []maildb.MessageSummary
 	detail           maildb.MessageDetail
 	sendResult       mailservice.SendTextResult
@@ -316,6 +342,14 @@ type fakeMessageService struct {
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
 	f.lastUserID = userID
 	return f.folders, nil
+}
+
+func (f *fakeMessageService) CreateFolder(_ context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error) {
+	f.lastUserID = req.UserID
+	if f.createdFolder.ID != "" {
+		return f.createdFolder, nil
+	}
+	return maildb.Folder{ID: "folder-new", Name: req.Name, FullPath: req.Name, Type: "user"}, nil
 }
 
 func (f *fakeMessageService) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
