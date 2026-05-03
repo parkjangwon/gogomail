@@ -50,3 +50,27 @@ func TestEventNameRejectsMissingEvent(t *testing.T) {
 		t.Fatal("EventName accepted payload without event")
 	}
 }
+
+func TestMultiHandlerFansOutInOrder(t *testing.T) {
+	t.Parallel()
+
+	var calls []string
+	handler := MultiHandler{
+		HandlerFunc(func(context.Context, Message) error {
+			calls = append(calls, "first")
+			return nil
+		}),
+		nil,
+		HandlerFunc(func(context.Context, Message) error {
+			calls = append(calls, "second")
+			return nil
+		}),
+	}
+
+	if err := handler.HandleEvent(context.Background(), Message{Payload: []byte(`{"event":"mail.bounced"}`)}); err != nil {
+		t.Fatalf("HandleEvent() error = %v", err)
+	}
+	if len(calls) != 2 || calls[0] != "first" || calls[1] != "second" {
+		t.Fatalf("calls = %+v, want ordered fan-out", calls)
+	}
+}

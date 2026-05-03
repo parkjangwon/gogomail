@@ -25,6 +25,20 @@ func (f HandlerFunc) HandleEvent(ctx context.Context, msg Message) error {
 	return f(ctx, msg)
 }
 
+type MultiHandler []Handler
+
+func (h MultiHandler) HandleEvent(ctx context.Context, msg Message) error {
+	for _, handler := range h {
+		if handler == nil {
+			continue
+		}
+		if err := handler.HandleEvent(ctx, msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type Router struct {
 	mu       sync.RWMutex
 	handlers map[string]Handler
