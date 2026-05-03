@@ -183,6 +183,7 @@ Implementation order:
 136. SMTP receive and submission sessions now clear stale envelope state as soon as a new `MAIL FROM` command is received, even when that command is rejected, preventing failed second MAIL commands from reusing previous RCPT state.
 137. Delivery attempt metadata now records normalized recipient domains and truncates long error messages at UTF-8 boundaries for safer PostgreSQL/audit storage.
 138. Delivery throttling now emits retry scheduled and retry exhausted metrics, making deferred outbound farm/domain backpressure visible through the existing observability boundary.
+139. `inbound-mta` now starts a real SMTP receive server with its own `GOGOMAIL_INBOUND_SMTP_ADDR`, rather than acting as a placeholder mode, moving Phase 1 closer to distinct Edge and post-filter receive boundaries.
 
 ## Deferred until backend contracts stabilize
 

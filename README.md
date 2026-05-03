@@ -57,6 +57,16 @@ GOGOMAIL_REDIS_ADDR=127.0.0.1:16379 \
   go run ./cmd/gogomail --mode=edge-mta
 ```
 
+For the post-filter internal receive boundary, run `inbound-mta` on its own address:
+
+```bash
+GOGOMAIL_INBOUND_SMTP_ADDR=127.0.0.1:2526 \
+GOGOMAIL_SMTP_DOMAIN=example.com \
+GOGOMAIL_LOCAL_RECIPIENTS=admin@example.com \
+GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
+  go run ./cmd/gogomail --mode=inbound-mta
+```
+
 When `GOGOMAIL_LOCAL_RECIPIENTS` is set, edge-mta uses an in-memory static recipient resolver for local development.
 
 When `GOGOMAIL_LOCAL_RECIPIENTS` is empty, edge-mta uses PostgreSQL:
