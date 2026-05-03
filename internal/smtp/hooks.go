@@ -10,12 +10,13 @@ import (
 type Stage string
 
 const (
-	StageRcpt         Stage = "rcpt"
-	StageSpooled      Stage = "spooled"
-	StageParsed       Stage = "parsed"
-	StageDedupChecked Stage = "dedup_checked"
-	StageStored       Stage = "stored"
-	StageRecorded     Stage = "recorded"
+	StageRcpt                Stage = "rcpt"
+	StageBackpressureChecked Stage = "backpressure_checked"
+	StageSpooled             Stage = "spooled"
+	StageParsed              Stage = "parsed"
+	StageDedupChecked        Stage = "dedup_checked"
+	StageStored              Stage = "stored"
+	StageRecorded            Stage = "recorded"
 )
 
 type Event struct {

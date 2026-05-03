@@ -18,6 +18,7 @@ Shared mail parsing lives in `internal/message` so SMTP, Mail API, future IMAP, 
 
 SMTP receive exposes explicit pipeline hook stages:
 
+- `backpressure_checked`
 - `spooled`
 - `parsed`
 - `dedup_checked`

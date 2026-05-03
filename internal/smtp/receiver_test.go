@@ -238,6 +238,7 @@ func TestSessionEmitsPipelineHooksInOrder(t *testing.T) {
 	}
 
 	want := []Stage{
+		StageBackpressureChecked,
 		StageSpooled,
 		StageParsed,
 		StageDedupChecked,
@@ -346,6 +347,40 @@ func TestSessionRejectsRecipientWhenRateLimited(t *testing.T) {
 	}
 }
 
+func TestSessionRejectsDataWhenBackpressureActive(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	receiver := NewReceiver(ReceiverOptions{
+		Store: store,
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d", UserID: "u1", Address: "one@example.com"},
+		},
+		Backpressure: rejectBackpressure{},
+		IDGenerator:  func() string { return "backpressure" },
+		Clock:        func() time.Time { return time.Date(2026, 5, 3, 9, 30, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	err = session.Data(strings.NewReader("Message-ID: <bp@example.com>\r\nSubject: bp\r\n\r\nbody"))
+	if err == nil {
+		t.Fatal("Data accepted while backpressure was active")
+	}
+	if _, err := store.Get(context.Background(), "mailstore/c/d/u1/maildir/2026/05/backpressure.eml"); err == nil {
+		t.Fatal("message was stored while backpressure was active")
+	}
+}
+
 func TestSessionRejectsMessageLargerThanLimit(t *testing.T) {
 	t.Parallel()
 
@@ -399,5 +434,11 @@ func (duplicateDeduplicator) CheckAndSet(context.Context, DedupKey) (bool, error
 type denyRateLimiter struct{}
 
 func (denyRateLimiter) Allow(context.Context, RateLimitKey) (bool, error) {
+	return false, nil
+}
+
+type rejectBackpressure struct{}
+
+func (rejectBackpressure) Accept(context.Context) (bool, error) {
 	return false, nil
 }

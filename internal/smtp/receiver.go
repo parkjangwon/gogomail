@@ -57,6 +57,10 @@ type RateLimiter interface {
 	Allow(ctx context.Context, key RateLimitKey) (bool, error)
 }
 
+type Backpressure interface {
+	Accept(ctx context.Context) (bool, error)
+}
+
 type RateLimitKey struct {
 	Stage      Stage
 	RemoteAddr string
@@ -83,6 +87,7 @@ type ReceiverOptions struct {
 	Recorder        MessageRecorder
 	Deduplicator    Deduplicator
 	RateLimiter     RateLimiter
+	Backpressure    Backpressure
 	Hooks           []Hook
 	Policy          ReceivePolicy
 	IDGenerator     IDGenerator
@@ -96,6 +101,7 @@ type Receiver struct {
 	recorder     MessageRecorder
 	deduplicator Deduplicator
 	rateLimiter  RateLimiter
+	backpressure Backpressure
 	hooks        []Hook
 	policy       ReceivePolicy
 	idGenerator  IDGenerator
@@ -113,6 +119,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		recorder:     recorderOrDefault(opts.Recorder),
 		deduplicator: deduplicatorOrDefault(opts.Deduplicator),
 		rateLimiter:  rateLimiterOrDefault(opts.RateLimiter),
+		backpressure: backpressureOrDefault(opts.Backpressure),
 		hooks:        append([]Hook(nil), opts.Hooks...),
 		policy:       normalizePolicy(opts.Policy, opts.MaxMessageBytes),
 		idGenerator:  idGenerator,
@@ -177,6 +184,20 @@ func (s *session) Data(r io.Reader) error {
 	}
 	if len(s.recipients) == 0 {
 		return fmt.Errorf("at least one recipient is required before data")
+	}
+
+	accepted, err := s.receiver.backpressure.Accept(context.Background())
+	if err != nil {
+		return fmt.Errorf("check backpressure: %w", err)
+	}
+	if !accepted {
+		return fmt.Errorf("service temporarily unavailable")
+	}
+	if err := s.emit(context.Background(), Event{
+		Stage:        StageBackpressureChecked,
+		EnvelopeFrom: s.from,
+	}); err != nil {
+		return err
 	}
 
 	spooled, size, err := spoolMessage(r, s.receiver.policy.MaxMessageBytes)
@@ -369,6 +390,19 @@ func remoteAddrFromConn(conn *gosmtp.Conn) string {
 		return tcpAddr.IP.String()
 	}
 	return addr.String()
+}
+
+type noopBackpressure struct{}
+
+func (noopBackpressure) Accept(context.Context) (bool, error) {
+	return true, nil
+}
+
+func backpressureOrDefault(backpressure Backpressure) Backpressure {
+	if backpressure != nil {
+		return backpressure
+	}
+	return noopBackpressure{}
 }
 
 func spoolMessage(r io.Reader, maxBytes int64) (*os.File, int64, error) {
