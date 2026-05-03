@@ -342,6 +342,29 @@ func TestDeleteDraftHandler(t *testing.T) {
 	}
 }
 
+func TestUpdateDraftHandlerUsesPathID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/drafts/draft-1", strings.NewReader(`{
+		"user_id":"user-1",
+		"draft_id":"ignored",
+		"subject":"updated"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDraft.DraftID != "draft-1" || service.lastDraft.Subject != "updated" {
+		t.Fatalf("lastDraft = %+v", service.lastDraft)
+	}
+}
+
 func TestListAttachmentsHandler(t *testing.T) {
 	t.Parallel()
 

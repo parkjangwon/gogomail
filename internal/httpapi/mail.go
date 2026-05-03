@@ -248,6 +248,30 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		writeJSON(w, http.StatusOK, map[string]any{"draft": draft})
 	})
 
+	mux.HandleFunc("PATCH /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req mailservice.SaveDraftRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.DraftID = r.PathValue("id")
+		if tokenManager != nil {
+			claims, ok := claimsFromRequest(w, r, tokenManager)
+			if !ok {
+				return
+			}
+			req.UserID = claims.UserID
+		}
+		draft, err := service.SaveDraft(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"draft": draft})
+	})
+
 	mux.HandleFunc("DELETE /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
