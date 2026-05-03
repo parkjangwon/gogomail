@@ -130,6 +130,10 @@ Implementation order:
 83. Attachment uploads now cap multipart request bodies, verify declared size against stored bytes, sanitize fallback storage paths, and reject newline-bearing filenames/MIME types.
 84. Service info and readiness responses now expose backend contract metadata and structured checks for deployment automation.
 85. Backend API contract documentation now records response envelopes, auth modes, pagination behavior, and intentionally deferred frontend/spam modules as OpenAPI preparation.
+86. Backend release hardening added stricter admin domain/user validation, constant-time admin token comparison, and trimmed development user identifiers.
+87. Mail API now supports bounded bulk message flag, folder move, and soft-delete actions with duplicate ID rejection for stable webmail list operations.
+88. Attachment lifecycle cleanup can expire stale uploading records, delete expired storage objects through the configured store, and use a partial cleanup index safely outside migration transactions.
+89. Draft-to-send now carries draft attachment state into the outgoing message record, keeping sent-message `has_attachment` behavior consistent with attachment handoff.
 
 ## Deferred until backend contracts stabilize
 

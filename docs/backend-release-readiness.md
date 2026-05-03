@@ -5,7 +5,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 ## Ready or materially advanced
 
 - Mail API exposes folder list/create/rename/delete, message list/detail, move/delete, flag updates, attachment list/download, draft save/update/delete, direct send, and draft send.
+- Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
+- Stale attachment uploads have a repository/service cleanup path and a partial index for efficient lifecycle sweeps.
 - Direct multipart uploads write through the configured storage backend and only record metadata after the object write succeeds.
 - Attachment upload size is guarded in HTTP and service layers, including multipart request caps and declared-size consistency checks.
 - Draft-to-send uses the normal outbound send path, then closes the source draft and links it to the sent message.
@@ -14,7 +16,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, and upload size.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
+- Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.
 - Admin API supports domain/user list, detail, create, and status updates plus queue, delivery-attempt, suppression, DKIM, retry, and delete operations.
+- Admin domain/user create validation rejects malformed domains, unsafe usernames, invalid ACE names, and mismatched primary address ownership.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
 
 ## Must verify before release cut
