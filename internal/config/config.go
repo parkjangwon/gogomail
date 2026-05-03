@@ -37,6 +37,7 @@ type Config struct {
 	DeliveryConsumerBlock   time.Duration
 	DeliverySMTPHello       string
 	AdminToken              string
+	AuthJWTSecret           string
 }
 
 func Load() Config {
@@ -70,6 +71,7 @@ func Load() Config {
 		DeliveryConsumerBlock:   durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
 		DeliverySMTPHello:       envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 		AdminToken:              envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
+		AuthJWTSecret:           envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
 	}
 }
 

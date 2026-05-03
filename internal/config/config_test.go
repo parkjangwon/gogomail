@@ -34,6 +34,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "")
+	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "")
 
 	cfg := Load()
 
@@ -115,6 +116,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AdminToken != "" {
 		t.Fatalf("AdminToken = %q, want empty", cfg.AdminToken)
 	}
+	if cfg.AuthJWTSecret != "" {
+		t.Fatalf("AuthJWTSecret = %q, want empty", cfg.AuthJWTSecret)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -146,6 +150,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "secret")
+	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "jwt-secret")
 
 	cfg := Load()
 
@@ -232,5 +237,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AdminToken != "secret" {
 		t.Fatalf("AdminToken = %q, want secret", cfg.AdminToken)
+	}
+	if cfg.AuthJWTSecret != "jwt-secret" {
+		t.Fatalf("AuthJWTSecret = %q, want jwt-secret", cfg.AuthJWTSecret)
 	}
 }

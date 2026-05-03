@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/gogomail/gogomail/internal/audit"
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
@@ -280,7 +281,14 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 
 		repository := maildb.NewRepository(db)
 		service := mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot))
-		httpapi.RegisterMailRoutes(mux, service)
+		var tokenManager *auth.TokenManager
+		if cfg.AuthJWTSecret != "" {
+			tokenManager, err = auth.NewTokenManager(cfg.AuthJWTSecret)
+			if err != nil {
+				return err
+			}
+		}
+		httpapi.RegisterMailRoutes(mux, service, tokenManager)
 		logger.Info("mail api routes registered")
 	}
 	if mode == ModeAdminAPI {

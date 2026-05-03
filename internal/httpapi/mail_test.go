@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -34,7 +35,7 @@ func TestListMessagesHandler(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
-	RegisterMailRoutes(mux, service)
+	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&limit=10", nil)
 	rec := httptest.NewRecorder()
@@ -77,7 +78,7 @@ func TestGetMessageHandler(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
-	RegisterMailRoutes(mux, service)
+	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
@@ -113,7 +114,7 @@ func TestSendMessageHandler(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
-	RegisterMailRoutes(mux, service)
+	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
 		"user_id":"user-1",
@@ -132,6 +133,54 @@ func TestSendMessageHandler(t *testing.T) {
 	}
 	if len(service.lastSend.To) != 1 || service.lastSend.To[0].Email != "recipient@example.net" {
 		t.Fatalf("lastSend.To = %+v", service.lastSend.To)
+	}
+}
+
+func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	token, err := manager.Sign(auth.Claims{UserID: "jwt-user"}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "jwt-user" {
+		t.Fatalf("lastUserID = %q, want jwt-user", service.lastUserID)
+	}
+}
+
+func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
 	}
 }
 

@@ -64,6 +64,7 @@ Implementation order:
 17. Admin API exposes queue stats, delivery attempts, and suppression list read models.
 18. Admin API can retry outbox events and remove suppression entries.
 19. Admin API supports optional bearer/admin-token protection through `GOGOMAIL_ADMIN_TOKEN`.
+20. Mail API supports optional HS256 JWT verification through `GOGOMAIL_AUTH_JWT_SECRET`.
 
 ## Deferred until backend contracts stabilize
 

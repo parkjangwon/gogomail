@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 )
@@ -16,11 +18,10 @@ type MessageService interface {
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
-func RegisterMailRoutes(mux *http.ServeMux, service MessageService) {
+func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
 	mux.HandleFunc("GET /api/v1/messages", func(w http.ResponseWriter, r *http.Request) {
-		userID := r.URL.Query().Get("user_id")
-		if userID == "" {
-			writeError(w, http.StatusBadRequest, "user_id is required")
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
 			return
 		}
 
@@ -35,9 +36,8 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService) {
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
-		userID := r.URL.Query().Get("user_id")
-		if userID == "" {
-			writeError(w, http.StatusBadRequest, "user_id is required")
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
 			return
 		}
 
@@ -60,6 +60,13 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService) {
 			return
 		}
 
+		if tokenManager != nil {
+			claims, ok := claimsFromRequest(w, r, tokenManager)
+			if !ok {
+				return
+			}
+			req.UserID = claims.UserID
+		}
 		result, err := service.SendText(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -68,6 +75,44 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService) {
 
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
 	})
+}
+
+func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {
+	if tokenManager == nil {
+		userID := r.URL.Query().Get("user_id")
+		if userID == "" {
+			writeError(w, http.StatusBadRequest, "user_id is required")
+			return "", false
+		}
+		return userID, true
+	}
+	claims, ok := claimsFromRequest(w, r, tokenManager)
+	if !ok {
+		return "", false
+	}
+	return claims.UserID, true
+}
+
+func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (auth.Claims, bool) {
+	token := bearerToken(r)
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "bearer token is required")
+		return auth.Claims{}, false
+	}
+	claims, err := tokenManager.Verify(token)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err.Error())
+		return auth.Claims{}, false
+	}
+	return claims, true
+}
+
+func bearerToken(r *http.Request) string {
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		return strings.TrimSpace(authHeader[len("bearer "):])
+	}
+	return ""
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
