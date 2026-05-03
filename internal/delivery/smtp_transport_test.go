@@ -21,3 +21,30 @@ func TestGroupRecipientsByDomain(t *testing.T) {
 		t.Fatalf("example.net recipients = %d, want 1", len(groups["example.net"]))
 	}
 }
+
+func TestNormalizeDeliveryTLSMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   DeliveryTLSMode
+		want DeliveryTLSMode
+	}{
+		{name: "empty defaults opportunistic", in: "", want: DeliveryTLSOpportunistic},
+		{name: "opportunistic", in: "opportunistic", want: DeliveryTLSOpportunistic},
+		{name: "require", in: "require", want: DeliveryTLSRequire},
+		{name: "disable", in: "disable", want: DeliveryTLSDisable},
+		{name: "invalid defaults opportunistic", in: "bad", want: DeliveryTLSOpportunistic},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := normalizeDeliveryTLSMode(tt.in); got != tt.want {
+				t.Fatalf("normalizeDeliveryTLSMode(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}

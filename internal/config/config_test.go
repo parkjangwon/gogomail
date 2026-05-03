@@ -37,6 +37,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
+	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "")
 	t.Setenv("GOGOMAIL_DKIM_ENABLED", "")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "")
@@ -130,6 +131,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.DeliverySMTPHello != "localhost" {
 		t.Fatalf("DeliverySMTPHello = %q, want localhost", cfg.DeliverySMTPHello)
 	}
+	if cfg.DeliveryTLSMode != "opportunistic" {
+		t.Fatalf("DeliveryTLSMode = %q, want opportunistic", cfg.DeliveryTLSMode)
+	}
 	if cfg.DKIMEnabled {
 		t.Fatal("DKIMEnabled = true, want false")
 	}
@@ -173,6 +177,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "5")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
+	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "require")
 	t.Setenv("GOGOMAIL_DKIM_ENABLED", "true")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "secret")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "jwt-secret")
@@ -271,6 +276,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DeliverySMTPHello != "mx.example.com" {
 		t.Fatalf("DeliverySMTPHello = %q, want mx.example.com", cfg.DeliverySMTPHello)
+	}
+	if cfg.DeliveryTLSMode != "require" {
+		t.Fatalf("DeliveryTLSMode = %q, want require", cfg.DeliveryTLSMode)
 	}
 	if !cfg.DKIMEnabled {
 		t.Fatal("DKIMEnabled = false, want true")

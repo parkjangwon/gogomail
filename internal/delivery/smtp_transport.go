@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -13,10 +14,19 @@ import (
 	"github.com/gogomail/gogomail/internal/outbound"
 )
 
+type DeliveryTLSMode string
+
+const (
+	DeliveryTLSOpportunistic DeliveryTLSMode = "opportunistic"
+	DeliveryTLSRequire       DeliveryTLSMode = "require"
+	DeliveryTLSDisable       DeliveryTLSMode = "disable"
+)
+
 type DirectSMTPTransport struct {
 	Resolver     *net.Resolver
 	Timeout      time.Duration
 	Hello        string
+	TLSMode      DeliveryTLSMode
 	Transformers TransformChain
 }
 
@@ -25,6 +35,7 @@ func NewDirectSMTPTransport() *DirectSMTPTransport {
 		Resolver: net.DefaultResolver,
 		Timeout:  30 * time.Second,
 		Hello:    "localhost",
+		TLSMode:  DeliveryTLSOpportunistic,
 	}
 }
 
@@ -68,6 +79,9 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 	if err := client.Hello(hello); err != nil {
 		return WrapSMTPError("hello", err)
 	}
+	if err := t.startTLS(ctx, client, host); err != nil {
+		return WrapSMTPError("starttls", err)
+	}
 	if err := client.Mail(job.From.Email); err != nil {
 		return WrapSMTPError("mail", err)
 	}
@@ -104,6 +118,26 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 	return nil
 }
 
+func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client, host string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	mode := normalizeDeliveryTLSMode(t.TLSMode)
+	if mode == DeliveryTLSDisable {
+		return nil
+	}
+	if ok, _ := client.Extension("STARTTLS"); !ok {
+		if mode == DeliveryTLSRequire {
+			return fmt.Errorf("STARTTLS is required but not advertised by %s", host)
+		}
+		return nil
+	}
+	return client.StartTLS(&tls.Config{
+		ServerName: strings.TrimSpace(host),
+		MinVersion: tls.VersionTLS12,
+	})
+}
+
 func (t *DirectSMTPTransport) openMessage(ctx context.Context, job Job) (io.ReadCloser, error) {
 	message, err := job.OpenMessage(ctx)
 	if err != nil {
@@ -128,6 +162,17 @@ func (t *DirectSMTPTransport) mxHost(ctx context.Context, domain string) (string
 		return records[i].Pref < records[j].Pref
 	})
 	return strings.TrimSuffix(records[0].Host, "."), nil
+}
+
+func normalizeDeliveryTLSMode(mode DeliveryTLSMode) DeliveryTLSMode {
+	switch DeliveryTLSMode(strings.ToLower(strings.TrimSpace(string(mode)))) {
+	case DeliveryTLSRequire:
+		return DeliveryTLSRequire
+	case DeliveryTLSDisable:
+		return DeliveryTLSDisable
+	default:
+		return DeliveryTLSOpportunistic
+	}
 }
 
 func groupRecipientsByDomain(recipients []outbound.Address) map[string][]outbound.Address {

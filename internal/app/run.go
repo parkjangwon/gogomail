@@ -293,6 +293,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	transport := delivery.NewDirectSMTPTransport()
 	transport.Hello = cfg.DeliverySMTPHello
+	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
 	if cfg.DKIMEnabled {
 		repository := maildb.NewRepository(db)
 		transport.Transformers = append(transport.Transformers, dkim.Transformer{
