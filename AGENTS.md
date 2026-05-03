@@ -53,3 +53,19 @@ Design SMTP receive/delivery changes so extra behavior can be attached at specif
 - custom tenant policy
 
 Prefer explicit pipeline events over hidden side effects.
+
+## Architecture style
+
+gogomail should feel polished, high-performance, and customization-friendly.
+
+When designing or changing architecture:
+
+- Prefer small composable interfaces over monolithic components.
+- Keep hot paths efficient and allocation-aware.
+- Keep protocol engines decoupled from optional product features.
+- Make behavior replaceable through interfaces, hooks, or adapters.
+- Avoid hard-coding vendor-specific services into core SMTP/message logic.
+- Keep defaults simple, but allow advanced deployments to swap storage, queues, spam engines, auth providers, rate limiters, and notification handlers.
+- Favor clear boundaries that let future modules plug in without invasive rewrites.
+
+The intended style is: elegant core, high-throughput internals, flexible extension points.
