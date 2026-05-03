@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -142,6 +143,63 @@ LIMIT $2`
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate message summaries: %w", err)
+	}
+	return messages, nil
+}
+
+func (r *Repository) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if strings.TrimSpace(folderID) == "" {
+		return nil, fmt.Errorf("folder_id is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  subject,
+  from_addr,
+  from_name,
+  COALESCE(received_at, created_at),
+  size,
+  has_attachment,
+  COALESCE((flags->>'read')::boolean, false) AS read,
+  COALESCE((flags->>'starred')::boolean, false) AS starred
+FROM messages
+WHERE user_id = $1
+  AND folder_id = $2
+  AND status = 'active'
+ORDER BY COALESCE(received_at, created_at) DESC
+LIMIT $3`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, folderID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list folder messages: %w", err)
+	}
+	defer rows.Close()
+
+	messages := make([]MessageSummary, 0)
+	for rows.Next() {
+		var msg MessageSummary
+		if err := rows.Scan(
+			&msg.ID,
+			&msg.Subject,
+			&msg.FromAddr,
+			&msg.FromName,
+			&msg.ReceivedAt,
+			&msg.Size,
+			&msg.HasAttachment,
+			&msg.Read,
+			&msg.Starred,
+		); err != nil {
+			return nil, fmt.Errorf("scan folder message summary: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate folder message summaries: %w", err)
 	}
 	return messages, nil
 }

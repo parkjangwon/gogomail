@@ -18,6 +18,7 @@ import (
 type Repository interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
+	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
 	SuppressedRecipients(ctx context.Context, domainID string, recipients []string) ([]string, error)
@@ -39,6 +40,10 @@ func (s *Service) ListFolders(ctx context.Context, userID string) ([]maildb.Fold
 
 func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
 	return s.repository.ListMessages(ctx, userID, limit)
+}
+
+func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
+	return s.repository.ListMessagesInFolder(ctx, userID, folderID, limit)
 }
 
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {

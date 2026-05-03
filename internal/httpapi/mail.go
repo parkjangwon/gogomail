@@ -15,6 +15,7 @@ import (
 type MessageService interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
+	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
@@ -42,7 +43,14 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		messages, err := service.ListMessages(r.Context(), userID, limit)
+		folderID := strings.TrimSpace(r.URL.Query().Get("folder_id"))
+		var messages []maildb.MessageSummary
+		var err error
+		if folderID != "" {
+			messages, err = service.ListMessagesInFolder(r.Context(), userID, folderID, limit)
+		} else {
+			messages, err = service.ListMessages(r.Context(), userID, limit)
+		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

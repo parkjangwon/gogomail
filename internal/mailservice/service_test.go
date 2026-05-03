@@ -53,6 +53,10 @@ func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.Me
 	return nil, nil
 }
 
+func (f *fakeRepository) ListMessagesInFolder(context.Context, string, string, int) ([]maildb.MessageSummary, error) {
+	return nil, nil
+}
+
 func (f *fakeRepository) ListFolders(context.Context, string) ([]maildb.Folder, error) {
 	return nil, nil
 }

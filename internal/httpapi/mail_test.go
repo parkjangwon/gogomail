@@ -96,6 +96,28 @@ func TestListFoldersHandler(t *testing.T) {
 	}
 }
 
+func TestListMessagesHandlerFiltersByFolder(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&folder_id=folder-1&limit=25", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastFolderID != "folder-1" {
+		t.Fatalf("lastFolderID = %q", service.lastFolderID)
+	}
+	if service.lastLimit != 25 {
+		t.Fatalf("lastLimit = %d", service.lastLimit)
+	}
+}
+
 func TestGetMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -226,6 +248,7 @@ type fakeMessageService struct {
 	lastSend      mailservice.SendTextRequest
 	lastUserID    string
 	lastMessageID string
+	lastFolderID  string
 	lastLimit     int
 }
 
@@ -236,6 +259,13 @@ func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]ma
 
 func (f *fakeMessageService) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
 	f.lastUserID = userID
+	f.lastLimit = limit
+	return f.list, nil
+}
+
+func (f *fakeMessageService) ListMessagesInFolder(_ context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
+	f.lastUserID = userID
+	f.lastFolderID = folderID
 	f.lastLimit = limit
 	return f.list, nil
 }
