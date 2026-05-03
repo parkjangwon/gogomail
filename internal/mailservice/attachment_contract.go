@@ -39,6 +39,9 @@ func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) er
 	if filename != filepath.Base(filename) {
 		return fmt.Errorf("filename must not contain path separators")
 	}
+	if strings.ContainsAny(filename, "\r\n") {
+		return fmt.Errorf("filename must not contain newlines")
+	}
 	if len(filename) > MaxAttachmentFilenameBytes {
 		return fmt.Errorf("filename is too long")
 	}

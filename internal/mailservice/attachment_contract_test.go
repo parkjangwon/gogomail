@@ -44,3 +44,17 @@ func TestValidateCreateAttachmentUploadRequestRejectsNewlineMIMEType(t *testing.
 		t.Fatal("ValidateCreateAttachmentUploadRequest accepted newline MIME type")
 	}
 }
+
+func TestValidateCreateAttachmentUploadRequestRejectsNewlineFilename(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
+		UserID:   "user-1",
+		Filename: "report\r\nbad.pdf",
+		Size:     42,
+		MIMEType: "application/pdf",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateAttachmentUploadRequest accepted newline filename")
+	}
+}
