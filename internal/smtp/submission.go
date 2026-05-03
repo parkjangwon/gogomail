@@ -53,6 +53,7 @@ type SubmissionOptions struct {
 	SupportBinaryMIME bool
 	AddReceivedHeader bool
 	ReceivedDomain    string
+	Policy            ReceivePolicy
 	IDGenerator       IDGenerator
 	Clock             func() time.Time
 	MaxMessageBytes   int64
@@ -70,19 +71,15 @@ type SubmissionReceiver struct {
 	supportBinaryMIME bool
 	addReceivedHeader bool
 	receivedDomain    string
+	policy            ReceivePolicy
 	idGenerator       IDGenerator
 	clock             func() time.Time
-	maxMessageBytes   int64
 }
 
 func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 	idGenerator := opts.IDGenerator
 	if idGenerator == nil {
 		idGenerator = randomMessageID
-	}
-	maxBytes := opts.MaxMessageBytes
-	if maxBytes <= 0 {
-		maxBytes = 25 * 1024 * 1024
 	}
 	return &SubmissionReceiver{
 		store:             opts.Store,
@@ -96,9 +93,9 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		supportBinaryMIME: opts.SupportBinaryMIME,
 		addReceivedHeader: opts.AddReceivedHeader,
 		receivedDomain:    opts.ReceivedDomain,
+		policy:            normalizePolicy(opts.Policy, opts.MaxMessageBytes),
 		idGenerator:       idGenerator,
 		clock:             clockOrDefault(opts.Clock),
-		maxMessageBytes:   maxBytes,
 	}
 }
 
@@ -214,6 +211,9 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
+	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
+		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)
+	}
 	normalized, err := mail.NormalizeAddress(to)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	recipients = append([]string(nil), s.recipients...)
 	defer s.Reset()
 
-	spooled, size, err := spoolMessage(r, s.receiver.maxMessageBytes)
+	spooled, size, err := spoolMessage(r, s.receiver.policy.MaxMessageBytes)
 	if err != nil {
 		return err
 	}
