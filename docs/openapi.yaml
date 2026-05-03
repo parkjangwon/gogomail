@@ -17,33 +17,33 @@ paths:
       security: []
       responses:
         "200":
-          description: Process is alive
+          $ref: "#/components/responses/Health"
   /health/ready:
     get:
       summary: Service readiness probe
       security: []
       responses:
         "200":
-          description: Service is ready or degraded
+          $ref: "#/components/responses/Readiness"
   /info:
     get:
       summary: Service and backend contract metadata
       responses:
         "200":
-          description: Service info
+          $ref: "#/components/responses/Info"
   /folders:
     get:
       summary: List folders
       responses:
         "200":
-          description: Folder list envelope
+          $ref: "#/components/responses/FolderList"
     post:
       summary: Create a user folder
       requestBody:
         $ref: "#/components/requestBodies/FolderCreate"
       responses:
         "201":
-          description: Created folder envelope
+          $ref: "#/components/responses/Folder"
   /folders/{id}:
     patch:
       summary: Rename a folder
@@ -53,14 +53,14 @@ paths:
         $ref: "#/components/requestBodies/FolderRename"
       responses:
         "200":
-          description: Folder envelope
+          $ref: "#/components/responses/Folder"
     delete:
       summary: Delete a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/Status"
   /messages:
     get:
       summary: List messages with opaque cursor pagination
@@ -76,7 +76,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Message list page envelope
+          $ref: "#/components/responses/MessageListPage"
   /messages/{id}:
     get:
       summary: Get message detail
@@ -84,14 +84,14 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Message detail envelope
+          $ref: "#/components/responses/Message"
     delete:
       summary: Soft-delete a message
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/Status"
   /messages/{id}/flags:
     patch:
       summary: Update one message flag
@@ -101,7 +101,7 @@ paths:
         $ref: "#/components/requestBodies/MessageFlagUpdate"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/Status"
   /messages/{id}/folder:
     patch:
       summary: Move one message to a folder
@@ -111,7 +111,7 @@ paths:
         $ref: "#/components/requestBodies/MessageMove"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/Status"
   /messages/bulk/flags:
     patch:
       summary: Bounded bulk flag update
@@ -119,7 +119,7 @@ paths:
         $ref: "#/components/requestBodies/BulkMessageFlagUpdate"
       responses:
         "200":
-          description: Bulk update count envelope
+          $ref: "#/components/responses/BulkUpdate"
   /messages/bulk/folder:
     patch:
       summary: Bounded bulk folder move
@@ -127,7 +127,7 @@ paths:
         $ref: "#/components/requestBodies/BulkMessageMove"
       responses:
         "200":
-          description: Bulk update count envelope
+          $ref: "#/components/responses/BulkUpdate"
   /messages/bulk/delete:
     post:
       summary: Bounded bulk soft delete
@@ -135,7 +135,7 @@ paths:
         $ref: "#/components/requestBodies/BulkMessageDelete"
       responses:
         "200":
-          description: Bulk update count envelope
+          $ref: "#/components/responses/BulkUpdate"
   /messages/{id}/attachments:
     get:
       summary: List message attachments
@@ -143,7 +143,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Attachment list envelope
+          $ref: "#/components/responses/AttachmentList"
   /messages/{id}/attachments/{attachment_id}/download:
     get:
       summary: Download an attachment
@@ -164,7 +164,7 @@ paths:
         $ref: "#/components/requestBodies/ComposeSend"
       responses:
         "202":
-          description: Queued send result
+          $ref: "#/components/responses/SendQueued"
   /drafts:
     post:
       summary: Save or update a draft
@@ -172,7 +172,7 @@ paths:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
         "200":
-          description: Draft envelope
+          $ref: "#/components/responses/Draft"
   /drafts/{id}:
     patch:
       summary: Update an existing draft
@@ -182,14 +182,14 @@ paths:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
         "200":
-          description: Draft envelope
+          $ref: "#/components/responses/Draft"
     delete:
       summary: Delete a draft
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/Status"
   /drafts/{id}/send:
     post:
       summary: Send an existing draft
@@ -197,7 +197,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "202":
-          description: Queued send result
+          $ref: "#/components/responses/SendQueued"
   /attachments:
     post:
       summary: Reserve attachment upload metadata
@@ -205,7 +205,7 @@ paths:
         $ref: "#/components/requestBodies/AttachmentReserve"
       responses:
         "201":
-          description: Attachment envelope
+          $ref: "#/components/responses/Attachment"
   /attachments/upload:
     post:
       summary: Direct multipart attachment upload
@@ -213,13 +213,13 @@ paths:
         $ref: "#/components/requestBodies/AttachmentMultipartUpload"
       responses:
         "201":
-          description: Attachment envelope
+          $ref: "#/components/responses/Attachment"
   /queue:
     get:
       summary: Admin queue stats
       responses:
         "200":
-          description: Queue stats envelope
+          $ref: "#/components/responses/QueueStats"
   /delivery-attempts:
     get:
       summary: Admin delivery attempt list
@@ -227,7 +227,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Delivery attempts envelope
+          $ref: "#/components/responses/DeliveryAttempts"
   /suppression-list:
     get:
       summary: Admin suppression list
@@ -235,7 +235,7 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Suppression list envelope
+          $ref: "#/components/responses/SuppressionList"
   /suppression-list/{id}:
     delete:
       summary: Admin remove suppression entry
@@ -243,7 +243,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
   /dkim-keys:
     get:
       summary: Admin DKIM key list
@@ -255,14 +255,14 @@ paths:
             type: string
       responses:
         "200":
-          description: DKIM key list envelope
+          $ref: "#/components/responses/DKIMKeyList"
     post:
       summary: Admin create DKIM key
       requestBody:
         $ref: "#/components/requestBodies/DKIMKeyCreate"
       responses:
         "201":
-          description: DKIM key id envelope
+          $ref: "#/components/responses/IDStatus"
   /dkim-keys/{id}:
     delete:
       summary: Admin deactivate DKIM key
@@ -270,7 +270,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
   /outbox/{id}/retry:
     post:
       summary: Admin retry one outbox event
@@ -278,7 +278,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
   /domains:
     get:
       summary: Admin domain list
@@ -286,14 +286,14 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Domain list envelope
+          $ref: "#/components/responses/DomainList"
     post:
       summary: Admin create domain
       requestBody:
         $ref: "#/components/requestBodies/DomainCreate"
       responses:
         "201":
-          description: Domain envelope
+          $ref: "#/components/responses/Domain"
   /domains/{id}:
     get:
       summary: Admin domain detail
@@ -301,7 +301,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: Domain envelope
+          $ref: "#/components/responses/Domain"
   /domains/{id}/status:
     patch:
       summary: Admin update domain status
@@ -311,7 +311,7 @@ paths:
         $ref: "#/components/requestBodies/StatusUpdate"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
   /domains/{id}/quota:
     patch:
       summary: Admin update domain quota
@@ -321,7 +321,7 @@ paths:
         $ref: "#/components/requestBodies/QuotaUpdate"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
   /users:
     get:
       summary: Admin user list
@@ -333,14 +333,14 @@ paths:
             type: string
       responses:
         "200":
-          description: User list envelope
+          $ref: "#/components/responses/UserList"
     post:
       summary: Admin create user
       requestBody:
         $ref: "#/components/requestBodies/UserCreate"
       responses:
         "201":
-          description: User envelope
+          $ref: "#/components/responses/User"
   /users/{id}:
     get:
       summary: Admin user detail
@@ -348,7 +348,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: User envelope
+          $ref: "#/components/responses/User"
   /users/{id}/status:
     patch:
       summary: Admin update user status
@@ -358,7 +358,7 @@ paths:
         $ref: "#/components/requestBodies/StatusUpdate"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
   /users/{id}/quota:
     patch:
       summary: Admin update user quota
@@ -368,7 +368,7 @@ paths:
         $ref: "#/components/requestBodies/QuotaUpdate"
       responses:
         "200":
-          description: Status envelope
+          $ref: "#/components/responses/IDStatus"
 components:
   securitySchemes:
     bearerAuth:
@@ -379,6 +379,139 @@ components:
       type: apiKey
       in: header
       name: X-Admin-Token
+  responses:
+    Health:
+      description: Process is alive
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/HealthResponse"
+    Readiness:
+      description: Service is ready or degraded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ReadinessResponse"
+    Info:
+      description: Service and backend contract metadata
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InfoResponse"
+    Status:
+      description: Stable status envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/StatusEnvelope"
+    IDStatus:
+      description: Stable status envelope with affected resource id
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/IDStatusEnvelope"
+    BulkUpdate:
+      description: Bulk update count envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkUpdateEnvelope"
+    FolderList:
+      description: Folder list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FolderListEnvelope"
+    Folder:
+      description: Folder resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FolderEnvelope"
+    MessageListPage:
+      description: Message list page envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageListPageEnvelope"
+    Message:
+      description: Message detail envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageEnvelope"
+    Draft:
+      description: Draft resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DraftEnvelope"
+    SendQueued:
+      description: Queued send result envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SendQueuedEnvelope"
+    AttachmentList:
+      description: Attachment list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentListEnvelope"
+    Attachment:
+      description: Attachment resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentEnvelope"
+    QueueStats:
+      description: Queue stats envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QueueStatsEnvelope"
+    DeliveryAttempts:
+      description: Delivery attempts envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryAttemptsEnvelope"
+    SuppressionList:
+      description: Suppression list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SuppressionListEnvelope"
+    DKIMKeyList:
+      description: DKIM key list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DKIMKeyListEnvelope"
+    DomainList:
+      description: Domain list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainListEnvelope"
+    Domain:
+      description: Domain resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainEnvelope"
+    UserList:
+      description: User list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UserListEnvelope"
+    User:
+      description: User resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UserEnvelope"
   parameters:
     PathID:
       name: id
@@ -492,6 +625,445 @@ components:
           schema:
             $ref: "#/components/schemas/DKIMKeyCreateRequest"
   schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    ReadinessCheck:
+      type: object
+      required: [name, status]
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+        detail:
+          type: string
+    ReadinessResponse:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadinessCheck"
+    InfoResponse:
+      type: object
+      required: [service, status, api_version, backend_contract_version]
+      properties:
+        service:
+          type: string
+          enum: [gogomail]
+        status:
+          type: string
+          enum: [ok]
+        api_version:
+          type: string
+          enum: [v1]
+        backend_contract_version:
+          type: string
+          enum: [2026-05-04.backend-release]
+    StatusEnvelope:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    IDStatusEnvelope:
+      type: object
+      required: [status, id]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        id:
+          type: string
+    BulkUpdateEnvelope:
+      type: object
+      required: [status, updated]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        updated:
+          type: integer
+          format: int64
+          minimum: 0
+    Folder:
+      type: object
+      required: [id, name, full_path, type, order_index, total, unread, starred]
+      properties:
+        id:
+          type: string
+        parent_id:
+          type: string
+        name:
+          type: string
+        full_path:
+          type: string
+        type:
+          type: string
+        system_type:
+          type: string
+        order_index:
+          type: integer
+        total:
+          type: integer
+          format: int64
+        unread:
+          type: integer
+          format: int64
+        starred:
+          type: integer
+          format: int64
+    FolderListEnvelope:
+      type: object
+      required: [folders]
+      properties:
+        folders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Folder"
+    FolderEnvelope:
+      type: object
+      required: [folder]
+      properties:
+        folder:
+          $ref: "#/components/schemas/Folder"
+    MessageSummary:
+      type: object
+      required: [id, subject, from_addr, from_name, received_at, size, has_attachment, read, starred]
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+        from_addr:
+          type: string
+          format: email
+        from_name:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+        size:
+          type: integer
+          format: int64
+        has_attachment:
+          type: boolean
+        read:
+          type: boolean
+        starred:
+          type: boolean
+    MessageListPageEnvelope:
+      type: object
+      required: [messages, limit, has_more, next_cursor]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageSummary"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+        has_more:
+          type: boolean
+        next_cursor:
+          type: string
+          description: Opaque cursor. Clients must not parse or manufacture this value.
+    MessageDetail:
+      allOf:
+        - $ref: "#/components/schemas/MessageSummary"
+        - type: object
+          required: [message_id, to_addrs, cc_addrs, bcc_addrs, flags, storage_path, text_body]
+          properties:
+            message_id:
+              type: string
+            to_addrs:
+              type: array
+              items:
+                $ref: "#/components/schemas/ComposeAddress"
+            cc_addrs:
+              type: array
+              items:
+                $ref: "#/components/schemas/ComposeAddress"
+            bcc_addrs:
+              type: array
+              items:
+                $ref: "#/components/schemas/ComposeAddress"
+            flags:
+              type: object
+              additionalProperties: true
+            storage_path:
+              type: string
+            text_body:
+              type: string
+            attachments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Attachment"
+    MessageEnvelope:
+      type: object
+      required: [message]
+      properties:
+        message:
+          $ref: "#/components/schemas/MessageDetail"
+    DraftEnvelope:
+      type: object
+      required: [draft]
+      properties:
+        draft:
+          $ref: "#/components/schemas/MessageDetail"
+    SendQueued:
+      type: object
+      required: [id, message_id, farm]
+      properties:
+        id:
+          type: string
+        message_id:
+          type: string
+        farm:
+          type: string
+    SendQueuedEnvelope:
+      type: object
+      required: [message]
+      properties:
+        message:
+          $ref: "#/components/schemas/SendQueued"
+    Attachment:
+      type: object
+      required: [id, message_id, upload_id, storage_path, filename, size, mime_type, status, created_at]
+      properties:
+        id:
+          type: string
+        message_id:
+          type: string
+        upload_id:
+          type: string
+        storage_path:
+          type: string
+        filename:
+          type: string
+        size:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+        status:
+          type: string
+          enum: [uploading, active, deleted]
+        created_at:
+          type: string
+          format: date-time
+    AttachmentListEnvelope:
+      type: object
+      required: [attachments]
+      properties:
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+    AttachmentEnvelope:
+      type: object
+      required: [attachment]
+      properties:
+        attachment:
+          $ref: "#/components/schemas/Attachment"
+    QueueStat:
+      type: object
+      required: [topic, status, count]
+      properties:
+        topic:
+          type: string
+        status:
+          type: string
+        count:
+          type: integer
+          format: int64
+    QueueStatsEnvelope:
+      type: object
+      required: [queues]
+      properties:
+        queues:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueueStat"
+    DeliveryAttempt:
+      type: object
+      required: [id, message_id, rfc_message_id, farm, recipient, recipient_domain, status, error_message, attempted_at]
+      properties:
+        id:
+          type: string
+        message_id:
+          type: string
+        rfc_message_id:
+          type: string
+        farm:
+          type: string
+        recipient:
+          type: string
+          format: email
+        recipient_domain:
+          type: string
+        status:
+          type: string
+        error_message:
+          type: string
+        attempted_at:
+          type: string
+          format: date-time
+    DeliveryAttemptsEnvelope:
+      type: object
+      required: [delivery_attempts]
+      properties:
+        delivery_attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryAttempt"
+    SuppressionEntry:
+      type: object
+      required: [id, domain_id, email, reason, source_message_id, created_at]
+      properties:
+        id:
+          type: string
+        domain_id:
+          type: string
+        email:
+          type: string
+          format: email
+        reason:
+          type: string
+        source_message_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    SuppressionListEnvelope:
+      type: object
+      required: [suppression_list]
+      properties:
+        suppression_list:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuppressionEntry"
+    DKIMKey:
+      type: object
+      required: [id, domain_id, selector, public_key_dns, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        domain_id:
+          type: string
+        selector:
+          type: string
+        public_key_dns:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DKIMKeyListEnvelope:
+      type: object
+      required: [dkim_keys]
+      properties:
+        dkim_keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/DKIMKey"
+    Domain:
+      type: object
+      required: [id, company_id, name, name_ace, status, quota_used, created_at]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        name:
+          type: string
+        name_ace:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, disabled]
+        quota_used:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+    DomainListEnvelope:
+      type: object
+      required: [domains]
+      properties:
+        domains:
+          type: array
+          items:
+            $ref: "#/components/schemas/Domain"
+    DomainEnvelope:
+      type: object
+      required: [domain]
+      properties:
+        domain:
+          $ref: "#/components/schemas/Domain"
+    User:
+      type: object
+      required: [id, domain_id, username, display_name, role, status, quota_used, created_at]
+      properties:
+        id:
+          type: string
+        domain_id:
+          type: string
+        username:
+          type: string
+        display_name:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, disabled]
+        quota_used:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+    UserListEnvelope:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+    UserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
     FolderCreateRequest:
       type: object
       required: [name]
