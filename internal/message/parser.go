@@ -19,20 +19,31 @@ type Attachment struct {
 	Filename string
 }
 
+type ParseOptions struct {
+	MaxTextBodyBytes int64
+}
+
 type ParsedMessage struct {
-	MessageID     string
-	Subject       string
-	From          Address
-	To            []Address
-	Cc            []Address
-	Bcc           []Address
-	Date          time.Time
-	TextBody      string
-	HasAttachment bool
-	Attachments   []Attachment
+	MessageID         string
+	Subject           string
+	From              Address
+	To                []Address
+	Cc                []Address
+	Bcc               []Address
+	Date              time.Time
+	TextBody          string
+	TextBodyTruncated bool
+	HasAttachment     bool
+	Attachments       []Attachment
 }
 
 func ParseEML(r io.Reader) (ParsedMessage, error) {
+	return ParseEMLWithOptions(r, ParseOptions{})
+}
+
+func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) {
+	opts = normalizeParseOptions(opts)
+
 	reader, err := gomail.CreateReader(r)
 	if err != nil {
 		return ParsedMessage{}, fmt.Errorf("create mail reader: %w", err)
@@ -71,11 +82,12 @@ func ParseEML(r io.Reader) (ParsedMessage, error) {
 		switch header := part.Header.(type) {
 		case *gomail.InlineHeader:
 			if parsed.TextBody == "" && isTextPlain(header) {
-				body, err := io.ReadAll(part.Body)
+				body, truncated, err := readLimitedText(part.Body, opts.MaxTextBodyBytes)
 				if err != nil {
 					return ParsedMessage{}, fmt.Errorf("read text body: %w", err)
 				}
-				parsed.TextBody = strings.TrimRight(string(body), "\r\n")
+				parsed.TextBody = strings.TrimRight(body, "\r\n")
+				parsed.TextBodyTruncated = truncated
 			}
 		case *gomail.AttachmentHeader:
 			filename, err := header.Filename()
@@ -88,6 +100,28 @@ func ParseEML(r io.Reader) (ParsedMessage, error) {
 	}
 
 	return parsed, nil
+}
+
+func normalizeParseOptions(opts ParseOptions) ParseOptions {
+	if opts.MaxTextBodyBytes <= 0 {
+		opts.MaxTextBodyBytes = 1 << 20
+	}
+	return opts
+}
+
+func readLimitedText(r io.Reader, maxBytes int64) (string, bool, error) {
+	if maxBytes <= 0 {
+		maxBytes = 1 << 20
+	}
+	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return "", false, err
+	}
+	truncated := int64(len(body)) > maxBytes
+	if truncated {
+		body = body[:maxBytes]
+	}
+	return string(body), truncated, nil
 }
 
 func firstAddress(header gomail.Header, key string) (Address, error) {

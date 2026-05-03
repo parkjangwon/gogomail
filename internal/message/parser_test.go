@@ -107,3 +107,27 @@ func TestParseEMLReadsSinglepartTextWithoutDate(t *testing.T) {
 		t.Fatalf("TextBody = %q", parsed.TextBody)
 	}
 }
+
+func TestParseEMLWithOptionsLimitsTextBody(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: large body",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"0123456789abcdef",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxTextBodyBytes: 8})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if parsed.TextBody != "01234567" {
+		t.Fatalf("TextBody = %q, want limited prefix", parsed.TextBody)
+	}
+	if !parsed.TextBodyTruncated {
+		t.Fatal("TextBodyTruncated = false, want true")
+	}
+}
