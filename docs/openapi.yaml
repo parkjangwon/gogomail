@@ -39,6 +39,8 @@ paths:
           description: Folder list envelope
     post:
       summary: Create a user folder
+      requestBody:
+        $ref: "#/components/requestBodies/FolderCreate"
       responses:
         "201":
           description: Created folder envelope
@@ -47,6 +49,8 @@ paths:
       summary: Rename a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/FolderRename"
       responses:
         "200":
           description: Folder envelope
@@ -93,6 +97,8 @@ paths:
       summary: Update one message flag
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/MessageFlagUpdate"
       responses:
         "200":
           description: Status envelope
@@ -101,24 +107,32 @@ paths:
       summary: Move one message to a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/MessageMove"
       responses:
         "200":
           description: Status envelope
   /messages/bulk/flags:
     patch:
       summary: Bounded bulk flag update
+      requestBody:
+        $ref: "#/components/requestBodies/BulkMessageFlagUpdate"
       responses:
         "200":
           description: Bulk update count envelope
   /messages/bulk/folder:
     patch:
       summary: Bounded bulk folder move
+      requestBody:
+        $ref: "#/components/requestBodies/BulkMessageMove"
       responses:
         "200":
           description: Bulk update count envelope
   /messages/bulk/delete:
     post:
       summary: Bounded bulk soft delete
+      requestBody:
+        $ref: "#/components/requestBodies/BulkMessageDelete"
       responses:
         "200":
           description: Bulk update count envelope
@@ -146,12 +160,16 @@ paths:
   /messages/send:
     post:
       summary: Compose and queue a new/reply/forward message
+      requestBody:
+        $ref: "#/components/requestBodies/ComposeSend"
       responses:
         "202":
           description: Queued send result
   /drafts:
     post:
       summary: Save or update a draft
+      requestBody:
+        $ref: "#/components/requestBodies/DraftSave"
       responses:
         "200":
           description: Draft envelope
@@ -160,6 +178,8 @@ paths:
       summary: Update an existing draft
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/DraftSave"
       responses:
         "200":
           description: Draft envelope
@@ -181,12 +201,16 @@ paths:
   /attachments:
     post:
       summary: Reserve attachment upload metadata
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentReserve"
       responses:
         "201":
           description: Attachment envelope
   /attachments/upload:
     post:
       summary: Direct multipart attachment upload
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentMultipartUpload"
       responses:
         "201":
           description: Attachment envelope
@@ -234,6 +258,8 @@ paths:
           description: DKIM key list envelope
     post:
       summary: Admin create DKIM key
+      requestBody:
+        $ref: "#/components/requestBodies/DKIMKeyCreate"
       responses:
         "201":
           description: DKIM key id envelope
@@ -263,6 +289,8 @@ paths:
           description: Domain list envelope
     post:
       summary: Admin create domain
+      requestBody:
+        $ref: "#/components/requestBodies/DomainCreate"
       responses:
         "201":
           description: Domain envelope
@@ -279,6 +307,8 @@ paths:
       summary: Admin update domain status
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/StatusUpdate"
       responses:
         "200":
           description: Status envelope
@@ -287,6 +317,8 @@ paths:
       summary: Admin update domain quota
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/QuotaUpdate"
       responses:
         "200":
           description: Status envelope
@@ -304,6 +336,8 @@ paths:
           description: User list envelope
     post:
       summary: Admin create user
+      requestBody:
+        $ref: "#/components/requestBodies/UserCreate"
       responses:
         "201":
           description: User envelope
@@ -320,6 +354,8 @@ paths:
       summary: Admin update user status
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/StatusUpdate"
       responses:
         "200":
           description: Status envelope
@@ -328,6 +364,8 @@ paths:
       summary: Admin update user quota
       parameters:
         - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/QuotaUpdate"
       responses:
         "200":
           description: Status envelope
@@ -355,7 +393,299 @@ components:
         type: integer
         minimum: 1
         default: 50
+  requestBodies:
+    FolderCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FolderCreateRequest"
+    FolderRename:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FolderRenameRequest"
+    MessageFlagUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageFlagUpdateRequest"
+    MessageMove:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageMoveRequest"
+    BulkMessageFlagUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkMessageFlagUpdateRequest"
+    BulkMessageMove:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkMessageMoveRequest"
+    BulkMessageDelete:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkMessageDeleteRequest"
+    ComposeSend:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ComposeRequest"
+    DraftSave:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ComposeRequest"
+    AttachmentReserve:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentReserveRequest"
+    AttachmentMultipartUpload:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            $ref: "#/components/schemas/AttachmentMultipartUploadRequest"
+    DomainCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainCreateRequest"
+    UserCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UserCreateRequest"
+    StatusUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/StatusUpdateRequest"
+    QuotaUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaUpdateRequest"
+    DKIMKeyCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DKIMKeyCreateRequest"
   schemas:
+    FolderCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    FolderRenameRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    MessageFlagUpdateRequest:
+      type: object
+      required: [flag, value]
+      properties:
+        flag:
+          type: string
+          enum: [read, starred]
+        value:
+          type: boolean
+    MessageMoveRequest:
+      type: object
+      required: [folder_id]
+      properties:
+        folder_id:
+          type: string
+    BulkMessageFlagUpdateRequest:
+      type: object
+      required: [message_ids, flag, value]
+      properties:
+        message_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        flag:
+          type: string
+          enum: [read, starred]
+        value:
+          type: boolean
+    BulkMessageMoveRequest:
+      type: object
+      required: [message_ids, folder_id]
+      properties:
+        message_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        folder_id:
+          type: string
+    BulkMessageDeleteRequest:
+      type: object
+      required: [message_ids]
+      properties:
+        message_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+    ComposeAddress:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+    ComposeRequest:
+      type: object
+      required: [intent, subject, text_body]
+      properties:
+        user_id:
+          type: string
+          description: Development fallback when bearer auth is disabled.
+        draft_id:
+          type: string
+        intent:
+          type: string
+          enum: [new, reply, forward]
+        source_message_id:
+          type: string
+        from:
+          type: string
+          format: email
+        to:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComposeAddress"
+        cc:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComposeAddress"
+        bcc:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComposeAddress"
+        subject:
+          type: string
+        text_body:
+          type: string
+        attachment_ids:
+          type: array
+          items:
+            type: string
+        transactional:
+          type: boolean
+        scheduled_at:
+          type: string
+          format: date-time
+    AttachmentReserveRequest:
+      type: object
+      required: [filename, size, mime_type]
+      properties:
+        draft_id:
+          type: string
+        filename:
+          type: string
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+        mime_type:
+          type: string
+        storage_path:
+          type: string
+    AttachmentMultipartUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        draft_id:
+          type: string
+        file:
+          type: string
+          format: binary
+    DomainCreateRequest:
+      type: object
+      required: [company_id, name]
+      properties:
+        company_id:
+          type: string
+        name:
+          type: string
+        name_ace:
+          type: string
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+    UserCreateRequest:
+      type: object
+      required: [domain_id, username, display_name, address]
+      properties:
+        domain_id:
+          type: string
+        username:
+          type: string
+        display_name:
+          type: string
+        address:
+          type: string
+          format: email
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+    StatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, suspended, disabled]
+    QuotaUpdateRequest:
+      type: object
+      required: [quota_limit]
+      properties:
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+    DKIMKeyCreateRequest:
+      type: object
+      required: [domain_id, selector, private_key_pem]
+      properties:
+        domain_id:
+          type: string
+        selector:
+          type: string
+        private_key_pem:
+          type: string
+        active:
+          type: boolean
     ErrorEnvelope:
       type: object
       required: [error]

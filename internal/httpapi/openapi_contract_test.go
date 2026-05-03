@@ -38,6 +38,41 @@ func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range []string{
+		"POST /folders",
+		"PATCH /folders/{id}",
+		"PATCH /messages/{id}/flags",
+		"PATCH /messages/{id}/folder",
+		"PATCH /messages/bulk/flags",
+		"PATCH /messages/bulk/folder",
+		"POST /messages/bulk/delete",
+		"POST /messages/send",
+		"POST /drafts",
+		"PATCH /drafts/{id}",
+		"POST /attachments",
+		"POST /attachments/upload",
+		"POST /domains",
+		"PATCH /domains/{id}/status",
+		"PATCH /domains/{id}/quota",
+		"POST /users",
+		"PATCH /users/{id}/status",
+		"PATCH /users/{id}/quota",
+		"POST /dkim-keys",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if !strings.Contains(block, "requestBody:") {
+			t.Fatalf("OpenAPI operation %s must document its requestBody", route)
+		}
+	}
+}
+
 func extractRegisteredRoutes(t *testing.T, filenames ...string) []string {
 	t.Helper()
 
@@ -81,6 +116,49 @@ func extractOpenAPIRoutes(t *testing.T, filename string) map[string]bool {
 		}
 	}
 	return routes
+}
+
+func extractOpenAPIOperationBlocks(t *testing.T, filename string) map[string]string {
+	t.Helper()
+
+	raw, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+
+	operations := make(map[string]string)
+	var currentPath string
+	var currentRoute string
+	var currentBlock strings.Builder
+	pathPattern := regexp.MustCompile(`^  (/[^:]+):\s*$`)
+	methodPattern := regexp.MustCompile(`^    (get|post|patch|delete):\s*$`)
+	flush := func() {
+		if currentRoute != "" {
+			operations[currentRoute] = currentBlock.String()
+		}
+		currentRoute = ""
+		currentBlock.Reset()
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if match := pathPattern.FindStringSubmatch(line); match != nil {
+			flush()
+			currentPath = normalizeOpenAPIPath(match[1])
+			continue
+		}
+		if match := methodPattern.FindStringSubmatch(line); match != nil {
+			flush()
+			currentRoute = strings.ToUpper(match[1]) + " " + currentPath
+			currentBlock.WriteString(line)
+			currentBlock.WriteByte('\n')
+			continue
+		}
+		if currentRoute != "" {
+			currentBlock.WriteString(line)
+			currentBlock.WriteByte('\n')
+		}
+	}
+	flush()
+	return operations
 }
 
 func normalizeOpenAPIPath(path string) string {
