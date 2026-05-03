@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/gogomail/gogomail/internal/maildb"
 )
 
 func TestOpenAPIDraftUsesBackendContractVersion(t *testing.T) {
@@ -69,6 +71,30 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		}
 		if !strings.Contains(block, "requestBody:") {
 			t.Fatalf("OpenAPI operation %s must document its requestBody", route)
+		}
+	}
+}
+
+func TestOpenAPIDraftDocumentsSupportedMessageFlags(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for _, flag := range []string{"read", "starred", "answered", "forwarded"} {
+		err := maildb.ValidateBulkMessageFlagRequest(maildb.BulkMessageFlagRequest{
+			UserID:     "user-1",
+			MessageIDs: []string{"11111111-1111-1111-1111-111111111111"},
+			Flag:       flag,
+			Value:      true,
+		})
+		if err != nil {
+			t.Fatalf("test fixture flag %q is not accepted by the HTTP API", flag)
+		}
+		if !strings.Contains(draft, flag) {
+			t.Fatalf("OpenAPI draft does not document supported message flag %q", flag)
 		}
 	}
 }
