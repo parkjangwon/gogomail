@@ -425,6 +425,37 @@ func TestHandlerObservesThrottleRetryScheduled(t *testing.T) {
 	}
 }
 
+func TestHandlerObservesThrottleRetryExhausted(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	metrics := &fakeMetrics{}
+	handler := NewHandler(store, &fakeTransport{}, &fakeRecorder{}, &fakeRetryScheduler{err: ErrRetryExhausted}).
+		WithMetrics(metrics).
+		WithThrottler(alwaysThrottle{})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if !metrics.has(MetricThrottled, MetricDeferred) || !metrics.has(MetricRetryExhausted, MetricFailed) {
+		t.Fatalf("metrics = %+v, want throttled and retry_exhausted", metrics.events)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	t.Parallel()
 
@@ -674,11 +705,12 @@ func (r *fakeRecorder) RecordAttempt(_ context.Context, attempt Attempt) error {
 
 type fakeRetryScheduler struct {
 	scheduled QueuedMessage
+	err       error
 }
 
 func (s *fakeRetryScheduler) ScheduleRetry(_ context.Context, job Job, _ error) error {
 	s.scheduled = job.QueuedMessage
-	return nil
+	return s.err
 }
 
 type fakeMetrics struct {
