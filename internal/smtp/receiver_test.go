@@ -101,3 +101,38 @@ func TestSessionRequiresRecipientBeforeData(t *testing.T) {
 		t.Fatal("Data accepted message without recipients")
 	}
 }
+
+func TestSessionRejectsMessageLargerThanLimit(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	receiver := NewReceiver(ReceiverOptions{
+		Store:           store,
+		MaxMessageBytes: 32,
+		Resolver: StaticResolver{
+			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
+		},
+		IDGenerator: func() string { return "too-large" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	err = session.Data(strings.NewReader("From: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: too large\r\n\r\nbody"))
+	if err == nil {
+		t.Fatal("Data accepted message larger than limit")
+	}
+
+	if _, err := store.Get(context.Background(), "mailstore/c/d/u/maildir/2026/05/too-large.eml"); err == nil {
+		t.Fatal("oversized message was stored")
+	}
+}

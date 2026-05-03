@@ -1,12 +1,12 @@
 package smtpd
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -45,17 +45,19 @@ func (r StaticResolver) ResolveRecipient(_ context.Context, address string) (Mai
 type IDGenerator func() string
 
 type ReceiverOptions struct {
-	Store       storage.Store
-	Resolver    RecipientResolver
-	IDGenerator IDGenerator
-	Clock       func() time.Time
+	Store           storage.Store
+	Resolver        RecipientResolver
+	IDGenerator     IDGenerator
+	Clock           func() time.Time
+	MaxMessageBytes int64
 }
 
 type Receiver struct {
-	store       storage.Store
-	resolver    RecipientResolver
-	idGenerator IDGenerator
-	clock       func() time.Time
+	store           storage.Store
+	resolver        RecipientResolver
+	idGenerator     IDGenerator
+	clock           func() time.Time
+	maxMessageBytes int64
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -64,10 +66,11 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		idGenerator = randomMessageID
 	}
 	return &Receiver{
-		store:       opts.Store,
-		resolver:    opts.Resolver,
-		idGenerator: idGenerator,
-		clock:       clockOrDefault(opts.Clock),
+		store:           opts.Store,
+		resolver:        opts.Resolver,
+		idGenerator:     idGenerator,
+		clock:           clockOrDefault(opts.Clock),
+		maxMessageBytes: maxMessageBytesOrDefault(opts.MaxMessageBytes),
 	}
 }
 
@@ -113,18 +116,29 @@ func (s *session) Data(r io.Reader) error {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
 
-	raw, err := io.ReadAll(r)
+	spooled, _, err := spoolMessage(r, s.receiver.maxMessageBytes)
 	if err != nil {
-		return fmt.Errorf("read smtp data: %w", err)
+		return err
 	}
-	if _, err := message.ParseEML(bytes.NewReader(raw)); err != nil {
+	defer func() {
+		_ = spooled.Close()
+		_ = os.Remove(spooled.Name())
+	}()
+
+	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewind spooled message for parse: %w", err)
+	}
+	if _, err := message.ParseEML(spooled); err != nil {
 		return fmt.Errorf("parse smtp message: %w", err)
 	}
 
 	messageID := s.receiver.idGenerator()
 	for _, recipient := range s.recipients {
 		path := BuildStoragePath(recipient, messageID, s.receiver.clock())
-		if err := s.receiver.store.Put(context.Background(), path, bytes.NewReader(raw)); err != nil {
+		if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("rewind spooled message for store: %w", err)
+		}
+		if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
 			return fmt.Errorf("store message for %s: %w", recipient.Address, err)
 		}
 	}
@@ -159,6 +173,34 @@ func clockOrDefault(clock func() time.Time) func() time.Time {
 		return clock
 	}
 	return time.Now
+}
+
+func maxMessageBytesOrDefault(limit int64) int64 {
+	if limit > 0 {
+		return limit
+	}
+	return 25 * 1024 * 1024
+}
+
+func spoolMessage(r io.Reader, maxBytes int64) (*os.File, int64, error) {
+	file, err := os.CreateTemp("", "gogomail-smtp-*.eml")
+	if err != nil {
+		return nil, 0, fmt.Errorf("create smtp spool file: %w", err)
+	}
+
+	limited := io.LimitReader(r, maxBytes+1)
+	size, copyErr := io.Copy(file, limited)
+	if copyErr != nil {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+		return nil, 0, fmt.Errorf("spool smtp message: %w", copyErr)
+	}
+	if size > maxBytes {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+		return nil, size, fmt.Errorf("smtp message exceeds max size %d bytes", maxBytes)
+	}
+	return file, size, nil
 }
 
 func randomMessageID() string {
