@@ -20,6 +20,7 @@ import (
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/dkim"
+	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/mailauth"
@@ -382,7 +383,16 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err := router.Register("mail.delivered", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
 		return err
 	}
-	if err := router.Register("mail.bounced", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
+	if err := router.Register("mail.bounced", eventstream.MultiHandler{
+		audit.NewDeliveryStatusHandler(auditRepository),
+		dsnpkg.NewBounceHandler(dsnpkg.HandlerOptions{
+			Store:        storage.NewLocalStore(cfg.MailstoreRoot),
+			Queue:        dsnpkg.NewPostgresOutboxQueue(db),
+			ReportingMTA: cfg.SMTPDomain,
+			Postmaster:   "postmaster@" + cfg.SMTPDomain,
+			Farm:         outbound.FarmGeneral,
+		}),
+	}); err != nil {
 		return err
 	}
 	if err := router.Register("mail.delivery_failed", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
