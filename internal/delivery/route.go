@@ -41,7 +41,7 @@ func normalizeRouteHosts(hosts []string) []string {
 	out := hosts[:0]
 	seen := make(map[string]struct{}, len(hosts))
 	for _, host := range hosts {
-		host = strings.ToLower(strings.TrimSpace(strings.TrimSuffix(host, ".")))
+		host = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
 		if host == "" || host == "." {
 			continue
 		}
