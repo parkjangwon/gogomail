@@ -152,6 +152,18 @@ GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH=false \
   gogomail --mode=outbound-mta
 ```
 
+If you also need implicit TLS submission for legacy clients, set `GOGOMAIL_SUBMISSION_SMTPS_ADDR` (usually `:465`). SMTPS requires the same `GOGOMAIL_SMTP_TLS_CERT_FILE` and `GOGOMAIL_SMTP_TLS_KEY_FILE` pair and runs alongside the STARTTLS listener:
+
+```bash
+GOGOMAIL_ENV=production \
+GOGOMAIL_SUBMISSION_ADDR=:587 \
+GOGOMAIL_SUBMISSION_SMTPS_ADDR=:465 \
+GOGOMAIL_SMTP_TLS_CERT_FILE=/etc/gogomail/tls/fullchain.pem \
+GOGOMAIL_SMTP_TLS_KEY_FILE=/etc/gogomail/tls/privkey.pem \
+GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH=false \
+  gogomail --mode=outbound-mta
+```
+
 Local users authenticate against `users.password_hash`. Supported formats are:
 
 - `pbkdf2-sha256$<iterations>$<base64-salt>$<base64-key>`
