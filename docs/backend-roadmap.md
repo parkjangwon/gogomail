@@ -163,6 +163,8 @@ Implementation order:
 116. DSN address headers sanitize envelope address values before formatting From/To headers in generated reports.
 117. Runtime validation rejects nonpositive SMTP read/write and outbound delivery timeouts so protocol servers and delivery workers always start with bounded I/O deadlines.
 118. Runtime validation rejects nonpositive DKIM verification limits, keeping authentication verification allocation/runtime guardrails enabled.
+119. `mail.stored` events now carry SMTP envelope sender, DSN options, and Authentication-Results metadata so downstream audit/index/notification workers can use protocol-stage signals without reparsing SMTP session state.
+120. Submission DSN options now flow into `mail.queued` events and are decoded by delivery jobs, preserving RFC 3461 envelope metadata across submission, outbox, and delivery boundaries.
 
 ## Deferred until backend contracts stabilize
 
