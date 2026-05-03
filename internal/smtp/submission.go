@@ -179,7 +179,7 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 		return err
 	}
 	if !strings.EqualFold(normalized, s.user.Address) {
-		return fmt.Errorf("mail from %q is not allowed for authenticated user", normalized)
+		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
 	}
 	s.from = normalized
 	if err := s.emit(context.Background(), Event{
@@ -206,13 +206,13 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 		return gosmtp.ErrAuthRequired
 	}
 	if s.from == "" {
-		return fmt.Errorf("mail command is required before rcpt")
+		return smtpBadSequence("RCPT")
 	}
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
 	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
-		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)
+		return smtpTooManyRecipients(s.receiver.policy.MaxRecipientsPerMessage)
 	}
 	normalized, err := mail.NormalizeAddress(to)
 	if err != nil {
@@ -248,10 +248,10 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		return gosmtp.ErrAuthRequired
 	}
 	if s.from == "" {
-		return fmt.Errorf("mail command is required before data")
+		return smtpBadSequence("DATA")
 	}
 	if len(s.recipients) == 0 {
-		return fmt.Errorf("at least one recipient is required before data")
+		return smtpBadSequence("DATA")
 	}
 	envelopeFrom = s.from
 	recipients = append([]string(nil), s.recipients...)

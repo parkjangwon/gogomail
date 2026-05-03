@@ -1,10 +1,6 @@
 package smtpd
 
-import (
-	"fmt"
-
-	gosmtp "github.com/emersion/go-smtp"
-)
+import gosmtp "github.com/emersion/go-smtp"
 
 type extensionSupport struct {
 	SMTPUTF8   bool
@@ -18,19 +14,19 @@ func validateMailOptions(opts *gosmtp.MailOptions, support extensionSupport) err
 		return nil
 	}
 	if opts.UTF8 && !support.SMTPUTF8 {
-		return fmt.Errorf("SMTPUTF8 is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "SMTPUTF8 is not supported")
 	}
 	if opts.RequireTLS && !support.RequireTLS {
-		return fmt.Errorf("REQUIRETLS is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "REQUIRETLS is not supported")
 	}
 	if opts.Return != "" && !support.DSN {
-		return fmt.Errorf("DSN RET is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN RET is not supported")
 	}
 	if opts.EnvelopeID != "" && !support.DSN {
-		return fmt.Errorf("DSN ENVID is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ENVID is not supported")
 	}
 	if opts.Body == gosmtp.BodyBinaryMIME && !support.BinaryMIME {
-		return fmt.Errorf("BINARYMIME is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "BINARYMIME is not supported")
 	}
 	return nil
 }
@@ -40,10 +36,10 @@ func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) err
 		return nil
 	}
 	if len(opts.Notify) > 0 && !support.DSN {
-		return fmt.Errorf("DSN NOTIFY is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN NOTIFY is not supported")
 	}
 	if opts.OriginalRecipient != "" && !support.DSN {
-		return fmt.Errorf("DSN ORCPT is not supported")
+		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ORCPT is not supported")
 	}
 	return nil
 }

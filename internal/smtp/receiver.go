@@ -223,13 +223,13 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 		return gosmtp.ErrAuthRequired
 	}
 	if s.from == "" {
-		return fmt.Errorf("mail command is required before rcpt")
+		return smtpBadSequence("RCPT")
 	}
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
 	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
-		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)
+		return smtpTooManyRecipients(s.receiver.policy.MaxRecipientsPerMessage)
 	}
 
 	allowed, err := s.receiver.rateLimiter.Allow(context.Background(), RateLimitKey{
@@ -241,12 +241,12 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 		return fmt.Errorf("check rcpt rate limit: %w", err)
 	}
 	if !allowed {
-		return fmt.Errorf("rate limit exceeded for recipient %q", to)
+		return smtpRateLimited(to)
 	}
 
 	mailbox, err := s.receiver.resolver.ResolveRecipient(context.Background(), to)
 	if err != nil {
-		return err
+		return smtpMailboxUnavailable("recipient %q not found", to)
 	}
 	s.recipients = append(s.recipients, mailbox)
 	return nil
@@ -270,10 +270,10 @@ func (s *session) Data(r io.Reader) (err error) {
 		return gosmtp.ErrAuthRequired
 	}
 	if s.from == "" {
-		return fmt.Errorf("mail command is required before data")
+		return smtpBadSequence("DATA")
 	}
 	if len(s.recipients) == 0 {
-		return fmt.Errorf("at least one recipient is required before data")
+		return smtpBadSequence("DATA")
 	}
 	envelopeFrom = s.from
 	recipients = mailboxAddresses(s.recipients)
@@ -284,7 +284,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		return fmt.Errorf("check backpressure: %w", err)
 	}
 	if !accepted {
-		return fmt.Errorf("service temporarily unavailable")
+		return smtpBackpressure()
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageBackpressureChecked,
