@@ -64,7 +64,7 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 	if len(queued.To) != 1 || queued.To[0].Email != "sender@example.com" {
 		t.Fatalf("queued To = %+v, want original sender", queued.To)
 	}
-	if queued.StoragePath == "" || !strings.HasPrefix(queued.StoragePath, "dsn/2026/05/") {
+	if queued.StoragePath != "dsn/2026/05/018f0000-0000-7000-8000-000000000001-bad@example.net.eml" {
 		t.Fatalf("StoragePath = %q, want DSN storage path", queued.StoragePath)
 	}
 	raw := string(store.values[queued.StoragePath])

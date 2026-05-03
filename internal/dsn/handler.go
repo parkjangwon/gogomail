@@ -103,7 +103,7 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 		return err
 	}
 
-	storagePath := dsnStoragePath(now, composed.MessageID)
+	storagePath := dsnStoragePath(now, event.MessageID+"-"+event.Recipient)
 	if err := h.store.Put(ctx, storagePath, bytes.NewReader(composed.Raw)); err != nil {
 		return fmt.Errorf("store dsn message: %w", err)
 	}
