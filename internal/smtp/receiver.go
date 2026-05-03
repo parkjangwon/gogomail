@@ -97,6 +97,7 @@ type ReceiverOptions struct {
 	Backpressure      Backpressure
 	AuthVerifier      AuthenticationVerifier
 	Authenticator     Authenticator
+	Metrics           Metrics
 	RequireAuth       bool
 	SupportSMTPUTF8   bool
 	SupportRequireTLS bool
@@ -120,6 +121,7 @@ type Receiver struct {
 	backpressure      Backpressure
 	authVerifier      AuthenticationVerifier
 	authenticator     Authenticator
+	metrics           Metrics
 	requireAuth       bool
 	supportSMTPUTF8   bool
 	supportRequireTLS bool
@@ -147,6 +149,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		backpressure:      backpressureOrDefault(opts.Backpressure),
 		authVerifier:      opts.AuthVerifier,
 		authenticator:     opts.Authenticator,
+		metrics:           metricsOrDefault(opts.Metrics),
 		requireAuth:       opts.RequireAuth,
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
 		supportRequireTLS: opts.SupportRequireTLS,
@@ -179,7 +182,15 @@ type session struct {
 	authenticated bool
 }
 
-func (s *session) Mail(from string, opts *gosmtp.MailOptions) error {
+func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
+	defer func() {
+		s.observe(context.Background(), MetricEvent{
+			Stage:        StageMailFrom,
+			Result:       metricResult(err),
+			EnvelopeFrom: from,
+			Error:        metricError(err),
+		})
+	}()
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
@@ -199,7 +210,15 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) error {
 	return nil
 }
 
-func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) error {
+func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
+	defer func() {
+		s.observe(context.Background(), MetricEvent{
+			Stage:     StageRcpt,
+			Result:    metricResult(err),
+			Recipient: to,
+			Error:     metricError(err),
+		})
+	}()
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
@@ -233,7 +252,20 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) error {
 	return nil
 }
 
-func (s *session) Data(r io.Reader) error {
+func (s *session) Data(r io.Reader) (err error) {
+	envelopeFrom := s.from
+	recipients := mailboxAddresses(s.recipients)
+	var observedSize int64
+	defer func() {
+		s.observe(context.Background(), MetricEvent{
+			Stage:        StageRecorded,
+			Result:       metricResult(err),
+			EnvelopeFrom: envelopeFrom,
+			Recipients:   recipients,
+			Size:         observedSize,
+			Error:        metricError(err),
+		})
+	}()
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
@@ -243,6 +275,8 @@ func (s *session) Data(r io.Reader) error {
 	if len(s.recipients) == 0 {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
+	envelopeFrom = s.from
+	recipients = mailboxAddresses(s.recipients)
 	defer s.Reset()
 
 	accepted, err := s.receiver.backpressure.Accept(context.Background())
@@ -263,6 +297,7 @@ func (s *session) Data(r io.Reader) error {
 	if err != nil {
 		return err
 	}
+	observedSize = size
 	messageID := s.receiver.idGenerator()
 	receivedAt := s.receiver.clock()
 	if s.receiver.addReceivedHeader {
@@ -273,6 +308,7 @@ func (s *session) Data(r io.Reader) error {
 		}
 		spooled = prefixed
 		size = prefixedSize
+		observedSize = size
 	}
 	defer cleanupSpool(spooled)
 	if err := s.emit(context.Background(), Event{
@@ -299,6 +335,7 @@ func (s *session) Data(r io.Reader) error {
 		}
 		spooled = prefixed
 		size = prefixedSize
+		observedSize = size
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageParsed,
@@ -513,6 +550,25 @@ func (s *session) emit(ctx context.Context, event Event) error {
 		}
 	}
 	return nil
+}
+
+func (s *session) observe(ctx context.Context, event MetricEvent) {
+	event.RemoteAddr = s.remoteAddr
+	s.receiver.metrics.ObserveSMTP(ctx, event)
+}
+
+func metricResult(err error) MetricResult {
+	if err != nil {
+		return MetricRejected
+	}
+	return MetricAccepted
+}
+
+func metricError(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func (s *session) Reset() {

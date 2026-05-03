@@ -447,6 +447,56 @@ func TestSessionRunsAuthenticationVerifierAfterParse(t *testing.T) {
 	}
 }
 
+func TestSessionObservesSMTPMetrics(t *testing.T) {
+	t.Parallel()
+
+	metrics := &recordingMetrics{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
+		},
+		Metrics:     metrics,
+		IDGenerator: func() string { return "metrics-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err == nil {
+		t.Fatal("Rcpt accepted before Mail")
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <metrics@example.net>\r\nFrom: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: metrics\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if !metrics.has(StageRcpt, MetricRejected) {
+		t.Fatalf("metrics = %+v, want rejected rcpt event", metrics.events)
+	}
+	if !metrics.has(StageMailFrom, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted mail event", metrics.events)
+	}
+	if !metrics.has(StageRcpt, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted rcpt event", metrics.events)
+	}
+	if !metrics.has(StageRecorded, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want accepted data/recorded event", metrics.events)
+	}
+	last := metrics.events[len(metrics.events)-1]
+	if last.Size == 0 || len(last.Recipients) != 1 || last.Recipients[0] != "jangwon@example.com" {
+		t.Fatalf("last metric = %+v, want size and recipient", last)
+	}
+}
+
 func TestSessionRejectsUnknownRecipient(t *testing.T) {
 	t.Parallel()
 
@@ -755,6 +805,23 @@ type recordingAuthVerifier struct {
 func (v *recordingAuthVerifier) VerifyAuthentication(_ context.Context, req AuthenticationRequest) (AuthenticationResults, error) {
 	v.request = req
 	return v.results, nil
+}
+
+type recordingMetrics struct {
+	events []MetricEvent
+}
+
+func (m *recordingMetrics) ObserveSMTP(_ context.Context, event MetricEvent) {
+	m.events = append(m.events, event)
+}
+
+func (m *recordingMetrics) has(stage Stage, result MetricResult) bool {
+	for _, event := range m.events {
+		if event.Stage == stage && event.Result == result {
+			return true
+		}
+	}
+	return false
 }
 
 type duplicateDeduplicator struct{}
