@@ -490,9 +490,10 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	}
 	writeJSON(w, status, map[string]any{
 		"error": map[string]any{
-			"code":    code,
-			"message": message,
-			"status":  status,
+			"code":        code,
+			"message":     message,
+			"status":      status,
+			"status_text": http.StatusText(status),
 		},
 		"error_message": message,
 	})
