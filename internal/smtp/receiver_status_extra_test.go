@@ -1,6 +1,7 @@
 package smtpd
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -77,4 +78,20 @@ func TestReceiverRecipientLimitReturns452(t *testing.T) {
 		t.Fatalf("first Rcpt returned error: %v", err)
 	}
 	requireSMTPStatus(t, session.Rcpt("two@example.com", nil), 452, gosmtp.EnhancedCode{4, 5, 3})
+}
+
+func TestReceiverRateLimitReturns451(t *testing.T) {
+	t.Parallel()
+
+	session := newStatusReceiverSession(t, ReceiverOptions{RateLimiter: denyingRateLimiter{}})
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	requireSMTPStatus(t, session.Rcpt("jangwon@example.com", nil), 451, gosmtp.EnhancedCode{4, 7, 1})
+}
+
+type denyingRateLimiter struct{}
+
+func (denyingRateLimiter) Allow(context.Context, RateLimitKey) (bool, error) {
+	return false, nil
 }
