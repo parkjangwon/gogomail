@@ -88,6 +88,7 @@ func TestBounceHandlerSkipsNullReversePathAndNotifyNever(t *testing.T) {
 	for _, payload := range []string{
 		`{"event":"mail.bounced","message_id":"msg-1","recipient":"bad@example.net","sender":"","dsn":{"notify":["FAILURE"]}}`,
 		`{"event":"mail.bounced","message_id":"msg-1","recipient":"bad@example.net","sender":"sender@example.com","dsn":{"notify":["NEVER"]}}`,
+		`{"event":"mail.bounced","message_id":"msg-1","recipient":"bad@example.net","sender":"sender@example.com","dsn":{"notify":["SUCCESS","DELAY"]}}`,
 	} {
 		store := &memoryStore{values: map[string][]byte{}}
 		queue := &captureQueue{}
