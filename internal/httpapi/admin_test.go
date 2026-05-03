@@ -69,6 +69,33 @@ func TestAdminDomainsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminGetDomainHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		domains: []maildb.DomainView{{ID: "domain-1", Name: "example.com", Status: "active"}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Domain maildb.DomainView `json:"domain"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Domain.ID != "domain-1" || service.lastDomainID != "domain-1" {
+		t.Fatalf("domain = %+v lastDomainID=%q", body.Domain, service.lastDomainID)
+	}
+}
+
 func TestAdminCreateDomainHandler(t *testing.T) {
 	t.Parallel()
 
@@ -135,6 +162,33 @@ func TestAdminUsersHandler(t *testing.T) {
 	}
 	if service.lastDomainID != "domain-1" || service.lastLimit != 10 {
 		t.Fatalf("domain/limit = %q/%d", service.lastDomainID, service.lastLimit)
+	}
+}
+
+func TestAdminGetUserHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		users: []maildb.UserView{{ID: "user-1", DomainID: "domain-1", Username: "admin", Status: "active"}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users/user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		User maildb.UserView `json:"user"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.User.ID != "user-1" || service.lastUserID != "user-1" {
+		t.Fatalf("user = %+v lastUserID=%q", body.User, service.lastUserID)
 	}
 }
 
@@ -369,6 +423,7 @@ type fakeAdminService struct {
 	createdDKIMKeyID        string
 	lastLimit               int
 	lastDomainID            string
+	lastUserID              string
 	lastDomainStatus        maildb.UpdateDomainStatusRequest
 	lastCreateDomain        maildb.CreateDomainRequest
 	lastUserStatus          maildb.UpdateUserStatusRequest
@@ -389,6 +444,16 @@ func (f *fakeAdminService) CreateDomain(_ context.Context, req maildb.CreateDoma
 	return maildb.DomainView{ID: "domain-new", CompanyID: req.CompanyID, Name: req.Name, NameACE: req.NameACE, Status: "active"}, nil
 }
 
+func (f *fakeAdminService) GetDomain(_ context.Context, id string) (maildb.DomainView, error) {
+	f.lastDomainID = id
+	for _, domain := range f.domains {
+		if domain.ID == id {
+			return domain, nil
+		}
+	}
+	return maildb.DomainView{}, nil
+}
+
 func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {
 	f.lastDomainStatus = req
 	return nil
@@ -403,6 +468,16 @@ func (f *fakeAdminService) ListUsers(_ context.Context, domainID string, limit i
 func (f *fakeAdminService) CreateUser(_ context.Context, req maildb.CreateUserRequest) (maildb.UserView, error) {
 	f.lastCreateUser = req
 	return maildb.UserView{ID: "user-new", DomainID: req.DomainID, Username: req.Username, DisplayName: req.DisplayName, Status: "active"}, nil
+}
+
+func (f *fakeAdminService) GetUser(_ context.Context, id string) (maildb.UserView, error) {
+	f.lastUserID = id
+	for _, user := range f.users {
+		if user.ID == id {
+			return user, nil
+		}
+	}
+	return maildb.UserView{}, nil
 }
 
 func (f *fakeAdminService) UpdateUserStatus(_ context.Context, req maildb.UpdateUserStatusRequest) error {

@@ -356,6 +356,50 @@ LIMIT $2`
 	return users, nil
 }
 
+func (r *Repository) GetUser(ctx context.Context, id string) (UserView, error) {
+	if r.db == nil {
+		return UserView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return UserView{}, fmt.Errorf("user id is required")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  domain_id::text,
+  username,
+  display_name,
+  role,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  created_at
+FROM users
+WHERE id = $1
+LIMIT 1`
+
+	var user UserView
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&user.ID,
+		&user.DomainID,
+		&user.Username,
+		&user.DisplayName,
+		&user.Role,
+		&user.Status,
+		&user.QuotaUsed,
+		&user.QuotaLimit,
+		&user.CreatedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return UserView{}, fmt.Errorf("user %q not found", id)
+		}
+		return UserView{}, fmt.Errorf("get user: %w", err)
+	}
+	return user, nil
+}
+
 func (r *Repository) ListDomains(ctx context.Context, limit int) ([]DomainView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -403,6 +447,48 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate domains: %w", err)
 	}
 	return domains, nil
+}
+
+func (r *Repository) GetDomain(ctx context.Context, id string) (DomainView, error) {
+	if r.db == nil {
+		return DomainView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DomainView{}, fmt.Errorf("domain id is required")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  name,
+  name_ace,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  created_at
+FROM domains
+WHERE id = $1
+LIMIT 1`
+
+	var domain DomainView
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&domain.ID,
+		&domain.CompanyID,
+		&domain.Name,
+		&domain.NameACE,
+		&domain.Status,
+		&domain.QuotaUsed,
+		&domain.QuotaLimit,
+		&domain.CreatedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return DomainView{}, fmt.Errorf("domain %q not found", id)
+		}
+		return DomainView{}, fmt.Errorf("get domain: %w", err)
+	}
+	return domain, nil
 }
 
 func (r *Repository) ListQueueStats(ctx context.Context) ([]QueueStat, error) {
