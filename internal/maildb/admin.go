@@ -140,7 +140,7 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 	if strings.TrimSpace(req.Username) == "" {
 		return fmt.Errorf("username is required")
 	}
-	if strings.ContainsAny(strings.TrimSpace(req.Username), " \t\r\n@/\\") {
+	if !validAdminUsername(req.Username) {
 		return fmt.Errorf("username must be a local account name")
 	}
 	if strings.TrimSpace(req.DisplayName) == "" {
@@ -156,6 +156,17 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 		return fmt.Errorf("quota_limit must not be negative")
 	}
 	return nil
+}
+
+func validAdminUsername(username string) bool {
+	username = strings.TrimSpace(username)
+	if username == "" || len(username) > 64 || strings.ContainsAny(username, " \t\r\n@/\\") {
+		return false
+	}
+	if strings.HasPrefix(username, ".") || strings.HasSuffix(username, ".") || strings.Contains(username, "..") {
+		return false
+	}
+	return true
 }
 
 func (r *Repository) CreateDomain(ctx context.Context, req CreateDomainRequest) (DomainView, error) {
