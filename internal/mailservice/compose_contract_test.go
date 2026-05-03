@@ -64,6 +64,22 @@ func TestValidateSendTextRequestRejectsOversizedTextBody(t *testing.T) {
 	}
 }
 
+func TestValidateSendTextRequestRejectsTooManyRecipients(t *testing.T) {
+	t.Parallel()
+
+	recipients := make([]outbound.Address, MaxComposeRecipients+1)
+	for i := range recipients {
+		recipients[i] = outbound.Address{Email: "user@example.net"}
+	}
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID: "user-1",
+		To:     recipients,
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted too many recipients")
+	}
+}
+
 func TestValidateSendTextRequestRequiresReplySourceMessage(t *testing.T) {
 	t.Parallel()
 

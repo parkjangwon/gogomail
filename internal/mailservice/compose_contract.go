@@ -9,6 +9,7 @@ import (
 
 const MaxComposeSubjectBytes = 998
 const MaxComposeTextBodyBytes = 4 << 20
+const MaxComposeRecipients = 200
 
 type ComposeIntent string
 
@@ -48,8 +49,12 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 	if len(req.TextBody) > MaxComposeTextBodyBytes {
 		return fmt.Errorf("text_body is too long")
 	}
-	if len(req.To)+len(req.Cc)+len(req.Bcc) == 0 {
+	recipientCount := len(req.To) + len(req.Cc) + len(req.Bcc)
+	if recipientCount == 0 {
 		return fmt.Errorf("at least one recipient is required")
+	}
+	if recipientCount > MaxComposeRecipients {
+		return fmt.Errorf("too many recipients")
 	}
 	if err := validateComposeAddresses("to", req.To); err != nil {
 		return err
