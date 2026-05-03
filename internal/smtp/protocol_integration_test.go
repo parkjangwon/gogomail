@@ -347,6 +347,48 @@ func TestSMTPProtocolPreservesWireDSNOptions(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolTrustedRelayRejectsUntrustedClient(t *testing.T) {
+	t.Parallel()
+
+	trusted, err := NewStaticTrustedRelays([]string{"192.0.2.0/24"})
+	if err != nil {
+		t.Fatalf("NewStaticTrustedRelays returned error: %v", err)
+	}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		RelayAuthorizer: trusted,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{Domain: "mx.example.com"})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	code, msg, err := rawProtocolCommandCode(text, "MAIL FROM:<sender@example.net>")
+	if err != nil {
+		t.Fatalf("MAIL FROM returned transport error: %v", err)
+	}
+	if code != 550 || !strings.Contains(msg, "not trusted") {
+		t.Fatalf("MAIL FROM code/message = %d %q, want trusted relay policy rejection", code, msg)
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+}
+
 func TestSMTPProtocolRejectsUnsupportedMailExtensions(t *testing.T) {
 	t.Parallel()
 
