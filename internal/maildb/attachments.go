@@ -2,8 +2,11 @@ package maildb
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -17,6 +20,53 @@ type Attachment struct {
 	MIMEType    string    `json:"mime_type"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (r *Repository) CreateAttachmentUpload(ctx context.Context, req CreateAttachmentUploadRequest) (Attachment, error) {
+	if r.db == nil {
+		return Attachment{}, fmt.Errorf("database handle is required")
+	}
+
+	uploadID := newUploadID()
+	storagePath := strings.TrimSpace(req.StoragePath)
+	if storagePath == "" {
+		storagePath = attachmentUploadStoragePath(req.UserID, uploadID, req.Filename)
+	}
+
+	const query = `
+INSERT INTO attachments (
+  user_id, draft_id, upload_id, storage_path, filename, size, mime_type, status
+) VALUES (
+  $1,
+  NULLIF($2, '')::uuid,
+  $3, $4, $5, $6, $7, 'uploading'
+) RETURNING id::text, COALESCE(message_id::text, ''), upload_id, storage_path, filename, size, mime_type, status, created_at`
+
+	var attachment Attachment
+	if err := r.db.QueryRowContext(
+		ctx,
+		query,
+		strings.TrimSpace(req.UserID),
+		strings.TrimSpace(req.DraftID),
+		uploadID,
+		storagePath,
+		strings.TrimSpace(req.Filename),
+		req.Size,
+		strings.TrimSpace(req.MIMEType),
+	).Scan(
+		&attachment.ID,
+		&attachment.MessageID,
+		&attachment.UploadID,
+		&attachment.StoragePath,
+		&attachment.Filename,
+		&attachment.Size,
+		&attachment.MIMEType,
+		&attachment.Status,
+		&attachment.CreatedAt,
+	); err != nil {
+		return Attachment{}, fmt.Errorf("create attachment upload: %w", err)
+	}
+	return attachment, nil
 }
 
 func (r *Repository) ListAttachments(ctx context.Context, userID string, messageID string) ([]Attachment, error) {
@@ -70,6 +120,20 @@ ORDER BY a.created_at ASC, a.filename ASC`
 		return nil, fmt.Errorf("iterate attachments: %w", err)
 	}
 	return attachments, nil
+}
+
+func newUploadID() string {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return fmt.Sprintf("upload-%d", time.Now().UnixNano())
+	}
+	return "upload-" + hex.EncodeToString(random[:])
+}
+
+func attachmentUploadStoragePath(userID string, uploadID string, filename string) string {
+	filename = strings.ReplaceAll(strings.TrimSpace(filename), "/", "_")
+	filename = strings.ReplaceAll(filename, `\`, "_")
+	return strings.Join([]string{"uploads", strings.TrimSpace(userID), uploadID, filename}, "/")
 }
 
 func (r *Repository) GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (Attachment, error) {
