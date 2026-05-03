@@ -18,12 +18,13 @@ func TestGroupRecipientsByDomain(t *testing.T) {
 		{Email: "a@example.com"},
 		{Email: "b@example.com"},
 		{Email: "c@example.net"},
+		{Email: "d@Example.NET."},
 	})
 	if len(groups["example.com"]) != 2 {
 		t.Fatalf("example.com recipients = %d, want 2", len(groups["example.com"]))
 	}
-	if len(groups["example.net"]) != 1 {
-		t.Fatalf("example.net recipients = %d, want 1", len(groups["example.net"]))
+	if len(groups["example.net"]) != 2 {
+		t.Fatalf("example.net recipients = %d, want 2", len(groups["example.net"]))
 	}
 }
 

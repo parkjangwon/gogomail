@@ -383,7 +383,11 @@ func groupRecipientsByDomain(recipients []outbound.Address) map[string][]outboun
 		if !ok || domain == "" {
 			continue
 		}
-		groups[strings.ToLower(domain)] = append(groups[strings.ToLower(domain)], recipient)
+		domain = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), "."))
+		if domain == "" {
+			continue
+		}
+		groups[domain] = append(groups[domain], recipient)
 	}
 	return groups
 }
