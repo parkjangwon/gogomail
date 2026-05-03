@@ -49,8 +49,17 @@ func TestReadyHandlerIncludesChecks(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
 	}
-	if body.Status != "ok" || len(body.Checks) != 1 || body.Checks[0].Name != "http" {
+	if body.Status != "ok" || len(body.Checks) < 4 || body.Checks[0].Name != "http" {
 		t.Fatalf("body = %+v", body)
+	}
+	foundContract := false
+	for _, check := range body.Checks {
+		if check.Name == "api_contract" && check.Detail != "" {
+			foundContract = true
+		}
+	}
+	if !foundContract {
+		t.Fatalf("api contract readiness check missing: %+v", body.Checks)
 	}
 }
 

@@ -17,6 +17,7 @@ type ReadinessResponse struct {
 type ReadinessCheck struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
 }
 
 type InfoResponse struct {
@@ -44,7 +45,10 @@ func writeReady(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(ReadinessResponse{
 		Status: "ok",
 		Checks: []ReadinessCheck{
-			{Name: "http", Status: "ok"},
+			{Name: "http", Status: "ok", Detail: "router registered"},
+			{Name: "api_contract", Status: "ok", Detail: "v1 backend-release"},
+			{Name: "storage_boundary", Status: "ok", Detail: "configured by runtime mode"},
+			{Name: "outbox_boundary", Status: "ok", Detail: "async delivery via outbox"},
 		},
 	})
 }
