@@ -178,23 +178,61 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 
 func storedEventPayload(messageID string, msg smtpd.ReceivedMessage) ([]byte, error) {
 	payload := map[string]any{
-		"event":          "mail.stored",
-		"message_id":     messageID,
-		"rfc_message_id": msg.Parsed.MessageID,
-		"company_id":     msg.Mailbox.CompanyID,
-		"domain_id":      msg.Mailbox.DomainID,
-		"user_id":        msg.Mailbox.UserID,
-		"recipient":      msg.Mailbox.Address,
-		"subject":        msg.Parsed.Subject,
-		"storage_path":   msg.StoragePath,
-		"received_at":    msg.ReceivedAt,
-		"size":           msg.Size,
+		"event":                  "mail.stored",
+		"message_id":             messageID,
+		"rfc_message_id":         msg.Parsed.MessageID,
+		"company_id":             msg.Mailbox.CompanyID,
+		"domain_id":              msg.Mailbox.DomainID,
+		"user_id":                msg.Mailbox.UserID,
+		"recipient":              msg.Mailbox.Address,
+		"subject":                msg.Parsed.Subject,
+		"storage_path":           msg.StoragePath,
+		"received_at":            msg.ReceivedAt,
+		"size":                   msg.Size,
+		"envelope_from":          msg.EnvelopeFrom,
+		"dsn":                    storedEventDSN(msg.DSN),
+		"authentication_results": storedEventAuthentication(msg.Authentication),
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal mail.stored event: %w", err)
 	}
 	return raw, nil
+}
+
+func storedEventDSN(dsn smtpd.DSNOptions) map[string]any {
+	recipients := make([]map[string]any, 0, len(dsn.Recipients))
+	for _, recipient := range dsn.Recipients {
+		recipients = append(recipients, map[string]any{
+			"address":            recipient.Address,
+			"notify":             append([]string(nil), recipient.Notify...),
+			"original_recipient": recipient.OriginalRecipient,
+		})
+	}
+	return map[string]any{
+		"return":      dsn.Return,
+		"envelope_id": dsn.EnvelopeID,
+		"recipients":  recipients,
+	}
+}
+
+func storedEventAuthentication(results smtpd.AuthenticationResults) map[string]any {
+	return map[string]any{
+		"authserv_id": results.AuthservID,
+		"spf":         storedEventAuthCheck(results.SPF),
+		"dkim":        storedEventAuthCheck(results.DKIM),
+		"dmarc":       storedEventAuthCheck(results.DMARC),
+	}
+}
+
+func storedEventAuthCheck(result smtpd.AuthCheckResult) map[string]any {
+	return map[string]any{
+		"result":     string(result.Result),
+		"reason":     result.Reason,
+		"domain":     result.Domain,
+		"identifier": result.Identifier,
+		"policy":     result.Policy,
+	}
 }
 
 func addressesJSON(addrs []message.Address) ([]byte, error) {
