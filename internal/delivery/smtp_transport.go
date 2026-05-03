@@ -33,6 +33,7 @@ type DirectSMTPTransport struct {
 	Timeout      time.Duration
 	Hello        string
 	TLSMode      DeliveryTLSMode
+	TLSConfig    *tls.Config
 	Transformers TransformChain
 }
 
@@ -174,10 +175,23 @@ func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client,
 		}
 		return nil
 	}
-	return client.StartTLS(&tls.Config{
-		ServerName: strings.TrimSpace(host),
-		MinVersion: tls.VersionTLS12,
-	})
+	return client.StartTLS(t.deliveryTLSConfig(host))
+}
+
+func (t *DirectSMTPTransport) deliveryTLSConfig(host string) *tls.Config {
+	var cfg *tls.Config
+	if t.TLSConfig != nil {
+		cfg = t.TLSConfig.Clone()
+	} else {
+		cfg = &tls.Config{}
+	}
+	if strings.TrimSpace(cfg.ServerName) == "" {
+		cfg.ServerName = strings.TrimSpace(host)
+	}
+	if cfg.MinVersion == 0 || cfg.MinVersion < tls.VersionTLS12 {
+		cfg.MinVersion = tls.VersionTLS12
+	}
+	return cfg
 }
 
 func (t *DirectSMTPTransport) route(ctx context.Context, job Job, domain string) (Route, error) {
