@@ -674,10 +674,25 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 		return nil, gosmtp.ErrAuthUnsupported
 	}
 	return sasl.NewPlainServer(func(identity, username, password string) error {
+		var authErr error
+		defer func() {
+			s.observe(context.Background(), MetricEvent{
+				Stage:  StageAuthenticated,
+				Result: metricResult(authErr),
+				Error:  metricError(authErr),
+			})
+		}()
 		if err := s.receiver.authenticator.AuthenticatePlain(context.Background(), identity, username, password); err != nil {
+			authErr = gosmtp.ErrAuthFailed
 			return gosmtp.ErrAuthFailed
 		}
 		s.authenticated = true
+		if err := s.emit(context.Background(), Event{
+			Stage: StageAuthenticated,
+		}); err != nil {
+			authErr = err
+			return err
+		}
 		return nil
 	}), nil
 }
