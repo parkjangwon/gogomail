@@ -323,6 +323,73 @@ LIMIT $3`
 	return messages, nil
 }
 
+func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor MessageListCursor) ([]MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = NormalizeMessageListLimit(limit) + 1
+
+	const query = `
+SELECT
+  id::text,
+  subject,
+  from_addr,
+  from_name,
+  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
+  size,
+  has_attachment,
+  COALESCE((flags->>'read')::boolean, false) AS read,
+  COALESCE((flags->>'starred')::boolean, false) AS starred
+FROM messages
+WHERE user_id = $1
+  AND status = 'active'
+  AND ($2 = '' OR folder_id::text = $2)
+  AND (
+    $4 = ''
+    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+       < ($3::timestamptz, $4::uuid)
+  )
+ORDER BY message_at DESC, id DESC
+LIMIT $5`
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		query,
+		strings.TrimSpace(userID),
+		strings.TrimSpace(folderID),
+		cursor.At,
+		strings.TrimSpace(cursor.ID),
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list message page: %w", err)
+	}
+	defer rows.Close()
+
+	messages := make([]MessageSummary, 0, limit)
+	for rows.Next() {
+		var msg MessageSummary
+		if err := rows.Scan(
+			&msg.ID,
+			&msg.Subject,
+			&msg.FromAddr,
+			&msg.FromName,
+			&msg.ReceivedAt,
+			&msg.Size,
+			&msg.HasAttachment,
+			&msg.Read,
+			&msg.Starred,
+		); err != nil {
+			return nil, fmt.Errorf("scan message page summary: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate message page summaries: %w", err)
+	}
+	return messages, nil
+}
+
 func (r *Repository) GetMessage(ctx context.Context, userID string, messageID string) (MessageDetail, error) {
 	if r.db == nil {
 		return MessageDetail{}, fmt.Errorf("database handle is required")
