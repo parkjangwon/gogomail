@@ -43,6 +43,7 @@ type Config struct {
 	DedupBackend                string
 	RateLimitBackend            string
 	BackpressureBackend         string
+	MetricsBackend              string
 	RcptRateLimitPerMinute      int
 	OutboxRelayBatchSize        int
 	OutboxRelayPollInterval     time.Duration
@@ -109,6 +110,7 @@ func Load() Config {
 		DedupBackend:                envOrDefault("GOGOMAIL_DEDUP_BACKEND", "none"),
 		RateLimitBackend:            envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:         envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
+		MetricsBackend:              envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
 		RcptRateLimitPerMinute:      intEnvOrDefault("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", 60),
 		OutboxRelayBatchSize:        intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", 100),
 		OutboxRelayPollInterval:     durationEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", time.Second),

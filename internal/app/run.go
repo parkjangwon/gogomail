@@ -23,6 +23,7 @@ import (
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/observability"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/outbox"
 	"github.com/gogomail/gogomail/internal/ratelimit"
@@ -142,6 +143,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		RateLimiter:       rateLimiter,
 		Backpressure:      pressure,
 		AuthVerifier:      authVerifier,
+		Metrics:           smtpMetrics(cfg, logger),
 		AddReceivedHeader: cfg.SMTPAddReceivedHeader,
 		ReceivedDomain:    cfg.SMTPDomain,
 		RequireAuth:       cfg.SMTPRequireAuth,
@@ -362,6 +364,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 			"domain_limits", cfg.DeliveryDomainConcurrency,
 		)
 	}
+	handler.WithMetrics(deliveryMetrics(cfg, logger))
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:   redisClient,
@@ -394,6 +397,20 @@ func deliveryFarmLimits(values map[string]int) map[outbound.Farm]int {
 		result[outbound.Farm(farm)] = limit
 	}
 	return result
+}
+
+func smtpMetrics(cfg config.Config, logger *slog.Logger) smtpd.Metrics {
+	if cfg.MetricsBackend == "slog" {
+		return observability.NewSlogAdapter(logger)
+	}
+	return nil
+}
+
+func deliveryMetrics(cfg config.Config, logger *slog.Logger) delivery.Metrics {
+	if cfg.MetricsBackend == "slog" {
+		return observability.NewSlogAdapter(logger)
+	}
+	return nil
 }
 
 type dkimKeyRepository interface {
