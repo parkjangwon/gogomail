@@ -74,6 +74,11 @@ func normalizeRouteHostsAndPort(hosts []string) ([]string, int) {
 			if detectedPort <= 0 {
 				detectedPort = parsedPort
 			}
+		} else if parsedHost, parsedPort, ok := splitBareRouteHostPort(host); ok {
+			host = parsedHost
+			if parsedPort > 0 && detectedPort <= 0 {
+				detectedPort = parsedPort
+			}
 		} else {
 			host = strings.Trim(host, "[]")
 		}
@@ -98,6 +103,25 @@ func splitRouteHostPort(value string) (string, int, bool) {
 	host = strings.ToLower(strings.Trim(strings.TrimSuffix(strings.TrimSpace(host), "."), "[]"))
 	if host == "" || host == "." {
 		return "", 0, false
+	}
+	return host, port, true
+}
+
+func splitBareRouteHostPort(value string) (string, int, bool) {
+	if strings.Count(value, ":") != 1 {
+		return "", 0, false
+	}
+	host, portValue, ok := strings.Cut(value, ":")
+	if !ok {
+		return "", 0, false
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
+	if host == "" || host == "." || strings.ContainsAny(host, "[]") {
+		return "", 0, false
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(portValue))
+	if err != nil || port <= 0 || port > 65535 {
+		return host, 0, true
 	}
 	return host, port, true
 }
