@@ -100,6 +100,37 @@ func TestBounceHandlerSkipsNullReversePathAndNotifyNever(t *testing.T) {
 	}
 }
 
+func TestDecodeBounceEventNormalizesAddresses(t *testing.T) {
+	t.Parallel()
+
+	event, err := decodeBounceEvent([]byte(`{
+		"event":"mail.bounced",
+		"message_id":"msg-1",
+		"sender":" Sender@Example.COM ",
+		"recipient":" Bad@Example.NET "
+	}`))
+	if err != nil {
+		t.Fatalf("decodeBounceEvent returned error: %v", err)
+	}
+	if event.Sender != "sender@example.com" || event.Recipient != "bad@example.net" {
+		t.Fatalf("addresses = sender %q recipient %q, want normalized", event.Sender, event.Recipient)
+	}
+}
+
+func TestDecodeBounceEventRejectsInvalidRecipient(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodeBounceEvent([]byte(`{
+		"event":"mail.bounced",
+		"message_id":"msg-1",
+		"sender":"sender@example.com",
+		"recipient":"not an address"
+	}`))
+	if err == nil {
+		t.Fatal("decodeBounceEvent accepted invalid recipient")
+	}
+}
+
 type captureQueue struct {
 	topic        string
 	partitionKey string

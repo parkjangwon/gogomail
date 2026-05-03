@@ -12,6 +12,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/eventstream"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -183,6 +184,18 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	if event.Recipient == "" {
 		return bounceEvent{}, fmt.Errorf("bounce event is missing recipient")
 	}
+	if event.Sender != "" {
+		sender, err := mail.NormalizeAddress(event.Sender)
+		if err != nil {
+			return bounceEvent{}, fmt.Errorf("bounce event has invalid sender: %w", err)
+		}
+		event.Sender = sender
+	}
+	recipient, err := mail.NormalizeAddress(event.Recipient)
+	if err != nil {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid recipient: %w", err)
+	}
+	event.Recipient = recipient
 	return event, nil
 }
 
