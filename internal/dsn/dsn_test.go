@@ -116,3 +116,26 @@ func TestComposeSanitizesBoundaryAndFinalRecipient(t *testing.T) {
 		t.Fatalf("raw contains injected header:\n%s", raw)
 	}
 }
+
+func TestComposeSanitizesReturnedMessageID(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		MessageID:    "<dsn@example.com>\r\nInjected: bad",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	if strings.ContainsAny(composed.MessageID, "\r\n ") {
+		t.Fatalf("MessageID = %q, want sanitized metadata value", composed.MessageID)
+	}
+	if strings.Contains(string(composed.Raw), "\r\nInjected: bad") {
+		t.Fatalf("raw contains injected Message-ID header:\n%s", string(composed.Raw))
+	}
+}

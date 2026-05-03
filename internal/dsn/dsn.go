@@ -144,12 +144,22 @@ func formatAddress(addr outbound.Address) string {
 }
 
 func ensureMessageID(messageID string) string {
-	messageID = strings.TrimSpace(messageID)
+	messageID = sanitizeMessageIDValue(messageID)
 	if !strings.HasPrefix(messageID, "<") {
 		messageID = "<" + messageID
 	}
 	if !strings.HasSuffix(messageID, ">") {
 		messageID += ">"
+	}
+	return messageID
+}
+
+func sanitizeMessageIDValue(messageID string) string {
+	messageID = sanitizeDSNValue(messageID)
+	messageID = strings.ReplaceAll(messageID, " ", "")
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return "dsn@localhost"
 	}
 	return messageID
 }
