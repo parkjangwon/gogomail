@@ -233,6 +233,8 @@ Implementation order:
 186. DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext metadata before outbound SMTP command generation or RFC 3464 report composition.
 187. Attachment storage-path contracts now reject unsafe caller-provided paths and sanitize generated attachment object path segments before writing to storage.
 188. SMTP release verification now covers `NOTIFY=NEVER` over a real TCP SMTP session and controlled outbound SMTP sink recipient-classification behavior.
+189. Backend API contract metadata is centralized in code and guarded against OpenAPI drift, keeping service info and generated client contracts aligned.
+190. A backend-only OpenAPI 3.1 draft now documents the current mail/admin API surface without starting frontend implementation.
 
 ## Deferred until backend contracts stabilize
 
