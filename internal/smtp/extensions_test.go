@@ -74,4 +74,7 @@ func TestValidateOptionsRejectsInvalidDSNValues(t *testing.T) {
 	if err := validateRcptOptions(&gosmtp.RcptOptions{Notify: []gosmtp.DSNNotify{"MAYBE"}}, support); err == nil {
 		t.Fatal("validateRcptOptions accepted invalid DSN NOTIFY")
 	}
+	if err := validateRcptOptions(&gosmtp.RcptOptions{Notify: []gosmtp.DSNNotify{gosmtp.DSNNotifyNever, gosmtp.DSNNotifyFailure}}, support); err == nil {
+		t.Fatal("validateRcptOptions accepted NOTIFY=NEVER combined with another value")
+	}
 }

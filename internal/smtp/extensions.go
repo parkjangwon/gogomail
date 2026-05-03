@@ -51,6 +51,9 @@ func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) err
 			return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "invalid DSN NOTIFY option")
 		}
 	}
+	if dsnNotifyNeverCombined(opts.Notify) {
+		return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "DSN NOTIFY=NEVER cannot be combined")
+	}
 	if opts.OriginalRecipient != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ORCPT is not supported")
 	}
@@ -104,4 +107,16 @@ func validDSNNotifyOption(value gosmtp.DSNNotify) bool {
 	default:
 		return false
 	}
+}
+
+func dsnNotifyNeverCombined(values []gosmtp.DSNNotify) bool {
+	if len(values) <= 1 {
+		return false
+	}
+	for _, value := range values {
+		if gosmtp.DSNNotify(strings.ToUpper(strings.TrimSpace(string(value)))) == gosmtp.DSNNotifyNever {
+			return true
+		}
+	}
+	return false
 }
