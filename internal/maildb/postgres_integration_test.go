@@ -39,11 +39,11 @@ func TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox(t *testing.T) {
 	repo := NewRepository(db)
 
 	draft, err := repo.SaveDraft(ctx, SaveDraftRequest{
-		UserID:  seed.userID,
-		Intent:  "new",
-		From:    "alice@example.com",
-		To:      []outbound.Address{{Email: "bob@example.net", Name: "Bob"}},
-		Subject: "release postgres draft",
+		UserID:   seed.userID,
+		Intent:   "new",
+		From:     "alice@example.com",
+		To:       []outbound.Address{{Email: "bob@example.net", Name: "Bob"}},
+		Subject:  "release postgres draft",
 		TextBody: "hello from postgres",
 	})
 	if err != nil {
@@ -64,6 +64,9 @@ func TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox(t *testing.T) {
 	draftForSend, err := repo.GetDraftForSend(ctx, seed.userID, draft.ID)
 	if err != nil {
 		t.Fatalf("GetDraftForSend returned error: %v", err)
+	}
+	if len(draftForSend.AttachmentIDs) != 1 || draftForSend.AttachmentIDs[0] != attachment.ID {
+		t.Fatalf("draft attachment IDs = %+v, want [%s]", draftForSend.AttachmentIDs, attachment.ID)
 	}
 
 	sentID, err := repo.RecordOutgoing(ctx, OutgoingMessage{
