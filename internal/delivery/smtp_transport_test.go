@@ -357,6 +357,28 @@ func TestAcceptRecipientsReturnsErrorsWhenAllRecipientsFail(t *testing.T) {
 	}
 }
 
+func TestRecipientsRejectedResultKeepsPerRecipientFailureClasses(t *testing.T) {
+	t.Parallel()
+
+	err := recipientsRejectedResult([]RecipientDeliveryError{
+		{Recipient: outbound.Address{Email: "gone@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "5.1.1 gone"}},
+		{Recipient: outbound.Address{Email: "temp@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "4.7.1 try later"}},
+	})
+	var partial *PartialDeliveryError
+	if !errors.As(err, &partial) {
+		t.Fatalf("recipientsRejectedResult error = %v, want PartialDeliveryError", err)
+	}
+	if len(partial.Delivered) != 0 {
+		t.Fatalf("delivered = %+v, want none", partial.Delivered)
+	}
+	if len(partial.Failed) != 2 {
+		t.Fatalf("failed = %+v, want both rejected recipients", partial.Failed)
+	}
+	if got := partial.TemporaryFailures(); len(got) != 1 || got[0].Email != "temp@example.net" {
+		t.Fatalf("temporary failures = %+v, want temp@example.net only", got)
+	}
+}
+
 func TestDataAcceptedResultKeepsPartialRecipientFailures(t *testing.T) {
 	t.Parallel()
 

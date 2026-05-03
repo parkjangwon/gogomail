@@ -184,7 +184,7 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		return nil
 	})
 	if len(acceptedRecipients) == 0 {
-		return errors.Join(recipientFailureErrors(recipientFailures)...)
+		return recipientsRejectedResult(recipientFailures)
 	}
 
 	writer, err := client.Data()
@@ -306,6 +306,13 @@ func recipientFailureErrors(failures []RecipientDeliveryError) []error {
 		errs = append(errs, failure)
 	}
 	return errs
+}
+
+func recipientsRejectedResult(failures []RecipientDeliveryError) error {
+	if len(failures) == 0 {
+		return nil
+	}
+	return &PartialDeliveryError{Failed: failures}
 }
 
 func dataAcceptedResult(accepted []outbound.Address, failures []RecipientDeliveryError) error {
