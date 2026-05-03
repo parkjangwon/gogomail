@@ -73,6 +73,15 @@ Bulk endpoints reject missing, blank, duplicate, or over-limit message IDs inste
 
 Attachment uploads start as `uploading`, become draft-bound or message-bound records when saved/sent, and stale `uploading` records can be expired by backend cleanup code. Cleanup marks rows `deleted` first and then asks the configured storage backend to remove the object, keeping database ownership checks separate from object-store lifecycle mechanics.
 
+## Admin operations
+
+Admin domain/user CRUD includes list, detail, create, status update, and quota update contracts:
+
+- `PATCH /admin/v1/domains/{id}/quota`
+- `PATCH /admin/v1/users/{id}/quota`
+
+`quota_limit: 0` clears the limit and negative values are rejected.
+
 ## Deferred from this contract
 
 - Next.js/frontend screens and shells.
