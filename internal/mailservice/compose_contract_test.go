@@ -35,6 +35,21 @@ func TestValidateSendTextRequestRequiresRecipient(t *testing.T) {
 	}
 }
 
+func TestValidateSendTextRequestRejectsBlankRecipientEmail(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID: "user-1",
+		To:     []outbound.Address{{Name: "Missing"}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted blank recipient email")
+	}
+	if got := err.Error(); got != "to[0].email is required" {
+		t.Fatalf("error = %q", got)
+	}
+}
+
 func TestValidateSendTextRequestRequiresReplySourceMessage(t *testing.T) {
 	t.Parallel()
 

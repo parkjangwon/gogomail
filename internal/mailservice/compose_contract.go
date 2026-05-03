@@ -3,6 +3,8 @@ package mailservice
 import (
 	"fmt"
 	"strings"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 const MaxComposeSubjectBytes = 998
@@ -44,6 +46,24 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 	}
 	if len(req.To)+len(req.Cc)+len(req.Bcc) == 0 {
 		return fmt.Errorf("at least one recipient is required")
+	}
+	if err := validateComposeAddresses("to", req.To); err != nil {
+		return err
+	}
+	if err := validateComposeAddresses("cc", req.Cc); err != nil {
+		return err
+	}
+	if err := validateComposeAddresses("bcc", req.Bcc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateComposeAddresses(field string, addresses []outbound.Address) error {
+	for i, address := range addresses {
+		if strings.TrimSpace(address.Email) == "" {
+			return fmt.Errorf("%s[%d].email is required", field, i)
+		}
 	}
 	return nil
 }
