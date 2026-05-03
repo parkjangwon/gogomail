@@ -219,6 +219,25 @@ func TestOpenAPIDraftDocumentsReusableErrorEnvelopeResponse(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsDevelopmentUserIDFallbackParameter(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	param := extractOpenAPIComponentBlock(t, string(raw), "parameters", "UserIDFallback")
+	for _, want := range []string{
+		"name: user_id",
+		"in: query",
+		"Development fallback required only when JWT auth is disabled.",
+	} {
+		if !strings.Contains(param, want) {
+			t.Fatalf("OpenAPI UserIDFallback parameter must document %q", want)
+		}
+	}
+}
+
 func openAPIRequiredListContains(block string, key string) bool {
 	for _, line := range strings.Split(block, "\n") {
 		line = strings.TrimSpace(line)
