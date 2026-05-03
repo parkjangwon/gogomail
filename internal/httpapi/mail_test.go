@@ -48,12 +48,17 @@ func TestListMessagesHandler(t *testing.T) {
 
 	var body struct {
 		Messages []maildb.MessageSummary `json:"messages"`
+		Limit    int                     `json:"limit"`
+		HasMore  bool                    `json:"has_more"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
 	}
 	if len(body.Messages) != 1 || body.Messages[0].Subject != "hello" {
 		t.Fatalf("messages = %+v", body.Messages)
+	}
+	if body.Limit != 10 || body.HasMore {
+		t.Fatalf("page metadata = limit:%d has_more:%v", body.Limit, body.HasMore)
 	}
 	if service.lastUserID != "user-1" {
 		t.Fatalf("lastUserID = %q", service.lastUserID)

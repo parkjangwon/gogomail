@@ -129,7 +129,18 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{"messages": messages})
+		page, err := maildb.NewMessageListPage(messages, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"messages":    page.Messages,
+			"limit":       page.Limit,
+			"has_more":    page.HasMore,
+			"next_cursor": page.NextCursor,
+		})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
