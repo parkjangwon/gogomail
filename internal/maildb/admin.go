@@ -104,13 +104,33 @@ func ValidateCreateDomainRequest(req CreateDomainRequest) error {
 	if strings.TrimSpace(req.Name) == "" {
 		return fmt.Errorf("name is required")
 	}
-	if strings.ContainsAny(strings.TrimSpace(req.Name), " \t\r\n/\\") {
+	if !validAdminDomainName(req.Name) {
 		return fmt.Errorf("name must be a domain name")
+	}
+	if strings.TrimSpace(req.NameACE) != "" && !validAdminDomainName(req.NameACE) {
+		return fmt.Errorf("name_ace must be a domain name")
 	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
 	}
 	return nil
+}
+
+func validAdminDomainName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 253 || strings.ContainsAny(name, " \t\r\n/\\") {
+		return false
+	}
+	labels := strings.Split(name, ".")
+	if len(labels) < 2 {
+		return false
+	}
+	for _, label := range labels {
+		if label == "" || len(label) > 63 || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return false
+		}
+	}
+	return true
 }
 
 func ValidateCreateUserRequest(req CreateUserRequest) error {

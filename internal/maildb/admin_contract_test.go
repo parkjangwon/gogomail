@@ -30,6 +30,31 @@ func TestValidateCreateDomainRequestRejectsInvalidName(t *testing.T) {
 	}
 }
 
+func TestValidateCreateDomainRequestRejectsEmptyLabels(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateDomainRequest(CreateDomainRequest{
+		CompanyID: "company-1",
+		Name:      "example..com",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateDomainRequest accepted domain with empty label")
+	}
+}
+
+func TestValidateCreateDomainRequestRejectsInvalidACEName(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateDomainRequest(CreateDomainRequest{
+		CompanyID: "company-1",
+		Name:      "example.com",
+		NameACE:   "-bad.example.com",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateDomainRequest accepted invalid ACE domain name")
+	}
+}
+
 func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	t.Parallel()
 
