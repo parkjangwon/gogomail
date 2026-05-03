@@ -17,6 +17,7 @@ func TestParseModeAcceptsKnownBackendModes(t *testing.T) {
 		{name: "delivery worker", raw: "delivery-worker", want: ModeDeliveryWorker},
 		{name: "batch worker", raw: "batch-worker", want: ModeBatchWorker},
 		{name: "outbox relay", raw: "outbox-relay", want: ModeOutboxRelay},
+		{name: "event worker", raw: "event-worker", want: ModeEventWorker},
 		{name: "auth server", raw: "auth-server", want: ModeAuthServer},
 		{name: "mail api", raw: "mail-api", want: ModeMailAPI},
 		{name: "admin api", raw: "admin-api", want: ModeAdminAPI},

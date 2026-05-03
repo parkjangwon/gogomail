@@ -16,6 +16,7 @@ const (
 	ModeDeliveryWorker Mode = "delivery-worker"
 	ModeBatchWorker    Mode = "batch-worker"
 	ModeOutboxRelay    Mode = "outbox-relay"
+	ModeEventWorker    Mode = "event-worker"
 	ModeAuthServer     Mode = "auth-server"
 	ModeMailAPI        Mode = "mail-api"
 	ModeAdminAPI       Mode = "admin-api"
@@ -29,6 +30,7 @@ var knownModes = map[Mode]struct{}{
 	ModeDeliveryWorker: {},
 	ModeBatchWorker:    {},
 	ModeOutboxRelay:    {},
+	ModeEventWorker:    {},
 	ModeAuthServer:     {},
 	ModeMailAPI:        {},
 	ModeAdminAPI:       {},

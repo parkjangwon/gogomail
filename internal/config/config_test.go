@@ -22,6 +22,11 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS", "")
+	t.Setenv("GOGOMAIL_EVENT_STREAM", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_GROUP", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "")
 
 	cfg := Load()
 
@@ -67,6 +72,21 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.OutboxRelayMaxAttempts != 10 {
 		t.Fatalf("OutboxRelayMaxAttempts = %d, want 10", cfg.OutboxRelayMaxAttempts)
 	}
+	if cfg.EventStream != "mail.event" {
+		t.Fatalf("EventStream = %q, want mail.event", cfg.EventStream)
+	}
+	if cfg.EventConsumerGroup != "gogomail.event-worker" {
+		t.Fatalf("EventConsumerGroup = %q, want gogomail.event-worker", cfg.EventConsumerGroup)
+	}
+	if cfg.EventConsumerName != "event-worker-1" {
+		t.Fatalf("EventConsumerName = %q, want event-worker-1", cfg.EventConsumerName)
+	}
+	if cfg.EventConsumerCount != 100 {
+		t.Fatalf("EventConsumerCount = %d, want 100", cfg.EventConsumerCount)
+	}
+	if cfg.EventConsumerBlock != time.Second {
+		t.Fatalf("EventConsumerBlock = %s, want 1s", cfg.EventConsumerBlock)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -86,6 +106,11 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "25")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "250ms")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS", "3")
+	t.Setenv("GOGOMAIL_EVENT_STREAM", "custom.event")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_GROUP", "custom-group")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "worker-a")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "10")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "500ms")
 
 	cfg := Load()
 
@@ -136,5 +161,20 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.OutboxRelayMaxAttempts != 3 {
 		t.Fatalf("OutboxRelayMaxAttempts = %d, want 3", cfg.OutboxRelayMaxAttempts)
+	}
+	if cfg.EventStream != "custom.event" {
+		t.Fatalf("EventStream = %q, want custom.event", cfg.EventStream)
+	}
+	if cfg.EventConsumerGroup != "custom-group" {
+		t.Fatalf("EventConsumerGroup = %q, want custom-group", cfg.EventConsumerGroup)
+	}
+	if cfg.EventConsumerName != "worker-a" {
+		t.Fatalf("EventConsumerName = %q, want worker-a", cfg.EventConsumerName)
+	}
+	if cfg.EventConsumerCount != 10 {
+		t.Fatalf("EventConsumerCount = %d, want 10", cfg.EventConsumerCount)
+	}
+	if cfg.EventConsumerBlock != 500*time.Millisecond {
+		t.Fatalf("EventConsumerBlock = %s, want 500ms", cfg.EventConsumerBlock)
 	}
 }

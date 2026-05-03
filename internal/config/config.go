@@ -25,6 +25,11 @@ type Config struct {
 	OutboxRelayBatchSize    int
 	OutboxRelayPollInterval time.Duration
 	OutboxRelayMaxAttempts  int
+	EventStream             string
+	EventConsumerGroup      string
+	EventConsumerName       string
+	EventConsumerCount      int
+	EventConsumerBlock      time.Duration
 }
 
 func Load() Config {
@@ -46,6 +51,11 @@ func Load() Config {
 		OutboxRelayBatchSize:    intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", 100),
 		OutboxRelayPollInterval: durationEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", time.Second),
 		OutboxRelayMaxAttempts:  intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS", 10),
+		EventStream:             envOrDefault("GOGOMAIL_EVENT_STREAM", "mail.event"),
+		EventConsumerGroup:      envOrDefault("GOGOMAIL_EVENT_CONSUMER_GROUP", "gogomail.event-worker"),
+		EventConsumerName:       envOrDefault("GOGOMAIL_EVENT_CONSUMER_NAME", "event-worker-1"),
+		EventConsumerCount:      intEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_COUNT", 100),
+		EventConsumerBlock:      durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_BLOCK", time.Second),
 	}
 }
 

@@ -9,10 +9,12 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
+	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
@@ -36,6 +38,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runEdgeMTA(ctx, cfg, logger)
 	case ModeOutboxRelay:
 		return runOutboxRelay(ctx, cfg, logger)
+	case ModeEventWorker:
+		return runEventWorker(ctx, cfg, logger)
 	case ModeInboundMTA, ModeOutboundMTA, ModeDeliveryWorker, ModeBatchWorker:
 		return waitForShutdown(ctx, logger, mode)
 	default:
@@ -157,6 +161,50 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"max_attempts", cfg.OutboxRelayMaxAttempts,
 	)
 	return relay.Run(ctx)
+}
+
+func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	router := eventstream.NewRouter()
+	if err := router.Register("mail.stored", audit.NewMailStoredHandler(audit.NewPostgresRepository(db))); err != nil {
+		return err
+	}
+
+	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
+		Client:   redisClient,
+		Stream:   cfg.EventStream,
+		Group:    cfg.EventConsumerGroup,
+		Consumer: cfg.EventConsumerName,
+		Count:    int64(cfg.EventConsumerCount),
+		Block:    cfg.EventConsumerBlock,
+		Handler:  router,
+		Logger:   logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"event worker started",
+		"stream", cfg.EventStream,
+		"group", cfg.EventConsumerGroup,
+		"consumer", cfg.EventConsumerName,
+		"count", cfg.EventConsumerCount,
+		"block", cfg.EventConsumerBlock.String(),
+	)
+	return consumer.Run(ctx)
 }
 
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {
