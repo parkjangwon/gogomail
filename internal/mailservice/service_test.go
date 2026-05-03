@@ -69,6 +69,10 @@ func (f *fakeRepository) SetMessageFlag(context.Context, string, string, string,
 	return nil
 }
 
+func (f *fakeRepository) MoveMessage(context.Context, string, string, string) error {
+	return nil
+}
+
 func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.Sender, error) {
 	return maildb.Sender{
 		CompanyID:   "company-1",

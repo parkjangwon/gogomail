@@ -286,6 +286,42 @@ WHERE user_id = $1
 	return nil
 }
 
+func (r *Repository) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if strings.TrimSpace(folderID) == "" {
+		return fmt.Errorf("folder_id is required")
+	}
+
+	const query = `
+UPDATE messages
+SET folder_id = $3,
+    updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'active'
+  AND EXISTS (
+    SELECT 1
+    FROM folders
+    WHERE folders.id = $3
+      AND folders.user_id = $1
+  )`
+
+	result, err := r.db.ExecContext(ctx, query, userID, messageID, folderID)
+	if err != nil {
+		return fmt.Errorf("move message: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("inspect message move: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("message %q or folder %q not found", messageID, folderID)
+	}
+	return nil
+}
+
 func allowedMessageFlag(flag string) bool {
 	switch flag {
 	case "read", "starred", "answered", "forwarded":

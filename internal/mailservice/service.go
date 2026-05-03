@@ -21,6 +21,7 @@ type Repository interface {
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
+	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
 	SuppressedRecipients(ctx context.Context, domainID string, recipients []string) ([]string, error)
 	RecordOutgoing(ctx context.Context, msg maildb.OutgoingMessage) (string, error)
@@ -72,6 +73,10 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 
 func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error {
 	return s.repository.SetMessageFlag(ctx, userID, messageID, flag, value)
+}
+
+func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
+	return s.repository.MoveMessage(ctx, userID, messageID, folderID)
 }
 
 type SendTextRequest struct {

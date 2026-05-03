@@ -177,6 +177,25 @@ func TestSetMessageFlagHandler(t *testing.T) {
 	}
 }
 
+func TestMoveMessageHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/messages/msg-1/folder?user_id=user-1", strings.NewReader(`{"folder_id":"folder-2"}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastMessageID != "msg-1" || service.lastMoveFolderID != "folder-2" {
+		t.Fatalf("move = id:%q folder:%q", service.lastMessageID, service.lastMoveFolderID)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -260,17 +279,18 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
-	folders       []maildb.Folder
-	list          []maildb.MessageSummary
-	detail        maildb.MessageDetail
-	sendResult    mailservice.SendTextResult
-	lastSend      mailservice.SendTextRequest
-	lastUserID    string
-	lastMessageID string
-	lastFolderID  string
-	lastFlag      string
-	lastFlagValue bool
-	lastLimit     int
+	folders          []maildb.Folder
+	list             []maildb.MessageSummary
+	detail           maildb.MessageDetail
+	sendResult       mailservice.SendTextResult
+	lastSend         mailservice.SendTextRequest
+	lastUserID       string
+	lastMessageID    string
+	lastFolderID     string
+	lastMoveFolderID string
+	lastFlag         string
+	lastFlagValue    bool
+	lastLimit        int
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -302,6 +322,13 @@ func (f *fakeMessageService) SetMessageFlag(_ context.Context, userID string, me
 	f.lastMessageID = messageID
 	f.lastFlag = flag
 	f.lastFlagValue = value
+	return nil
+}
+
+func (f *fakeMessageService) MoveMessage(_ context.Context, userID string, messageID string, folderID string) error {
+	f.lastUserID = userID
+	f.lastMessageID = messageID
+	f.lastMoveFolderID = folderID
 	return nil
 }
 
