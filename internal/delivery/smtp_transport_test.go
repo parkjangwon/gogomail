@@ -322,6 +322,36 @@ func TestAcceptRecipientsReturnsErrorsWhenAllRecipientsFail(t *testing.T) {
 	}
 }
 
+func TestDataAcceptedResultKeepsPartialRecipientFailures(t *testing.T) {
+	t.Parallel()
+
+	err := dataAcceptedResult(
+		[]outbound.Address{{Email: "ok@example.net"}},
+		[]RecipientDeliveryError{{
+			Recipient: outbound.Address{Email: "bad@example.net"},
+			Err:       &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"},
+		}},
+	)
+	var partial *PartialDeliveryError
+	if !errors.As(err, &partial) {
+		t.Fatalf("dataAcceptedResult error = %v, want PartialDeliveryError", err)
+	}
+	if len(partial.Delivered) != 1 || partial.Delivered[0].Email != "ok@example.net" {
+		t.Fatalf("delivered = %+v, want accepted DATA recipients", partial.Delivered)
+	}
+	if len(partial.Failed) != 1 || partial.Failed[0].Recipient.Email != "bad@example.net" {
+		t.Fatalf("failed = %+v, want rejected RCPT recipient", partial.Failed)
+	}
+}
+
+func TestDataAcceptedResultSucceedsWhenAllAccepted(t *testing.T) {
+	t.Parallel()
+
+	if err := dataAcceptedResult([]outbound.Address{{Email: "ok@example.net"}}, nil); err != nil {
+		t.Fatalf("dataAcceptedResult returned error after accepted DATA: %v", err)
+	}
+}
+
 func TestDeliveryDeadlineUsesTimeout(t *testing.T) {
 	t.Parallel()
 

@@ -195,13 +195,8 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 	if closeDataErr != nil {
 		return WrapSMTPError("data", closeDataErr)
 	}
-	if err := client.Quit(); err != nil {
-		return WrapSMTPError("quit", err)
-	}
-	if len(recipientFailures) > 0 {
-		return &PartialDeliveryError{Delivered: acceptedRecipients, Failed: recipientFailures}
-	}
-	return nil
+	_ = client.Quit()
+	return dataAcceptedResult(acceptedRecipients, recipientFailures)
 }
 
 func acceptRecipients(recipients []outbound.Address, rcpt func(outbound.Address) error) ([]outbound.Address, []RecipientDeliveryError) {
@@ -223,6 +218,13 @@ func recipientFailureErrors(failures []RecipientDeliveryError) []error {
 		errs = append(errs, failure)
 	}
 	return errs
+}
+
+func dataAcceptedResult(accepted []outbound.Address, failures []RecipientDeliveryError) error {
+	if len(failures) > 0 {
+		return &PartialDeliveryError{Delivered: accepted, Failed: failures}
+	}
+	return nil
 }
 
 func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client, host string, modeOverride DeliveryTLSMode) error {
