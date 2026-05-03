@@ -1,6 +1,7 @@
 package smtpd
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -264,6 +265,16 @@ func (s *session) Data(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("parse smtp message: %w", err)
 	}
+	if parsed.MessageID == "" {
+		parsed.MessageID = message.FallbackMessageID(s.from, mailboxAddresses(s.recipients), parsed.Date, parsed.Subject)
+		prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, "Message-ID: "+parsed.MessageID+"\r\n")
+		cleanupSpool(spooled)
+		if err != nil {
+			return err
+		}
+		spooled = prefixed
+		size = prefixedSize
+	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageParsed,
 		EnvelopeFrom: s.from,
@@ -271,9 +282,6 @@ func (s *session) Data(r io.Reader) error {
 		Size:         size,
 	}); err != nil {
 		return err
-	}
-	if parsed.MessageID == "" {
-		parsed.MessageID = message.FallbackMessageID(s.from, mailboxAddresses(s.recipients), parsed.Date, parsed.Subject)
 	}
 
 	for _, recipient := range s.recipients {
@@ -369,6 +377,61 @@ func prependHeaderToSpool(spooled *os.File, header string) (*os.File, int64, err
 		return nil, 0, fmt.Errorf("copy spooled message after received header: %w", err)
 	}
 	return prefixed, int64(written) + copied, nil
+}
+
+func insertHeaderAfterTraceHeaders(spooled *os.File, header string) (*os.File, int64, error) {
+	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+		return nil, 0, fmt.Errorf("rewind spooled message for header insert: %w", err)
+	}
+	updated, err := os.CreateTemp("", "gogomail-spool-*.eml")
+	if err != nil {
+		return nil, 0, fmt.Errorf("create updated spool: %w", err)
+	}
+
+	var written int64
+	writeString := func(value string) error {
+		n, err := io.WriteString(updated, value)
+		written += int64(n)
+		return err
+	}
+
+	reader := bufio.NewReader(spooled)
+	inserted := false
+	inTrace := false
+	for {
+		line, err := reader.ReadString('\n')
+		if line != "" {
+			isContinuation := len(line) > 0 && (line[0] == ' ' || line[0] == '\t')
+			isReceived := strings.HasPrefix(strings.ToLower(line), "received:")
+			if !inserted && !isReceived && !(inTrace && isContinuation) {
+				if err := writeString(header); err != nil {
+					cleanupSpool(updated)
+					return nil, 0, fmt.Errorf("write inserted header: %w", err)
+				}
+				inserted = true
+			}
+			if err := writeString(line); err != nil {
+				cleanupSpool(updated)
+				return nil, 0, fmt.Errorf("copy spooled header line: %w", err)
+			}
+			inTrace = isReceived || (inTrace && isContinuation)
+		}
+		if err == nil {
+			continue
+		}
+		if err == io.EOF {
+			break
+		}
+		cleanupSpool(updated)
+		return nil, 0, fmt.Errorf("read spooled message for header insert: %w", err)
+	}
+	if !inserted {
+		if err := writeString(header); err != nil {
+			cleanupSpool(updated)
+			return nil, 0, fmt.Errorf("write inserted header: %w", err)
+		}
+	}
+	return updated, written, nil
 }
 
 func cleanupSpool(spooled *os.File) {

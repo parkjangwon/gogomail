@@ -43,7 +43,7 @@ func TestSessionStoresRawMessageForAcceptedRecipient(t *testing.T) {
 		t.Fatalf("Rcpt returned error: %v", err)
 	}
 
-	raw := "From: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: hello\r\n\r\nbody"
+	raw := "Message-ID: <raw@example.net>\r\nFrom: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: hello\r\n\r\nbody"
 	if err := session.Data(strings.NewReader(raw)); err != nil {
 		t.Fatalf("Data returned error: %v", err)
 	}
@@ -190,9 +190,10 @@ func TestSessionPrependsReceivedHeaderWhenConfigured(t *testing.T) {
 func TestSessionGeneratesFallbackMessageIDWhenMissing(t *testing.T) {
 	t.Parallel()
 
+	store := storage.NewLocalStore(t.TempDir())
 	recorder := &recordingRecorder{}
 	receiver := NewReceiver(ReceiverOptions{
-		Store: storage.NewLocalStore(t.TempDir()),
+		Store: store,
 		Resolver: StaticResolver{
 			"jangwon@example.com": {
 				CompanyID: "company-1",
@@ -232,6 +233,19 @@ func TestSessionGeneratesFallbackMessageIDWhenMissing(t *testing.T) {
 	}
 	if !strings.HasPrefix(recorder.messages[0].Parsed.MessageID, "<missing-") {
 		t.Fatalf("fallback MessageID = %q", recorder.messages[0].Parsed.MessageID)
+	}
+
+	body, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/fallback-storage-id.eml")
+	if err != nil {
+		t.Fatalf("stored message not found: %v", err)
+	}
+	defer body.Close()
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if !strings.HasPrefix(string(got), "Message-ID: <missing-") {
+		t.Fatalf("stored message missing fallback Message-ID header: %q", got)
 	}
 }
 
