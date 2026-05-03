@@ -102,6 +102,9 @@ func ValidateCreateDomainRequest(req CreateDomainRequest) error {
 	if strings.TrimSpace(req.Name) == "" {
 		return fmt.Errorf("name is required")
 	}
+	if strings.ContainsAny(strings.TrimSpace(req.Name), " \t\r\n/\\") {
+		return fmt.Errorf("name must be a domain name")
+	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
 	}

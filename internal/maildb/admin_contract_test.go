@@ -18,6 +18,18 @@ func TestValidateUpdateDomainStatusRequestAcceptsSuspended(t *testing.T) {
 	}
 }
 
+func TestValidateCreateDomainRequestRejectsInvalidName(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateDomainRequest(CreateDomainRequest{
+		CompanyID: "company-1",
+		Name:      "bad domain/example.com",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateDomainRequest accepted invalid domain name")
+	}
+}
+
 func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	t.Parallel()
 
