@@ -14,9 +14,10 @@ import (
 )
 
 type DirectSMTPTransport struct {
-	Resolver *net.Resolver
-	Timeout  time.Duration
-	Hello    string
+	Resolver     *net.Resolver
+	Timeout      time.Duration
+	Hello        string
+	Transformers TransformChain
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
@@ -80,7 +81,7 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 	if err != nil {
 		return WrapSMTPError("data", err)
 	}
-	message, err := job.OpenMessage(ctx)
+	message, err := t.openMessage(ctx, job)
 	if err != nil {
 		_ = writer.Close()
 		return fmt.Errorf("open queued message: %w", err)
@@ -101,6 +102,17 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 		return WrapSMTPError("quit", err)
 	}
 	return nil
+}
+
+func (t *DirectSMTPTransport) openMessage(ctx context.Context, job Job) (io.ReadCloser, error) {
+	message, err := job.OpenMessage(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(t.Transformers) == 0 {
+		return message, nil
+	}
+	return t.Transformers.Transform(ctx, job, message)
 }
 
 func (t *DirectSMTPTransport) mxHost(ctx context.Context, domain string) (string, error) {
