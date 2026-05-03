@@ -38,6 +38,9 @@ func ValidateSaveDraftRequest(req SaveDraftRequest) error {
 	if len(req.TextBody) > MaxComposeTextBodyBytes {
 		return fmt.Errorf("text_body is too long")
 	}
+	if len(req.To)+len(req.Cc)+len(req.Bcc) > MaxComposeRecipients {
+		return fmt.Errorf("too many recipients")
+	}
 	if err := validateComposeAddresses("to", req.To); err != nil {
 		return err
 	}

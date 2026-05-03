@@ -59,6 +59,22 @@ func TestValidateSaveDraftRequestRejectsOversizedTextBody(t *testing.T) {
 	}
 }
 
+func TestValidateSaveDraftRequestRejectsTooManyRecipients(t *testing.T) {
+	t.Parallel()
+
+	recipients := make([]outbound.Address, MaxComposeRecipients+1)
+	for i := range recipients {
+		recipients[i] = outbound.Address{Email: "user@example.net"}
+	}
+	err := ValidateSaveDraftRequest(SaveDraftRequest{
+		UserID: "user-1",
+		Bcc:    recipients,
+	})
+	if err == nil {
+		t.Fatal("ValidateSaveDraftRequest accepted too many recipients")
+	}
+}
+
 func TestValidateDeleteDraftRequestRequiresDraftID(t *testing.T) {
 	t.Parallel()
 
