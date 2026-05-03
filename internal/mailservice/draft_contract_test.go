@@ -47,6 +47,18 @@ func TestValidateSaveDraftRequestRejectsBlankRecipientEmail(t *testing.T) {
 	}
 }
 
+func TestValidateSaveDraftRequestRejectsInvalidRecipientEmail(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSaveDraftRequest(SaveDraftRequest{
+		UserID: "user-1",
+		Cc:     []outbound.Address{{Email: "bad address"}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSaveDraftRequest accepted invalid recipient email")
+	}
+}
+
 func TestValidateSaveDraftRequestRejectsOversizedTextBody(t *testing.T) {
 	t.Parallel()
 
