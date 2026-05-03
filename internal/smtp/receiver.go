@@ -673,6 +673,9 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 	if s.receiver.authenticator == nil || !strings.EqualFold(mech, sasl.Plain) {
 		return nil, gosmtp.ErrAuthUnsupported
 	}
+	if s.authenticated {
+		return nil, smtpAlreadyAuthenticated()
+	}
 	return sasl.NewPlainServer(func(identity, username, password string) error {
 		var authErr error
 		defer func() {

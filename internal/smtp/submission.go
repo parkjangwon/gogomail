@@ -131,6 +131,9 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 	if !strings.EqualFold(mech, sasl.Plain) {
 		return nil, gosmtp.ErrAuthUnsupported
 	}
+	if s.user.UserID != "" {
+		return nil, smtpAlreadyAuthenticated()
+	}
 	return sasl.NewPlainServer(func(identity, username, password string) error {
 		var authErr error
 		defer func() {

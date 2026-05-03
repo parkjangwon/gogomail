@@ -874,6 +874,38 @@ func TestSessionObservesAndEmitsAuth(t *testing.T) {
 	}
 }
 
+func TestSessionRejectsRepeatedAuth(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "user@example.com"},
+		},
+		Authenticator: plainAuthenticator{username: "user", password: "pass"},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	authSession := session.(interface {
+		Auth(string) (sasl.Server, error)
+	})
+	server, err := authSession.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, done, err := server.Next([]byte("\x00user\x00pass")); err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	} else if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	if _, err := authSession.Auth(sasl.Plain); err == nil {
+		t.Fatal("second AUTH was accepted")
+	}
+}
+
 func TestSessionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
 	t.Parallel()
 

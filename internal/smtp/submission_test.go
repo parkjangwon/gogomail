@@ -30,6 +30,15 @@ func TestSubmissionRequiresAuthBeforeMail(t *testing.T) {
 	}
 }
 
+func TestSubmissionRejectsRepeatedAuth(t *testing.T) {
+	t.Parallel()
+
+	session := newAuthenticatedSubmissionSession(t, &submissionRecorder{}, storage.NewLocalStore(t.TempDir()))
+	if _, err := session.Auth(sasl.Plain); err == nil {
+		t.Fatal("second AUTH was accepted")
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 

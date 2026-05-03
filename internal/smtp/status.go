@@ -18,6 +18,10 @@ func smtpBadSequence(command string) *gosmtp.SMTPError {
 	return smtpPermanent(503, gosmtp.EnhancedCode{5, 5, 1}, "%s command is out of sequence", command)
 }
 
+func smtpAlreadyAuthenticated() *gosmtp.SMTPError {
+	return smtpPermanent(503, gosmtp.EnhancedCode{5, 7, 0}, "session is already authenticated")
+}
+
 func smtpMailboxUnavailable(format string, args ...any) *gosmtp.SMTPError {
 	return smtpPermanent(550, gosmtp.EnhancedCode{5, 1, 1}, format, args...)
 }
