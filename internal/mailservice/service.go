@@ -241,14 +241,26 @@ func randomObjectID() string {
 
 func recipientEmails(req SendTextRequest) []string {
 	recipients := make([]string, 0, len(req.To)+len(req.Cc)+len(req.Bcc))
+	seen := make(map[string]struct{}, len(req.To)+len(req.Cc)+len(req.Bcc))
+	appendRecipient := func(email string) {
+		email = strings.ToLower(strings.TrimSpace(email))
+		if email == "" {
+			return
+		}
+		if _, ok := seen[email]; ok {
+			return
+		}
+		seen[email] = struct{}{}
+		recipients = append(recipients, email)
+	}
 	for _, addr := range req.To {
-		recipients = append(recipients, addr.Email)
+		appendRecipient(addr.Email)
 	}
 	for _, addr := range req.Cc {
-		recipients = append(recipients, addr.Email)
+		appendRecipient(addr.Email)
 	}
 	for _, addr := range req.Bcc {
-		recipients = append(recipients, addr.Email)
+		appendRecipient(addr.Email)
 	}
 	return recipients
 }

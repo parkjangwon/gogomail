@@ -54,6 +54,7 @@ type fakeRepository struct {
 	detail      maildb.MessageDetail
 	attachments []maildb.Attachment
 	suppressed  []string
+	seenSuppressionRecipients []string
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -118,7 +119,8 @@ func (f *fakeRepository) RecordOutgoing(context.Context, maildb.OutgoingMessage)
 	return "msg-1", nil
 }
 
-func (f *fakeRepository) SuppressedRecipients(context.Context, string, []string) ([]string, error) {
+func (f *fakeRepository) SuppressedRecipients(_ context.Context, _ string, recipients []string) ([]string, error) {
+	f.seenSuppressionRecipients = append([]string(nil), recipients...)
 	return f.suppressed, nil
 }
 
@@ -158,5 +160,28 @@ func TestSendTextRejectsSuppressedRecipients(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("SendText accepted suppressed recipient")
+	}
+}
+
+func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID: "user-1",
+		To:     []outbound.Address{{Email: "User@Example.net"}},
+		Cc:     []outbound.Address{{Email: "user@example.net"}},
+		Bcc:    []outbound.Address{{Email: "other@example.net"}},
+		Subject: "hello",
+		TextBody: "body",
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+	want := []string{"user@example.net", "other@example.net"}
+	if strings.Join(repo.seenSuppressionRecipients, ",") != strings.Join(want, ",") {
+		t.Fatalf("suppression recipients = %v, want %v", repo.seenSuppressionRecipients, want)
 	}
 }
