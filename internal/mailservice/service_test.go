@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -53,4 +54,41 @@ func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.Me
 
 func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.MessageDetail, error) {
 	return f.detail, nil
+}
+
+func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.Sender, error) {
+	return maildb.Sender{
+		CompanyID:   "company-1",
+		DomainID:    "domain-1",
+		UserID:      "user-1",
+		Address:     "sender@example.com",
+		DisplayName: "Sender",
+	}, nil
+}
+
+func (f *fakeRepository) RecordOutgoing(context.Context, maildb.OutgoingMessage) (string, error) {
+	return "msg-1", nil
+}
+
+func TestSendTextStoresOutgoingMessage(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(&fakeRepository{}, store)
+
+	result, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "user@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+	if result.ID != "msg-1" {
+		t.Fatalf("ID = %q, want msg-1", result.ID)
+	}
+	if result.Farm != outbound.FarmGeneral {
+		t.Fatalf("Farm = %q, want general", result.Farm)
+	}
 }

@@ -7,11 +7,13 @@ import (
 	"strconv"
 
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailservice"
 )
 
 type MessageService interface {
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
+	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService) {
@@ -47,6 +49,24 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService) {
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
+	})
+
+	mux.HandleFunc("POST /api/v1/messages/send", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req mailservice.SendTextRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+
+		result, err := service.SendText(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
 	})
 }
 

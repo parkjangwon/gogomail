@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 func TestListMessagesHandler(t *testing.T) {
@@ -98,9 +101,45 @@ func TestGetMessageHandler(t *testing.T) {
 	}
 }
 
+func TestSendMessageHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		sendResult: mailservice.SendTextResult{
+			ID:           "msg-1",
+			RFCMessageID: "<msg-1@example.com>",
+			Farm:         outbound.FarmGeneral,
+		},
+	}
+
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
+		"user_id":"user-1",
+		"to":[{"email":"recipient@example.net"}],
+		"subject":"hello",
+		"text_body":"body"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastSend.UserID != "user-1" {
+		t.Fatalf("lastSend.UserID = %q", service.lastSend.UserID)
+	}
+	if len(service.lastSend.To) != 1 || service.lastSend.To[0].Email != "recipient@example.net" {
+		t.Fatalf("lastSend.To = %+v", service.lastSend.To)
+	}
+}
+
 type fakeMessageService struct {
 	list          []maildb.MessageSummary
 	detail        maildb.MessageDetail
+	sendResult    mailservice.SendTextResult
+	lastSend      mailservice.SendTextRequest
 	lastUserID    string
 	lastMessageID string
 	lastLimit     int
@@ -116,4 +155,9 @@ func (f *fakeMessageService) GetMessage(_ context.Context, userID string, messag
 	f.lastUserID = userID
 	f.lastMessageID = messageID
 	return f.detail, nil
+}
+
+func (f *fakeMessageService) SendText(_ context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error) {
+	f.lastSend = req
+	return f.sendResult, nil
 }
