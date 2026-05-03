@@ -25,6 +25,7 @@ type Config struct {
 	SMTPMaxRecipients           int
 	SMTPMaxMessageBytes         int64
 	SMTPSupportSMTPUTF8         bool
+	SMTPSupportRequireTLS       bool
 	MailstoreRoot               string
 	LocalRecipients             []string
 	DedupBackend                string
@@ -74,6 +75,7 @@ func Load() Config {
 		SMTPMaxRecipients:           intEnvOrDefault("GOGOMAIL_SMTP_MAX_RECIPIENTS", 100),
 		SMTPMaxMessageBytes:         int64EnvOrDefault("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SMTPSupportSMTPUTF8:         boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_SMTPUTF8", false),
+		SMTPSupportRequireTLS:       boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_REQUIRETLS", false),
 		MailstoreRoot:               envOrDefault("GOGOMAIL_MAILSTORE_ROOT", "var/mailstore"),
 		LocalRecipients:             splitCSV(os.Getenv("GOGOMAIL_LOCAL_RECIPIENTS")),
 		DedupBackend:                envOrDefault("GOGOMAIL_DEDUP_BACKEND", "none"),
