@@ -199,6 +199,9 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) error {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
+	if s.from == "" {
+		return fmt.Errorf("mail command is required before rcpt")
+	}
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
@@ -236,6 +239,7 @@ func (s *session) Data(r io.Reader) error {
 	if len(s.recipients) == 0 {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
+	defer s.Reset()
 
 	accepted, err := s.receiver.backpressure.Accept(context.Background())
 	if err != nil {
@@ -475,6 +479,7 @@ func (s *session) Reset() {
 
 func (s *session) Logout() error {
 	s.Reset()
+	s.authenticated = false
 	return nil
 }
 

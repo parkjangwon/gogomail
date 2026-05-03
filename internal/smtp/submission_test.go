@@ -50,6 +50,36 @@ func TestSubmissionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
 	}
 }
 
+func TestSubmissionRequiresMailBeforeRcpt(t *testing.T) {
+	t.Parallel()
+
+	session := newAuthenticatedSubmissionSession(t, &submissionRecorder{}, storage.NewLocalStore(t.TempDir()))
+
+	if err := session.Rcpt("outside@example.net", nil); err == nil {
+		t.Fatal("Rcpt accepted before Mail")
+	}
+}
+
+func TestSubmissionResetsEnvelopeAfterSuccessfulData(t *testing.T) {
+	t.Parallel()
+
+	session := newAuthenticatedSubmissionSession(t, &submissionRecorder{}, storage.NewLocalStore(t.TempDir()))
+
+	if err := session.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-reset@example.com>\r\nFrom: Jang Won <jangwon@example.com>\r\nTo: Outside <outside@example.net>\r\nSubject: reset\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	if err := session.Data(strings.NewReader(raw)); err == nil {
+		t.Fatal("Data accepted after successful transaction without new Mail/Rcpt")
+	}
+}
+
 func TestSubmissionStoresAndRecordsSubmittedMessage(t *testing.T) {
 	t.Parallel()
 

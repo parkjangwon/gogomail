@@ -178,6 +178,9 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) error {
 	if s.user.UserID == "" {
 		return gosmtp.ErrAuthRequired
 	}
+	if s.from == "" {
+		return fmt.Errorf("mail command is required before rcpt")
+	}
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
@@ -207,6 +210,7 @@ func (s *submissionSession) Data(r io.Reader) error {
 	if len(s.recipients) == 0 {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
+	defer s.Reset()
 
 	spooled, size, err := spoolMessage(r, s.receiver.maxMessageBytes)
 	if err != nil {
