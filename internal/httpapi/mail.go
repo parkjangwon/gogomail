@@ -28,6 +28,7 @@ type MessageService interface {
 	SaveDraft(ctx context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error)
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
 	CreateAttachmentUpload(ctx context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error)
+	UploadAttachment(ctx context.Context, req mailservice.UploadAttachmentRequest) (maildb.Attachment, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
@@ -311,6 +312,41 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			req.UserID = claims.UserID
 		}
 		attachment, err := service.CreateAttachmentUpload(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
+	})
+
+	mux.HandleFunc("POST /api/v1/attachments/upload", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if err := r.ParseMultipartForm(mailservice.MaxAttachmentUploadBytes); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid multipart attachment upload")
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "file is required")
+			return
+		}
+		defer file.Close()
+
+		mimeType := strings.TrimSpace(header.Header.Get("Content-Type"))
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		attachment, err := service.UploadAttachment(r.Context(), mailservice.UploadAttachmentRequest{
+			UserID:   userID,
+			DraftID:  r.FormValue("draft_id"),
+			Filename: header.Filename,
+			Size:     header.Size,
+			MIMEType: mimeType,
+			Body:     file,
+		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

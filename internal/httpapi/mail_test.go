@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -442,6 +444,42 @@ func TestCreateAttachmentUploadHandler(t *testing.T) {
 	}
 }
 
+func TestUploadAttachmentHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("draft_id", "draft-1"); err != nil {
+		t.Fatalf("WriteField returned error: %v", err)
+	}
+	part, err := writer.CreateFormFile("file", "report.pdf")
+	if err != nil {
+		t.Fatalf("CreateFormFile returned error: %v", err)
+	}
+	if _, err := part.Write([]byte("content")); err != nil {
+		t.Fatalf("part.Write returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close returned error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments/upload?user_id=user-1", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastAttachmentBody != "content" || service.lastAttachmentUpload.DraftID != "draft-1" {
+		t.Fatalf("upload = body:%q req:%+v", service.lastAttachmentBody, service.lastAttachmentUpload)
+	}
+}
+
 func TestDownloadAttachmentHandler(t *testing.T) {
 	t.Parallel()
 
@@ -586,6 +624,7 @@ type fakeMessageService struct {
 	lastSend             mailservice.SendTextRequest
 	lastDraft            mailservice.SaveDraftRequest
 	lastAttachmentUpload mailservice.CreateAttachmentUploadRequest
+	lastAttachmentBody   string
 	lastUserID           string
 	lastFolderName       string
 	lastDeletedFolderID  string
@@ -686,6 +725,19 @@ func (f *fakeMessageService) DeleteDraft(_ context.Context, userID string, draft
 
 func (f *fakeMessageService) CreateAttachmentUpload(_ context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
 	f.lastAttachmentUpload = req
+	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
+}
+
+func (f *fakeMessageService) UploadAttachment(_ context.Context, req mailservice.UploadAttachmentRequest) (maildb.Attachment, error) {
+	f.lastAttachmentUpload = mailservice.CreateAttachmentUploadRequest{
+		UserID:   req.UserID,
+		DraftID:  req.DraftID,
+		Filename: req.Filename,
+		Size:     req.Size,
+		MIMEType: req.MIMEType,
+	}
+	raw, _ := io.ReadAll(req.Body)
+	f.lastAttachmentBody = string(raw)
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
 }
 
