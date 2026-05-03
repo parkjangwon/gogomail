@@ -77,4 +77,28 @@ func TestValidateOptionsRejectsInvalidDSNValues(t *testing.T) {
 	if err := validateRcptOptions(&gosmtp.RcptOptions{Notify: []gosmtp.DSNNotify{gosmtp.DSNNotifyNever, gosmtp.DSNNotifyFailure}}, support); err == nil {
 		t.Fatal("validateRcptOptions accepted NOTIFY=NEVER combined with another value")
 	}
+	if err := validateMailOptions(&gosmtp.MailOptions{EnvelopeID: "bad id"}, support); err == nil {
+		t.Fatal("validateMailOptions accepted ENVID with whitespace")
+	}
+	if err := validateMailOptions(&gosmtp.MailOptions{EnvelopeID: "bad\r\nid"}, support); err == nil {
+		t.Fatal("validateMailOptions accepted ENVID with control characters")
+	}
+	if err := validateRcptOptions(&gosmtp.RcptOptions{OriginalRecipient: "user@example.com"}, support); err == nil {
+		t.Fatal("validateRcptOptions accepted ORCPT without address type")
+	}
+	if err := validateRcptOptions(&gosmtp.RcptOptions{OriginalRecipient: "rfc822;bad address@example.com"}, support); err == nil {
+		t.Fatal("validateRcptOptions accepted ORCPT with whitespace")
+	}
+}
+
+func TestValidateOptionsAcceptsRFCShapedDSNIdentityValues(t *testing.T) {
+	t.Parallel()
+
+	support := extensionSupport{DSN: true}
+	if err := validateMailOptions(&gosmtp.MailOptions{EnvelopeID: "queue+2Btoken"}, support); err != nil {
+		t.Fatalf("validateMailOptions rejected xtext ENVID: %v", err)
+	}
+	if err := validateRcptOptions(&gosmtp.RcptOptions{OriginalRecipient: "utf-8;user+40example.com"}, support); err != nil {
+		t.Fatalf("validateRcptOptions rejected typed ORCPT: %v", err)
+	}
 }

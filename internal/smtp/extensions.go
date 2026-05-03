@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	gosmtp "github.com/emersion/go-smtp"
@@ -33,6 +34,9 @@ func validateMailOptions(opts *gosmtp.MailOptions, support extensionSupport) err
 	if opts.EnvelopeID != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ENVID is not supported")
 	}
+	if opts.EnvelopeID != "" && !validDSNEnvelopeID(opts.EnvelopeID) {
+		return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "invalid DSN ENVID option")
+	}
 	if opts.Body == gosmtp.BodyBinaryMIME && !support.BinaryMIME {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "BINARYMIME is not supported")
 	}
@@ -56,6 +60,9 @@ func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) err
 	}
 	if opts.OriginalRecipient != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ORCPT is not supported")
+	}
+	if opts.OriginalRecipient != "" && !validDSNOriginalRecipient(opts.OriginalRecipient) {
+		return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "invalid DSN ORCPT option")
 	}
 	return nil
 }
@@ -119,4 +126,42 @@ func dsnNotifyNeverCombined(values []gosmtp.DSNNotify) bool {
 		}
 	}
 	return false
+}
+
+func validDSNEnvelopeID(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 100 {
+		return false
+	}
+	return validDSNXText(value)
+}
+
+func validDSNOriginalRecipient(value string) bool {
+	value = strings.TrimSpace(value)
+	addrType, encodedAddress, ok := strings.Cut(value, ";")
+	if !ok || addrType == "" || encodedAddress == "" {
+		return false
+	}
+	if !validDSNAddressType(addrType) {
+		return false
+	}
+	return validDSNXText(encodedAddress)
+}
+
+func validDSNAddressType(value string) bool {
+	for _, r := range value {
+		if r > 127 || !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func validDSNXText(value string) bool {
+	for _, r := range value {
+		if r < 33 || r > 126 || r == '\r' || r == '\n' {
+			return false
+		}
+	}
+	return true
 }
