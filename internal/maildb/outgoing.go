@@ -92,6 +92,9 @@ func (r *Repository) RecordOutgoing(ctx context.Context, msg OutgoingMessage) (s
 	if err != nil {
 		return "", err
 	}
+	if err := ensureOutgoingSource(ctx, tx, msg.UserID, msg.SourceMessageID); err != nil {
+		return "", err
+	}
 
 	toJSON, err := outboundAddressesJSON(msg.To)
 	if err != nil {
@@ -238,6 +241,29 @@ func normalizeOutgoingIntent(intent string) string {
 	default:
 		return "new"
 	}
+}
+
+func ensureOutgoingSource(ctx context.Context, tx *sql.Tx, userID string, sourceMessageID string) error {
+	sourceMessageID = strings.TrimSpace(sourceMessageID)
+	if sourceMessageID == "" {
+		return nil
+	}
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM messages
+  WHERE user_id = $1
+    AND id = $2
+    AND status = 'active'
+)`, strings.TrimSpace(userID), sourceMessageID).Scan(&exists); err != nil {
+		return fmt.Errorf("verify outgoing source message: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("source message %q not found", sourceMessageID)
+	}
+	return nil
 }
 
 func outboundAddressesJSON(addrs []outbound.Address) ([]byte, error) {
