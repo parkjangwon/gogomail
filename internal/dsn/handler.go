@@ -245,6 +245,12 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	if containsLineBreak(event.DSN.EnvelopeID) || containsLineBreak(event.DSN.OriginalRecipient) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn metadata")
 	}
+	if event.DSN.EnvelopeID != "" && !validBounceDSNEnvelopeID(event.DSN.EnvelopeID) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn envelope_id")
+	}
+	if event.DSN.OriginalRecipient != "" && !validBounceDSNOriginalRecipient(event.DSN.OriginalRecipient) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn original_recipient")
+	}
 	notify, err := normalizeBounceNotify(event.DSN.Notify)
 	if err != nil {
 		return bounceEvent{}, err
@@ -305,6 +311,48 @@ func normalizeBounceNotify(values []string) ([]string, error) {
 		return nil, fmt.Errorf("bounce event has invalid dsn notify: NEVER cannot be combined")
 	}
 	return normalized, nil
+}
+
+func validBounceDSNEnvelopeID(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 100 {
+		return false
+	}
+	return validBounceDSNXText(value)
+}
+
+func validBounceDSNOriginalRecipient(value string) bool {
+	addrType, encodedAddress, ok := strings.Cut(strings.TrimSpace(value), ";")
+	if !ok || addrType == "" || encodedAddress == "" {
+		return false
+	}
+	for _, r := range addrType {
+		if r > 127 || !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+			return false
+		}
+	}
+	return validBounceDSNXText(encodedAddress)
+}
+
+func validBounceDSNXText(value string) bool {
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if c < 33 || c > 126 || c == '=' {
+			return false
+		}
+		if c != '+' {
+			continue
+		}
+		if i+2 >= len(value) || !isBounceHexDigit(value[i+1]) || !isBounceHexDigit(value[i+2]) {
+			return false
+		}
+		i += 2
+	}
+	return true
+}
+
+func isBounceHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 }
 
 func bounceDSNDedupeKey(event bounceEvent) string {

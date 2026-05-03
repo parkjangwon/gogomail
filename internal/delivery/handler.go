@@ -331,6 +331,9 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 	if containsLineBreak(queued.DSN.EnvelopeID) {
 		return fmt.Errorf("mail.queued payload has invalid dsn.envelope_id")
 	}
+	if queued.DSN.EnvelopeID != "" && !validQueuedDSNEnvelopeID(queued.DSN.EnvelopeID) {
+		return fmt.Errorf("mail.queued payload has invalid dsn.envelope_id")
+	}
 	if len(queued.DSN.Recipients) == 0 {
 		return nil
 	}
@@ -444,6 +447,14 @@ func validQueuedDSNOriginalRecipient(value string) bool {
 		}
 	}
 	return validQueuedDSNXText(encodedAddress)
+}
+
+func validQueuedDSNEnvelopeID(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 100 {
+		return false
+	}
+	return validQueuedDSNXText(value)
 }
 
 func validQueuedDSNXText(value string) bool {

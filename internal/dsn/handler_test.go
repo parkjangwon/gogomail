@@ -205,6 +205,21 @@ func TestDecodeBounceEventRejectsNewlineDSNMetadata(t *testing.T) {
 	}
 }
 
+func TestDecodeBounceEventRejectsInvalidDSNXTextMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, payload := range []string{
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"envelope_id":"env 1"}}`,
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"envelope_id":"env+XX1"}}`,
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"original_recipient":"rfc822;alias example.net"}}`,
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"original_recipient":"rfc822;alias+XXexample.net"}}`,
+	} {
+		if _, err := decodeBounceEvent([]byte(payload)); err == nil {
+			t.Fatalf("decodeBounceEvent accepted invalid DSN metadata payload %s", payload)
+		}
+	}
+}
+
 func TestBounceHandlerDeletesStoredMessageWhenQueueFails(t *testing.T) {
 	t.Parallel()
 
