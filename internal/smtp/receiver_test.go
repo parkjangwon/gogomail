@@ -63,6 +63,48 @@ func TestSessionStoresRawMessageForAcceptedRecipient(t *testing.T) {
 	}
 }
 
+func TestSessionAcceptsNullReversePathForBounceMail(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"postmaster@example.com": {
+				CompanyID: "company-1",
+				DomainID:  "domain-1",
+				UserID:    "user-1",
+				Address:   "postmaster@example.com",
+			},
+		},
+		Recorder:    recorder,
+		IDGenerator: func() string { return "null-reverse-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("", nil); err != nil {
+		t.Fatalf("Mail null reverse-path returned error: %v", err)
+	}
+	if err := session.Rcpt("postmaster@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <bounce@example.net>\r\nFrom: MAILER-DAEMON@example.net\r\nTo: postmaster@example.com\r\nSubject: bounce\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].EnvelopeFrom != "" {
+		t.Fatalf("EnvelopeFrom = %q, want null reverse-path", recorder.messages[0].EnvelopeFrom)
+	}
+}
+
 func TestSessionRecordsParsedMessageMetadata(t *testing.T) {
 	t.Parallel()
 

@@ -190,6 +190,7 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 type session struct {
 	receiver      *Receiver
 	from          string
+	mailStarted   bool
 	recipients    []Mailbox
 	dsn           DSNOptions
 	smtpUTF8      bool
@@ -217,7 +218,7 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	}); err != nil {
 		return err
 	}
-	normalized, err := mail.NormalizeAddress(from)
+	normalized, err := normalizeReversePath(from)
 	if err != nil {
 		return err
 	}
@@ -225,6 +226,7 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 		return err
 	}
 	s.from = normalized
+	s.mailStarted = true
 	s.smtpUTF8 = mailOptionsUTF8(opts)
 	s.dsn.Return = normalizeDSNReturn(opts)
 	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
@@ -243,7 +245,7 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
-	if s.from == "" {
+	if !s.mailStarted {
 		return smtpBadSequence("RCPT")
 	}
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
@@ -294,7 +296,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
-	if s.from == "" {
+	if !s.mailStarted {
 		return smtpBadSequence("DATA")
 	}
 	if len(s.recipients) == 0 {
@@ -520,6 +522,13 @@ func mailboxAddresses(mailboxes []Mailbox) []string {
 	return addresses
 }
 
+func normalizeReversePath(from string) (string, error) {
+	if strings.TrimSpace(strings.Trim(from, "<>")) == "" {
+		return "", nil
+	}
+	return mail.NormalizeAddress(from)
+}
+
 func (s *session) currentDSNOptions() DSNOptions {
 	return cloneDSNOptions(s.dsn)
 }
@@ -641,6 +650,7 @@ func metricError(err error) string {
 
 func (s *session) Reset() {
 	s.from = ""
+	s.mailStarted = false
 	s.recipients = nil
 	s.dsn = DSNOptions{}
 	s.smtpUTF8 = false
