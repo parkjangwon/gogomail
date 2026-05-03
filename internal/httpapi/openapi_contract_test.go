@@ -99,6 +99,46 @@ func TestOpenAPIDraftDocumentsSupportedMessageFlags(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftHasNoDanglingComponentRefs(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for _, match := range regexp.MustCompile(`\$ref: "#/components/([^/]+)/([^"]+)"`).FindAllStringSubmatch(draft, -1) {
+		section, name := match[1], match[2]
+		if !openAPIComponentExists(draft, section, name) {
+			t.Fatalf("OpenAPI draft has dangling component ref %q", match[0])
+		}
+	}
+}
+
+func openAPIComponentExists(draft string, section string, name string) bool {
+	inComponents := false
+	currentSection := ""
+	for _, line := range strings.Split(draft, "\n") {
+		if line == "components:" {
+			inComponents = true
+			continue
+		}
+		if !inComponents {
+			continue
+		}
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+			currentSection = strings.TrimSuffix(strings.TrimSpace(line), ":")
+			continue
+		}
+		if currentSection == section && strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "      ") {
+			if strings.TrimSuffix(strings.TrimSpace(line), ":") == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func extractRegisteredRoutes(t *testing.T, filenames ...string) []string {
 	t.Helper()
 
