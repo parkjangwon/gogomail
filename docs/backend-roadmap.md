@@ -26,6 +26,13 @@ SMTP receive exposes explicit pipeline hook stages:
 
 Future modules such as spam relay, image conversion, FCM/push enqueue, audit logging, attachment scanning, and indexing should attach to these explicit stages instead of being hard-coded into the SMTP engine.
 
+SMTP receive policy is explicit and should grow as the receive boundary matures:
+
+- max recipients per message
+- max message bytes
+- future per-IP/per-domain rate limits
+- future queue/backpressure checks
+
 Implementation order:
 
 1. PostgreSQL migrations for company/domain/user/address/folder/message.

@@ -72,20 +72,21 @@ type ReceiverOptions struct {
 	Recorder        MessageRecorder
 	Deduplicator    Deduplicator
 	Hooks           []Hook
+	Policy          ReceivePolicy
 	IDGenerator     IDGenerator
 	Clock           func() time.Time
 	MaxMessageBytes int64
 }
 
 type Receiver struct {
-	store           storage.Store
-	resolver        RecipientResolver
-	recorder        MessageRecorder
-	deduplicator    Deduplicator
-	hooks           []Hook
-	idGenerator     IDGenerator
-	clock           func() time.Time
-	maxMessageBytes int64
+	store        storage.Store
+	resolver     RecipientResolver
+	recorder     MessageRecorder
+	deduplicator Deduplicator
+	hooks        []Hook
+	policy       ReceivePolicy
+	idGenerator  IDGenerator
+	clock        func() time.Time
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -94,14 +95,14 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		idGenerator = randomMessageID
 	}
 	return &Receiver{
-		store:           opts.Store,
-		resolver:        opts.Resolver,
-		recorder:        recorderOrDefault(opts.Recorder),
-		deduplicator:    deduplicatorOrDefault(opts.Deduplicator),
-		hooks:           append([]Hook(nil), opts.Hooks...),
-		idGenerator:     idGenerator,
-		clock:           clockOrDefault(opts.Clock),
-		maxMessageBytes: maxMessageBytesOrDefault(opts.MaxMessageBytes),
+		store:        opts.Store,
+		resolver:     opts.Resolver,
+		recorder:     recorderOrDefault(opts.Recorder),
+		deduplicator: deduplicatorOrDefault(opts.Deduplicator),
+		hooks:        append([]Hook(nil), opts.Hooks...),
+		policy:       normalizePolicy(opts.Policy, opts.MaxMessageBytes),
+		idGenerator:  idGenerator,
+		clock:        clockOrDefault(opts.Clock),
 	}
 }
 
@@ -131,6 +132,10 @@ func (s *session) Mail(from string, _ *gosmtp.MailOptions) error {
 }
 
 func (s *session) Rcpt(to string, _ *gosmtp.RcptOptions) error {
+	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
+		return fmt.Errorf("too many recipients; max %d", s.receiver.policy.MaxRecipientsPerMessage)
+	}
+
 	mailbox, err := s.receiver.resolver.ResolveRecipient(context.Background(), to)
 	if err != nil {
 		return err
@@ -147,7 +152,7 @@ func (s *session) Data(r io.Reader) error {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
 
-	spooled, size, err := spoolMessage(r, s.receiver.maxMessageBytes)
+	spooled, size, err := spoolMessage(r, s.receiver.policy.MaxMessageBytes)
 	if err != nil {
 		return err
 	}
@@ -284,13 +289,6 @@ func clockOrDefault(clock func() time.Time) func() time.Time {
 		return clock
 	}
 	return time.Now
-}
-
-func maxMessageBytesOrDefault(limit int64) int64 {
-	if limit > 0 {
-		return limit
-	}
-	return 25 * 1024 * 1024
 }
 
 type noopRecorder struct{}
