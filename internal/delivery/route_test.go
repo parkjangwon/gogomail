@@ -89,3 +89,30 @@ func TestRoutePoolKeyUsesExplicitPoolName(t *testing.T) {
 		t.Fatalf("routePoolKey = %q, want %q", got, want)
 	}
 }
+
+func TestNormalizeRouteAuthTrimsCredentials(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{}, "example.net", Route{
+		Auth: RouteAuth{
+			Identity: " identity ",
+			Username: " relay-user ",
+			Password: " secret ",
+		},
+	})
+	if route.Auth.Identity != "identity" || route.Auth.Username != "relay-user" || route.Auth.Password != "secret" {
+		t.Fatalf("route auth = %+v", route.Auth)
+	}
+	if !routeRequiresAuth(route) {
+		t.Fatal("routeRequiresAuth = false, want true")
+	}
+}
+
+func TestRouteDoesNotRequireAuthWithoutUsername(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{}, "example.net", Route{Auth: RouteAuth{Password: "secret"}})
+	if routeRequiresAuth(route) {
+		t.Fatal("routeRequiresAuth = true without username")
+	}
+}

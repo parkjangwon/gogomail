@@ -134,6 +134,11 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 	if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
 		return WrapSMTPError("starttls", err)
 	}
+	if routeRequiresAuth(route) {
+		if err := client.Auth(smtp.PlainAuth(route.Auth.Identity, route.Auth.Username, route.Auth.Password, host)); err != nil {
+			return WrapSMTPError("auth", err)
+		}
+	}
 	if err := client.Mail(job.From.Email); err != nil {
 		return WrapSMTPError("mail", err)
 	}

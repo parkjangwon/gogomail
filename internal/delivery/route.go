@@ -17,6 +17,13 @@ type Route struct {
 	Hello    string
 	TLSMode  DeliveryTLSMode
 	PoolName string
+	Auth     RouteAuth
+}
+
+type RouteAuth struct {
+	Identity string
+	Username string
+	Password string
 }
 
 type Router interface {
@@ -44,6 +51,7 @@ func normalizeRoute(job Job, domain string, route Route) Route {
 	route.Hello = strings.TrimSpace(route.Hello)
 	route.TLSMode = normalizeDeliveryTLSMode(route.TLSMode)
 	route.PoolName = strings.TrimSpace(route.PoolName)
+	route.Auth = normalizeRouteAuth(route.Auth)
 	return route
 }
 
@@ -107,4 +115,15 @@ func normalizeRoutePort(port int) int {
 		return 25
 	}
 	return port
+}
+
+func normalizeRouteAuth(auth RouteAuth) RouteAuth {
+	auth.Identity = strings.TrimSpace(auth.Identity)
+	auth.Username = strings.TrimSpace(auth.Username)
+	auth.Password = strings.TrimSpace(auth.Password)
+	return auth
+}
+
+func routeRequiresAuth(route Route) bool {
+	return strings.TrimSpace(route.Auth.Username) != ""
 }
