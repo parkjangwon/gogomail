@@ -69,6 +69,41 @@ func TestRunServerRejectsImplicitTLSWithoutConfig(t *testing.T) {
 	}
 }
 
+func TestRunServerRejectsImplicitTLSWithoutCertificate(t *testing.T) {
+	t.Parallel()
+
+	err := RunServer(context.Background(), ServerOptions{
+		Addr:        "127.0.0.1:0",
+		Domain:      "mail.example",
+		ImplicitTLS: true,
+		TLSConfig:   &tls.Config{MinVersion: tls.VersionTLS12},
+		Backend: gosmtp.BackendFunc(func(*gosmtp.Conn) (gosmtp.Session, error) {
+			return nil, nil
+		}),
+	})
+	if err == nil || !strings.Contains(err.Error(), "server certificate") {
+		t.Fatalf("RunServer error = %v, want server certificate rejection", err)
+	}
+}
+
+func TestHasServerCertificateAllowsDynamicCallbacks(t *testing.T) {
+	t.Parallel()
+
+	if !hasServerCertificate(&tls.Config{GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return nil, nil
+	}}) {
+		t.Fatal("GetCertificate TLS config was rejected")
+	}
+	if !hasServerCertificate(&tls.Config{GetConfigForClient: func(*tls.ClientHelloInfo) (*tls.Config, error) {
+		return nil, nil
+	}}) {
+		t.Fatal("GetConfigForClient TLS config was rejected")
+	}
+	if hasServerCertificate(&tls.Config{}) {
+		t.Fatal("empty TLS config accepted as having a server certificate")
+	}
+}
+
 func TestServerTLSConfigIsClonedAndMinVersionHardened(t *testing.T) {
 	t.Parallel()
 

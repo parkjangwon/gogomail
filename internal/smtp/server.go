@@ -47,6 +47,9 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	if opts.ImplicitTLS && opts.TLSConfig == nil {
 		return fmt.Errorf("implicit TLS SMTP listener requires TLS configuration")
 	}
+	if opts.ImplicitTLS && !hasServerCertificate(opts.TLSConfig) {
+		return fmt.Errorf("implicit TLS SMTP listener requires a server certificate")
+	}
 
 	logger := opts.Logger
 	if logger == nil {
@@ -107,6 +110,13 @@ func normalizeServerTLSConfig(cfg *tls.Config) *tls.Config {
 		normalized.MinVersion = tls.VersionTLS12
 	}
 	return normalized
+}
+
+func hasServerCertificate(cfg *tls.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	return len(cfg.Certificates) > 0 || cfg.GetCertificate != nil || cfg.GetConfigForClient != nil
 }
 
 func durationOrDefault(value time.Duration, fallback time.Duration) time.Duration {
