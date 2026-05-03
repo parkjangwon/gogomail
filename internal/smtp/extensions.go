@@ -43,6 +43,16 @@ func validateMailOptions(opts *gosmtp.MailOptions, support extensionSupport) err
 	return nil
 }
 
+func validateAnnouncedMessageSize(opts *gosmtp.MailOptions, maxBytes int64) error {
+	if opts == nil || opts.Size <= 0 || maxBytes <= 0 {
+		return nil
+	}
+	if opts.Size > maxBytes {
+		return gosmtp.ErrDataTooLarge
+	}
+	return nil
+}
+
 func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) error {
 	if opts == nil {
 		return nil

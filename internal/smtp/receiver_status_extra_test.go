@@ -116,6 +116,13 @@ func TestReceiverMessageSizeLimitReturns552(t *testing.T) {
 	requireSMTPStatus(t, session.Data(strings.NewReader("Subject: too large\r\n\r\nbody")), 552, gosmtp.EnhancedCode{5, 3, 4})
 }
 
+func TestReceiverAnnouncedMessageSizeLimitReturns552AtMail(t *testing.T) {
+	t.Parallel()
+
+	session := newStatusReceiverSession(t, ReceiverOptions{Policy: ReceivePolicy{MaxMessageBytes: 8}})
+	requireSMTPStatus(t, session.Mail("sender@example.net", &gosmtp.MailOptions{Size: 9}), 552, gosmtp.EnhancedCode{5, 3, 4})
+}
+
 type closedBackpressure struct{}
 
 func (closedBackpressure) Accept(context.Context) (bool, error) {

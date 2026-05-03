@@ -180,6 +180,9 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 	}); err != nil {
 		return err
 	}
+	if err := validateAnnouncedMessageSize(opts, s.receiver.policy.MaxMessageBytes); err != nil {
+		return err
+	}
 	normalized, err := mail.NormalizeAddress(from)
 	if err != nil {
 		return err
