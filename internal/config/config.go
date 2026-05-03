@@ -31,6 +31,9 @@ type Config struct {
 	SMTPMaxMessageBytes         int64
 	SMTPRequireAuth             bool
 	SMTPAddReceivedHeader       bool
+	SMTPAuthVerificationEnabled bool
+	SMTPAuthservID              string
+	SMTPMaxDKIMVerifications    int
 	SMTPSupportSMTPUTF8         bool
 	SMTPSupportRequireTLS       bool
 	SMTPSupportDSN              bool
@@ -90,6 +93,9 @@ func Load() Config {
 		SMTPMaxMessageBytes:         int64EnvOrDefault("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SMTPRequireAuth:             boolEnvOrDefault("GOGOMAIL_SMTP_REQUIRE_AUTH", false),
 		SMTPAddReceivedHeader:       boolEnvOrDefault("GOGOMAIL_SMTP_ADD_RECEIVED_HEADER", true),
+		SMTPAuthVerificationEnabled: boolEnvOrDefault("GOGOMAIL_SMTP_AUTH_VERIFICATION_ENABLED", false),
+		SMTPAuthservID:              envOrDefault("GOGOMAIL_SMTP_AUTHSERV_ID", envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost")),
+		SMTPMaxDKIMVerifications:    intEnvOrDefault("GOGOMAIL_SMTP_MAX_DKIM_VERIFICATIONS", 8),
 		SMTPSupportSMTPUTF8:         boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_SMTPUTF8", false),
 		SMTPSupportRequireTLS:       boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_REQUIRETLS", false),
 		SMTPSupportDSN:              boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_DSN", false),

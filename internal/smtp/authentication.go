@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"context"
+	"io"
 
 	"github.com/gogomail/gogomail/internal/message"
 )
@@ -18,8 +19,11 @@ const (
 )
 
 type AuthCheckResult struct {
-	Result AuthResult
-	Reason string
+	Result     AuthResult
+	Reason     string
+	Domain     string
+	Identifier string
+	Policy     string
 }
 
 type AuthenticationResults struct {
@@ -33,6 +37,7 @@ type AuthenticationRequest struct {
 	EnvelopeFrom string
 	Recipients   []string
 	Parsed       message.ParsedMessage
+	RawMessage   io.Reader
 	Size         int64
 }
 

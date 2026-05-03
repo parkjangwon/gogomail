@@ -346,7 +346,8 @@ func (s *session) Data(r io.Reader) (err error) {
 		return err
 	}
 
-	authResults, err := s.verifyAuthentication(context.Background(), parsed, size)
+	authCtx := context.WithValue(context.Background(), authenticationRawMessageKey{}, spooled)
+	authResults, err := s.verifyAuthentication(authCtx, parsed, size)
 	if err != nil {
 		return err
 	}
@@ -438,17 +439,30 @@ func (s *session) verifyAuthentication(ctx context.Context, parsed message.Parse
 	if s.receiver.authVerifier == nil {
 		return AuthenticationResults{}, nil
 	}
+	if spooled, ok := ctx.Value(authenticationRawMessageKey{}).(*os.File); ok {
+		if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+			return AuthenticationResults{}, fmt.Errorf("rewind spooled message for authentication: %w", err)
+		}
+	}
 	results, err := s.receiver.authVerifier.VerifyAuthentication(ctx, AuthenticationRequest{
 		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
 		Recipients:   mailboxAddresses(s.recipients),
 		Parsed:       parsed,
+		RawMessage:   rawMessageFromContext(ctx),
 		Size:         size,
 	})
 	if err != nil {
 		return AuthenticationResults{}, fmt.Errorf("verify smtp authentication results: %w", err)
 	}
 	return results, nil
+}
+
+type authenticationRawMessageKey struct{}
+
+func rawMessageFromContext(ctx context.Context) io.Reader {
+	raw, _ := ctx.Value(authenticationRawMessageKey{}).(io.Reader)
+	return raw
 }
 
 func mailboxAddresses(mailboxes []Mailbox) []string {

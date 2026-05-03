@@ -2,6 +2,9 @@ environment: development
 http_addr: :8080
 smtp_addr: :2525
 smtp_domain: localhost
+smtp_auth_verification_enabled: false
+smtp_authserv_id: localhost
+smtp_max_dkim_verifications: 8
 database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable
 redis_addr: localhost:16379
 storage_backend: local

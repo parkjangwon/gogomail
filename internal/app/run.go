@@ -20,6 +20,7 @@ import (
 	"github.com/gogomail/gogomail/internal/dkim"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/outbox"
@@ -119,6 +120,19 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		defer redisClient.Close()
 	}
 
+	var authVerifier smtpd.AuthenticationVerifier
+	if cfg.SMTPAuthVerificationEnabled {
+		authVerifier = mailauth.Verifier{
+			AuthservID:           cfg.SMTPAuthservID,
+			MaxDKIMVerifications: cfg.SMTPMaxDKIMVerifications,
+		}
+		logger.Info(
+			"edge-mta authentication verifier enabled",
+			"authserv_id", cfg.SMTPAuthservID,
+			"max_dkim_verifications", cfg.SMTPMaxDKIMVerifications,
+		)
+	}
+
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
 		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
 		Resolver:          resolver,
@@ -126,6 +140,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Deduplicator:      deduplicator,
 		RateLimiter:       rateLimiter,
 		Backpressure:      pressure,
+		AuthVerifier:      authVerifier,
 		AddReceivedHeader: cfg.SMTPAddReceivedHeader,
 		ReceivedDomain:    cfg.SMTPDomain,
 		RequireAuth:       cfg.SMTPRequireAuth,
