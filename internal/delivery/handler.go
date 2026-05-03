@@ -351,6 +351,9 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 		if containsLineBreak(recipient.OriginalRecipient) {
 			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
 		}
+		if recipient.OriginalRecipient != "" && !validQueuedDSNOriginalRecipient(recipient.OriginalRecipient) {
+			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
+		}
 		if existing, ok := indexByAddress[address]; ok {
 			notify, err := mergeDSNNotify(normalized[existing].Notify, recipient.Notify)
 			if err != nil {
@@ -428,6 +431,40 @@ func normalizeDSNNotify(values []string) ([]string, error) {
 
 func containsLineBreak(value string) bool {
 	return strings.ContainsAny(value, "\r\n")
+}
+
+func validQueuedDSNOriginalRecipient(value string) bool {
+	addrType, encodedAddress, ok := strings.Cut(strings.TrimSpace(value), ";")
+	if !ok || addrType == "" || encodedAddress == "" {
+		return false
+	}
+	for _, r := range addrType {
+		if r > 127 || !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+			return false
+		}
+	}
+	return validQueuedDSNXText(encodedAddress)
+}
+
+func validQueuedDSNXText(value string) bool {
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if c < 33 || c > 126 || c == '=' {
+			return false
+		}
+		if c != '+' {
+			continue
+		}
+		if i+2 >= len(value) || !isQueuedHexDigit(value[i+1]) || !isQueuedHexDigit(value[i+2]) {
+			return false
+		}
+		i += 2
+	}
+	return true
+}
+
+func isQueuedHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 }
 
 func orderDSNNotify(values []string) []string {

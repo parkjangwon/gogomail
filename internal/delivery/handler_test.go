@@ -159,8 +159,8 @@ func TestDecodeQueuedMessageMergesDuplicateDSNRecipients(t *testing.T) {
 		"from":{"email":"sender@example.com"},
 		"to":[{"email":"recipient@example.net"}],
 		"dsn":{"recipients":[
-			{"address":"Recipient@Example.NET","notify":["failure"],"original_recipient":"rfc822; alias@example.net"},
-			{"address":"recipient@example.net","notify":["delay","failure"],"original_recipient":"rfc822; ignored@example.net"}
+			{"address":"Recipient@Example.NET","notify":["failure"],"original_recipient":"rfc822;alias+40example.net"},
+			{"address":"recipient@example.net","notify":["delay","failure"],"original_recipient":"rfc822;ignored+40example.net"}
 		]},
 		"storage_path":"mailstore/msg.eml",
 		"farm":"general"
@@ -178,7 +178,7 @@ func TestDecodeQueuedMessageMergesDuplicateDSNRecipients(t *testing.T) {
 	if strings.Join(got.Notify, ",") != "FAILURE,DELAY" {
 		t.Fatalf("Notify = %v, want merged canonical notify", got.Notify)
 	}
-	if got.OriginalRecipient != "rfc822; alias@example.net" {
+	if got.OriginalRecipient != "rfc822;alias+40example.net" {
 		t.Fatalf("OriginalRecipient = %q, want first non-empty ORCPT", got.OriginalRecipient)
 	}
 }
@@ -359,7 +359,7 @@ func TestHandlerFiltersDSNRecipientsForPartialRetry(t *testing.T) {
 				"recipients":[
 					{"address":"ok@example.net","notify":["SUCCESS"]},
 					{"address":"gone@example.net","notify":["FAILURE"]},
-					{"address":"temp@example.net","notify":["FAILURE","DELAY"],"original_recipient":"rfc822; alias@example.net"}
+					{"address":"temp@example.net","notify":["FAILURE","DELAY"],"original_recipient":"rfc822;alias+40example.net"}
 				]
 			},
 			"storage_path":"mailstore/msg.eml",
@@ -376,7 +376,7 @@ func TestHandlerFiltersDSNRecipientsForPartialRetry(t *testing.T) {
 		t.Fatalf("scheduled DSN recipients = %+v, want retry recipient only", retry.scheduled.DSN.Recipients)
 	}
 	got := retry.scheduled.DSN.Recipients[0]
-	if got.Address != "temp@example.net" || got.OriginalRecipient != "rfc822; alias@example.net" {
+	if got.Address != "temp@example.net" || got.OriginalRecipient != "rfc822;alias+40example.net" {
 		t.Fatalf("scheduled DSN recipient = %+v, want temp metadata", got)
 	}
 }
@@ -576,7 +576,7 @@ func TestDecodeQueuedMessagePreservesDSNOptions(t *testing.T) {
 		"dsn":{
 			"return":"FULL",
 			"envelope_id":"env-1",
-			"recipients":[{"address":"user@example.net","notify":["FAILURE"],"original_recipient":"rfc822; alias@example.net"}]
+			"recipients":[{"address":"user@example.net","notify":["FAILURE"],"original_recipient":"rfc822;alias+40example.net"}]
 		}
 	}`))
 	if err != nil {
@@ -585,7 +585,7 @@ func TestDecodeQueuedMessagePreservesDSNOptions(t *testing.T) {
 	if queued.DSN.Return != "FULL" || queued.DSN.EnvelopeID != "env-1" {
 		t.Fatalf("DSN = %+v", queued.DSN)
 	}
-	if len(queued.DSN.Recipients) != 1 || queued.DSN.Recipients[0].OriginalRecipient != "rfc822; alias@example.net" {
+	if len(queued.DSN.Recipients) != 1 || queued.DSN.Recipients[0].OriginalRecipient != "rfc822;alias+40example.net" {
 		t.Fatalf("DSN recipients = %+v", queued.DSN.Recipients)
 	}
 }
@@ -601,7 +601,7 @@ func TestDecodeQueuedMessageNormalizesDSNOptions(t *testing.T) {
 		"dsn":{
 			"return":"hdrs",
 			"envelope_id":" env-1 ",
-			"recipients":[{"address":"User@Example.NET","notify":["failure","FAILURE"," delay "],"original_recipient":" rfc822; alias@example.net "}]
+			"recipients":[{"address":"User@Example.NET","notify":["failure","FAILURE"," delay "],"original_recipient":" rfc822;alias+40example.net "}]
 		}
 	}`))
 	if err != nil {
@@ -617,7 +617,7 @@ func TestDecodeQueuedMessageNormalizesDSNOptions(t *testing.T) {
 	if len(got.Notify) != 2 || got.Notify[0] != "FAILURE" || got.Notify[1] != "DELAY" {
 		t.Fatalf("DSN notify = %+v, want normalized/deduplicated", got.Notify)
 	}
-	if got.OriginalRecipient != "rfc822; alias@example.net" {
+	if got.OriginalRecipient != "rfc822;alias+40example.net" {
 		t.Fatalf("original recipient = %q", got.OriginalRecipient)
 	}
 }
@@ -635,6 +635,8 @@ func TestDecodeQueuedMessageRejectsInvalidDSNOptions(t *testing.T) {
 		{name: "bad recipient", dsn: `"recipients":[{"address":"not-an-address"}]`},
 		{name: "envelope newline", dsn: `"envelope_id":"env\n1"`},
 		{name: "original recipient newline", dsn: `"recipients":[{"address":"user@example.net","original_recipient":"rfc822; alias\n@example.net"}]`},
+		{name: "original recipient raw space", dsn: `"recipients":[{"address":"user@example.net","original_recipient":"rfc822; alias@example.net"}]`},
+		{name: "original recipient bad escape", dsn: `"recipients":[{"address":"user@example.net","original_recipient":"rfc822;alias+XXexample.net"}]`},
 	}
 	for _, tt := range tests {
 		tt := tt
