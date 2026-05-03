@@ -204,7 +204,7 @@ func insertOutgoingOutbox(ctx context.Context, tx *sql.Tx, messageID string, msg
 INSERT INTO outbox (topic, partition_key, payload, status)
 VALUES ($1, $2, $3::jsonb, 'pending')`
 
-	topic := "mail.outbound." + string(msg.Farm)
+	topic := "mail.outbound." + string(outbound.NormalizeFarm(msg.Farm))
 	if _, err := tx.ExecContext(ctx, query, topic, messageID, string(payload)); err != nil {
 		return fmt.Errorf("insert outgoing outbox event: %w", err)
 	}
@@ -221,7 +221,7 @@ func outgoingEventPayload(messageID string, msg OutgoingMessage) ([]byte, error)
 		"company_id":        msg.CompanyID,
 		"domain_id":         msg.DomainID,
 		"user_id":           msg.UserID,
-		"farm":              msg.Farm,
+		"farm":              outbound.NormalizeFarm(msg.Farm),
 		"from":              msg.From,
 		"to":                msg.To,
 		"cc":                msg.Cc,

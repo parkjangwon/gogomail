@@ -53,3 +53,27 @@ func TestOutgoingEventPayloadCarriesDSNOptions(t *testing.T) {
 		t.Fatalf("dsn recipients = %+v", dsn["recipients"])
 	}
 }
+
+func TestOutgoingEventPayloadNormalizesFarm(t *testing.T) {
+	t.Parallel()
+
+	raw, err := outgoingEventPayload("msg-1", OutgoingMessage{
+		CompanyID:   "company-1",
+		DomainID:    "domain-1",
+		UserID:      "user-1",
+		From:        outbound.Address{Email: "sender@example.com"},
+		To:          []outbound.Address{{Email: "recipient@example.net"}},
+		Farm:        " BULK ",
+		StoragePath: "mailstore/msg.eml",
+	})
+	if err != nil {
+		t.Fatalf("outgoingEventPayload returned error: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if got["farm"] != "bulk" {
+		t.Fatalf("farm = %v, want bulk", got["farm"])
+	}
+}
