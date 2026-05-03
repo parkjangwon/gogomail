@@ -32,6 +32,13 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
+	intent, err := NormalizeComposeIntent(string(req.Intent))
+	if err != nil {
+		return err
+	}
+	if (intent == ComposeIntentReply || intent == ComposeIntentForward) && strings.TrimSpace(req.SourceMessageID) == "" {
+		return fmt.Errorf("source_message_id is required for %s", intent)
+	}
 	if len(req.Subject) > MaxComposeSubjectBytes {
 		return fmt.Errorf("subject is too long")
 	}

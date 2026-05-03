@@ -132,15 +132,17 @@ func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID s
 }
 
 type SendTextRequest struct {
-	UserID        string             `json:"user_id"`
-	From          string             `json:"from"`
-	To            []outbound.Address `json:"to"`
-	Cc            []outbound.Address `json:"cc"`
-	Bcc           []outbound.Address `json:"bcc"`
-	Subject       string             `json:"subject"`
-	TextBody      string             `json:"text_body"`
-	Transactional bool               `json:"transactional"`
-	ScheduledAt   time.Time          `json:"scheduled_at"`
+	UserID          string             `json:"user_id"`
+	Intent          ComposeIntent      `json:"intent"`
+	SourceMessageID string             `json:"source_message_id"`
+	From            string             `json:"from"`
+	To              []outbound.Address `json:"to"`
+	Cc              []outbound.Address `json:"cc"`
+	Bcc             []outbound.Address `json:"bcc"`
+	Subject         string             `json:"subject"`
+	TextBody        string             `json:"text_body"`
+	Transactional   bool               `json:"transactional"`
+	ScheduledAt     time.Time          `json:"scheduled_at"`
 }
 
 type SendTextResult struct {

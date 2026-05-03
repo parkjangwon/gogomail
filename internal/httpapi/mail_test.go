@@ -391,6 +391,32 @@ func TestSendMessageHandler(t *testing.T) {
 	}
 }
 
+func TestSendReplyHandlerPassesSourceMessageID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
+		"user_id":"user-1",
+		"intent":"reply",
+		"source_message_id":"msg-original",
+		"to":[{"email":"sender@example.net"}],
+		"subject":"Re: hello",
+		"text_body":"body"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastSend.Intent != mailservice.ComposeIntentReply || service.lastSend.SourceMessageID != "msg-original" {
+		t.Fatalf("lastSend = %+v", service.lastSend)
+	}
+}
+
 func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
 	t.Parallel()
 
@@ -440,24 +466,24 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
-	folders          []maildb.Folder
-	createdFolder   maildb.Folder
-	list             []maildb.MessageSummary
-	attachments      []maildb.Attachment
-	download         mailservice.AttachmentDownload
-	detail           maildb.MessageDetail
-	sendResult       mailservice.SendTextResult
-	lastSend         mailservice.SendTextRequest
-	lastUserID       string
-	lastFolderName   string
+	folders             []maildb.Folder
+	createdFolder       maildb.Folder
+	list                []maildb.MessageSummary
+	attachments         []maildb.Attachment
+	download            mailservice.AttachmentDownload
+	detail              maildb.MessageDetail
+	sendResult          mailservice.SendTextResult
+	lastSend            mailservice.SendTextRequest
+	lastUserID          string
+	lastFolderName      string
 	lastDeletedFolderID string
-	lastMessageID    string
-	lastFolderID     string
-	lastMoveFolderID string
-	lastDeletedID    string
-	lastFlag         string
-	lastFlagValue    bool
-	lastLimit        int
+	lastMessageID       string
+	lastFolderID        string
+	lastMoveFolderID    string
+	lastDeletedID       string
+	lastFlag            string
+	lastFlagValue       bool
+	lastLimit           int
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
