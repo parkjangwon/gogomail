@@ -20,19 +20,21 @@ type Sender struct {
 }
 
 type OutgoingMessage struct {
-	CompanyID    string
-	DomainID     string
-	UserID       string
-	RFCMessageID string
-	Subject      string
-	From         outbound.Address
-	To           []outbound.Address
-	Cc           []outbound.Address
-	Bcc          []outbound.Address
-	SentAt       time.Time
-	Size         int64
-	StoragePath  string
-	Farm         outbound.Farm
+	CompanyID       string
+	DomainID        string
+	UserID          string
+	ComposeIntent   string
+	SourceMessageID string
+	RFCMessageID    string
+	Subject         string
+	From            outbound.Address
+	To              []outbound.Address
+	Cc              []outbound.Address
+	Bcc             []outbound.Address
+	SentAt          time.Time
+	Size            int64
+	StoragePath     string
+	Farm            outbound.Farm
 }
 
 func (r *Repository) SenderForUser(ctx context.Context, userID string, fromAddress string) (Sender, error) {
@@ -107,14 +109,16 @@ func (r *Repository) RecordOutgoing(ctx context.Context, msg OutgoingMessage) (s
 	const insertMessage = `
 INSERT INTO messages (
   tenant_id, domain_id, user_id, folder_id,
+  compose_intent, source_message_id,
   rfc_message_id, subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs,
   sent_at, size, has_attachment, storage_path, flags, status
 ) VALUES (
   $1, $2, $3, $4,
-  $5, $6, $7, $8,
-  $9::jsonb, $10::jsonb, $11::jsonb,
-  $12, $13, false, $14, '{"read":true}'::jsonb, 'active'
+  $5, NULLIF($6, '')::uuid,
+  $7, $8, $9, $10,
+  $11::jsonb, $12::jsonb, $13::jsonb,
+  $14, $15, false, $16, '{"read":true}'::jsonb, 'active'
 ) RETURNING id::text`
 
 	var messageID string
@@ -125,6 +129,8 @@ INSERT INTO messages (
 		msg.DomainID,
 		msg.UserID,
 		folderID,
+		normalizeOutgoingIntent(msg.ComposeIntent),
+		strings.TrimSpace(msg.SourceMessageID),
 		msg.RFCMessageID,
 		msg.Subject,
 		msg.From.Email,
@@ -200,27 +206,38 @@ VALUES ($1, $2, $3::jsonb, 'pending')`
 
 func outgoingEventPayload(messageID string, msg OutgoingMessage) ([]byte, error) {
 	payload := map[string]any{
-		"event":          "mail.queued",
-		"message_id":     messageID,
-		"rfc_message_id": msg.RFCMessageID,
-		"company_id":     msg.CompanyID,
-		"domain_id":      msg.DomainID,
-		"user_id":        msg.UserID,
-		"farm":           msg.Farm,
-		"from":           msg.From,
-		"to":             msg.To,
-		"cc":             msg.Cc,
-		"bcc":            msg.Bcc,
-		"subject":        msg.Subject,
-		"storage_path":   msg.StoragePath,
-		"sent_at":        msg.SentAt,
-		"size":           msg.Size,
+		"event":             "mail.queued",
+		"message_id":        messageID,
+		"compose_intent":    normalizeOutgoingIntent(msg.ComposeIntent),
+		"source_message_id": strings.TrimSpace(msg.SourceMessageID),
+		"rfc_message_id":    msg.RFCMessageID,
+		"company_id":        msg.CompanyID,
+		"domain_id":         msg.DomainID,
+		"user_id":           msg.UserID,
+		"farm":              msg.Farm,
+		"from":              msg.From,
+		"to":                msg.To,
+		"cc":                msg.Cc,
+		"bcc":               msg.Bcc,
+		"subject":           msg.Subject,
+		"storage_path":      msg.StoragePath,
+		"sent_at":           msg.SentAt,
+		"size":              msg.Size,
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal mail.queued event: %w", err)
 	}
 	return raw, nil
+}
+
+func normalizeOutgoingIntent(intent string) string {
+	switch strings.ToLower(strings.TrimSpace(intent)) {
+	case "reply", "forward":
+		return strings.ToLower(strings.TrimSpace(intent))
+	default:
+		return "new"
+	}
 }
 
 func outboundAddressesJSON(addrs []outbound.Address) ([]byte, error) {
