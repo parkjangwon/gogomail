@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 type PostgresStore struct {
@@ -96,9 +97,7 @@ func (s *PostgresStore) MarkFailed(ctx context.Context, id string, cause error) 
 		message = cause.Error()
 	}
 	message = strings.TrimSpace(message)
-	if len(message) > 2000 {
-		message = message[:2000]
-	}
+	message = truncateUTF8Bytes(message, 2000)
 
 	const query = `
 UPDATE outbox
@@ -112,4 +111,15 @@ WHERE id = $1`
 		return fmt.Errorf("mark outbox event failed: %w", err)
 	}
 	return nil
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for !utf8.ValidString(value) && len(value) > 0 {
+		value = value[:len(value)-1]
+	}
+	return value
 }
