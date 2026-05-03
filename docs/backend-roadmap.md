@@ -220,6 +220,11 @@ Implementation order:
 173. Direct SMTP delivery preserves per-recipient permanent/temporary classes when all RCPT commands fail, while still failing over to the next MX when every rejected recipient is only temporarily deferred.
 174. Authenticated Submission is now covered by STARTTLS wire-level tests: AUTH succeeds after STARTTLS and is rejected before TLS when insecure AUTH is disabled.
 175. SMTP wire-level tests now assert unsupported MAIL extensions are rejected and EHLO capability advertisement matches enabled/disabled extension toggles for DSN, SMTPUTF8, and BINARYMIME.
+176. SMTP wire-level DSN support now verifies `RET`, `ENVID`, `NOTIFY`, and `ORCPT` options flow through a real TCP SMTP session into recorder payloads, including go-smtp decoded typed-recipient handling.
+177. Trusted relay policy now has TCP protocol coverage proving untrusted clients are rejected at the MAIL boundary before envelope acceptance.
+178. SMTP receive soak coverage now exercises repeated DATA transactions on one connection, guarding session reset behavior under long-lived client sessions.
+179. Outbound SMTP DSN wire coverage now confirms DSN parameters are suppressed when a remote peer does not advertise DSN support.
+180. Backend release readiness documentation now calls out SMTP extension, TLS/SMTPS, trusted relay, DSN/bounce, and same-connection soak verification before a release cut.
 
 ## Deferred until backend contracts stabilize
 
