@@ -34,6 +34,11 @@ type Repository interface {
 	RecordOutgoing(ctx context.Context, msg maildb.OutgoingMessage) (string, error)
 }
 
+type DraftRepository interface {
+	SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error)
+	DeleteDraft(ctx context.Context, userID string, draftID string) error
+}
+
 type Service struct {
 	repository Repository
 	store      storage.Store
@@ -105,6 +110,28 @@ func (s *Service) MoveMessage(ctx context.Context, userID string, messageID stri
 
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {
 	return s.repository.DeleteMessage(ctx, userID, messageID)
+}
+
+func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
+	if err := ValidateSaveDraftRequest(req); err != nil {
+		return maildb.MessageDetail{}, err
+	}
+	repo, ok := s.repository.(DraftRepository)
+	if !ok {
+		return maildb.MessageDetail{}, fmt.Errorf("draft repository is required")
+	}
+	return repo.SaveDraft(ctx, req)
+}
+
+func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string) error {
+	if err := ValidateDeleteDraftRequest(userID, draftID); err != nil {
+		return err
+	}
+	repo, ok := s.repository.(DraftRepository)
+	if !ok {
+		return fmt.Errorf("draft repository is required")
+	}
+	return repo.DeleteDraft(ctx, userID, draftID)
 }
 
 func (s *Service) ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error) {

@@ -51,10 +51,11 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 }
 
 type fakeRepository struct {
-	detail      maildb.MessageDetail
-	attachments []maildb.Attachment
-	suppressed  []string
+	detail                    maildb.MessageDetail
+	attachments               []maildb.Attachment
+	suppressed                []string
 	seenSuppressionRecipients []string
+	lastDraft                 SaveDraftRequest
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -124,6 +125,15 @@ func (f *fakeRepository) SuppressedRecipients(_ context.Context, _ string, recip
 	return f.suppressed, nil
 }
 
+func (f *fakeRepository) SaveDraft(_ context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
+	f.lastDraft = req
+	return maildb.MessageDetail{ID: "draft-1", Subject: req.Subject}, nil
+}
+
+func (f *fakeRepository) DeleteDraft(context.Context, string, string) error {
+	return nil
+}
+
 func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	t.Parallel()
 
@@ -184,11 +194,11 @@ func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
 	service := New(repo, storage.NewLocalStore(t.TempDir()))
 
 	_, err := service.SendText(context.Background(), SendTextRequest{
-		UserID: "user-1",
-		To:     []outbound.Address{{Email: "User@Example.net"}},
-		Cc:     []outbound.Address{{Email: "user@example.net"}},
-		Bcc:    []outbound.Address{{Email: "other@example.net"}},
-		Subject: "hello",
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "User@Example.net"}},
+		Cc:       []outbound.Address{{Email: "user@example.net"}},
+		Bcc:      []outbound.Address{{Email: "other@example.net"}},
+		Subject:  "hello",
 		TextBody: "body",
 	})
 	if err != nil {
@@ -197,5 +207,22 @@ func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
 	want := []string{"user@example.net", "other@example.net"}
 	if strings.Join(repo.seenSuppressionRecipients, ",") != strings.Join(want, ",") {
 		t.Fatalf("suppression recipients = %v, want %v", repo.seenSuppressionRecipients, want)
+	}
+}
+
+func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	draft, err := service.SaveDraft(context.Background(), SaveDraftRequest{
+		UserID:  "user-1",
+		Subject: "draft",
+	})
+	if err != nil {
+		t.Fatalf("SaveDraft returned error: %v", err)
+	}
+	if draft.ID != "draft-1" || repo.lastDraft.Subject != "draft" {
+		t.Fatalf("draft = %+v last = %+v", draft, repo.lastDraft)
 	}
 }
