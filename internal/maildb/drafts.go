@@ -95,7 +95,12 @@ INSERT INTO messages (
 	if err := bindDraftAttachments(ctx, tx, req.UserID, draft.ID, req.AttachmentIDs); err != nil {
 		return MessageDetail{}, err
 	}
-	draft.HasAttachment = len(req.AttachmentIDs) > 0
+	attachments, err := listDraftAttachments(ctx, tx, req.UserID, draft.ID)
+	if err != nil {
+		return MessageDetail{}, err
+	}
+	draft.Attachments = attachments
+	draft.HasAttachment = len(attachments) > 0
 	if err := tx.Commit(); err != nil {
 		return MessageDetail{}, fmt.Errorf("commit draft transaction: %w", err)
 	}
@@ -178,7 +183,12 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 	if err := bindDraftAttachments(ctx, tx, req.UserID, draft.ID, req.AttachmentIDs); err != nil {
 		return MessageDetail{}, err
 	}
-	draft.HasAttachment = len(req.AttachmentIDs) > 0
+	attachments, err := listDraftAttachments(ctx, tx, req.UserID, draft.ID)
+	if err != nil {
+		return MessageDetail{}, err
+	}
+	draft.Attachments = attachments
+	draft.HasAttachment = len(attachments) > 0
 	if err := tx.Commit(); err != nil {
 		return MessageDetail{}, fmt.Errorf("commit draft update transaction: %w", err)
 	}
@@ -288,6 +298,53 @@ WHERE user_id = $1
 		return fmt.Errorf("refresh draft attachment state: %w", err)
 	}
 	return nil
+}
+
+func listDraftAttachments(ctx context.Context, tx *sql.Tx, userID string, draftID string) ([]Attachment, error) {
+	const query = `
+SELECT
+  id::text,
+  COALESCE(message_id::text, ''),
+  upload_id,
+  storage_path,
+  filename,
+  size,
+  mime_type,
+  status,
+  created_at
+FROM attachments
+WHERE user_id = $1
+  AND draft_id = $2
+ORDER BY created_at ASC, filename ASC`
+
+	rows, err := tx.QueryContext(ctx, query, strings.TrimSpace(userID), strings.TrimSpace(draftID))
+	if err != nil {
+		return nil, fmt.Errorf("list draft attachments: %w", err)
+	}
+	defer rows.Close()
+
+	attachments := make([]Attachment, 0)
+	for rows.Next() {
+		var attachment Attachment
+		if err := rows.Scan(
+			&attachment.ID,
+			&attachment.MessageID,
+			&attachment.UploadID,
+			&attachment.StoragePath,
+			&attachment.Filename,
+			&attachment.Size,
+			&attachment.MIMEType,
+			&attachment.Status,
+			&attachment.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan draft attachment: %w", err)
+		}
+		attachments = append(attachments, attachment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate draft attachments: %w", err)
+	}
+	return attachments, nil
 }
 
 func senderForDraft(ctx context.Context, tx *sql.Tx, userID string, fromAddress string) (Sender, error) {
