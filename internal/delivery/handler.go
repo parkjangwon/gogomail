@@ -3,6 +3,7 @@ package delivery
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -27,6 +28,7 @@ type QueuedMessage struct {
 	Subject      string             `json:"subject"`
 	StoragePath  string             `json:"storage_path"`
 	Size         int64              `json:"size"`
+	RetryAttempt int                `json:"retry_attempt"`
 }
 
 type MessageOpener func(ctx context.Context) (io.ReadCloser, error)
@@ -44,13 +46,14 @@ type Handler struct {
 	store     storage.Store
 	transport Transport
 	recorder  Recorder
+	retry     RetryScheduler
 }
 
-func NewHandler(store storage.Store, transport Transport, recorder Recorder) *Handler {
+func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
 	if recorder == nil {
 		recorder = noopRecorder{}
 	}
-	return &Handler{store: store, transport: transport, recorder: recorder}
+	return &Handler{store: store, transport: transport, recorder: recorder, retry: retry}
 }
 
 func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
@@ -79,6 +82,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	if err := h.transport.Deliver(ctx, job); err != nil {
 		if recordErr := h.recordAttempts(ctx, job, AttemptFailed, err); recordErr != nil {
 			return recordErr
+		}
+		if h.retry != nil {
+			retryErr := h.retry.ScheduleRetry(ctx, job, err)
+			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
+				return nil
+			}
+			return retryErr
 		}
 		return err
 	}

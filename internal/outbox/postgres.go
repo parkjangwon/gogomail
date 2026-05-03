@@ -32,7 +32,7 @@ func (s *PostgresStore) FetchPending(ctx context.Context, limit int) ([]Event, e
 WITH picked AS (
   SELECT id
   FROM outbox
-  WHERE status = 'pending'
+  WHERE (status = 'pending' AND available_at <= now())
      OR (status = 'processing' AND locked_at < now() - $2::interval)
   ORDER BY created_at
   LIMIT $1

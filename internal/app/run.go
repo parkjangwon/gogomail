@@ -234,8 +234,13 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		Consumer: cfg.DeliveryConsumerName,
 		Count:    int64(cfg.DeliveryConsumerCount),
 		Block:    cfg.DeliveryConsumerBlock,
-		Handler:  delivery.NewHandler(storage.NewLocalStore(cfg.MailstoreRoot), transport, delivery.NewPostgresRecorder(db)),
-		Logger:   logger,
+		Handler: delivery.NewHandler(
+			storage.NewLocalStore(cfg.MailstoreRoot),
+			transport,
+			delivery.NewPostgresRecorder(db),
+			delivery.NewPostgresRetryScheduler(db, delivery.DefaultRetryPolicy()),
+		),
+		Logger: logger,
 	})
 	if err != nil {
 		return err

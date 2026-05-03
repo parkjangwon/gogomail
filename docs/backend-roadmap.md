@@ -57,6 +57,7 @@ Implementation order:
 10. RFC 5322/MIME outbound text composer and outbound farm classifier.
 11. Delivery worker consumes `mail.outbound.general` and hands queued `.eml` messages to a pluggable SMTP transport.
 12. Delivery attempts are recorded for delivered/failed recipients as retry and bounce groundwork.
+13. Failed delivery attempts can schedule delayed retries through outbox `available_at`.
 
 ## Deferred until backend contracts stabilize
 
