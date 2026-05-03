@@ -207,7 +207,7 @@ func (s *submissionSession) Data(r io.Reader) error {
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind submitted message for parse: %w", err)
 	}
-	parsed, err := message.ParseEML(spooled)
+	parsed, err := message.ParseEMLWithOptions(spooled, message.ParseOptions{SkipTextBody: true})
 	if err != nil {
 		return fmt.Errorf("parse submitted message: %w", err)
 	}

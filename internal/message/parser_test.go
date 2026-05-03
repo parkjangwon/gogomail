@@ -131,3 +131,27 @@ func TestParseEMLWithOptionsLimitsTextBody(t *testing.T) {
 		t.Fatal("TextBodyTruncated = false, want true")
 	}
 }
+
+func TestParseEMLWithOptionsSkipsTextBody(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: metadata only",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body should not be extracted",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{SkipTextBody: true})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if parsed.Subject != "metadata only" {
+		t.Fatalf("Subject = %q", parsed.Subject)
+	}
+	if parsed.TextBody != "" {
+		t.Fatalf("TextBody = %q, want empty", parsed.TextBody)
+	}
+}

@@ -21,6 +21,7 @@ type Attachment struct {
 
 type ParseOptions struct {
 	MaxTextBodyBytes int64
+	SkipTextBody     bool
 }
 
 type ParsedMessage struct {
@@ -81,7 +82,7 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 
 		switch header := part.Header.(type) {
 		case *gomail.InlineHeader:
-			if parsed.TextBody == "" && isTextPlain(header) {
+			if !opts.SkipTextBody && parsed.TextBody == "" && isTextPlain(header) {
 				body, truncated, err := readLimitedText(part.Body, opts.MaxTextBodyBytes)
 				if err != nil {
 					return ParsedMessage{}, fmt.Errorf("read text body: %w", err)
