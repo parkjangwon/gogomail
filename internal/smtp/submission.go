@@ -190,6 +190,7 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 	if !strings.EqualFold(normalized, s.user.Address) {
 		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
 	}
+	s.clearEnvelope()
 	s.from = normalized
 	s.smtpUTF8 = mailOptionsUTF8(opts)
 	s.dsn.Return = normalizeDSNReturn(opts)
@@ -423,6 +424,10 @@ func (s *submissionSession) currentDSNOptions() DSNOptions {
 }
 
 func (s *submissionSession) Reset() {
+	s.clearEnvelope()
+}
+
+func (s *submissionSession) clearEnvelope() {
 	s.from = ""
 	s.recipients = nil
 	s.dsn = DSNOptions{}

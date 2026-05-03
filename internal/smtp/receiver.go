@@ -225,6 +225,7 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	if err := validateSMTPUTF8Address(from, normalized, mailOptionsUTF8(opts), s.receiver.supportSMTPUTF8); err != nil {
 		return err
 	}
+	s.clearEnvelope()
 	s.from = normalized
 	s.mailStarted = true
 	s.smtpUTF8 = mailOptionsUTF8(opts)
@@ -649,6 +650,10 @@ func metricError(err error) string {
 }
 
 func (s *session) Reset() {
+	s.clearEnvelope()
+}
+
+func (s *session) clearEnvelope() {
 	s.from = ""
 	s.mailStarted = false
 	s.recipients = nil

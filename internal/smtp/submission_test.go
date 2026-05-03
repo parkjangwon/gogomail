@@ -69,6 +69,32 @@ func TestSubmissionRequiresMailBeforeRcpt(t *testing.T) {
 	}
 }
 
+func TestSubmissionMailResetsPreviousRecipients(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	session := newAuthenticatedSubmissionSession(t, recorder, storage.NewLocalStore(t.TempDir()))
+	if err := session.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.net", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-mail-reset@example.com>\r\nFrom: jangwon@example.com\r\nTo: two@example.net\r\nSubject: reset\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 || len(recorder.messages[0].Recipients) != 1 || recorder.messages[0].Recipients[0] != "two@example.net" {
+		t.Fatalf("recorded messages = %+v, want only second transaction recipient", recorder.messages)
+	}
+}
+
 func TestSubmissionRejectsRecipientsOverPolicyLimit(t *testing.T) {
 	t.Parallel()
 

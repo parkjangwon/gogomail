@@ -633,6 +633,45 @@ func TestSessionRequiresMailBeforeRcpt(t *testing.T) {
 	}
 }
 
+func TestSessionMailResetsPreviousRecipients(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d", UserID: "one", Address: "one@example.com"},
+			"two@example.com": {CompanyID: "c", DomainID: "d", UserID: "two", Address: "two@example.com"},
+		},
+		Recorder:    recorder,
+		IDGenerator: func() string { return "mail-reset" },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.com", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <mail-reset@example.net>\r\nFrom: sender@example.net\r\nTo: two@example.com\r\nSubject: reset\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 || recorder.messages[0].Mailbox.Address != "two@example.com" {
+		t.Fatalf("recorded messages = %+v, want only second transaction recipient", recorder.messages)
+	}
+}
+
 func TestSessionResetsEnvelopeAfterSuccessfulData(t *testing.T) {
 	t.Parallel()
 
