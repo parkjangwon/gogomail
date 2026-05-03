@@ -15,6 +15,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_DSN", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_BINARYMIME", "")
 	t.Setenv("GOGOMAIL_SMTP_TLS_CERT_FILE", "")
 	t.Setenv("GOGOMAIL_SMTP_TLS_KEY_FILE", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "")
@@ -85,6 +86,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SubmissionSupportDSN {
 		t.Fatal("SubmissionSupportDSN = true, want false")
+	}
+	if cfg.SubmissionSupportBinaryMIME {
+		t.Fatal("SubmissionSupportBinaryMIME = true, want false")
 	}
 	if cfg.SMTPTLSCertFile != "" {
 		t.Fatalf("SMTPTLSCertFile = %q, want empty", cfg.SMTPTLSCertFile)
@@ -221,6 +225,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", "true")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS", "true")
 	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_DSN", "true")
+	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_BINARYMIME", "true")
 	t.Setenv("GOGOMAIL_SMTP_TLS_CERT_FILE", "cert.pem")
 	t.Setenv("GOGOMAIL_SMTP_TLS_KEY_FILE", "key.pem")
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "false")
@@ -291,6 +296,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if !cfg.SubmissionSupportDSN {
 		t.Fatal("SubmissionSupportDSN = false, want true")
+	}
+	if !cfg.SubmissionSupportBinaryMIME {
+		t.Fatal("SubmissionSupportBinaryMIME = false, want true")
 	}
 	if cfg.SMTPTLSCertFile != "cert.pem" {
 		t.Fatalf("SMTPTLSCertFile = %q, want cert.pem", cfg.SMTPTLSCertFile)
