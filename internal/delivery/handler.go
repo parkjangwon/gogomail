@@ -113,11 +113,16 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		if err != nil {
 			h.observe(ctx, metricEvent(queued, MetricThrottled, MetricDeferred, err))
 			if h.retry != nil {
-				if retryErr := h.retry.ScheduleRetry(ctx, job, err); retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
+				retryErr := h.retry.ScheduleRetry(ctx, job, err)
+				if retryErr == nil {
+					h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
 					return nil
-				} else {
-					return retryErr
 				}
+				if errors.Is(retryErr, ErrRetryExhausted) {
+					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
+					return nil
+				}
+				return retryErr
 			}
 			return err
 		}
