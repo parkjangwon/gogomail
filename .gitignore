@@ -1,0 +1,11 @@
+.DS_Store
+*.swp
+*.swo
+
+/bin/
+/tmp/
+/coverage.out
+
+.env
+.env.*
+!.env.example

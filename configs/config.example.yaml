@@ -1,0 +1,6 @@
+environment: development
+http_addr: :8080
+smtp_addr: :2525
+database_url: postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable
+redis_addr: localhost:6379
+storage_backend: local
