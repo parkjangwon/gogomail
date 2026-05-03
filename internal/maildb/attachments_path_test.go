@@ -19,3 +19,12 @@ func TestAttachmentUploadStoragePathSanitizesSeparators(t *testing.T) {
 		t.Fatalf("path = %q", path)
 	}
 }
+
+func TestAttachmentUploadStoragePathSanitizesUserSegment(t *testing.T) {
+	t.Parallel()
+
+	path := attachmentUploadStoragePath("../user\n1", "upload-1", "report.pdf")
+	if path != "uploads/user_1/upload-1/report.pdf" {
+		t.Fatalf("path = %q", path)
+	}
+}

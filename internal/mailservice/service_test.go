@@ -482,6 +482,27 @@ func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	}
 }
 
+func TestUploadAttachmentSanitizesUserStorageSegment(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+
+	_, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
+		UserID:   "../user\n1",
+		Filename: "report.pdf",
+		Size:     7,
+		MIMEType: "application/pdf",
+		Body:     strings.NewReader("content"),
+	})
+	if err != nil {
+		t.Fatalf("UploadAttachment returned error: %v", err)
+	}
+	if !strings.HasPrefix(repo.lastAttachmentUpload.StoragePath, "uploads/user_1/") {
+		t.Fatalf("StoragePath = %q, want sanitized user segment", repo.lastAttachmentUpload.StoragePath)
+	}
+}
+
 func TestUploadAttachmentRejectsBodyLargerThanLimit(t *testing.T) {
 	t.Parallel()
 

@@ -3,6 +3,7 @@ package mailservice
 import (
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -54,6 +55,9 @@ func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) er
 	if strings.ContainsAny(req.MIMEType, "\r\n") {
 		return fmt.Errorf("mime_type must not contain newlines")
 	}
+	if err := validateAttachmentStoragePath(req.StoragePath); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -71,4 +75,30 @@ func ValidateUploadAttachmentRequest(req UploadAttachmentRequest) error {
 		Size:     req.Size,
 		MIMEType: req.MIMEType,
 	})
+}
+
+func validateAttachmentStoragePath(storagePath string) error {
+	storagePath = strings.TrimSpace(storagePath)
+	if storagePath == "" {
+		return nil
+	}
+	if strings.ContainsAny(storagePath, "\r\n") {
+		return fmt.Errorf("storage_path must not contain newlines")
+	}
+	if strings.Contains(storagePath, `\`) {
+		return fmt.Errorf("storage_path must use forward slash separators")
+	}
+	if strings.HasPrefix(storagePath, "/") {
+		return fmt.Errorf("storage_path must be relative")
+	}
+	cleaned := path.Clean(storagePath)
+	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
+		return fmt.Errorf("storage_path must not escape the storage root")
+	}
+	for _, segment := range strings.Split(cleaned, "/") {
+		if segment == "." || segment == ".." || strings.TrimSpace(segment) == "" {
+			return fmt.Errorf("storage_path contains an invalid segment")
+		}
+	}
+	return nil
 }

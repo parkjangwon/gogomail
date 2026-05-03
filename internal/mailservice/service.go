@@ -239,7 +239,7 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 
 	path := strings.Join([]string{
 		"uploads",
-		strings.TrimSpace(req.UserID),
+		safeObjectPathSegment(req.UserID),
 		randomObjectID(),
 		safeObjectFilename(req.Filename),
 	}, "/")
@@ -290,6 +290,29 @@ func safeObjectFilename(filename string) string {
 		return "attachment"
 	}
 	return filename
+}
+
+func safeObjectPathSegment(value string) string {
+	value = strings.TrimSpace(value)
+	var b strings.Builder
+	b.Grow(len(value))
+	lastUnderscore := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	out := strings.Trim(b.String(), "_.")
+	if out == "" {
+		return "unknown"
+	}
+	return out
 }
 
 type AttachmentDownload struct {

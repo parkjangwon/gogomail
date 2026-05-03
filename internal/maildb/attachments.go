@@ -151,7 +151,30 @@ func attachmentUploadStoragePath(userID string, uploadID string, filename string
 	if filename == "" {
 		filename = "attachment"
 	}
-	return strings.Join([]string{"uploads", strings.TrimSpace(userID), uploadID, filename}, "/")
+	return strings.Join([]string{"uploads", safeAttachmentPathSegment(userID), safeAttachmentPathSegment(uploadID), filename}, "/")
+}
+
+func safeAttachmentPathSegment(value string) string {
+	value = strings.TrimSpace(value)
+	var b strings.Builder
+	b.Grow(len(value))
+	lastUnderscore := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	out := strings.Trim(b.String(), "_.")
+	if out == "" {
+		return "unknown"
+	}
+	return out
 }
 
 func (r *Repository) GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (Attachment, error) {
