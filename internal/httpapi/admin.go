@@ -12,6 +12,7 @@ import (
 
 type AdminService interface {
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
+	ListUsers(ctx context.Context, domainID string, limit int) ([]maildb.UserView, error)
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
@@ -31,6 +32,16 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"domains": domains})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		users, err := service.ListUsers(r.Context(), r.URL.Query().Get("domain_id"), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"users": users})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

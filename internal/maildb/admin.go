@@ -44,6 +44,70 @@ type DomainView struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type UserView struct {
+	ID          string    `json:"id"`
+	DomainID    string    `json:"domain_id"`
+	Username    string    `json:"username"`
+	DisplayName string    `json:"display_name"`
+	Role        string    `json:"role"`
+	Status      string    `json:"status"`
+	QuotaUsed   int64     `json:"quota_used"`
+	QuotaLimit  int64     `json:"quota_limit,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (r *Repository) ListUsers(ctx context.Context, domainID string, limit int) ([]UserView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  domain_id::text,
+  username,
+  display_name,
+  role,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  created_at
+FROM users
+WHERE ($1 = '' OR domain_id::text = $1)
+ORDER BY created_at DESC
+LIMIT $2`
+
+	rows, err := r.db.QueryContext(ctx, query, domainID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []UserView
+	for rows.Next() {
+		var user UserView
+		if err := rows.Scan(
+			&user.ID,
+			&user.DomainID,
+			&user.Username,
+			&user.DisplayName,
+			&user.Role,
+			&user.Status,
+			&user.QuotaUsed,
+			&user.QuotaLimit,
+			&user.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users: %w", err)
+	}
+	return users, nil
+}
+
 func (r *Repository) ListDomains(ctx context.Context, limit int) ([]DomainView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
