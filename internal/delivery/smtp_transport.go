@@ -267,7 +267,19 @@ func (t *DirectSMTPTransport) mxHosts(ctx context.Context, domain string) ([]str
 		resolver = net.DefaultResolver
 	}
 	records, err := resolver.LookupMX(ctx, domain)
-	if err != nil || len(records) == 0 {
+	if err != nil {
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) && (dnsErr.IsTemporary || dnsErr.IsTimeout) {
+			return nil, &SMTPStatusError{
+				Op:      "mx",
+				Code:    451,
+				Message: fmt.Sprintf("temporary MX lookup failure for %s", domain),
+				Err:     err,
+			}
+		}
+		return []string{domain}, nil
+	}
+	if len(records) == 0 {
 		return []string{domain}, nil
 	}
 	if isNullMX(records) {

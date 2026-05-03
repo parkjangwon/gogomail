@@ -133,6 +133,24 @@ func TestMXHostsFallsBackToDomainWhenMXLookupFails(t *testing.T) {
 	}
 }
 
+func TestMXHostsTempfailsTemporaryDNSLookupErrors(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{Resolver: staticMXResolver{err: &net.DNSError{
+		Err:         "timeout",
+		Name:        "example.net",
+		IsTimeout:   true,
+		IsTemporary: true,
+	}}}
+	_, err := transport.mxHosts(context.Background(), "example.net")
+	if err == nil {
+		t.Fatal("mxHosts accepted temporary DNS failure")
+	}
+	if !IsTemporaryFailure(err) {
+		t.Fatalf("err = %v, want temporary SMTP failure", err)
+	}
+}
+
 func TestDirectSMTPTransportUsesRouterHostsBeforeMX(t *testing.T) {
 	t.Parallel()
 
