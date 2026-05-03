@@ -11,6 +11,20 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /health/live:
+    get:
+      summary: Process liveness probe
+      security: []
+      responses:
+        "200":
+          description: Process is alive
+  /health/ready:
+    get:
+      summary: Service readiness probe
+      security: []
+      responses:
+        "200":
+          description: Service is ready or degraded
   /info:
     get:
       summary: Service and backend contract metadata
