@@ -152,18 +152,16 @@ func TestPartialDeliveryErrorIsTerminalForMXFailover(t *testing.T) {
 		Delivered: []outbound.Address{{Email: "ok@example.net"}},
 		Failed:    []RecipientDeliveryError{{Recipient: outbound.Address{Email: "bad@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "try later"}}},
 	}
+	errs := []error{partial}
 	transport := DirectSMTPTransport{
 		Router: staticRouter{route: Route{Hosts: []string{"127.0.0.1", "127.0.0.2"}}},
 		Timeout: time.Millisecond,
+		deliverHost: func(context.Context, Job, Route, string, []outbound.Address) error {
+			err := errs[0]
+			errs = errs[1:]
+			return err
+		},
 	}
-	errs := []error{partial}
-	originalDeliverHost := directDeliverHost
-	directDeliverHost = func(*DirectSMTPTransport, context.Context, Job, Route, string, []outbound.Address) error {
-		err := errs[0]
-		errs = errs[1:]
-		return err
-	}
-	defer func() { directDeliverHost = originalDeliverHost }()
 
 	err := transport.deliverDomain(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "general"}}, "example.net", []outbound.Address{{Email: "ok@example.net"}, {Email: "bad@example.net"}})
 	if !errors.Is(err, partial) {

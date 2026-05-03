@@ -35,9 +35,8 @@ type DirectSMTPTransport struct {
 	TLSMode      DeliveryTLSMode
 	TLSConfig    *tls.Config
 	Transformers TransformChain
+	deliverHost  func(context.Context, Job, Route, string, []outbound.Address) error
 }
-
-var directDeliverHost = (*DirectSMTPTransport).deliverHost
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
 	return &DirectSMTPTransport{
@@ -76,7 +75,7 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := directDeliverHost(t, ctx, job, route, host, recipients); err != nil {
+		if err := t.deliverHostFunc()(ctx, job, route, host, recipients); err != nil {
 			var partial *PartialDeliveryError
 			if errors.As(err, &partial) {
 				return err
@@ -92,7 +91,14 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 	return fmt.Errorf("deliver to %s via %d mx host(s): %w", domain, len(hosts), errors.Join(errs...))
 }
 
-func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Route, host string, recipients []outbound.Address) error {
+func (t *DirectSMTPTransport) deliverHostFunc() func(context.Context, Job, Route, string, []outbound.Address) error {
+	if t.deliverHost != nil {
+		return t.deliverHost
+	}
+	return t.deliverHostDefault
+}
+
+func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, route Route, host string, recipients []outbound.Address) error {
 	timeout := t.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
