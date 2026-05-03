@@ -67,6 +67,7 @@ Implementation order:
 20. Mail API supports optional HS256 JWT verification through `GOGOMAIL_AUTH_JWT_SECRET`.
 21. SMTP sessions support AUTH PLAIN hooks and optional auth-required mode for future Submission MTA.
 22. `outbound-mta` runs an authenticated SMTP Submission server that accepts client mail, verifies the envelope sender belongs to the authenticated user, stores the raw `.eml`, and records it through the existing outbound queue/outbox path.
+23. Submission TLS policy is configurable: STARTTLS uses configured certificate/key files, insecure AUTH is convenient in development but disabled by default when `GOGOMAIL_ENV=production`.
 
 ## Deferred until backend contracts stabilize
 

@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,11 +15,14 @@ import (
 )
 
 type ServerOptions struct {
-	Addr     string
-	Domain   string
-	Backend  gosmtp.Backend
-	Receiver *Receiver
-	Logger   *slog.Logger
+	Addr              string
+	Domain            string
+	Backend           gosmtp.Backend
+	Receiver          *Receiver
+	Logger            *slog.Logger
+	TLSConfig         *tls.Config
+	AllowInsecureAuth bool
+	EnableSMTPUTF8    bool
 }
 
 func RunServer(ctx context.Context, opts ServerOptions) error {
@@ -41,11 +45,13 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	server := gosmtp.NewServer(backend)
 	server.Addr = opts.Addr
 	server.Domain = opts.Domain
+	server.TLSConfig = opts.TLSConfig
 	server.ReadTimeout = 30 * time.Second
 	server.WriteTimeout = 30 * time.Second
 	server.MaxMessageBytes = 25 * 1024 * 1024
 	server.MaxRecipients = 100
-	server.AllowInsecureAuth = true
+	server.AllowInsecureAuth = opts.AllowInsecureAuth
+	server.EnableSMTPUTF8 = opts.EnableSMTPUTF8
 
 	errCh := make(chan error, 1)
 	go func() {

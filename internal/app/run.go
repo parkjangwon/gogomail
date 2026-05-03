@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -147,14 +148,43 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Authenticator: repository,
 		Recorder:      repository,
 	})
+	tlsConfig, err := smtpTLSConfig(cfg)
+	if err != nil {
+		return err
+	}
 
-	logger.Info("outbound submission mta configured", "addr", cfg.SubmissionAddr)
+	logger.Info(
+		"outbound submission mta configured",
+		"addr", cfg.SubmissionAddr,
+		"tls_enabled", tlsConfig != nil,
+		"allow_insecure_auth", cfg.SubmissionAllowInsecureAuth,
+	)
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
-		Addr:    cfg.SubmissionAddr,
-		Domain:  cfg.SMTPDomain,
-		Backend: receiver,
-		Logger:  logger,
+		Addr:              cfg.SubmissionAddr,
+		Domain:            cfg.SMTPDomain,
+		Backend:           receiver,
+		Logger:            logger,
+		TLSConfig:         tlsConfig,
+		AllowInsecureAuth: cfg.SubmissionAllowInsecureAuth,
 	})
+}
+
+func smtpTLSConfig(cfg config.Config) (*tls.Config, error) {
+	if cfg.SMTPTLSCertFile == "" && cfg.SMTPTLSKeyFile == "" {
+		return nil, nil
+	}
+	if cfg.SMTPTLSCertFile == "" || cfg.SMTPTLSKeyFile == "" {
+		return nil, errors.New("both SMTP TLS certificate and key files are required")
+	}
+	cert, err := tls.LoadX509KeyPair(cfg.SMTPTLSCertFile, cfg.SMTPTLSKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+		ServerName:   cfg.SMTPDomain,
+	}, nil
 }
 
 func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

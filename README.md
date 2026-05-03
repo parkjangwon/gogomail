@@ -90,6 +90,7 @@ var/mailstore/mailstore/{company_id}/{domain_id}/{user_id}/maildir/{YYYY}/{MM}/{
 
 ```bash
 GOGOMAIL_SUBMISSION_ADDR=127.0.0.1:2587 \
+GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH=true \
 GOGOMAIL_SMTP_DOMAIN=example.com \
 GOGOMAIL_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable' \
 GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
@@ -97,6 +98,17 @@ GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
 ```
 
 Submission requires `AUTH PLAIN`, verifies that `MAIL FROM` belongs to the authenticated user, stores the raw RFC 5322 `.eml`, then records the message through the existing `mail.outbound.<farm>` outbox flow.
+
+For production, configure STARTTLS certificates and keep insecure AUTH disabled:
+
+```bash
+GOGOMAIL_ENV=production \
+GOGOMAIL_SUBMISSION_ADDR=:587 \
+GOGOMAIL_SMTP_TLS_CERT_FILE=/etc/gogomail/tls/fullchain.pem \
+GOGOMAIL_SMTP_TLS_KEY_FILE=/etc/gogomail/tls/privkey.pem \
+GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH=false \
+  gogomail --mode=outbound-mta
+```
 
 Local users authenticate against `users.password_hash`. Supported formats are:
 
