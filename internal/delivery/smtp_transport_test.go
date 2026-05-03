@@ -71,6 +71,19 @@ func TestOrderedMXHostsSortsByPreferenceAndHost(t *testing.T) {
 	}
 }
 
+func TestOrderedMXHostsSkipsNilAndEmptyHosts(t *testing.T) {
+	t.Parallel()
+
+	hosts := orderedMXHosts([]*net.MX{
+		nil,
+		{Host: ".", Pref: 10},
+		{Host: "mx.example.net.", Pref: 20},
+	})
+	if len(hosts) != 1 || hosts[0] != "mx.example.net" {
+		t.Fatalf("hosts = %+v, want only valid MX host", hosts)
+	}
+}
+
 func TestMXHostsRejectsNullMX(t *testing.T) {
 	t.Parallel()
 
