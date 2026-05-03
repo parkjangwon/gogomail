@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/mail"
 	"strings"
 )
 
@@ -61,6 +62,11 @@ func (c Config) Validate() error {
 	}
 	if c.DeliverySmartHostImplicitTLS && strings.EqualFold(strings.TrimSpace(c.DeliverySmartHostTLSMode), "disable") {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMARTHOST_IMPLICIT_TLS cannot be used with disabled smart-host TLS")
+	}
+	if strings.TrimSpace(c.DSNPostmaster) != "" {
+		if _, err := mail.ParseAddress(strings.TrimSpace(c.DSNPostmaster)); err != nil {
+			return fmt.Errorf("GOGOMAIL_DSN_POSTMASTER must be a valid mailbox address")
+		}
 	}
 	if c.DeliveryRetryJitterRatio < 0 || c.DeliveryRetryJitterRatio > 1 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO must be between 0 and 1")
