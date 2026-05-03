@@ -69,6 +69,22 @@ func TestAdminDomainsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminListHandlerRejectsInvalidLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains?limit=bad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminGetDomainHandler(t *testing.T) {
 	t.Parallel()
 

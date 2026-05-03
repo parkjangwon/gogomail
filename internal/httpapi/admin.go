@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -31,7 +30,10 @@ type AdminService interface {
 
 func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string) {
 	mux.HandleFunc("GET /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
 		domains, err := service.ListDomains(r.Context(), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -87,7 +89,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
 		users, err := service.ListUsers(r.Context(), r.URL.Query().Get("domain_id"), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -152,7 +157,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
 		attempts, err := service.ListDeliveryAttempts(r.Context(), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -162,7 +170,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/suppression-list", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
 		entries, err := service.ListSuppressionEntries(r.Context(), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -172,7 +183,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
 		keys, err := service.ListDKIMKeys(r.Context(), r.URL.Query().Get("domain_id"), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

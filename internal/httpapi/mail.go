@@ -121,7 +121,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
 		cursor, err := maildb.DecodeMessageListCursor(r.URL.Query().Get("cursor"))
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -418,6 +421,19 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
 	})
+}
+
+func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get("limit"))
+	if raw == "" {
+		return 0, true
+	}
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "limit must be an integer")
+		return 0, false
+	}
+	return limit, true
 }
 
 func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {
