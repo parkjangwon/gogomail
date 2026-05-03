@@ -37,6 +37,8 @@ type DirectSMTPTransport struct {
 	Transformers TransformChain
 }
 
+var directDeliverHost = (*DirectSMTPTransport).deliverHost
+
 func NewDirectSMTPTransport() *DirectSMTPTransport {
 	return &DirectSMTPTransport{
 		Resolver: net.DefaultResolver,
@@ -74,7 +76,11 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := t.deliverHost(ctx, job, route, host, recipients); err != nil {
+		if err := directDeliverHost(t, ctx, job, route, host, recipients); err != nil {
+			var partial *PartialDeliveryError
+			if errors.As(err, &partial) {
+				return err
+			}
 			if IsPermanentFailure(err) {
 				return err
 			}

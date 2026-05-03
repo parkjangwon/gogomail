@@ -145,6 +145,35 @@ func TestDirectSMTPTransportWrapsRouterError(t *testing.T) {
 	}
 }
 
+func TestPartialDeliveryErrorIsTerminalForMXFailover(t *testing.T) {
+	t.Parallel()
+
+	partial := &PartialDeliveryError{
+		Delivered: []outbound.Address{{Email: "ok@example.net"}},
+		Failed:    []RecipientDeliveryError{{Recipient: outbound.Address{Email: "bad@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "try later"}}},
+	}
+	transport := DirectSMTPTransport{
+		Router: staticRouter{route: Route{Hosts: []string{"127.0.0.1", "127.0.0.2"}}},
+		Timeout: time.Millisecond,
+	}
+	errs := []error{partial}
+	originalDeliverHost := directDeliverHost
+	directDeliverHost = func(*DirectSMTPTransport, context.Context, Job, Route, string, []outbound.Address) error {
+		err := errs[0]
+		errs = errs[1:]
+		return err
+	}
+	defer func() { directDeliverHost = originalDeliverHost }()
+
+	err := transport.deliverDomain(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "general"}}, "example.net", []outbound.Address{{Email: "ok@example.net"}, {Email: "bad@example.net"}})
+	if !errors.Is(err, partial) {
+		t.Fatalf("deliverDomain error = %v, want partial delivery error", err)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("remaining stub errors = %+v, want no MX retry after partial DATA success", errs)
+	}
+}
+
 func TestAcceptRecipientsContinuesAfterSingleRecipientFailure(t *testing.T) {
 	t.Parallel()
 
