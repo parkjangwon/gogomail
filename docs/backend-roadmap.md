@@ -194,6 +194,10 @@ Implementation order:
 147. Outbound SMTP DSN command generation has wire-level tests that verify advertised DSN support produces RFC-shaped MAIL and RCPT parameters.
 148. `inbound-mta` can enforce a trusted relay CIDR policy through `GOGOMAIL_INBOUND_TRUSTED_RELAYS`, rejecting untrusted post-filter SMTP clients before envelope state is accepted.
 149. Authenticated submission can optionally expose an implicit TLS SMTPS listener through `GOGOMAIL_SUBMISSION_SMTPS_ADDR`, reusing the configured SMTP certificate/key pair and running alongside the STARTTLS submission listener.
+150. Smart-host route normalization strips invalid bare `host:port` suffixes before pool-key and connection use, preventing malformed operator input from becoming impossible host names.
+151. Null reverse-path delivery suppresses both MAIL-level and RCPT-level outbound DSN request parameters, reducing bounce/DSN loop risk.
+152. Trusted relay authorization accepts remote address strings with TCP ports as well as bare IP addresses, keeping inbound relay policy robust across listener/test adapters.
+153. Submission listener addresses are trimmed before server startup so environment whitespace does not create invalid STARTTLS or SMTPS bind addresses.
 
 ## Deferred until backend contracts stabilize
 
