@@ -225,12 +225,16 @@ func shouldSendOutboundDSNMailOptions(job Job) bool {
 
 func smtpRcpt(client *smtp.Client, job Job, recipient outbound.Address) error {
 	options := dsnOptionsForRecipient(job.DSN.Recipients, recipient.Email)
-	if !smtpClientSupports(client, "DSN") || len(options) == 0 {
+	if !shouldSendOutboundDSNRcptOptions(job) || !smtpClientSupports(client, "DSN") || len(options) == 0 {
 		return client.Rcpt(recipient.Email)
 	}
 	parts := []string{"RCPT TO:<" + recipient.Email + ">"}
 	parts = append(parts, options...)
 	return smtpCommand(client, 25, strings.Join(parts, " "))
+}
+
+func shouldSendOutboundDSNRcptOptions(job Job) bool {
+	return job.From.Email != ""
 }
 
 func dsnOptionsForRecipient(recipients []DSNRecipientOptions, address string) []string {

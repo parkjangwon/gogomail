@@ -391,6 +391,9 @@ func TestNullReversePathSuppressesOutboundDSNMailOptions(t *testing.T) {
 	if shouldSendOutboundDSNMailOptions(job) {
 		t.Fatal("null reverse-path should not request DSN options")
 	}
+	if shouldSendOutboundDSNRcptOptions(job) {
+		t.Fatal("null reverse-path should not request recipient DSN options")
+	}
 }
 
 func TestSMTPDSNOptionsAreSentOnWireWhenAdvertised(t *testing.T) {
