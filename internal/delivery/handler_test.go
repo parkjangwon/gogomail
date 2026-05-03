@@ -82,6 +82,39 @@ func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	}
 }
 
+func TestHandlerDoesNotRetryPermanentSMTPFailure(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	recorder := &fakeRecorder{}
+	retry := &fakeRetryScheduler{}
+	handler := NewHandler(store, &fakeTransport{err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"}}, recorder, retry)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(recorder.attempts) != 1 || recorder.attempts[0].Status != AttemptBounced {
+		t.Fatalf("attempts = %+v, want bounced attempt", recorder.attempts)
+	}
+	if retry.scheduled.MessageID != "" {
+		t.Fatalf("scheduled retry = %+v, want none", retry.scheduled)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	t.Parallel()
 

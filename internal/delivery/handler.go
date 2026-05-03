@@ -80,8 +80,15 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 
 	if err := h.transport.Deliver(ctx, job); err != nil {
-		if recordErr := h.recordAttempts(ctx, job, AttemptFailed, err); recordErr != nil {
+		status := AttemptFailed
+		if IsPermanentFailure(err) {
+			status = AttemptBounced
+		}
+		if recordErr := h.recordAttempts(ctx, job, status, err); recordErr != nil {
 			return recordErr
+		}
+		if IsPermanentFailure(err) {
+			return nil
 		}
 		if h.retry != nil {
 			retryErr := h.retry.ScheduleRetry(ctx, job, err)

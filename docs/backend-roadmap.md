@@ -58,6 +58,7 @@ Implementation order:
 11. Delivery worker consumes `mail.outbound.general` and hands queued `.eml` messages to a pluggable SMTP transport.
 12. Delivery attempts are recorded for delivered/failed recipients as retry and bounce groundwork.
 13. Failed delivery attempts can schedule delayed retries through outbox `available_at`.
+14. SMTP 4xx/5xx responses are classified so 5xx hard bounces stop retry while temporary failures retry.
 
 ## Deferred until backend contracts stabilize
 

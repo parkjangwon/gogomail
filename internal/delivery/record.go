@@ -11,6 +11,7 @@ type AttemptStatus string
 const (
 	AttemptDelivered AttemptStatus = "delivered"
 	AttemptFailed    AttemptStatus = "failed"
+	AttemptBounced   AttemptStatus = "bounced"
 )
 
 type Attempt struct {

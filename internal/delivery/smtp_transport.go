@@ -65,20 +65,20 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 		hello = "localhost"
 	}
 	if err := client.Hello(hello); err != nil {
-		return fmt.Errorf("smtp hello %s: %w", host, err)
+		return WrapSMTPError("hello", err)
 	}
 	if err := client.Mail(job.From.Email); err != nil {
-		return fmt.Errorf("smtp mail from %s: %w", job.From.Email, err)
+		return WrapSMTPError("mail", err)
 	}
 	for _, recipient := range recipients {
 		if err := client.Rcpt(recipient.Email); err != nil {
-			return fmt.Errorf("smtp rcpt to %s: %w", recipient.Email, err)
+			return WrapSMTPError("rcpt", err)
 		}
 	}
 
 	writer, err := client.Data()
 	if err != nil {
-		return fmt.Errorf("smtp data: %w", err)
+		return WrapSMTPError("data", err)
 	}
 	message, err := job.OpenMessage(ctx)
 	if err != nil {
@@ -95,10 +95,10 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 		return fmt.Errorf("close queued message: %w", closeMessageErr)
 	}
 	if closeDataErr != nil {
-		return fmt.Errorf("close smtp data: %w", closeDataErr)
+		return WrapSMTPError("data", closeDataErr)
 	}
 	if err := client.Quit(); err != nil {
-		return fmt.Errorf("smtp quit: %w", err)
+		return WrapSMTPError("quit", err)
 	}
 	return nil
 }
