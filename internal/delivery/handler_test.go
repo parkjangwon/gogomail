@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
+	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -121,6 +122,69 @@ func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	_, err := DecodeQueuedMessage([]byte(`{"event":"mail.stored"}`))
 	if err == nil {
 		t.Fatal("DecodeQueuedMessage accepted wrong event")
+	}
+}
+
+func TestDecodeQueuedMessageRejectsInvalidRecipient(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"not-an-address"}]
+	}`))
+	if err == nil {
+		t.Fatal("DecodeQueuedMessage accepted invalid recipient")
+	}
+	if !strings.Contains(err.Error(), "invalid to recipient") {
+		t.Fatalf("error = %v, want invalid to recipient", err)
+	}
+}
+
+func TestDecodeQueuedMessageNormalizesAndDeduplicatesRecipients(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"Sender@Example.COM"},
+		"to":[{"name":"User","email":"User@Example.NET"}],
+		"cc":[{"name":"Duplicate","email":"user@example.net"},{"email":"Copy@Example.NET"}],
+		"bcc":[{"email":"copy@example.net"}]
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.From.Email != "sender@example.com" {
+		t.Fatalf("from.email = %q, want sender@example.com", queued.From.Email)
+	}
+	recipients := queued.Recipients()
+	if len(recipients) != 2 {
+		t.Fatalf("recipients = %+v, want 2 deduplicated recipients", recipients)
+	}
+	if recipients[0].Email != "user@example.net" || recipients[0].Name != "User" {
+		t.Fatalf("first recipient = %+v, want normalized first TO recipient", recipients[0])
+	}
+	if recipients[1].Email != "copy@example.net" {
+		t.Fatalf("second recipient = %+v, want copy@example.net", recipients[1])
+	}
+}
+
+func TestAttemptsForUsesDeduplicatedRecipients(t *testing.T) {
+	t.Parallel()
+
+	attempts := attemptsFor(Job{QueuedMessage: QueuedMessage{
+		MessageID: "msg-1",
+		Farm:      "general",
+		To:        []outbound.Address{{Email: "User@Example.NET"}},
+		Cc:        []outbound.Address{{Email: "user@example.net"}},
+	}}, AttemptDelivered, nil, timeNow())
+	if len(attempts) != 1 {
+		t.Fatalf("attempts = %+v, want 1 deduplicated attempt", attempts)
+	}
+	if attempts[0].Recipient != "user@example.net" || attempts[0].RecipientDomain != "example.net" {
+		t.Fatalf("attempt = %+v, want normalized recipient/domain", attempts[0])
 	}
 }
 

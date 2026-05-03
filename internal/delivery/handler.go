@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -116,6 +117,14 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if queued.From.Email == "" {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload is missing from.email")
 	}
+	from, err := mail.NormalizeAddress(queued.From.Email)
+	if err != nil {
+		return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid from.email: %w", err)
+	}
+	queued.From.Email = from
+	if err := normalizeQueuedRecipients(&queued); err != nil {
+		return QueuedMessage{}, err
+	}
 	if len(queued.Recipients()) == 0 {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has no recipients")
 	}
@@ -123,11 +132,56 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 }
 
 func (m QueuedMessage) Recipients() []outbound.Address {
-	recipients := make([]outbound.Address, 0, len(m.To)+len(m.Cc)+len(m.Bcc))
-	recipients = append(recipients, m.To...)
-	recipients = append(recipients, m.Cc...)
-	recipients = append(recipients, m.Bcc...)
+	raw := make([]outbound.Address, 0, len(m.To)+len(m.Cc)+len(m.Bcc))
+	raw = append(raw, m.To...)
+	raw = append(raw, m.Cc...)
+	raw = append(raw, m.Bcc...)
+
+	seen := make(map[string]struct{}, len(raw))
+	recipients := make([]outbound.Address, 0, len(raw))
+	for _, recipient := range raw {
+		normalized, err := mail.NormalizeAddress(recipient.Email)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		recipient.Email = normalized
+		recipients = append(recipients, recipient)
+	}
 	return recipients
+}
+
+func normalizeQueuedRecipients(queued *QueuedMessage) error {
+	var err error
+	if queued.To, err = normalizeAddressList("to", queued.To); err != nil {
+		return err
+	}
+	if queued.Cc, err = normalizeAddressList("cc", queued.Cc); err != nil {
+		return err
+	}
+	if queued.Bcc, err = normalizeAddressList("bcc", queued.Bcc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func normalizeAddressList(field string, addresses []outbound.Address) ([]outbound.Address, error) {
+	if len(addresses) == 0 {
+		return addresses, nil
+	}
+	normalized := addresses[:0]
+	for _, address := range addresses {
+		email, err := mail.NormalizeAddress(address.Email)
+		if err != nil {
+			return nil, fmt.Errorf("mail.queued payload has invalid %s recipient %q: %w", field, address.Email, err)
+		}
+		address.Email = email
+		normalized = append(normalized, address)
+	}
+	return normalized, nil
 }
 
 func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptStatus, cause error) error {
