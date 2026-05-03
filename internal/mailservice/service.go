@@ -16,6 +16,7 @@ import (
 )
 
 type Repository interface {
+	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
@@ -30,6 +31,10 @@ type Service struct {
 
 func New(repository Repository, store storage.Store) *Service {
 	return &Service{repository: repository, store: store}
+}
+
+func (s *Service) ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error) {
+	return s.repository.ListFolders(ctx, userID)
 }
 
 func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {

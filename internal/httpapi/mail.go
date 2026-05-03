@@ -13,12 +13,28 @@ import (
 )
 
 type MessageService interface {
+	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
+	mux.HandleFunc("GET /api/v1/folders", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		folders, err := service.ListFolders(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"folders": folders})
+	})
+
 	mux.HandleFunc("GET /api/v1/messages", func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {

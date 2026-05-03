@@ -62,6 +62,40 @@ func TestListMessagesHandler(t *testing.T) {
 	}
 }
 
+func TestListFoldersHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		folders: []maildb.Folder{
+			{ID: "folder-1", Name: "Inbox", FullPath: "Inbox", Type: "system", SystemType: "inbox"},
+		},
+	}
+
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/folders?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Folders []maildb.Folder `json:"folders"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Folders) != 1 || body.Folders[0].SystemType != "inbox" {
+		t.Fatalf("folders = %+v", body.Folders)
+	}
+	if service.lastUserID != "user-1" {
+		t.Fatalf("lastUserID = %q", service.lastUserID)
+	}
+}
+
 func TestGetMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -185,6 +219,7 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
+	folders       []maildb.Folder
 	list          []maildb.MessageSummary
 	detail        maildb.MessageDetail
 	sendResult    mailservice.SendTextResult
@@ -192,6 +227,11 @@ type fakeMessageService struct {
 	lastUserID    string
 	lastMessageID string
 	lastLimit     int
+}
+
+func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
+	f.lastUserID = userID
+	return f.folders, nil
 }
 
 func (f *fakeMessageService) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {

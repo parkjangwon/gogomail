@@ -37,6 +37,62 @@ type MessageDetail struct {
 	TextBody      string          `json:"text_body"`
 }
 
+type Folder struct {
+	ID         string `json:"id"`
+	ParentID   string `json:"parent_id,omitempty"`
+	Name       string `json:"name"`
+	FullPath   string `json:"full_path"`
+	Type       string `json:"type"`
+	SystemType string `json:"system_type,omitempty"`
+	OrderIndex int    `json:"order_index"`
+}
+
+func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  COALESCE(parent_id::text, ''),
+  name,
+  full_path,
+  type,
+  COALESCE(system_type, ''),
+  order_index
+FROM folders
+WHERE user_id = $1
+ORDER BY type DESC, order_index ASC, full_path ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list folders: %w", err)
+	}
+	defer rows.Close()
+
+	folders := make([]Folder, 0)
+	for rows.Next() {
+		var folder Folder
+		if err := rows.Scan(
+			&folder.ID,
+			&folder.ParentID,
+			&folder.Name,
+			&folder.FullPath,
+			&folder.Type,
+			&folder.SystemType,
+			&folder.OrderIndex,
+		); err != nil {
+			return nil, fmt.Errorf("scan folder: %w", err)
+		}
+		folders = append(folders, folder)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate folders: %w", err)
+	}
+	return folders, nil
+}
+
 func (r *Repository) ListMessages(ctx context.Context, userID string, limit int) ([]MessageSummary, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
