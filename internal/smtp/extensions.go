@@ -168,10 +168,22 @@ func validDSNAddressType(value string) bool {
 }
 
 func validDSNXText(value string) bool {
-	for _, r := range value {
-		if r < 33 || r > 126 || r == '\r' || r == '\n' {
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if c < 33 || c > 126 || c == '=' {
 			return false
 		}
+		if c != '+' {
+			continue
+		}
+		if i+2 >= len(value) || !isHexDigit(value[i+1]) || !isHexDigit(value[i+2]) {
+			return false
+		}
+		i += 2
 	}
 	return true
+}
+
+func isHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 }

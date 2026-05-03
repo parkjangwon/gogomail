@@ -83,6 +83,12 @@ func TestValidateOptionsRejectsInvalidDSNValues(t *testing.T) {
 	if err := validateMailOptions(&gosmtp.MailOptions{EnvelopeID: "bad\r\nid"}, support); err == nil {
 		t.Fatal("validateMailOptions accepted ENVID with control characters")
 	}
+	if err := validateMailOptions(&gosmtp.MailOptions{EnvelopeID: "bad+escape"}, support); err == nil {
+		t.Fatal("validateMailOptions accepted ENVID with invalid xtext escape")
+	}
+	if err := validateMailOptions(&gosmtp.MailOptions{EnvelopeID: "bad=value"}, support); err == nil {
+		t.Fatal("validateMailOptions accepted ENVID with raw equals")
+	}
 	if err := validateRcptOptions(&gosmtp.RcptOptions{OriginalRecipient: "user@example.com"}, support); err == nil {
 		t.Fatal("validateRcptOptions accepted ORCPT without address type")
 	}
