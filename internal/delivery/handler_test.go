@@ -256,6 +256,31 @@ func TestDecodeQueuedMessageNormalizesAndDeduplicatesRecipients(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessagePreservesDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"Sender@Example.COM"},
+		"to":[{"email":"User@Example.NET"}],
+		"dsn":{
+			"return":"FULL",
+			"envelope_id":"env-1",
+			"recipients":[{"address":"user@example.net","notify":["FAILURE"],"original_recipient":"rfc822; alias@example.net"}]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.DSN.Return != "FULL" || queued.DSN.EnvelopeID != "env-1" {
+		t.Fatalf("DSN = %+v", queued.DSN)
+	}
+	if len(queued.DSN.Recipients) != 1 || queued.DSN.Recipients[0].OriginalRecipient != "rfc822; alias@example.net" {
+		t.Fatalf("DSN recipients = %+v", queued.DSN.Recipients)
+	}
+}
+
 func TestAttemptsForUsesDeduplicatedRecipients(t *testing.T) {
 	t.Parallel()
 

@@ -26,10 +26,23 @@ type QueuedMessage struct {
 	To           []outbound.Address `json:"to"`
 	Cc           []outbound.Address `json:"cc"`
 	Bcc          []outbound.Address `json:"bcc"`
+	DSN          DSNOptions         `json:"dsn"`
 	Subject      string             `json:"subject"`
 	StoragePath  string             `json:"storage_path"`
 	Size         int64              `json:"size"`
 	RetryAttempt int                `json:"retry_attempt"`
+}
+
+type DSNOptions struct {
+	Return     string                `json:"return"`
+	EnvelopeID string                `json:"envelope_id"`
+	Recipients []DSNRecipientOptions `json:"recipients"`
+}
+
+type DSNRecipientOptions struct {
+	Address           string   `json:"address"`
+	Notify            []string `json:"notify"`
+	OriginalRecipient string   `json:"original_recipient"`
 }
 
 type MessageOpener func(ctx context.Context) (io.ReadCloser, error)
