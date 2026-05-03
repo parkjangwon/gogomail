@@ -22,20 +22,22 @@ type Attachment struct {
 type ParseOptions struct {
 	MaxTextBodyBytes int64
 	SkipTextBody     bool
+	MaxAttachments   int
 }
 
 type ParsedMessage struct {
-	MessageID         string
-	Subject           string
-	From              Address
-	To                []Address
-	Cc                []Address
-	Bcc               []Address
-	Date              time.Time
-	TextBody          string
-	TextBodyTruncated bool
-	HasAttachment     bool
-	Attachments       []Attachment
+	MessageID            string
+	Subject              string
+	From                 Address
+	To                   []Address
+	Cc                   []Address
+	Bcc                  []Address
+	Date                 time.Time
+	TextBody             string
+	TextBodyTruncated    bool
+	HasAttachment        bool
+	AttachmentsTruncated bool
+	Attachments          []Attachment
 }
 
 func ParseEML(r io.Reader) (ParsedMessage, error) {
@@ -96,7 +98,11 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 				filename = ""
 			}
 			parsed.HasAttachment = true
-			parsed.Attachments = append(parsed.Attachments, Attachment{Filename: filename})
+			if len(parsed.Attachments) < opts.MaxAttachments {
+				parsed.Attachments = append(parsed.Attachments, Attachment{Filename: filename})
+			} else {
+				parsed.AttachmentsTruncated = true
+			}
 		}
 	}
 
@@ -106,6 +112,9 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 func normalizeParseOptions(opts ParseOptions) ParseOptions {
 	if opts.MaxTextBodyBytes <= 0 {
 		opts.MaxTextBodyBytes = 1 << 20
+	}
+	if opts.MaxAttachments <= 0 {
+		opts.MaxAttachments = 1000
 	}
 	return opts
 }

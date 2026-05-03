@@ -155,3 +155,44 @@ func TestParseEMLWithOptionsSkipsTextBody(t *testing.T) {
 		t.Fatalf("TextBody = %q, want empty", parsed.TextBody)
 	}
 }
+
+func TestParseEMLWithOptionsLimitsAttachmentMetadata(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: many attachments",
+		"Content-Type: multipart/mixed; boundary=frontier",
+		"",
+		"--frontier",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+		"--frontier",
+		"Content-Type: text/plain",
+		"Content-Disposition: attachment; filename=\"one.txt\"",
+		"",
+		"one",
+		"--frontier",
+		"Content-Type: text/plain",
+		"Content-Disposition: attachment; filename=\"two.txt\"",
+		"",
+		"two",
+		"--frontier--",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxAttachments: 1})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if !parsed.HasAttachment {
+		t.Fatal("HasAttachment = false, want true")
+	}
+	if len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "one.txt" {
+		t.Fatalf("Attachments = %+v", parsed.Attachments)
+	}
+	if !parsed.AttachmentsTruncated {
+		t.Fatal("AttachmentsTruncated = false, want true")
+	}
+}
