@@ -232,7 +232,8 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if queued.MessageID == "" {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload is missing message_id")
 	}
-	if strings.TrimSpace(queued.From.Email) != "" {
+	queued.From.Email = strings.TrimSpace(queued.From.Email)
+	if queued.From.Email != "" {
 		from, err := mail.NormalizeAddress(queued.From.Email)
 		if err != nil {
 			return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid from.email: %w", err)

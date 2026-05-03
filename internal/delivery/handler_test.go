@@ -346,7 +346,7 @@ func TestDecodeQueuedMessageAllowsNullReversePath(t *testing.T) {
 	queued, err := DecodeQueuedMessage([]byte(`{
 		"event":"mail.queued",
 		"message_id":"dsn-1",
-		"from":{"email":""},
+		"from":{"email":"  "},
 		"to":[{"email":"sender@example.net"}]
 	}`))
 	if err != nil {
