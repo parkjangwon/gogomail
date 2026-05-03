@@ -1,6 +1,7 @@
 package smtpd
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	gosmtp "github.com/emersion/go-smtp"
@@ -26,6 +27,9 @@ func validateMailOptions(opts *gosmtp.MailOptions, support extensionSupport) err
 	if opts.Return != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN RET is not supported")
 	}
+	if opts.Return != "" && !validDSNReturnOption(opts.Return) {
+		return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "invalid DSN RET option")
+	}
 	if opts.EnvelopeID != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ENVID is not supported")
 	}
@@ -41,6 +45,11 @@ func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) err
 	}
 	if len(opts.Notify) > 0 && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN NOTIFY is not supported")
+	}
+	for _, notify := range opts.Notify {
+		if !validDSNNotifyOption(notify) {
+			return smtpPermanent(501, gosmtp.EnhancedCode{5, 5, 4}, "invalid DSN NOTIFY option")
+		}
 	}
 	if opts.OriginalRecipient != "" && !support.DSN {
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ORCPT is not supported")
@@ -77,4 +86,22 @@ func containsNonASCII(value string) bool {
 		value = value[size:]
 	}
 	return false
+}
+
+func validDSNReturnOption(value gosmtp.DSNReturn) bool {
+	switch gosmtp.DSNReturn(strings.ToUpper(strings.TrimSpace(string(value)))) {
+	case gosmtp.DSNReturnFull, gosmtp.DSNReturnHeaders:
+		return true
+	default:
+		return false
+	}
+}
+
+func validDSNNotifyOption(value gosmtp.DSNNotify) bool {
+	switch gosmtp.DSNNotify(strings.ToUpper(strings.TrimSpace(string(value)))) {
+	case gosmtp.DSNNotifyNever, gosmtp.DSNNotifySuccess, gosmtp.DSNNotifyFailure, gosmtp.DSNNotifyDelayed:
+		return true
+	default:
+		return false
+	}
 }

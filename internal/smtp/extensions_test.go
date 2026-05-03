@@ -63,3 +63,15 @@ func TestValidateOptionsAcceptsSupportedExtensions(t *testing.T) {
 		t.Fatalf("validateRcptOptions returned error: %v", err)
 	}
 }
+
+func TestValidateOptionsRejectsInvalidDSNValues(t *testing.T) {
+	t.Parallel()
+
+	support := extensionSupport{DSN: true}
+	if err := validateMailOptions(&gosmtp.MailOptions{Return: "BODY"}, support); err == nil {
+		t.Fatal("validateMailOptions accepted invalid DSN RET")
+	}
+	if err := validateRcptOptions(&gosmtp.RcptOptions{Notify: []gosmtp.DSNNotify{"MAYBE"}}, support); err == nil {
+		t.Fatal("validateRcptOptions accepted invalid DSN NOTIFY")
+	}
+}
