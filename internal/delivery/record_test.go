@@ -72,6 +72,9 @@ func TestAttemptsForCarriesDSNMetadata(t *testing.T) {
 	if attempt.DSNReturn != "HDRS" || attempt.DSNEnvelopeID != "env+2D1" {
 		t.Fatalf("attempt DSN envelope = return %q envid %q", attempt.DSNReturn, attempt.DSNEnvelopeID)
 	}
+	if attempt.Sender != "sender@example.com" {
+		t.Fatalf("Sender = %q, want original envelope sender", attempt.Sender)
+	}
 	if len(attempt.DSNNotify) != 2 || attempt.DSNNotify[0] != "FAILURE" || attempt.DSNNotify[1] != "DELAY" {
 		t.Fatalf("attempt DSN notify = %+v", attempt.DSNNotify)
 	}

@@ -21,6 +21,7 @@ type Attempt struct {
 	CompanyID         string
 	DomainID          string
 	Farm              string
+	Sender            string
 	Recipient         string
 	RecipientDomain   string
 	Status            AttemptStatus
@@ -59,6 +60,7 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 			CompanyID:         job.CompanyID,
 			DomainID:          job.DomainID,
 			Farm:              string(job.Farm),
+			Sender:            strings.TrimSpace(job.From.Email),
 			Recipient:         recipient.Email,
 			RecipientDomain:   strings.ToLower(domain),
 			Status:            status,

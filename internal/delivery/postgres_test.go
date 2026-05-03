@@ -15,6 +15,7 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 		CompanyID:         "company-1",
 		DomainID:          "domain-1",
 		Farm:              "general",
+		Sender:            "sender@example.com",
 		Recipient:         "user@example.net",
 		RecipientDomain:   "example.net",
 		Status:            AttemptBounced,
@@ -39,6 +40,9 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 	}
 	if got["recipient"] != "user@example.net" {
 		t.Fatalf("recipient = %v", got["recipient"])
+	}
+	if got["sender"] != "sender@example.com" {
+		t.Fatalf("sender = %v, want original sender", got["sender"])
 	}
 	if got["enhanced_status"] != "5.1.1" {
 		t.Fatalf("enhanced_status = %v, want 5.1.1", got["enhanced_status"])
