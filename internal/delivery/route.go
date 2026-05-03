@@ -42,10 +42,10 @@ func normalizeRoute(job Job, domain string, route Route) Route {
 	}
 	var hostPort int
 	route.Hosts, hostPort = normalizeRouteHostsAndPort(route.Hosts)
-	if route.Port <= 0 {
+	if route.Port <= 0 || route.Port > 65535 {
 		route.Port = hostPort
 	}
-	if route.Port <= 0 {
+	if route.Port <= 0 || route.Port > 65535 {
 		route.Port = 25
 	}
 	route.Hello = strings.TrimSpace(route.Hello)
@@ -113,7 +113,7 @@ func routePoolKey(route Route, host string) string {
 }
 
 func normalizeRoutePort(port int) int {
-	if port <= 0 {
+	if port <= 0 || port > 65535 {
 		return 25
 	}
 	return port

@@ -61,6 +61,25 @@ func TestNormalizeRouteExplicitPortOverridesHostPort(t *testing.T) {
 	}
 }
 
+func TestNormalizeRouteRejectsInvalidExplicitPort(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "Example.NET", Route{
+		Hosts: []string{"smtp.example.net:587"},
+		Port:  70000,
+	})
+	if route.Port != 587 {
+		t.Fatalf("Port = %d, want fallback to valid host port", route.Port)
+	}
+
+	route = normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "Example.NET", Route{
+		Port: 70000,
+	})
+	if route.Port != 25 {
+		t.Fatalf("Port = %d, want default SMTP port", route.Port)
+	}
+}
+
 func TestRoutePoolKeyIncludesFarmDomainHostAndTLSMode(t *testing.T) {
 	t.Parallel()
 
