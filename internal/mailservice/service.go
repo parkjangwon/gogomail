@@ -35,12 +35,12 @@ type Repository interface {
 }
 
 type DraftRepository interface {
-	SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error)
+	SaveDraft(ctx context.Context, req maildb.SaveDraftRequest) (maildb.MessageDetail, error)
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
 }
 
 type AttachmentUploadRepository interface {
-	CreateAttachmentUpload(ctx context.Context, req CreateAttachmentUploadRequest) (maildb.Attachment, error)
+	CreateAttachmentUpload(ctx context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error)
 }
 
 type Service struct {
@@ -124,7 +124,19 @@ func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.M
 	if !ok {
 		return maildb.MessageDetail{}, fmt.Errorf("draft repository is required")
 	}
-	return repo.SaveDraft(ctx, req)
+	return repo.SaveDraft(ctx, maildb.SaveDraftRequest{
+		UserID:          req.UserID,
+		DraftID:         req.DraftID,
+		Intent:          string(req.Intent),
+		SourceMessageID: req.SourceMessageID,
+		From:            req.From,
+		To:              req.To,
+		Cc:              req.Cc,
+		Bcc:             req.Bcc,
+		Subject:         req.Subject,
+		TextBody:        req.TextBody,
+		AttachmentIDs:   req.AttachmentIDs,
+	})
 }
 
 func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string) error {
@@ -150,7 +162,14 @@ func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachme
 	if !ok {
 		return maildb.Attachment{}, fmt.Errorf("attachment upload repository is required")
 	}
-	return repo.CreateAttachmentUpload(ctx, req)
+	return repo.CreateAttachmentUpload(ctx, maildb.CreateAttachmentUploadRequest{
+		UserID:      req.UserID,
+		DraftID:     req.DraftID,
+		Filename:    req.Filename,
+		Size:        req.Size,
+		MIMEType:    req.MIMEType,
+		StoragePath: req.StoragePath,
+	})
 }
 
 type AttachmentDownload struct {

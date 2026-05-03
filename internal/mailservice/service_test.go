@@ -55,8 +55,8 @@ type fakeRepository struct {
 	attachments               []maildb.Attachment
 	suppressed                []string
 	seenSuppressionRecipients []string
-	lastDraft                 SaveDraftRequest
-	lastAttachmentUpload      CreateAttachmentUploadRequest
+	lastDraft                 maildb.SaveDraftRequest
+	lastAttachmentUpload      maildb.CreateAttachmentUploadRequest
 	lastFlagMessageID         string
 	lastFlag                  string
 }
@@ -130,7 +130,7 @@ func (f *fakeRepository) SuppressedRecipients(_ context.Context, _ string, recip
 	return f.suppressed, nil
 }
 
-func (f *fakeRepository) SaveDraft(_ context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
+func (f *fakeRepository) SaveDraft(_ context.Context, req maildb.SaveDraftRequest) (maildb.MessageDetail, error) {
 	f.lastDraft = req
 	return maildb.MessageDetail{ID: "draft-1", Subject: req.Subject}, nil
 }
@@ -139,7 +139,7 @@ func (f *fakeRepository) DeleteDraft(context.Context, string, string) error {
 	return nil
 }
 
-func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req CreateAttachmentUploadRequest) (maildb.Attachment, error) {
+func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
 	f.lastAttachmentUpload = req
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
 }
