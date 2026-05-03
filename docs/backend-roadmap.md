@@ -117,3 +117,4 @@ Implementation order:
 - Vault
 - IMAP
 - Push notifications
+- Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.

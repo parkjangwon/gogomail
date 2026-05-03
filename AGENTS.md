@@ -42,6 +42,8 @@ The SMTP engine must keep mail processing stages clearly separated.
 
 Spam processing will be built as a separate module later, so the SMTP engine should expose stable internal stages/hooks rather than hard-code spam-specific behavior.
 
+Do not turn the SMTP engine into a spam engine. SPF/DKIM/DMARC, spam scoring, pattern filtering, quarantine decisions, and vendor-specific spam behavior must stay optional and pluggable. The SMTP core may define interfaces, hook stages, envelopes, trace headers, and result carriers, but actual spam filtering modules or external spam relay integrations should live outside the protocol core and remain disabled by default unless explicitly wired by configuration.
+
 Design SMTP receive/delivery changes so extra behavior can be attached at specific stages, such as:
 
 - image conversion
