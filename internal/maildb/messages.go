@@ -46,6 +46,8 @@ type Folder struct {
 	Type       string `json:"type"`
 	SystemType string `json:"system_type,omitempty"`
 	OrderIndex int    `json:"order_index"`
+	Total      int64  `json:"total"`
+	Unread     int64  `json:"unread"`
 }
 
 type CreateFolderRequest struct {
@@ -162,15 +164,19 @@ func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, 
 
 	const query = `
 SELECT
-  id::text,
-  COALESCE(parent_id::text, ''),
-  name,
-  full_path,
-  type,
-  COALESCE(system_type, ''),
-  order_index
-FROM folders
-WHERE user_id = $1
+  f.id::text,
+  COALESCE(f.parent_id::text, ''),
+  f.name,
+  f.full_path,
+  f.type,
+  COALESCE(f.system_type, ''),
+  f.order_index,
+  COUNT(m.id) FILTER (WHERE m.status = 'active') AS total,
+  COUNT(m.id) FILTER (WHERE m.status = 'active' AND COALESCE((m.flags->>'read')::boolean, false) = false) AS unread
+FROM folders f
+LEFT JOIN messages m ON m.folder_id = f.id
+WHERE f.user_id = $1
+GROUP BY f.id
 ORDER BY type DESC, order_index ASC, full_path ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -190,6 +196,8 @@ ORDER BY type DESC, order_index ASC, full_path ASC`
 			&folder.Type,
 			&folder.SystemType,
 			&folder.OrderIndex,
+			&folder.Total,
+			&folder.Unread,
 		); err != nil {
 			return nil, fmt.Errorf("scan folder: %w", err)
 		}
