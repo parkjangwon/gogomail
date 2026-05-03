@@ -17,6 +17,7 @@ const (
 type Attempt struct {
 	MessageID       string
 	RFCMessageID    string
+	CompanyID       string
 	DomainID        string
 	Farm            string
 	Recipient       string
@@ -49,6 +50,7 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 		attempts = append(attempts, Attempt{
 			MessageID:       job.MessageID,
 			RFCMessageID:    job.RFCMessageID,
+			CompanyID:       job.CompanyID,
 			DomainID:        job.DomainID,
 			Farm:            string(job.Farm),
 			Recipient:       recipient.Email,

@@ -60,6 +60,7 @@ Implementation order:
 13. Failed delivery attempts can schedule delayed retries through outbox `available_at`.
 14. SMTP 4xx/5xx responses are classified so 5xx hard bounces stop retry while temporary failures retry.
 15. Hard-bounced recipients are added to suppression list and blocked before future send enqueue.
+16. Delivery outcomes emit `mail.delivered`, `mail.bounced`, or `mail.delivery_failed` events for audit and future admin streams.
 
 ## Deferred until backend contracts stabilize
 

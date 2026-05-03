@@ -181,7 +181,17 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	defer redisClient.Close()
 
 	router := eventstream.NewRouter()
-	if err := router.Register("mail.stored", audit.NewMailStoredHandler(audit.NewPostgresRepository(db))); err != nil {
+	auditRepository := audit.NewPostgresRepository(db)
+	if err := router.Register("mail.stored", audit.NewMailStoredHandler(auditRepository)); err != nil {
+		return err
+	}
+	if err := router.Register("mail.delivered", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
+		return err
+	}
+	if err := router.Register("mail.bounced", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
+		return err
+	}
+	if err := router.Register("mail.delivery_failed", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
 		return err
 	}
 
