@@ -91,14 +91,14 @@ func validateAttachmentStoragePath(storagePath string) error {
 	if strings.HasPrefix(storagePath, "/") {
 		return fmt.Errorf("storage_path must be relative")
 	}
-	cleaned := path.Clean(storagePath)
-	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
-		return fmt.Errorf("storage_path must not escape the storage root")
-	}
-	for _, segment := range strings.Split(cleaned, "/") {
+	for _, segment := range strings.Split(storagePath, "/") {
 		if segment == "." || segment == ".." || strings.TrimSpace(segment) == "" {
 			return fmt.Errorf("storage_path contains an invalid segment")
 		}
+	}
+	cleaned := path.Clean(storagePath)
+	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
+		return fmt.Errorf("storage_path must not escape the storage root")
 	}
 	return nil
 }

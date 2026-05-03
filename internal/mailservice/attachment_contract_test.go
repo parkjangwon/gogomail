@@ -67,6 +67,8 @@ func TestValidateCreateAttachmentUploadRequestRejectsUnsafeStoragePath(t *testin
 		"/var/mail/secret.eml",
 		`uploads\user\secret.eml`,
 		"uploads/user\nsecret.eml",
+		"uploads/../secret.eml",
+		"uploads//secret.eml",
 	} {
 		err := ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
 			UserID:      "user-1",
