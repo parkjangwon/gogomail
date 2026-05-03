@@ -200,7 +200,7 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 }
 
 func smtpMail(client *smtp.Client, job Job) error {
-	if !smtpClientSupports(client, "DSN") || (job.DSN.Return == "" && job.DSN.EnvelopeID == "") {
+	if !shouldSendOutboundDSNMailOptions(job) || !smtpClientSupports(client, "DSN") {
 		return client.Mail(job.From.Email)
 	}
 	parts := []string{"MAIL FROM:<" + job.From.Email + ">"}
@@ -217,6 +217,10 @@ func smtpMail(client *smtp.Client, job Job) error {
 		parts = append(parts, "ENVID="+job.DSN.EnvelopeID)
 	}
 	return smtpCommand(client, 250, strings.Join(parts, " "))
+}
+
+func shouldSendOutboundDSNMailOptions(job Job) bool {
+	return job.From.Email != "" && (job.DSN.Return != "" || job.DSN.EnvelopeID != "")
 }
 
 func smtpRcpt(client *smtp.Client, job Job, recipient outbound.Address) error {

@@ -378,6 +378,18 @@ func TestDSNOptionsForRecipientSkipsUnmatchedRecipient(t *testing.T) {
 	}
 }
 
+func TestNullReversePathSuppressesOutboundDSNMailOptions(t *testing.T) {
+	t.Parallel()
+
+	job := Job{QueuedMessage: QueuedMessage{
+		From: outbound.Address{Email: ""},
+		DSN:  DSNOptions{Return: "FULL", EnvelopeID: "env-1"},
+	}}
+	if shouldSendOutboundDSNMailOptions(job) {
+		t.Fatal("null reverse-path should not request DSN options")
+	}
+}
+
 func TestDeliveryDeadlineUsesTimeout(t *testing.T) {
 	t.Parallel()
 
