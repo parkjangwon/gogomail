@@ -61,7 +61,7 @@ func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
 	cfg := config.Load()
 	cfg.SMTPDomain = "mail.example"
 	cfg.SubmissionAddr = ":2587"
-	cfg.SubmissionSMTPSAddr = ":2465"
+	cfg.SubmissionSMTPSAddr = " :2465 "
 	cfg.SMTPReadTimeout = 7 * time.Second
 	cfg.SMTPWriteTimeout = 8 * time.Second
 	cfg.SubmissionMaxMessageBytes = 1234

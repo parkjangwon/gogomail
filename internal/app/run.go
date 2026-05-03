@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	gosmtp "github.com/emersion/go-smtp"
@@ -261,7 +262,7 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 }
 
 func runSubmissionServers(ctx context.Context, cfg config.Config, logger *slog.Logger, backend gosmtp.Backend, tlsConfig *tls.Config) error {
-	if cfg.SubmissionSMTPSAddr == "" {
+	if strings.TrimSpace(cfg.SubmissionSMTPSAddr) == "" {
 		return smtpd.RunServer(ctx, submissionServerOptions(cfg, logger, backend, tlsConfig, false))
 	}
 	if tlsConfig == nil {
@@ -283,9 +284,9 @@ func runSubmissionServers(ctx context.Context, cfg config.Config, logger *slog.L
 }
 
 func submissionServerOptions(cfg config.Config, logger *slog.Logger, backend gosmtp.Backend, tlsConfig *tls.Config, implicitTLS bool) smtpd.ServerOptions {
-	addr := cfg.SubmissionAddr
+	addr := strings.TrimSpace(cfg.SubmissionAddr)
 	if implicitTLS {
-		addr = cfg.SubmissionSMTPSAddr
+		addr = strings.TrimSpace(cfg.SubmissionSMTPSAddr)
 	}
 	return smtpd.ServerOptions{
 		Addr:              addr,
