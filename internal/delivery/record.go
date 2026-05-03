@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type AttemptStatus string
@@ -39,14 +40,13 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 	if cause != nil {
 		message = cause.Error()
 	}
-	if len(message) > 2000 {
-		message = message[:2000]
-	}
+	message = truncateUTF8Bytes(message, 2000)
 
 	recipients := job.Recipients()
 	attempts := make([]Attempt, 0, len(recipients))
 	for _, recipient := range recipients {
 		_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
+		domain = strings.TrimSuffix(domain, ".")
 		attempts = append(attempts, Attempt{
 			MessageID:       job.MessageID,
 			RFCMessageID:    job.RFCMessageID,
@@ -61,6 +61,17 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 		})
 	}
 	return attempts
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for !utf8.ValidString(value) && len(value) > 0 {
+		value = value[:len(value)-1]
+	}
+	return value
 }
 
 type noopRecorder struct{}
