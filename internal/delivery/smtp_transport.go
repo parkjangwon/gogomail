@@ -301,11 +301,16 @@ func orderedMXHosts(records []*net.MX) []string {
 		}
 		return ordered[i].Pref < ordered[j].Pref
 	})
+	seen := make(map[string]struct{}, len(ordered))
 	for _, record := range ordered {
-		host := strings.TrimSpace(strings.TrimSuffix(record.Host, "."))
+		host := strings.ToLower(strings.TrimSpace(strings.TrimSuffix(record.Host, ".")))
 		if host == "" || host == "." {
 			continue
 		}
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
 		hosts = append(hosts, host)
 	}
 	return hosts

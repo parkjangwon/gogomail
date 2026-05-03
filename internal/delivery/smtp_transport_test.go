@@ -86,6 +86,25 @@ func TestOrderedMXHostsSkipsNilAndEmptyHosts(t *testing.T) {
 	}
 }
 
+func TestOrderedMXHostsLowercasesAndDeduplicates(t *testing.T) {
+	t.Parallel()
+
+	hosts := orderedMXHosts([]*net.MX{
+		{Host: "MX.Example.NET.", Pref: 10},
+		{Host: "mx.example.net", Pref: 10},
+		{Host: "backup.example.net.", Pref: 20},
+	})
+	want := []string{"mx.example.net", "backup.example.net"}
+	if len(hosts) != len(want) {
+		t.Fatalf("hosts = %+v, want %+v", hosts, want)
+	}
+	for i := range want {
+		if hosts[i] != want[i] {
+			t.Fatalf("hosts = %+v, want %+v", hosts, want)
+		}
+	}
+}
+
 func TestMXHostsRejectsNullMX(t *testing.T) {
 	t.Parallel()
 
