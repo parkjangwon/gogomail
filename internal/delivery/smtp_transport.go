@@ -125,10 +125,14 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Ro
 	if err := client.Mail(job.From.Email); err != nil {
 		return WrapSMTPError("mail", err)
 	}
-	for _, recipient := range recipients {
+	acceptedRecipients, rcptErr := acceptRecipients(recipients, func(recipient outbound.Address) error {
 		if err := client.Rcpt(recipient.Email); err != nil {
 			return WrapSMTPError("rcpt", err)
 		}
+		return nil
+	})
+	if len(acceptedRecipients) == 0 {
+		return rcptErr
 	}
 
 	writer, err := client.Data()
@@ -156,6 +160,19 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Ro
 		return WrapSMTPError("quit", err)
 	}
 	return nil
+}
+
+func acceptRecipients(recipients []outbound.Address, rcpt func(outbound.Address) error) ([]outbound.Address, error) {
+	accepted := make([]outbound.Address, 0, len(recipients))
+	errs := make([]error, 0)
+	for _, recipient := range recipients {
+		if err := rcpt(recipient); err != nil {
+			errs = append(errs, fmt.Errorf("recipient %s: %w", recipient.Email, err))
+			continue
+		}
+		accepted = append(accepted, recipient)
+	}
+	return accepted, errors.Join(errs...)
 }
 
 func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client, host string, modeOverride DeliveryTLSMode) error {

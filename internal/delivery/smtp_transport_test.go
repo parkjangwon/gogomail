@@ -145,6 +145,53 @@ func TestDirectSMTPTransportWrapsRouterError(t *testing.T) {
 	}
 }
 
+func TestAcceptRecipientsContinuesAfterSingleRecipientFailure(t *testing.T) {
+	t.Parallel()
+
+	recipients := []outbound.Address{
+		{Email: "ok@example.net"},
+		{Email: "bad@example.net"},
+		{Email: "also-ok@example.net"},
+	}
+	accepted, err := acceptRecipients(recipients, func(recipient outbound.Address) error {
+		if recipient.Email == "bad@example.net" {
+			return &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"}
+		}
+		return nil
+	})
+
+	if err == nil {
+		t.Fatal("acceptRecipients returned nil error for rejected recipient")
+	}
+	if len(accepted) != 2 {
+		t.Fatalf("accepted recipients = %+v, want 2", accepted)
+	}
+	if accepted[0].Email != "ok@example.net" || accepted[1].Email != "also-ok@example.net" {
+		t.Fatalf("accepted recipients = %+v", accepted)
+	}
+}
+
+func TestAcceptRecipientsReturnsErrorsWhenAllRecipientsFail(t *testing.T) {
+	t.Parallel()
+
+	accepted, err := acceptRecipients([]outbound.Address{
+		{Email: "bad@example.net"},
+		{Email: "worse@example.net"},
+	}, func(recipient outbound.Address) error {
+		return &SMTPStatusError{Op: "rcpt", Code: 550, Message: recipient.Email + " rejected"}
+	})
+
+	if err == nil {
+		t.Fatal("acceptRecipients returned nil error")
+	}
+	if len(accepted) != 0 {
+		t.Fatalf("accepted recipients = %+v, want none", accepted)
+	}
+	if !strings.Contains(err.Error(), "bad@example.net") || !strings.Contains(err.Error(), "worse@example.net") {
+		t.Fatalf("error = %v, want recipient context", err)
+	}
+}
+
 func TestDeliveryDeadlineUsesTimeout(t *testing.T) {
 	t.Parallel()
 
