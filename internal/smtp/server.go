@@ -78,7 +78,7 @@ func newSMTPServer(backend gosmtp.Backend, opts ServerOptions) *gosmtp.Server {
 	server := gosmtp.NewServer(backend)
 	server.Addr = opts.Addr
 	server.Domain = opts.Domain
-	server.TLSConfig = opts.TLSConfig
+	server.TLSConfig = normalizeServerTLSConfig(opts.TLSConfig)
 	server.ReadTimeout = durationOrDefault(opts.ReadTimeout, 30*time.Second)
 	server.WriteTimeout = durationOrDefault(opts.WriteTimeout, 30*time.Second)
 	server.MaxMessageBytes = int64OrDefault(opts.MaxMessageBytes, 25*1024*1024)
@@ -96,6 +96,17 @@ func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool) error {
 		return server.ListenAndServeTLS()
 	}
 	return server.ListenAndServe()
+}
+
+func normalizeServerTLSConfig(cfg *tls.Config) *tls.Config {
+	if cfg == nil {
+		return nil
+	}
+	normalized := cfg.Clone()
+	if normalized.MinVersion == 0 || normalized.MinVersion < tls.VersionTLS12 {
+		normalized.MinVersion = tls.VersionTLS12
+	}
+	return normalized
 }
 
 func durationOrDefault(value time.Duration, fallback time.Duration) time.Duration {

@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"context"
+	"crypto/tls"
 	"strings"
 	"testing"
 	"time"
@@ -65,5 +66,31 @@ func TestRunServerRejectsImplicitTLSWithoutConfig(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "requires TLS configuration") {
 		t.Fatalf("RunServer error = %v, want TLS configuration rejection", err)
+	}
+}
+
+func TestServerTLSConfigIsClonedAndMinVersionHardened(t *testing.T) {
+	t.Parallel()
+
+	original := &tls.Config{MinVersion: tls.VersionTLS10}
+	server := newSMTPServer(gosmtp.BackendFunc(func(*gosmtp.Conn) (gosmtp.Session, error) {
+		return nil, nil
+	}), ServerOptions{
+		Addr:      "127.0.0.1:0",
+		Domain:    "mail.example",
+		TLSConfig: original,
+	})
+
+	if server.TLSConfig == nil {
+		t.Fatal("TLSConfig = nil")
+	}
+	if server.TLSConfig == original {
+		t.Fatal("TLSConfig was not cloned")
+	}
+	if server.TLSConfig.MinVersion != tls.VersionTLS12 {
+		t.Fatalf("MinVersion = %x, want TLS 1.2", server.TLSConfig.MinVersion)
+	}
+	if original.MinVersion != tls.VersionTLS10 {
+		t.Fatalf("original MinVersion mutated to %x", original.MinVersion)
 	}
 }
