@@ -9,6 +9,8 @@ import (
 
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	smtpd "github.com/gogomail/gogomail/internal/smtp"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger) error {
@@ -21,11 +23,35 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 	switch mode {
 	case ModeAllInOne, ModeAuthServer, ModeMailAPI, ModeAdminAPI:
 		return runHTTP(ctx, cfg, logger, mode)
-	case ModeEdgeMTA, ModeInboundMTA, ModeOutboundMTA, ModeDeliveryWorker, ModeBatchWorker, ModeOutboxRelay:
+	case ModeEdgeMTA:
+		return runEdgeMTA(ctx, cfg, logger)
+	case ModeInboundMTA, ModeOutboundMTA, ModeDeliveryWorker, ModeBatchWorker, ModeOutboxRelay:
 		return waitForShutdown(ctx, logger, mode)
 	default:
 		return errors.New("unsupported mode")
 	}
+}
+
+func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	resolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
+	if err != nil {
+		return err
+	}
+	if len(resolver) == 0 {
+		logger.Warn("edge-mta has no local recipients configured; all RCPT commands will be rejected")
+	}
+
+	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
+		Store:    storage.NewLocalStore(cfg.MailstoreRoot),
+		Resolver: resolver,
+	})
+
+	return smtpd.RunServer(ctx, smtpd.ServerOptions{
+		Addr:     cfg.SMTPAddr,
+		Domain:   cfg.SMTPDomain,
+		Receiver: receiver,
+		Logger:   logger,
+	})
 }
 
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {

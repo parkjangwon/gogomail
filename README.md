@@ -39,3 +39,21 @@ Run database migrations:
 GOGOMAIL_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable' \
   go run ./cmd/gogomail --migrate --mode=all-in-one
 ```
+
+## Receive mail locally
+
+Start the current SMTP receive MVP:
+
+```bash
+GOGOMAIL_SMTP_ADDR=127.0.0.1:2525 \
+GOGOMAIL_SMTP_DOMAIN=example.com \
+GOGOMAIL_LOCAL_RECIPIENTS=admin@example.com \
+GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
+  go run ./cmd/gogomail --mode=edge-mta
+```
+
+Accepted messages are stored as raw `.eml` files under:
+
+```txt
+var/mailstore/mailstore/{company_id}/{domain_id}/{user_id}/maildir/{YYYY}/{MM}/{message_id}.eml
+```
