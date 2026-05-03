@@ -52,6 +52,16 @@ GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
   go run ./cmd/gogomail --mode=edge-mta
 ```
 
+When `GOGOMAIL_LOCAL_RECIPIENTS` is set, edge-mta uses an in-memory static recipient resolver for local development.
+
+When `GOGOMAIL_LOCAL_RECIPIENTS` is empty, edge-mta uses PostgreSQL:
+
+```txt
+user_addresses -> users/domains
+folders(system_type=inbox)
+messages INSERT
+```
+
 Accepted messages are stored as raw `.eml` files under:
 
 ```txt

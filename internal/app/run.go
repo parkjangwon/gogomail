@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/config"
+	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	"github.com/gogomail/gogomail/internal/maildb"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -33,17 +35,33 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 }
 
 func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	resolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
-	if err != nil {
-		return err
-	}
-	if len(resolver) == 0 {
-		logger.Warn("edge-mta has no local recipients configured; all RCPT commands will be rejected")
+	var resolver smtpd.RecipientResolver
+	var recorder smtpd.MessageRecorder
+
+	if len(cfg.LocalRecipients) > 0 {
+		staticResolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
+		if err != nil {
+			return err
+		}
+		resolver = staticResolver
+		logger.Info("edge-mta using static recipient resolver", "recipients", len(cfg.LocalRecipients))
+	} else {
+		db, err := database.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		repository := maildb.NewRepository(db)
+		resolver = repository
+		recorder = repository
+		logger.Info("edge-mta using database recipient resolver and message recorder")
 	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
 		Store:    storage.NewLocalStore(cfg.MailstoreRoot),
 		Resolver: resolver,
+		Recorder: recorder,
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
