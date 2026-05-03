@@ -11,6 +11,7 @@ type Config struct {
 	Environment                 string
 	HTTPAddr                    string
 	SMTPAddr                    string
+	InboundSMTPAddr             string
 	SubmissionAddr              string
 	SubmissionMaxRecipients     int
 	SubmissionMaxMessageBytes   int64
@@ -81,6 +82,7 @@ func Load() Config {
 		Environment:                 envOrDefault("GOGOMAIL_ENV", "development"),
 		HTTPAddr:                    envOrDefault("GOGOMAIL_HTTP_ADDR", ":8080"),
 		SMTPAddr:                    envOrDefault("GOGOMAIL_SMTP_ADDR", ":2525"),
+		InboundSMTPAddr:             envOrDefault("GOGOMAIL_INBOUND_SMTP_ADDR", ":2526"),
 		SubmissionAddr:              envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionMaxRecipients:     intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
 		SubmissionMaxMessageBytes:   int64EnvOrDefault("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", 25*1024*1024),

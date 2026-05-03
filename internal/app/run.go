@@ -42,7 +42,25 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 	case ModeAllInOne, ModeAuthServer, ModeMailAPI, ModeAdminAPI:
 		return runHTTP(ctx, cfg, logger, mode)
 	case ModeEdgeMTA:
-		return runEdgeMTA(ctx, cfg, logger)
+		return runReceiveMTA(ctx, cfg, logger, receiveMTAOptions{
+			Component:              "edge-mta",
+			Addr:                   cfg.SMTPAddr,
+			EnableAuthVerification: cfg.SMTPAuthVerificationEnabled,
+			EnableDMARCEnforcement: cfg.SMTPAuthVerificationEnabled,
+			EnableBackpressure:     true,
+			EnableRateLimit:        true,
+			EnableDedup:            true,
+		})
+	case ModeInboundMTA:
+		return runReceiveMTA(ctx, cfg, logger, receiveMTAOptions{
+			Component:              "inbound-mta",
+			Addr:                   cfg.InboundSMTPAddr,
+			EnableAuthVerification: false,
+			EnableDMARCEnforcement: false,
+			EnableBackpressure:     true,
+			EnableRateLimit:        true,
+			EnableDedup:            true,
+		})
 	case ModeOutboxRelay:
 		return runOutboxRelay(ctx, cfg, logger)
 	case ModeEventWorker:
@@ -51,14 +69,24 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
 		return runSubmissionMTA(ctx, cfg, logger)
-	case ModeInboundMTA, ModeBatchWorker:
+	case ModeBatchWorker:
 		return waitForShutdown(ctx, logger, mode)
 	default:
 		return errors.New("unsupported mode")
 	}
 }
 
-func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+type receiveMTAOptions struct {
+	Component              string
+	Addr                   string
+	EnableAuthVerification bool
+	EnableDMARCEnforcement bool
+	EnableBackpressure     bool
+	EnableRateLimit        bool
+	EnableDedup            bool
+}
+
+func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, opts receiveMTAOptions) error {
 	var resolver smtpd.RecipientResolver
 	var recorder smtpd.MessageRecorder
 	var deduplicator smtpd.Deduplicator
@@ -72,7 +100,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 			return err
 		}
 		resolver = staticResolver
-		logger.Info("edge-mta using static recipient resolver", "recipients", len(cfg.LocalRecipients))
+		logger.Info(opts.Component+" using static recipient resolver", "recipients", len(cfg.LocalRecipients))
 	} else {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
@@ -83,10 +111,10 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		repository := maildb.NewRepository(db)
 		resolver = repository
 		recorder = repository
-		logger.Info("edge-mta using database recipient resolver and message recorder")
+		logger.Info(opts.Component + " using database recipient resolver and message recorder")
 	}
 
-	if cfg.DedupBackend == "redis" {
+	if opts.EnableDedup && cfg.DedupBackend == "redis" {
 		redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 		if err := redisClient.Ping(ctx).Err(); err != nil {
 			_ = redisClient.Close()
@@ -94,9 +122,9 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		}
 
 		deduplicator = dedup.NewRedisDeduplicator(redisClient, 24*time.Hour)
-		logger.Info("edge-mta using redis deduplicator", "addr", cfg.RedisAddr)
+		logger.Info(opts.Component+" using redis deduplicator", "addr", cfg.RedisAddr)
 	}
-	if cfg.RateLimitBackend == "redis" {
+	if opts.EnableRateLimit && cfg.RateLimitBackend == "redis" {
 		if redisClient == nil {
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -105,9 +133,9 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 			}
 		}
 		rateLimiter = ratelimit.NewRedisLimiter(redisClient, int64(cfg.RcptRateLimitPerMinute), time.Minute)
-		logger.Info("edge-mta using redis rate limiter", "addr", cfg.RedisAddr, "rcpt_per_minute", cfg.RcptRateLimitPerMinute)
+		logger.Info(opts.Component+" using redis rate limiter", "addr", cfg.RedisAddr, "rcpt_per_minute", cfg.RcptRateLimitPerMinute)
 	}
-	if cfg.BackpressureBackend == "redis" {
+	if opts.EnableBackpressure && cfg.BackpressureBackend == "redis" {
 		if redisClient == nil {
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -116,30 +144,30 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 			}
 		}
 		pressure = backpressure.NewRedisBackpressure(redisClient, backpressure.DefaultStateKey)
-		logger.Info("edge-mta using redis backpressure", "addr", cfg.RedisAddr)
+		logger.Info(opts.Component+" using redis backpressure", "addr", cfg.RedisAddr)
 	}
 	if redisClient != nil {
 		defer redisClient.Close()
 	}
 
 	var authVerifier smtpd.AuthenticationVerifier
-	if cfg.SMTPAuthVerificationEnabled {
+	if opts.EnableAuthVerification {
 		authVerifier = mailauth.Verifier{
 			AuthservID:           cfg.SMTPAuthservID,
 			MaxDKIMVerifications: cfg.SMTPMaxDKIMVerifications,
 		}
 		logger.Info(
-			"edge-mta authentication verifier enabled",
+			opts.Component+" authentication verifier enabled",
 			"authserv_id", cfg.SMTPAuthservID,
 			"max_dkim_verifications", cfg.SMTPMaxDKIMVerifications,
 		)
 	}
 	hooks := []smtpd.Hook(nil)
-	if cfg.SMTPAuthVerificationEnabled && cfg.SMTPDMARCEnforcement != "monitor" {
+	if opts.EnableDMARCEnforcement && cfg.SMTPDMARCEnforcement != "monitor" {
 		hooks = append(hooks, mailauth.EnforcementHook(mailauth.EnforcementOptions{
 			Mode: mailauth.EnforcementMode(cfg.SMTPDMARCEnforcement),
 		}))
-		logger.Info("edge-mta DMARC enforcement configured", "mode", cfg.SMTPDMARCEnforcement)
+		logger.Info(opts.Component+" DMARC enforcement configured", "mode", cfg.SMTPDMARCEnforcement)
 	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
@@ -166,7 +194,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
-		Addr:            cfg.SMTPAddr,
+		Addr:            opts.Addr,
 		Domain:          cfg.SMTPDomain,
 		Receiver:        receiver,
 		Logger:          logger,
