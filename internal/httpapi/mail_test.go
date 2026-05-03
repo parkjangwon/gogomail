@@ -202,6 +202,27 @@ func TestBulkMoveMessagesHandler(t *testing.T) {
 	}
 }
 
+func TestBulkDeleteMessagesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/bulk/delete?user_id=user-1", strings.NewReader(`{
+		"message_ids":["msg-1","msg-2"]
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastBulkDelete.UserID != "user-1" || len(service.lastBulkDelete.MessageIDs) != 2 {
+		t.Fatalf("lastBulkDelete = %+v", service.lastBulkDelete)
+	}
+}
+
 func TestDeleteFolderHandler(t *testing.T) {
 	t.Parallel()
 
@@ -797,6 +818,7 @@ type fakeMessageService struct {
 	lastFlagValue        bool
 	lastBulkFlag         maildb.BulkMessageFlagRequest
 	lastBulkMove         maildb.BulkMessageMoveRequest
+	lastBulkDelete       maildb.BulkMessageDeleteRequest
 	lastLimit            int
 }
 
@@ -882,6 +904,11 @@ func (f *fakeMessageService) DeleteMessage(_ context.Context, userID string, mes
 	f.lastUserID = userID
 	f.lastDeletedID = messageID
 	return nil
+}
+
+func (f *fakeMessageService) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
+	f.lastBulkDelete = req
+	return int64(len(req.MessageIDs)), nil
 }
 
 func (f *fakeMessageService) SaveDraft(_ context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error) {

@@ -70,6 +70,11 @@ type BulkMessageMoveRequest struct {
 	FolderID   string   `json:"folder_id"`
 }
 
+type BulkMessageDeleteRequest struct {
+	UserID     string   `json:"user_id,omitempty"`
+	MessageIDs []string `json:"message_ids"`
+}
+
 func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -97,6 +102,24 @@ func ValidateBulkMessageMoveRequest(req BulkMessageMoveRequest) error {
 	}
 	if strings.TrimSpace(req.FolderID) == "" {
 		return fmt.Errorf("folder_id is required")
+	}
+	if len(req.MessageIDs) == 0 {
+		return fmt.Errorf("message_ids is required")
+	}
+	if len(req.MessageIDs) > 500 {
+		return fmt.Errorf("too many message_ids")
+	}
+	for _, id := range req.MessageIDs {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("message id must not be blank")
+		}
+	}
+	return nil
+}
+
+func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
 	}
 	if len(req.MessageIDs) == 0 {
 		return fmt.Errorf("message_ids is required")
@@ -667,6 +690,38 @@ WHERE user_id = $1
 		return fmt.Errorf("message %q not found", messageID)
 	}
 	return nil
+}
+
+func (r *Repository) BulkDeleteMessages(ctx context.Context, req BulkMessageDeleteRequest) (int64, error) {
+	if r.db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkMessageDeleteRequest(req); err != nil {
+		return 0, err
+	}
+	rawIDs, err := json.Marshal(req.MessageIDs)
+	if err != nil {
+		return 0, fmt.Errorf("encode message ids: %w", err)
+	}
+
+	const query = `
+UPDATE messages
+SET status = 'deleted',
+    deleted_at = now(),
+    updated_at = now()
+WHERE user_id = $1
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'active'`
+
+	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), string(rawIDs))
+	if err != nil {
+		return 0, fmt.Errorf("bulk delete messages: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("inspect bulk message delete: %w", err)
+	}
+	return affected, nil
 }
 
 func allowedMessageFlag(flag string) bool {

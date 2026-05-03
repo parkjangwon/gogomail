@@ -31,6 +31,7 @@ type Repository interface {
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
+	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
@@ -155,6 +156,13 @@ func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMo
 
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {
 	return s.repository.DeleteMessage(ctx, userID, messageID)
+}
+
+func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
+	if err := maildb.ValidateBulkMessageDeleteRequest(req); err != nil {
+		return 0, err
+	}
+	return s.repository.BulkDeleteMessages(ctx, req)
 }
 
 func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {

@@ -160,6 +160,10 @@ func (f *fakeRepository) DeleteMessage(context.Context, string, string) error {
 	return nil
 }
 
+func (f *fakeRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
+	return int64(len(req.MessageIDs)), nil
+}
+
 func (f *fakeRepository) ListAttachments(context.Context, string, string) ([]maildb.Attachment, error) {
 	return f.attachments, nil
 }
