@@ -119,6 +119,7 @@ type submissionSession struct {
 	from       string
 	recipients []string
 	dsn        DSNOptions
+	smtpUTF8   bool
 	remoteAddr string
 }
 
@@ -180,10 +181,14 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 	if err != nil {
 		return err
 	}
+	if err := validateSMTPUTF8Address(from, normalized, mailOptionsUTF8(opts), s.receiver.supportSMTPUTF8); err != nil {
+		return err
+	}
 	if !strings.EqualFold(normalized, s.user.Address) {
 		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
 	}
 	s.from = normalized
+	s.smtpUTF8 = mailOptionsUTF8(opts)
 	s.dsn.Return = normalizeDSNReturn(opts)
 	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
 	if err := s.emit(context.Background(), Event{
@@ -221,6 +226,9 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 	}
 	normalized, err := mail.NormalizeAddress(to)
 	if err != nil {
+		return err
+	}
+	if err := validateSMTPUTF8Address(to, normalized, s.smtpUTF8, s.receiver.supportSMTPUTF8); err != nil {
 		return err
 	}
 	s.recipients = append(s.recipients, normalized)
@@ -415,6 +423,7 @@ func (s *submissionSession) Reset() {
 	s.from = ""
 	s.recipients = nil
 	s.dsn = DSNOptions{}
+	s.smtpUTF8 = false
 }
 
 func (s *submissionSession) Logout() error {

@@ -192,6 +192,7 @@ type session struct {
 	from          string
 	recipients    []Mailbox
 	dsn           DSNOptions
+	smtpUTF8      bool
 	remoteAddr    string
 	authenticated bool
 }
@@ -220,7 +221,11 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	if err != nil {
 		return err
 	}
+	if err := validateSMTPUTF8Address(from, normalized, mailOptionsUTF8(opts), s.receiver.supportSMTPUTF8); err != nil {
+		return err
+	}
 	s.from = normalized
+	s.smtpUTF8 = mailOptionsUTF8(opts)
 	s.dsn.Return = normalizeDSNReturn(opts)
 	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
 	return nil
@@ -263,6 +268,9 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	mailbox, err := s.receiver.resolver.ResolveRecipient(context.Background(), to)
 	if err != nil {
 		return smtpMailboxUnavailable("recipient %q not found", to)
+	}
+	if err := validateSMTPUTF8Address(to, mailbox.Address, s.smtpUTF8, s.receiver.supportSMTPUTF8); err != nil {
+		return err
 	}
 	s.recipients = append(s.recipients, mailbox)
 	s.dsn.Recipients = append(s.dsn.Recipients, normalizeDSNRecipientOptions(mailbox.Address, opts))
@@ -635,6 +643,7 @@ func (s *session) Reset() {
 	s.from = ""
 	s.recipients = nil
 	s.dsn = DSNOptions{}
+	s.smtpUTF8 = false
 }
 
 func (s *session) Logout() error {

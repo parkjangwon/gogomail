@@ -791,6 +791,63 @@ func TestSessionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
 	}
 }
 
+func TestSessionRejectsInternationalizedRecipientWithoutSMTPUTF8Transaction(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store:           storage.NewLocalStore(t.TempDir()),
+		SupportSMTPUTF8: true,
+		Resolver: StaticResolver{
+			"장원@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "장원@example.com"},
+		},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	err = session.Rcpt("장원@example.com", nil)
+	if err == nil {
+		t.Fatal("Rcpt accepted internationalized address without SMTPUTF8 transaction")
+	}
+	var smtpErr *gosmtp.SMTPError
+	if !errors.As(err, &smtpErr) || smtpErr.Code != 553 {
+		t.Fatalf("Rcpt error = %v, want SMTP 553", err)
+	}
+}
+
+func TestSessionAcceptsInternationalizedRecipientWithSMTPUTF8Transaction(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store:           storage.NewLocalStore(t.TempDir()),
+		SupportSMTPUTF8: true,
+		Resolver: StaticResolver{
+			"장원@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "장원@example.com"},
+		},
+		IDGenerator: func() string { return "smtputf8-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", &gosmtp.MailOptions{UTF8: true}); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("장원@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <smtputf8@example.net>\r\nFrom: sender@example.net\r\nTo: 장원@example.com\r\nSubject: utf8\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+}
+
 type plainAuthenticator struct {
 	username string
 	password string

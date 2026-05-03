@@ -1,6 +1,10 @@
 package smtpd
 
-import gosmtp "github.com/emersion/go-smtp"
+import (
+	"unicode/utf8"
+
+	gosmtp "github.com/emersion/go-smtp"
+)
 
 type extensionSupport struct {
 	SMTPUTF8   bool
@@ -42,4 +46,35 @@ func validateRcptOptions(opts *gosmtp.RcptOptions, support extensionSupport) err
 		return smtpPermanent(555, gosmtp.EnhancedCode{5, 5, 4}, "DSN ORCPT is not supported")
 	}
 	return nil
+}
+
+func mailOptionsUTF8(opts *gosmtp.MailOptions) bool {
+	return opts != nil && opts.UTF8
+}
+
+func validateSMTPUTF8Address(raw string, normalized string, transactionUTF8 bool, supportSMTPUTF8 bool) error {
+	if !containsNonASCII(raw) && !containsNonASCII(normalized) {
+		return nil
+	}
+	if !supportSMTPUTF8 {
+		return smtpPermanent(553, gosmtp.EnhancedCode{5, 6, 7}, "SMTPUTF8 is required for internationalized addresses")
+	}
+	if !transactionUTF8 {
+		return smtpPermanent(553, gosmtp.EnhancedCode{5, 6, 7}, "MAIL FROM must declare SMTPUTF8 for internationalized addresses")
+	}
+	return nil
+}
+
+func containsNonASCII(value string) bool {
+	for len(value) > 0 {
+		r, size := utf8.DecodeRuneInString(value)
+		if r == utf8.RuneError && size == 1 {
+			return true
+		}
+		if r > 127 {
+			return true
+		}
+		value = value[size:]
+	}
+	return false
 }
