@@ -156,8 +156,8 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	if s.store == nil {
 		return SendTextResult{}, fmt.Errorf("mail storage is required")
 	}
-	if strings.TrimSpace(req.UserID) == "" {
-		return SendTextResult{}, fmt.Errorf("user_id is required")
+	if err := ValidateSendTextRequest(req); err != nil {
+		return SendTextResult{}, err
 	}
 
 	sender, err := s.repository.SenderForUser(ctx, req.UserID, req.From)

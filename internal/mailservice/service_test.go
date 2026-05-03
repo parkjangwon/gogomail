@@ -163,6 +163,20 @@ func TestSendTextRejectsSuppressedRecipients(t *testing.T) {
 	}
 }
 
+func TestSendTextRejectsMissingRecipients(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{}, storage.NewLocalStore(t.TempDir()))
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err == nil {
+		t.Fatal("SendText accepted missing recipients")
+	}
+}
+
 func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
 	t.Parallel()
 
