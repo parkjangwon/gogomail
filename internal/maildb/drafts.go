@@ -25,6 +25,66 @@ type DraftForSend struct {
 	AttachmentIDs   []string
 }
 
+func (r *Repository) GetDraftForSend(ctx context.Context, userID string, draftID string) (DraftForSend, error) {
+	if r.db == nil {
+		return DraftForSend{}, fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  compose_intent,
+  COALESCE(source_message_id::text, ''),
+  from_addr,
+  to_addrs,
+  cc_addrs,
+  bcc_addrs,
+  subject,
+  COALESCE(draft_text_body, '')
+FROM messages
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'draft'
+LIMIT 1`
+
+	var draft DraftForSend
+	var toJSON, ccJSON, bccJSON []byte
+	if err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(userID), strings.TrimSpace(draftID)).Scan(
+		&draft.ID,
+		&draft.UserID,
+		&draft.Intent,
+		&draft.SourceMessageID,
+		&draft.From,
+		&toJSON,
+		&ccJSON,
+		&bccJSON,
+		&draft.Subject,
+		&draft.TextBody,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return DraftForSend{}, fmt.Errorf("draft %q not found", draftID)
+		}
+		return DraftForSend{}, fmt.Errorf("get draft for send: %w", err)
+	}
+	var err error
+	if draft.To, err = draftOutboundAddresses(toJSON); err != nil {
+		return DraftForSend{}, err
+	}
+	if draft.Cc, err = draftOutboundAddresses(ccJSON); err != nil {
+		return DraftForSend{}, err
+	}
+	if draft.Bcc, err = draftOutboundAddresses(bccJSON); err != nil {
+		return DraftForSend{}, err
+	}
+	attachments, err := r.draftAttachmentIDs(ctx, userID, draftID)
+	if err != nil {
+		return DraftForSend{}, err
+	}
+	draft.AttachmentIDs = attachments
+	return draft, nil
+}
+
 func (r *Repository) SaveDraft(ctx context.Context, req SaveDraftRequest) (MessageDetail, error) {
 	if r.db == nil {
 		return MessageDetail{}, fmt.Errorf("database handle is required")
@@ -390,6 +450,43 @@ ORDER BY created_at ASC, filename ASC`
 		return nil, fmt.Errorf("iterate draft attachments: %w", err)
 	}
 	return attachments, nil
+}
+
+func draftOutboundAddresses(raw []byte) ([]outbound.Address, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var addresses []outbound.Address
+	if err := json.Unmarshal(raw, &addresses); err != nil {
+		return nil, fmt.Errorf("decode draft addresses: %w", err)
+	}
+	return addresses, nil
+}
+
+func (r *Repository) draftAttachmentIDs(ctx context.Context, userID string, draftID string) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id::text
+FROM attachments
+WHERE user_id = $1
+  AND draft_id = $2
+ORDER BY created_at ASC, filename ASC`, strings.TrimSpace(userID), strings.TrimSpace(draftID))
+	if err != nil {
+		return nil, fmt.Errorf("list draft attachment ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan draft attachment id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate draft attachment ids: %w", err)
+	}
+	return ids, nil
 }
 
 func senderForDraft(ctx context.Context, tx *sql.Tx, userID string, fromAddress string) (Sender, error) {
