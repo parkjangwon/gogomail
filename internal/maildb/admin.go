@@ -118,6 +118,9 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 	if strings.TrimSpace(req.Username) == "" {
 		return fmt.Errorf("username is required")
 	}
+	if strings.ContainsAny(strings.TrimSpace(req.Username), " \t\r\n@/\\") {
+		return fmt.Errorf("username must be a local account name")
+	}
 	if strings.TrimSpace(req.DisplayName) == "" {
 		return fmt.Errorf("display_name is required")
 	}

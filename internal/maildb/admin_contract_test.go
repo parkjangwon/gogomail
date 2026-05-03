@@ -38,6 +38,20 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestValidateCreateUserRequestRejectsInvalidUsername(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateUserRequest(CreateUserRequest{
+		DomainID:    "domain-1",
+		Username:    "admin@example.com",
+		DisplayName: "Admin",
+		Address:     "admin@example.com",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateUserRequest accepted invalid username")
+	}
+}
+
 func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 	t.Parallel()
 
