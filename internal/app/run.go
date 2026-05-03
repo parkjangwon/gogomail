@@ -194,14 +194,18 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
-		Addr:            opts.Addr,
-		Domain:          cfg.SMTPDomain,
-		Receiver:        receiver,
-		Logger:          logger,
-		ReadTimeout:     cfg.SMTPReadTimeout,
-		WriteTimeout:    cfg.SMTPWriteTimeout,
-		MaxMessageBytes: cfg.SMTPMaxMessageBytes,
-		MaxRecipients:   cfg.SMTPMaxRecipients,
+		Addr:             opts.Addr,
+		Domain:           cfg.SMTPDomain,
+		Receiver:         receiver,
+		Logger:           logger,
+		ReadTimeout:      cfg.SMTPReadTimeout,
+		WriteTimeout:     cfg.SMTPWriteTimeout,
+		MaxMessageBytes:  cfg.SMTPMaxMessageBytes,
+		MaxRecipients:    cfg.SMTPMaxRecipients,
+		EnableSMTPUTF8:   cfg.SMTPSupportSMTPUTF8,
+		EnableDSN:        cfg.SMTPSupportDSN,
+		EnableRequireTLS: cfg.SMTPSupportRequireTLS,
+		EnableBinaryMIME: cfg.SMTPSupportBinaryMIME,
 	})
 }
 
@@ -250,6 +254,10 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		MaxMessageBytes:   cfg.SubmissionMaxMessageBytes,
 		MaxRecipients:     cfg.SubmissionMaxRecipients,
 		AllowInsecureAuth: cfg.SubmissionAllowInsecureAuth,
+		EnableSMTPUTF8:    cfg.SubmissionSupportSMTPUTF8,
+		EnableDSN:         cfg.SubmissionSupportDSN,
+		EnableRequireTLS:  cfg.SubmissionSupportRequireTLS,
+		EnableBinaryMIME:  cfg.SubmissionSupportBinaryMIME,
 	})
 }
 

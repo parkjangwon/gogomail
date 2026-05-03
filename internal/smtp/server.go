@@ -27,6 +27,9 @@ type ServerOptions struct {
 	MaxRecipients     int
 	AllowInsecureAuth bool
 	EnableSMTPUTF8    bool
+	EnableRequireTLS  bool
+	EnableDSN         bool
+	EnableBinaryMIME  bool
 }
 
 func RunServer(ctx context.Context, opts ServerOptions) error {
@@ -46,16 +49,7 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 		logger = slog.Default()
 	}
 
-	server := gosmtp.NewServer(backend)
-	server.Addr = opts.Addr
-	server.Domain = opts.Domain
-	server.TLSConfig = opts.TLSConfig
-	server.ReadTimeout = durationOrDefault(opts.ReadTimeout, 30*time.Second)
-	server.WriteTimeout = durationOrDefault(opts.WriteTimeout, 30*time.Second)
-	server.MaxMessageBytes = int64OrDefault(opts.MaxMessageBytes, 25*1024*1024)
-	server.MaxRecipients = intOrDefault(opts.MaxRecipients, 100)
-	server.AllowInsecureAuth = opts.AllowInsecureAuth
-	server.EnableSMTPUTF8 = opts.EnableSMTPUTF8
+	server := newSMTPServer(backend, opts)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -74,6 +68,23 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 		}
 		return err
 	}
+}
+
+func newSMTPServer(backend gosmtp.Backend, opts ServerOptions) *gosmtp.Server {
+	server := gosmtp.NewServer(backend)
+	server.Addr = opts.Addr
+	server.Domain = opts.Domain
+	server.TLSConfig = opts.TLSConfig
+	server.ReadTimeout = durationOrDefault(opts.ReadTimeout, 30*time.Second)
+	server.WriteTimeout = durationOrDefault(opts.WriteTimeout, 30*time.Second)
+	server.MaxMessageBytes = int64OrDefault(opts.MaxMessageBytes, 25*1024*1024)
+	server.MaxRecipients = intOrDefault(opts.MaxRecipients, 100)
+	server.AllowInsecureAuth = opts.AllowInsecureAuth
+	server.EnableSMTPUTF8 = opts.EnableSMTPUTF8
+	server.EnableREQUIRETLS = opts.EnableRequireTLS
+	server.EnableDSN = opts.EnableDSN
+	server.EnableBINARYMIME = opts.EnableBinaryMIME
+	return server
 }
 
 func durationOrDefault(value time.Duration, fallback time.Duration) time.Duration {
