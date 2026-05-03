@@ -2,6 +2,7 @@ package maildb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 )
@@ -69,4 +70,49 @@ ORDER BY a.created_at ASC, a.filename ASC`
 		return nil, fmt.Errorf("iterate attachments: %w", err)
 	}
 	return attachments, nil
+}
+
+func (r *Repository) GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (Attachment, error) {
+	if r.db == nil {
+		return Attachment{}, fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+SELECT
+  a.id::text,
+  a.message_id::text,
+  a.upload_id,
+  a.storage_path,
+  a.filename,
+  a.size,
+  a.mime_type,
+  a.status,
+  a.created_at
+FROM attachments a
+JOIN messages m ON m.id = a.message_id
+WHERE m.user_id = $1
+  AND m.id = $2
+  AND m.status = 'active'
+  AND a.id = $3
+LIMIT 1`
+
+	var attachment Attachment
+	err := r.db.QueryRowContext(ctx, query, userID, messageID, attachmentID).Scan(
+		&attachment.ID,
+		&attachment.MessageID,
+		&attachment.UploadID,
+		&attachment.StoragePath,
+		&attachment.Filename,
+		&attachment.Size,
+		&attachment.MIMEType,
+		&attachment.Status,
+		&attachment.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Attachment{}, fmt.Errorf("attachment %q not found", attachmentID)
+		}
+		return Attachment{}, fmt.Errorf("get attachment: %w", err)
+	}
+	return attachment, nil
 }

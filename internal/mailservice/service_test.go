@@ -93,6 +93,10 @@ func (f *fakeRepository) ListAttachments(context.Context, string, string) ([]mai
 	return nil, nil
 }
 
+func (f *fakeRepository) GetAttachment(context.Context, string, string, string) (maildb.Attachment, error) {
+	return maildb.Attachment{}, nil
+}
+
 func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.Sender, error) {
 	return maildb.Sender{
 		CompanyID:   "company-1",

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ type Repository interface {
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
+	GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
 	SuppressedRecipients(ctx context.Context, domainID string, recipients []string) ([]string, error)
 	RecordOutgoing(ctx context.Context, msg maildb.OutgoingMessage) (string, error)
@@ -102,6 +104,26 @@ func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID st
 
 func (s *Service) ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
 	return s.repository.ListAttachments(ctx, userID, messageID)
+}
+
+type AttachmentDownload struct {
+	Attachment maildb.Attachment
+	Body       io.ReadCloser
+}
+
+func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (AttachmentDownload, error) {
+	if s.store == nil {
+		return AttachmentDownload{}, fmt.Errorf("mail storage is required")
+	}
+	attachment, err := s.repository.GetAttachment(ctx, userID, messageID, attachmentID)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	body, err := s.store.Get(ctx, attachment.StoragePath)
+	if err != nil {
+		return AttachmentDownload{}, fmt.Errorf("open attachment body: %w", err)
+	}
+	return AttachmentDownload{Attachment: attachment, Body: body}, nil
 }
 
 type SendTextRequest struct {

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ type MessageService interface {
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
+	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
@@ -220,6 +222,27 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		writeJSON(w, http.StatusOK, map[string]any{"attachments": attachments})
 	})
 
+	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		download, err := service.OpenAttachment(r.Context(), userID, r.PathValue("id"), r.PathValue("attachment_id"))
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		defer download.Body.Close()
+
+		w.Header().Set("Content-Type", download.Attachment.MIMEType)
+		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Attachment.Filename))
+		if download.Attachment.Size > 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(download.Attachment.Size, 10))
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, download.Body)
+	})
+
 	mux.HandleFunc("POST /api/v1/messages/send", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -282,6 +305,14 @@ func bearerToken(r *http.Request) string {
 		return strings.TrimSpace(authHeader[len("bearer "):])
 	}
 	return ""
+}
+
+func contentDispositionAttachment(filename string) string {
+	filename = strings.NewReplacer("\\", "_", `"`, "_", "\r", "_", "\n", "_").Replace(strings.TrimSpace(filename))
+	if filename == "" {
+		filename = "attachment"
+	}
+	return `attachment; filename="` + filename + `"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

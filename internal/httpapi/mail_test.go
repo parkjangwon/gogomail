@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -310,6 +311,28 @@ func TestListAttachmentsHandler(t *testing.T) {
 	}
 }
 
+func TestDownloadAttachmentHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if rec.Body.String() != "content" {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `filename="report.pdf"`) {
+		t.Fatalf("Content-Disposition = %q", got)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -397,6 +420,7 @@ type fakeMessageService struct {
 	createdFolder   maildb.Folder
 	list             []maildb.MessageSummary
 	attachments      []maildb.Attachment
+	download         mailservice.AttachmentDownload
 	detail           maildb.MessageDetail
 	sendResult       mailservice.SendTextResult
 	lastSend         mailservice.SendTextRequest
@@ -483,6 +507,18 @@ func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, m
 	f.lastUserID = userID
 	f.lastMessageID = messageID
 	return f.attachments, nil
+}
+
+func (f *fakeMessageService) OpenAttachment(_ context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error) {
+	f.lastUserID = userID
+	f.lastMessageID = messageID
+	if f.download.Body != nil {
+		return f.download, nil
+	}
+	return mailservice.AttachmentDownload{
+		Attachment: maildb.Attachment{ID: attachmentID, Filename: "report.pdf", MIMEType: "application/pdf", Size: 7},
+		Body:       io.NopCloser(strings.NewReader("content")),
+	}, nil
 }
 
 func (f *fakeMessageService) SendText(_ context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error) {
