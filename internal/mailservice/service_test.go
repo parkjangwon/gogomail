@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -97,6 +98,7 @@ type fakeRepository struct {
 	seenSuppressionRecipients []string
 	lastDraft                 maildb.SaveDraftRequest
 	lastAttachmentUpload      maildb.CreateAttachmentUploadRequest
+	expiredAttachments        []maildb.Attachment
 	lastFlagMessageID         string
 	lastFlag                  string
 	lastPageCursor            maildb.MessageListCursor
@@ -223,6 +225,34 @@ func (f *fakeRepository) MarkDraftSent(_ context.Context, _ string, draftID stri
 func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
 	f.lastAttachmentUpload = req
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
+}
+
+func (f *fakeRepository) ExpireStaleAttachmentUploads(context.Context, maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error) {
+	return f.expiredAttachments, nil
+}
+
+func TestExpireStaleAttachmentUploadsDeletesStoredObjects(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "uploads/user-1/upload-1/report.pdf", strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	repo := &fakeRepository{
+		expiredAttachments: []maildb.Attachment{{ID: "att-1", StoragePath: "uploads/user-1/upload-1/report.pdf"}},
+	}
+	service := New(repo, store)
+
+	expired, err := service.ExpireStaleAttachmentUploads(context.Background(), time.Now(), 10)
+	if err != nil {
+		t.Fatalf("ExpireStaleAttachmentUploads returned error: %v", err)
+	}
+	if len(expired) != 1 {
+		t.Fatalf("expired = %+v", expired)
+	}
+	if _, err := store.Get(context.Background(), "uploads/user-1/upload-1/report.pdf"); err == nil {
+		t.Fatal("expired attachment object still exists")
+	}
 }
 
 func TestSendTextStoresOutgoingMessage(t *testing.T) {

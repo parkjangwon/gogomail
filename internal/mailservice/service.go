@@ -53,6 +53,10 @@ type AttachmentUploadRepository interface {
 	CreateAttachmentUpload(ctx context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error)
 }
 
+type AttachmentCleanupRepository interface {
+	ExpireStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error)
+}
+
 type Service struct {
 	repository Repository
 	store      storage.Store
@@ -306,6 +310,29 @@ func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID s
 		return AttachmentDownload{}, fmt.Errorf("open attachment body: %w", err)
 	}
 	return AttachmentDownload{Attachment: attachment, Body: body}, nil
+}
+
+func (s *Service) ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error) {
+	repo, ok := s.repository.(AttachmentCleanupRepository)
+	if !ok {
+		return nil, fmt.Errorf("attachment cleanup repository is required")
+	}
+	expired, err := repo.ExpireStaleAttachmentUploads(ctx, maildb.ExpireStaleAttachmentUploadsRequest{
+		Before: before,
+		Limit:  limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if s.store == nil {
+		return expired, nil
+	}
+	for _, attachment := range expired {
+		if strings.TrimSpace(attachment.StoragePath) != "" {
+			_ = s.store.Delete(ctx, attachment.StoragePath)
+		}
+	}
+	return expired, nil
 }
 
 type SendTextRequest struct {
