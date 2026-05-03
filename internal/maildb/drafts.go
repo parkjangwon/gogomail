@@ -85,6 +85,34 @@ LIMIT 1`
 	return draft, nil
 }
 
+func (r *Repository) MarkDraftSent(ctx context.Context, userID string, draftID string, sentMessageID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+
+	result, err := r.db.ExecContext(ctx, `
+UPDATE messages AS draft
+SET status = 'deleted',
+    deleted_at = now(),
+    updated_at = now(),
+    source_message_id = sent.id
+FROM messages AS sent
+WHERE draft.user_id = $1
+  AND draft.id = $2
+  AND draft.status = 'draft'
+  AND sent.user_id = draft.user_id
+  AND sent.id = $3
+  AND sent.status = 'active'`, strings.TrimSpace(userID), strings.TrimSpace(draftID), strings.TrimSpace(sentMessageID))
+	if err != nil {
+		return fmt.Errorf("mark draft sent: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("draft %q not found for sent message %q", draftID, sentMessageID)
+	}
+	return nil
+}
+
 func (r *Repository) SaveDraft(ctx context.Context, req SaveDraftRequest) (MessageDetail, error) {
 	if r.db == nil {
 		return MessageDetail{}, fmt.Errorf("database handle is required")
