@@ -59,6 +59,7 @@ Implementation order:
 12. Delivery attempts are recorded for delivered/failed recipients as retry and bounce groundwork.
 13. Failed delivery attempts can schedule delayed retries through outbox `available_at`.
 14. SMTP 4xx/5xx responses are classified so 5xx hard bounces stop retry while temporary failures retry.
+15. Hard-bounced recipients are added to suppression list and blocked before future send enqueue.
 
 ## Deferred until backend contracts stabilize
 

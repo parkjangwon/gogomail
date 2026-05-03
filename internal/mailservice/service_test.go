@@ -45,7 +45,8 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 }
 
 type fakeRepository struct {
-	detail maildb.MessageDetail
+	detail     maildb.MessageDetail
+	suppressed []string
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -70,6 +71,10 @@ func (f *fakeRepository) RecordOutgoing(context.Context, maildb.OutgoingMessage)
 	return "msg-1", nil
 }
 
+func (f *fakeRepository) SuppressedRecipients(context.Context, string, []string) ([]string, error) {
+	return f.suppressed, nil
+}
+
 func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	t.Parallel()
 
@@ -90,5 +95,21 @@ func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	}
 	if result.Farm != outbound.FarmGeneral {
 		t.Fatalf("Farm = %q, want general", result.Farm)
+	}
+}
+
+func TestSendTextRejectsSuppressedRecipients(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{suppressed: []string{"blocked@example.net"}}, storage.NewLocalStore(t.TempDir()))
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "blocked@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err == nil {
+		t.Fatal("SendText accepted suppressed recipient")
 	}
 }

@@ -19,6 +19,7 @@ type Repository interface {
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
+	SuppressedRecipients(ctx context.Context, domainID string, recipients []string) ([]string, error)
 	RecordOutgoing(ctx context.Context, msg maildb.OutgoingMessage) (string, error)
 }
 
@@ -92,6 +93,15 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		return SendTextResult{}, err
 	}
 
+	recipients := recipientEmails(req)
+	suppressed, err := s.repository.SuppressedRecipients(ctx, sender.DomainID, recipients)
+	if err != nil {
+		return SendTextResult{}, err
+	}
+	if len(suppressed) > 0 {
+		return SendTextResult{}, fmt.Errorf("suppressed recipients: %s", strings.Join(suppressed, ", "))
+	}
+
 	from := outbound.Address{Name: sender.DisplayName, Email: sender.Address}
 	composed, err := outbound.ComposeText(outbound.TextMessage{
 		From:     from,
@@ -155,4 +165,18 @@ func randomObjectID() string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return fmt.Sprintf("%d-%s", time.Now().UnixMilli(), hex.EncodeToString(random[:]))
+}
+
+func recipientEmails(req SendTextRequest) []string {
+	recipients := make([]string, 0, len(req.To)+len(req.Cc)+len(req.Bcc))
+	for _, addr := range req.To {
+		recipients = append(recipients, addr.Email)
+	}
+	for _, addr := range req.Cc {
+		recipients = append(recipients, addr.Email)
+	}
+	for _, addr := range req.Bcc {
+		recipients = append(recipients, addr.Email)
+	}
+	return recipients
 }
