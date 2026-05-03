@@ -2,8 +2,11 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"testing"
+	"time"
 
+	gosmtp "github.com/emersion/go-smtp"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -49,6 +52,43 @@ func TestDKIMKeyProviderMapsRepositoryKey(t *testing.T) {
 	}
 	if key.Domain != "example.com" || key.Selector != "s1" || key.PrivateKeyPEM != "private" {
 		t.Fatalf("key = %+v", key)
+	}
+}
+
+func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Load()
+	cfg.SMTPDomain = "mail.example"
+	cfg.SubmissionAddr = ":2587"
+	cfg.SubmissionSMTPSAddr = ":2465"
+	cfg.SMTPReadTimeout = 7 * time.Second
+	cfg.SMTPWriteTimeout = 8 * time.Second
+	cfg.SubmissionMaxMessageBytes = 1234
+	cfg.SubmissionMaxRecipients = 12
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.SubmissionSupportDSN = true
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+	backend := gosmtp.BackendFunc(func(*gosmtp.Conn) (gosmtp.Session, error) {
+		return nil, nil
+	})
+
+	opts := submissionServerOptions(cfg, nil, backend, tlsConfig, true)
+
+	if opts.Addr != ":2465" {
+		t.Fatalf("Addr = %q, want SMTPS addr", opts.Addr)
+	}
+	if !opts.ImplicitTLS {
+		t.Fatal("ImplicitTLS = false, want true")
+	}
+	if opts.TLSConfig != tlsConfig {
+		t.Fatal("TLSConfig was not preserved")
+	}
+	if opts.AllowInsecureAuth {
+		t.Fatal("AllowInsecureAuth = true, want false")
+	}
+	if !opts.EnableDSN {
+		t.Fatal("EnableDSN = false, want true")
 	}
 }
 

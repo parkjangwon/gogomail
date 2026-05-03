@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	gosmtp "github.com/emersion/go-smtp"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/gogomail/gogomail/internal/audit"
@@ -252,13 +253,44 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 	logger.Info(
 		"outbound submission mta configured",
 		"addr", cfg.SubmissionAddr,
+		"smtps_addr", cfg.SubmissionSMTPSAddr,
 		"tls_enabled", tlsConfig != nil,
 		"allow_insecure_auth", cfg.SubmissionAllowInsecureAuth,
 	)
-	return smtpd.RunServer(ctx, smtpd.ServerOptions{
-		Addr:              cfg.SubmissionAddr,
+	return runSubmissionServers(ctx, cfg, logger, receiver, tlsConfig)
+}
+
+func runSubmissionServers(ctx context.Context, cfg config.Config, logger *slog.Logger, backend gosmtp.Backend, tlsConfig *tls.Config) error {
+	if cfg.SubmissionSMTPSAddr == "" {
+		return smtpd.RunServer(ctx, submissionServerOptions(cfg, logger, backend, tlsConfig, false))
+	}
+	if tlsConfig == nil {
+		return errors.New("submission SMTPS requires SMTP TLS certificate and key files")
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error, 2)
+	go func() {
+		errCh <- smtpd.RunServer(ctx, submissionServerOptions(cfg, logger, backend, tlsConfig, false))
+	}()
+	go func() {
+		errCh <- smtpd.RunServer(ctx, submissionServerOptions(cfg, logger, backend, tlsConfig, true))
+	}()
+	err := <-errCh
+	cancel()
+	return err
+}
+
+func submissionServerOptions(cfg config.Config, logger *slog.Logger, backend gosmtp.Backend, tlsConfig *tls.Config, implicitTLS bool) smtpd.ServerOptions {
+	addr := cfg.SubmissionAddr
+	if implicitTLS {
+		addr = cfg.SubmissionSMTPSAddr
+	}
+	return smtpd.ServerOptions{
+		Addr:              addr,
 		Domain:            cfg.SMTPDomain,
-		Backend:           receiver,
+		Backend:           backend,
 		Logger:            logger,
 		TLSConfig:         tlsConfig,
 		ReadTimeout:       cfg.SMTPReadTimeout,
@@ -270,7 +302,8 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		EnableDSN:         cfg.SubmissionSupportDSN,
 		EnableRequireTLS:  cfg.SubmissionSupportRequireTLS,
 		EnableBinaryMIME:  cfg.SubmissionSupportBinaryMIME,
-	})
+		ImplicitTLS:       implicitTLS,
+	}
 }
 
 func smtpTLSConfig(cfg config.Config) (*tls.Config, error) {
