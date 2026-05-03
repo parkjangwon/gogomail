@@ -30,6 +30,18 @@ type Router interface {
 	Route(ctx context.Context, job Job, domain string) (Route, error)
 }
 
+type StaticRouter struct {
+	RouteConfig Route
+}
+
+func (r StaticRouter) Route(_ context.Context, _ Job, domain string) (Route, error) {
+	route := r.RouteConfig
+	if strings.TrimSpace(route.Domain) == "" {
+		route.Domain = domain
+	}
+	return route, nil
+}
+
 func normalizeRoute(job Job, domain string, route Route) Route {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	if route.Farm == "" {

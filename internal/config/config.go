@@ -67,6 +67,12 @@ type Config struct {
 	DeliverySMTPHello           string
 	DeliveryTimeout             time.Duration
 	DeliveryTLSMode             string
+	DeliverySmartHost           string
+	DeliverySmartHostPort       int
+	DeliverySmartHostTLSMode    string
+	DeliverySmartHostUsername   string
+	DeliverySmartHostPassword   string
+	DeliverySmartHostIdentity   string
 	DeliveryRetryDelays         []time.Duration
 	DeliveryRetryJitterRatio    float64
 	DeliveryRetryMaxDelay       time.Duration
@@ -140,6 +146,12 @@ func Load() Config {
 		DeliverySMTPHello:           envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 		DeliveryTimeout:             durationEnvOrDefault("GOGOMAIL_DELIVERY_TIMEOUT", 30*time.Second),
 		DeliveryTLSMode:             envOrDefault("GOGOMAIL_DELIVERY_TLS_MODE", "opportunistic"),
+		DeliverySmartHost:           envOrDefault("GOGOMAIL_DELIVERY_SMARTHOST", ""),
+		DeliverySmartHostPort:       intEnvOrDefault("GOGOMAIL_DELIVERY_SMARTHOST_PORT", 0),
+		DeliverySmartHostTLSMode:    envOrDefault("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", ""),
+		DeliverySmartHostUsername:   envOrDefault("GOGOMAIL_DELIVERY_SMARTHOST_USERNAME", ""),
+		DeliverySmartHostPassword:   envOrDefault("GOGOMAIL_DELIVERY_SMARTHOST_PASSWORD", ""),
+		DeliverySmartHostIdentity:   envOrDefault("GOGOMAIL_DELIVERY_SMARTHOST_IDENTITY", ""),
 		DeliveryRetryDelays:         durationCSVEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_DELAYS", []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}),
 		DeliveryRetryJitterRatio:    floatEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", 0.20),
 		DeliveryRetryMaxDelay:       durationEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", 24*time.Hour),

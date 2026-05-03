@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -195,5 +196,32 @@ func TestRouteDoesNotRequireAuthWithoutUsername(t *testing.T) {
 	route := normalizeRoute(Job{}, "example.net", Route{Auth: RouteAuth{Password: "secret"}})
 	if routeRequiresAuth(route) {
 		t.Fatal("routeRequiresAuth = true without username")
+	}
+}
+
+func TestStaticRouterRoutesAllDomainsToConfiguredRoute(t *testing.T) {
+	t.Parallel()
+
+	router := StaticRouter{RouteConfig: Route{
+		Hosts:   []string{"smtp.relay.example.net:587"},
+		TLSMode: DeliveryTLSRequire,
+		Auth:    RouteAuth{Username: "relay-user"},
+	}}
+	route, err := router.Route(context.Background(), Job{}, "Example.NET")
+	if err != nil {
+		t.Fatalf("Route returned error: %v", err)
+	}
+	route = normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "Example.NET", route)
+	if route.Domain != "example.net" {
+		t.Fatalf("Domain = %q, want requested domain", route.Domain)
+	}
+	if route.Port != 587 || len(route.Hosts) != 1 || route.Hosts[0] != "smtp.relay.example.net" {
+		t.Fatalf("route = %+v, want normalized smart host on port 587", route)
+	}
+	if route.TLSMode != DeliveryTLSRequire {
+		t.Fatalf("TLSMode = %q, want require", route.TLSMode)
+	}
+	if !routeRequiresAuth(route) {
+		t.Fatal("routeRequiresAuth = false, want true")
 	}
 }

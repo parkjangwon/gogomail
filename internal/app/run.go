@@ -432,6 +432,10 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	transport.Hello = cfg.DeliverySMTPHello
 	transport.Timeout = cfg.DeliveryTimeout
 	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
+	if router := deliveryRouterFromConfig(cfg); router != nil {
+		transport.Router = router
+		logger.Info("delivery worker using smart-host relay", "host", cfg.DeliverySmartHost, "port", cfg.DeliverySmartHostPort, "tls_mode", cfg.DeliverySmartHostTLSMode, "auth_configured", strings.TrimSpace(cfg.DeliverySmartHostUsername) != "")
+	}
 	retryPolicy := delivery.DefaultRetryPolicy()
 	retryPolicy.Delays = cfg.DeliveryRetryDelays
 	retryPolicy.JitterRatio = cfg.DeliveryRetryJitterRatio
@@ -487,6 +491,22 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		"block", cfg.DeliveryConsumerBlock.String(),
 	)
 	return consumer.Run(ctx)
+}
+
+func deliveryRouterFromConfig(cfg config.Config) delivery.Router {
+	if strings.TrimSpace(cfg.DeliverySmartHost) == "" {
+		return nil
+	}
+	return delivery.StaticRouter{RouteConfig: delivery.Route{
+		Hosts:   []string{cfg.DeliverySmartHost},
+		Port:    cfg.DeliverySmartHostPort,
+		TLSMode: delivery.DeliveryTLSMode(cfg.DeliverySmartHostTLSMode),
+		Auth: delivery.RouteAuth{
+			Identity: cfg.DeliverySmartHostIdentity,
+			Username: cfg.DeliverySmartHostUsername,
+			Password: cfg.DeliverySmartHostPassword,
+		},
+	}}
 }
 
 func deliveryFarmLimits(values map[string]int) map[outbound.Farm]int {
