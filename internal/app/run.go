@@ -389,7 +389,7 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			Store:        storage.NewLocalStore(cfg.MailstoreRoot),
 			Queue:        dsnpkg.NewPostgresOutboxQueue(db),
 			ReportingMTA: cfg.SMTPDomain,
-			Postmaster:   "postmaster@" + cfg.SMTPDomain,
+			Postmaster:   cfg.DSNPostmaster,
 			Farm:         outbound.FarmGeneral,
 		}),
 	}); err != nil {
