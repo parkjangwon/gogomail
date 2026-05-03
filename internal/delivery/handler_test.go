@@ -184,6 +184,57 @@ func TestHandlerRecordsAndRetriesPartialDelivery(t *testing.T) {
 	}
 }
 
+func TestHandlerFiltersDSNRecipientsForPartialRetry(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	retry := &fakeRetryScheduler{}
+	handler := NewHandler(store, &fakeTransport{err: &PartialDeliveryError{
+		Delivered: []outbound.Address{{Email: "ok@example.net"}},
+		Failed: []RecipientDeliveryError{
+			{Recipient: outbound.Address{Email: "gone@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "gone"}},
+			{Recipient: outbound.Address{Email: "temp@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "try later"}},
+		},
+	}}, &fakeRecorder{}, retry)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"ok@example.net"},{"email":"gone@example.net"},{"email":"temp@example.net"}],
+			"dsn":{
+				"return":"FULL",
+				"envelope_id":"env-1",
+				"recipients":[
+					{"address":"ok@example.net","notify":["SUCCESS"]},
+					{"address":"gone@example.net","notify":["FAILURE"]},
+					{"address":"temp@example.net","notify":["FAILURE","DELAYED"],"original_recipient":"rfc822; alias@example.net"}
+				]
+			},
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if retry.scheduled.DSN.Return != "FULL" || retry.scheduled.DSN.EnvelopeID != "env-1" {
+		t.Fatalf("scheduled DSN envelope = %+v", retry.scheduled.DSN)
+	}
+	if len(retry.scheduled.DSN.Recipients) != 1 {
+		t.Fatalf("scheduled DSN recipients = %+v, want retry recipient only", retry.scheduled.DSN.Recipients)
+	}
+	got := retry.scheduled.DSN.Recipients[0]
+	if got.Address != "temp@example.net" || got.OriginalRecipient != "rfc822; alias@example.net" {
+		t.Fatalf("scheduled DSN recipient = %+v, want temp metadata", got)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	t.Parallel()
 

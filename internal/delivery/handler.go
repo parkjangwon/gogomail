@@ -182,7 +182,38 @@ func queuedMessageForRecipients(queued QueuedMessage, recipients []outbound.Addr
 	queued.To = append([]outbound.Address(nil), recipients...)
 	queued.Cc = nil
 	queued.Bcc = nil
+	queued.DSN.Recipients = filterDSNRecipients(queued.DSN.Recipients, recipients)
 	return queued
+}
+
+func filterDSNRecipients(dsnRecipients []DSNRecipientOptions, recipients []outbound.Address) []DSNRecipientOptions {
+	if len(dsnRecipients) == 0 || len(recipients) == 0 {
+		return nil
+	}
+	wanted := make(map[string]struct{}, len(recipients))
+	for _, recipient := range recipients {
+		normalized, err := mail.NormalizeAddress(recipient.Email)
+		if err != nil {
+			continue
+		}
+		wanted[normalized] = struct{}{}
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+	filtered := make([]DSNRecipientOptions, 0, len(dsnRecipients))
+	for _, recipient := range dsnRecipients {
+		normalized, err := mail.NormalizeAddress(recipient.Address)
+		if err != nil {
+			continue
+		}
+		if _, ok := wanted[normalized]; !ok {
+			continue
+		}
+		recipient.Address = normalized
+		filtered = append(filtered, recipient)
+	}
+	return filtered
 }
 
 func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
