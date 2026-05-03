@@ -36,6 +36,7 @@ func DeliveryStatusAuditLog(payload json.RawMessage) (Log, error) {
 		CompanyID       string `json:"company_id"`
 		DomainID        string `json:"domain_id"`
 		Farm            string `json:"farm"`
+		Sender          string `json:"sender"`
 		Recipient       string `json:"recipient"`
 		RecipientDomain string `json:"recipient_domain"`
 		Status          string `json:"status"`
@@ -54,6 +55,7 @@ func DeliveryStatusAuditLog(payload json.RawMessage) (Log, error) {
 	}
 
 	detail, err := json.Marshal(map[string]any{
+		"sender":           event.Sender,
 		"recipient":        event.Recipient,
 		"recipient_domain": event.RecipientDomain,
 		"rfc_message_id":   event.RFCMessageID,

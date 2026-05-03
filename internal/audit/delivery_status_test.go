@@ -15,6 +15,7 @@ func TestDeliveryStatusAuditLog(t *testing.T) {
 		"company_id":"11111111-1111-4111-8111-111111111111",
 		"domain_id":"22222222-2222-4222-8222-222222222222",
 		"farm":"general",
+		"sender":"sender@example.com",
 		"recipient":"user@example.net",
 		"recipient_domain":"example.net",
 		"status":"bounced",
@@ -32,5 +33,12 @@ func TestDeliveryStatusAuditLog(t *testing.T) {
 	}
 	if !json.Valid(log.Detail) {
 		t.Fatal("Detail is not valid JSON")
+	}
+	var detail map[string]any
+	if err := json.Unmarshal(log.Detail, &detail); err != nil {
+		t.Fatalf("decode detail: %v", err)
+	}
+	if detail["sender"] != "sender@example.com" {
+		t.Fatalf("detail sender = %v, want sender@example.com", detail["sender"])
 	}
 }
