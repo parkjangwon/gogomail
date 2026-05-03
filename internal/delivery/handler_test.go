@@ -131,6 +131,59 @@ func TestHandlerDoesNotRetryPermanentSMTPFailure(t *testing.T) {
 	}
 }
 
+func TestHandlerRecordsAndRetriesPartialDelivery(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	recorder := &fakeRecorder{}
+	retry := &fakeRetryScheduler{}
+	handler := NewHandler(store, &fakeTransport{err: &PartialDeliveryError{
+		Delivered: []outbound.Address{{Email: "ok@example.net"}},
+		Failed: []RecipientDeliveryError{
+			{Recipient: outbound.Address{Email: "gone@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "gone"}},
+			{Recipient: outbound.Address{Email: "temp@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "try later"}},
+		},
+	}}, recorder, retry)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"ok@example.net"},{"email":"gone@example.net"},{"email":"temp@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(recorder.attempts) != 3 {
+		t.Fatalf("attempts = %+v, want 3", recorder.attempts)
+	}
+	statusByRecipient := map[string]AttemptStatus{}
+	for _, attempt := range recorder.attempts {
+		statusByRecipient[attempt.Recipient] = attempt.Status
+	}
+	if statusByRecipient["ok@example.net"] != AttemptDelivered {
+		t.Fatalf("attempts = %+v, want ok delivered", recorder.attempts)
+	}
+	if statusByRecipient["gone@example.net"] != AttemptBounced {
+		t.Fatalf("attempts = %+v, want gone bounced", recorder.attempts)
+	}
+	if statusByRecipient["temp@example.net"] != AttemptFailed {
+		t.Fatalf("attempts = %+v, want temp failed", recorder.attempts)
+	}
+	recipients := retry.scheduled.Recipients()
+	if len(recipients) != 1 || recipients[0].Email != "temp@example.net" {
+		t.Fatalf("scheduled retry recipients = %+v, want only temp recipient", recipients)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	t.Parallel()
 

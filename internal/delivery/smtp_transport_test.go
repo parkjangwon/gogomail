@@ -153,15 +153,15 @@ func TestAcceptRecipientsContinuesAfterSingleRecipientFailure(t *testing.T) {
 		{Email: "bad@example.net"},
 		{Email: "also-ok@example.net"},
 	}
-	accepted, err := acceptRecipients(recipients, func(recipient outbound.Address) error {
+	accepted, failures := acceptRecipients(recipients, func(recipient outbound.Address) error {
 		if recipient.Email == "bad@example.net" {
 			return &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"}
 		}
 		return nil
 	})
 
-	if err == nil {
-		t.Fatal("acceptRecipients returned nil error for rejected recipient")
+	if len(failures) != 1 {
+		t.Fatalf("recipient failures = %+v, want 1", failures)
 	}
 	if len(accepted) != 2 {
 		t.Fatalf("accepted recipients = %+v, want 2", accepted)
@@ -174,21 +174,22 @@ func TestAcceptRecipientsContinuesAfterSingleRecipientFailure(t *testing.T) {
 func TestAcceptRecipientsReturnsErrorsWhenAllRecipientsFail(t *testing.T) {
 	t.Parallel()
 
-	accepted, err := acceptRecipients([]outbound.Address{
+	accepted, failures := acceptRecipients([]outbound.Address{
 		{Email: "bad@example.net"},
 		{Email: "worse@example.net"},
 	}, func(recipient outbound.Address) error {
 		return &SMTPStatusError{Op: "rcpt", Code: 550, Message: recipient.Email + " rejected"}
 	})
 
-	if err == nil {
-		t.Fatal("acceptRecipients returned nil error")
+	if len(failures) != 2 {
+		t.Fatalf("recipient failures = %+v, want 2", failures)
 	}
 	if len(accepted) != 0 {
 		t.Fatalf("accepted recipients = %+v, want none", accepted)
 	}
-	if !strings.Contains(err.Error(), "bad@example.net") || !strings.Contains(err.Error(), "worse@example.net") {
-		t.Fatalf("error = %v, want recipient context", err)
+	joined := errors.Join(recipientFailureErrors(failures)...)
+	if !strings.Contains(joined.Error(), "bad@example.net") || !strings.Contains(joined.Error(), "worse@example.net") {
+		t.Fatalf("error = %v, want recipient context", joined)
 	}
 }
 

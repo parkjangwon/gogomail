@@ -111,6 +111,29 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 
 	if err := h.transport.Deliver(ctx, job); err != nil {
+		var partial *PartialDeliveryError
+		if errors.As(err, &partial) {
+			h.observe(ctx, metricEvent(queued, MetricTransportFailed, MetricDeferred, err))
+			if recordErr := h.recordPartialAttempts(ctx, job, partial); recordErr != nil {
+				return recordErr
+			}
+			temporary := partial.TemporaryFailures()
+			if len(temporary) == 0 || h.retry == nil {
+				return nil
+			}
+			retryJob := job
+			retryJob.QueuedMessage = queuedMessageForRecipients(job.QueuedMessage, temporary)
+			retryErr := h.retry.ScheduleRetry(ctx, retryJob, err)
+			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
+				if errors.Is(retryErr, ErrRetryExhausted) {
+					h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryExhausted, MetricFailed, retryErr))
+				} else {
+					h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryScheduled, MetricDeferred, err))
+				}
+				return nil
+			}
+			return retryErr
+		}
 		status := AttemptFailed
 		result := MetricFailed
 		if IsPermanentFailure(err) {
@@ -140,6 +163,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 	h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
 	return h.recordAttempts(ctx, job, AttemptDelivered, nil)
+}
+
+func queuedMessageForRecipients(queued QueuedMessage, recipients []outbound.Address) QueuedMessage {
+	queued.To = append([]outbound.Address(nil), recipients...)
+	queued.Cc = nil
+	queued.Bcc = nil
+	return queued
 }
 
 func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
@@ -227,6 +257,27 @@ func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptSta
 	for _, attempt := range attemptsFor(job, status, cause, timeNow()) {
 		if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
 			return fmt.Errorf("record delivery attempt: %w", err)
+		}
+	}
+	return nil
+}
+
+func (h *Handler) recordPartialAttempts(ctx context.Context, job Job, partial *PartialDeliveryError) error {
+	attemptedAt := timeNow()
+	for _, attempt := range attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, partial.Delivered)}, AttemptDelivered, nil, attemptedAt) {
+		if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
+			return fmt.Errorf("record partial delivered attempt: %w", err)
+		}
+	}
+	for _, failure := range partial.Failed {
+		status := AttemptFailed
+		if IsPermanentFailure(failure.Err) {
+			status = AttemptBounced
+		}
+		for _, attempt := range attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, []outbound.Address{failure.Recipient})}, status, failure.Err, attemptedAt) {
+			if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
+				return fmt.Errorf("record partial failed attempt: %w", err)
+			}
 		}
 	}
 	return nil

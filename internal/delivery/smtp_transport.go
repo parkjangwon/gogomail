@@ -125,14 +125,14 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Ro
 	if err := client.Mail(job.From.Email); err != nil {
 		return WrapSMTPError("mail", err)
 	}
-	acceptedRecipients, rcptErr := acceptRecipients(recipients, func(recipient outbound.Address) error {
+	acceptedRecipients, recipientFailures := acceptRecipients(recipients, func(recipient outbound.Address) error {
 		if err := client.Rcpt(recipient.Email); err != nil {
 			return WrapSMTPError("rcpt", err)
 		}
 		return nil
 	})
 	if len(acceptedRecipients) == 0 {
-		return rcptErr
+		return errors.Join(recipientFailureErrors(recipientFailures)...)
 	}
 
 	writer, err := client.Data()
@@ -159,20 +159,31 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Ro
 	if err := client.Quit(); err != nil {
 		return WrapSMTPError("quit", err)
 	}
+	if len(recipientFailures) > 0 {
+		return &PartialDeliveryError{Delivered: acceptedRecipients, Failed: recipientFailures}
+	}
 	return nil
 }
 
-func acceptRecipients(recipients []outbound.Address, rcpt func(outbound.Address) error) ([]outbound.Address, error) {
+func acceptRecipients(recipients []outbound.Address, rcpt func(outbound.Address) error) ([]outbound.Address, []RecipientDeliveryError) {
 	accepted := make([]outbound.Address, 0, len(recipients))
-	errs := make([]error, 0)
+	failures := make([]RecipientDeliveryError, 0)
 	for _, recipient := range recipients {
 		if err := rcpt(recipient); err != nil {
-			errs = append(errs, fmt.Errorf("recipient %s: %w", recipient.Email, err))
+			failures = append(failures, RecipientDeliveryError{Recipient: recipient, Err: err})
 			continue
 		}
 		accepted = append(accepted, recipient)
 	}
-	return accepted, errors.Join(errs...)
+	return accepted, failures
+}
+
+func recipientFailureErrors(failures []RecipientDeliveryError) []error {
+	errs := make([]error, 0, len(failures))
+	for _, failure := range failures {
+		errs = append(errs, failure)
+	}
+	return errs
 }
 
 func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client, host string, modeOverride DeliveryTLSMode) error {

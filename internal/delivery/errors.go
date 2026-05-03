@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net/textproto"
+	"strings"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 type SMTPStatusError struct {
@@ -65,4 +68,49 @@ func IsPermanentFailure(err error) bool {
 func IsTemporaryFailure(err error) bool {
 	var smtpErr *SMTPStatusError
 	return errors.As(err, &smtpErr) && smtpErr.Temporary()
+}
+
+type RecipientDeliveryError struct {
+	Recipient outbound.Address
+	Err       error
+}
+
+func (e RecipientDeliveryError) Error() string {
+	if e.Err == nil {
+		return fmt.Sprintf("recipient %s failed", e.Recipient.Email)
+	}
+	return fmt.Sprintf("recipient %s: %v", e.Recipient.Email, e.Err)
+}
+
+func (e RecipientDeliveryError) Unwrap() error {
+	return e.Err
+}
+
+type PartialDeliveryError struct {
+	Delivered []outbound.Address
+	Failed    []RecipientDeliveryError
+}
+
+func (e *PartialDeliveryError) Error() string {
+	if e == nil {
+		return ""
+	}
+	parts := make([]string, 0, len(e.Failed))
+	for _, failure := range e.Failed {
+		parts = append(parts, failure.Error())
+	}
+	return fmt.Sprintf("partial delivery: %d delivered, %d failed: %s", len(e.Delivered), len(e.Failed), strings.Join(parts, "; "))
+}
+
+func (e *PartialDeliveryError) TemporaryFailures() []outbound.Address {
+	if e == nil {
+		return nil
+	}
+	recipients := make([]outbound.Address, 0, len(e.Failed))
+	for _, failure := range e.Failed {
+		if !IsPermanentFailure(failure.Err) {
+			recipients = append(recipients, failure.Recipient)
+		}
+	}
+	return recipients
 }
