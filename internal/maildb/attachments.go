@@ -22,6 +22,21 @@ type Attachment struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type ExpireStaleAttachmentUploadsRequest struct {
+	Before time.Time
+	Limit  int
+}
+
+func ValidateExpireStaleAttachmentUploadsRequest(req ExpireStaleAttachmentUploadsRequest) error {
+	if req.Before.IsZero() {
+		return fmt.Errorf("before is required")
+	}
+	if req.Limit < 0 {
+		return fmt.Errorf("limit must not be negative")
+	}
+	return nil
+}
+
 func (r *Repository) CreateAttachmentUpload(ctx context.Context, req CreateAttachmentUploadRequest) (Attachment, error) {
 	if r.db == nil {
 		return Attachment{}, fmt.Errorf("database handle is required")
@@ -182,4 +197,58 @@ LIMIT 1`
 		return Attachment{}, fmt.Errorf("get attachment: %w", err)
 	}
 	return attachment, nil
+}
+
+func (r *Repository) ExpireStaleAttachmentUploads(ctx context.Context, req ExpireStaleAttachmentUploadsRequest) ([]Attachment, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateExpireStaleAttachmentUploadsRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+
+	const query = `
+WITH stale AS (
+  SELECT id
+  FROM attachments
+  WHERE status = 'uploading'
+    AND created_at < $1
+  ORDER BY created_at ASC
+  LIMIT $2
+)
+UPDATE attachments a
+SET status = 'deleted'
+FROM stale
+WHERE a.id = stale.id
+RETURNING a.id::text, COALESCE(a.message_id::text, ''), a.upload_id, a.storage_path, a.filename, a.size, a.mime_type, a.status, a.created_at`
+
+	rows, err := r.db.QueryContext(ctx, query, req.Before.UTC(), limit)
+	if err != nil {
+		return nil, fmt.Errorf("expire stale attachment uploads: %w", err)
+	}
+	defer rows.Close()
+
+	attachments := make([]Attachment, 0)
+	for rows.Next() {
+		var attachment Attachment
+		if err := rows.Scan(
+			&attachment.ID,
+			&attachment.MessageID,
+			&attachment.UploadID,
+			&attachment.StoragePath,
+			&attachment.Filename,
+			&attachment.Size,
+			&attachment.MIMEType,
+			&attachment.Status,
+			&attachment.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan expired attachment upload: %w", err)
+		}
+		attachments = append(attachments, attachment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate expired attachment uploads: %w", err)
+	}
+	return attachments, nil
 }
