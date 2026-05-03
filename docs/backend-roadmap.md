@@ -125,6 +125,11 @@ Implementation order:
 78. Draft-to-send now has an explicit service/repository transition: drafts are loaded as compose snapshots, sent through the normal outbound path, then marked deleted and linked to the created sent message for mailbox consistency.
 79. Draft attachment uploads are moved to the created sent message during the draft-to-send transition and the sent message `has_attachment` flag is refreshed transactionally.
 80. A backend release readiness checklist now tracks webmail API coverage, attachment storage, draft-to-send consistency, validation, admin CRUD, API error stability, required verification, and explicitly deferred spam/vendor modules.
+81. Admin API now exposes domain and user detail endpoints, improving CRUD completeness for operational consoles without starting frontend implementation.
+82. HTTP list endpoints reject malformed and nonpositive `limit` parameters instead of silently defaulting them, keeping API contracts explicit for OpenAPI generation.
+83. Attachment uploads now cap multipart request bodies, verify declared size against stored bytes, sanitize fallback storage paths, and reject newline-bearing filenames/MIME types.
+84. Service info and readiness responses now expose backend contract metadata and structured checks for deployment automation.
+85. Backend API contract documentation now records response envelopes, auth modes, pagination behavior, and intentionally deferred frontend/spam modules as OpenAPI preparation.
 
 ## Deferred until backend contracts stabilize
 
