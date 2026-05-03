@@ -31,7 +31,7 @@ func (r StaticTrustedRelays) AllowRelay(_ context.Context, remoteAddr string) (b
 	if len(r.prefixes) == 0 {
 		return true, nil
 	}
-	addr, err := netip.ParseAddr(strings.TrimSpace(remoteAddr))
+	addr, err := parseRelayRemoteAddr(remoteAddr)
 	if err != nil {
 		return false, nil
 	}
@@ -41,6 +41,18 @@ func (r StaticTrustedRelays) AllowRelay(_ context.Context, remoteAddr string) (b
 		}
 	}
 	return false, nil
+}
+
+func parseRelayRemoteAddr(remoteAddr string) (netip.Addr, error) {
+	remoteAddr = strings.TrimSpace(remoteAddr)
+	if addr, err := netip.ParseAddr(remoteAddr); err == nil {
+		return addr, nil
+	}
+	addrPort, err := netip.ParseAddrPort(remoteAddr)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	return addrPort.Addr(), nil
 }
 
 func parseTrustedRelayPrefix(value string) (netip.Prefix, error) {
