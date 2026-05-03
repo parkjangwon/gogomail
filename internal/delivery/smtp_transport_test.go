@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/smtp"
 	"strings"
@@ -435,6 +436,51 @@ func TestDataAcceptedResultKeepsPartialRecipientFailures(t *testing.T) {
 	}
 }
 
+func TestDirectSMTPTransportClassifiesRecipientFailuresFromSMTPSink(t *testing.T) {
+	t.Parallel()
+
+	addr, shutdown := startRecipientFailureSMTPSink(t)
+	defer shutdown()
+	host, portValue, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatalf("SplitHostPort returned error: %v", err)
+	}
+	var port int
+	if _, err := fmt.Sscanf(portValue, "%d", &port); err != nil {
+		t.Fatalf("parse sink port %q: %v", portValue, err)
+	}
+	transport := DirectSMTPTransport{
+		Router: staticRouter{route: Route{
+			Domain:  "example.net",
+			Hosts:   []string{host},
+			Port:    port,
+			TLSMode: DeliveryTLSDisable,
+		}},
+		Hello:   "sender.example.com",
+		Timeout: 5 * time.Second,
+	}
+	err = transport.Deliver(context.Background(), Job{QueuedMessage: QueuedMessage{
+		From:        outbound.Address{Email: "sender@example.com"},
+		To:          []outbound.Address{{Email: "ok@example.net"}, {Email: "gone@example.net"}, {Email: "temp@example.net"}},
+		StoragePath: "mailstore/msg.eml",
+	}, OpenMessage: func(context.Context) (io.ReadCloser, error) {
+		return io.NopCloser(strings.NewReader("Subject: sink\r\n\r\nbody\r\n")), nil
+	}})
+	var partial *PartialDeliveryError
+	if !errors.As(err, &partial) {
+		t.Fatalf("Deliver error = %v, want PartialDeliveryError", err)
+	}
+	if len(partial.Delivered) != 1 || partial.Delivered[0].Email != "ok@example.net" {
+		t.Fatalf("delivered = %+v, want accepted recipient", partial.Delivered)
+	}
+	if len(partial.Failed) != 2 {
+		t.Fatalf("failed = %+v, want permanent and temporary RCPT failures", partial.Failed)
+	}
+	if got := partial.TemporaryFailures(); len(got) != 1 || got[0].Email != "temp@example.net" {
+		t.Fatalf("temporary failures = %+v, want temp@example.net only", got)
+	}
+}
+
 func TestDataAcceptedResultSucceedsWhenAllAccepted(t *testing.T) {
 	t.Parallel()
 
@@ -675,6 +721,92 @@ func TestDeliveryDeadlineCanBeDisabled(t *testing.T) {
 type staticMXResolver struct {
 	records []*net.MX
 	err     error
+}
+
+func startRecipientFailureSMTPSink(t *testing.T) (string, func()) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen returned error: %v", err)
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer conn.Close()
+		reader := bufio.NewReader(conn)
+		if _, err := fmt.Fprintf(conn, "220 mx.example.net ESMTP\r\n"); err != nil {
+			errCh <- err
+			return
+		}
+		if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "EHLO ") {
+			errCh <- fmt.Errorf("EHLO line = %q, err = %v", line, err)
+			return
+		}
+		if _, err := fmt.Fprintf(conn, "250 mx.example.net\r\n"); err != nil {
+			errCh <- err
+			return
+		}
+		if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "MAIL FROM:") {
+			errCh <- fmt.Errorf("MAIL line = %q, err = %v", line, err)
+			return
+		}
+		if _, err := fmt.Fprintf(conn, "250 sender ok\r\n"); err != nil {
+			errCh <- err
+			return
+		}
+		rcptReplies := []string{
+			"250 recipient ok\r\n",
+			"550 5.1.1 no such user\r\n",
+			"451 4.7.1 try later\r\n",
+		}
+		for _, reply := range rcptReplies {
+			if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "RCPT TO:") {
+				errCh <- fmt.Errorf("RCPT line = %q, err = %v", line, err)
+				return
+			}
+			if _, err := fmt.Fprint(conn, reply); err != nil {
+				errCh <- err
+				return
+			}
+		}
+		if line, err := reader.ReadString('\n'); err != nil || strings.TrimSpace(line) != "DATA" {
+			errCh <- fmt.Errorf("DATA line = %q, err = %v", line, err)
+			return
+		}
+		if _, err := fmt.Fprintf(conn, "354 end with dot\r\n"); err != nil {
+			errCh <- err
+			return
+		}
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				errCh <- err
+				return
+			}
+			if strings.TrimRight(line, "\r\n") == "." {
+				break
+			}
+		}
+		if _, err := fmt.Fprintf(conn, "250 accepted\r\n"); err != nil {
+			errCh <- err
+			return
+		}
+		if line, err := reader.ReadString('\n'); err == nil && strings.HasPrefix(line, "QUIT") {
+			_, _ = fmt.Fprintf(conn, "221 bye\r\n")
+		}
+		errCh <- nil
+	}()
+	return listener.Addr().String(), func() {
+		_ = listener.Close()
+		if err := <-errCh; err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+			t.Fatalf("SMTP sink returned error: %v", err)
+		}
+	}
 }
 
 type staticRouter struct {
