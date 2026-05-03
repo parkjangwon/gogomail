@@ -128,6 +128,10 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Backpressure:      pressure,
 		AddReceivedHeader: true,
 		ReceivedDomain:    cfg.SMTPDomain,
+		Policy: smtpd.ReceivePolicy{
+			MaxRecipientsPerMessage: cfg.SMTPMaxRecipients,
+			MaxMessageBytes:         cfg.SMTPMaxMessageBytes,
+		},
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
@@ -152,6 +156,10 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Recorder:          repository,
 		AddReceivedHeader: true,
 		ReceivedDomain:    cfg.SMTPDomain,
+		Policy: smtpd.ReceivePolicy{
+			MaxRecipientsPerMessage: cfg.SubmissionMaxRecipients,
+			MaxMessageBytes:         cfg.SubmissionMaxMessageBytes,
+		},
 	})
 	tlsConfig, err := smtpTLSConfig(cfg)
 	if err != nil {

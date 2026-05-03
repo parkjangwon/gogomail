@@ -10,6 +10,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_HTTP_ADDR", "")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_SMTP_TLS_CERT_FILE", "")
 	t.Setenv("GOGOMAIL_SMTP_TLS_KEY_FILE", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "")
@@ -18,6 +20,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
+	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "")
+	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
@@ -60,6 +64,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
 	}
+	if cfg.SubmissionMaxRecipients != 100 {
+		t.Fatalf("SubmissionMaxRecipients = %d, want 100", cfg.SubmissionMaxRecipients)
+	}
+	if cfg.SubmissionMaxMessageBytes != 25*1024*1024 {
+		t.Fatalf("SubmissionMaxMessageBytes = %d, want 25MiB", cfg.SubmissionMaxMessageBytes)
+	}
 	if cfg.SMTPTLSCertFile != "" {
 		t.Fatalf("SMTPTLSCertFile = %q, want empty", cfg.SMTPTLSCertFile)
 	}
@@ -77,6 +87,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SMTPDomain != "localhost" {
 		t.Fatalf("SMTPDomain = %q, want localhost", cfg.SMTPDomain)
+	}
+	if cfg.SMTPMaxRecipients != 100 {
+		t.Fatalf("SMTPMaxRecipients = %d, want 100", cfg.SMTPMaxRecipients)
+	}
+	if cfg.SMTPMaxMessageBytes != 25*1024*1024 {
+		t.Fatalf("SMTPMaxMessageBytes = %d, want 25MiB", cfg.SMTPMaxMessageBytes)
 	}
 	if cfg.MailstoreRoot != "var/mailstore" {
 		t.Fatalf("MailstoreRoot = %q, want var/mailstore", cfg.MailstoreRoot)
@@ -172,6 +188,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_HTTP_ADDR", ":18080")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", ":10025")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "25")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "1048576")
 	t.Setenv("GOGOMAIL_SMTP_TLS_CERT_FILE", "cert.pem")
 	t.Setenv("GOGOMAIL_SMTP_TLS_KEY_FILE", "key.pem")
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "false")
@@ -180,6 +198,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "minio")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "db/migrations")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "mail.example.com")
+	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "50")
+	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "2097152")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "/tmp/gogomail-mailstore")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "Admin@Example.COM, user@example.com ")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
@@ -222,6 +242,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.SubmissionAddr != ":10587" {
 		t.Fatalf("SubmissionAddr = %q, want :10587", cfg.SubmissionAddr)
 	}
+	if cfg.SubmissionMaxRecipients != 25 {
+		t.Fatalf("SubmissionMaxRecipients = %d, want 25", cfg.SubmissionMaxRecipients)
+	}
+	if cfg.SubmissionMaxMessageBytes != 1048576 {
+		t.Fatalf("SubmissionMaxMessageBytes = %d, want 1048576", cfg.SubmissionMaxMessageBytes)
+	}
 	if cfg.SMTPTLSCertFile != "cert.pem" {
 		t.Fatalf("SMTPTLSCertFile = %q, want cert.pem", cfg.SMTPTLSCertFile)
 	}
@@ -245,6 +271,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.SMTPDomain != "mail.example.com" {
 		t.Fatalf("SMTPDomain = %q, want mail.example.com", cfg.SMTPDomain)
+	}
+	if cfg.SMTPMaxRecipients != 50 {
+		t.Fatalf("SMTPMaxRecipients = %d, want 50", cfg.SMTPMaxRecipients)
+	}
+	if cfg.SMTPMaxMessageBytes != 2097152 {
+		t.Fatalf("SMTPMaxMessageBytes = %d, want 2097152", cfg.SMTPMaxMessageBytes)
 	}
 	if cfg.MailstoreRoot != "/tmp/gogomail-mailstore" {
 		t.Fatalf("MailstoreRoot = %q, want /tmp/gogomail-mailstore", cfg.MailstoreRoot)

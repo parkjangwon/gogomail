@@ -12,6 +12,8 @@ type Config struct {
 	HTTPAddr                    string
 	SMTPAddr                    string
 	SubmissionAddr              string
+	SubmissionMaxRecipients     int
+	SubmissionMaxMessageBytes   int64
 	SMTPTLSCertFile             string
 	SMTPTLSKeyFile              string
 	SubmissionAllowInsecureAuth bool
@@ -20,6 +22,8 @@ type Config struct {
 	StorageBackend              string
 	MigrationDir                string
 	SMTPDomain                  string
+	SMTPMaxRecipients           int
+	SMTPMaxMessageBytes         int64
 	MailstoreRoot               string
 	LocalRecipients             []string
 	DedupBackend                string
@@ -56,6 +60,8 @@ func Load() Config {
 		HTTPAddr:                    envOrDefault("GOGOMAIL_HTTP_ADDR", ":8080"),
 		SMTPAddr:                    envOrDefault("GOGOMAIL_SMTP_ADDR", ":2525"),
 		SubmissionAddr:              envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
+		SubmissionMaxRecipients:     intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
+		SubmissionMaxMessageBytes:   int64EnvOrDefault("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SMTPTLSCertFile:             envOrDefault("GOGOMAIL_SMTP_TLS_CERT_FILE", ""),
 		SMTPTLSKeyFile:              envOrDefault("GOGOMAIL_SMTP_TLS_KEY_FILE", ""),
 		SubmissionAllowInsecureAuth: boolEnvOrDefault("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
@@ -64,6 +70,8 @@ func Load() Config {
 		StorageBackend:              envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
 		MigrationDir:                envOrDefault("GOGOMAIL_MIGRATION_DIR", "migrations"),
 		SMTPDomain:                  envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
+		SMTPMaxRecipients:           intEnvOrDefault("GOGOMAIL_SMTP_MAX_RECIPIENTS", 100),
+		SMTPMaxMessageBytes:         int64EnvOrDefault("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", 25*1024*1024),
 		MailstoreRoot:               envOrDefault("GOGOMAIL_MAILSTORE_ROOT", "var/mailstore"),
 		LocalRecipients:             splitCSV(os.Getenv("GOGOMAIL_LOCAL_RECIPIENTS")),
 		DedupBackend:                envOrDefault("GOGOMAIL_DEDUP_BACKEND", "none"),
@@ -120,6 +128,18 @@ func intEnvOrDefault(key string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func int64EnvOrDefault(key string, fallback int64) int64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return fallback
 	}
