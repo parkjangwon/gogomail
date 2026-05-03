@@ -147,6 +147,9 @@ Implementation order:
 100. Direct outbound SMTP treats partial DATA success as terminal for an MX host, preventing failover from duplicating already-accepted recipients on later MX candidates.
 101. Smart-host route normalization accepts common `host:port` input while still keying pools by the normalized host and effective route port.
 102. SMTP DSN extension handling now validates supported `RET` and `NOTIFY` values, including the RFC rule that `NOTIFY=NEVER` cannot be combined with other notification requests.
+103. DSN composition sanitizes MIME boundary tokens and recipient machine-readable fields, preventing generated bounce reports from carrying header or boundary injection.
+104. Smart-host routes now support SMTP AUTH credentials and separate route pool keys by authenticated username, preparing gateway relay delivery without sharing connections across identities.
+105. Optional inbound SMTP AUTH now emits the same `authenticated` hook/metric boundary as submission, keeping AUTH-required receive/relay deployments observable.
 
 ## Deferred until backend contracts stabilize
 
