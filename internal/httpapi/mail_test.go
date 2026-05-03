@@ -73,7 +73,7 @@ func TestListFoldersHandler(t *testing.T) {
 
 	service := &fakeMessageService{
 		folders: []maildb.Folder{
-			{ID: "folder-1", Name: "Inbox", FullPath: "Inbox", Type: "system", SystemType: "inbox"},
+			{ID: "folder-1", Name: "Inbox", FullPath: "Inbox", Type: "system", SystemType: "inbox", Starred: 2},
 		},
 	}
 
@@ -96,6 +96,9 @@ func TestListFoldersHandler(t *testing.T) {
 	}
 	if len(body.Folders) != 1 || body.Folders[0].SystemType != "inbox" {
 		t.Fatalf("folders = %+v", body.Folders)
+	}
+	if body.Folders[0].Starred != 2 {
+		t.Fatalf("starred = %d", body.Folders[0].Starred)
 	}
 	if service.lastUserID != "user-1" {
 		t.Fatalf("lastUserID = %q", service.lastUserID)

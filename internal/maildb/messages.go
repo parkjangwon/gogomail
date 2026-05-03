@@ -49,6 +49,7 @@ type Folder struct {
 	OrderIndex int    `json:"order_index"`
 	Total      int64  `json:"total"`
 	Unread     int64  `json:"unread"`
+	Starred    int64  `json:"starred"`
 }
 
 type CreateFolderRequest struct {
@@ -173,7 +174,8 @@ SELECT
   COALESCE(f.system_type, ''),
   f.order_index,
   COUNT(m.id) FILTER (WHERE m.status = 'active') AS total,
-  COUNT(m.id) FILTER (WHERE m.status = 'active' AND COALESCE((m.flags->>'read')::boolean, false) = false) AS unread
+  COUNT(m.id) FILTER (WHERE m.status = 'active' AND COALESCE((m.flags->>'read')::boolean, false) = false) AS unread,
+  COUNT(m.id) FILTER (WHERE m.status = 'active' AND COALESCE((m.flags->>'starred')::boolean, false) = true) AS starred
 FROM folders f
 LEFT JOIN messages m ON m.folder_id = f.id
 WHERE f.user_id = $1
@@ -199,6 +201,7 @@ ORDER BY type DESC, order_index ASC, full_path ASC`
 			&folder.OrderIndex,
 			&folder.Total,
 			&folder.Unread,
+			&folder.Starred,
 		); err != nil {
 			return nil, fmt.Errorf("scan folder: %w", err)
 		}
