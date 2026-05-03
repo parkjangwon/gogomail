@@ -300,6 +300,48 @@ func TestDeleteMessageHandler(t *testing.T) {
 	}
 }
 
+func TestSaveDraftHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drafts", strings.NewReader(`{
+		"user_id":"user-1",
+		"subject":"draft",
+		"text_body":"body"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDraft.UserID != "user-1" || service.lastDraft.Subject != "draft" {
+		t.Fatalf("lastDraft = %+v", service.lastDraft)
+	}
+}
+
+func TestDeleteDraftHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/drafts/draft-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedDraftID != "draft-1" {
+		t.Fatalf("lastDeletedDraftID = %q", service.lastDeletedDraftID)
+	}
+}
+
 func TestListAttachmentsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -474,6 +516,7 @@ type fakeMessageService struct {
 	detail              maildb.MessageDetail
 	sendResult          mailservice.SendTextResult
 	lastSend            mailservice.SendTextRequest
+	lastDraft           mailservice.SaveDraftRequest
 	lastUserID          string
 	lastFolderName      string
 	lastDeletedFolderID string
@@ -481,6 +524,7 @@ type fakeMessageService struct {
 	lastFolderID        string
 	lastMoveFolderID    string
 	lastDeletedID       string
+	lastDeletedDraftID  string
 	lastFlag            string
 	lastFlagValue       bool
 	lastLimit           int
@@ -550,6 +594,17 @@ func (f *fakeMessageService) MoveMessage(_ context.Context, userID string, messa
 func (f *fakeMessageService) DeleteMessage(_ context.Context, userID string, messageID string) error {
 	f.lastUserID = userID
 	f.lastDeletedID = messageID
+	return nil
+}
+
+func (f *fakeMessageService) SaveDraft(_ context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error) {
+	f.lastDraft = req
+	return maildb.MessageDetail{ID: "draft-1", Subject: req.Subject}, nil
+}
+
+func (f *fakeMessageService) DeleteDraft(_ context.Context, userID string, draftID string) error {
+	f.lastUserID = userID
+	f.lastDeletedDraftID = draftID
 	return nil
 }
 
