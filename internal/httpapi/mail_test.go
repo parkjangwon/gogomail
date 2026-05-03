@@ -204,6 +204,23 @@ func TestListMessagesHandlerRejectsInvalidCursor(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
+	var body struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+			Status  int    `json:"status"`
+		} `json:"error"`
+		ErrorMessage string `json:"error_message"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Error.Code != "bad_request" || body.Error.Status != http.StatusBadRequest || body.Error.Message == "" {
+		t.Fatalf("error envelope = %+v", body.Error)
+	}
+	if body.ErrorMessage != body.Error.Message {
+		t.Fatalf("error_message = %q, want %q", body.ErrorMessage, body.Error.Message)
+	}
 }
 
 func TestGetMessageHandler(t *testing.T) {

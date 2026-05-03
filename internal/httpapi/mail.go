@@ -419,5 +419,27 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]any{"error": message})
+	code := "internal_error"
+	switch status {
+	case http.StatusBadRequest:
+		code = "bad_request"
+	case http.StatusUnauthorized:
+		code = "unauthorized"
+	case http.StatusForbidden:
+		code = "forbidden"
+	case http.StatusNotFound:
+		code = "not_found"
+	case http.StatusConflict:
+		code = "conflict"
+	case http.StatusRequestEntityTooLarge:
+		code = "payload_too_large"
+	}
+	writeJSON(w, status, map[string]any{
+		"error": map[string]any{
+			"code":    code,
+			"message": message,
+			"status":  status,
+		},
+		"error_message": message,
+	})
 }
