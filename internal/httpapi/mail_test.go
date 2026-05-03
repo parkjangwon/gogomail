@@ -187,6 +187,22 @@ func TestListMessagesHandlerFiltersByFolder(t *testing.T) {
 	}
 }
 
+func TestListMessagesHandlerRejectsInvalidCursor(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&cursor=bad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestGetMessageHandler(t *testing.T) {
 	t.Parallel()
 

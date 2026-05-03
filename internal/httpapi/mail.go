@@ -116,6 +116,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		if _, err := maildb.DecodeMessageListCursor(r.URL.Query().Get("cursor")); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		folderID := strings.TrimSpace(r.URL.Query().Get("folder_id"))
 		var messages []maildb.MessageSummary
 		var err error
