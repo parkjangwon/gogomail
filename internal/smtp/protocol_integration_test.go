@@ -347,6 +347,60 @@ func TestSMTPProtocolPreservesWireDSNOptions(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolPreservesWireNotifyNever(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		Recorder:   recorder,
+		SupportDSN: true,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{
+		Domain:    "mx.example.com",
+		EnableDSN: true,
+	})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.net> RET=HDRS ENVID=never-env"); err != nil {
+		t.Fatalf("MAIL FROM with DSN options returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<user@example.com> NOTIFY=NEVER ORCPT=rfc822;user+40example.com"); err != nil {
+		t.Fatalf("RCPT TO with NOTIFY=NEVER returned error: %v", err)
+	}
+	writeProtocolData(t, text, "Message-ID: <notify-never@example.net>\r\nFrom: sender@example.net\r\nTo: user@example.com\r\nSubject: notify never\r\n\r\nbody\r\n")
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "HDRS" || got.EnvelopeID != "never-env" {
+		t.Fatalf("DSN envelope = %+v, want RET/ENVID from wire", got)
+	}
+	if len(got.Recipients) != 1 || strings.Join(got.Recipients[0].Notify, ",") != "NEVER" {
+		t.Fatalf("DSN recipient = %+v, want NOTIFY=NEVER", got.Recipients)
+	}
+}
+
 func TestSMTPProtocolTrustedRelayRejectsUntrustedClient(t *testing.T) {
 	t.Parallel()
 
