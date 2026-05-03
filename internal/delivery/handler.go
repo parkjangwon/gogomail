@@ -352,7 +352,7 @@ func normalizeDSNNotify(values []string) ([]string, error) {
 		switch value {
 		case "NEVER":
 			hasNever = true
-		case "SUCCESS", "FAILURE", "DELAYED":
+		case "SUCCESS", "FAILURE", "DELAY":
 		default:
 			return nil, fmt.Errorf("mail.queued payload has invalid dsn.notify %q", value)
 		}

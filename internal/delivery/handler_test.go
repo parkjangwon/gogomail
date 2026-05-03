@@ -213,7 +213,7 @@ func TestHandlerFiltersDSNRecipientsForPartialRetry(t *testing.T) {
 				"recipients":[
 					{"address":"ok@example.net","notify":["SUCCESS"]},
 					{"address":"gone@example.net","notify":["FAILURE"]},
-					{"address":"temp@example.net","notify":["FAILURE","DELAYED"],"original_recipient":"rfc822; alias@example.net"}
+					{"address":"temp@example.net","notify":["FAILURE","DELAY"],"original_recipient":"rfc822; alias@example.net"}
 				]
 			},
 			"storage_path":"mailstore/msg.eml",
@@ -343,7 +343,7 @@ func TestDecodeQueuedMessageNormalizesDSNOptions(t *testing.T) {
 		"dsn":{
 			"return":"hdrs",
 			"envelope_id":" env-1 ",
-			"recipients":[{"address":"User@Example.NET","notify":["failure","FAILURE"," delayed "],"original_recipient":" rfc822; alias@example.net "}]
+			"recipients":[{"address":"User@Example.NET","notify":["failure","FAILURE"," delay "],"original_recipient":" rfc822; alias@example.net "}]
 		}
 	}`))
 	if err != nil {
@@ -356,7 +356,7 @@ func TestDecodeQueuedMessageNormalizesDSNOptions(t *testing.T) {
 	if got.Address != "user@example.net" {
 		t.Fatalf("DSN recipient address = %q, want normalized", got.Address)
 	}
-	if len(got.Notify) != 2 || got.Notify[0] != "FAILURE" || got.Notify[1] != "DELAYED" {
+	if len(got.Notify) != 2 || got.Notify[0] != "FAILURE" || got.Notify[1] != "DELAY" {
 		t.Fatalf("DSN notify = %+v, want normalized/deduplicated", got.Notify)
 	}
 	if got.OriginalRecipient != "rfc822; alias@example.net" {
