@@ -134,6 +134,13 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 			"max_dkim_verifications", cfg.SMTPMaxDKIMVerifications,
 		)
 	}
+	hooks := []smtpd.Hook(nil)
+	if cfg.SMTPAuthVerificationEnabled && cfg.SMTPDMARCEnforcement != "monitor" {
+		hooks = append(hooks, mailauth.EnforcementHook(mailauth.EnforcementOptions{
+			Mode: mailauth.EnforcementMode(cfg.SMTPDMARCEnforcement),
+		}))
+		logger.Info("edge-mta DMARC enforcement configured", "mode", cfg.SMTPDMARCEnforcement)
+	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
 		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
@@ -151,6 +158,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		SupportRequireTLS: cfg.SMTPSupportRequireTLS,
 		SupportDSN:        cfg.SMTPSupportDSN,
 		SupportBinaryMIME: cfg.SMTPSupportBinaryMIME,
+		Hooks:             hooks,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SMTPMaxRecipients,
 			MaxMessageBytes:         cfg.SMTPMaxMessageBytes,

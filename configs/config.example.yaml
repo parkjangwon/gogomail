@@ -4,6 +4,7 @@ smtp_addr: :2525
 smtp_domain: localhost
 smtp_auth_verification_enabled: false
 smtp_authserv_id: localhost
+smtp_dmarc_enforcement: monitor
 smtp_max_dkim_verifications: 8
 delivery_throttle_enabled: false
 delivery_default_concurrency: 0
