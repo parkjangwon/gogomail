@@ -14,6 +14,7 @@ import (
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
+	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -40,7 +41,9 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runOutboxRelay(ctx, cfg, logger)
 	case ModeEventWorker:
 		return runEventWorker(ctx, cfg, logger)
-	case ModeInboundMTA, ModeOutboundMTA, ModeDeliveryWorker, ModeBatchWorker:
+	case ModeDeliveryWorker:
+		return runDeliveryWorker(ctx, cfg, logger)
+	case ModeInboundMTA, ModeOutboundMTA, ModeBatchWorker:
 		return waitForShutdown(ctx, logger, mode)
 	default:
 		return errors.New("unsupported mode")
@@ -203,6 +206,42 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"consumer", cfg.EventConsumerName,
 		"count", cfg.EventConsumerCount,
 		"block", cfg.EventConsumerBlock.String(),
+	)
+	return consumer.Run(ctx)
+}
+
+func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	transport := delivery.NewDirectSMTPTransport()
+	transport.Hello = cfg.DeliverySMTPHello
+
+	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
+		Client:   redisClient,
+		Stream:   cfg.DeliveryStream,
+		Group:    cfg.DeliveryConsumerGroup,
+		Consumer: cfg.DeliveryConsumerName,
+		Count:    int64(cfg.DeliveryConsumerCount),
+		Block:    cfg.DeliveryConsumerBlock,
+		Handler:  delivery.NewHandler(storage.NewLocalStore(cfg.MailstoreRoot), transport),
+		Logger:   logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"delivery worker started",
+		"stream", cfg.DeliveryStream,
+		"group", cfg.DeliveryConsumerGroup,
+		"consumer", cfg.DeliveryConsumerName,
+		"count", cfg.DeliveryConsumerCount,
+		"block", cfg.DeliveryConsumerBlock.String(),
 	)
 	return consumer.Run(ctx)
 }

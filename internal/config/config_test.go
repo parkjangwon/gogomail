@@ -27,6 +27,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "")
+	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
+	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
 
 	cfg := Load()
 
@@ -87,6 +93,24 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.EventConsumerBlock != time.Second {
 		t.Fatalf("EventConsumerBlock = %s, want 1s", cfg.EventConsumerBlock)
 	}
+	if cfg.DeliveryStream != "mail.outbound.general" {
+		t.Fatalf("DeliveryStream = %q, want mail.outbound.general", cfg.DeliveryStream)
+	}
+	if cfg.DeliveryConsumerGroup != "gogomail.delivery-worker" {
+		t.Fatalf("DeliveryConsumerGroup = %q, want gogomail.delivery-worker", cfg.DeliveryConsumerGroup)
+	}
+	if cfg.DeliveryConsumerName != "delivery-worker-1" {
+		t.Fatalf("DeliveryConsumerName = %q, want delivery-worker-1", cfg.DeliveryConsumerName)
+	}
+	if cfg.DeliveryConsumerCount != 50 {
+		t.Fatalf("DeliveryConsumerCount = %d, want 50", cfg.DeliveryConsumerCount)
+	}
+	if cfg.DeliveryConsumerBlock != time.Second {
+		t.Fatalf("DeliveryConsumerBlock = %s, want 1s", cfg.DeliveryConsumerBlock)
+	}
+	if cfg.DeliverySMTPHello != "localhost" {
+		t.Fatalf("DeliverySMTPHello = %q, want localhost", cfg.DeliverySMTPHello)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -111,6 +135,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "worker-a")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "10")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "500ms")
+	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "custom.outbound")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "delivery-group")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-a")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "5")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
+	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
 
 	cfg := Load()
 
@@ -176,5 +206,23 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.EventConsumerBlock != 500*time.Millisecond {
 		t.Fatalf("EventConsumerBlock = %s, want 500ms", cfg.EventConsumerBlock)
+	}
+	if cfg.DeliveryStream != "custom.outbound" {
+		t.Fatalf("DeliveryStream = %q, want custom.outbound", cfg.DeliveryStream)
+	}
+	if cfg.DeliveryConsumerGroup != "delivery-group" {
+		t.Fatalf("DeliveryConsumerGroup = %q, want delivery-group", cfg.DeliveryConsumerGroup)
+	}
+	if cfg.DeliveryConsumerName != "delivery-a" {
+		t.Fatalf("DeliveryConsumerName = %q, want delivery-a", cfg.DeliveryConsumerName)
+	}
+	if cfg.DeliveryConsumerCount != 5 {
+		t.Fatalf("DeliveryConsumerCount = %d, want 5", cfg.DeliveryConsumerCount)
+	}
+	if cfg.DeliveryConsumerBlock != 750*time.Millisecond {
+		t.Fatalf("DeliveryConsumerBlock = %s, want 750ms", cfg.DeliveryConsumerBlock)
+	}
+	if cfg.DeliverySMTPHello != "mx.example.com" {
+		t.Fatalf("DeliverySMTPHello = %q, want mx.example.com", cfg.DeliverySMTPHello)
 	}
 }

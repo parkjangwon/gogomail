@@ -30,6 +30,12 @@ type Config struct {
 	EventConsumerName       string
 	EventConsumerCount      int
 	EventConsumerBlock      time.Duration
+	DeliveryStream          string
+	DeliveryConsumerGroup   string
+	DeliveryConsumerName    string
+	DeliveryConsumerCount   int
+	DeliveryConsumerBlock   time.Duration
+	DeliverySMTPHello       string
 }
 
 func Load() Config {
@@ -56,6 +62,12 @@ func Load() Config {
 		EventConsumerName:       envOrDefault("GOGOMAIL_EVENT_CONSUMER_NAME", "event-worker-1"),
 		EventConsumerCount:      intEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_COUNT", 100),
 		EventConsumerBlock:      durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_BLOCK", time.Second),
+		DeliveryStream:          envOrDefault("GOGOMAIL_DELIVERY_STREAM", "mail.outbound.general"),
+		DeliveryConsumerGroup:   envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "gogomail.delivery-worker"),
+		DeliveryConsumerName:    envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-worker-1"),
+		DeliveryConsumerCount:   intEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_COUNT", 50),
+		DeliveryConsumerBlock:   durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
+		DeliverySMTPHello:       envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 	}
 }
 

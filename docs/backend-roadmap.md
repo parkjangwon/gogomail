@@ -55,6 +55,7 @@ Implementation order:
 8. PostgreSQL outbox event creation for stored mail.
 9. Mail API list/detail/folder endpoints.
 10. RFC 5322/MIME outbound text composer and outbound farm classifier.
+11. Delivery worker consumes `mail.outbound.general` and hands queued `.eml` messages to a pluggable SMTP transport.
 
 ## Deferred until backend contracts stabilize
 
