@@ -100,10 +100,13 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 	}
 	dsnStatus := strings.TrimSpace(status.Status)
 	if dsnStatus == "" {
-		dsnStatus = "5.0.0"
+		dsnStatus = defaultEnhancedStatusForAction(action)
 	}
 	if !validEnhancedStatus(dsnStatus) {
 		return fmt.Errorf("invalid dsn status %q", status.Status)
+	}
+	if !dsnStatusMatchesAction(action, dsnStatus) {
+		return fmt.Errorf("dsn status %q does not match action %q", dsnStatus, action)
 	}
 	if status.OriginalRecipient != "" {
 		writeDSNField(buf, "Original-Recipient", sanitizeRecipientAddressType(status.OriginalRecipient))
@@ -251,4 +254,29 @@ func validEnhancedStatus(status string) bool {
 		}
 	}
 	return true
+}
+
+func defaultEnhancedStatusForAction(action string) string {
+	switch action {
+	case "delivered", "relayed", "expanded":
+		return "2.0.0"
+	case "delayed":
+		return "4.0.0"
+	default:
+		return "5.0.0"
+	}
+}
+
+func dsnStatusMatchesAction(action string, status string) bool {
+	if status == "" {
+		return false
+	}
+	switch action {
+	case "delivered", "relayed", "expanded":
+		return status[0] == '2'
+	case "delayed":
+		return status[0] == '4'
+	default:
+		return status[0] == '5'
+	}
 }

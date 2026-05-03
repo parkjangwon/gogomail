@@ -82,6 +82,44 @@ func TestComposeRejectsInvalidRecipientStatus(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "invalid dsn status") {
 		t.Fatalf("Compose() error = %v, want invalid status", err)
 	}
+
+	_, err = Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "delivered",
+			Status:    "5.0.0",
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "does not match action") {
+		t.Fatalf("Compose() error = %v, want mismatched status/action", err)
+	}
+}
+
+func TestComposeDefaultsStatusByAction(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{
+			{Recipient: "delivered@example.net", Action: "delivered"},
+			{Recipient: "delayed@example.net", Action: "delayed"},
+			{Recipient: "failed@example.net", Action: "failed"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	for _, want := range []string{
+		"Action: delivered\r\nStatus: 2.0.0",
+		"Action: delayed\r\nStatus: 4.0.0",
+		"Action: failed\r\nStatus: 5.0.0",
+	} {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("DSN raw missing %q:\n%s", want, raw)
+		}
+	}
 }
 
 func TestComposeSanitizesBoundaryAndFinalRecipient(t *testing.T) {
