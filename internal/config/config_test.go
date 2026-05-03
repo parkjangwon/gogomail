@@ -12,6 +12,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", "")
 	t.Setenv("GOGOMAIL_SMTP_TLS_CERT_FILE", "")
 	t.Setenv("GOGOMAIL_SMTP_TLS_KEY_FILE", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "")
@@ -73,6 +74,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SubmissionMaxMessageBytes != 25*1024*1024 {
 		t.Fatalf("SubmissionMaxMessageBytes = %d, want 25MiB", cfg.SubmissionMaxMessageBytes)
+	}
+	if cfg.SubmissionSupportSMTPUTF8 {
+		t.Fatal("SubmissionSupportSMTPUTF8 = true, want false")
 	}
 	if cfg.SMTPTLSCertFile != "" {
 		t.Fatalf("SMTPTLSCertFile = %q, want empty", cfg.SMTPTLSCertFile)
@@ -206,6 +210,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "25")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "1048576")
+	t.Setenv("GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8", "true")
 	t.Setenv("GOGOMAIL_SMTP_TLS_CERT_FILE", "cert.pem")
 	t.Setenv("GOGOMAIL_SMTP_TLS_KEY_FILE", "key.pem")
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "false")
@@ -267,6 +272,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.SubmissionMaxMessageBytes != 1048576 {
 		t.Fatalf("SubmissionMaxMessageBytes = %d, want 1048576", cfg.SubmissionMaxMessageBytes)
+	}
+	if !cfg.SubmissionSupportSMTPUTF8 {
+		t.Fatal("SubmissionSupportSMTPUTF8 = false, want true")
 	}
 	if cfg.SMTPTLSCertFile != "cert.pem" {
 		t.Fatalf("SMTPTLSCertFile = %q, want cert.pem", cfg.SMTPTLSCertFile)
