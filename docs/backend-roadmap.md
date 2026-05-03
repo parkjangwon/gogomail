@@ -150,6 +150,19 @@ Implementation order:
 103. DSN composition sanitizes MIME boundary tokens and recipient machine-readable fields, preventing generated bounce reports from carrying header or boundary injection.
 104. Smart-host routes now support SMTP AUTH credentials and separate route pool keys by authenticated username, preparing gateway relay delivery without sharing connections across identities.
 105. Optional inbound SMTP AUTH now emits the same `authenticated` hook/metric boundary as submission, keeping AUTH-required receive/relay deployments observable.
+106. SMTP receive and Submission MTA reject repeated AUTH attempts after a session is already authenticated, matching RFC 4954 state expectations and avoiding accidental identity replacement mid-session.
+107. SMTP DSN `ENVID` and `ORCPT` inputs are syntax-guarded before being copied into hook/recorder payloads, preventing malformed DSN identity metadata from entering downstream bounce workflows.
+108. DSN `NOTIFY` values are normalized and deduplicated as they flow through SMTP session state, keeping hook and recorder payloads stable for future DSN generation.
+109. Smart-host route pool keys now include both SMTP AUTH username and identity/authzid, preventing distinct delegated relay identities from sharing pooled connections.
+110. Outbound MX candidates are lowercased, de-duplicated, and stripped of DNS trailing dots before connection attempts, reducing duplicate delivery work and pool fragmentation.
+111. Temporary MX lookup failures now produce a temporary delivery failure instead of falling back to the bare domain, preventing unsafe delivery attempts during DNS outages.
+112. Direct SMTP delivery rejects jobs that have no deliverable recipients instead of silently reporting success.
+113. Invalid smart-host route ports are clamped back to valid host-derived or default SMTP ports before connection and pool-key use.
+114. New `MAIL FROM` commands reset prior RCPT/DSN transaction state for receive and submission sessions, preventing envelope leakage across SMTP transactions.
+115. DSN composition sanitizes generated/returned Message-ID values as well as emitted headers, keeping bounce metadata safe from header injection.
+116. DSN address headers sanitize envelope address values before formatting From/To headers in generated reports.
+117. Runtime validation rejects nonpositive SMTP read/write and outbound delivery timeouts so protocol servers and delivery workers always start with bounded I/O deadlines.
+118. Runtime validation rejects nonpositive DKIM verification limits, keeping authentication verification allocation/runtime guardrails enabled.
 
 ## Deferred until backend contracts stabilize
 
