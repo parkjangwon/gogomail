@@ -130,6 +130,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		ReceivedDomain:    cfg.SMTPDomain,
 		SupportSMTPUTF8:   cfg.SMTPSupportSMTPUTF8,
 		SupportRequireTLS: cfg.SMTPSupportRequireTLS,
+		SupportDSN:        cfg.SMTPSupportDSN,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SMTPMaxRecipients,
 			MaxMessageBytes:         cfg.SMTPMaxMessageBytes,
