@@ -22,6 +22,10 @@ type Queue interface {
 	Enqueue(ctx context.Context, topic string, partitionKey string, payload []byte) error
 }
 
+type OnceQueue interface {
+	EnqueueOnce(ctx context.Context, topic string, partitionKey string, dedupeKey string, payload []byte) error
+}
+
 type HandlerOptions struct {
 	Store        storage.Store
 	Queue        Queue
@@ -125,7 +129,13 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 	if err != nil {
 		return fmt.Errorf("marshal dsn queue payload: %w", err)
 	}
-	if err := h.queue.Enqueue(ctx, "mail.outbound."+string(h.farm), event.MessageID, payload); err != nil {
+	topic := "mail.outbound." + string(h.farm)
+	if onceQueue, ok := h.queue.(OnceQueue); ok {
+		err = onceQueue.EnqueueOnce(ctx, topic, event.MessageID, bounceDSNDedupeKey(event), payload)
+	} else {
+		err = h.queue.Enqueue(ctx, topic, event.MessageID, payload)
+	}
+	if err != nil {
 		_ = h.store.Delete(ctx, storagePath)
 		return err
 	}
@@ -153,13 +163,18 @@ func NewPostgresOutboxQueue(db *sql.DB) *PostgresOutboxQueue {
 }
 
 func (q *PostgresOutboxQueue) Enqueue(ctx context.Context, topic string, partitionKey string, payload []byte) error {
+	return q.EnqueueOnce(ctx, topic, partitionKey, "", payload)
+}
+
+func (q *PostgresOutboxQueue) EnqueueOnce(ctx context.Context, topic string, partitionKey string, dedupeKey string, payload []byte) error {
 	if q.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
 	const query = `
-INSERT INTO outbox (topic, partition_key, payload, status)
-VALUES ($1, $2, $3::jsonb, 'pending')`
-	if _, err := q.db.ExecContext(ctx, query, topic, partitionKey, string(payload)); err != nil {
+INSERT INTO outbox (topic, partition_key, dedupe_key, payload, status)
+VALUES ($1, $2, NULLIF($3, ''), $4::jsonb, 'pending')
+ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`
+	if _, err := q.db.ExecContext(ctx, query, topic, partitionKey, dedupeKey, string(payload)); err != nil {
 		return fmt.Errorf("insert dsn outbox event: %w", err)
 	}
 	return nil
@@ -242,6 +257,10 @@ func shouldGenerateFailureDSN(event bounceEvent) bool {
 		}
 	}
 	return wantFailure
+}
+
+func bounceDSNDedupeKey(event bounceEvent) string {
+	return "dsn:bounce:" + event.MessageID + ":" + event.Recipient
 }
 
 func dsnStoragePath(now time.Time, messageID string) string {

@@ -50,6 +50,9 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 	if queue.topic != "mail.outbound.general" {
 		t.Fatalf("topic = %q, want mail.outbound.general", queue.topic)
 	}
+	if queue.dedupeKey != "dsn:bounce:018f0000-0000-7000-8000-000000000001:bad@example.net" {
+		t.Fatalf("dedupeKey = %q, want stable bounce DSN key", queue.dedupeKey)
+	}
 	if len(store.values) != 1 {
 		t.Fatalf("stored messages = %d, want 1", len(store.values))
 	}
@@ -244,12 +247,18 @@ func (q failingQueue) Enqueue(context.Context, string, string, []byte) error {
 type captureQueue struct {
 	topic        string
 	partitionKey string
+	dedupeKey    string
 	payload      []byte
 }
 
 func (q *captureQueue) Enqueue(_ context.Context, topic string, partitionKey string, payload []byte) error {
+	return q.EnqueueOnce(context.Background(), topic, partitionKey, "", payload)
+}
+
+func (q *captureQueue) EnqueueOnce(_ context.Context, topic string, partitionKey string, dedupeKey string, payload []byte) error {
 	q.topic = topic
 	q.partitionKey = partitionKey
+	q.dedupeKey = dedupeKey
 	q.payload = append([]byte(nil), payload...)
 	return nil
 }
