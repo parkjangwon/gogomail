@@ -27,6 +27,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_SMTP_REQUIRE_AUTH", "")
+	t.Setenv("GOGOMAIL_SMTP_ADD_RECEIVED_HEADER", "")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_SMTPUTF8", "")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_REQUIRETLS", "")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_DSN", "")
@@ -117,6 +118,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SMTPRequireAuth {
 		t.Fatal("SMTPRequireAuth = true, want false")
+	}
+	if !cfg.SMTPAddReceivedHeader {
+		t.Fatal("SMTPAddReceivedHeader = false, want true")
 	}
 	if cfg.SMTPSupportSMTPUTF8 {
 		t.Fatal("SMTPSupportSMTPUTF8 = true, want false")
@@ -241,6 +245,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "50")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "2097152")
 	t.Setenv("GOGOMAIL_SMTP_REQUIRE_AUTH", "true")
+	t.Setenv("GOGOMAIL_SMTP_ADD_RECEIVED_HEADER", "false")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_SMTPUTF8", "true")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_REQUIRETLS", "true")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_DSN", "true")
@@ -337,6 +342,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if !cfg.SMTPRequireAuth {
 		t.Fatal("SMTPRequireAuth = false, want true")
+	}
+	if cfg.SMTPAddReceivedHeader {
+		t.Fatal("SMTPAddReceivedHeader = true, want false")
 	}
 	if !cfg.SMTPSupportSMTPUTF8 {
 		t.Fatal("SMTPSupportSMTPUTF8 = false, want true")

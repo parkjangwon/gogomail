@@ -126,7 +126,7 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		Deduplicator:      deduplicator,
 		RateLimiter:       rateLimiter,
 		Backpressure:      pressure,
-		AddReceivedHeader: true,
+		AddReceivedHeader: cfg.SMTPAddReceivedHeader,
 		ReceivedDomain:    cfg.SMTPDomain,
 		RequireAuth:       cfg.SMTPRequireAuth,
 		SupportSMTPUTF8:   cfg.SMTPSupportSMTPUTF8,
