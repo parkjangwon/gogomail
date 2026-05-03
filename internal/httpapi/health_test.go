@@ -27,6 +27,9 @@ func TestInfoHandler(t *testing.T) {
 	if body.Service != "gogomail" || body.Status != "ok" {
 		t.Fatalf("body = %+v", body)
 	}
+	if body.APIVersion != "v1" || body.BackendContractVersion == "" {
+		t.Fatalf("contract metadata = %+v", body)
+	}
 }
 
 func TestContentDispositionAttachmentSanitizesFilename(t *testing.T) {
