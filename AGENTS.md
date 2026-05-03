@@ -78,3 +78,13 @@ gogomail should feel like a polished, developer-friendly, modern mail server fro
 - Prefer clean names, crisp boundaries, and readable flow over clever obscurity.
 - Make extension points feel intentional, not bolted on.
 - Leave the codebase feeling stylish, composed, and hackable.
+
+## Scale ambition
+
+gogomail is not a toy mail server. It should be designed to grow from a clean single-node deployment into a powerful national-scale platform.
+
+- Assume large public-sector and enterprise-scale workloads are an explicit long-term target.
+- Keep hot paths streaming, allocation-aware, and horizontally scalable.
+- Prefer backpressure, queues, retries, idempotency, and observability over best-effort shortcuts.
+- Design components so a small deployment stays simple while a large deployment can split, shard, replicate, and scale independently.
+- Treat operational resilience, clear failure modes, and graceful degradation as core product features.
