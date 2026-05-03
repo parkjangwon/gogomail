@@ -2,8 +2,15 @@ package smtpd
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"io"
+	"math/big"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -200,6 +207,129 @@ func TestSMTPProtocolRejectsOversizedDeclaredSize(t *testing.T) {
 	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
 		t.Fatalf("QUIT returned error: %v", err)
 	}
+}
+
+func TestSMTPProtocolImplicitTLSAcceptsMessage(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	receiver := NewReceiver(ReceiverOptions{
+		Store: store,
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		IDGenerator: func() string { return "protocol-smtps-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 4, 11, 0, 0, 0, time.UTC) },
+	})
+	addr, shutdown := startImplicitTLSProtocolTestServer(t, receiver, ServerOptions{
+		Domain:    "mx.example.com",
+		TLSConfig: testServerTLSConfig(t),
+	})
+	defer shutdown()
+
+	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12})
+	if err != nil {
+		t.Fatalf("TLS Dial returned error: %v", err)
+	}
+	client, err := smtp.NewClient(conn, "mx.example.com")
+	if err != nil {
+		t.Fatalf("NewClient returned error: %v", err)
+	}
+	defer client.Close()
+	if err := client.Hello("client.example.net"); err != nil {
+		t.Fatalf("Hello returned error: %v", err)
+	}
+	if err := client.Mail("sender@example.net"); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := client.Rcpt("user@example.com"); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	writer, err := client.Data()
+	if err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	raw := "Message-ID: <protocol-smtps@example.net>\r\nFrom: sender@example.net\r\nTo: user@example.com\r\nSubject: smtps\r\n\r\nbody\r\n"
+	if _, err := io.WriteString(writer, raw); err != nil {
+		t.Fatalf("write DATA returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close DATA returned error: %v", err)
+	}
+	if err := client.Quit(); err != nil {
+		t.Fatalf("Quit returned error: %v", err)
+	}
+
+	body, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/protocol-smtps-id.eml")
+	if err != nil {
+		t.Fatalf("stored SMTPS message not found: %v", err)
+	}
+	defer body.Close()
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if string(got) != raw {
+		t.Fatalf("stored SMTPS message = %q, want raw protocol payload", got)
+	}
+}
+
+func startImplicitTLSProtocolTestServer(t *testing.T, backend gosmtp.Backend, opts ServerOptions) (string, func()) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen returned error: %v", err)
+	}
+	opts.Addr = listener.Addr().String()
+	opts.Backend = backend
+	opts.ImplicitTLS = true
+	if strings.TrimSpace(opts.Domain) == "" {
+		opts.Domain = "localhost"
+	}
+	server := newSMTPServer(backend, opts)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(tls.NewListener(listener, server.TLSConfig))
+	}()
+	shutdown := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
+		if err := <-errCh; err != nil && !strings.Contains(err.Error(), "server closed") {
+			t.Fatalf("implicit TLS SMTP test server returned error: %v", err)
+		}
+	}
+	return listener.Addr().String(), shutdown
+}
+
+func testServerTLSConfig(t *testing.T) *tls.Config {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey returned error: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "mx.example.com"},
+		DNSNames:     []string{"mx.example.com"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("CreateCertificate returned error: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("X509KeyPair returned error: %v", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 }
 
 func rawProtocolCommand(text *textproto.Conn, expect int, command string) error {
