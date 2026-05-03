@@ -364,6 +364,27 @@ func TestDeleteDraftHandler(t *testing.T) {
 	}
 }
 
+func TestSendDraftHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		sendResult: mailservice.SendTextResult{ID: "msg-1", RFCMessageID: "<msg-1@example.com>", Farm: outbound.FarmGeneral},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drafts/draft-1/send?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedDraftID != "draft-1" || service.lastUserID != "user-1" {
+		t.Fatalf("send draft = user:%q draft:%q", service.lastUserID, service.lastDeletedDraftID)
+	}
+}
+
 func TestUpdateDraftHandlerUsesPathID(t *testing.T) {
 	t.Parallel()
 
@@ -754,6 +775,12 @@ func (f *fakeMessageService) DeleteDraft(_ context.Context, userID string, draft
 	f.lastUserID = userID
 	f.lastDeletedDraftID = draftID
 	return nil
+}
+
+func (f *fakeMessageService) SendDraft(_ context.Context, userID string, draftID string) (mailservice.SendTextResult, error) {
+	f.lastUserID = userID
+	f.lastDeletedDraftID = draftID
+	return f.sendResult, nil
 }
 
 func (f *fakeMessageService) CreateAttachmentUpload(_ context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
