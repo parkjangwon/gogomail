@@ -196,6 +196,25 @@ func TestMoveMessageHandler(t *testing.T) {
 	}
 }
 
+func TestDeleteMessageHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/messages/msg-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedID != "msg-1" {
+		t.Fatalf("lastDeletedID = %q", service.lastDeletedID)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
@@ -288,6 +307,7 @@ type fakeMessageService struct {
 	lastMessageID    string
 	lastFolderID     string
 	lastMoveFolderID string
+	lastDeletedID    string
 	lastFlag         string
 	lastFlagValue    bool
 	lastLimit        int
@@ -329,6 +349,12 @@ func (f *fakeMessageService) MoveMessage(_ context.Context, userID string, messa
 	f.lastUserID = userID
 	f.lastMessageID = messageID
 	f.lastMoveFolderID = folderID
+	return nil
+}
+
+func (f *fakeMessageService) DeleteMessage(_ context.Context, userID string, messageID string) error {
+	f.lastUserID = userID
+	f.lastDeletedID = messageID
 	return nil
 }
 

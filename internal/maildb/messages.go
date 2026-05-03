@@ -322,6 +322,34 @@ WHERE user_id = $1
 	return nil
 }
 
+func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+UPDATE messages
+SET status = 'deleted',
+    deleted_at = now(),
+    updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'active'`
+
+	result, err := r.db.ExecContext(ctx, query, userID, messageID)
+	if err != nil {
+		return fmt.Errorf("delete message: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("inspect message delete: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("message %q not found", messageID)
+	}
+	return nil
+}
+
 func allowedMessageFlag(flag string) bool {
 	switch flag {
 	case "read", "starred", "answered", "forwarded":

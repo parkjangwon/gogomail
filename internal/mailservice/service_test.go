@@ -73,6 +73,10 @@ func (f *fakeRepository) MoveMessage(context.Context, string, string, string) er
 	return nil
 }
 
+func (f *fakeRepository) DeleteMessage(context.Context, string, string) error {
+	return nil
+}
+
 func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.Sender, error) {
 	return maildb.Sender{
 		CompanyID:   "company-1",

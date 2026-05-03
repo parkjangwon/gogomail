@@ -19,6 +19,7 @@ type MessageService interface {
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
+	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 }
 
@@ -117,6 +118,19 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		if err := service.MoveMessage(r.Context(), userID, r.PathValue("id"), req.FolderID); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if err := service.DeleteMessage(r.Context(), userID, r.PathValue("id")); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
