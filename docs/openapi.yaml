@@ -13,6 +13,7 @@ security:
 paths:
   /health/live:
     get:
+      operationId: getHealthLive
       summary: Process liveness probe
       security: []
       responses:
@@ -20,6 +21,7 @@ paths:
           $ref: "#/components/responses/Health"
   /health/ready:
     get:
+      operationId: getHealthReady
       summary: Service readiness probe
       security: []
       responses:
@@ -27,25 +29,34 @@ paths:
           $ref: "#/components/responses/Readiness"
   /info:
     get:
+      operationId: getServiceInfo
       summary: Service and backend contract metadata
+      security: []
       responses:
         "200":
           $ref: "#/components/responses/Info"
   /folders:
     get:
+      operationId: listFolders
       summary: List folders
       responses:
         "200":
           $ref: "#/components/responses/FolderList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
+      operationId: createFolder
       summary: Create a user folder
       requestBody:
         $ref: "#/components/requestBodies/FolderCreate"
       responses:
         "201":
           $ref: "#/components/responses/Folder"
+        default:
+          $ref: "#/components/responses/Error"
   /folders/{id}:
     patch:
+      operationId: renameFolder
       summary: Rename a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -54,15 +65,21 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Folder"
+        default:
+          $ref: "#/components/responses/Error"
     delete:
+      operationId: deleteFolder
       summary: Delete a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /messages:
     get:
+      operationId: listMessages
       summary: List messages with opaque cursor pagination
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -77,23 +94,32 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MessageListPage"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}:
     get:
+      operationId: getMessage
       summary: Get message detail
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/Message"
+        default:
+          $ref: "#/components/responses/Error"
     delete:
+      operationId: deleteMessage
       summary: Soft-delete a message
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/flags:
     patch:
+      operationId: updateMessageFlags
       summary: Update one message flag
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -102,8 +128,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/folder:
     patch:
+      operationId: moveMessage
       summary: Move one message to a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -112,40 +141,55 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/bulk/flags:
     patch:
+      operationId: bulkUpdateMessageFlags
       summary: Bounded bulk flag update
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageFlagUpdate"
       responses:
         "200":
           $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/bulk/folder:
     patch:
+      operationId: bulkMoveMessages
       summary: Bounded bulk folder move
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageMove"
       responses:
         "200":
           $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/bulk/delete:
     post:
+      operationId: bulkDeleteMessages
       summary: Bounded bulk soft delete
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageDelete"
       responses:
         "200":
           $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/attachments:
     get:
+      operationId: listMessageAttachments
       summary: List message attachments
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentList"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/attachments/{attachment_id}/download:
     get:
+      operationId: downloadMessageAttachment
       summary: Download an attachment
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -157,24 +201,33 @@ paths:
       responses:
         "200":
           description: Attachment bytes
+        default:
+          $ref: "#/components/responses/Error"
   /messages/send:
     post:
+      operationId: sendMessage
       summary: Compose and queue a new/reply/forward message
       requestBody:
         $ref: "#/components/requestBodies/ComposeSend"
       responses:
         "202":
           $ref: "#/components/responses/SendQueued"
+        default:
+          $ref: "#/components/responses/Error"
   /drafts:
     post:
+      operationId: saveDraft
       summary: Save or update a draft
       requestBody:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
         "200":
           $ref: "#/components/responses/Draft"
+        default:
+          $ref: "#/components/responses/Error"
   /drafts/{id}:
     patch:
+      operationId: updateDraft
       summary: Update an existing draft
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -183,69 +236,96 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Draft"
+        default:
+          $ref: "#/components/responses/Error"
     delete:
+      operationId: deleteDraft
       summary: Delete a draft
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /drafts/{id}/send:
     post:
+      operationId: sendDraft
       summary: Send an existing draft
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "202":
           $ref: "#/components/responses/SendQueued"
+        default:
+          $ref: "#/components/responses/Error"
   /attachments:
     post:
+      operationId: reserveAttachment
       summary: Reserve attachment upload metadata
       requestBody:
         $ref: "#/components/requestBodies/AttachmentReserve"
       responses:
         "201":
           $ref: "#/components/responses/Attachment"
+        default:
+          $ref: "#/components/responses/Error"
   /attachments/upload:
     post:
+      operationId: uploadAttachment
       summary: Direct multipart attachment upload
       requestBody:
         $ref: "#/components/requestBodies/AttachmentMultipartUpload"
       responses:
         "201":
           $ref: "#/components/responses/Attachment"
+        default:
+          $ref: "#/components/responses/Error"
   /queue:
     get:
+      operationId: getAdminQueueStats
       summary: Admin queue stats
       responses:
         "200":
           $ref: "#/components/responses/QueueStats"
+        default:
+          $ref: "#/components/responses/Error"
   /delivery-attempts:
     get:
+      operationId: listAdminDeliveryAttempts
       summary: Admin delivery attempt list
       parameters:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
           $ref: "#/components/responses/DeliveryAttempts"
+        default:
+          $ref: "#/components/responses/Error"
   /suppression-list:
     get:
+      operationId: listAdminSuppressionEntries
       summary: Admin suppression list
       parameters:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
           $ref: "#/components/responses/SuppressionList"
+        default:
+          $ref: "#/components/responses/Error"
   /suppression-list/{id}:
     delete:
+      operationId: deleteAdminSuppressionEntry
       summary: Admin remove suppression entry
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /dkim-keys:
     get:
+      operationId: listAdminDkimKeys
       summary: Admin DKIM key list
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -256,54 +336,75 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/DKIMKeyList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
+      operationId: createAdminDkimKey
       summary: Admin create DKIM key
       requestBody:
         $ref: "#/components/requestBodies/DKIMKeyCreate"
       responses:
         "201":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /dkim-keys/{id}:
     delete:
+      operationId: deleteAdminDkimKey
       summary: Admin deactivate DKIM key
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /outbox/{id}/retry:
     post:
+      operationId: retryAdminOutboxEvent
       summary: Admin retry one outbox event
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /domains:
     get:
+      operationId: listAdminDomains
       summary: Admin domain list
       parameters:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
           $ref: "#/components/responses/DomainList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
+      operationId: createAdminDomain
       summary: Admin create domain
       requestBody:
         $ref: "#/components/requestBodies/DomainCreate"
       responses:
         "201":
           $ref: "#/components/responses/Domain"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}:
     get:
+      operationId: getAdminDomain
       summary: Admin domain detail
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/Domain"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/status:
     patch:
+      operationId: updateAdminDomainStatus
       summary: Admin update domain status
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -312,8 +413,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/quota:
     patch:
+      operationId: updateAdminDomainQuota
       summary: Admin update domain quota
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -322,8 +426,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /users:
     get:
+      operationId: listAdminUsers
       summary: Admin user list
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -334,23 +441,32 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/UserList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
+      operationId: createAdminUser
       summary: Admin create user
       requestBody:
         $ref: "#/components/requestBodies/UserCreate"
       responses:
         "201":
           $ref: "#/components/responses/User"
+        default:
+          $ref: "#/components/responses/Error"
   /users/{id}:
     get:
+      operationId: getAdminUser
       summary: Admin user detail
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/User"
+        default:
+          $ref: "#/components/responses/Error"
   /users/{id}/status:
     patch:
+      operationId: updateAdminUserStatus
       summary: Admin update user status
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -359,8 +475,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /users/{id}/quota:
     patch:
+      operationId: updateAdminUserQuota
       summary: Admin update user quota
       parameters:
         - $ref: "#/components/parameters/PathID"
@@ -369,6 +488,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:

@@ -160,6 +160,59 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftOperationsHaveStableOperationIDs(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	seen := make(map[string]string)
+	pattern := regexp.MustCompile(`(?m)^\s+operationId: ([a-z][A-Za-z0-9]*)$`)
+	for route, block := range operations {
+		match := pattern.FindStringSubmatch(block)
+		if match == nil {
+			t.Fatalf("OpenAPI operation %s must declare a lower-camel operationId", route)
+		}
+		id := match[1]
+		if previous := seen[id]; previous != "" {
+			t.Fatalf("OpenAPI operationId %q is duplicated by %s and %s", id, previous, route)
+		}
+		seen[id] = route
+	}
+}
+
+func TestOpenAPIDraftDocumentsReusableErrorResponseForMutableAndProtectedOperations(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for route, block := range operations {
+		if strings.HasPrefix(route, "GET /health/") || route == "GET /info" {
+			continue
+		}
+		if !strings.Contains(block, `"default":`) && !strings.Contains(block, "default:") {
+			t.Fatalf("OpenAPI operation %s must document the reusable default Error response", route)
+		}
+		if !strings.Contains(block, `$ref: "#/components/responses/Error"`) {
+			t.Fatalf("OpenAPI operation %s must reuse components.responses.Error", route)
+		}
+	}
+}
+
+func TestOpenAPIDraftHasNoDuplicateAdjacentRefs(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	var previous string
+	for lineNumber, line := range strings.Split(string(raw), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, `$ref: `) && trimmed == previous {
+			t.Fatalf("OpenAPI draft has duplicate adjacent %s at line %d", trimmed, lineNumber+1)
+		}
+		previous = trimmed
+	}
+}
+
 func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 	t.Parallel()
 
