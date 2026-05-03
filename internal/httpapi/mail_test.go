@@ -622,6 +622,13 @@ func (f *fakeMessageService) ListMessagesInFolder(_ context.Context, userID stri
 	return f.list, nil
 }
 
+func (f *fakeMessageService) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, _ maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	f.lastUserID = userID
+	f.lastFolderID = folderID
+	f.lastLimit = limit
+	return f.list, nil
+}
+
 func (f *fakeMessageService) GetMessage(_ context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
 	f.lastUserID = userID
 	f.lastMessageID = messageID

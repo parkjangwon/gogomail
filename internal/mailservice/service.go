@@ -23,6 +23,7 @@ type Repository interface {
 	DeleteFolder(ctx context.Context, userID string, folderID string) error
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
+	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
@@ -74,6 +75,10 @@ func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([
 
 func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
 	return s.repository.ListMessagesInFolder(ctx, userID, folderID, limit)
+}
+
+func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor)
 }
 
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {

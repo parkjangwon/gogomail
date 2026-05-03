@@ -20,6 +20,7 @@ type MessageService interface {
 	DeleteFolder(ctx context.Context, userID string, folderID string) error
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
+	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
@@ -119,18 +120,13 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		if _, err := maildb.DecodeMessageListCursor(r.URL.Query().Get("cursor")); err != nil {
+		cursor, err := maildb.DecodeMessageListCursor(r.URL.Query().Get("cursor"))
+		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		folderID := strings.TrimSpace(r.URL.Query().Get("folder_id"))
-		var messages []maildb.MessageSummary
-		var err error
-		if folderID != "" {
-			messages, err = service.ListMessagesInFolder(r.Context(), userID, folderID, limit)
-		} else {
-			messages, err = service.ListMessages(r.Context(), userID, limit)
-		}
+		messages, err := service.ListMessagesPage(r.Context(), userID, folderID, limit, cursor)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
