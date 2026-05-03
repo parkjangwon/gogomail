@@ -136,3 +136,17 @@ func TestNormalizeRetryFarmDefaultsMalformedValues(t *testing.T) {
 		t.Fatalf("normalizeRetryFarm = %q, want bulk", got)
 	}
 }
+
+func TestRetryDedupeKeyIncludesAttemptAndRecipients(t *testing.T) {
+	t.Parallel()
+
+	key := retryDedupeKey(Job{QueuedMessage: QueuedMessage{
+		MessageID:    " msg-1 ",
+		RetryAttempt: 2,
+		To:           []outbound.Address{{Email: "User@Example.NET"}, {Email: "user@example.net"}},
+		Cc:           []outbound.Address{{Email: "other@example.net"}},
+	}})
+	if key != "retry:msg-1:3:user@example.net,other@example.net" {
+		t.Fatalf("retryDedupeKey = %q, want message/next-attempt/unique recipients", key)
+	}
+}

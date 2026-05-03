@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -88,13 +89,14 @@ func (s *PostgresRetryScheduler) ScheduleRetry(ctx context.Context, job Job, cau
 
 	availableAt := s.now().UTC().Add(delay)
 	const query = `
-INSERT INTO outbox (topic, partition_key, payload, status, available_at, last_error)
-VALUES ($1, $2, $3::jsonb, 'pending', $4, $5)`
+INSERT INTO outbox (topic, partition_key, dedupe_key, payload, status, available_at, last_error)
+VALUES ($1, $2, $3, $4::jsonb, 'pending', $5, $6)
+ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`
 
 	topic := "mail.outbound." + string(normalizeRetryFarm(job.Farm))
 	errorMessage := retryErrorMessage(cause)
 
-	if _, err := s.db.ExecContext(ctx, query, topic, job.MessageID, string(payload), availableAt, errorMessage); err != nil {
+	if _, err := s.db.ExecContext(ctx, query, topic, job.MessageID, retryDedupeKey(job), string(payload), availableAt, errorMessage); err != nil {
 		return fmt.Errorf("schedule delivery retry: %w", err)
 	}
 	return nil
@@ -102,6 +104,15 @@ VALUES ($1, $2, $3::jsonb, 'pending', $4, $5)`
 
 func normalizeRetryFarm(farm outbound.Farm) outbound.Farm {
 	return outbound.NormalizeFarm(farm)
+}
+
+func retryDedupeKey(job Job) string {
+	recipients := job.Recipients()
+	values := make([]string, 0, len(recipients))
+	for _, recipient := range recipients {
+		values = append(values, strings.ToLower(strings.TrimSpace(recipient.Email)))
+	}
+	return fmt.Sprintf("retry:%s:%d:%s", strings.TrimSpace(job.MessageID), job.RetryAttempt+1, strings.Join(values, ","))
 }
 
 func retryErrorMessage(cause error) string {
