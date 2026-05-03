@@ -69,7 +69,7 @@ func TestRoutePoolKeyIncludesFarmDomainHostAndTLSMode(t *testing.T) {
 		TLSMode: DeliveryTLSRequire,
 	})
 	got := routePoolKey(route, "MX-A.Example.NET")
-	want := "bulk|example.net|mx-a.example.net:25|require"
+	want := "bulk|example.net|mx-a.example.net:25|require|auth="
 	if got != want {
 		t.Fatalf("routePoolKey = %q, want %q", got, want)
 	}
@@ -84,9 +84,23 @@ func TestRoutePoolKeyUsesExplicitPoolName(t *testing.T) {
 		TLSMode:  DeliveryTLSDisable,
 	})
 	got := routePoolKey(route, "mx.example.net")
-	want := "provider-a|example.net|mx.example.net:2525|disable"
+	want := "provider-a|example.net|mx.example.net:2525|disable|auth="
 	if got != want {
 		t.Fatalf("routePoolKey = %q, want %q", got, want)
+	}
+}
+
+func TestRoutePoolKeySeparatesAuthenticatedRoutes(t *testing.T) {
+	t.Parallel()
+
+	base := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "example.net", Route{
+		Auth: RouteAuth{Username: "relay-a"},
+	})
+	other := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmGeneral}}, "example.net", Route{
+		Auth: RouteAuth{Username: "relay-b"},
+	})
+	if routePoolKey(base, "mx.example.net") == routePoolKey(other, "mx.example.net") {
+		t.Fatal("routePoolKey collapsed distinct authenticated routes")
 	}
 }
 

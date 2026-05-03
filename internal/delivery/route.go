@@ -107,7 +107,8 @@ func routePoolKey(route Route, host string) string {
 	}
 	domain := strings.ToLower(strings.TrimSpace(route.Domain))
 	host = strings.ToLower(strings.TrimSpace(host))
-	return pool + "|" + domain + "|" + host + ":" + strconv.Itoa(normalizeRoutePort(route.Port)) + "|" + string(normalizeDeliveryTLSMode(route.TLSMode))
+	authUser := strings.ToLower(strings.TrimSpace(route.Auth.Username))
+	return pool + "|" + domain + "|" + host + ":" + strconv.Itoa(normalizeRoutePort(route.Port)) + "|" + string(normalizeDeliveryTLSMode(route.TLSMode)) + "|auth=" + authUser
 }
 
 func normalizeRoutePort(port int) int {
