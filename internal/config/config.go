@@ -27,6 +27,8 @@ type Config struct {
 	StorageBackend              string
 	MigrationDir                string
 	SMTPDomain                  string
+	SMTPReadTimeout             time.Duration
+	SMTPWriteTimeout            time.Duration
 	SMTPMaxRecipients           int
 	SMTPMaxMessageBytes         int64
 	SMTPRequireAuth             bool
@@ -95,6 +97,8 @@ func Load() Config {
 		StorageBackend:              envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
 		MigrationDir:                envOrDefault("GOGOMAIL_MIGRATION_DIR", "migrations"),
 		SMTPDomain:                  envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
+		SMTPReadTimeout:             durationEnvOrDefault("GOGOMAIL_SMTP_READ_TIMEOUT", 30*time.Second),
+		SMTPWriteTimeout:            durationEnvOrDefault("GOGOMAIL_SMTP_WRITE_TIMEOUT", 30*time.Second),
 		SMTPMaxRecipients:           intEnvOrDefault("GOGOMAIL_SMTP_MAX_RECIPIENTS", 100),
 		SMTPMaxMessageBytes:         int64EnvOrDefault("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SMTPRequireAuth:             boolEnvOrDefault("GOGOMAIL_SMTP_REQUIRE_AUTH", false),

@@ -25,6 +25,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
+	t.Setenv("GOGOMAIL_SMTP_READ_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_SMTP_WRITE_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_SMTP_REQUIRE_AUTH", "")
@@ -113,6 +115,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SMTPDomain != "localhost" {
 		t.Fatalf("SMTPDomain = %q, want localhost", cfg.SMTPDomain)
+	}
+	if cfg.SMTPReadTimeout != 30*time.Second {
+		t.Fatalf("SMTPReadTimeout = %s, want 30s", cfg.SMTPReadTimeout)
+	}
+	if cfg.SMTPWriteTimeout != 30*time.Second {
+		t.Fatalf("SMTPWriteTimeout = %s, want 30s", cfg.SMTPWriteTimeout)
 	}
 	if cfg.SMTPMaxRecipients != 100 {
 		t.Fatalf("SMTPMaxRecipients = %d, want 100", cfg.SMTPMaxRecipients)

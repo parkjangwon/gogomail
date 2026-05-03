@@ -166,10 +166,14 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
-		Addr:     cfg.SMTPAddr,
-		Domain:   cfg.SMTPDomain,
-		Receiver: receiver,
-		Logger:   logger,
+		Addr:            cfg.SMTPAddr,
+		Domain:          cfg.SMTPDomain,
+		Receiver:        receiver,
+		Logger:          logger,
+		ReadTimeout:     cfg.SMTPReadTimeout,
+		WriteTimeout:    cfg.SMTPWriteTimeout,
+		MaxMessageBytes: cfg.SMTPMaxMessageBytes,
+		MaxRecipients:   cfg.SMTPMaxRecipients,
 	})
 }
 
@@ -213,6 +217,10 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Backend:           receiver,
 		Logger:            logger,
 		TLSConfig:         tlsConfig,
+		ReadTimeout:       cfg.SMTPReadTimeout,
+		WriteTimeout:      cfg.SMTPWriteTimeout,
+		MaxMessageBytes:   cfg.SubmissionMaxMessageBytes,
+		MaxRecipients:     cfg.SubmissionMaxRecipients,
 		AllowInsecureAuth: cfg.SubmissionAllowInsecureAuth,
 	})
 }
