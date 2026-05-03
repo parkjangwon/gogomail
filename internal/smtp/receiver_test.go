@@ -133,6 +133,60 @@ func TestSessionRecordsParsedMessageMetadata(t *testing.T) {
 	}
 }
 
+func TestSessionPrependsReceivedHeaderWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	receiver := NewReceiver(ReceiverOptions{
+		Store: store,
+		Resolver: StaticResolver{
+			"jangwon@example.com": {
+				CompanyID: "company-1",
+				DomainID:  "domain-1",
+				UserID:    "user-1",
+				Address:   "jangwon@example.com",
+			},
+		},
+		AddReceivedHeader: true,
+		ReceivedDomain:    "mx.example.com",
+		IDGenerator:       func() string { return "received-id" },
+		Clock:             func() time.Time { return time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	raw := "From: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: hello\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	body, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/received-id.eml")
+	if err != nil {
+		t.Fatalf("stored message not found: %v", err)
+	}
+	defer body.Close()
+
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if !strings.HasPrefix(string(got), "Received: from unknown by mx.example.com with ESMTP id received-id; ") {
+		t.Fatalf("stored message missing Received header: %q", got)
+	}
+	if !strings.Contains(string(got), "\r\nFrom: sender@example.net\r\n") {
+		t.Fatalf("stored message missing original headers after Received: %q", got)
+	}
+}
+
 func TestSessionSkipsDuplicateMessageForRecipient(t *testing.T) {
 	t.Parallel()
 

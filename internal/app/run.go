@@ -120,12 +120,14 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
-		Store:        storage.NewLocalStore(cfg.MailstoreRoot),
-		Resolver:     resolver,
-		Recorder:     recorder,
-		Deduplicator: deduplicator,
-		RateLimiter:  rateLimiter,
-		Backpressure: pressure,
+		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
+		Resolver:          resolver,
+		Recorder:          recorder,
+		Deduplicator:      deduplicator,
+		RateLimiter:       rateLimiter,
+		Backpressure:      pressure,
+		AddReceivedHeader: true,
+		ReceivedDomain:    cfg.SMTPDomain,
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{

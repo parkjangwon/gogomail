@@ -87,36 +87,40 @@ type ReceivedMessage struct {
 }
 
 type ReceiverOptions struct {
-	Store           storage.Store
-	Resolver        RecipientResolver
-	Recorder        MessageRecorder
-	Deduplicator    Deduplicator
-	RateLimiter     RateLimiter
-	Backpressure    Backpressure
-	Authenticator   Authenticator
-	RequireAuth     bool
-	SupportSMTPUTF8 bool
-	Hooks           []Hook
-	Policy          ReceivePolicy
-	IDGenerator     IDGenerator
-	Clock           func() time.Time
-	MaxMessageBytes int64
+	Store             storage.Store
+	Resolver          RecipientResolver
+	Recorder          MessageRecorder
+	Deduplicator      Deduplicator
+	RateLimiter       RateLimiter
+	Backpressure      Backpressure
+	Authenticator     Authenticator
+	RequireAuth       bool
+	SupportSMTPUTF8   bool
+	AddReceivedHeader bool
+	ReceivedDomain    string
+	Hooks             []Hook
+	Policy            ReceivePolicy
+	IDGenerator       IDGenerator
+	Clock             func() time.Time
+	MaxMessageBytes   int64
 }
 
 type Receiver struct {
-	store           storage.Store
-	resolver        RecipientResolver
-	recorder        MessageRecorder
-	deduplicator    Deduplicator
-	rateLimiter     RateLimiter
-	backpressure    Backpressure
-	authenticator   Authenticator
-	requireAuth     bool
-	supportSMTPUTF8 bool
-	hooks           []Hook
-	policy          ReceivePolicy
-	idGenerator     IDGenerator
-	clock           func() time.Time
+	store             storage.Store
+	resolver          RecipientResolver
+	recorder          MessageRecorder
+	deduplicator      Deduplicator
+	rateLimiter       RateLimiter
+	backpressure      Backpressure
+	authenticator     Authenticator
+	requireAuth       bool
+	supportSMTPUTF8   bool
+	addReceivedHeader bool
+	receivedDomain    string
+	hooks             []Hook
+	policy            ReceivePolicy
+	idGenerator       IDGenerator
+	clock             func() time.Time
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -125,19 +129,21 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		idGenerator = randomMessageID
 	}
 	return &Receiver{
-		store:           opts.Store,
-		resolver:        opts.Resolver,
-		recorder:        recorderOrDefault(opts.Recorder),
-		deduplicator:    deduplicatorOrDefault(opts.Deduplicator),
-		rateLimiter:     rateLimiterOrDefault(opts.RateLimiter),
-		backpressure:    backpressureOrDefault(opts.Backpressure),
-		authenticator:   opts.Authenticator,
-		requireAuth:     opts.RequireAuth,
-		supportSMTPUTF8: opts.SupportSMTPUTF8,
-		hooks:           append([]Hook(nil), opts.Hooks...),
-		policy:          normalizePolicy(opts.Policy, opts.MaxMessageBytes),
-		idGenerator:     idGenerator,
-		clock:           clockOrDefault(opts.Clock),
+		store:             opts.Store,
+		resolver:          opts.Resolver,
+		recorder:          recorderOrDefault(opts.Recorder),
+		deduplicator:      deduplicatorOrDefault(opts.Deduplicator),
+		rateLimiter:       rateLimiterOrDefault(opts.RateLimiter),
+		backpressure:      backpressureOrDefault(opts.Backpressure),
+		authenticator:     opts.Authenticator,
+		requireAuth:       opts.RequireAuth,
+		supportSMTPUTF8:   opts.SupportSMTPUTF8,
+		addReceivedHeader: opts.AddReceivedHeader,
+		receivedDomain:    opts.ReceivedDomain,
+		hooks:             append([]Hook(nil), opts.Hooks...),
+		policy:            normalizePolicy(opts.Policy, opts.MaxMessageBytes),
+		idGenerator:       idGenerator,
+		clock:             clockOrDefault(opts.Clock),
 	}
 }
 
@@ -231,10 +237,18 @@ func (s *session) Data(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = spooled.Close()
-		_ = os.Remove(spooled.Name())
-	}()
+	messageID := s.receiver.idGenerator()
+	receivedAt := s.receiver.clock()
+	if s.receiver.addReceivedHeader {
+		prefixed, prefixedSize, err := prependHeaderToSpool(spooled, BuildReceivedHeader(s.remoteAddr, s.receiver.receivedDomain, messageID, receivedAt))
+		cleanupSpool(spooled)
+		if err != nil {
+			return err
+		}
+		spooled = prefixed
+		size = prefixedSize
+	}
+	defer cleanupSpool(spooled)
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageSpooled,
 		EnvelopeFrom: s.from,
@@ -259,8 +273,6 @@ func (s *session) Data(r io.Reader) error {
 		return err
 	}
 
-	messageID := s.receiver.idGenerator()
-	receivedAt := s.receiver.clock()
 	for _, recipient := range s.recipients {
 		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(context.Background(), DedupKey{
 			MessageID: parsed.MessageID,
@@ -325,6 +337,35 @@ func (s *session) Data(r io.Reader) error {
 		}
 	}
 	return nil
+}
+
+func prependHeaderToSpool(spooled *os.File, header string) (*os.File, int64, error) {
+	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+		return nil, 0, fmt.Errorf("rewind spooled message for header prepend: %w", err)
+	}
+	prefixed, err := os.CreateTemp("", "gogomail-spool-*.eml")
+	if err != nil {
+		return nil, 0, fmt.Errorf("create prefixed spool: %w", err)
+	}
+	written, err := io.WriteString(prefixed, header)
+	if err != nil {
+		cleanupSpool(prefixed)
+		return nil, 0, fmt.Errorf("write received header: %w", err)
+	}
+	copied, err := io.Copy(prefixed, spooled)
+	if err != nil {
+		cleanupSpool(prefixed)
+		return nil, 0, fmt.Errorf("copy spooled message after received header: %w", err)
+	}
+	return prefixed, int64(written) + copied, nil
+}
+
+func cleanupSpool(spooled *os.File) {
+	if spooled == nil {
+		return
+	}
+	_ = spooled.Close()
+	_ = os.Remove(spooled.Name())
 }
 
 func (s *session) emit(ctx context.Context, event Event) error {
