@@ -359,6 +359,55 @@ func TestSMTPProtocolDoesNotAdvertiseDisabledExtensions(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolAdvertisesEnabledExtensions(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		SupportDSN:        true,
+		SupportSMTPUTF8:   true,
+		SupportRequireTLS: true,
+		SupportBinaryMIME: true,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{
+		Domain:           "mx.example.com",
+		EnableDSN:        true,
+		EnableSMTPUTF8:   true,
+		EnableRequireTLS: true,
+		EnableBinaryMIME: true,
+	})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	code, msg, err := rawProtocolCommandCode(text, "EHLO client.example.net")
+	if err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	if code != 250 {
+		t.Fatalf("EHLO code = %d, want 250", code)
+	}
+	for _, enabled := range []string{"DSN", "SMTPUTF8", "BINARYMIME"} {
+		if !strings.Contains(msg, enabled) {
+			t.Fatalf("EHLO did not advertise enabled extension %s in:\n%s", enabled, msg)
+		}
+	}
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+}
+
 func TestSMTPProtocolRejectsOversizedDeclaredSize(t *testing.T) {
 	t.Parallel()
 
