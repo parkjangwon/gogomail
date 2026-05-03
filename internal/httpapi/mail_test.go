@@ -480,6 +480,39 @@ func TestUploadAttachmentHandler(t *testing.T) {
 	}
 }
 
+func TestUploadAttachmentHandlerRejectsOversize(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "large.bin")
+	if err != nil {
+		t.Fatalf("CreateFormFile returned error: %v", err)
+	}
+	if _, err := part.Write(bytes.Repeat([]byte("x"), int(mailservice.MaxAttachmentUploadBytes)+1)); err != nil {
+		t.Fatalf("part.Write returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close returned error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments/upload?user_id=user-1", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastAttachmentUpload.Filename != "" {
+		t.Fatalf("upload should not reach service: %+v", service.lastAttachmentUpload)
+	}
+}
+
 func TestDownloadAttachmentHandler(t *testing.T) {
 	t.Parallel()
 

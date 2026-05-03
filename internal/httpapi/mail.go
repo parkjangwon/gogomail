@@ -339,6 +339,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if mimeType == "" {
 			mimeType = "application/octet-stream"
 		}
+		if header.Size > mailservice.MaxAttachmentUploadBytes {
+			writeError(w, http.StatusRequestEntityTooLarge, "attachment is too large")
+			return
+		}
 		attachment, err := service.UploadAttachment(r.Context(), mailservice.UploadAttachmentRequest{
 			UserID:   userID,
 			DraftID:  r.FormValue("draft_id"),
