@@ -190,3 +190,16 @@ GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE=require
 ```
 
 `GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE` is optional; when omitted, smart-host routes inherit `GOGOMAIL_DELIVERY_TLS_MODE`.
+
+### Bounce / DSN handling
+
+Hard-bounce delivery events generate RFC 3464 `multipart/report` Delivery Status Notifications through the event-worker. DSNs are stored as `.eml` files and queued back to the original envelope sender with a null reverse-path, reducing bounce-loop risk.
+
+Useful DSN settings:
+
+```bash
+GOGOMAIL_DSN_POSTMASTER='Mail Delivery Subsystem <postmaster@example.com>'
+GOGOMAIL_SMTP_DOMAIN=mx.example.com
+```
+
+`NOTIFY=NEVER` is honored, DSN queueing uses deterministic storage paths and outbox dedupe keys, and null reverse-path DSN bounces do not create suppression-list entries.
