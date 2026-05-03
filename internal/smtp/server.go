@@ -44,6 +44,9 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	if strings.TrimSpace(opts.Addr) == "" {
 		return fmt.Errorf("smtp listen address is required")
 	}
+	if opts.ImplicitTLS && opts.TLSConfig == nil {
+		return fmt.Errorf("implicit TLS SMTP listener requires TLS configuration")
+	}
 
 	logger := opts.Logger
 	if logger == nil {

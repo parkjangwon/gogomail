@@ -1,6 +1,8 @@
 package smtpd
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -47,5 +49,21 @@ func TestServerImplicitTLSOption(t *testing.T) {
 	})
 	if server.Addr != "127.0.0.1:0" {
 		t.Fatalf("Addr = %q", server.Addr)
+	}
+}
+
+func TestRunServerRejectsImplicitTLSWithoutConfig(t *testing.T) {
+	t.Parallel()
+
+	err := RunServer(context.Background(), ServerOptions{
+		Addr:        "127.0.0.1:0",
+		Domain:      "mail.example",
+		ImplicitTLS: true,
+		Backend: gosmtp.BackendFunc(func(*gosmtp.Conn) (gosmtp.Session, error) {
+			return nil, nil
+		}),
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires TLS configuration") {
+		t.Fatalf("RunServer error = %v, want TLS configuration rejection", err)
 	}
 }
