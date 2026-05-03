@@ -374,6 +374,79 @@ func TestSessionEmitsPipelineHooksInOrder(t *testing.T) {
 	}
 }
 
+func TestSessionRunsAuthenticationVerifierAfterParse(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	verifier := &recordingAuthVerifier{results: AuthenticationResults{
+		SPF:   AuthCheckResult{Result: AuthResultPass, Reason: "mx matched"},
+		DKIM:  AuthCheckResult{Result: AuthResultPass, Reason: "signature valid"},
+		DMARC: AuthCheckResult{Result: AuthResultPass, Reason: "aligned"},
+	}}
+	var stages []Stage
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "jangwon@example.com"},
+		},
+		Recorder:     recorder,
+		AuthVerifier: verifier,
+		IDGenerator:  func() string { return "auth-results-id" },
+		Clock:        func() time.Time { return time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC) },
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				if event.Stage == StageAuthenticationChecked && event.Authentication.SPF.Result != AuthResultPass {
+					t.Fatalf("authentication event = %+v, want SPF pass", event.Authentication)
+				}
+				return nil
+			},
+		},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <auth@example.net>\r\nFrom: sender@example.net\r\nTo: jangwon@example.com\r\nSubject: auth\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	want := []Stage{
+		StageBackpressureChecked,
+		StageSpooled,
+		StageParsed,
+		StageAuthenticationChecked,
+		StageDedupChecked,
+		StageStored,
+		StageRecorded,
+	}
+	if len(stages) != len(want) {
+		t.Fatalf("stages = %v, want %v", stages, want)
+	}
+	for i := range want {
+		if stages[i] != want[i] {
+			t.Fatalf("stages = %v, want %v", stages, want)
+		}
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].Authentication.DMARC.Result != AuthResultPass {
+		t.Fatalf("recorded auth = %+v, want DMARC pass", recorder.messages[0].Authentication)
+	}
+	if verifier.request.EnvelopeFrom != "sender@example.net" || verifier.request.Parsed.MessageID != "<auth@example.net>" {
+		t.Fatalf("auth verifier request = %+v", verifier.request)
+	}
+}
+
 func TestSessionRejectsUnknownRecipient(t *testing.T) {
 	t.Parallel()
 
@@ -672,6 +745,16 @@ type recordingRecorder struct {
 func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) error {
 	r.messages = append(r.messages, msg)
 	return nil
+}
+
+type recordingAuthVerifier struct {
+	results AuthenticationResults
+	request AuthenticationRequest
+}
+
+func (v *recordingAuthVerifier) VerifyAuthentication(_ context.Context, req AuthenticationRequest) (AuthenticationResults, error) {
+	v.request = req
+	return v.results, nil
 }
 
 type duplicateDeduplicator struct{}

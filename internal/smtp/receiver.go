@@ -79,12 +79,13 @@ type DedupKey struct {
 }
 
 type ReceivedMessage struct {
-	EnvelopeFrom string
-	Mailbox      Mailbox
-	StoragePath  string
-	Parsed       message.ParsedMessage
-	ReceivedAt   time.Time
-	Size         int64
+	EnvelopeFrom   string
+	Mailbox        Mailbox
+	StoragePath    string
+	Parsed         message.ParsedMessage
+	Authentication AuthenticationResults
+	ReceivedAt     time.Time
+	Size           int64
 }
 
 type ReceiverOptions struct {
@@ -94,6 +95,7 @@ type ReceiverOptions struct {
 	Deduplicator      Deduplicator
 	RateLimiter       RateLimiter
 	Backpressure      Backpressure
+	AuthVerifier      AuthenticationVerifier
 	Authenticator     Authenticator
 	RequireAuth       bool
 	SupportSMTPUTF8   bool
@@ -116,6 +118,7 @@ type Receiver struct {
 	deduplicator      Deduplicator
 	rateLimiter       RateLimiter
 	backpressure      Backpressure
+	authVerifier      AuthenticationVerifier
 	authenticator     Authenticator
 	requireAuth       bool
 	supportSMTPUTF8   bool
@@ -142,6 +145,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		deduplicator:      deduplicatorOrDefault(opts.Deduplicator),
 		rateLimiter:       rateLimiterOrDefault(opts.RateLimiter),
 		backpressure:      backpressureOrDefault(opts.Backpressure),
+		authVerifier:      opts.AuthVerifier,
 		authenticator:     opts.Authenticator,
 		requireAuth:       opts.RequireAuth,
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
@@ -305,6 +309,24 @@ func (s *session) Data(r io.Reader) error {
 		return err
 	}
 
+	authResults, err := s.verifyAuthentication(context.Background(), parsed, size)
+	if err != nil {
+		return err
+	}
+	if s.receiver.authVerifier != nil {
+		if err := s.emit(context.Background(), Event{
+			Stage:          StageAuthenticationChecked,
+			EnvelopeFrom:   s.from,
+			Recipients:     mailboxAddresses(s.recipients),
+			Parsed:         parsed,
+			Authentication: authResults,
+			ReceivedAt:     receivedAt,
+			Size:           size,
+		}); err != nil {
+			return err
+		}
+	}
+
 	for _, recipient := range s.recipients {
 		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(context.Background(), DedupKey{
 			MessageID: parsed.MessageID,
@@ -314,13 +336,14 @@ func (s *session) Data(r io.Reader) error {
 			return fmt.Errorf("check duplicate message for %s: %w", recipient.Address, err)
 		}
 		if err := s.emit(context.Background(), Event{
-			Stage:        StageDedupChecked,
-			EnvelopeFrom: s.from,
-			Mailbox:      recipient,
-			Parsed:       parsed,
-			ReceivedAt:   receivedAt,
-			Size:         size,
-			Duplicate:    !shouldProcess,
+			Stage:          StageDedupChecked,
+			EnvelopeFrom:   s.from,
+			Mailbox:        recipient,
+			Parsed:         parsed,
+			Authentication: authResults,
+			ReceivedAt:     receivedAt,
+			Size:           size,
+			Duplicate:      !shouldProcess,
 		}); err != nil {
 			return err
 		}
@@ -336,39 +359,59 @@ func (s *session) Data(r io.Reader) error {
 			return fmt.Errorf("store message for %s: %w", recipient.Address, err)
 		}
 		if err := s.emit(context.Background(), Event{
-			Stage:        StageStored,
-			EnvelopeFrom: s.from,
-			Mailbox:      recipient,
-			StoragePath:  path,
-			Parsed:       parsed,
-			ReceivedAt:   receivedAt,
-			Size:         size,
+			Stage:          StageStored,
+			EnvelopeFrom:   s.from,
+			Mailbox:        recipient,
+			StoragePath:    path,
+			Parsed:         parsed,
+			Authentication: authResults,
+			ReceivedAt:     receivedAt,
+			Size:           size,
 		}); err != nil {
 			return err
 		}
 		if err := s.receiver.recorder.Record(context.Background(), ReceivedMessage{
-			EnvelopeFrom: s.from,
-			Mailbox:      recipient,
-			StoragePath:  path,
-			Parsed:       parsed,
-			ReceivedAt:   receivedAt,
-			Size:         size,
+			EnvelopeFrom:   s.from,
+			Mailbox:        recipient,
+			StoragePath:    path,
+			Parsed:         parsed,
+			Authentication: authResults,
+			ReceivedAt:     receivedAt,
+			Size:           size,
 		}); err != nil {
 			return fmt.Errorf("record message for %s: %w", recipient.Address, err)
 		}
 		if err := s.emit(context.Background(), Event{
-			Stage:        StageRecorded,
-			EnvelopeFrom: s.from,
-			Mailbox:      recipient,
-			StoragePath:  path,
-			Parsed:       parsed,
-			ReceivedAt:   receivedAt,
-			Size:         size,
+			Stage:          StageRecorded,
+			EnvelopeFrom:   s.from,
+			Mailbox:        recipient,
+			StoragePath:    path,
+			Parsed:         parsed,
+			Authentication: authResults,
+			ReceivedAt:     receivedAt,
+			Size:           size,
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *session) verifyAuthentication(ctx context.Context, parsed message.ParsedMessage, size int64) (AuthenticationResults, error) {
+	if s.receiver.authVerifier == nil {
+		return AuthenticationResults{}, nil
+	}
+	results, err := s.receiver.authVerifier.VerifyAuthentication(ctx, AuthenticationRequest{
+		RemoteAddr:   s.remoteAddr,
+		EnvelopeFrom: s.from,
+		Recipients:   mailboxAddresses(s.recipients),
+		Parsed:       parsed,
+		Size:         size,
+	})
+	if err != nil {
+		return AuthenticationResults{}, fmt.Errorf("verify smtp authentication results: %w", err)
+	}
+	return results, nil
 }
 
 func mailboxAddresses(mailboxes []Mailbox) []string {
