@@ -2,6 +2,7 @@ package maildb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -69,6 +70,14 @@ type CreateDomainRequest struct {
 	QuotaLimit int64  `json:"quota_limit,omitempty"`
 }
 
+type CreateUserRequest struct {
+	DomainID    string `json:"domain_id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Address     string `json:"address"`
+	QuotaLimit  int64  `json:"quota_limit,omitempty"`
+}
+
 type UpdateUserStatusRequest struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
@@ -92,6 +101,25 @@ func ValidateCreateDomainRequest(req CreateDomainRequest) error {
 	}
 	if strings.TrimSpace(req.Name) == "" {
 		return fmt.Errorf("name is required")
+	}
+	if req.QuotaLimit < 0 {
+		return fmt.Errorf("quota_limit must not be negative")
+	}
+	return nil
+}
+
+func ValidateCreateUserRequest(req CreateUserRequest) error {
+	if strings.TrimSpace(req.DomainID) == "" {
+		return fmt.Errorf("domain_id is required")
+	}
+	if strings.TrimSpace(req.Username) == "" {
+		return fmt.Errorf("username is required")
+	}
+	if strings.TrimSpace(req.DisplayName) == "" {
+		return fmt.Errorf("display_name is required")
+	}
+	if strings.TrimSpace(req.Address) == "" {
+		return fmt.Errorf("address is required")
 	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
@@ -131,6 +159,89 @@ RETURNING id::text, company_id::text, name, name_ace, status, quota_used, COALES
 		return DomainView{}, fmt.Errorf("create domain: %w", err)
 	}
 	return domain, nil
+}
+
+func (r *Repository) CreateUser(ctx context.Context, req CreateUserRequest) (UserView, error) {
+	if r.db == nil {
+		return UserView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateCreateUserRequest(req); err != nil {
+		return UserView{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return UserView{}, fmt.Errorf("begin create user transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const insertUser = `
+INSERT INTO users (domain_id, username, display_name, quota_limit)
+VALUES ($1, $2, $3, NULLIF($4, 0))
+RETURNING id::text, domain_id::text, username, display_name, role, status, quota_used, COALESCE(quota_limit, 0), created_at`
+
+	var user UserView
+	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), req.QuotaLimit).Scan(
+		&user.ID,
+		&user.DomainID,
+		&user.Username,
+		&user.DisplayName,
+		&user.Role,
+		&user.Status,
+		&user.QuotaUsed,
+		&user.QuotaLimit,
+		&user.CreatedAt,
+	); err != nil {
+		return UserView{}, fmt.Errorf("create user: %w", err)
+	}
+	if err := createPrimaryAddress(ctx, tx, user.ID, user.DomainID, req.Address); err != nil {
+		return UserView{}, err
+	}
+	if err := createSystemFolders(ctx, tx, user.ID); err != nil {
+		return UserView{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return UserView{}, fmt.Errorf("commit create user transaction: %w", err)
+	}
+	return user, nil
+}
+
+func createPrimaryAddress(ctx context.Context, tx interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, userID string, domainID string, address string) error {
+	address = strings.ToLower(strings.TrimSpace(address))
+	local, domainACE, ok := strings.Cut(address, "@")
+	if !ok || local == "" || domainACE == "" {
+		return fmt.Errorf("address must be an email address")
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO user_addresses (user_id, domain_id, local_part, local_part_ace, domain_ace, address, address_ace, is_primary)
+VALUES ($1, $2, $3, $3, $4, $5, $5, true)`, userID, domainID, local, domainACE, address); err != nil {
+		return fmt.Errorf("create primary user address: %w", err)
+	}
+	return nil
+}
+
+func createSystemFolders(ctx context.Context, tx interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, userID string) error {
+	folders := []struct {
+		name       string
+		systemType string
+	}{
+		{"Inbox", "inbox"},
+		{"Drafts", "drafts"},
+		{"Sent", "sent"},
+		{"Trash", "trash"},
+	}
+	for i, folder := range folders {
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO folders (user_id, name, full_path, type, system_type, order_index)
+VALUES ($1, $2, $3, 'system', $4, $5)
+ON CONFLICT (user_id, full_path) DO NOTHING`, userID, folder.name, "/"+folder.name, folder.systemType, i); err != nil {
+			return fmt.Errorf("create %s folder: %w", folder.systemType, err)
+		}
+	}
+	return nil
 }
 
 func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
