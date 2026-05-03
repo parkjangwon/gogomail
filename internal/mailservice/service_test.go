@@ -1,6 +1,7 @@
 package mailservice
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"strings"
@@ -337,5 +338,27 @@ func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	}
 	if string(raw) != "content" {
 		t.Fatalf("stored body = %q", raw)
+	}
+}
+
+func TestUploadAttachmentRejectsBodyLargerThanLimit(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+
+	_, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
+		UserID:   "user-1",
+		Filename: "large.bin",
+		Size:     1,
+		MIMEType: "application/octet-stream",
+		Body:     bytes.NewReader(bytes.Repeat([]byte("x"), int(MaxAttachmentUploadBytes)+1)),
+	})
+	if err == nil {
+		t.Fatal("UploadAttachment accepted oversized body")
+	}
+	if repo.lastAttachmentUpload.Filename != "" {
+		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
 	}
 }

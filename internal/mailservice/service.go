@@ -195,8 +195,13 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		randomObjectID(),
 		safeObjectFilename(req.Filename),
 	}, "/")
-	if err := s.store.Put(ctx, path, io.LimitReader(req.Body, MaxAttachmentUploadBytes+1)); err != nil {
+	limitedBody := &io.LimitedReader{R: req.Body, N: MaxAttachmentUploadBytes + 1}
+	if err := s.store.Put(ctx, path, limitedBody); err != nil {
 		return maildb.Attachment{}, fmt.Errorf("store attachment upload: %w", err)
+	}
+	if limitedBody.N == 0 {
+		_ = s.store.Delete(ctx, path)
+		return maildb.Attachment{}, fmt.Errorf("attachment body exceeds %d bytes", MaxAttachmentUploadBytes)
 	}
 
 	attachment, err := repo.CreateAttachmentUpload(ctx, maildb.CreateAttachmentUploadRequest{
