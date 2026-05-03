@@ -69,6 +69,25 @@ func TestAdminDomainsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminUpdateDomainStatusHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/domain-1/status", bytes.NewReader([]byte(`{"status":"suspended"}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDomainStatus.ID != "domain-1" || service.lastDomainStatus.Status != "suspended" {
+		t.Fatalf("lastDomainStatus = %+v", service.lastDomainStatus)
+	}
+}
+
 func TestAdminUsersHandler(t *testing.T) {
 	t.Parallel()
 
@@ -291,6 +310,7 @@ type fakeAdminService struct {
 	createdDKIMKeyID        string
 	lastLimit               int
 	lastDomainID            string
+	lastDomainStatus        maildb.UpdateDomainStatusRequest
 	lastCreateDKIMKey       maildb.CreateDKIMKeyInput
 	lastDeactivateDKIMKeyID string
 	lastRetryOutboxID       string
@@ -300,6 +320,11 @@ type fakeAdminService struct {
 func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {
 	f.lastLimit = limit
 	return f.domains, nil
+}
+
+func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {
+	f.lastDomainStatus = req
+	return nil
 }
 
 func (f *fakeAdminService) ListUsers(_ context.Context, domainID string, limit int) ([]maildb.UserView, error) {

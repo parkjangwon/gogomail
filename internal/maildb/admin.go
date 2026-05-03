@@ -3,6 +3,7 @@ package maildb
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -54,6 +55,45 @@ type UserView struct {
 	QuotaUsed   int64     `json:"quota_used"`
 	QuotaLimit  int64     `json:"quota_limit,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type UpdateDomainStatusRequest struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("domain id is required")
+	}
+	switch strings.TrimSpace(req.Status) {
+	case "active", "suspended", "disabled":
+		return nil
+	default:
+		return fmt.Errorf("unsupported domain status %q", req.Status)
+	}
+}
+
+func (r *Repository) UpdateDomainStatus(ctx context.Context, req UpdateDomainStatusRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateDomainStatusRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE domains
+SET status = $2,
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.Status))
+	if err != nil {
+		return fmt.Errorf("update domain status: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("domain %q not found", req.ID)
+	}
+	return nil
 }
 
 func (r *Repository) ListUsers(ctx context.Context, domainID string, limit int) ([]UserView, error) {
