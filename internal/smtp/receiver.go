@@ -44,9 +44,23 @@ func (r StaticResolver) ResolveRecipient(_ context.Context, address string) (Mai
 
 type IDGenerator func() string
 
+type MessageRecorder interface {
+	Record(ctx context.Context, msg ReceivedMessage) error
+}
+
+type ReceivedMessage struct {
+	EnvelopeFrom string
+	Mailbox      Mailbox
+	StoragePath  string
+	Parsed       message.ParsedMessage
+	ReceivedAt   time.Time
+	Size         int64
+}
+
 type ReceiverOptions struct {
 	Store           storage.Store
 	Resolver        RecipientResolver
+	Recorder        MessageRecorder
 	IDGenerator     IDGenerator
 	Clock           func() time.Time
 	MaxMessageBytes int64
@@ -55,6 +69,7 @@ type ReceiverOptions struct {
 type Receiver struct {
 	store           storage.Store
 	resolver        RecipientResolver
+	recorder        MessageRecorder
 	idGenerator     IDGenerator
 	clock           func() time.Time
 	maxMessageBytes int64
@@ -68,6 +83,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 	return &Receiver{
 		store:           opts.Store,
 		resolver:        opts.Resolver,
+		recorder:        recorderOrDefault(opts.Recorder),
 		idGenerator:     idGenerator,
 		clock:           clockOrDefault(opts.Clock),
 		maxMessageBytes: maxMessageBytesOrDefault(opts.MaxMessageBytes),
@@ -116,7 +132,7 @@ func (s *session) Data(r io.Reader) error {
 		return fmt.Errorf("at least one recipient is required before data")
 	}
 
-	spooled, _, err := spoolMessage(r, s.receiver.maxMessageBytes)
+	spooled, size, err := spoolMessage(r, s.receiver.maxMessageBytes)
 	if err != nil {
 		return err
 	}
@@ -128,18 +144,30 @@ func (s *session) Data(r io.Reader) error {
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind spooled message for parse: %w", err)
 	}
-	if _, err := message.ParseEML(spooled); err != nil {
+	parsed, err := message.ParseEML(spooled)
+	if err != nil {
 		return fmt.Errorf("parse smtp message: %w", err)
 	}
 
 	messageID := s.receiver.idGenerator()
+	receivedAt := s.receiver.clock()
 	for _, recipient := range s.recipients {
-		path := BuildStoragePath(recipient, messageID, s.receiver.clock())
+		path := BuildStoragePath(recipient, messageID, receivedAt)
 		if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 			return fmt.Errorf("rewind spooled message for store: %w", err)
 		}
 		if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
 			return fmt.Errorf("store message for %s: %w", recipient.Address, err)
+		}
+		if err := s.receiver.recorder.Record(context.Background(), ReceivedMessage{
+			EnvelopeFrom: s.from,
+			Mailbox:      recipient,
+			StoragePath:  path,
+			Parsed:       parsed,
+			ReceivedAt:   receivedAt,
+			Size:         size,
+		}); err != nil {
+			return fmt.Errorf("record message for %s: %w", recipient.Address, err)
 		}
 	}
 	return nil
@@ -180,6 +208,19 @@ func maxMessageBytesOrDefault(limit int64) int64 {
 		return limit
 	}
 	return 25 * 1024 * 1024
+}
+
+type noopRecorder struct{}
+
+func (noopRecorder) Record(context.Context, ReceivedMessage) error {
+	return nil
+}
+
+func recorderOrDefault(recorder MessageRecorder) MessageRecorder {
+	if recorder != nil {
+		return recorder
+	}
+	return noopRecorder{}
 }
 
 func spoolMessage(r io.Reader, maxBytes int64) (*os.File, int64, error) {

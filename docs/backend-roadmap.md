@@ -22,9 +22,10 @@ Implementation order:
 2. Storage backend interface with local and Minio implementations.
 3. SMTP receive path using `go-smtp`.
 4. Recipient validation against `user_addresses`.
-5. `.eml` persistence and `messages` insert.
-6. Redis SET NX duplicate detection.
-7. Mail API list/detail/folder endpoints.
+5. `.eml` persistence, shared EML parsing, and `MessageRecorder` metadata handoff.
+6. PostgreSQL-backed recorder for `messages` insert.
+7. Redis SET NX duplicate detection.
+8. Mail API list/detail/folder endpoints.
 
 ## Deferred until backend contracts stabilize
 

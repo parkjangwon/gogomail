@@ -60,6 +60,76 @@ func TestSessionStoresRawMessageForAcceptedRecipient(t *testing.T) {
 	}
 }
 
+func TestSessionRecordsParsedMessageMetadata(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"jangwon@example.com": {
+				CompanyID: "company-1",
+				DomainID:  "domain-1",
+				UserID:    "user-1",
+				Address:   "jangwon@example.com",
+			},
+		},
+		Recorder:    recorder,
+		IDGenerator: func() string { return "018e9b3a-record" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 3, 9, 30, 0, 0, time.UTC) },
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("JangWon@Example.COM", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+
+	raw := strings.Join([]string{
+		"Message-ID: <record@example.com>",
+		"From: Sender <sender@example.net>",
+		"To: JangWon <jangwon@example.com>",
+		"Subject: record me",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+	}, "\r\n")
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	recorded := recorder.messages[0]
+	if recorded.EnvelopeFrom != "sender@example.net" {
+		t.Fatalf("EnvelopeFrom = %q", recorded.EnvelopeFrom)
+	}
+	if recorded.Mailbox.Address != "jangwon@example.com" {
+		t.Fatalf("Mailbox = %+v", recorded.Mailbox)
+	}
+	if recorded.StoragePath != "mailstore/company-1/domain-1/user-1/maildir/2026/05/018e9b3a-record.eml" {
+		t.Fatalf("StoragePath = %q", recorded.StoragePath)
+	}
+	if recorded.Parsed.MessageID != "<record@example.com>" {
+		t.Fatalf("MessageID = %q", recorded.Parsed.MessageID)
+	}
+	if recorded.Parsed.Subject != "record me" {
+		t.Fatalf("Subject = %q", recorded.Parsed.Subject)
+	}
+	if !recorded.ReceivedAt.Equal(time.Date(2026, 5, 3, 9, 30, 0, 0, time.UTC)) {
+		t.Fatalf("ReceivedAt = %s", recorded.ReceivedAt)
+	}
+	if recorded.Size == 0 {
+		t.Fatal("Size = 0, want stored message size")
+	}
+}
+
 func TestSessionRejectsUnknownRecipient(t *testing.T) {
 	t.Parallel()
 
@@ -135,4 +205,13 @@ func TestSessionRejectsMessageLargerThanLimit(t *testing.T) {
 	if _, err := store.Get(context.Background(), "mailstore/c/d/u/maildir/2026/05/too-large.eml"); err == nil {
 		t.Fatal("oversized message was stored")
 	}
+}
+
+type recordingRecorder struct {
+	messages []ReceivedMessage
+}
+
+func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) error {
+	r.messages = append(r.messages, msg)
+	return nil
 }
