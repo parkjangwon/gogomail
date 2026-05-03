@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
 	cfg := Load()
@@ -27,6 +30,28 @@ func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 	cfg.DeliveryDomainConcurrency = nil
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want missing throttle limits rejection")
+	}
+}
+
+func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "smtp read", mutate: func(cfg *Config) { cfg.SMTPReadTimeout = 0 }},
+		{name: "smtp write", mutate: func(cfg *Config) { cfg.SMTPWriteTimeout = -time.Second }},
+		{name: "delivery", mutate: func(cfg *Config) { cfg.DeliveryTimeout = 0 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want timeout rejection")
+			}
+		})
 	}
 }
 

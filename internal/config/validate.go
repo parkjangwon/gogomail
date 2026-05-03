@@ -24,6 +24,15 @@ func (c Config) Validate() error {
 	if c.SubmissionMaxMessageBytes <= 0 {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES must be positive")
 	}
+	if c.SMTPReadTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_SMTP_READ_TIMEOUT must be positive")
+	}
+	if c.SMTPWriteTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_SMTP_WRITE_TIMEOUT must be positive")
+	}
+	if c.DeliveryTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_TIMEOUT must be positive")
+	}
 	if err := validateEnum("GOGOMAIL_SMTP_DMARC_ENFORCEMENT", c.SMTPDMARCEnforcement, "monitor", "quarantine", "reject"); err != nil {
 		return err
 	}
