@@ -49,6 +49,13 @@ func NewDirectSMTPTransport() *DirectSMTPTransport {
 
 func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
 	groups := groupRecipientsByDomain(job.Recipients())
+	if len(groups) == 0 {
+		return &SMTPStatusError{
+			Op:      "recipient",
+			Code:    554,
+			Message: "no deliverable recipients",
+		}
+	}
 	for domain, recipients := range groups {
 		if err := t.deliverDomain(ctx, job, domain, recipients); err != nil {
 			return err

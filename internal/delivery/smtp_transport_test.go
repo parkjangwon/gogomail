@@ -27,6 +27,23 @@ func TestGroupRecipientsByDomain(t *testing.T) {
 	}
 }
 
+func TestDirectSMTPTransportRejectsNoDeliverableRecipients(t *testing.T) {
+	t.Parallel()
+
+	transport := NewDirectSMTPTransport()
+	err := transport.Deliver(context.Background(), Job{
+		QueuedMessage: QueuedMessage{
+			To: []outbound.Address{{Email: "missing-domain"}},
+		},
+	})
+	if err == nil {
+		t.Fatal("Deliver accepted job with no deliverable recipients")
+	}
+	if !IsPermanentFailure(err) {
+		t.Fatalf("err = %v, want permanent recipient failure", err)
+	}
+}
+
 func TestNormalizeDeliveryTLSMode(t *testing.T) {
 	t.Parallel()
 
