@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -83,6 +84,19 @@ func TestRetryPolicyNextScheduledDelayClampsHugeJitter(t *testing.T) {
 	}
 	if delay < time.Millisecond || delay > 20*time.Minute {
 		t.Fatalf("delay = %s, want clamped jitter range", delay)
+	}
+}
+
+func TestRetryPolicyNextScheduledDelayIgnoresNaNJitter(t *testing.T) {
+	t.Parallel()
+
+	policy := RetryPolicy{Delays: []time.Duration{time.Minute}, JitterRatio: math.NaN()}
+	delay, ok := policy.NextScheduledDelay("msg-1", 0)
+	if !ok {
+		t.Fatal("NextScheduledDelay returned ok=false")
+	}
+	if delay != time.Minute {
+		t.Fatalf("delay = %s, want base delay for NaN jitter", delay)
 	}
 }
 
