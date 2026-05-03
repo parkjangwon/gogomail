@@ -207,6 +207,9 @@ Implementation order:
 160. Event stream routing supports ordered fan-out handlers, allowing audit, DSN generation, indexing, notification, and future custom hooks to attach to the same mail lifecycle event without hard-coded feature coupling.
 161. Hard bounce events now generate RFC 3464 multipart/report DSN messages, store them as `.eml`, and enqueue null reverse-path outbound delivery back to the original envelope sender while honoring `NOTIFY=NEVER`.
 162. Delivery audit details now include the original envelope sender so operators can trace sender-recipient delivery outcomes without reparsing queued payloads.
+163. Null reverse-path DSN bounces no longer create suppression-list entries, preventing system-generated bounce traffic from contaminating user outbound suppression policy.
+164. Bounce DSN generation now uses deterministic storage paths, deterministic RFC-safe Message-IDs, and outbox dedupe keys so event-worker retries do not fan out duplicate DSN queue rows.
+165. DSN postmaster identity is runtime-configurable and validated at startup, supporting production-grade bounce branding without risking malformed DSN From headers.
 
 ## Deferred until backend contracts stabilize
 
