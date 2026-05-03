@@ -28,3 +28,31 @@ func TestNormalizeRouteCleansHostsAndDefaults(t *testing.T) {
 		}
 	}
 }
+
+func TestRoutePoolKeyIncludesFarmDomainHostAndTLSMode(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmBulk}}, "Example.NET", Route{
+		Domain:  "Example.NET",
+		TLSMode: DeliveryTLSRequire,
+	})
+	got := routePoolKey(route, "MX-A.Example.NET")
+	want := "bulk|example.net|mx-a.example.net|require"
+	if got != want {
+		t.Fatalf("routePoolKey = %q, want %q", got, want)
+	}
+}
+
+func TestRoutePoolKeyUsesExplicitPoolName(t *testing.T) {
+	t.Parallel()
+
+	route := normalizeRoute(Job{QueuedMessage: QueuedMessage{Farm: outbound.FarmBulk}}, "example.net", Route{
+		PoolName: "provider-a",
+		TLSMode:  DeliveryTLSDisable,
+	})
+	got := routePoolKey(route, "mx.example.net")
+	want := "provider-a|example.net|mx.example.net|disable"
+	if got != want {
+		t.Fatalf("routePoolKey = %q, want %q", got, want)
+	}
+}
