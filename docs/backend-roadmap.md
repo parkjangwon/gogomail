@@ -134,6 +134,13 @@ Implementation order:
 87. Mail API now supports bounded bulk message flag, folder move, and soft-delete actions with duplicate ID rejection for stable webmail list operations.
 88. Attachment lifecycle cleanup can expire stale uploading records, delete expired storage objects through the configured store, and use a partial cleanup index safely outside migration transactions.
 89. Draft-to-send now carries draft attachment state into the outgoing message record, keeping sent-message `has_attachment` behavior consistent with attachment handoff.
+90. SMTP DSN extension options (`RET`, `ENVID`, `NOTIFY`, `ORCPT`) now flow through inbound/submission session state, hook events, and recorder payloads so future RFC 3461 DSN generation can use negotiated envelope metadata.
+91. SMTPUTF8 address handling is stricter: internationalized addresses require explicit server support and a transaction that declared `MAIL FROM ... SMTPUTF8`, preventing accidental partial EAI acceptance.
+92. Inbound SMTP accepts RFC 5321 null reverse-path mail for DSN/bounce delivery while keeping transaction state separate from the envelope sender string.
+93. Direct outbound SMTP continues DATA when at least one RCPT in a domain group is accepted, avoiding unnecessary rejection of valid recipients after partial RCPT failures.
+94. SMTP storage paths sanitize tenant/user/message path segments before writing `.eml` files, preserving deterministic layout without allowing generated IDs to alter directory boundaries.
+95. Outbound route definitions now support explicit SMTP ports and include the port in route pool keys, preparing Smart Host/gateway relay routing without collapsing distinct connection pools.
+96. SMTP server runtime guardrails now expose configurable read/write timeouts, max message bytes, and max recipients, wired through environment config for edge and submission modes.
 
 ## Deferred until backend contracts stabilize
 
