@@ -19,6 +19,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.
 - Admin API supports domain/user list, detail, create, and status updates plus queue, delivery-attempt, suppression, DKIM, retry, and delete operations.
 - Admin domain/user create validation rejects malformed domains, unsafe usernames, invalid ACE names, and mismatched primary address ownership.
+- SMTP receive/submission paths now include TCP-level protocol integration coverage for inbound delivery, AUTH PLAIN submission, policy rejection, and SMTPS.
+- DSN/bounce generation validates inbound event metadata before composing and queueing null reverse-path DSNs.
+- Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
 
 ## Must verify before release cut

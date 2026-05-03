@@ -213,6 +213,11 @@ Implementation order:
 166. SMTP runtime configuration rejects unsafe `GOGOMAIL_SMTP_DOMAIN` values before startup, protecting SMTP banners, Received headers, and DSN reporting identities from malformed host names.
 167. Scheduled delivery retries now normalize outbound farm topics, deduplicate retry outbox rows by message/attempt/recipient set, and keep retry error storage UTF-8 safe.
 168. Outbox relay failure recording now truncates long errors at UTF-8 boundaries, keeping retry/failed-state diagnostics safe for PostgreSQL and audit surfaces.
+169. SMTP receive and authenticated submission now have real TCP protocol integration tests that exercise go-smtp server wiring, raw `.eml` storage, AUTH PLAIN submission, wire-level policy rejections, and implicit TLS SMTPS delivery.
+170. SMTP server TLS configuration is cloned and hardened to TLS 1.2+, and implicit TLS startup now fails fast when no static or dynamic server certificate source is configured.
+171. Trusted relay CIDR authorization now handles IPv4-mapped IPv6 remote addresses, preserving relay policy correctness across dual-stack listener adapters.
+172. Bounce DSN event decoding validates enhanced status, DSN notify, and newline-bearing DSN metadata before composing or queueing a generated RFC 3464 report.
+173. Direct SMTP delivery preserves per-recipient permanent/temporary classes when all RCPT commands fail, while still failing over to the next MX when every rejected recipient is only temporarily deferred.
 
 ## Deferred until backend contracts stabilize
 
