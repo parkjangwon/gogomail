@@ -54,6 +54,7 @@ Implementation order:
 7. Redis SET NX duplicate detection.
 8. PostgreSQL outbox event creation for stored mail.
 9. Mail API list/detail/folder endpoints.
+10. RFC 5322/MIME outbound text composer and outbound farm classifier.
 
 ## Deferred until backend contracts stabilize
 
