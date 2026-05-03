@@ -57,6 +57,41 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageNormalizesStoragePath(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"storage_path":" mailstore/msg.eml ",
+		"farm":"general"
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.StoragePath != "mailstore/msg.eml" {
+		t.Fatalf("StoragePath = %q, want trimmed path", queued.StoragePath)
+	}
+}
+
+func TestDecodeQueuedMessageRejectsStoragePathLineBreak(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"storage_path":"mailstore/msg.eml\nbad",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "invalid storage_path") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want invalid storage_path", err)
+	}
+}
+
 func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	t.Parallel()
 

@@ -247,6 +247,10 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if err := normalizeQueuedDSNOptions(&queued); err != nil {
 		return QueuedMessage{}, err
 	}
+	queued.StoragePath = strings.TrimSpace(queued.StoragePath)
+	if containsLineBreak(queued.StoragePath) {
+		return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid storage_path")
+	}
 	if len(queued.Recipients()) == 0 {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has no recipients")
 	}
