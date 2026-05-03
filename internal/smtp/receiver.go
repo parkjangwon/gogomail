@@ -67,6 +67,10 @@ type Authenticator interface {
 	AuthenticatePlain(ctx context.Context, identity string, username string, password string) error
 }
 
+type RelayAuthorizer interface {
+	AllowRelay(ctx context.Context, remoteAddr string) (bool, error)
+}
+
 type RateLimitKey struct {
 	Stage      Stage
 	RemoteAddr string
@@ -110,6 +114,7 @@ type ReceiverOptions struct {
 	Backpressure      Backpressure
 	AuthVerifier      AuthenticationVerifier
 	Authenticator     Authenticator
+	RelayAuthorizer   RelayAuthorizer
 	Metrics           Metrics
 	RequireAuth       bool
 	SupportSMTPUTF8   bool
@@ -134,6 +139,7 @@ type Receiver struct {
 	backpressure      Backpressure
 	authVerifier      AuthenticationVerifier
 	authenticator     Authenticator
+	relayAuthorizer   RelayAuthorizer
 	metrics           Metrics
 	requireAuth       bool
 	supportSMTPUTF8   bool
@@ -162,6 +168,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		backpressure:      backpressureOrDefault(opts.Backpressure),
 		authVerifier:      opts.AuthVerifier,
 		authenticator:     opts.Authenticator,
+		relayAuthorizer:   opts.RelayAuthorizer,
 		metrics:           metricsOrDefault(opts.Metrics),
 		requireAuth:       opts.RequireAuth,
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
@@ -210,6 +217,9 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	if s.receiver.requireAuth && !s.authenticated {
 		return gosmtp.ErrAuthRequired
 	}
+	if err := s.authorizeRelay(); err != nil {
+		return err
+	}
 	s.clearEnvelope()
 	if err := validateMailOptions(opts, extensionSupport{
 		SMTPUTF8:   s.receiver.supportSMTPUTF8,
@@ -234,6 +244,20 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	s.smtpUTF8 = mailOptionsUTF8(opts)
 	s.dsn.Return = normalizeDSNReturn(opts)
 	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
+	return nil
+}
+
+func (s *session) authorizeRelay() error {
+	if s.receiver.relayAuthorizer == nil {
+		return nil
+	}
+	allowed, err := s.receiver.relayAuthorizer.AllowRelay(context.Background(), s.remoteAddr)
+	if err != nil {
+		return fmt.Errorf("authorize smtp relay: %w", err)
+	}
+	if !allowed {
+		return smtpPolicyReject("remote address %q is not trusted for this SMTP boundary", s.remoteAddr)
+	}
 	return nil
 }
 

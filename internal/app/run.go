@@ -55,6 +55,7 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runReceiveMTA(ctx, cfg, logger, receiveMTAOptions{
 			Component:              "inbound-mta",
 			Addr:                   cfg.InboundSMTPAddr,
+			TrustedRelays:          cfg.InboundTrustedRelays,
 			EnableAuthVerification: false,
 			EnableDMARCEnforcement: false,
 			EnableBackpressure:     true,
@@ -79,6 +80,7 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 type receiveMTAOptions struct {
 	Component              string
 	Addr                   string
+	TrustedRelays          []string
 	EnableAuthVerification bool
 	EnableDMARCEnforcement bool
 	EnableBackpressure     bool
@@ -92,6 +94,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	var deduplicator smtpd.Deduplicator
 	var rateLimiter smtpd.RateLimiter
 	var pressure smtpd.Backpressure
+	var relayAuthorizer smtpd.RelayAuthorizer
 	var redisClient *redis.Client
 
 	if len(cfg.LocalRecipients) > 0 {
@@ -149,6 +152,14 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	if redisClient != nil {
 		defer redisClient.Close()
 	}
+	if len(opts.TrustedRelays) > 0 {
+		authorizer, err := smtpd.NewStaticTrustedRelays(opts.TrustedRelays)
+		if err != nil {
+			return err
+		}
+		relayAuthorizer = authorizer
+		logger.Info(opts.Component+" using trusted relay policy", "cidrs", len(opts.TrustedRelays))
+	}
 
 	var authVerifier smtpd.AuthenticationVerifier
 	if opts.EnableAuthVerification {
@@ -178,6 +189,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		RateLimiter:       rateLimiter,
 		Backpressure:      pressure,
 		AuthVerifier:      authVerifier,
+		RelayAuthorizer:   relayAuthorizer,
 		Metrics:           smtpMetrics(cfg, logger),
 		AddReceivedHeader: cfg.SMTPAddReceivedHeader,
 		ReceivedDomain:    cfg.SMTPDomain,
