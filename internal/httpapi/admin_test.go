@@ -187,6 +187,25 @@ func TestAdminUpdateDomainStatusHandler(t *testing.T) {
 	}
 }
 
+func TestAdminUpdateDomainQuotaHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/domain-1/quota", bytes.NewReader([]byte(`{"quota_limit":2048}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDomainQuota.ID != "domain-1" || service.lastDomainQuota.QuotaLimit != 2048 {
+		t.Fatalf("lastDomainQuota = %+v", service.lastDomainQuota)
+	}
+}
+
 func TestAdminUsersHandler(t *testing.T) {
 	t.Parallel()
 
@@ -477,6 +496,7 @@ type fakeAdminService struct {
 	lastDomainID            string
 	lastUserID              string
 	lastDomainStatus        maildb.UpdateDomainStatusRequest
+	lastDomainQuota         maildb.UpdateDomainQuotaRequest
 	lastCreateDomain        maildb.CreateDomainRequest
 	lastUserStatus          maildb.UpdateUserStatusRequest
 	lastCreateUser          maildb.CreateUserRequest
@@ -508,6 +528,11 @@ func (f *fakeAdminService) GetDomain(_ context.Context, id string) (maildb.Domai
 
 func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {
 	f.lastDomainStatus = req
+	return nil
+}
+
+func (f *fakeAdminService) UpdateDomainQuota(_ context.Context, req maildb.UpdateDomainQuotaRequest) error {
+	f.lastDomainQuota = req
 	return nil
 }
 

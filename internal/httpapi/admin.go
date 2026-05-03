@@ -15,6 +15,7 @@ type AdminService interface {
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
 	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
+	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
 	ListUsers(ctx context.Context, domainID string, limit int) ([]maildb.UserView, error)
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
@@ -83,6 +84,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 		}
 		req.ID = r.PathValue("id")
 		if err := service.UpdateDomainStatus(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/domains/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.UpdateDomainQuotaRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = r.PathValue("id")
+		if err := service.UpdateDomainQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}

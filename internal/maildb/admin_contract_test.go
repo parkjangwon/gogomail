@@ -18,6 +18,15 @@ func TestValidateUpdateDomainStatusRequestAcceptsSuspended(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateDomainQuotaRequestRejectsNegativeQuota(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateUpdateDomainQuotaRequest(UpdateDomainQuotaRequest{ID: "domain-1", QuotaLimit: -1})
+	if err == nil {
+		t.Fatal("ValidateUpdateDomainQuotaRequest accepted negative quota")
+	}
+}
+
 func TestValidateCreateDomainRequestRejectsInvalidName(t *testing.T) {
 	t.Parallel()
 

@@ -65,6 +65,11 @@ type UpdateDomainStatusRequest struct {
 	Status string `json:"status"`
 }
 
+type UpdateDomainQuotaRequest struct {
+	ID         string `json:"id"`
+	QuotaLimit int64  `json:"quota_limit"`
+}
+
 type CreateDomainRequest struct {
 	CompanyID  string `json:"company_id"`
 	Name       string `json:"name"`
@@ -95,6 +100,16 @@ func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
 	default:
 		return fmt.Errorf("unsupported domain status %q", req.Status)
 	}
+}
+
+func ValidateUpdateDomainQuotaRequest(req UpdateDomainQuotaRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("domain id is required")
+	}
+	if req.QuotaLimit < 0 {
+		return fmt.Errorf("quota_limit must not be negative")
+	}
+	return nil
 }
 
 func ValidateCreateDomainRequest(req CreateDomainRequest) error {
@@ -316,6 +331,28 @@ SET status = $2,
 WHERE id = $1`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status))
 	if err != nil {
 		return fmt.Errorf("update domain status: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("domain %q not found", req.ID)
+	}
+	return nil
+}
+
+func (r *Repository) UpdateDomainQuota(ctx context.Context, req UpdateDomainQuotaRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateDomainQuotaRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE domains
+SET quota_limit = NULLIF($2, 0),
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
+	if err != nil {
+		return fmt.Errorf("update domain quota: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err == nil && affected == 0 {
