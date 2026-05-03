@@ -25,11 +25,14 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - DSN/bounce generation validates inbound event metadata before composing and queueing null reverse-path DSNs.
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
+- `docs/smtp-release-runbook.md` now records operator-facing SMTP soak, STARTTLS, SMTPS, trusted relay, and outbound DSN/bounce smoke procedures.
+- PostgreSQL-backed integration tests can be enabled with `GOGOMAIL_TEST_DATABASE_URL` to run migrations in a temporary schema and exercise draft-to-send/outbox/retry behavior against real SQL.
 
 ## Must verify before release cut
 
 - Run `go test ./...`.
 - Run `go mod tidy -diff`.
+- Run `GOGOMAIL_TEST_DATABASE_URL=... go test ./internal/maildb ./internal/outbox` against a disposable PostgreSQL database/schema.
 - Run focused SMTP soak checks for repeated same-connection transactions and STARTTLS/SMTPS startup in the intended deployment environment.
 - Exercise draft-to-send against a real PostgreSQL instance with migrations applied.
 - Exercise multipart attachment upload against both local storage and the intended object storage adapter.
