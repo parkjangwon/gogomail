@@ -6,13 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"math"
 	"time"
 )
 
 var ErrRetryExhausted = errors.New("delivery retry attempts exhausted")
 
 type RetryPolicy struct {
-	Delays []time.Duration
+	Delays      []time.Duration
+	JitterRatio float64
+	MaxDelay    time.Duration
 }
 
 func DefaultRetryPolicy() RetryPolicy {
@@ -22,7 +26,7 @@ func DefaultRetryPolicy() RetryPolicy {
 		2 * time.Hour,
 		8 * time.Hour,
 		24 * time.Hour,
-	}}
+	}, JitterRatio: 0.20, MaxDelay: 24 * time.Hour}
 }
 
 func (p RetryPolicy) NextDelay(currentAttempt int) (time.Duration, bool) {
@@ -36,6 +40,18 @@ func (p RetryPolicy) NextDelay(currentAttempt int) (time.Duration, bool) {
 		return 0, false
 	}
 	return p.Delays[currentAttempt], true
+}
+
+func (p RetryPolicy) NextScheduledDelay(key string, currentAttempt int) (time.Duration, bool) {
+	delay, ok := p.NextDelay(currentAttempt)
+	if !ok {
+		return 0, false
+	}
+	delay = deterministicJitter(delay, p.JitterRatio, key, currentAttempt)
+	if p.MaxDelay > 0 && delay > p.MaxDelay {
+		return p.MaxDelay, true
+	}
+	return delay, true
 }
 
 type RetryScheduler interface {
@@ -56,7 +72,7 @@ func (s *PostgresRetryScheduler) ScheduleRetry(ctx context.Context, job Job, cau
 	if s.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
-	delay, ok := s.policy.NextDelay(job.RetryAttempt)
+	delay, ok := s.policy.NextScheduledDelay(job.MessageID, job.RetryAttempt)
 	if !ok {
 		return fmt.Errorf("%w for message %s", ErrRetryExhausted, job.MessageID)
 	}
@@ -86,4 +102,20 @@ VALUES ($1, $2, $3::jsonb, 'pending', $4, $5)`
 		return fmt.Errorf("schedule delivery retry: %w", err)
 	}
 	return nil
+}
+
+func deterministicJitter(base time.Duration, ratio float64, key string, attempt int) time.Duration {
+	if base <= 0 || ratio <= 0 || math.IsNaN(ratio) {
+		return base
+	}
+	ratio = math.Min(ratio, 1)
+	hash := fnv.New64a()
+	_, _ = fmt.Fprintf(hash, "%s:%d", key, attempt)
+	unit := float64(hash.Sum64()%1_000_000) / 999_999
+	factor := 1 - ratio + unit*(2*ratio)
+	delay := time.Duration(float64(base) * factor)
+	if delay <= 0 {
+		return time.Millisecond
+	}
+	return delay
 }
