@@ -20,6 +20,11 @@ in the same commit.
 
 ## Response envelopes
 
+`docs/openapi.yaml` documents successful JSON responses through reusable
+`components.responses.*` entries. Backend handlers and the OpenAPI draft must
+keep the top-level envelope key stable so generated clients can model each
+operation without path-specific ad-hoc response decoding.
+
 Successful collection responses keep a stable top-level plural key:
 
 - `{"folders":[...]}`
@@ -27,6 +32,10 @@ Successful collection responses keep a stable top-level plural key:
 - `{"attachments":[...]}`
 - `{"domains":[...]}`
 - `{"users":[...]}`
+- `{"queues":[...]}`
+- `{"delivery_attempts":[...]}`
+- `{"suppression_list":[...]}`
+- `{"dkim_keys":[...]}`
 
 Successful resource responses keep a stable singular key:
 
@@ -35,6 +44,12 @@ Successful resource responses keep a stable singular key:
 - `{"attachment":{...}}`
 - `{"domain":{...}}`
 - `{"user":{...}}`
+
+Successful mutation responses use one of:
+
+- `{"status":"ok"}`
+- `{"status":"ok","id":"..."}`
+- `{"status":"ok","updated":2}`
 
 Errors use the stable envelope:
 
@@ -93,6 +108,16 @@ Admin domain/user CRUD includes list, detail, create, status update, and quota u
 - `PATCH /admin/v1/users/{id}/quota`
 
 `quota_limit: 0` clears the limit and negative values are rejected.
+
+Admin operational read models also keep explicit envelope keys:
+
+- `GET /admin/v1/queue` returns `{"queues":[...]}`
+- `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`
+- `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
+- `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
+
+Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`
+so consoles can reconcile optimistic updates against the affected backend id.
 
 ## Deferred from this contract
 
