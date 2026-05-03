@@ -159,3 +159,46 @@ LIMIT $1`
 	}
 	return entries, nil
 }
+
+func (r *Repository) RetryOutbox(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+UPDATE outbox
+SET status = 'pending',
+    attempts = 0,
+    last_error = NULL,
+    locked_at = NULL,
+    available_at = now(),
+    processed_at = NULL
+WHERE id = $1`
+
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("retry outbox event: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("outbox event %q not found", id)
+	}
+	return nil
+}
+
+func (r *Repository) DeleteSuppressionEntry(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+
+	const query = `DELETE FROM suppression_list WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("delete suppression entry: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("suppression entry %q not found", id)
+	}
+	return nil
+}

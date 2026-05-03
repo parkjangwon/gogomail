@@ -91,11 +91,51 @@ func TestAdminSuppressionListHandler(t *testing.T) {
 	}
 }
 
+func TestAdminRetryOutboxHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/outbox/outbox-1/retry", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastRetryOutboxID != "outbox-1" {
+		t.Fatalf("lastRetryOutboxID = %q", service.lastRetryOutboxID)
+	}
+}
+
+func TestAdminDeleteSuppressionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service)
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/suppression-list/suppression-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeleteSuppressionID != "suppression-1" {
+		t.Fatalf("lastDeleteSuppressionID = %q", service.lastDeleteSuppressionID)
+	}
+}
+
 type fakeAdminService struct {
-	queueStats  []maildb.QueueStat
-	attempts    []maildb.DeliveryAttemptView
-	suppression []maildb.SuppressionEntry
-	lastLimit   int
+	queueStats              []maildb.QueueStat
+	attempts                []maildb.DeliveryAttemptView
+	suppression             []maildb.SuppressionEntry
+	lastLimit               int
+	lastRetryOutboxID       string
+	lastDeleteSuppressionID string
 }
 
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {
@@ -110,4 +150,14 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {
 	f.lastLimit = limit
 	return f.suppression, nil
+}
+
+func (f *fakeAdminService) RetryOutbox(_ context.Context, id string) error {
+	f.lastRetryOutboxID = id
+	return nil
+}
+
+func (f *fakeAdminService) DeleteSuppressionEntry(_ context.Context, id string) error {
+	f.lastDeleteSuppressionID = id
+	return nil
 }

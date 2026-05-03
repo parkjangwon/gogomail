@@ -62,6 +62,7 @@ Implementation order:
 15. Hard-bounced recipients are added to suppression list and blocked before future send enqueue.
 16. Delivery outcomes emit `mail.delivered`, `mail.bounced`, or `mail.delivery_failed` events for audit and future admin streams.
 17. Admin API exposes queue stats, delivery attempts, and suppression list read models.
+18. Admin API can retry outbox events and remove suppression entries.
 
 ## Deferred until backend contracts stabilize
 
