@@ -78,13 +78,14 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 		return nil
 	}
 
+	now := h.now().UTC()
 	composed, err := Compose(Report{
 		ReportingMTA: h.reportingMTA,
 		OriginalID:   event.DSN.EnvelopeID,
 		From:         outbound.Address{Name: "Mail Delivery Subsystem", Email: h.postmaster},
 		To:           outbound.Address{Email: event.Sender},
 		Subject:      "Delivery Status Notification (Failure)",
-		Date:         h.now().UTC(),
+		Date:         now,
 		Recipients: []RecipientStatus{{
 			Recipient:         event.Recipient,
 			OriginalRecipient: event.DSN.OriginalRecipient,
@@ -100,7 +101,7 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 		return err
 	}
 
-	storagePath := dsnStoragePath(h.now().UTC(), composed.MessageID)
+	storagePath := dsnStoragePath(now, composed.MessageID)
 	if err := h.store.Put(ctx, storagePath, bytes.NewReader(composed.Raw)); err != nil {
 		return fmt.Errorf("store dsn message: %w", err)
 	}

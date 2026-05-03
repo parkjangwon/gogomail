@@ -158,6 +158,39 @@ func TestBounceHandlerDeletesStoredMessageWhenQueueFails(t *testing.T) {
 	}
 }
 
+func TestBounceHandlerUsesSingleClockSnapshot(t *testing.T) {
+	t.Parallel()
+
+	times := []time.Time{
+		time.Date(2026, 5, 31, 23, 59, 59, 0, time.UTC),
+		time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+	}
+	calls := 0
+	store := &memoryStore{values: map[string][]byte{}}
+	queue := &captureQueue{}
+	handler := NewBounceHandler(HandlerOptions{
+		Store: store,
+		Queue: queue,
+		Now: func() time.Time {
+			out := times[calls]
+			calls++
+			return out
+		},
+	})
+
+	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: []byte(`{
+		"event":"mail.bounced",
+		"message_id":"018f0000-0000-7000-8000-000000000001",
+		"sender":"sender@example.com",
+		"recipient":"bad@example.net"
+	}`)}); err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("clock calls = %d, want one snapshot", calls)
+	}
+}
+
 type failingQueue struct {
 	err error
 }
