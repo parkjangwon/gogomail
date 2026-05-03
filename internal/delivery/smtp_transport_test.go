@@ -2,7 +2,9 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,6 +129,19 @@ func TestDirectSMTPTransportUsesRouterHostsBeforeMX(t *testing.T) {
 	}
 	if len(route.Hosts) != 1 || route.Hosts[0] != "mx-route.example.net" {
 		t.Fatalf("route hosts = %+v, want router host", route.Hosts)
+	}
+}
+
+func TestDirectSMTPTransportWrapsRouterError(t *testing.T) {
+	t.Parallel()
+
+	transport := DirectSMTPTransport{Router: staticRouter{err: errors.New("no farm")}}
+	_, err := transport.route(context.Background(), Job{QueuedMessage: QueuedMessage{Farm: "bulk"}}, "example.net")
+	if err == nil {
+		t.Fatal("route returned nil error")
+	}
+	if !strings.Contains(err.Error(), "route delivery for example.net") {
+		t.Fatalf("error = %v, want domain context", err)
 	}
 }
 
