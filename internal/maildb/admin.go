@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -35,6 +36,13 @@ type SuppressionEntry struct {
 	Reason          string    `json:"reason"`
 	SourceMessageID string    `json:"source_message_id"`
 	CreatedAt       time.Time `json:"created_at"`
+}
+
+type TrustedRelayView struct {
+	ID          string    `json:"id"`
+	CIDR        string    `json:"cidr"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type DomainView struct {
@@ -93,6 +101,11 @@ type UpdateUserStatusRequest struct {
 type UpdateUserQuotaRequest struct {
 	ID         string `json:"id"`
 	QuotaLimit int64  `json:"quota_limit"`
+}
+
+type CreateTrustedRelayRequest struct {
+	CIDR        string `json:"cidr"`
+	Description string `json:"description,omitempty"`
 }
 
 func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
@@ -191,6 +204,37 @@ func validAdminUsername(username string) bool {
 		return false
 	}
 	return true
+}
+
+func ValidateCreateTrustedRelayRequest(req CreateTrustedRelayRequest) error {
+	if _, err := normalizeTrustedRelayCIDR(req.CIDR); err != nil {
+		return err
+	}
+	if strings.ContainsAny(req.Description, "\r\n") {
+		return fmt.Errorf("description must not contain newlines")
+	}
+	if len(req.Description) > 512 {
+		return fmt.Errorf("description is too long")
+	}
+	return nil
+}
+
+func normalizeTrustedRelayCIDR(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("cidr is required")
+	}
+	if prefix, err := netip.ParsePrefix(value); err == nil {
+		return prefix.Masked().String(), nil
+	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return "", fmt.Errorf("cidr must be an IP address or CIDR prefix")
+	}
+	if addr.Is4() {
+		return netip.PrefixFrom(addr, 32).String(), nil
+	}
+	return netip.PrefixFrom(addr, 128).String(), nil
 }
 
 func (r *Repository) CreateDomain(ctx context.Context, req CreateDomainRequest) (DomainView, error) {
@@ -736,6 +780,90 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate suppression entries: %w", err)
 	}
 	return entries, nil
+}
+
+func (r *Repository) ListTrustedRelays(ctx context.Context, limit int) ([]TrustedRelayView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  cidr::text,
+  description,
+  created_at
+FROM trusted_relays
+ORDER BY created_at DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list trusted relays: %w", err)
+	}
+	defer rows.Close()
+
+	var relays []TrustedRelayView
+	for rows.Next() {
+		var relay TrustedRelayView
+		if err := rows.Scan(&relay.ID, &relay.CIDR, &relay.Description, &relay.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan trusted relay: %w", err)
+		}
+		relays = append(relays, relay)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate trusted relays: %w", err)
+	}
+	return relays, nil
+}
+
+func (r *Repository) CreateTrustedRelay(ctx context.Context, req CreateTrustedRelayRequest) (TrustedRelayView, error) {
+	if r.db == nil {
+		return TrustedRelayView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateCreateTrustedRelayRequest(req); err != nil {
+		return TrustedRelayView{}, err
+	}
+	cidr, err := normalizeTrustedRelayCIDR(req.CIDR)
+	if err != nil {
+		return TrustedRelayView{}, err
+	}
+
+	const query = `
+INSERT INTO trusted_relays (cidr, description)
+VALUES ($1, $2)
+RETURNING id::text, cidr::text, description, created_at`
+
+	var relay TrustedRelayView
+	if err := r.db.QueryRowContext(ctx, query, cidr, strings.TrimSpace(req.Description)).Scan(
+		&relay.ID,
+		&relay.CIDR,
+		&relay.Description,
+		&relay.CreatedAt,
+	); err != nil {
+		return TrustedRelayView{}, fmt.Errorf("create trusted relay: %w", err)
+	}
+	return relay, nil
+}
+
+func (r *Repository) DeleteTrustedRelay(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("trusted relay id is required")
+	}
+	result, err := r.db.ExecContext(ctx, `DELETE FROM trusted_relays WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete trusted relay: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("trusted relay %q not found", id)
+	}
+	return nil
 }
 
 func (r *Repository) RetryOutbox(ctx context.Context, id string) error {

@@ -24,6 +24,9 @@ type AdminService interface {
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
+	ListTrustedRelays(ctx context.Context, limit int) ([]maildb.TrustedRelayView, error)
+	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
+	DeleteTrustedRelay(ctx context.Context, id string) error
 	ListDKIMKeys(ctx context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error)
 	CreateDKIMKey(ctx context.Context, input maildb.CreateDKIMKeyInput) (string, error)
 	DeactivateDKIMKey(ctx context.Context, id string) error
@@ -217,6 +220,35 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 		writeJSON(w, http.StatusOK, map[string]any{"suppression_list": entries})
 	}))
 
+	mux.HandleFunc("GET /admin/v1/trusted-relays", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		relays, err := service.ListTrustedRelays(r.Context(), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"trusted_relays": relays})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/trusted-relays", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.CreateTrustedRelayRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		relay, err := service.CreateTrustedRelay(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"trusted_relay": relay})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
@@ -279,6 +311,19 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		if err := service.DeleteSuppressionEntry(r.Context(), id); err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/trusted-relays/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		if err := service.DeleteTrustedRelay(r.Context(), id); err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}

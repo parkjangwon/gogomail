@@ -63,6 +63,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /users",
 		"PATCH /users/{id}/status",
 		"PATCH /users/{id}/quota",
+		"POST /trusted-relays",
 		"POST /dkim-keys",
 	} {
 		block, ok := operations[route]

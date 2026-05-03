@@ -500,6 +500,82 @@ func TestAdminDeleteSuppressionHandler(t *testing.T) {
 	}
 }
 
+func TestAdminTrustedRelaysHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		trustedRelays: []maildb.TrustedRelayView{{
+			ID:          "relay-1",
+			CIDR:        "192.0.2.0/24",
+			Description: "spam relay",
+			CreatedAt:   time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/trusted-relays?limit=5", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		TrustedRelays []maildb.TrustedRelayView `json:"trusted_relays"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.TrustedRelays) != 1 || body.TrustedRelays[0].CIDR != "192.0.2.0/24" {
+		t.Fatalf("trusted_relays = %+v", body.TrustedRelays)
+	}
+	if service.lastLimit != 5 {
+		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+}
+
+func TestAdminCreateTrustedRelayHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/trusted-relays", bytes.NewReader([]byte(`{
+		"cidr": "192.0.2.1",
+		"description": "edge relay"
+	}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCreateTrustedRelay.CIDR != "192.0.2.1" || service.lastCreateTrustedRelay.Description != "edge relay" {
+		t.Fatalf("lastCreateTrustedRelay = %+v", service.lastCreateTrustedRelay)
+	}
+}
+
+func TestAdminDeleteTrustedRelayHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/trusted-relays/relay-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeleteTrustedRelayID != "relay-1" {
+		t.Fatalf("lastDeleteTrustedRelayID = %q", service.lastDeleteTrustedRelayID)
+	}
+}
+
 func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 	t.Parallel()
 
@@ -524,26 +600,29 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 }
 
 type fakeAdminService struct {
-	domains                 []maildb.DomainView
-	users                   []maildb.UserView
-	queueStats              []maildb.QueueStat
-	attempts                []maildb.DeliveryAttemptView
-	suppression             []maildb.SuppressionEntry
-	dkimKeys                []maildb.DKIMKeyView
-	createdDKIMKeyID        string
-	lastLimit               int
-	lastDomainID            string
-	lastUserID              string
-	lastDomainStatus        maildb.UpdateDomainStatusRequest
-	lastDomainQuota         maildb.UpdateDomainQuotaRequest
-	lastCreateDomain        maildb.CreateDomainRequest
-	lastUserStatus          maildb.UpdateUserStatusRequest
-	lastUserQuota           maildb.UpdateUserQuotaRequest
-	lastCreateUser          maildb.CreateUserRequest
-	lastCreateDKIMKey       maildb.CreateDKIMKeyInput
-	lastDeactivateDKIMKeyID string
-	lastRetryOutboxID       string
-	lastDeleteSuppressionID string
+	domains                  []maildb.DomainView
+	users                    []maildb.UserView
+	queueStats               []maildb.QueueStat
+	attempts                 []maildb.DeliveryAttemptView
+	suppression              []maildb.SuppressionEntry
+	trustedRelays            []maildb.TrustedRelayView
+	dkimKeys                 []maildb.DKIMKeyView
+	createdDKIMKeyID         string
+	lastLimit                int
+	lastDomainID             string
+	lastUserID               string
+	lastDomainStatus         maildb.UpdateDomainStatusRequest
+	lastDomainQuota          maildb.UpdateDomainQuotaRequest
+	lastCreateDomain         maildb.CreateDomainRequest
+	lastUserStatus           maildb.UpdateUserStatusRequest
+	lastUserQuota            maildb.UpdateUserQuotaRequest
+	lastCreateUser           maildb.CreateUserRequest
+	lastCreateDKIMKey        maildb.CreateDKIMKeyInput
+	lastCreateTrustedRelay   maildb.CreateTrustedRelayRequest
+	lastDeactivateDKIMKeyID  string
+	lastRetryOutboxID        string
+	lastDeleteSuppressionID  string
+	lastDeleteTrustedRelayID string
 }
 
 func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {
@@ -619,6 +698,21 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {
 	f.lastLimit = limit
 	return f.suppression, nil
+}
+
+func (f *fakeAdminService) ListTrustedRelays(_ context.Context, limit int) ([]maildb.TrustedRelayView, error) {
+	f.lastLimit = limit
+	return f.trustedRelays, nil
+}
+
+func (f *fakeAdminService) CreateTrustedRelay(_ context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error) {
+	f.lastCreateTrustedRelay = req
+	return maildb.TrustedRelayView{ID: "relay-new", CIDR: req.CIDR, Description: req.Description}, nil
+}
+
+func (f *fakeAdminService) DeleteTrustedRelay(_ context.Context, id string) error {
+	f.lastDeleteTrustedRelayID = id
+	return nil
 }
 
 func (f *fakeAdminService) ListDKIMKeys(_ context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error) {
