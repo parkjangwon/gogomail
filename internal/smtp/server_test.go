@@ -3,6 +3,8 @@ package smtpd
 import (
 	"testing"
 	"time"
+
+	gosmtp "github.com/emersion/go-smtp"
 )
 
 func TestServerOptionDefaults(t *testing.T) {
@@ -30,5 +32,20 @@ func TestServerOptionOverrides(t *testing.T) {
 	}
 	if got := intOrDefault(7, 100); got != 7 {
 		t.Fatalf("int override = %d", got)
+	}
+}
+
+func TestServerImplicitTLSOption(t *testing.T) {
+	t.Parallel()
+
+	server := newSMTPServer(gosmtp.BackendFunc(func(*gosmtp.Conn) (gosmtp.Session, error) {
+		return nil, nil
+	}), ServerOptions{
+		Addr:        "127.0.0.1:0",
+		Domain:      "mail.example",
+		ImplicitTLS: true,
+	})
+	if server.Addr != "127.0.0.1:0" {
+		t.Fatalf("Addr = %q", server.Addr)
 	}
 }

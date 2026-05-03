@@ -30,6 +30,7 @@ type ServerOptions struct {
 	EnableRequireTLS  bool
 	EnableDSN         bool
 	EnableBinaryMIME  bool
+	ImplicitTLS       bool
 }
 
 func RunServer(ctx context.Context, opts ServerOptions) error {
@@ -53,8 +54,8 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("smtp server listening", "addr", opts.Addr, "domain", opts.Domain)
-		errCh <- server.ListenAndServe()
+		logger.Info("smtp server listening", "addr", opts.Addr, "domain", opts.Domain, "implicit_tls", opts.ImplicitTLS)
+		errCh <- listenAndServeSMTP(server, opts.ImplicitTLS)
 	}()
 
 	select {
@@ -85,6 +86,13 @@ func newSMTPServer(backend gosmtp.Backend, opts ServerOptions) *gosmtp.Server {
 	server.EnableDSN = opts.EnableDSN
 	server.EnableBINARYMIME = opts.EnableBinaryMIME
 	return server
+}
+
+func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool) error {
+	if implicitTLS {
+		return server.ListenAndServeTLS()
+	}
+	return server.ListenAndServe()
 }
 
 func durationOrDefault(value time.Duration, fallback time.Duration) time.Duration {
