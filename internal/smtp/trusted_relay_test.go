@@ -79,6 +79,40 @@ func TestStaticTrustedRelaysRejectsUntrustedRemote(t *testing.T) {
 	}
 }
 
+func TestStaticTrustedRelaysAllowsAllWhenNoCIDRsConfigured(t *testing.T) {
+	t.Parallel()
+
+	relays, err := NewStaticTrustedRelays([]string{" ", ""})
+	if err != nil {
+		t.Fatalf("NewStaticTrustedRelays returned error: %v", err)
+	}
+	allowed, err := relays.AllowRelay(context.Background(), "198.51.100.1")
+	if err != nil {
+		t.Fatalf("AllowRelay returned error: %v", err)
+	}
+	if !allowed {
+		t.Fatal("AllowRelay rejected remote when no trusted relay CIDRs were configured")
+	}
+}
+
+func TestStaticTrustedRelaysRejectsMalformedRemoteAddress(t *testing.T) {
+	t.Parallel()
+
+	relays, err := NewStaticTrustedRelays([]string{"192.0.2.0/24"})
+	if err != nil {
+		t.Fatalf("NewStaticTrustedRelays returned error: %v", err)
+	}
+	for _, remote := range []string{"not an address", "192.0.2.5:bad-port", "[2001:db8::1"} {
+		allowed, err := relays.AllowRelay(context.Background(), remote)
+		if err != nil {
+			t.Fatalf("AllowRelay(%q) returned error: %v", remote, err)
+		}
+		if allowed {
+			t.Fatalf("AllowRelay(%q) = true, want malformed remote to be rejected", remote)
+		}
+	}
+}
+
 func TestStaticTrustedRelaysRejectsInvalidConfig(t *testing.T) {
 	t.Parallel()
 
