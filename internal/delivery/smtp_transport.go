@@ -29,6 +29,7 @@ const (
 
 type DirectSMTPTransport struct {
 	Resolver     MXResolver
+	Router       Router
 	Timeout      time.Duration
 	Hello        string
 	TLSMode      DeliveryTLSMode
@@ -55,16 +56,24 @@ func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
 }
 
 func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain string, recipients []outbound.Address) error {
-	hosts, err := t.mxHosts(ctx, domain)
+	route, err := t.route(ctx, job, domain)
 	if err != nil {
 		return err
+	}
+	hosts := route.Hosts
+	if len(hosts) == 0 {
+		hosts, err = t.mxHosts(ctx, domain)
+		if err != nil {
+			return err
+		}
+		route.Hosts = hosts
 	}
 	errs := make([]error, 0, len(hosts))
 	for _, host := range hosts {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := t.deliverHost(ctx, job, host, domain, recipients); err != nil {
+		if err := t.deliverHost(ctx, job, route, host, recipients); err != nil {
 			if IsPermanentFailure(err) {
 				return err
 			}
@@ -76,7 +85,7 @@ func (t *DirectSMTPTransport) deliverDomain(ctx context.Context, job Job, domain
 	return fmt.Errorf("deliver to %s via %d mx host(s): %w", domain, len(hosts), errors.Join(errs...))
 }
 
-func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, host string, domain string, recipients []outbound.Address) error {
+func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, route Route, host string, recipients []outbound.Address) error {
 	timeout := t.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -84,7 +93,7 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, host str
 	dialer := net.Dialer{Timeout: timeout}
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, "25"))
 	if err != nil {
-		return fmt.Errorf("dial mx %s for %s: %w", host, domain, err)
+		return fmt.Errorf("dial mx %s for %s: %w", host, route.Domain, err)
 	}
 	defer conn.Close()
 	if deadline := deliveryDeadline(ctx, timeout, time.Now()); !deadline.IsZero() {
@@ -100,13 +109,16 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, host str
 	defer client.Close()
 
 	hello := strings.TrimSpace(t.Hello)
+	if route.Hello != "" {
+		hello = route.Hello
+	}
 	if hello == "" {
 		hello = "localhost"
 	}
 	if err := client.Hello(hello); err != nil {
 		return WrapSMTPError("hello", err)
 	}
-	if err := t.startTLS(ctx, client, host); err != nil {
+	if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
 		return WrapSMTPError("starttls", err)
 	}
 	if err := client.Mail(job.From.Email); err != nil {
@@ -145,11 +157,14 @@ func (t *DirectSMTPTransport) deliverHost(ctx context.Context, job Job, host str
 	return nil
 }
 
-func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client, host string) error {
+func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client, host string, modeOverride DeliveryTLSMode) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	mode := normalizeDeliveryTLSMode(t.TLSMode)
+	if modeOverride != "" {
+		mode = normalizeDeliveryTLSMode(modeOverride)
+	}
 	if mode == DeliveryTLSDisable {
 		return nil
 	}
@@ -163,6 +178,17 @@ func (t *DirectSMTPTransport) startTLS(ctx context.Context, client *smtp.Client,
 		ServerName: strings.TrimSpace(host),
 		MinVersion: tls.VersionTLS12,
 	})
+}
+
+func (t *DirectSMTPTransport) route(ctx context.Context, job Job, domain string) (Route, error) {
+	if t.Router == nil {
+		return normalizeRoute(job, domain, Route{TLSMode: t.TLSMode}), nil
+	}
+	route, err := t.Router.Route(ctx, job, domain)
+	if err != nil {
+		return Route{}, fmt.Errorf("route delivery for %s: %w", domain, err)
+	}
+	return normalizeRoute(job, domain, route), nil
 }
 
 func (t *DirectSMTPTransport) openMessage(ctx context.Context, job Job) (io.ReadCloser, error) {
