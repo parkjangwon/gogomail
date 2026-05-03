@@ -29,3 +29,23 @@ func TestClassifyFarm(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeFarm(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		in   Farm
+		want Farm
+	}{
+		{in: " BULK ", want: FarmBulk},
+		{in: "transactional", want: FarmTransactional},
+		{in: "batch", want: FarmBatch},
+		{in: "", want: FarmGeneral},
+		{in: "weird", want: FarmGeneral},
+	}
+	for _, tt := range tests {
+		if got := NormalizeFarm(tt.in); got != tt.want {
+			t.Fatalf("NormalizeFarm(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

@@ -243,6 +243,7 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if err := normalizeQueuedRecipients(&queued); err != nil {
 		return QueuedMessage{}, err
 	}
+	queued.Farm = outbound.NormalizeFarm(queued.Farm)
 	if err := normalizeQueuedDSNOptions(&queued); err != nil {
 		return QueuedMessage{}, err
 	}

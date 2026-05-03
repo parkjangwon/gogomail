@@ -447,6 +447,24 @@ func TestDecodeQueuedMessageRejectsInvalidDSNOptions(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageNormalizesFarm(t *testing.T) {
+	t.Parallel()
+
+	queued, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"user@example.net"}],
+		"farm":" BULK "
+	}`))
+	if err != nil {
+		t.Fatalf("DecodeQueuedMessage returned error: %v", err)
+	}
+	if queued.Farm != outbound.FarmBulk {
+		t.Fatalf("Farm = %q, want bulk", queued.Farm)
+	}
+}
+
 func TestAttemptsForUsesDeduplicatedRecipients(t *testing.T) {
 	t.Parallel()
 

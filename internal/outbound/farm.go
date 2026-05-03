@@ -1,6 +1,9 @@
 package outbound
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type Farm string
 
@@ -28,4 +31,19 @@ func Classify(input ClassificationInput) Farm {
 		return FarmBulk
 	}
 	return FarmGeneral
+}
+
+func NormalizeFarm(farm Farm) Farm {
+	switch Farm(strings.ToLower(strings.TrimSpace(string(farm)))) {
+	case FarmTransactional:
+		return FarmTransactional
+	case FarmGeneral, "":
+		return FarmGeneral
+	case FarmBulk:
+		return FarmBulk
+	case FarmBatch:
+		return FarmBatch
+	default:
+		return FarmGeneral
+	}
 }
