@@ -1,6 +1,7 @@
 package mailservice
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -47,6 +48,19 @@ func TestValidateSendTextRequestRejectsBlankRecipientEmail(t *testing.T) {
 	}
 	if got := err.Error(); got != "to[0].email is required" {
 		t.Fatalf("error = %q", got)
+	}
+}
+
+func TestValidateSendTextRequestRejectsOversizedTextBody(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "user@example.net"}},
+		TextBody: strings.Repeat("x", MaxComposeTextBodyBytes+1),
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted oversized text body")
 	}
 }
 

@@ -1,6 +1,7 @@
 package mailservice
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -43,6 +44,18 @@ func TestValidateSaveDraftRequestRejectsBlankRecipientEmail(t *testing.T) {
 	}
 	if got := err.Error(); got != "cc[0].email is required" {
 		t.Fatalf("error = %q", got)
+	}
+}
+
+func TestValidateSaveDraftRequestRejectsOversizedTextBody(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSaveDraftRequest(SaveDraftRequest{
+		UserID:   "user-1",
+		TextBody: strings.Repeat("x", MaxComposeTextBodyBytes+1),
+	})
+	if err == nil {
+		t.Fatal("ValidateSaveDraftRequest accepted oversized text body")
 	}
 }
 
