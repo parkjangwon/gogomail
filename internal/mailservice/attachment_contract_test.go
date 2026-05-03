@@ -30,3 +30,17 @@ func TestValidateCreateAttachmentUploadRequestAcceptsMetadata(t *testing.T) {
 		t.Fatalf("ValidateCreateAttachmentUploadRequest returned error: %v", err)
 	}
 }
+
+func TestValidateCreateAttachmentUploadRequestRejectsNewlineMIMEType(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
+		UserID:   "user-1",
+		Filename: "report.pdf",
+		Size:     42,
+		MIMEType: "application/pdf\r\nx-bad: yes",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateAttachmentUploadRequest accepted newline MIME type")
+	}
+}

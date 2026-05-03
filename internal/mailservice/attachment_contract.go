@@ -48,6 +48,9 @@ func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) er
 	if strings.TrimSpace(req.MIMEType) == "" {
 		return fmt.Errorf("mime_type is required")
 	}
+	if strings.ContainsAny(req.MIMEType, "\r\n") {
+		return fmt.Errorf("mime_type must not contain newlines")
+	}
 	return nil
 }
 
