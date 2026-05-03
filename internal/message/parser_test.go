@@ -85,3 +85,25 @@ func TestParseEMLDetectsAttachments(t *testing.T) {
 		t.Fatalf("Attachments = %+v", parsed.Attachments)
 	}
 }
+
+func TestParseEMLReadsSinglepartTextWithoutDate(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"Message-ID: <no-date@example.com>",
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: no date",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"hello without date",
+	}, "\r\n")
+
+	parsed, err := ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if parsed.TextBody != "hello without date" {
+		t.Fatalf("TextBody = %q", parsed.TextBody)
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailservice"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -75,6 +76,19 @@ func runEdgeMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {
 	mux := http.NewServeMux()
 	httpapi.RegisterHealthRoutes(mux)
+
+	if mode == ModeMailAPI {
+		db, err := database.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		repository := maildb.NewRepository(db)
+		service := mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot))
+		httpapi.RegisterMailRoutes(mux, service)
+		logger.Info("mail api routes registered")
+	}
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
