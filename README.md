@@ -78,6 +78,19 @@ normal/warning  -> accept DATA
 danger/critical -> reject DATA before spooling
 ```
 
+Useful SMTP receive guardrails:
+
+```bash
+GOGOMAIL_SMTP_MAX_RECIPIENTS=100
+GOGOMAIL_SMTP_MAX_MESSAGE_BYTES=26214400
+GOGOMAIL_SMTP_ADD_RECEIVED_HEADER=true
+GOGOMAIL_SMTP_REQUIRE_AUTH=false
+GOGOMAIL_SMTP_SUPPORT_SMTPUTF8=false
+GOGOMAIL_SMTP_SUPPORT_REQUIRETLS=false
+GOGOMAIL_SMTP_SUPPORT_DSN=false
+GOGOMAIL_SMTP_SUPPORT_BINARYMIME=false
+```
+
 Accepted messages are stored as raw `.eml` files under:
 
 ```txt
@@ -98,6 +111,18 @@ GOGOMAIL_MAILSTORE_ROOT=var/mailstore \
 ```
 
 Submission requires `AUTH PLAIN`, verifies that `MAIL FROM` belongs to the authenticated user, stores the raw RFC 5322 `.eml`, then records the message through the existing `mail.outbound.<farm>` outbox flow.
+
+Useful submission guardrails:
+
+```bash
+GOGOMAIL_SUBMISSION_MAX_RECIPIENTS=100
+GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES=26214400
+GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER=true
+GOGOMAIL_SUBMISSION_SUPPORT_SMTPUTF8=false
+GOGOMAIL_SUBMISSION_SUPPORT_REQUIRETLS=false
+GOGOMAIL_SUBMISSION_SUPPORT_DSN=false
+GOGOMAIL_SUBMISSION_SUPPORT_BINARYMIME=false
+```
 
 For production, configure STARTTLS certificates and keep insecure AUTH disabled:
 
