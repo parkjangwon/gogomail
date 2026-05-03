@@ -352,6 +352,32 @@ func TestDataAcceptedResultSucceedsWhenAllAccepted(t *testing.T) {
 	}
 }
 
+func TestDSNOptionsForRecipientBuildsRCPTParameters(t *testing.T) {
+	t.Parallel()
+
+	options := dsnOptionsForRecipient([]DSNRecipientOptions{{
+		Address:           "user@example.net",
+		Notify:            []string{"FAILURE", "DELAY"},
+		OriginalRecipient: "rfc822;user+40example.net",
+	}}, "USER@example.net")
+
+	if strings.Join(options, " ") != "NOTIFY=FAILURE,DELAY ORCPT=rfc822;user+40example.net" {
+		t.Fatalf("options = %+v, want DSN RCPT parameters", options)
+	}
+}
+
+func TestDSNOptionsForRecipientSkipsUnmatchedRecipient(t *testing.T) {
+	t.Parallel()
+
+	options := dsnOptionsForRecipient([]DSNRecipientOptions{{
+		Address: "other@example.net",
+		Notify:  []string{"FAILURE"},
+	}}, "user@example.net")
+	if len(options) != 0 {
+		t.Fatalf("options = %+v, want no DSN parameters for unmatched recipient", options)
+	}
+}
+
 func TestDeliveryDeadlineUsesTimeout(t *testing.T) {
 	t.Parallel()
 

@@ -161,11 +161,11 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 			return WrapSMTPError("auth", err)
 		}
 	}
-	if err := client.Mail(job.From.Email); err != nil {
+	if err := smtpMail(client, job); err != nil {
 		return WrapSMTPError("mail", err)
 	}
 	acceptedRecipients, recipientFailures := acceptRecipients(recipients, func(recipient outbound.Address) error {
-		if err := client.Rcpt(recipient.Email); err != nil {
+		if err := smtpRcpt(client, job, recipient); err != nil {
 			return WrapSMTPError("rcpt", err)
 		}
 		return nil
@@ -197,6 +197,73 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 	}
 	_ = client.Quit()
 	return dataAcceptedResult(acceptedRecipients, recipientFailures)
+}
+
+func smtpMail(client *smtp.Client, job Job) error {
+	if !smtpClientSupports(client, "DSN") || (job.DSN.Return == "" && job.DSN.EnvelopeID == "") {
+		return client.Mail(job.From.Email)
+	}
+	parts := []string{"MAIL FROM:<" + job.From.Email + ">"}
+	if smtpClientSupports(client, "8BITMIME") {
+		parts = append(parts, "BODY=8BITMIME")
+	}
+	if smtpClientSupports(client, "SMTPUTF8") {
+		parts = append(parts, "SMTPUTF8")
+	}
+	if job.DSN.Return != "" {
+		parts = append(parts, "RET="+job.DSN.Return)
+	}
+	if job.DSN.EnvelopeID != "" {
+		parts = append(parts, "ENVID="+job.DSN.EnvelopeID)
+	}
+	return smtpCommand(client, 250, strings.Join(parts, " "))
+}
+
+func smtpRcpt(client *smtp.Client, job Job, recipient outbound.Address) error {
+	options := dsnOptionsForRecipient(job.DSN.Recipients, recipient.Email)
+	if !smtpClientSupports(client, "DSN") || len(options) == 0 {
+		return client.Rcpt(recipient.Email)
+	}
+	parts := []string{"RCPT TO:<" + recipient.Email + ">"}
+	parts = append(parts, options...)
+	return smtpCommand(client, 25, strings.Join(parts, " "))
+}
+
+func dsnOptionsForRecipient(recipients []DSNRecipientOptions, address string) []string {
+	normalized := strings.ToLower(strings.TrimSpace(address))
+	for _, recipient := range recipients {
+		if strings.ToLower(strings.TrimSpace(recipient.Address)) != normalized {
+			continue
+		}
+		options := make([]string, 0, 2)
+		if len(recipient.Notify) > 0 {
+			options = append(options, "NOTIFY="+strings.Join(recipient.Notify, ","))
+		}
+		if recipient.OriginalRecipient != "" {
+			options = append(options, "ORCPT="+recipient.OriginalRecipient)
+		}
+		return options
+	}
+	return nil
+}
+
+func smtpClientSupports(client *smtp.Client, extension string) bool {
+	ok, _ := client.Extension(extension)
+	return ok
+}
+
+func smtpCommand(client *smtp.Client, expectCode int, command string) error {
+	if strings.ContainsAny(command, "\r\n") {
+		return fmt.Errorf("smtp command contains newline")
+	}
+	id, err := client.Text.Cmd("%s", command)
+	if err != nil {
+		return err
+	}
+	client.Text.StartResponse(id)
+	defer client.Text.EndResponse(id)
+	_, _, err = client.Text.ReadResponse(expectCode)
+	return err
 }
 
 func acceptRecipients(recipients []outbound.Address, rcpt func(outbound.Address) error) ([]outbound.Address, []RecipientDeliveryError) {
