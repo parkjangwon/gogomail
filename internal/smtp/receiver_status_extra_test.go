@@ -103,6 +103,19 @@ func TestReceiverBackpressureReturns421(t *testing.T) {
 	requireSMTPStatus(t, session.Data(strings.NewReader("Subject: busy\r\n\r\nbody")), 421, gosmtp.EnhancedCode{4, 3, 2})
 }
 
+func TestReceiverMessageSizeLimitReturns552(t *testing.T) {
+	t.Parallel()
+
+	session := newStatusReceiverSession(t, ReceiverOptions{Policy: ReceivePolicy{MaxMessageBytes: 8}})
+	if err := session.Mail("sender@example.net", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	requireSMTPStatus(t, session.Data(strings.NewReader("Subject: too large\r\n\r\nbody")), 552, gosmtp.EnhancedCode{5, 3, 4})
+}
+
 type closedBackpressure struct{}
 
 func (closedBackpressure) Accept(context.Context) (bool, error) {

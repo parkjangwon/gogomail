@@ -729,7 +729,7 @@ func spoolMessage(r io.Reader, maxBytes int64) (*os.File, int64, error) {
 	if size > maxBytes {
 		_ = file.Close()
 		_ = os.Remove(file.Name())
-		return nil, size, fmt.Errorf("smtp message exceeds max size %d bytes", maxBytes)
+		return nil, size, gosmtp.ErrDataTooLarge
 	}
 	return file, size, nil
 }
