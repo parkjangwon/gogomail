@@ -94,6 +94,20 @@ func TestComposeRejectsInvalidRecipientStatus(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "does not match action") {
 		t.Fatalf("Compose() error = %v, want mismatched status/action", err)
 	}
+
+	for _, invalid := range []string{"05.1.1", "5.1000.1", "5.1.1000", "3.1.1"} {
+		_, err = Compose(Report{
+			ReportingMTA: "mx.example.com",
+			Recipients: []RecipientStatus{{
+				Recipient: "user@example.net",
+				Action:    "failed",
+				Status:    invalid,
+			}},
+		})
+		if err == nil || !strings.Contains(err.Error(), "invalid dsn status") {
+			t.Fatalf("Compose() status %q error = %v, want invalid status", invalid, err)
+		}
+	}
 }
 
 func TestComposeDefaultsStatusByAction(t *testing.T) {
@@ -152,6 +166,38 @@ func TestComposeSanitizesBoundaryAndFinalRecipient(t *testing.T) {
 	}
 	if strings.Contains(raw, "\r\nInjected: bad") {
 		t.Fatalf("raw contains injected header:\n%s", raw)
+	}
+}
+
+func TestComposeCapsBoundaryLength(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		MessageID:    "<" + strings.Repeat("a", 120) + "@example.com>",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	prefix := `boundary="gogomail-dsn-`
+	start := strings.Index(raw, prefix)
+	if start < 0 {
+		t.Fatalf("raw missing boundary:\n%s", raw)
+	}
+	start += len(`boundary="`)
+	end := strings.Index(raw[start:], `"`)
+	if end < 0 {
+		t.Fatalf("raw missing closing boundary quote:\n%s", raw)
+	}
+	boundary := raw[start : start+end]
+	if len(boundary) > 70 {
+		t.Fatalf("boundary length = %d, want <= 70: %q", len(boundary), boundary)
 	}
 }
 

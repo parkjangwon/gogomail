@@ -222,6 +222,12 @@ func sanitizeBoundaryToken(value string) string {
 	if out == "" {
 		return "boundary"
 	}
+	if len(out) > 52 {
+		out = strings.TrimRight(out[:52], "-.")
+		if out == "" {
+			return "boundary"
+		}
+	}
 	return out
 }
 
@@ -239,12 +245,15 @@ func validEnhancedStatus(status string) bool {
 	if len(parts) != 3 {
 		return false
 	}
+	if len(parts[0]) != 1 {
+		return false
+	}
 	class, err := strconv.Atoi(parts[0])
-	if err != nil || class < 2 || class > 5 {
+	if err != nil || (class != 2 && class != 4 && class != 5) {
 		return false
 	}
 	for _, part := range parts[1:] {
-		if part == "" {
+		if part == "" || len(part) > 3 {
 			return false
 		}
 		for _, r := range part {
