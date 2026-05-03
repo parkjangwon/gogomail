@@ -88,3 +88,15 @@ gogomail is not a toy mail server. It should be designed to grow from a clean si
 - Prefer backpressure, queues, retries, idempotency, and observability over best-effort shortcuts.
 - Design components so a small deployment stays simple while a large deployment can split, shard, replicate, and scale independently.
 - Treat operational resilience, clear failure modes, and graceful degradation as core product features.
+
+## Scheduled/autonomous work continuity
+
+When resuming work from a scheduled or autonomous run, first rebuild context before editing:
+
+- Work only in `/Users/pjw/dev/project/gogomail` unless the user explicitly changes the project path.
+- Read this `AGENTS.md` and keep the product feel, scale ambition, RFC correctness, parser performance, and extension-point philosophy in mind.
+- Review `docs/backend-roadmap.md` for current roadmap state.
+- Inspect recent git history with `git log --oneline` to understand what was just changed.
+- Check `git status --short` before editing.
+- Prefer improvements that move gogomail toward a releasable, powerful mail server rather than low-value churn.
+- Commit each autonomous improvement as a meaningful, reviewable unit.
