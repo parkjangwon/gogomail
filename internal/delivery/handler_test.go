@@ -183,6 +183,26 @@ func TestDecodeQueuedMessageMergesDuplicateDSNRecipients(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageRejectsDuplicateDSNNotifyNeverConflict(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"dsn":{"recipients":[
+			{"address":"recipient@example.net","notify":["NEVER"]},
+			{"address":"Recipient@Example.NET","notify":["FAILURE"]}
+		]},
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "NEVER cannot be combined") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want NEVER conflict", err)
+	}
+}
+
 func TestHandlerSchedulesRetryAfterFailure(t *testing.T) {
 	t.Parallel()
 

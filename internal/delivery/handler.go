@@ -352,7 +352,11 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
 		}
 		if existing, ok := indexByAddress[address]; ok {
-			normalized[existing].Notify = mergeDSNNotify(normalized[existing].Notify, recipient.Notify)
+			notify, err := mergeDSNNotify(normalized[existing].Notify, recipient.Notify)
+			if err != nil {
+				return err
+			}
+			normalized[existing].Notify = notify
 			if normalized[existing].OriginalRecipient == "" {
 				normalized[existing].OriginalRecipient = recipient.OriginalRecipient
 			}
@@ -365,23 +369,30 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 	return nil
 }
 
-func mergeDSNNotify(left []string, right []string) []string {
+func mergeDSNNotify(left []string, right []string) ([]string, error) {
 	if len(left) == 0 {
-		return append([]string(nil), right...)
+		return append([]string(nil), right...), nil
 	}
 	if len(right) == 0 {
-		return left
+		return left, nil
 	}
 	seen := make(map[string]struct{}, len(left)+len(right))
 	merged := make([]string, 0, len(left)+len(right))
+	hasNever := false
 	for _, value := range append(append([]string(nil), left...), right...) {
+		if value == "NEVER" {
+			hasNever = true
+		}
 		if _, ok := seen[value]; ok {
 			continue
 		}
 		seen[value] = struct{}{}
 		merged = append(merged, value)
 	}
-	return orderDSNNotify(merged)
+	if hasNever && len(merged) > 1 {
+		return nil, fmt.Errorf("mail.queued payload has invalid dsn.notify: NEVER cannot be combined")
+	}
+	return orderDSNNotify(merged), nil
 }
 
 func normalizeDSNNotify(values []string) ([]string, error) {
