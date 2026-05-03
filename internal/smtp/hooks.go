@@ -24,6 +24,7 @@ const (
 
 type Event struct {
 	Stage          Stage
+	RemoteAddr     string
 	EnvelopeFrom   string
 	Mailbox        Mailbox
 	SubmissionUser SubmissionUser

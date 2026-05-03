@@ -26,6 +26,7 @@ func TestHookPassesAuthenticationStageToRelay(t *testing.T) {
 
 	err := hook(context.Background(), smtpd.Event{
 		Stage:        smtpd.StageAuthenticationChecked,
+		RemoteAddr:   "203.0.113.10",
 		EnvelopeFrom: "sender@example.net",
 		Recipients:   []string{"user@example.com"},
 		Authentication: smtpd.AuthenticationResults{
@@ -38,6 +39,9 @@ func TestHookPassesAuthenticationStageToRelay(t *testing.T) {
 	}
 	if relay.seen.EnvelopeFrom != "sender@example.net" || relay.seen.Size != 123 {
 		t.Fatalf("relay request = %+v", relay.seen)
+	}
+	if relay.seen.RemoteAddr != "203.0.113.10" {
+		t.Fatalf("RemoteAddr = %q", relay.seen.RemoteAddr)
 	}
 	if relay.seen.Authentication.SPF.Result != smtpd.AuthResultPass {
 		t.Fatalf("relay auth = %+v, want SPF pass", relay.seen.Authentication)

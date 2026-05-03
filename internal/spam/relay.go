@@ -56,6 +56,7 @@ func Hook(opts HookOptions) smtpd.Hook {
 		}
 		verdict, err := opts.Relay.Check(ctx, Request{
 			Stage:          event.Stage,
+			RemoteAddr:     event.RemoteAddr,
 			EnvelopeFrom:   event.EnvelopeFrom,
 			Recipients:     append([]string(nil), event.Recipients...),
 			Parsed:         event.Parsed,

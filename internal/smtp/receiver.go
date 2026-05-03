@@ -566,6 +566,9 @@ func cleanupSpool(spooled *os.File) {
 }
 
 func (s *session) emit(ctx context.Context, event Event) error {
+	if event.RemoteAddr == "" {
+		event.RemoteAddr = s.remoteAddr
+	}
 	for _, hook := range s.receiver.hooks {
 		if err := hook(ctx, event); err != nil {
 			return fmt.Errorf("smtp hook %s: %w", event.Stage, err)
