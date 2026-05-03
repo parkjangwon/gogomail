@@ -34,6 +34,9 @@ func (c Config) Validate() error {
 	if c.SMTPWriteTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_SMTP_WRITE_TIMEOUT must be positive")
 	}
+	if strings.TrimSpace(c.SMTPDomain) == "" || strings.ContainsAny(c.SMTPDomain, " \t\r\n") {
+		return fmt.Errorf("GOGOMAIL_SMTP_DOMAIN must be a non-empty hostname without whitespace")
+	}
 	if c.DeliveryTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_TIMEOUT must be positive")
 	}
