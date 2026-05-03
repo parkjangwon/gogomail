@@ -32,3 +32,10 @@ func TestSubmissionDataBeforeRcptReturns503(t *testing.T) {
 	}
 	requireSMTPStatus(t, session.Data(strings.NewReader("Subject: nope\r\n\r\nbody")), 503, gosmtp.EnhancedCode{5, 5, 1})
 }
+
+func TestSubmissionEnvelopeMismatchReturns550(t *testing.T) {
+	t.Parallel()
+
+	session := newAuthenticatedSubmissionSession(t, &submissionRecorder{}, storage.NewLocalStore(t.TempDir()))
+	requireSMTPStatus(t, session.Mail("other@example.com", nil), 550, gosmtp.EnhancedCode{5, 7, 1})
+}
