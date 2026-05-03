@@ -26,6 +26,7 @@ type MessageService interface {
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	SaveDraft(ctx context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error)
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
+	CreateAttachmentUpload(ctx context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
@@ -296,6 +297,29 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"attachments": attachments})
+	})
+
+	mux.HandleFunc("POST /api/v1/attachments", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req mailservice.CreateAttachmentUploadRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if tokenManager != nil {
+			claims, ok := claimsFromRequest(w, r, tokenManager)
+			if !ok {
+				return
+			}
+			req.UserID = claims.UserID
+		}
+		attachment, err := service.CreateAttachmentUpload(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {

@@ -397,6 +397,31 @@ func TestListAttachmentsHandler(t *testing.T) {
 	}
 }
 
+func TestCreateAttachmentUploadHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments", strings.NewReader(`{
+		"user_id":"user-1",
+		"draft_id":"draft-1",
+		"filename":"report.pdf",
+		"size":42,
+		"mime_type":"application/pdf"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastAttachmentUpload.DraftID != "draft-1" || service.lastAttachmentUpload.Filename != "report.pdf" {
+		t.Fatalf("lastAttachmentUpload = %+v", service.lastAttachmentUpload)
+	}
+}
+
 func TestDownloadAttachmentHandler(t *testing.T) {
 	t.Parallel()
 
@@ -531,26 +556,27 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
-	folders             []maildb.Folder
-	createdFolder       maildb.Folder
-	list                []maildb.MessageSummary
-	attachments         []maildb.Attachment
-	download            mailservice.AttachmentDownload
-	detail              maildb.MessageDetail
-	sendResult          mailservice.SendTextResult
-	lastSend            mailservice.SendTextRequest
-	lastDraft           mailservice.SaveDraftRequest
-	lastUserID          string
-	lastFolderName      string
-	lastDeletedFolderID string
-	lastMessageID       string
-	lastFolderID        string
-	lastMoveFolderID    string
-	lastDeletedID       string
-	lastDeletedDraftID  string
-	lastFlag            string
-	lastFlagValue       bool
-	lastLimit           int
+	folders              []maildb.Folder
+	createdFolder        maildb.Folder
+	list                 []maildb.MessageSummary
+	attachments          []maildb.Attachment
+	download             mailservice.AttachmentDownload
+	detail               maildb.MessageDetail
+	sendResult           mailservice.SendTextResult
+	lastSend             mailservice.SendTextRequest
+	lastDraft            mailservice.SaveDraftRequest
+	lastAttachmentUpload mailservice.CreateAttachmentUploadRequest
+	lastUserID           string
+	lastFolderName       string
+	lastDeletedFolderID  string
+	lastMessageID        string
+	lastFolderID         string
+	lastMoveFolderID     string
+	lastDeletedID        string
+	lastDeletedDraftID   string
+	lastFlag             string
+	lastFlagValue        bool
+	lastLimit            int
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -629,6 +655,11 @@ func (f *fakeMessageService) DeleteDraft(_ context.Context, userID string, draft
 	f.lastUserID = userID
 	f.lastDeletedDraftID = draftID
 	return nil
+}
+
+func (f *fakeMessageService) CreateAttachmentUpload(_ context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
+	f.lastAttachmentUpload = req
+	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
 }
 
 func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
