@@ -51,7 +51,7 @@ INSERT INTO delivery_attempts (
 	); err != nil {
 		return fmt.Errorf("insert delivery attempt: %w", err)
 	}
-	if attempt.Status == AttemptBounced {
+	if shouldSuppressBouncedRecipient(attempt) {
 		if err := suppressBouncedRecipient(ctx, tx, attempt); err != nil {
 			return err
 		}
@@ -63,6 +63,10 @@ INSERT INTO delivery_attempts (
 		return fmt.Errorf("commit delivery attempt transaction: %w", err)
 	}
 	return nil
+}
+
+func shouldSuppressBouncedRecipient(attempt Attempt) bool {
+	return attempt.Status == AttemptBounced && attempt.Sender != ""
 }
 
 func suppressBouncedRecipient(ctx context.Context, tx *sql.Tx, attempt Attempt) error {

@@ -59,3 +59,17 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 		t.Fatalf("dsn notify = %#v", dsn["notify"])
 	}
 }
+
+func TestShouldSuppressBouncedRecipientSkipsNullReversePath(t *testing.T) {
+	t.Parallel()
+
+	if shouldSuppressBouncedRecipient(Attempt{Status: AttemptBounced}) {
+		t.Fatal("null reverse-path DSN bounce should not create suppression entries")
+	}
+	if !shouldSuppressBouncedRecipient(Attempt{Status: AttemptBounced, Sender: "sender@example.com"}) {
+		t.Fatal("regular hard bounce should create suppression entries")
+	}
+	if shouldSuppressBouncedRecipient(Attempt{Status: AttemptFailed, Sender: "sender@example.com"}) {
+		t.Fatal("temporary failure should not create suppression entries")
+	}
+}
