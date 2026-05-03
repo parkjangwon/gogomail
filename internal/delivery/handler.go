@@ -127,11 +127,15 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	if err := h.transport.Deliver(ctx, job); err != nil {
 		var partial *PartialDeliveryError
 		if errors.As(err, &partial) {
-			h.observe(ctx, metricEvent(queued, MetricTransportFailed, MetricDeferred, err))
 			if recordErr := h.recordPartialAttempts(ctx, job, partial); recordErr != nil {
 				return recordErr
 			}
 			temporary := partial.TemporaryFailures()
+			partialResult := MetricBounced
+			if len(temporary) > 0 {
+				partialResult = MetricDeferred
+			}
+			h.observe(ctx, metricEvent(queued, MetricTransportFailed, partialResult, err))
 			if len(temporary) == 0 || h.retry == nil {
 				return nil
 			}

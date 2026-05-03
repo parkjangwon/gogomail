@@ -235,6 +235,39 @@ func TestHandlerFiltersDSNRecipientsForPartialRetry(t *testing.T) {
 	}
 }
 
+func TestHandlerObservesPermanentPartialAsBounced(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	metrics := &fakeMetrics{}
+	handler := NewHandler(store, &fakeTransport{err: &PartialDeliveryError{
+		Failed: []RecipientDeliveryError{
+			{Recipient: outbound.Address{Email: "gone@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "gone"}},
+		},
+	}}, &fakeRecorder{}, &fakeRetryScheduler{}).WithMetrics(metrics)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"gone@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if !metrics.has(MetricTransportFailed, MetricBounced) {
+		t.Fatalf("metrics = %+v, want bounced partial failure", metrics.events)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	t.Parallel()
 
