@@ -139,3 +139,28 @@ func TestComposeSanitizesReturnedMessageID(t *testing.T) {
 		t.Fatalf("raw contains injected Message-ID header:\n%s", string(composed.Raw))
 	}
 }
+
+func TestComposeSanitizesAddressHeaders(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		From:         outbound.Address{Name: "Mailer\r\nBad: yes", Email: "mailer-daemon@example.com\r\nBad: yes"},
+		To:           outbound.Address{Email: "sender@example.net\r\nBad: yes"},
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	if strings.Contains(raw, "\r\nBad: yes") {
+		t.Fatalf("raw contains injected address header:\n%s", raw)
+	}
+	if !strings.Contains(raw, "<sender@example.netBad:yes>") {
+		t.Fatalf("raw missing sanitized To address:\n%s", raw)
+	}
+}

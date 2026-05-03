@@ -136,11 +136,21 @@ func writeDSNField(buf *bytes.Buffer, key, value string) {
 
 func formatAddress(addr outbound.Address) string {
 	name := strings.TrimSpace(addr.Name)
-	email := strings.TrimSpace(addr.Email)
+	email := sanitizeAddressEmail(addr.Email)
 	if name == "" {
 		return "<" + email + ">"
 	}
 	return mime.QEncoding.Encode("utf-8", name) + " <" + email + ">"
+}
+
+func sanitizeAddressEmail(email string) string {
+	email = sanitizeDSNValue(email)
+	email = strings.ReplaceAll(email, " ", "")
+	email = strings.Trim(email, "<>")
+	if email == "" {
+		return "postmaster@localhost"
+	}
+	return email
 }
 
 func ensureMessageID(messageID string) string {
