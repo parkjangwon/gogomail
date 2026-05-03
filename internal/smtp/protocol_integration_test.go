@@ -453,6 +453,74 @@ func TestSMTPProtocolSequentialTransactionsOnSameConnection(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolSequentialTransactionsDoNotLeakDSNState(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.com"},
+		},
+		Recorder:    recorder,
+		SupportDSN:  true,
+		IDGenerator: func() string { return "protocol-dsn-state-id" },
+		Clock:       func() time.Time { return time.Date(2026, 5, 4, 13, 30, 0, 0, time.UTC) },
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{
+		Domain:    "mx.example.com",
+		EnableDSN: true,
+	})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("banner ReadResponse returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+
+	if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.net> RET=HDRS ENVID=first-env"); err != nil {
+		t.Fatalf("first MAIL FROM returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<user@example.com> NOTIFY=FAILURE ORCPT=rfc822;user+40example.com"); err != nil {
+		t.Fatalf("first RCPT TO returned error: %v", err)
+	}
+	writeProtocolData(t, text, "Message-ID: <dsn-state-1@example.net>\r\nFrom: sender@example.net\r\nTo: user@example.com\r\nSubject: first\r\n\r\nbody\r\n")
+
+	if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.net>"); err != nil {
+		t.Fatalf("second MAIL FROM returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<user@example.com>"); err != nil {
+		t.Fatalf("second RCPT TO returned error: %v", err)
+	}
+	writeProtocolData(t, text, "Message-ID: <dsn-state-2@example.net>\r\nFrom: sender@example.net\r\nTo: user@example.com\r\nSubject: second\r\n\r\nbody\r\n")
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 2 {
+		t.Fatalf("recorded messages = %d, want 2", len(recorder.messages))
+	}
+	if recorder.messages[0].DSN.EnvelopeID != "first-env" || len(recorder.messages[0].DSN.Recipients) != 1 {
+		t.Fatalf("first DSN = %+v, want wire metadata", recorder.messages[0].DSN)
+	}
+	second := recorder.messages[1].DSN
+	if second.Return != "" || second.EnvelopeID != "" {
+		t.Fatalf("second DSN envelope = %+v, want no RET/ENVID leak after transaction reset", second)
+	}
+	if len(second.Recipients) != 1 || len(second.Recipients[0].Notify) != 0 || second.Recipients[0].OriginalRecipient != "" {
+		t.Fatalf("second DSN recipient = %+v, want recipient address without NOTIFY/ORCPT leak", second.Recipients)
+	}
+}
+
 func TestSMTPProtocolRejectsUnsupportedMailExtensions(t *testing.T) {
 	t.Parallel()
 
@@ -761,6 +829,24 @@ func rawProtocolCommandCodeExpect(text *textproto.Conn, expect int, command stri
 	text.StartResponse(id)
 	defer text.EndResponse(id)
 	return text.ReadResponse(expect)
+}
+
+func writeProtocolData(t *testing.T, text *textproto.Conn, raw string) {
+	t.Helper()
+
+	if err := rawProtocolCommand(text, 354, "DATA"); err != nil {
+		t.Fatalf("DATA returned error: %v", err)
+	}
+	writer := text.DotWriter()
+	if _, err := io.WriteString(writer, raw); err != nil {
+		t.Fatalf("write DATA returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close DATA returned error: %v", err)
+	}
+	if _, msg, err := text.ReadResponse(250); err != nil {
+		t.Fatalf("DATA completion returned %q, %v", msg, err)
+	}
 }
 
 func startProtocolTestServer(t *testing.T, backend gosmtp.Backend, opts ServerOptions) (string, func()) {
