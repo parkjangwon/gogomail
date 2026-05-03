@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -131,6 +132,40 @@ func TestDecodeBounceEventRejectsInvalidRecipient(t *testing.T) {
 	}
 }
 
+func TestBounceHandlerDeletesStoredMessageWhenQueueFails(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{values: map[string][]byte{}}
+	handler := NewBounceHandler(HandlerOptions{
+		Store: store,
+		Queue: failingQueue{err: errors.New("database down")},
+		Now: func() time.Time {
+			return time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
+		},
+	})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: []byte(`{
+		"event":"mail.bounced",
+		"message_id":"018f0000-0000-7000-8000-000000000001",
+		"sender":"sender@example.com",
+		"recipient":"bad@example.net"
+	}`)})
+	if err == nil {
+		t.Fatal("HandleEvent returned nil, want queue failure")
+	}
+	if len(store.values) != 0 {
+		t.Fatalf("stored messages = %d, want compensation delete", len(store.values))
+	}
+}
+
+type failingQueue struct {
+	err error
+}
+
+func (q failingQueue) Enqueue(context.Context, string, string, []byte) error {
+	return q.err
+}
+
 type captureQueue struct {
 	topic        string
 	partitionKey string
@@ -161,6 +196,7 @@ func (s *memoryStore) Get(context.Context, string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(nil)), nil
 }
 
-func (s *memoryStore) Delete(context.Context, string) error {
+func (s *memoryStore) Delete(_ context.Context, path string) error {
+	delete(s.values, path)
 	return nil
 }

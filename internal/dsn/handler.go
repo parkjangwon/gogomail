@@ -122,7 +122,11 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 	if err != nil {
 		return fmt.Errorf("marshal dsn queue payload: %w", err)
 	}
-	return h.queue.Enqueue(ctx, "mail.outbound."+string(h.farm), event.MessageID, payload)
+	if err := h.queue.Enqueue(ctx, "mail.outbound."+string(h.farm), event.MessageID, payload); err != nil {
+		_ = h.store.Delete(ctx, storagePath)
+		return err
+	}
+	return nil
 }
 
 type PostgresOutboxQueue struct {
