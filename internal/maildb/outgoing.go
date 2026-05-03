@@ -33,6 +33,7 @@ type OutgoingMessage struct {
 	Bcc             []outbound.Address
 	SentAt          time.Time
 	Size            int64
+	HasAttachment   bool
 	StoragePath     string
 	Farm            outbound.Farm
 }
@@ -121,7 +122,7 @@ INSERT INTO messages (
   $5, NULLIF($6, '')::uuid,
   $7, $8, $9, $10,
   $11::jsonb, $12::jsonb, $13::jsonb,
-  $14, $15, false, $16, '{"read":true}'::jsonb, 'active'
+  $14, $15, $16, $17, '{"read":true}'::jsonb, 'active'
 ) RETURNING id::text`
 
 	var messageID string
@@ -143,6 +144,7 @@ INSERT INTO messages (
 		string(bccJSON),
 		msg.SentAt,
 		msg.Size,
+		msg.HasAttachment,
 		msg.StoragePath,
 	).Scan(&messageID); err != nil {
 		return "", fmt.Errorf("insert outgoing message metadata: %w", err)

@@ -104,6 +104,7 @@ type fakeRepository struct {
 	lastPageCursor            maildb.MessageListCursor
 	lastSentDraftID           string
 	lastSentDraftMessageID    string
+	lastOutgoing              maildb.OutgoingMessage
 	recordErr                 error
 }
 
@@ -184,7 +185,8 @@ func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.
 	}, nil
 }
 
-func (f *fakeRepository) RecordOutgoing(context.Context, maildb.OutgoingMessage) (string, error) {
+func (f *fakeRepository) RecordOutgoing(_ context.Context, msg maildb.OutgoingMessage) (string, error) {
+	f.lastOutgoing = msg
 	if f.recordErr != nil {
 		return "", f.recordErr
 	}
@@ -207,12 +209,13 @@ func (f *fakeRepository) DeleteDraft(context.Context, string, string) error {
 
 func (f *fakeRepository) GetDraftForSend(context.Context, string, string) (maildb.DraftForSend, error) {
 	return maildb.DraftForSend{
-		ID:       "draft-1",
-		UserID:   "user-1",
-		Intent:   string(ComposeIntentNew),
-		To:       []outbound.Address{{Email: "recipient@example.net"}},
-		Subject:  "draft subject",
-		TextBody: "draft body",
+		ID:            "draft-1",
+		UserID:        "user-1",
+		Intent:        string(ComposeIntentNew),
+		To:            []outbound.Address{{Email: "recipient@example.net"}},
+		Subject:       "draft subject",
+		TextBody:      "draft body",
+		AttachmentIDs: []string{"att-1"},
 	}, nil
 }
 
@@ -381,6 +384,9 @@ func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
 	}
 	if repo.lastSentDraftID != "draft-1" || repo.lastSentDraftMessageID != "msg-1" {
 		t.Fatalf("sent draft marker = %q/%q", repo.lastSentDraftID, repo.lastSentDraftMessageID)
+	}
+	if !repo.lastOutgoing.HasAttachment {
+		t.Fatal("draft attachments were not reflected on outgoing message")
 	}
 }
 

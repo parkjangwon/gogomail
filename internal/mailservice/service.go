@@ -345,6 +345,7 @@ type SendTextRequest struct {
 	Bcc             []outbound.Address `json:"bcc"`
 	Subject         string             `json:"subject"`
 	TextBody        string             `json:"text_body"`
+	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
 	Transactional   bool               `json:"transactional"`
 	ScheduledAt     time.Time          `json:"scheduled_at"`
 }
@@ -382,6 +383,7 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 		Bcc:             draft.Bcc,
 		Subject:         draft.Subject,
 		TextBody:        draft.TextBody,
+		AttachmentIDs:   draft.AttachmentIDs,
 	})
 	if err != nil {
 		return SendTextResult{}, err
@@ -466,6 +468,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		Bcc:             req.Bcc,
 		SentAt:          now,
 		Size:            composed.Size,
+		HasAttachment:   len(req.AttachmentIDs) > 0,
 		StoragePath:     path,
 		Farm:            farm,
 	})
