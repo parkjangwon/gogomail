@@ -34,7 +34,6 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Run `go mod tidy -diff`.
 - Run `GOGOMAIL_TEST_DATABASE_URL=... go test ./internal/maildb ./internal/outbox` against a disposable PostgreSQL database/schema.
 - Run focused SMTP soak checks for repeated same-connection transactions and STARTTLS/SMTPS startup in the intended deployment environment.
-- Exercise draft-to-send against a real PostgreSQL instance with migrations applied.
 - Exercise multipart attachment upload against both local storage and the intended object storage adapter.
 - Exercise outbound DSN/bounce generation against a controlled SMTP sink, including `NOTIFY=NEVER`, null reverse-path delivery, and retry scheduling for temporary recipient failures.
 - Verify frontend contracts for error envelope parsing, upload endpoint naming, and draft send response handling.
