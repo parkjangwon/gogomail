@@ -22,6 +22,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "")
+	t.Setenv("GOGOMAIL_SMTP_SUPPORT_SMTPUTF8", "")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
@@ -93,6 +94,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SMTPMaxMessageBytes != 25*1024*1024 {
 		t.Fatalf("SMTPMaxMessageBytes = %d, want 25MiB", cfg.SMTPMaxMessageBytes)
+	}
+	if cfg.SMTPSupportSMTPUTF8 {
+		t.Fatal("SMTPSupportSMTPUTF8 = true, want false")
 	}
 	if cfg.MailstoreRoot != "var/mailstore" {
 		t.Fatalf("MailstoreRoot = %q, want var/mailstore", cfg.MailstoreRoot)
@@ -200,6 +204,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "mail.example.com")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "50")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "2097152")
+	t.Setenv("GOGOMAIL_SMTP_SUPPORT_SMTPUTF8", "true")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "/tmp/gogomail-mailstore")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "Admin@Example.COM, user@example.com ")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
@@ -277,6 +282,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.SMTPMaxMessageBytes != 2097152 {
 		t.Fatalf("SMTPMaxMessageBytes = %d, want 2097152", cfg.SMTPMaxMessageBytes)
+	}
+	if !cfg.SMTPSupportSMTPUTF8 {
+		t.Fatal("SMTPSupportSMTPUTF8 = false, want true")
 	}
 	if cfg.MailstoreRoot != "/tmp/gogomail-mailstore" {
 		t.Fatalf("MailstoreRoot = %q, want /tmp/gogomail-mailstore", cfg.MailstoreRoot)
