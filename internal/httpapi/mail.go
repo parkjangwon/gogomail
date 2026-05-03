@@ -15,6 +15,7 @@ import (
 type MessageService interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	CreateFolder(ctx context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error)
+	RenameFolder(ctx context.Context, userID string, folderID string, name string) (maildb.Folder, error)
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
@@ -65,6 +66,30 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusCreated, map[string]any{"folder": folder})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/folders/{id}", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		folder, err := service.RenameFolder(r.Context(), userID, r.PathValue("id"), req.Name)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"folder": folder})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages", func(w http.ResponseWriter, r *http.Request) {

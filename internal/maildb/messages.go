@@ -85,6 +85,45 @@ RETURNING id::text, COALESCE(parent_id::text, ''), name, full_path, type, COALES
 	return folder, nil
 }
 
+func (r *Repository) RenameFolder(ctx context.Context, userID string, folderID string, name string) (Folder, error) {
+	if r.db == nil {
+		return Folder{}, fmt.Errorf("database handle is required")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return Folder{}, fmt.Errorf("folder name is required")
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return Folder{}, fmt.Errorf("folder name must not contain path separators")
+	}
+
+	const query = `
+UPDATE folders
+SET name = $3,
+    full_path = $3
+WHERE user_id = $1
+  AND id = $2
+  AND type = 'user'
+RETURNING id::text, COALESCE(parent_id::text, ''), name, full_path, type, COALESCE(system_type, ''), order_index`
+
+	var folder Folder
+	if err := r.db.QueryRowContext(ctx, query, userID, folderID, name).Scan(
+		&folder.ID,
+		&folder.ParentID,
+		&folder.Name,
+		&folder.FullPath,
+		&folder.Type,
+		&folder.SystemType,
+		&folder.OrderIndex,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return Folder{}, fmt.Errorf("user folder %q not found", folderID)
+		}
+		return Folder{}, fmt.Errorf("rename folder: %w", err)
+	}
+	return folder, nil
+}
+
 func (r *Repository) ListFolders(ctx context.Context, userID string) ([]Folder, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
