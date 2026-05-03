@@ -71,6 +71,24 @@ func TestGetMessageMarksUnreadMessageRead(t *testing.T) {
 	}
 }
 
+func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:    "msg-1",
+			Flags: []byte(`{"read":true}`),
+		},
+	}
+	service := New(repo, nil)
+	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+		t.Fatalf("GetMessage returned error: %v", err)
+	}
+	if repo.lastFlag != "" {
+		t.Fatalf("unexpected flag write = %q", repo.lastFlag)
+	}
+}
+
 type fakeRepository struct {
 	detail                    maildb.MessageDetail
 	attachments               []maildb.Attachment
