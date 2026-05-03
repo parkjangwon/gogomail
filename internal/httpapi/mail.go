@@ -341,6 +341,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, mailservice.MaxAttachmentUploadBytes+(1<<20))
 		if err := r.ParseMultipartForm(mailservice.MaxAttachmentUploadBytes); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid multipart attachment upload")
 			return

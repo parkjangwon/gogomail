@@ -539,6 +539,23 @@ func TestUploadAttachmentHandler(t *testing.T) {
 	}
 }
 
+func TestUploadAttachmentHandlerRejectsOversizedRequestBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments/upload?user_id=user-1", strings.NewReader(strings.Repeat("x", int(mailservice.MaxAttachmentUploadBytes+(1<<20)+1))))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=missing")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestUploadAttachmentHandlerRejectsOversize(t *testing.T) {
 	t.Parallel()
 
