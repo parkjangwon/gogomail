@@ -124,6 +124,7 @@ Implementation order:
 77. Admin user/domain status writes normalize status values, and database constraints now protect persisted domain/user/message statuses and compose intents.
 78. Draft-to-send now has an explicit service/repository transition: drafts are loaded as compose snapshots, sent through the normal outbound path, then marked deleted and linked to the created sent message for mailbox consistency.
 79. Draft attachment uploads are moved to the created sent message during the draft-to-send transition and the sent message `has_attachment` flag is refreshed transactionally.
+80. A backend release readiness checklist now tracks webmail API coverage, attachment storage, draft-to-send consistency, validation, admin CRUD, API error stability, required verification, and explicitly deferred spam/vendor modules.
 
 ## Deferred until backend contracts stabilize
 
