@@ -3,6 +3,7 @@ package mailservice
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -101,6 +102,7 @@ type fakeRepository struct {
 	lastPageCursor            maildb.MessageListCursor
 	lastSentDraftID           string
 	lastSentDraftMessageID    string
+	recordErr                 error
 }
 
 func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
@@ -169,6 +171,9 @@ func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.
 }
 
 func (f *fakeRepository) RecordOutgoing(context.Context, maildb.OutgoingMessage) (string, error) {
+	if f.recordErr != nil {
+		return "", f.recordErr
+	}
 	return "msg-1", nil
 }
 
@@ -244,6 +249,21 @@ func TestSendTextRejectsSuppressedRecipients(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("SendText accepted suppressed recipient")
+	}
+}
+
+func TestSendTextReturnsRecordErrorAfterStorageWrite(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{recordErr: fmt.Errorf("record failed")}, storage.NewLocalStore(t.TempDir()))
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "user@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err == nil {
+		t.Fatal("SendText succeeded despite record failure")
 	}
 }
 

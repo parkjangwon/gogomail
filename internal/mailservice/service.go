@@ -419,6 +419,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		Farm:            farm,
 	})
 	if err != nil {
+		_ = s.store.Delete(ctx, path)
 		return SendTextResult{}, err
 	}
 	if err := s.markSourceMessageAfterSend(ctx, req); err != nil {
