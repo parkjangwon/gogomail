@@ -504,7 +504,9 @@ The platform hardening sprint completed the following:
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
   the HTTP boundary before service dispatch.
 - Mail API search query, folder, sender, and subject filters are trimmed at the
-  HTTP boundary before search backend dispatch.
+  HTTP and service boundaries before search backend dispatch, and service
+  search validation rejects CR/LF-bearing or oversized query/filter fields
+  before Postgres or OpenSearch work.
 - Mail compose draft/save/send requests normalize user/source/from/address and
   attachment identifier fields at the service boundary before repository,
   storage, suppression, and outbound composition work; draft saves share the

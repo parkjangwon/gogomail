@@ -97,6 +97,10 @@ The documented client contract is `1 <= limit <= 200`, defaulting to `50`.
 Message listing returns opaque `next_cursor`; clients must not parse or
 manufacture cursors.
 
+Search query, folder, sender, and subject filters are whitespace-normalized and
+reject CR/LF-bearing or oversized values before either Postgres or OpenSearch
+dispatch.
+
 ## Mailbox bulk actions
 
 Bulk mailbox mutations are bounded to 500 unique message IDs per request and only affect active messages owned by the authenticated user.

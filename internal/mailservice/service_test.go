@@ -853,6 +853,27 @@ func TestSearchMessagesNormalizesPostgresFallbackQuery(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesRejectsUnsafeQueryFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []maildb.MessageSearchQuery{
+		{UserID: "user-1", FolderID: "folder-1\r\nbad", Query: "hello"},
+		{UserID: "user-1", Query: "hello\nbad"},
+		{UserID: "user-1", From: strings.Repeat("x", maxSearchFilterBytes+1)},
+		{UserID: "user-1", Subject: strings.Repeat("x", maxSearchFilterBytes+1)},
+	}
+	for _, query := range tests {
+		repo := &fakeRepository{}
+		service := New(repo, nil)
+		if _, err := service.SearchMessages(context.Background(), query); err == nil {
+			t.Fatalf("SearchMessages accepted unsafe query %#v", query)
+		}
+		if repo.lastSearchQuery.UserID != "" {
+			t.Fatalf("repository was called with query %#v", repo.lastSearchQuery)
+		}
+	}
+}
+
 func TestCanUseSearchIDSourceContract(t *testing.T) {
 	t.Parallel()
 
