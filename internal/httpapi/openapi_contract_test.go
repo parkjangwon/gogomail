@@ -163,6 +163,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /api-usage/export-batches":                           "#/components/responses/APIUsageExportBatchList",
 		"POST /api-usage/export-batches":                          "#/components/responses/APIUsageExportBatch",
 		"GET /api-usage/export-batches/{id}":                      "#/components/responses/APIUsageExportBatch",
+		"GET /api-usage/export-batches/{id}/export":               "#/components/responses/APIUsageLedgerExport",
 		"GET /quota-reconciliation":                               "#/components/responses/QuotaReconciliationList",
 		"POST /quota-reconciliation/corrections":                  "#/components/responses/QuotaCorrection",
 		"GET /delivery-attempts":                                  "#/components/responses/DeliveryAttempts",

@@ -486,6 +486,59 @@ func TestAdminGetAPIUsageExportBatchHandler(t *testing.T) {
 	}
 }
 
+func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
+	t.Parallel()
+
+	windowStart := time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC)
+	windowEnd := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		apiUsageExportBatch: maildb.APIUsageExportBatchView{
+			ID:           "api-usage-export-1",
+			Status:       "completed",
+			ExportFormat: "ndjson",
+			TenantID:     "tenant-1",
+			PrincipalID:  "principal-1",
+			WindowStart:  &windowStart,
+			WindowEnd:    &windowEnd,
+			EventCount:   1,
+			Manifest:     json.RawMessage(`{}`),
+		},
+		apiUsageLedger: []maildb.APIUsageLedgerView{{
+			EventID:       "usage-1",
+			SchemaVersion: "2026-05-04.api-usage.v2",
+			EventTime:     windowStart,
+			RecordedAt:    windowStart,
+			Method:        "GET",
+			Route:         "GET /api/v1/messages",
+			Status:        200,
+			RequestCount:  1,
+			Payload:       json.RawMessage(`{"event":"api.usage"}`),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/export?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/x-ndjson" {
+		t.Fatalf("content type = %q", got)
+	}
+	if !strings.Contains(rr.Body.String(), `"event_id":"usage-1"`) {
+		t.Fatalf("ndjson = %q", rr.Body.String())
+	}
+	if service.lastAPIUsageLedgerList.TenantID != "tenant-1" || service.lastAPIUsageLedgerList.PrincipalID != "principal-1" {
+		t.Fatalf("lastAPIUsageLedgerList = %+v", service.lastAPIUsageLedgerList)
+	}
+	if !service.lastAPIUsageLedgerList.From.Equal(windowStart) || !service.lastAPIUsageLedgerList.To.Equal(windowEnd) {
+		t.Fatalf("lastAPIUsageLedgerList timestamps = %+v", service.lastAPIUsageLedgerList)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 

@@ -518,6 +518,30 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_batch": batch})
 	}))
 
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		batch, err := service.GetAPIUsageExportBatch(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		req := apiUsageLedgerRequestFromBatch(batch, limit)
+		usages, err := service.ListAPIUsageLedger(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeNDJSON(w, http.StatusOK, usages)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
@@ -848,6 +872,21 @@ func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limi
 		return maildb.APIUsageLedgerListRequest{}, false
 	}
 	return req, true
+}
+
+func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
+	req := maildb.APIUsageLedgerListRequest{
+		Limit:       limit,
+		TenantID:    batch.TenantID,
+		PrincipalID: batch.PrincipalID,
+	}
+	if batch.WindowStart != nil {
+		req.From = batch.WindowStart.UTC()
+	}
+	if batch.WindowEnd != nil {
+		req.To = batch.WindowEnd.UTC()
+	}
+	return req
 }
 
 func parseOptionalRFC3339Query(w http.ResponseWriter, r *http.Request, key string) (time.Time, bool) {
