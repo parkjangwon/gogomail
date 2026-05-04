@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -41,8 +42,12 @@ type ExportManifestArtifact struct {
 }
 
 func DigestExportManifest(manifest ExportManifest) (string, []byte, error) {
+	manifest.SchemaVersion = strings.TrimSpace(manifest.SchemaVersion)
 	if manifest.SchemaVersion == "" {
 		manifest.SchemaVersion = ExportManifestSchemaV1
+	}
+	if manifest.SchemaVersion != ExportManifestSchemaV1 {
+		return "", nil, fmt.Errorf("unsupported api usage export manifest schema_version %q", manifest.SchemaVersion)
 	}
 	raw, err := json.Marshal(manifest)
 	if err != nil {

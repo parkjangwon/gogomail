@@ -83,6 +83,18 @@ func TestDigestExportManifestJSONCanonicalizesInput(t *testing.T) {
 	}
 }
 
+func TestDigestExportManifestRejectsUnsupportedSchema(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := DigestExportManifest(ExportManifest{
+		SchemaVersion: "2099-01-01.api-usage-export-manifest.v9",
+		Batch:         ExportManifestBatch{ID: "batch-1"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "schema_version") {
+		t.Fatalf("err = %v, want schema_version error", err)
+	}
+}
+
 func TestFormatManifestTime(t *testing.T) {
 	t.Parallel()
 

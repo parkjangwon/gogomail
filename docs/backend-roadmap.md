@@ -496,6 +496,7 @@ Implementation order:
 437. OpenSearch relevance hit IDs are now bounded and CR/LF-guarded before Postgres hydration, keeping external search responses from sending malformed message IDs into repository lookups.
 438. OpenSearch relevance response decoding is now capped before JSON parsing, preventing oversized backend responses from allocating unbounded highlight or hit payloads in the Mail API path.
 439. API usage export artifact writes now reject ambiguous object keys that would change during path cleaning, including duplicate separators, dot segments, backslashes, and parent traversal.
+440. API usage export manifest digesting now rejects unsupported explicit manifest schema versions before canonical digest evidence is generated.
 
 ## Deferred until backend contracts stabilize
 

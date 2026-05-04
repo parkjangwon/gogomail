@@ -178,6 +178,8 @@ guidance.
   verification endpoints. Operators can generate SHA-256 digests over the saved
   batch plus registered artifacts, list/fetch digest records, and re-check the
   stored manifest against its canonical digest before billing handoff.
+- API usage export manifest digesting rejects unsupported explicit manifest
+  schema versions before canonical digest evidence is generated.
 - API usage export manifest digests can now be signed through disabled-by-
   default local HMAC, local Ed25519, or remote Ed25519 signers. The remote
   signer is intended for an external KMS-backed signing service and is verified
