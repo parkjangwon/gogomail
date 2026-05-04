@@ -204,6 +204,9 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`;
   optional `status`, `recipient_domain`, and RFC3339 `since` filters keep
   delivery triage bounded.
+- `GET /admin/v1/delivery-attempts/exhausted` returns `{"exhausted_attempts":[...]}`;
+  optional `recipient_domain` and RFC3339 `since` filters keep terminal retry
+  triage bounded.
 - `GET /admin/v1/push-notification-attempts` returns `{"push_notification_attempts":[...]}`;
   optional `status`, `user_id`, and RFC3339 `since` filters keep fan-out
   inspection bounded.

@@ -30,7 +30,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.
-- Admin API supports domain/user list, detail, create, and status updates plus queue, delivery-attempt, suppression, DKIM, retry, and delete operations. Delivery-attempt lists support status, recipient-domain, and recent-window filters for bounded retry/bounce triage.
+- Admin API supports domain/user list, detail, create, and status updates plus queue, delivery-attempt, suppression, DKIM, retry, and delete operations. Delivery-attempt lists support status, recipient-domain, and recent-window filters for bounded retry/bounce triage; exhausted-attempt lists also support recipient-domain and recent-window filters for terminal retry triage.
 - Admin API now exposes trusted relay CIDR list/create/delete operations backed by PostgreSQL, preparing inbound SMTP relay policy for auditable runtime administration.
 - Admin API now exposes delivery route list/create/status/delete operations backed by PostgreSQL, preparing gateway and smart-host policy for auditable runtime administration without coupling it to SMTP core.
 - Admin API can dry-run delivery route resolution for a recipient domain, improving runtime route observability without triggering SMTP delivery.

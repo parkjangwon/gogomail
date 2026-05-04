@@ -1009,6 +1009,19 @@ paths:
       summary: List delivery attempts where all retries were exhausted
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: recipient_domain
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Lower-cased recipient domain to inspect one destination domain.
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for exhausted attempt timestamps.
       responses:
         "200":
           description: Exhausted delivery attempts
