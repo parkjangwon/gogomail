@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestWebhookScannerPostsAttachmentRequest(t *testing.T) {
@@ -63,6 +64,71 @@ func TestWebhookScannerRejectsOversizedResponse(t *testing.T) {
 	_, err := decodeWebhookResponse(strings.NewReader(strings.Repeat(" ", int(maxWebhookResponseBytes)+1)))
 	if err == nil || !strings.Contains(err.Error(), "too large") {
 		t.Fatalf("decodeWebhookResponse error = %v, want too large", err)
+	}
+}
+
+func TestWebhookScannerBoundsRequestPayload(t *testing.T) {
+	t.Parallel()
+
+	var got webhookRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"verdict":"accept"}`))
+	}))
+	defer server.Close()
+
+	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	if err != nil {
+		t.Fatalf("NewWebhookScanner returned error: %v", err)
+	}
+	recipients := make([]string, 0, maxWebhookRecipients+2)
+	for i := 0; i < maxWebhookRecipients+2; i++ {
+		recipients = append(recipients, "user@example.net\r\nBcc: hidden@example.net")
+	}
+	attachments := make([]Attachment, 0, maxWebhookAttachments+2)
+	for i := 0; i < maxWebhookAttachments+2; i++ {
+		attachments = append(attachments, Attachment{Filename: strings.Repeat("\u20ac", maxWebhookAttachmentNameBytes)})
+	}
+	_, err = scanner.ScanAttachments(context.Background(), Request{
+		RemoteAddr:     strings.Repeat("r", maxWebhookRemoteAddrBytes) + "\nextra",
+		EnvelopeFrom:   "sender@example.com\r\nX-Injected: yes",
+		Recipients:     recipients,
+		CompanyID:      strings.Repeat("c", maxWebhookIdentityBytes) + "\nextra",
+		DomainID:       "domain-1\nextra",
+		UserID:         "user-1\nextra",
+		SubmissionUser: "submission@example.com\r\nX-Injected: yes",
+		MessageID:      strings.Repeat("m", maxWebhookMessageIDBytes) + "\nextra",
+		Subject:        strings.Repeat("\u20ac", maxWebhookSubjectBytes),
+		Size:           -1,
+		Attachments:    attachments,
+	})
+	if err != nil {
+		t.Fatalf("ScanAttachments returned error: %v", err)
+	}
+	joined := got.RemoteAddr + got.EnvelopeFrom + strings.Join(got.Recipients, "") +
+		got.CompanyID + got.DomainID + got.UserID + got.SubmissionUser + got.MessageID + got.Subject
+	if strings.ContainsAny(joined, "\r\n") {
+		t.Fatalf("request contains line break: %+v", got)
+	}
+	if len(got.RemoteAddr) > maxWebhookRemoteAddrBytes || len(got.MessageID) > maxWebhookMessageIDBytes {
+		t.Fatalf("remote/message lengths = %d/%d", len(got.RemoteAddr), len(got.MessageID))
+	}
+	if len(got.Recipients) != maxWebhookRecipients {
+		t.Fatalf("recipients = %d, want %d", len(got.Recipients), maxWebhookRecipients)
+	}
+	if len(got.Attachments) != maxWebhookAttachments {
+		t.Fatalf("attachments = %d, want %d", len(got.Attachments), maxWebhookAttachments)
+	}
+	if got.Size != 0 {
+		t.Fatalf("size = %d, want 0", got.Size)
+	}
+	if len(got.Subject) > maxWebhookSubjectBytes || !utf8.ValidString(got.Subject) {
+		t.Fatalf("subject length/utf8 = %d/%v", len(got.Subject), utf8.ValidString(got.Subject))
+	}
+	if len(got.Attachments[0].Filename) > maxWebhookAttachmentNameBytes || !utf8.ValidString(got.Attachments[0].Filename) {
+		t.Fatalf("filename length/utf8 = %d/%v", len(got.Attachments[0].Filename), utf8.ValidString(got.Attachments[0].Filename))
 	}
 }
 
