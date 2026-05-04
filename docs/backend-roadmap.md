@@ -483,6 +483,7 @@ Implementation order:
 424. Redis stream event decoding now trims outbox id, partition key, and payload fields and rejects blank metadata before handler dispatch.
 425. Delivery outcome and exhausted outbox event payloads now trim message, tenant, farm, sender, recipient, error, and DSN metadata before event persistence.
 426. Redis outbox publishing now trims event id, topic, partition key, and payload metadata and rejects invalid topics or non-JSON payloads before stream writes.
+427. API metering durable event decoding now rejects CR/LF-bearing method, route, event-id, tenant, company, domain, user, API-key, and principal dimensions before ledger/aggregate storage.
 
 ## Deferred until backend contracts stabilize
 

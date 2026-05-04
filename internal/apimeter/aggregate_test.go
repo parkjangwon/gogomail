@@ -15,22 +15,22 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 	t.Parallel()
 
 	payload := json.RawMessage(`{
-		"event":"api.usage",
-		"schema_version":"2026-05-04.api-usage.v1",
-		"event_id":"usage-1",
-		"method":"GET",
-		"route":"GET /api/v1/messages",
+		"event":" api.usage ",
+		"schema_version":" 2026-05-04.api-usage.v1 ",
+		"event_id":" usage-1 ",
+		"method":" GET ",
+		"route":" GET /api/v1/messages ",
 		"status":200,
 		"request_bytes":12,
 		"response_bytes":34,
 		"latency_ms":25,
 		"timestamp":"2026-05-04T15:30:00+09:00",
-		"tenant_id":"tenant-1",
-		"company_id":"company-1",
-		"domain_id":"domain-1",
-		"user_id":"user-1",
-		"api_key_id":"api-key-1",
-		"principal_id":"principal-1",
+		"tenant_id":" tenant-1 ",
+		"company_id":" company-1 ",
+		"domain_id":" domain-1 ",
+		"user_id":" user-1 ",
+		"api_key_id":" api-key-1 ",
+		"principal_id":" principal-1 ",
 		"auth_source":"bearer"
 	}`)
 	event, err := DecodeUsageEvent(payload)
@@ -219,6 +219,55 @@ func TestDecodeUsageEventRejectsMissingRouteKey(t *testing.T) {
 			t.Parallel()
 			if _, err := DecodeUsageEvent(tc.payload); err == nil {
 				t.Fatal("DecodeUsageEvent accepted invalid route key")
+			}
+		})
+	}
+}
+
+func TestDecodeUsageEventRejectsInvalidRouteKeyOrIdentity(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload json.RawMessage
+	}{
+		{
+			name: "method line break",
+			payload: json.RawMessage(`{
+				"event":"api.usage",
+				"method":"GET\nPOST",
+				"route":"GET /api/v1/messages",
+				"status":200,
+				"timestamp":"2026-05-04T00:00:00Z"
+			}`),
+		},
+		{
+			name: "route line break",
+			payload: json.RawMessage(`{
+				"event":"api.usage",
+				"method":"GET",
+				"route":"GET /api/v1/messages\r\nPOST /api/v1/send",
+				"status":200,
+				"timestamp":"2026-05-04T00:00:00Z"
+			}`),
+		},
+		{
+			name: "identity line break",
+			payload: json.RawMessage(`{
+				"event":"api.usage",
+				"method":"GET",
+				"route":"GET /api/v1/messages",
+				"status":200,
+				"timestamp":"2026-05-04T00:00:00Z",
+				"tenant_id":"tenant-1\nother"
+			}`),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := DecodeUsageEvent(tc.payload); err == nil {
+				t.Fatal("DecodeUsageEvent accepted invalid route key or identity")
 			}
 		})
 	}
