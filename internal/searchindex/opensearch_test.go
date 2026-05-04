@@ -61,6 +61,9 @@ func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
 	if payload["message_id"] != "msg-1" || payload["body_text"] != "search me" {
 		t.Fatalf("payload = %#v", payload)
 	}
+	if payload["subject"] != "Hello" || payload["subject_lc"] != "hello" {
+		t.Fatalf("payload subject = %#v", payload)
+	}
 	if payload["from_addr"] != "sender@example.com" || payload["from_addr_lc"] != "sender@example.com" || payload["has_attachment"] != true {
 		t.Fatalf("payload sender/attachment = %#v", payload)
 	}
@@ -138,6 +141,9 @@ func TestOpenSearchIndexerEnsuresIndexMapping(t *testing.T) {
 	}
 	if properties["from_addr_lc"].(map[string]any)["type"] != "keyword" {
 		t.Fatalf("from_addr_lc mapping = %#v", properties["from_addr_lc"])
+	}
+	if properties["subject_lc"].(map[string]any)["type"] != "keyword" {
+		t.Fatalf("subject_lc mapping = %#v", properties["subject_lc"])
 	}
 }
 

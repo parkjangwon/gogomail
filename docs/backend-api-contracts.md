@@ -369,9 +369,9 @@ shape so deployments can create the index before enabling the worker, or set
 at startup. Mail API can inject the OpenSearch source for relevance-sorted
 searches; OpenSearch message IDs are hydrated through Postgres summaries before
 responses are returned. Indexed OpenSearch documents include folder, parsed
-sender, lower-cased sender, and attachment-presence fields for filter parity
-work, and OpenSearch relevance searches can apply folder, from, subject, and
-attachment filters before hydration. OpenSearch highlights map into the existing
+sender, lower-cased sender/subject, and attachment-presence fields for filter
+parity work, and OpenSearch relevance searches can apply folder, from, subject,
+and attachment filters before hydration. OpenSearch highlights map into the existing
 `search_highlights` response shape. Newest-first search remains on the Postgres
 path so the default response ordering stays stable.
 
