@@ -341,6 +341,16 @@ func TestPostgresExpireAttachmentUploadSessionsReleasesQuota(t *testing.T) {
 	if counts.TotalCount != 1 || counts.LimitedCount != 1 {
 		t.Fatalf("stale session counts = %+v", counts)
 	}
+	candidates, err := repo.ListStaleAttachmentUploadSessions(ctx, ExpireAttachmentUploadSessionsRequest{
+		Before: time.Now(),
+		Limit:  10,
+	})
+	if err != nil {
+		t.Fatalf("ListStaleAttachmentUploadSessions returned error: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].ID != expiredCandidate.ID || candidates[0].Status != "pending" {
+		t.Fatalf("stale session candidates = %+v", candidates)
+	}
 
 	expired, err := repo.ExpireAttachmentUploadSessions(ctx, ExpireAttachmentUploadSessionsRequest{
 		Before: time.Now(),

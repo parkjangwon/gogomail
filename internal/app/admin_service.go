@@ -33,6 +33,7 @@ type adminService struct {
 		ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
 		ExpireAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error)
 		CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
+		ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	}
 }
 
@@ -86,6 +87,13 @@ func (s adminService) CountStaleAttachmentUploadSessions(ctx context.Context, be
 		return maildb.StaleAttachmentUploadSessionCount{}, fmt.Errorf("attachment cleanup service is not configured")
 	}
 	return s.attachmentCleanup.CountStaleAttachmentUploadSessions(ctx, before, limit)
+}
+
+func (s adminService) ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error) {
+	if s.attachmentCleanup == nil {
+		return nil, fmt.Errorf("attachment cleanup service is not configured")
+	}
+	return s.attachmentCleanup.ListStaleAttachmentUploadSessions(ctx, before, limit)
 }
 
 func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

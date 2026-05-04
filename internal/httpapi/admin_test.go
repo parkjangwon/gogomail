@@ -522,6 +522,10 @@ func TestAdminAttachmentCleanupCandidatesHandler(t *testing.T) {
 			TotalCount:   9,
 			LimitedCount: 1,
 		},
+		staleAttachmentSessionCount: maildb.StaleAttachmentUploadSessionCount{
+			TotalCount:   4,
+			LimitedCount: 1,
+		},
 		staleAttachmentCandidates: []maildb.StaleAttachmentUploadCandidate{{
 			ID:        "att-1",
 			UserID:    "user-1",
@@ -531,6 +535,20 @@ func TestAdminAttachmentCleanupCandidatesHandler(t *testing.T) {
 			MIMEType:  "application/pdf",
 			Status:    "uploading",
 			CreatedAt: before.Add(-time.Hour),
+		}},
+		staleAttachmentSessionCandidates: []maildb.StaleAttachmentUploadSessionCandidate{{
+			ID:             "session-1",
+			UserID:         "user-1",
+			UploadID:       "upload-session-1",
+			Filename:       "large.bin",
+			DeclaredSize:   1024,
+			ReceivedSize:   512,
+			MIMEType:       "application/octet-stream",
+			Status:         "uploading",
+			StorageBackend: "local",
+			StoragePath:    "upload-sessions/user-1/session-1/body",
+			ExpiresAt:      before.Add(-time.Minute),
+			CreatedAt:      before.Add(-time.Hour),
 		}},
 	}
 	mux := http.NewServeMux()
@@ -552,7 +570,13 @@ func TestAdminAttachmentCleanupCandidatesHandler(t *testing.T) {
 	if !service.lastAttachmentCleanupCountBefore.Equal(before) || service.lastAttachmentCleanupCountLimit != 25 {
 		t.Fatalf("count request = %s/%d", service.lastAttachmentCleanupCountBefore, service.lastAttachmentCleanupCountLimit)
 	}
-	for _, want := range []string{`"attachment_cleanup_candidates"`, `"candidates"`, `"id":"att-1"`, `"user_id":"user-1"`, `"candidate_count":9`, `"limited_count":1`, `"limit":25`} {
+	if !service.lastAttachmentSessionCleanupListBefore.Equal(before) || service.lastAttachmentSessionCleanupListLimit != 25 {
+		t.Fatalf("session list request = %s/%d", service.lastAttachmentSessionCleanupListBefore, service.lastAttachmentSessionCleanupListLimit)
+	}
+	if !service.lastAttachmentSessionCleanupCountBefore.Equal(before) || service.lastAttachmentSessionCleanupCountLimit != 25 {
+		t.Fatalf("session count request = %s/%d", service.lastAttachmentSessionCleanupCountBefore, service.lastAttachmentSessionCleanupCountLimit)
+	}
+	for _, want := range []string{`"attachment_cleanup_candidates"`, `"candidates"`, `"id":"att-1"`, `"user_id":"user-1"`, `"candidate_count":9`, `"limited_count":1`, `"session_candidates"`, `"id":"session-1"`, `"session_candidate_count":4`, `"session_limited_count":1`, `"limit":25`} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("body missing %s: %s", want, rec.Body.String())
 		}
@@ -4072,6 +4096,7 @@ type fakeAdminService struct {
 	staleAttachmentCount                        maildb.StaleAttachmentUploadCount
 	staleAttachmentSessionCount                 maildb.StaleAttachmentUploadSessionCount
 	staleAttachmentCandidates                   []maildb.StaleAttachmentUploadCandidate
+	staleAttachmentSessionCandidates            []maildb.StaleAttachmentUploadSessionCandidate
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -4111,6 +4136,8 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupCountLimit      int
 	lastAttachmentCleanupListBefore             time.Time
 	lastAttachmentCleanupListLimit              int
+	lastAttachmentSessionCleanupListBefore      time.Time
+	lastAttachmentSessionCleanupListLimit       int
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
 	lastAPIUsageLedgerRetention                 maildb.APIUsageLedgerRetentionRequest
 	lastAPIUsageExportCapabilities              bool
@@ -4316,6 +4343,12 @@ func (f *fakeAdminService) ListStaleAttachmentUploads(_ context.Context, before 
 	f.lastAttachmentCleanupListBefore = before
 	f.lastAttachmentCleanupListLimit = limit
 	return f.staleAttachmentCandidates, nil
+}
+
+func (f *fakeAdminService) ListStaleAttachmentUploadSessions(_ context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error) {
+	f.lastAttachmentSessionCleanupListBefore = before
+	f.lastAttachmentSessionCleanupListLimit = limit
+	return f.staleAttachmentSessionCandidates, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, limit int) ([]maildb.APIUsageDailyView, error) {

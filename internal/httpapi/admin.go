@@ -54,6 +54,7 @@ type AdminService interface {
 	ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
 	RunAttachmentUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error)
 	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
+	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -589,18 +590,31 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		sessionCounts, err := service.CountStaleAttachmentUploadSessions(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		candidates, err := service.ListStaleAttachmentUploads(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		sessionCandidates, err := service.ListStaleAttachmentUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"attachment_cleanup_candidates": map[string]any{
-				"candidates":      candidates,
-				"candidate_count": counts.TotalCount,
-				"limited_count":   counts.LimitedCount,
-				"before":          before.Format(time.RFC3339),
-				"limit":           maildb.NormalizeAttachmentCleanupLimit(req.Limit),
+				"candidates":              candidates,
+				"candidate_count":         counts.TotalCount,
+				"limited_count":           counts.LimitedCount,
+				"session_candidates":      sessionCandidates,
+				"session_candidate_count": sessionCounts.TotalCount,
+				"session_limited_count":   sessionCounts.LimitedCount,
+				"before":                  before.Format(time.RFC3339),
+				"limit":                   maildb.NormalizeAttachmentCleanupLimit(req.Limit),
 			},
 		})
 	}))

@@ -1056,6 +1056,7 @@ type fakeRepository struct {
 	lastFinalizeUploadSession      maildb.FinalizeAttachmentUploadSessionRequest
 	lastExpireUploadSessions       maildb.ExpireAttachmentUploadSessionsRequest
 	lastUploadSessionCleanupCount  maildb.ExpireAttachmentUploadSessionsRequest
+	lastUploadSessionCleanupList   maildb.ExpireAttachmentUploadSessionsRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupList      maildb.ExpireStaleAttachmentUploadsRequest
@@ -1067,6 +1068,7 @@ type fakeRepository struct {
 	uploadSession                  maildb.AttachmentUploadSession
 	expiredUploadSessions          []maildb.AttachmentUploadSession
 	staleUploadSessionCount        maildb.StaleAttachmentUploadSessionCount
+	staleUploadSessionCandidates   []maildb.StaleAttachmentUploadSessionCandidate
 	expiredAttachments             []maildb.Attachment
 	staleAttachmentCount           maildb.StaleAttachmentUploadCount
 	staleAttachmentCandidates      []maildb.StaleAttachmentUploadCandidate
@@ -1467,6 +1469,11 @@ func (f *fakeRepository) ExpireAttachmentUploadSessions(_ context.Context, req m
 func (f *fakeRepository) CountStaleAttachmentUploadSessions(_ context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) (maildb.StaleAttachmentUploadSessionCount, error) {
 	f.lastUploadSessionCleanupCount = req
 	return f.staleUploadSessionCount, nil
+}
+
+func (f *fakeRepository) ListStaleAttachmentUploadSessions(_ context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.StaleAttachmentUploadSessionCandidate, error) {
+	f.lastUploadSessionCleanupList = req
+	return f.staleUploadSessionCandidates, nil
 }
 
 type fakeSearchIDSource struct {
@@ -2485,6 +2492,30 @@ func TestCountStaleAttachmentUploadSessionsDelegatesToRepository(t *testing.T) {
 	}
 	if !repo.lastUploadSessionCleanupCount.Before.Equal(before) || repo.lastUploadSessionCleanupCount.Limit != 4 {
 		t.Fatalf("count request = %+v", repo.lastUploadSessionCleanupCount)
+	}
+}
+
+func TestListStaleAttachmentUploadSessionsDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	before := time.Now()
+	repo := &fakeRepository{
+		staleUploadSessionCandidates: []maildb.StaleAttachmentUploadSessionCandidate{{
+			ID:     "session-1",
+			UserID: "user-1",
+			Status: "uploading",
+		}},
+	}
+	service := New(repo, nil)
+	candidates, err := service.ListStaleAttachmentUploadSessions(context.Background(), before, 6)
+	if err != nil {
+		t.Fatalf("ListStaleAttachmentUploadSessions returned error: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].ID != "session-1" {
+		t.Fatalf("candidates = %+v", candidates)
+	}
+	if !repo.lastUploadSessionCleanupList.Before.Equal(before) || repo.lastUploadSessionCleanupList.Limit != 6 {
+		t.Fatalf("list request = %+v", repo.lastUploadSessionCleanupList)
 	}
 }
 

@@ -79,7 +79,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   scheduler-driven deployments, and Admin API dry-run previews plus candidate
   listing before on-demand cleanup. Admin cleanup run responses now include
   stale upload-session candidate and expired counts so operator previews cover
-  the same quota reservations that the worker can release.
+  the same quota reservations that the worker can release, and candidate
+  previews include bounded upload-session rows for row-level operator review.
 - Direct multipart uploads write through the configured storage backend and only record metadata after the object write succeeds.
 - Attachment upload size is guarded in HTTP and service layers, including
   multipart request caps that return 413 for over-limit direct upload envelopes
