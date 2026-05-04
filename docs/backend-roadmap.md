@@ -691,6 +691,7 @@ Implementation order:
 631. Shared EML parsing now pre-bounds oversized Subject headers before RFC 2047 decoding, preserving parser hot-path memory guardrails while retaining normal encoded-subject support.
 632. Mail API read/search/list routes now reject unknown query parameter names before dispatch, making generated-client typos visible as HTTP 400 responses instead of silently ignoring them.
 633. Admin company/domain/DNS-check/user list routes now reject unknown query parameter names before dispatch, keeping core operator filters aligned with the documented contract.
+634. Admin API usage aggregate, ledger, retention, export-batch, artifact, manifest-digest, and manifest-signature routes now reject unknown query parameter names before dispatch, including unexpected query strings on detail, download, verification, and mutation routes with no query controls.
 
 ## Deferred until backend contracts stabilize
 

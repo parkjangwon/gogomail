@@ -2025,6 +2025,273 @@ func TestAdminAPIUsageExportPathIDsRejectUnsafeValues(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageRoutesRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		dispatched func(*fakeAdminService) bool
+	}{
+		{
+			name:   "daily aggregate",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/daily?tenant_id=tenant-1&bucket=hour",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageDailyList.TenantID != ""
+			},
+		},
+		{
+			name:   "monthly aggregate",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/monthly?group_by=route",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageMonthlyList.Limit != 0
+			},
+		},
+		{
+			name:   "ledger list",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger?cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageLedgerList.Limit != 0
+			},
+		},
+		{
+			name:   "ledger export",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/export?format=csv",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageLedgerList.Limit != 0
+			},
+		},
+		{
+			name:   "ledger stats",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/stats?limit=5",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageLedgerList.Limit != 0
+			},
+		},
+		{
+			name:   "retention readiness",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/retention-readiness?cutoff=" + cutoff + "&dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return !service.lastAPIUsageLedgerRetention.Cutoff.IsZero()
+			},
+		},
+		{
+			name:   "retention run create",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/ledger/retention-runs?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return !service.lastAPIUsageLedgerRetentionRun.Cutoff.IsZero()
+			},
+		},
+		{
+			name:   "retention run list",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/retention-runs?cutoff=" + cutoff,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageLedgerRetentionRunList.Limit != 0
+			},
+		},
+		{
+			name:   "retention run detail",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/retention-runs/api-usage-retention-1?expand=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageLedgerRetentionRunID != ""
+			},
+		},
+		{
+			name:   "export capabilities",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-capabilities?deep=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportCapabilities
+			},
+		},
+		{
+			name:   "export batch create",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches?from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z&status=completed",
+			dispatched: func(service *fakeAdminService) bool {
+				return !service.lastAPIUsageLedgerList.From.IsZero()
+			},
+		},
+		{
+			name:   "export batch list",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches?cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchList.Limit != 0
+			},
+		},
+		{
+			name:   "export batch detail",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1?include_manifest=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != ""
+			},
+		},
+		{
+			name:   "handoff readiness",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/handoff-readiness?id=api-usage-export-1",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != ""
+			},
+		},
+		{
+			name:   "batch export",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/export?from=2026-05-04T00:00:00Z",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != "" || !service.lastAPIUsageLedgerList.From.IsZero()
+			},
+		},
+		{
+			name:   "artifact create",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts?include_payload=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastCreateAPIUsageExportArtifact.BatchID != ""
+			},
+		},
+		{
+			name:   "artifact list",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts?cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != "" || service.lastLimit != 0
+			},
+		},
+		{
+			name:   "artifact write",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/write?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != ""
+			},
+		},
+		{
+			name:   "artifact detail",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1?deep=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportArtifactID != ""
+			},
+		},
+		{
+			name:   "artifact download",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1/download?filename=usage.ndjson",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportArtifactID != ""
+			},
+		},
+		{
+			name:   "artifact verification",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1/verification?deep=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportArtifactID != ""
+			},
+		},
+		{
+			name:   "manifest digest create",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests?schema_version=latest",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != ""
+			},
+		},
+		{
+			name:   "manifest digest list",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests?cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != "" || service.lastLimit != 0
+			},
+		},
+		{
+			name:   "manifest digest detail",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1?include_manifest=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestDigestID != ""
+			},
+		},
+		{
+			name:   "manifest digest verification",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/verification?deep=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestDigestID != ""
+			},
+		},
+		{
+			name:   "manifest signature create",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures?key_id=key-1",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestDigestID != ""
+			},
+		},
+		{
+			name:   "manifest signature list",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures?cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestDigestID != "" || service.lastLimit != 0
+			},
+		},
+		{
+			name:   "manifest signature detail",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures/api-usage-signature-1?include_digest=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestSignatureID != ""
+			},
+		},
+		{
+			name:   "manifest signature verification",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures/api-usage-signature-1/verification?deep=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestSignatureID != ""
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query key: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
 	t.Parallel()
 

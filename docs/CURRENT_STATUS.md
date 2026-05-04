@@ -935,6 +935,10 @@ The platform hardening sprint completed the following:
 - Admin company/domain/DNS-check/user list routes now reject unknown query
   parameter names before dispatch, keeping core operator filters aligned with
   the documented contract.
+- Admin API usage aggregate, ledger, retention, export-batch, artifact,
+  manifest-digest, and manifest-signature routes now reject unknown query
+  parameter names before dispatch, including unexpected query strings on
+  detail, download, verification, and mutation routes with no query controls.
 - API error responses now use `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`, with the reusable OpenAPI error response
   documenting both headers for generated clients.

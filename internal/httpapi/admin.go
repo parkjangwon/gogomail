@@ -28,6 +28,48 @@ func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.routeCounters = c }
 }
 
+func rejectUnknownAPIUsageAggregateQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r,
+		"limit",
+		"tenant_id",
+		"company_id",
+		"domain_id",
+		"user_id",
+		"api_key_id",
+		"principal_id",
+		"auth_source",
+		"method",
+		"route",
+		"status",
+		"from",
+		"to",
+	)
+}
+
+func rejectUnknownAPIUsageLedgerQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "from", "to")
+}
+
+func rejectUnknownAPIUsageLedgerStatsQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "tenant_id", "principal_id", "from", "to")
+}
+
+func rejectUnknownAPIUsageRetentionReadinessQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "cutoff", "tenant_id", "principal_id")
+}
+
+func rejectUnknownAPIUsageRetentionRunListQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "created_from", "created_to")
+}
+
+func rejectUnknownAPIUsageExportBatchCreateQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "tenant_id", "principal_id", "from", "to")
+}
+
+func rejectUnknownAPIUsageExportBatchListQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "status", "from", "to")
+}
+
 type AdminService interface {
 	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error)
 	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
@@ -893,6 +935,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/daily", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageAggregateQuery(w, r) {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -910,6 +955,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/monthly", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageAggregateQuery(w, r) {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -927,6 +975,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/ledger", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageLedgerQuery(w, r) {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -944,6 +995,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/ledger/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageLedgerQuery(w, r) {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -962,6 +1016,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/ledger/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageLedgerStatsQuery(w, r) {
+			return
+		}
 		req, ok := parseAPIUsageLedgerListRequest(w, r, 0)
 		if !ok {
 			return
@@ -975,6 +1032,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageRetentionReadinessQuery(w, r) {
+			return
+		}
 		req, ok := parseAPIUsageLedgerRetentionRequest(w, r)
 		if !ok {
 			return
@@ -988,6 +1048,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/ledger/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		defer r.Body.Close()
 
 		var body adminAPIUsageLedgerRetentionRunRequest
@@ -1008,6 +1071,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageRetentionRunListQuery(w, r) {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1025,6 +1091,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1038,6 +1107,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		capabilities, err := service.GetAPIUsageExportCapabilities(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -1047,6 +1119,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageExportBatchCreateQuery(w, r) {
+			return
+		}
 		req, ok := parseAPIUsageLedgerListRequest(w, r, 0)
 		if !ok {
 			return
@@ -1064,6 +1139,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownAPIUsageExportBatchListQuery(w, r) {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1081,6 +1159,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1094,6 +1175,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "deep") {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1111,6 +1195,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit") {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1135,6 +1222,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		defer r.Body.Close()
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
@@ -1155,6 +1245,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit") {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1172,6 +1265,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts/write", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		defer r.Body.Close()
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
@@ -1193,6 +1289,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, artifactID, ok := parseBoundedAdminPathPair(w, r, "id", "artifact_id")
 		if !ok {
 			return
@@ -1206,6 +1305,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, artifactID, ok := parseBoundedAdminPathPair(w, r, "id", "artifact_id")
 		if !ok {
 			return
@@ -1227,6 +1329,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, artifactID, ok := parseBoundedAdminPathPair(w, r, "id", "artifact_id")
 		if !ok {
 			return
@@ -1240,6 +1345,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1253,6 +1361,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit") {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1270,6 +1381,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
 		if !ok {
 			return
@@ -1283,6 +1397,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
 		if !ok {
 			return
@@ -1296,6 +1413,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
 		if !ok {
 			return
@@ -1309,6 +1429,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit") {
+			return
+		}
 		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
 		if !ok {
 			return
@@ -1326,6 +1449,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, digestID, signatureID, ok := parseBoundedAdminPathTriple(w, r, "id", "digest_id", "signature_id")
 		if !ok {
 			return
@@ -1339,6 +1465,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, digestID, signatureID, ok := parseBoundedAdminPathTriple(w, r, "id", "digest_id", "signature_id")
 		if !ok {
 			return
