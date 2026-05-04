@@ -964,11 +964,11 @@ The platform hardening sprint completed the following:
   the shared writer.
 - Mailservice now validates DB-returned message and attachment storage object
   paths before body reads or deletes, preventing corrupted rows from reaching
-  the storage adapter with absolute, traversal, newline, or backslash-bearing
-  keys.
+  the storage adapter with absolute, traversal, newline, backslash-bearing, or
+  oversized keys.
 - Local storage now shares the strict object-path validator used by mailservice,
-  rejecting non-canonical keys such as duplicate separators or dot segments at
-  the adapter boundary before reads, writes, or deletes.
+  rejecting non-canonical, oversized, duplicate-separator, or dot-segment keys
+  at the adapter boundary before reads, writes, or deletes.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

@@ -47,6 +47,34 @@ func TestValidateObjectPathRejectsWhitespaceOnlySegments(t *testing.T) {
 	}
 }
 
+func TestValidateObjectPathRejectsOversizedKeys(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  string
+	}{
+		{
+			name: "total length",
+			key:  "mailstore/" + strings.Repeat("a", MaxObjectPathBytes),
+		},
+		{
+			name: "segment length",
+			key:  "mailstore/" + strings.Repeat("a", MaxObjectPathSegmentBytes+1) + "/message.eml",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateObjectPath(tt.key); err == nil {
+				t.Fatalf("ValidateObjectPath accepted oversized key %q", tt.key)
+			}
+		})
+	}
+}
+
 func TestValidateObjectPathAcceptsLongRelativeKey(t *testing.T) {
 	t.Parallel()
 
