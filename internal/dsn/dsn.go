@@ -25,15 +25,21 @@ type RecipientStatus struct {
 	LastAttemptAt     time.Time
 }
 
+type OriginalHeader struct {
+	Name  string
+	Value string
+}
+
 type Report struct {
-	ReportingMTA string
-	OriginalID   string
-	From         outbound.Address
-	To           outbound.Address
-	Subject      string
-	MessageID    string
-	Date         time.Time
-	Recipients   []RecipientStatus
+	ReportingMTA    string
+	OriginalID      string
+	From            outbound.Address
+	To              outbound.Address
+	Subject         string
+	MessageID       string
+	Date            time.Time
+	Recipients      []RecipientStatus
+	OriginalHeaders []OriginalHeader
 }
 
 func Compose(report Report) (outbound.ComposedMessage, error) {
@@ -83,6 +89,16 @@ func Compose(report Report) (outbound.ComposedMessage, error) {
 		if err := writeRecipientStatus(&buf, recipient); err != nil {
 			return outbound.ComposedMessage{}, err
 		}
+	}
+	if len(report.OriginalHeaders) > 0 {
+		buf.WriteString("--" + boundary + "\r\n")
+		buf.WriteString("Content-Type: text/rfc822-headers\r\n\r\n")
+		for _, header := range report.OriginalHeaders {
+			if err := writeOriginalHeader(&buf, header); err != nil {
+				return outbound.ComposedMessage{}, err
+			}
+		}
+		buf.WriteString("\r\n")
 	}
 	buf.WriteString("--" + boundary + "--\r\n")
 
@@ -137,6 +153,15 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 	if status.FinalLogID != "" {
 		writeDSNField(buf, "Final-Log-ID", sanitizeDSNValue(status.FinalLogID))
 	}
+	return nil
+}
+
+func writeOriginalHeader(buf *bytes.Buffer, header OriginalHeader) error {
+	name := strings.TrimSpace(header.Name)
+	if !validHeaderFieldName(name) {
+		return fmt.Errorf("invalid original header field name %q", header.Name)
+	}
+	writeHeader(buf, name, sanitizeDSNValue(header.Value))
 	return nil
 }
 
@@ -239,6 +264,31 @@ func splitHeaderValue(value string, maxBytes int) (string, string) {
 		cut = size
 	}
 	return value[:cut], value[cut:]
+}
+
+func validHeaderFieldName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		if isHeaderFieldNameChar(r) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isHeaderFieldNameChar(r rune) bool {
+	if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+		return true
+	}
+	switch r {
+	case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '/', '=', '?', '^', '_', '`', '{', '|', '}', '~':
+		return true
+	default:
+		return false
+	}
 }
 
 func sanitizeRecipientAddressType(value string) (string, error) {

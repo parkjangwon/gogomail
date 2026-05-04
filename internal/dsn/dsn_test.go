@@ -277,3 +277,53 @@ func TestComposeFoldsLongDSNFields(t *testing.T) {
 		}
 	}
 }
+
+func TestComposeIncludesOptionalOriginalHeadersPart(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+		OriginalHeaders: []OriginalHeader{
+			{Name: "Message-ID", Value: "<original@example.net>"},
+			{Name: "Subject", Value: "Hello\r\nInjected: bad"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	for _, want := range []string{
+		"Content-Type: text/rfc822-headers",
+		"Message-ID: <original@example.net>",
+		"Subject: Hello Injected: bad",
+	} {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("DSN raw missing %q:\n%s", want, raw)
+		}
+	}
+	if strings.Contains(raw, "\r\nInjected: bad") {
+		t.Fatalf("raw contains injected original header:\n%s", raw)
+	}
+}
+
+func TestComposeRejectsInvalidOriginalHeaderName(t *testing.T) {
+	t.Parallel()
+
+	_, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+		OriginalHeaders: []OriginalHeader{{Name: "Bad Header", Value: "value"}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid original header") {
+		t.Fatalf("Compose() error = %v, want invalid original header", err)
+	}
+}

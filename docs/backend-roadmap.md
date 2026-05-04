@@ -418,6 +418,7 @@ Implementation order:
 359. Redis event consumers can now reclaim idle pending stream messages with per-worker claim-idle settings, allowing event/search/API-metering/push/delivery workers to recover work left pending by crashed consumers.
 360. OpenAPI contract tests now guard non-JSON download/export responses, including NDJSON API usage exports and binary attachment downloads, so generated clients do not treat streamed bytes as JSON envelopes.
 361. Push notification workers now treat queued-outcome recording failures after sink success as operational warnings instead of handler failures, reducing duplicate push risk from Redis event redelivery while preserving candidate audit rows.
+362. DSN composition can now include an optional sanitized `text/rfc822-headers` original-message header part, preparing RFC 3464 `RET=HDRS` bounce reports without exposing header injection.
 
 ## Deferred until backend contracts stabilize
 
