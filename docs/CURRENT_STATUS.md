@@ -70,7 +70,8 @@ guidance.
 - Shared EML text extraction and attachment metadata are bounded with UTF-8
   boundary preservation; attachment filenames are basename-normalized,
   control-character cleaned, and capped before reaching storage/API/search
-  consumers.
+  consumers. Address-list and `References` metadata are capped with truncation
+  flags before downstream storage, search, and threading use them.
 - Search responses can now opt into relevance sorting, rank scores, and bounded
   Postgres headline snippets while preserving date-sorted results by default.
 - Postgres and OpenSearch relevance search now share a metadata-first tuning
@@ -355,7 +356,8 @@ The platform hardening sprint completed the following:
   routing through service methods.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
-  `PartsTruncated` for pathological MIME part counts.
+  `PartsTruncated` for pathological MIME part counts, plus address/reference
+  metadata caps for oversized headers.
 - EML attachment detection records inline parts with filenames and non-text
   inline parts from headers only, improving `has_attachment` accuracy without
   reading attachment bodies.

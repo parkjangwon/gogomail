@@ -32,6 +32,8 @@ type ParseOptions struct {
 	SkipTextBody     bool
 	MaxAttachments   int
 	MaxParts         int
+	MaxAddresses     int
+	MaxReferences    int
 }
 
 type ParsedMessage struct {
@@ -49,6 +51,8 @@ type ParsedMessage struct {
 	HasAttachment        bool
 	AttachmentsTruncated bool
 	PartsTruncated       bool
+	AddressesTruncated   bool
+	ReferencesTruncated  bool
 	Attachments          []Attachment
 }
 
@@ -73,8 +77,8 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	} else {
 		parsed.MessageID = normalizeMessageID(parsed.MessageID)
 	}
-	parsed.InReplyTo = firstMessageID(reader.Header, "In-Reply-To")
-	parsed.References = messageIDList(reader.Header, "References")
+	parsed.InReplyTo = firstMessageID(reader.Header, "In-Reply-To", opts.MaxReferences)
+	parsed.References, parsed.ReferencesTruncated = messageIDList(reader.Header, "References", opts.MaxReferences)
 	if parsed.Subject, err = reader.Header.Subject(); err != nil {
 		parsed.Subject = ""
 	}
@@ -84,9 +88,9 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	if parsed.From, err = firstAddress(reader.Header, "From"); err != nil {
 		parsed.From = Address{}
 	}
-	parsed.To = addressList(reader.Header, "To")
-	parsed.Cc = addressList(reader.Header, "Cc")
-	parsed.Bcc = addressList(reader.Header, "Bcc")
+	parsed.To = addressList(&parsed, opts, reader.Header, "To")
+	parsed.Cc = addressList(&parsed, opts, reader.Header, "Cc")
+	parsed.Bcc = addressList(&parsed, opts, reader.Header, "Bcc")
 
 	partsSeen := 0
 	for {
@@ -187,27 +191,35 @@ func inlineAttachmentMetadata(header *gomail.InlineHeader) (string, bool) {
 	return "", !strings.HasPrefix(strings.ToLower(contentType), "text/")
 }
 
-func firstMessageID(header gomail.Header, key string) string {
-	ids := messageIDList(header, key)
+func firstMessageID(header gomail.Header, key string, maxIDs int) string {
+	ids, _ := messageIDList(header, key, maxIDs)
 	if len(ids) == 0 {
 		return ""
 	}
 	return ids[len(ids)-1]
 }
 
-func messageIDList(header gomail.Header, key string) []string {
+func messageIDList(header gomail.Header, key string, maxIDs int) ([]string, bool) {
 	ids, err := header.MsgIDList(key)
 	if err != nil {
-		return nil
+		return nil, false
 	}
-	out := make([]string, 0, len(ids))
+	if maxIDs <= 0 {
+		maxIDs = 1000
+	}
+	out := make([]string, 0, min(len(ids), maxIDs))
+	truncated := false
 	for _, id := range ids {
+		if len(out) >= maxIDs {
+			truncated = true
+			break
+		}
 		id = normalizeMessageID(id)
 		if id != "" {
 			out = append(out, id)
 		}
 	}
-	return out
+	return out, truncated
 }
 
 func normalizeParseOptions(opts ParseOptions) ParseOptions {
@@ -222,6 +234,12 @@ func normalizeParseOptions(opts ParseOptions) ParseOptions {
 	}
 	if opts.MaxParts <= 0 {
 		opts.MaxParts = 10000
+	}
+	if opts.MaxAddresses <= 0 {
+		opts.MaxAddresses = 1000
+	}
+	if opts.MaxReferences <= 0 {
+		opts.MaxReferences = 1000
 	}
 	return opts
 }
@@ -253,13 +271,21 @@ func firstAddress(header gomail.Header, key string) (Address, error) {
 	return convertAddress(addrs[0]), nil
 }
 
-func addressList(header gomail.Header, key string) []Address {
+func addressList(parsed *ParsedMessage, opts ParseOptions, header gomail.Header, key string) []Address {
 	addrs, err := header.AddressList(key)
 	if err != nil {
 		return nil
 	}
-	result := make([]Address, 0, len(addrs))
+	limit := opts.MaxAddresses
+	if limit <= 0 {
+		limit = 1000
+	}
+	result := make([]Address, 0, min(len(addrs), limit))
 	for _, addr := range addrs {
+		if len(result) >= limit {
+			parsed.AddressesTruncated = true
+			break
+		}
 		result = append(result, convertAddress(addr))
 	}
 	return result
