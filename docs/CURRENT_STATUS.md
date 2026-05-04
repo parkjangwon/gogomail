@@ -251,8 +251,8 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Add OpenSearch parity for folder/from/subject/attachment filters and
-   highlights before making it the general search backend.
+1. Add backend-specific search relevance tuning/regression fixtures and decide
+   how drafts should participate in non-Postgres search.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. Wire mailbox event publication from append/flag/move/delete paths behind the
    IMAP gateway boundary.

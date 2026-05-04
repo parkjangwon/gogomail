@@ -83,6 +83,14 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify generated clients preserve the documented top-level envelope keys rather than flattening Mail/Admin response bodies.
 - Run `GOGOMAIL_TEST_DATABASE_URL=... go test ./internal/maildb ./internal/outbox` against a disposable PostgreSQL database/schema.
 - Run `GOGOMAIL_TEST_OPENSEARCH_URL=... go test ./internal/searchindex` against a disposable OpenSearch backend before enabling the OpenSearch search path in production.
+- For an OpenSearch rollout smoke, set
+  `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
+  `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`,
+  `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`,
+  `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`, and an explicit
+  `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`; then start
+  `gogomail --mode=search-index-worker` and confirm logs report the expected
+  backend, index, bootstrap state, and max body bytes without credentials.
 - Run focused SMTP soak checks for repeated same-connection transactions and STARTTLS/SMTPS startup in the intended deployment environment.
 - Exercise multipart attachment upload against the intended object storage adapter. Local-storage path safety, declared-size mismatch, oversize body cleanup, metadata-after-object-write behavior, and quota-exhaustion HTTP mapping are now covered in automated tests.
 - Exercise outbound DSN/bounce generation against a deployment-level controlled SMTP sink. Unit and wire tests now cover `NOTIFY=NEVER`, null reverse-path queueing/suppression, DSN option suppression to non-DSN peers, and retry/bounce recipient classification for temporary/permanent recipient failures.
