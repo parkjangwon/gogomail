@@ -389,6 +389,17 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /attachments/{id}:
+    delete:
+      operationId: cancelAttachmentUpload
+      summary: Cancel a pending attachment upload and release reserved quota
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/Attachment"
+        default:
+          $ref: "#/components/responses/Error"
   /push-devices:
     get:
       operationId: listPushDevices

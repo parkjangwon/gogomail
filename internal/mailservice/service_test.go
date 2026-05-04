@@ -1045,6 +1045,8 @@ type fakeRepository struct {
 	lastDomainPolicyUserID         string
 	lastDraft                      maildb.SaveDraftRequest
 	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
+	lastCancelAttachmentUserID     string
+	lastCancelAttachmentID         string
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupList      maildb.ExpireStaleAttachmentUploadsRequest
@@ -1052,6 +1054,7 @@ type fakeRepository struct {
 	lastAttachmentMessageID        string
 	lastAttachmentID               string
 	attachment                     maildb.Attachment
+	canceledAttachment             maildb.Attachment
 	expiredAttachments             []maildb.Attachment
 	staleAttachmentCount           maildb.StaleAttachmentUploadCount
 	staleAttachmentCandidates      []maildb.StaleAttachmentUploadCandidate
@@ -1392,6 +1395,15 @@ func (f *fakeRepository) MarkDraftSent(_ context.Context, _ string, draftID stri
 func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
 	f.lastAttachmentUpload = req
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
+}
+
+func (f *fakeRepository) CancelAttachmentUpload(_ context.Context, userID string, attachmentID string) (maildb.Attachment, error) {
+	f.lastCancelAttachmentUserID = userID
+	f.lastCancelAttachmentID = attachmentID
+	if f.canceledAttachment.ID != "" {
+		return f.canceledAttachment, nil
+	}
+	return maildb.Attachment{ID: attachmentID, Status: "deleted"}, nil
 }
 
 type fakeSearchIDSource struct {
@@ -1945,6 +1957,39 @@ func TestDomainPolicyNormalizesDomainID(t *testing.T) {
 	}
 	if policy.DomainID != "domain-1" || repo.lastDomainPolicyID != "domain-1" {
 		t.Fatalf("domain policy = %+v last id = %q", policy, repo.lastDomainPolicyID)
+	}
+}
+
+func TestCancelAttachmentUploadDeletesStoredObject(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "uploads/user-1/upload-1/report.pdf", strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	repo := &fakeRepository{
+		canceledAttachment: maildb.Attachment{
+			ID:          "att-1",
+			StoragePath: "uploads/user-1/upload-1/report.pdf",
+			Status:      "deleted",
+		},
+	}
+	service := New(repo, store)
+
+	attachment, err := service.CancelAttachmentUpload(context.Background(), " user-1 ", " att-1 ")
+	if err != nil {
+		t.Fatalf("CancelAttachmentUpload returned error: %v", err)
+	}
+	if attachment.ID != "att-1" || repo.lastCancelAttachmentUserID != "user-1" || repo.lastCancelAttachmentID != "att-1" {
+		t.Fatalf("attachment = %+v repo user/id = %q/%q", attachment, repo.lastCancelAttachmentUserID, repo.lastCancelAttachmentID)
+	}
+	body, err := store.Get(context.Background(), "uploads/user-1/upload-1/report.pdf")
+	if err == nil {
+		_ = body.Close()
+		t.Fatal("canceled attachment object still exists")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Get returned %v, want os.ErrNotExist", err)
 	}
 }
 

@@ -258,6 +258,52 @@ LIMIT 1`
 	return attachment, nil
 }
 
+func (r *Repository) CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (Attachment, error) {
+	if r.db == nil {
+		return Attachment{}, fmt.Errorf("database handle is required")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Attachment{}, fmt.Errorf("begin attachment cancel transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const query = `
+UPDATE attachments
+SET status = 'deleted'
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'uploading'
+  AND message_id IS NULL
+RETURNING id::text, COALESCE(message_id::text, ''), upload_id, storage_path, filename, size, mime_type, status, created_at`
+
+	var attachment Attachment
+	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(userID), strings.TrimSpace(attachmentID)).Scan(
+		&attachment.ID,
+		&attachment.MessageID,
+		&attachment.UploadID,
+		&attachment.StoragePath,
+		&attachment.Filename,
+		&attachment.Size,
+		&attachment.MIMEType,
+		&attachment.Status,
+		&attachment.CreatedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return Attachment{}, fmt.Errorf("attachment %q not found for active upload", attachmentID)
+		}
+		return Attachment{}, fmt.Errorf("cancel attachment upload: %w", err)
+	}
+	if err := decrementUserQuota(ctx, tx, strings.TrimSpace(userID), attachment.Size); err != nil {
+		return Attachment{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Attachment{}, fmt.Errorf("commit attachment cancel transaction: %w", err)
+	}
+	return attachment, nil
+}
+
 func (r *Repository) ExpireStaleAttachmentUploads(ctx context.Context, req ExpireStaleAttachmentUploadsRequest) ([]Attachment, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

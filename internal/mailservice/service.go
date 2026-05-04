@@ -58,6 +58,7 @@ type DraftSendRepository interface {
 
 type AttachmentUploadRepository interface {
 	CreateAttachmentUpload(ctx context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error)
+	CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error)
 }
 
 type AttachmentCleanupRepository interface {
@@ -829,6 +830,31 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 	if err != nil {
 		_ = s.store.Delete(ctx, path)
 		return maildb.Attachment{}, err
+	}
+	return attachment, nil
+}
+
+func (s *Service) CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error) {
+	userID = strings.TrimSpace(userID)
+	attachmentID = strings.TrimSpace(attachmentID)
+	if strings.TrimSpace(userID) == "" {
+		return maildb.Attachment{}, fmt.Errorf("user_id is required")
+	}
+	if err := validateServiceResourceID("attachment_id", attachmentID); err != nil {
+		return maildb.Attachment{}, err
+	}
+	repo, ok := s.repository.(AttachmentUploadRepository)
+	if !ok {
+		return maildb.Attachment{}, fmt.Errorf("attachment upload repository is required")
+	}
+	attachment, err := repo.CancelAttachmentUpload(ctx, userID, attachmentID)
+	if err != nil {
+		return maildb.Attachment{}, err
+	}
+	if s.store != nil && strings.TrimSpace(attachment.StoragePath) != "" {
+		if err := s.store.Delete(ctx, attachment.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return attachment, fmt.Errorf("delete canceled attachment object: %w", err)
+		}
 	}
 	return attachment, nil
 }

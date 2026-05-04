@@ -1003,6 +1003,28 @@ func TestUploadAttachmentHandler(t *testing.T) {
 	}
 }
 
+func TestCancelAttachmentUploadHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/attachments/att-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" || service.lastCancelAttachmentID != "att-1" {
+		t.Fatalf("cancel request = user:%q attachment:%q", service.lastUserID, service.lastCancelAttachmentID)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment"`) || !strings.Contains(rec.Body.String(), `"status":"deleted"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestUploadAttachmentHandlerRejectsOversizedRequestBody(t *testing.T) {
 	t.Parallel()
 
@@ -1571,6 +1593,7 @@ type fakeMessageService struct {
 	lastSend               mailservice.SendTextRequest
 	lastDraft              mailservice.SaveDraftRequest
 	lastAttachmentUpload   mailservice.CreateAttachmentUploadRequest
+	lastCancelAttachmentID string
 	lastPushDevice         maildb.UpsertPushDeviceRequest
 	lastAttachmentBody     string
 	attachmentErr          error
@@ -1753,6 +1776,12 @@ func (f *fakeMessageService) UploadAttachment(_ context.Context, req mailservice
 	raw, _ := io.ReadAll(req.Body)
 	f.lastAttachmentBody = string(raw)
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
+}
+
+func (f *fakeMessageService) CancelAttachmentUpload(_ context.Context, userID string, attachmentID string) (maildb.Attachment, error) {
+	f.lastUserID = userID
+	f.lastCancelAttachmentID = attachmentID
+	return maildb.Attachment{ID: attachmentID, Status: "deleted"}, nil
 }
 
 func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {

@@ -161,6 +161,10 @@ returns those bytes to the quota ledger, and then asks the configured storage
 backend to remove the object. Mail API maps quota exhaustion to HTTP 507
 `insufficient_storage` while the SMTP layer continues to use SMTP-appropriate
 mailbox-full responses.
+Pending uploads can be canceled through `DELETE /api/v1/attachments/{id}`;
+successful cancellation is user-scoped, only applies to unbound `uploading`
+attachments, marks the row `deleted`, releases the reserved quota, and removes
+the stored object when one exists.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart
