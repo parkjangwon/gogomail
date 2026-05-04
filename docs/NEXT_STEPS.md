@@ -125,6 +125,9 @@ Current state:
   advances only for actual changes.
 - `maildb` can backfill missing mailbox-local UIDs for active messages in
   bounded, stable-order batches.
+- `event-worker` handles committed `mail.stored` events with an IMAP UID
+  assignment handler, so newly received active messages become UID-visible
+  asynchronously without adding IMAP work to the SMTP hot path.
 - Mail API move/delete paths remove stale IMAP UID rows transactionally so moved
   messages can receive fresh mailbox-local UIDs later.
 - Optional PostgreSQL integration tests cover IMAP UID backfill and move
@@ -150,7 +153,8 @@ Current state:
 
 Next:
 
-- Wire mailbox event publication from append/receive paths.
+- Add actual IMAP EXISTS publication once a live protocol listener and
+  process-local event broker wiring exist.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).

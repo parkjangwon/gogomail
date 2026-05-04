@@ -53,6 +53,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   mailbox event broker for future session fan-out. The broker is scoped by
   user+mailbox, and service-side flag/move/delete mutations publish best-effort
   `flags`/`expunge` events for UID-visible messages.
+- The shared event worker now ensures IMAP UID rows for committed `mail.stored`
+  receive events, moving received messages toward UID-visible state without
+  coupling SMTP receive to future IMAP listener work.
 - EML parser hot-path guardrails include bounded-read truncation coverage and a
   large-body benchmark.
 - Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver, per-device candidate-attempt persistence, queued outcome updates after successful sink handoff, Admin API inspection/stats, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.

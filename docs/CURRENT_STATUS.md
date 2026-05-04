@@ -277,6 +277,9 @@ The platform hardening sprint completed the following:
   DTOs while ensuring UID state.
 - Existing active mailbox contents can be backfilled with stable mailbox-local
   IMAP UIDs in bounded batches before any live IMAP listener is enabled.
+- The shared `event-worker` now consumes committed `mail.stored` events through
+  an IMAP UID handler that ensures newly received active messages get
+  mailbox-local UIDs asynchronously after SMTP storage commits.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and

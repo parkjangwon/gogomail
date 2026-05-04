@@ -29,6 +29,7 @@ import (
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	"github.com/gogomail/gogomail/internal/imapnotify"
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
@@ -394,7 +395,10 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	router := eventstream.NewRouter()
 	auditRepository := audit.NewPostgresRepository(db)
-	if err := router.Register("mail.stored", audit.NewMailStoredHandler(auditRepository)); err != nil {
+	if err := router.Register("mail.stored", eventstream.MultiHandler{
+		imapnotify.NewMailStoredHandler(maildb.NewRepository(db)),
+		audit.NewMailStoredHandler(auditRepository),
+	}); err != nil {
 		return err
 	}
 	if err := router.Register("mail.delivered", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
