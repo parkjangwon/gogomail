@@ -870,6 +870,31 @@ paths:
           $ref: "#/components/responses/APIUsageExportManifestSignature"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification:
+    get:
+      operationId: verifyAdminAPIUsageExportManifestSignature
+      summary: Verify an API usage export manifest signature
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: digest_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: signature_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportManifestSignatureVerification"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1615,6 +1640,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportManifestSignatureListEnvelope"
+    APIUsageExportManifestSignatureVerification:
+      description: API usage export manifest signature verification envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportManifestSignatureVerificationEnvelope"
     APIUsageExportBatch:
       description: API usage export batch manifest envelope
       content:
@@ -2973,6 +3004,38 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportManifestSignature"
+    APIUsageExportManifestSignatureVerification:
+      type: object
+      required: [batch_id, digest_id, signature_id, signer_backend, key_id, signature_algorithm, signed_digest_hex, expected_digest_hex, valid]
+      properties:
+        batch_id:
+          type: string
+        digest_id:
+          type: string
+        signature_id:
+          type: string
+        signer_backend:
+          type: string
+          enum: [local-hmac]
+        key_id:
+          type: string
+        signature_algorithm:
+          type: string
+          enum: [hmac-sha256]
+        signed_digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        expected_digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        valid:
+          type: boolean
+    APIUsageExportManifestSignatureVerificationEnvelope:
+      type: object
+      required: [api_usage_export_manifest_signature_verification]
+      properties:
+        api_usage_export_manifest_signature_verification:
+          $ref: "#/components/schemas/APIUsageExportManifestSignatureVerification"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]

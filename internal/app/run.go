@@ -831,6 +831,13 @@ func apiUsageExportManifestSigner(cfg config.Config) apimeter.ExportManifestSign
 	}
 }
 
+func apiUsageExportManifestVerifySecret(cfg config.Config) []byte {
+	if !strings.EqualFold(strings.TrimSpace(cfg.APIUsageExportManifestSignerBackend), "local-hmac") {
+		return nil
+	}
+	return []byte(cfg.APIUsageExportManifestSignerSecret)
+}
+
 type dkimKeyRepository interface {
 	ActiveDKIMKey(ctx context.Context, domainID string) (maildb.DKIMKey, error)
 }
@@ -907,6 +914,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			exportStore:                 storage.NewLocalStore(cfg.MailstoreRoot),
 			exportManifestSigner:        apiUsageExportManifestSigner(cfg),
 			exportManifestSignerBackend: cfg.APIUsageExportManifestSignerBackend,
+			exportManifestVerifySecret:  apiUsageExportManifestVerifySecret(cfg),
 		}, cfg.AdminToken)
 		logger.Info("admin api routes registered")
 	}
