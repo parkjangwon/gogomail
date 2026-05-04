@@ -148,6 +148,7 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		}
 	}
 	if err := h.sink.EnqueuePush(ctx, notification); err != nil {
+		h.recordFailedOutcomes(ctx, notification.Targets, err)
 		return fmt.Errorf("enqueue push notification candidate: %w", err)
 	}
 	h.recordQueuedOutcomes(ctx, notification.Targets)
@@ -169,6 +170,35 @@ func (h *Handler) recordQueuedOutcomes(ctx context.Context, targets []Target) {
 		}); err != nil {
 			slog.Default().Warn(
 				"push notification queued outcome recording failed after sink success",
+				"attempt_id", attemptID,
+				"device_id", target.DeviceID,
+				"platform", target.Platform,
+				"error", err,
+			)
+		}
+	}
+}
+
+func (h *Handler) recordFailedOutcomes(ctx context.Context, targets []Target, cause error) {
+	if h.outcomes == nil {
+		return
+	}
+	errorMessage := ""
+	if cause != nil {
+		errorMessage = cause.Error()
+	}
+	for _, target := range targets {
+		attemptID := strings.TrimSpace(target.AttemptID)
+		if attemptID == "" {
+			continue
+		}
+		if err := h.outcomes.RecordOutcome(ctx, AttemptOutcome{
+			AttemptID:    attemptID,
+			Status:       "failed",
+			ErrorMessage: errorMessage,
+		}); err != nil {
+			slog.Default().Warn(
+				"push notification failed outcome recording failed after sink error",
 				"attempt_id", attemptID,
 				"device_id", target.DeviceID,
 				"platform", target.Platform,

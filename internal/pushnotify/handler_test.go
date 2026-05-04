@@ -87,7 +87,7 @@ func TestHandlerRecordsQueuedOutcomesAfterSinkSuccess(t *testing.T) {
 	}
 }
 
-func TestHandlerDoesNotRecordQueuedOutcomeWhenSinkFails(t *testing.T) {
+func TestHandlerRecordsFailedOutcomesWhenSinkFails(t *testing.T) {
 	t.Parallel()
 
 	sink := &fakeSink{err: errFakeSink}
@@ -106,8 +106,35 @@ func TestHandlerDoesNotRecordQueuedOutcomeWhenSinkFails(t *testing.T) {
 	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: validMailStoredPayload()}); err == nil {
 		t.Fatal("HandleEvent returned nil error")
 	}
-	if len(outcomes.outcomes) != 0 {
+	if len(outcomes.outcomes) != 1 {
 		t.Fatalf("outcomes = %+v", outcomes.outcomes)
+	}
+	if outcomes.outcomes[0].AttemptID != "attempt-1" || outcomes.outcomes[0].Status != "failed" || outcomes.outcomes[0].ErrorMessage != "fake sink error" {
+		t.Fatalf("outcome = %+v", outcomes.outcomes[0])
+	}
+}
+
+func TestHandlerStillFailsWhenFailedOutcomeRecordingFails(t *testing.T) {
+	t.Parallel()
+
+	sink := &fakeSink{err: errFakeSink}
+	recorder := &fakeCandidateRecorder{}
+	outcomes := &fakeOutcomeRecorder{err: errFakeOutcomeRecorder}
+	resolver := &fakeTargetResolver{
+		targets: []Target{{DeviceID: "device-1", Platform: "fcm", Token: "token-1", TokenSuffix: "token-1"}},
+	}
+	handler := NewHandler(
+		sink,
+		WithTargetResolver(resolver),
+		WithCandidateRecorder(recorder),
+		WithOutcomeRecorder(outcomes),
+	)
+
+	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: validMailStoredPayload()}); err == nil {
+		t.Fatal("HandleEvent returned nil error")
+	}
+	if len(outcomes.outcomes) != 1 || outcomes.outcomes[0].Status != "failed" {
+		t.Fatalf("outcomes = %+v, want failed attempt record", outcomes.outcomes)
 	}
 }
 
