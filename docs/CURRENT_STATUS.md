@@ -164,7 +164,9 @@ guidance.
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
   notification candidates with Postgres candidate-attempt audit rows without
-  touching SMTP hot paths or committing to FCM/APNs SDKs.
+  touching SMTP hot paths or committing to FCM/APNs SDKs. Malformed resolved
+  targets with blank device IDs, blank tokens, or unsupported platforms are
+  dropped before sink handoff.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status, user, platform, device,
   provider status, provider message id, or recent time window.

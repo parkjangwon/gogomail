@@ -428,6 +428,7 @@ Implementation order:
 369. Admin delivery-route status and delete handlers now trim route IDs at the HTTP boundary before service calls and response envelopes, keeping operator mutations consistent with repository validation.
 370. Admin API now exposes bounded IMAP mailbox UID backfill by user/mailbox, giving operators a bootstrap path for future IMAP enablement without starting an IMAP protocol listener.
 371. Push notification workers now mark candidate attempts `failed` with the sink error when sink handoff fails, preserving operator diagnostics while still returning the handler error for Redis stream retry.
+372. Push notification target resolution now drops malformed targets with blank device IDs, blank tokens, or unsupported platforms before sink handoff, keeping future vendor adapters behind a cleaner boundary.
 
 ## Deferred until backend contracts stabilize
 

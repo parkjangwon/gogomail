@@ -179,7 +179,9 @@ Current state:
   remain write-only.
 - The worker can resolve active user devices from Postgres with
   `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT`, then pass those targets to the
-  sink without coupling SMTP or storage writes to vendor delivery.
+  sink without coupling SMTP or storage writes to vendor delivery. Malformed
+  resolved targets with blank device IDs, blank tokens, or unsupported platforms
+  are dropped before sink handoff.
 - The worker records per-device candidate attempts to
   `push_notification_attempts` before sink handoff, then marks those attempts
   `queued` only after the sink succeeds. Failed sink handoffs are marked

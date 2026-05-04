@@ -41,13 +41,15 @@ func (r *DeviceResolver) ResolvePushTargets(ctx context.Context, event Event) ([
 
 	targets := make([]Target, 0, len(devices))
 	for _, device := range devices {
+		deviceID := strings.TrimSpace(device.ID)
+		platform := strings.ToLower(strings.TrimSpace(device.Platform))
 		token := strings.TrimSpace(device.Token)
-		if token == "" {
+		if deviceID == "" || token == "" || !maildbAllowedPushPlatform(platform) {
 			continue
 		}
 		targets = append(targets, Target{
-			DeviceID:    strings.TrimSpace(device.ID),
-			Platform:    strings.ToLower(strings.TrimSpace(device.Platform)),
+			DeviceID:    deviceID,
+			Platform:    platform,
 			Token:       token,
 			TokenSuffix: pushTokenSuffix(token, device.TokenSuffix),
 			Label:       strings.TrimSpace(device.Label),
@@ -67,4 +69,13 @@ func pushTokenSuffix(token string, existing string) string {
 		return string(runes)
 	}
 	return string(runes[len(runes)-suffixRunes:])
+}
+
+func maildbAllowedPushPlatform(platform string) bool {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case maildb.PushPlatformAPNS, maildb.PushPlatformFCM, maildb.PushPlatformWebPush:
+		return true
+	default:
+		return false
+	}
 }
