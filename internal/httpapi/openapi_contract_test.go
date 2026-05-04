@@ -274,6 +274,9 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		if !strings.Contains(block, "Cache-Control:") || !strings.Contains(block, "enum: [no-store]") {
 			t.Fatalf("OpenAPI response %s must document Cache-Control: no-store", response)
 		}
+		if !strings.Contains(block, "X-Content-Type-Options:") || !strings.Contains(block, "enum: [nosniff]") {
+			t.Fatalf("OpenAPI response %s must document X-Content-Type-Options: nosniff", response)
+		}
 	}
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
@@ -284,7 +287,7 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	if strings.Contains(block, "application/json:") {
 		t.Fatal("attachment download must not declare application/json")
 	}
-	for _, want := range []string{"application/octet-stream:", "type: string", "format: binary", "Content-Disposition:", "Cache-Control:", "enum: [no-store]"} {
+	for _, want := range []string{"application/octet-stream:", "type: string", "format: binary", "Content-Disposition:", "Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("attachment download must document %q", want)
 		}

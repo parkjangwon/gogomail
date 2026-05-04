@@ -988,6 +988,9 @@ func TestDownloadAttachmentHandler(t *testing.T) {
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q", got)
 	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", got)
+	}
 }
 
 func TestDownloadAttachmentHandlerUsesUTF8FilenameParameter(t *testing.T) {

@@ -435,6 +435,9 @@ The platform hardening sprint completed the following:
   response headers before streaming export objects.
 - API usage NDJSON exports and stored export artifact downloads now return
   `Cache-Control: no-store`, with OpenAPI drift coverage.
+- Attachment downloads, usage NDJSON exports, and stored export artifact
+  downloads now return `X-Content-Type-Options: nosniff`, with OpenAPI drift
+  coverage.
 
 Next focus areas:
 

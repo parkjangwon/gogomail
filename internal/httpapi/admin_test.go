@@ -488,6 +488,9 @@ func TestAdminAPIUsageLedgerExportHandler(t *testing.T) {
 	if got := rr.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("cache control = %q", got)
 	}
+	if got := rr.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("x-content-type-options = %q", got)
+	}
 	lines := strings.Split(strings.TrimSpace(rr.Body.String()), "\n")
 	if len(lines) != 1 || !strings.Contains(lines[0], `"event_id":"usage-1"`) {
 		t.Fatalf("ndjson = %q", rr.Body.String())
@@ -925,6 +928,9 @@ func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
 	if got := rr.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("cache control = %q", got)
 	}
+	if got := rr.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("x-content-type-options = %q", got)
+	}
 	if !strings.Contains(rr.Body.String(), `"event_id":"usage-1"`) {
 		t.Fatalf("ndjson = %q", rr.Body.String())
 	}
@@ -1151,6 +1157,9 @@ func TestAdminDownloadAPIUsageExportArtifactHandler(t *testing.T) {
 	}
 	if got := rr.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("cache control = %q", got)
+	}
+	if got := rr.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("x-content-type-options = %q", got)
 	}
 	if !strings.Contains(rr.Body.String(), `"event_id":"usage-1"`) {
 		t.Fatalf("body = %q", rr.Body.String())

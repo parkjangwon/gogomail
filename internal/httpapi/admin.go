@@ -772,6 +772,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			w.Header().Set("X-Gogomail-Artifact-SHA256", sha256Hex)
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, body)
 	}))

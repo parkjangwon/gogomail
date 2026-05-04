@@ -42,6 +42,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   response headers before streaming handoff objects.
 - API usage NDJSON exports and stored export artifact downloads return
   `Cache-Control: no-store`, documented in OpenAPI for generated clients.
+- Attachment downloads, usage NDJSON exports, and stored export artifact
+  downloads return `X-Content-Type-Options: nosniff`, documented in OpenAPI for
+  generated clients.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.
