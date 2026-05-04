@@ -320,7 +320,8 @@ The platform hardening sprint completed the following:
   future protocol listener can depend on the gateway interface while still
   routing through service methods.
 - EML parser guardrails include a truncation-probe test and benchmark for the
-  bounded text-body reader on large bodies.
+  bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
+  `PartsTruncated` for pathological MIME part counts.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.

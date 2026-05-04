@@ -26,6 +26,7 @@ type ParseOptions struct {
 	MaxTextBodyBytes int64
 	SkipTextBody     bool
 	MaxAttachments   int
+	MaxParts         int
 }
 
 type ParsedMessage struct {
@@ -42,6 +43,7 @@ type ParsedMessage struct {
 	TextBodyTruncated    bool
 	HasAttachment        bool
 	AttachmentsTruncated bool
+	PartsTruncated       bool
 	Attachments          []Attachment
 }
 
@@ -80,6 +82,7 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	parsed.Cc = addressList(reader.Header, "Cc")
 	parsed.Bcc = addressList(reader.Header, "Bcc")
 
+	partsSeen := 0
 	for {
 		part, err := reader.NextPart()
 		if errors.Is(err, io.EOF) {
@@ -87,6 +90,11 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 		}
 		if err != nil {
 			return ParsedMessage{}, fmt.Errorf("read mail part: %w", err)
+		}
+		partsSeen++
+		if partsSeen > opts.MaxParts {
+			parsed.PartsTruncated = true
+			break
 		}
 
 		switch header := part.Header.(type) {
@@ -145,6 +153,9 @@ func normalizeParseOptions(opts ParseOptions) ParseOptions {
 	}
 	if opts.MaxAttachments <= 0 {
 		opts.MaxAttachments = 1000
+	}
+	if opts.MaxParts <= 0 {
+		opts.MaxParts = 10000
 	}
 	return opts
 }
