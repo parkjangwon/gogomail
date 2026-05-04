@@ -100,7 +100,12 @@ func summarizeDeliveryAttempts(attempts []DeliveryAttemptView) (string, string) 
 	bounced := false
 	retry := false
 	for _, attempt := range attempts {
-		switch strings.ToLower(strings.TrimSpace(attempt.Status)) {
+		status := strings.ToLower(strings.TrimSpace(attempt.Status))
+		if status == "failed" && enhancedStatusClass(attempt.EnhancedStatus) == '4' {
+			retry = true
+			continue
+		}
+		switch status {
 		case "delivered":
 			delivered = true
 		case "bounced", "hard_bounce":
@@ -124,5 +129,29 @@ func summarizeDeliveryAttempts(attempts []DeliveryAttemptView) (string, string) 
 		return "delivered", "none"
 	default:
 		return "pending", "none"
+	}
+}
+
+func enhancedStatusClass(status string) byte {
+	status = strings.TrimSpace(status)
+	parts := strings.Split(status, ".")
+	if len(parts) != 3 || len(parts[0]) != 1 {
+		return 0
+	}
+	for _, part := range parts[1:] {
+		if part == "" || len(part) > 3 {
+			return 0
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return 0
+			}
+		}
+	}
+	switch parts[0][0] {
+	case '2', '4', '5':
+		return parts[0][0]
+	default:
+		return 0
 	}
 }
