@@ -447,6 +447,9 @@ The platform hardening sprint completed the following:
   the HTTP boundary before service dispatch.
 - Mail API search query, folder, sender, and subject filters are trimmed at the
   HTTP boundary before search backend dispatch.
+- Mail compose draft/save/send requests normalize user/source/from/address and
+  attachment identifier fields at the service boundary before repository,
+  storage, suppression, and outbound composition work.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.

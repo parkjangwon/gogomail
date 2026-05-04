@@ -126,6 +126,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   device/provider troubleshooting queries.
 - Mail API push-device registration normalizes user, platform, token, and label
   fields before validation/storage while responses keep raw tokens write-only.
+- Mail compose draft/save/send requests normalize user/source/from/address and
+  attachment identifier fields before repository, storage, suppression, and
+  outbound composition work.
 - Mail API search query, folder, sender, and subject filters are trimmed before
   search backend dispatch, reducing accidental UI/client whitespace drift.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.

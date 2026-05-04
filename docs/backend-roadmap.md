@@ -463,6 +463,7 @@ Implementation order:
 404. Admin API delivery-attempt status and recipient-domain filters are now trimmed before retry/bounce inspection.
 405. Admin API push-notification attempt and stats filters are now trimmed before device/provider troubleshooting queries.
 406. Mail API push-device registration now normalizes user, platform, token, and label fields before validation/storage while keeping raw tokens write-only in responses.
+407. Mail compose draft/save/send requests now normalize user/source/from/address and attachment identifier fields before repository, storage, suppression, and outbound composition work.
 
 ## Deferred until backend contracts stabilize
 

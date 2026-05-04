@@ -562,6 +562,7 @@ func (s *Service) DeletePushDevice(ctx context.Context, userID string, id string
 }
 
 func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
+	req = normalizeSaveDraftRequest(req)
 	if err := ValidateSaveDraftRequest(req); err != nil {
 		return maildb.MessageDetail{}, err
 	}
@@ -582,6 +583,22 @@ func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.M
 		TextBody:        req.TextBody,
 		AttachmentIDs:   req.AttachmentIDs,
 	})
+}
+
+func normalizeSaveDraftRequest(req SaveDraftRequest) SaveDraftRequest {
+	intent, err := NormalizeComposeIntent(string(req.Intent))
+	if err == nil {
+		req.Intent = intent
+	}
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.DraftID = strings.TrimSpace(req.DraftID)
+	req.SourceMessageID = strings.TrimSpace(req.SourceMessageID)
+	req.From = strings.TrimSpace(req.From)
+	req.To = normalizeComposeAddresses(req.To)
+	req.Cc = normalizeComposeAddresses(req.Cc)
+	req.Bcc = normalizeComposeAddresses(req.Bcc)
+	req.AttachmentIDs = normalizeStringList(req.AttachmentIDs)
+	return req
 }
 
 func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string) error {
@@ -838,6 +855,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	if s.store == nil {
 		return SendTextResult{}, fmt.Errorf("mail storage is required")
 	}
+	req = normalizeSendTextRequest(req)
 	if err := ValidateSendTextRequest(req); err != nil {
 		return SendTextResult{}, err
 	}
@@ -941,6 +959,36 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		DeliveryStatus: "pending",
 		BounceStatus:   "none",
 	}), nil
+}
+
+func normalizeSendTextRequest(req SendTextRequest) SendTextRequest {
+	intent, err := NormalizeComposeIntent(string(req.Intent))
+	if err == nil {
+		req.Intent = intent
+	}
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.SourceMessageID = strings.TrimSpace(req.SourceMessageID)
+	req.From = strings.TrimSpace(req.From)
+	req.To = normalizeComposeAddresses(req.To)
+	req.Cc = normalizeComposeAddresses(req.Cc)
+	req.Bcc = normalizeComposeAddresses(req.Bcc)
+	req.AttachmentIDs = normalizeStringList(req.AttachmentIDs)
+	return req
+}
+
+func normalizeComposeAddresses(addresses []outbound.Address) []outbound.Address {
+	for i := range addresses {
+		addresses[i].Name = strings.TrimSpace(addresses[i].Name)
+		addresses[i].Email = strings.TrimSpace(addresses[i].Email)
+	}
+	return addresses
+}
+
+func normalizeStringList(values []string) []string {
+	for i := range values {
+		values[i] = strings.TrimSpace(values[i])
+	}
+	return values
 }
 
 func (s *Service) sourceThread(ctx context.Context, req SendTextRequest) (maildb.SourceThreadView, error) {
