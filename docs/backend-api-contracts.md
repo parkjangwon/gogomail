@@ -247,7 +247,10 @@ multipart body, not the URL query string, and reject repeated `draft_id` or
 filters must appear at most once; duplicate scalar query controls return HTTP
 400 `bad_request`.
 Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
-when the raw body exceeds the attachment upload size cap.
+when the raw body exceeds the attachment upload size cap. Upload session body
+control headers such as `Content-Range` and `X-Content-SHA256` must appear at
+most once; repeated control headers return HTTP 400 `bad_request` before body
+storage begins.
 Because `resumable_chunked_uploads` remains `false`, `Content-Range` requests
 to the upload session body endpoint are rejected instead of being interpreted as
 partial chunk commits.

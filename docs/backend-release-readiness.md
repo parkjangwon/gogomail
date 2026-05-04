@@ -63,6 +63,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Upload session body storage explicitly rejects `Content-Range` requests while
   `resumable_chunked_uploads=false`, keeping complete-body storage distinct
   from future range-aware chunk commits.
+- Upload session body storage rejects repeated `Content-Range` or
+  `X-Content-SHA256` control headers before body storage begins.
 - Upload session body replacement records retries through distinct staged object
   paths, preserving the previously recorded body if repository metadata updates
   fail and best-effort cleaning old staged bodies after successful replacement.
