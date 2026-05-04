@@ -309,7 +309,7 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 		t.Fatalf("Put returned error: %v", err)
 	}
 
-	service := New(&fakeRepository{
+	repo := &fakeRepository{
 		imapMessage: maildb.IMAPStoredMessage{
 			Summary: imapgw.MessageSummary{
 				ID:        "msg-1",
@@ -318,11 +318,12 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 			},
 			StoragePath: path,
 		},
-	}, store)
+	}
+	service := New(repo, store)
 
 	msg, err := service.FetchIMAPMessage(context.Background(), imapgw.FetchMessageRequest{
-		UserID:    "user-1",
-		MailboxID: "inbox",
+		UserID:    " user-1 ",
+		MailboxID: " inbox ",
 		UID:       12,
 	})
 	if err != nil {
@@ -340,6 +341,9 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 	if msg.Summary.UID != 12 || msg.Summary.ID != "msg-1" {
 		t.Fatalf("summary = %#v, want repository summary", msg.Summary)
 	}
+	if repo.lastIMAPMessageUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" {
+		t.Fatalf("imap fetch ids = %q/%q", repo.lastIMAPMessageUserID, repo.lastIMAPMessageMailboxID)
+	}
 }
 
 func TestListIMAPMailboxesDelegatesToRepository(t *testing.T) {
@@ -350,7 +354,7 @@ func TestListIMAPMailboxesDelegatesToRepository(t *testing.T) {
 	}
 	service := New(repo, nil)
 
-	got, err := service.ListIMAPMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: "user-1"})
+	got, err := service.ListIMAPMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: " user-1 "})
 	if err != nil {
 		t.Fatalf("ListIMAPMailboxes returned error: %v", err)
 	}
@@ -368,9 +372,9 @@ func TestListIMAPMessagesDelegatesToRepository(t *testing.T) {
 	service := New(repo, nil)
 
 	got, err := service.ListIMAPMessages(context.Background(), imapgw.ListMessagesRequest{
-		UserID:    "user-1",
-		MailboxID: "inbox",
-		Limit:     25,
+		UserID:    " user-1 ",
+		MailboxID: " inbox ",
+		Limit:     500,
 		AfterUID:  11,
 	})
 	if err != nil {
@@ -378,6 +382,9 @@ func TestListIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].UID != 12 || repo.lastIMAPMessageAfterUID != 11 {
 		t.Fatalf("messages = %#v, after uid = %d", got, repo.lastIMAPMessageAfterUID)
+	}
+	if repo.lastIMAPMessageUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" || repo.lastIMAPMessageLimit != maildb.MessageListMaxLimit {
+		t.Fatalf("imap list = %q/%q/%d", repo.lastIMAPMessageUserID, repo.lastIMAPMessageMailboxID, repo.lastIMAPMessageLimit)
 	}
 }
 
@@ -413,12 +420,15 @@ func TestBackfillIMAPMailboxUIDsDelegatesToRepository(t *testing.T) {
 	}
 	service := New(repo, nil)
 
-	got, err := service.BackfillIMAPMailboxUIDs(context.Background(), "user-1", "inbox", 50)
+	got, err := service.BackfillIMAPMailboxUIDs(context.Background(), " user-1 ", " inbox ", 500)
 	if err != nil {
 		t.Fatalf("BackfillIMAPMailboxUIDs returned error: %v", err)
 	}
-	if len(got) != 1 || got[0].UID != 12 || repo.lastBackfillLimit != 50 {
+	if len(got) != 1 || got[0].UID != 12 || repo.lastBackfillLimit != maildb.MessageListMaxLimit {
 		t.Fatalf("backfill = %#v, limit = %d", got, repo.lastBackfillLimit)
+	}
+	if repo.lastBackfillUserID != "user-1" || repo.lastBackfillMailboxID != "inbox" {
+		t.Fatalf("backfill ids = %q/%q", repo.lastBackfillUserID, repo.lastBackfillMailboxID)
 	}
 }
 
@@ -432,8 +442,8 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	got, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
-		UserID:    "user-1",
-		MailboxID: "inbox",
+		UserID:    " user-1 ",
+		MailboxID: " inbox ",
 		UIDs:      []imapgw.UID{12},
 		Flags:     imapgw.MessageFlags{Read: true},
 		Mode:      imapgw.StoreFlagsAdd,
@@ -446,6 +456,9 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	}
 	if repo.lastIMAPFlagMode != imapgw.StoreFlagsAdd || !repo.lastIMAPFlags.Read {
 		t.Fatalf("stored flags = %#v/%q, want read add", repo.lastIMAPFlags, repo.lastIMAPFlagMode)
+	}
+	if repo.lastIMAPFlagUserID != "user-1" || repo.lastIMAPFlagMailboxID != "inbox" {
+		t.Fatalf("store flags ids = %q/%q", repo.lastIMAPFlagUserID, repo.lastIMAPFlagMailboxID)
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventFlags || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
 		t.Fatalf("events = %#v, want flags event", events.events)
@@ -923,10 +936,17 @@ type fakeRepository struct {
 	lastSourceThreadMessageID      string
 	lastIMAPFlags                  imapgw.MessageFlags
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
+	lastIMAPFlagUserID             string
+	lastIMAPFlagMailboxID          string
 	lastIMAPUIDLookupUserID        string
 	lastIMAPUIDLookupMessageIDs    []string
 	lastIMAPMailboxUserID          string
+	lastIMAPMessageUserID          string
+	lastIMAPMessageMailboxID       string
+	lastIMAPMessageLimit           int
 	lastIMAPMessageAfterUID        imapgw.UID
+	lastBackfillUserID             string
+	lastBackfillMailboxID          string
 	lastBackfillLimit              int
 	recordErr                      error
 }
@@ -1004,7 +1024,9 @@ func (f *fakeRepository) GetMessage(_ context.Context, userID string, messageID 
 	return f.detail, nil
 }
 
-func (f *fakeRepository) GetIMAPMessage(context.Context, string, string, imapgw.UID) (maildb.IMAPStoredMessage, error) {
+func (f *fakeRepository) GetIMAPMessage(_ context.Context, userID string, mailboxID string, _ imapgw.UID) (maildb.IMAPStoredMessage, error) {
+	f.lastIMAPMessageUserID = userID
+	f.lastIMAPMessageMailboxID = mailboxID
 	return f.imapMessage, nil
 }
 
@@ -1013,24 +1035,33 @@ func (f *fakeRepository) ListIMAPMailboxes(_ context.Context, userID string) ([]
 	return f.imapMailboxes, nil
 }
 
-func (f *fakeRepository) GetIMAPMailbox(context.Context, string, string) (imapgw.Mailbox, error) {
+func (f *fakeRepository) GetIMAPMailbox(_ context.Context, userID string, mailboxID string) (imapgw.Mailbox, error) {
+	f.lastIMAPMailboxUserID = userID
+	f.lastIMAPMessageMailboxID = mailboxID
 	if len(f.imapMailboxes) == 0 {
 		return imapgw.Mailbox{}, nil
 	}
 	return f.imapMailboxes[0], nil
 }
 
-func (f *fakeRepository) ListIMAPMessages(_ context.Context, _ string, _ string, _ int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {
+func (f *fakeRepository) ListIMAPMessages(_ context.Context, userID string, mailboxID string, limit int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {
+	f.lastIMAPMessageUserID = userID
+	f.lastIMAPMessageMailboxID = mailboxID
+	f.lastIMAPMessageLimit = limit
 	f.lastIMAPMessageAfterUID = afterUID
 	return f.imapMessages, nil
 }
 
-func (f *fakeRepository) BackfillIMAPMailboxUIDs(_ context.Context, _ string, _ string, limit int) ([]maildb.IMAPMessageUID, error) {
+func (f *fakeRepository) BackfillIMAPMailboxUIDs(_ context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error) {
+	f.lastBackfillUserID = userID
+	f.lastBackfillMailboxID = mailboxID
 	f.lastBackfillLimit = limit
 	return f.backfilledIMAPUIDs, nil
 }
 
-func (f *fakeRepository) StoreIMAPFlags(_ context.Context, _ string, _ string, _ []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error) {
+func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailboxID string, _ []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error) {
+	f.lastIMAPFlagUserID = userID
+	f.lastIMAPFlagMailboxID = mailboxID
 	f.lastIMAPFlags = flags
 	f.lastIMAPFlagMode = mode
 	return f.imapFlagSummaries, nil

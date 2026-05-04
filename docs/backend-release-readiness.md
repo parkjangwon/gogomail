@@ -149,6 +149,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   user, folder, thread, message, and folder-name inputs before repository work.
 - Message, thread, and push-device list service methods normalize list limits
   to the documented message-list bounds before repository work.
+- IMAP service methods trim user/mailbox identifiers and normalize list/backfill
+  limits before repository, storage, broker, or mailbox-event work.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
 - Message delivery-status and reply source-thread service lookups trim user,

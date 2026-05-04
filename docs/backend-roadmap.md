@@ -475,6 +475,7 @@ Implementation order:
 416. Stale attachment-upload cleanup now validates its time window and limit at the service boundary before repository cleanup/object deletion work.
 417. Message, thread, and push-device list service methods now normalize list limits to the documented message-list bounds before repository work.
 418. OpenAPI contract tests now pin the push-device list `limit` query parameter so generated clients keep pagination controls for device management.
+419. IMAP service methods now trim user/mailbox identifiers and normalize list/backfill limits before repository, storage, broker, or mailbox-event work.
 
 ## Deferred until backend contracts stabilize
 

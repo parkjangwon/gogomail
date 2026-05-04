@@ -324,7 +324,9 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 		return imapgw.Message{}, fmt.Errorf("message storage is required")
 	}
 
-	stored, err := repo.GetIMAPMessage(ctx, string(req.UserID), string(req.MailboxID), req.UID)
+	userID := strings.TrimSpace(string(req.UserID))
+	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	stored, err := repo.GetIMAPMessage(ctx, userID, mailboxID, req.UID)
 	if err != nil {
 		return imapgw.Message{}, err
 	}
@@ -346,7 +348,8 @@ func (s *Service) ListIMAPMailboxes(ctx context.Context, req imapgw.ListMailboxe
 	if !ok {
 		return nil, fmt.Errorf("imap mailbox repository is required")
 	}
-	return repo.ListIMAPMailboxes(ctx, string(req.UserID))
+	userID := strings.TrimSpace(string(req.UserID))
+	return repo.ListIMAPMailboxes(ctx, userID)
 }
 
 func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
@@ -356,7 +359,7 @@ func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mail
 	if !ok {
 		return imapgw.Mailbox{}, fmt.Errorf("imap mailbox repository is required")
 	}
-	return repo.GetIMAPMailbox(ctx, string(userID), string(mailboxID))
+	return repo.GetIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
 }
 
 func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesRequest) ([]imapgw.MessageSummary, error) {
@@ -366,7 +369,10 @@ func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesR
 	if !ok {
 		return nil, fmt.Errorf("imap message repository is required")
 	}
-	return repo.ListIMAPMessages(ctx, string(req.UserID), string(req.MailboxID), req.Limit, req.AfterUID)
+	userID := strings.TrimSpace(string(req.UserID))
+	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	limit := maildb.NormalizeMessageListLimit(req.Limit)
+	return repo.ListIMAPMessages(ctx, userID, mailboxID, limit, req.AfterUID)
 }
 
 func (s *Service) SubscribeIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (<-chan imapgw.MailboxEvent, func(), error) {
@@ -376,7 +382,7 @@ func (s *Service) SubscribeIMAPMailbox(ctx context.Context, userID imapgw.UserID
 	if !ok {
 		return nil, nil, fmt.Errorf("imap mailbox event broker is required")
 	}
-	return broker.Subscribe(ctx, userID, mailboxID)
+	return broker.Subscribe(ctx, imapgw.UserID(strings.TrimSpace(string(userID))), imapgw.MailboxID(strings.TrimSpace(string(mailboxID))))
 }
 
 func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error) {
@@ -386,6 +392,9 @@ func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, ma
 	if !ok {
 		return nil, fmt.Errorf("imap uid backfill repository is required")
 	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.BackfillIMAPMailboxUIDs(ctx, userID, mailboxID, limit)
 }
 
@@ -396,7 +405,9 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if !ok {
 		return nil, fmt.Errorf("imap flag repository is required")
 	}
-	summaries, err := repo.StoreIMAPFlags(ctx, string(req.UserID), string(req.MailboxID), req.UIDs, req.Flags, req.Mode)
+	userID := strings.TrimSpace(string(req.UserID))
+	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode)
 	if err != nil {
 		return nil, err
 	}
