@@ -173,7 +173,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before retry/bounce inspection, and CR/LF-bearing or oversized filter values
   are rejected before service dispatch.
 - Admin API push-notification attempt and stats filters are trimmed before
-  device/provider troubleshooting queries.
+  device/provider troubleshooting queries, and CR/LF-bearing or oversized
+  filter values are rejected before service dispatch.
 - Mail API push-device registration normalizes user, platform, token, and label
   fields before validation/storage while responses keep raw tokens write-only.
 - Push-device list and delete service methods trim user and device identifiers

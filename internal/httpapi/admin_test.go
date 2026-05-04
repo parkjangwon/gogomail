@@ -2517,6 +2517,35 @@ func TestAdminPushNotificationAttemptsHandlerRejectsInvalidSince(t *testing.T) {
 	}
 }
 
+func TestAdminPushNotificationAttemptsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/push-notification-attempts?status=candidate%0Abad",
+		"/admin/v1/push-notification-attempts?user_id=user-1%0Dbad",
+		"/admin/v1/push-notification-attempts?platform=fcm%0Abad",
+		"/admin/v1/push-notification-attempts?device_id=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+		"/admin/v1/push-notification-attempts?provider_status=accepted%0Abad",
+		"/admin/v1/push-notification-attempts?provider_message_id=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastPushAttemptList.Limit != 0 {
+			t.Fatalf("%s dispatched request %+v", path, service.lastPushAttemptList)
+		}
+	}
+}
+
 func TestAdminPushNotificationStatsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2563,6 +2592,25 @@ func TestAdminPushNotificationStatsHandlerRejectsInvalidSince(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "since must be RFC3339 timestamp") {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminPushNotificationStatsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-stats?user_id=user-1%0Abad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushNotificationStats.UserID != "" {
+		t.Fatalf("dispatched request %+v", service.lastPushNotificationStats)
 	}
 }
 

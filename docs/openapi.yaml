@@ -1128,33 +1128,39 @@ paths:
           required: false
           schema:
             type: string
+            maxLength: 1024
             enum: [candidate, queued, delivered, failed, invalid_token]
         - name: user_id
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
         - name: platform
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
             enum: [apns, fcm, webpush]
         - name: device_id
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
         - name: provider_status
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
         - name: provider_message_id
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
         - name: since
           in: query
           required: false
@@ -1177,6 +1183,7 @@ paths:
           required: false
           schema:
             type: string
+            maxLength: 1024
         - name: since
           in: query
           required: false

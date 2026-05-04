@@ -293,10 +293,12 @@ Admin operational read models also keep explicit envelope keys:
   triage bounded and use the same bounded text-filter validation.
 - `GET /admin/v1/push-notification-attempts` returns `{"push_notification_attempts":[...]}`;
   optional `status`, `user_id`, and RFC3339 `since` filters keep fan-out
-  inspection bounded.
+  inspection bounded. Extended provider/device filters are supported, and text
+  filters reject CR/LF-bearing or oversized values before service dispatch.
 - `GET /admin/v1/push-notification-stats` returns `{"push_notification_stats":{...}}`;
   optional `user_id` scopes active-device and attempt-status totals to one user,
-  while optional RFC3339 `since` scopes attempt-status totals to recent attempts.
+  while optional RFC3339 `since` scopes attempt-status totals to recent attempts;
+  text filters use the same bounded validation.
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
