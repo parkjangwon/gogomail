@@ -343,6 +343,8 @@ Implementation order:
 285. API metering now records immutable `api_usage_ledger` rows before updating daily/monthly aggregate read models, preserving event-level usage payloads for future billing/export workflows.
 286. Admin API now exposes bounded API usage ledger list, NDJSON export, and stats endpoints with tenant/principal/time filters so operators can inspect and export event-level usage without depending on aggregates.
 287. API usage ledger schema now enforces status, positive request count, nonnegative byte/latency, and JSON object payload constraints at the database boundary.
+288. API usage export batches now persist manifest checkpoints with fixed filter windows and event/request/byte/latency totals, so downstream billing or warehouse exports can replay a known ledger slice by batch ID.
+289. Admin API now exposes API usage export batch create/list/detail endpoints plus saved-batch NDJSON replay, keeping export checkpointing explicit and bounded.
 
 ## Deferred until backend contracts stabilize
 
