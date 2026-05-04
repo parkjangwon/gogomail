@@ -296,6 +296,12 @@ type CreateAPIUsageExportArtifactRequest struct {
 	Metadata       json.RawMessage `json:"metadata"`
 }
 
+type WriteAPIUsageExportArtifactRequest struct {
+	ObjectKey      string          `json:"object_key,omitempty"`
+	StorageBackend string          `json:"storage_backend,omitempty"`
+	Metadata       json.RawMessage `json:"metadata,omitempty"`
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
