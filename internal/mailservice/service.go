@@ -301,6 +301,46 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 	return imapgw.Message{Summary: stored.Summary, Body: body}, nil
 }
 
+func (s *Service) ListIMAPMailboxes(ctx context.Context, req imapgw.ListMailboxesRequest) ([]imapgw.Mailbox, error) {
+	repo, ok := s.repository.(interface {
+		ListIMAPMailboxes(context.Context, string) ([]imapgw.Mailbox, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap mailbox repository is required")
+	}
+	return repo.ListIMAPMailboxes(ctx, string(req.UserID))
+}
+
+func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
+	repo, ok := s.repository.(interface {
+		GetIMAPMailbox(context.Context, string, string) (imapgw.Mailbox, error)
+	})
+	if !ok {
+		return imapgw.Mailbox{}, fmt.Errorf("imap mailbox repository is required")
+	}
+	return repo.GetIMAPMailbox(ctx, string(userID), string(mailboxID))
+}
+
+func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesRequest) ([]imapgw.MessageSummary, error) {
+	repo, ok := s.repository.(interface {
+		ListIMAPMessages(context.Context, string, string, int, imapgw.UID) ([]imapgw.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap message repository is required")
+	}
+	return repo.ListIMAPMessages(ctx, string(req.UserID), string(req.MailboxID), req.Limit, req.AfterUID)
+}
+
+func (s *Service) SubscribeIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (<-chan imapgw.MailboxEvent, func(), error) {
+	broker, ok := s.imapEvents.(interface {
+		Subscribe(context.Context, imapgw.UserID, imapgw.MailboxID) (<-chan imapgw.MailboxEvent, func(), error)
+	})
+	if !ok {
+		return nil, nil, fmt.Errorf("imap mailbox event broker is required")
+	}
+	return broker.Subscribe(ctx, userID, mailboxID)
+}
+
 func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
 		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error)
