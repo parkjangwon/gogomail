@@ -143,6 +143,8 @@ Current state:
   modes.
 - IMAP mailbox event publication is best-effort after successful mutations, so
   future IDLE fan-out cannot make committed mail writes appear failed.
+- `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for future protocol
+  listener wiring through the service boundary.
 
 Next:
 
