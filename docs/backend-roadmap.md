@@ -306,6 +306,7 @@ Implementation order:
 251. `internal/imapgw` now includes a dependency-light in-memory mailbox event broker for future IMAP IDLE fan-out, with non-blocking delivery to avoid write-path backpressure.
 252. EML parser tests now assert the bounded text reader stops after the max+1 truncation probe, and benchmarks cover truncated large-body reads for hot-path regression tracking.
 253. API metering outbox events now include `schema_version=2026-05-04.api-usage.v1` and deterministic `event_id` values, while the aggregate consumer rejects unsupported schema versions.
+254. API metering aggregation now claims `event_id` values in `api_usage_events` before daily/monthly upserts, preventing replayed usage events from double-counting operational totals.
 
 ## Deferred until backend contracts stabilize
 

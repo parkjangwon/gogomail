@@ -334,6 +334,8 @@ API call metering can now emit durable usage events:
 - Usage event payloads include
   `schema_version: "2026-05-04.api-usage.v1"` and a deterministic `event_id`
   for future idempotent accounting.
+- The aggregate worker claims `event_id` values before daily/monthly upserts, so
+  replayed durable events do not double-count operational totals.
 - The middleware remains async and fail-open; request handling does not wait on
   downstream aggregation.
 - Set `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=postgres` and run

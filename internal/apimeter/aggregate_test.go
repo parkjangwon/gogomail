@@ -145,6 +145,31 @@ func TestPostgresAggregateStoreUpsertsMonthlyUsage(t *testing.T) {
 	}
 }
 
+func TestPostgresAggregateStoreSkipsDuplicateEventID(t *testing.T) {
+	t.Parallel()
+
+	db := &fakeUsageSQL{rowsAffected: []int64{0}}
+	store := NewPostgresAggregateStore(db)
+	err := store.AddUsage(context.Background(), UsageEvent{
+		EventID:       "usage-1",
+		Day:           time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:        "GET",
+		Route:         "GET /api/v1/messages",
+		Status:        200,
+		UserID:        "user-1",
+		RequestBytes:  12,
+		ResponseBytes: 34,
+		LatencyMS:     25,
+		RequestCount:  1,
+	})
+	if err != nil {
+		t.Fatalf("AddUsage returned error: %v", err)
+	}
+	if len(db.queries) != 1 || !strings.Contains(db.queries[0], "INSERT INTO api_usage_events") {
+		t.Fatalf("queries = %+v, want only idempotency insert", db.queries)
+	}
+}
+
 type fakeUsageAggregateStore struct {
 	event UsageEvent
 }
@@ -155,10 +180,11 @@ func (s *fakeUsageAggregateStore) AddUsage(_ context.Context, event UsageEvent) 
 }
 
 type fakeUsageSQL struct {
-	query   string
-	args    []any
-	queries []string
-	argSets [][]any
+	query        string
+	args         []any
+	queries      []string
+	argSets      [][]any
+	rowsAffected []int64
 }
 
 func (f *fakeUsageSQL) ExecContext(_ context.Context, query string, args ...any) (sql.Result, error) {
@@ -166,5 +192,17 @@ func (f *fakeUsageSQL) ExecContext(_ context.Context, query string, args ...any)
 	f.args = args
 	f.queries = append(f.queries, query)
 	f.argSets = append(f.argSets, args)
-	return fakeSQLResult{}, nil
+	rowsAffected := int64(1)
+	if len(f.rowsAffected) > 0 {
+		rowsAffected = f.rowsAffected[0]
+		f.rowsAffected = f.rowsAffected[1:]
+	}
+	return fakeUsageSQLResult{rowsAffected: rowsAffected}, nil
 }
+
+type fakeUsageSQLResult struct {
+	rowsAffected int64
+}
+
+func (r fakeUsageSQLResult) LastInsertId() (int64, error) { return 0, nil }
+func (r fakeUsageSQLResult) RowsAffected() (int64, error) { return r.rowsAffected, nil }
