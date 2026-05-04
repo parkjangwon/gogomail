@@ -189,6 +189,8 @@ The platform hardening sprint completed the following:
   IMAP UIDs in bounded batches before any live IMAP listener is enabled.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
+- Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
+  move invalidation when `GOGOMAIL_TEST_DATABASE_URL` is available.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
@@ -207,8 +209,7 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. Add optional PostgreSQL integration coverage for IMAP UID assignment,
-   backfill, and move/delete invalidation when a test database is available.
+3. Plan IMAP IDLE event delivery over the existing mailbox event boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using

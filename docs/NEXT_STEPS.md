@@ -93,11 +93,11 @@ Current state:
   bounded, stable-order batches.
 - Mail API move/delete paths remove stale IMAP UID rows transactionally so moved
   messages can receive fresh mailbox-local UIDs later.
+- Optional PostgreSQL integration tests cover IMAP UID backfill and move
+  invalidation when a test database URL is configured.
 
 Next:
 
-- Add optional PostgreSQL integration coverage for IMAP UID assignment,
-  backfill, and move/delete invalidation.
 - Plan IMAP IDLE support for push-on-connect clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 
