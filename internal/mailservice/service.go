@@ -339,6 +339,34 @@ func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw
 	return nil
 }
 
+func (s *Service) publishIMAPMessageUIDEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, messageIDs []string) error {
+	if s.imapEvents == nil || len(messageIDs) == 0 {
+		return nil
+	}
+	repo, ok := s.repository.(interface {
+		ExistingIMAPMessageUIDs(context.Context, string, []string) ([]maildb.IMAPMessageUID, error)
+	})
+	if !ok {
+		return nil
+	}
+	uids, err := repo.ExistingIMAPMessageUIDs(ctx, userID, messageIDs)
+	if err != nil {
+		return err
+	}
+	userID = strings.TrimSpace(userID)
+	for _, uid := range uids {
+		if err := s.imapEvents.Publish(ctx, imapgw.MailboxEvent{
+			Type:      eventType,
+			UserID:    imapgw.UserID(userID),
+			MailboxID: uid.MailboxID,
+			UID:       uid.UID,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
 	repo, ok := s.repository.(DeliveryStatusRepository)
 	if !ok {
@@ -359,14 +387,24 @@ func messageFlagRead(flags json.RawMessage) bool {
 }
 
 func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error {
-	return s.repository.SetMessageFlag(ctx, userID, messageID, flag, value)
+	if err := s.repository.SetMessageFlag(ctx, userID, messageID, flag, value); err != nil {
+		return err
+	}
+	return s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, userID, []string{messageID})
 }
 
 func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
 	if err := maildb.ValidateBulkMessageFlagRequest(req); err != nil {
 		return 0, err
 	}
-	return s.repository.BulkSetMessageFlag(ctx, req)
+	updated, err := s.repository.BulkSetMessageFlag(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, req.UserID, req.MessageIDs); err != nil {
+		return 0, err
+	}
+	return updated, nil
 }
 
 func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {

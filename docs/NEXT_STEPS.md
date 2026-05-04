@@ -131,11 +131,12 @@ Current state:
   sessions can subscribe to without blocking write paths.
 - `mailservice.StoreIMAPFlags` can publish mailbox `flags` events through the
   broker boundary after repository flag mutations succeed.
+- Mail API single and bulk flag mutations can publish mailbox `flags` events
+  for messages that already have IMAP UID rows.
 
 Next:
 
-- Wire mailbox event publication from append/move/delete and Mail API flag
-  mutation paths.
+- Wire mailbox event publication from append/move/delete paths.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).

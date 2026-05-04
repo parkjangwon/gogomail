@@ -232,6 +232,9 @@ The platform hardening sprint completed the following:
   scoped by both user and mailbox to preserve tenant isolation.
 - `mailservice.StoreIMAPFlags` can publish IMAP mailbox `flags` events through
   an optional event publisher after repository flag mutations succeed.
+- Mail API single and bulk flag mutations can look up existing IMAP UID rows and
+  publish mailbox `flags` events for UID-visible messages after the database
+  update succeeds.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a
