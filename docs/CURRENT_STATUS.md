@@ -507,8 +507,8 @@ The platform hardening sprint completed the following:
   attachment identifier fields at the service boundary before repository,
   storage, suppression, and outbound composition work; draft saves share the
   send-time attachment-count cap so oversized compose payloads cannot drift
-  into draft storage, and recipient display names/emails reject CR/LF before
-  draft persistence or outbound header composition.
+  into draft storage, and from/subject plus recipient display names/emails
+  reject CR/LF before draft persistence or outbound header composition.
 - Single-message flag, move, and delete service methods trim user/message/flag
   and folder identifiers before repository mutation and IMAP event fan-out.
 - Bulk flag, move, and delete service methods also trim user/message/flag and
