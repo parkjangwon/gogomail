@@ -75,6 +75,27 @@ func TestValidateSaveDraftRequestRejectsInvalidRecipientEmail(t *testing.T) {
 	}
 }
 
+func TestValidateSaveDraftRequestRejectsScalarHeaderInjection(t *testing.T) {
+	t.Parallel()
+
+	tests := []SaveDraftRequest{
+		{
+			UserID:  "user-1",
+			From:    "sender@example.net\r\nBcc: victim@example.net",
+			Subject: "hello",
+		},
+		{
+			UserID:  "user-1",
+			Subject: "hello\nBcc: victim@example.net",
+		},
+	}
+	for _, req := range tests {
+		if err := ValidateSaveDraftRequest(req); err == nil {
+			t.Fatalf("ValidateSaveDraftRequest accepted %+v", req)
+		}
+	}
+}
+
 func TestValidateSaveDraftRequestRejectsRecipientHeaderInjection(t *testing.T) {
 	t.Parallel()
 

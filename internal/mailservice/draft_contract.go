@@ -32,6 +32,12 @@ func ValidateSaveDraftRequest(req SaveDraftRequest) error {
 	if (intent == ComposeIntentReply || intent == ComposeIntentForward) && strings.TrimSpace(req.SourceMessageID) == "" {
 		return fmt.Errorf("source_message_id is required for %s", intent)
 	}
+	if strings.ContainsAny(req.From, "\r\n") {
+		return fmt.Errorf("from must not contain CR or LF")
+	}
+	if strings.ContainsAny(req.Subject, "\r\n") {
+		return fmt.Errorf("subject must not contain CR or LF")
+	}
 	if len(req.Subject) > MaxComposeSubjectBytes {
 		return fmt.Errorf("subject is too long")
 	}

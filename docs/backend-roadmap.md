@@ -503,6 +503,7 @@ Implementation order:
 444. Admin API company, domain, and user quota/status/policy mutation path identifiers are now trimmed before service dispatch and response envelopes, keeping operator mutations tolerant of incidental URL whitespace.
 445. Draft save/update validation now enforces the same attachment-count cap as immediate send, preventing oversized compose payloads from reaching draft attachment binding.
 446. Compose request validation now rejects CR/LF-bearing recipient display names and emails before draft persistence or outbound header composition.
+447. Compose request validation now rejects CR/LF-bearing explicit sender hints and subjects before draft persistence or outbound header composition.
 
 ## Deferred until backend contracts stabilize
 

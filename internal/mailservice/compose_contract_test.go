@@ -63,6 +63,29 @@ func TestValidateSendTextRequestRejectsInvalidRecipientEmail(t *testing.T) {
 	}
 }
 
+func TestValidateSendTextRequestRejectsScalarHeaderInjection(t *testing.T) {
+	t.Parallel()
+
+	tests := []SendTextRequest{
+		{
+			UserID:  "user-1",
+			From:    "sender@example.net\r\nBcc: victim@example.net",
+			To:      []outbound.Address{{Email: "user@example.net"}},
+			Subject: "hello",
+		},
+		{
+			UserID:  "user-1",
+			To:      []outbound.Address{{Email: "user@example.net"}},
+			Subject: "hello\nBcc: victim@example.net",
+		},
+	}
+	for _, req := range tests {
+		if err := ValidateSendTextRequest(req); err == nil {
+			t.Fatalf("ValidateSendTextRequest accepted %+v", req)
+		}
+	}
+}
+
 func TestValidateSendTextRequestRejectsRecipientHeaderInjection(t *testing.T) {
 	t.Parallel()
 
