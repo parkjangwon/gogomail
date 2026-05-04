@@ -41,6 +41,7 @@ type Sink interface {
 }
 
 type Target struct {
+	AttemptID   string
 	DeviceID    string
 	Platform    string
 	Token       string
@@ -67,8 +68,12 @@ type CandidateRecord struct {
 	ErrorMessage string
 }
 
+type CandidateRecordResult struct {
+	ID string
+}
+
 type CandidateRecorder interface {
-	RecordCandidate(ctx context.Context, record CandidateRecord) error
+	RecordCandidate(ctx context.Context, record CandidateRecord) (CandidateRecordResult, error)
 }
 
 type Handler struct {
@@ -119,10 +124,12 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		notification.Targets = targets
 	}
 	if h.recorder != nil {
-		for _, target := range notification.Targets {
-			if err := h.recorder.RecordCandidate(ctx, candidateRecordFromNotification(notification, target)); err != nil {
+		for i, target := range notification.Targets {
+			result, err := h.recorder.RecordCandidate(ctx, candidateRecordFromNotification(notification, target))
+			if err != nil {
 				return fmt.Errorf("record push notification candidate: %w", err)
 			}
+			notification.Targets[i].AttemptID = strings.TrimSpace(result.ID)
 		}
 	}
 	if err := h.sink.EnqueuePush(ctx, notification); err != nil {

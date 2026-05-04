@@ -55,6 +55,9 @@ func TestHandlerResolvesNotificationTargets(t *testing.T) {
 	if len(recorder.records) != 1 || recorder.records[0].MessageID != "msg-1" || recorder.records[0].DeviceID != "device-1" {
 		t.Fatalf("records = %+v", recorder.records)
 	}
+	if sink.last.Targets[0].AttemptID != "attempt-1" {
+		t.Fatalf("attempt id = %q, want attempt-1", sink.last.Targets[0].AttemptID)
+	}
 }
 
 func TestHandlerSkipsSinkWhenResolverHasNoTargets(t *testing.T) {
@@ -105,9 +108,9 @@ type fakeCandidateRecorder struct {
 	records []CandidateRecord
 }
 
-func (r *fakeCandidateRecorder) RecordCandidate(_ context.Context, record CandidateRecord) error {
+func (r *fakeCandidateRecorder) RecordCandidate(_ context.Context, record CandidateRecord) (CandidateRecordResult, error) {
 	r.records = append(r.records, record)
-	return nil
+	return CandidateRecordResult{ID: "attempt-1"}, nil
 }
 
 func validMailStoredPayload() json.RawMessage {
