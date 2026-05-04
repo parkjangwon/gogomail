@@ -184,6 +184,29 @@ type DeliveryAttemptView struct {
 	AttemptedAt     time.Time `json:"attempted_at"`
 }
 
+type PushNotificationAttemptView struct {
+	ID           string    `json:"id"`
+	MessageID    string    `json:"message_id"`
+	RFCMessageID string    `json:"rfc_message_id"`
+	CompanyID    string    `json:"company_id,omitempty"`
+	DomainID     string    `json:"domain_id,omitempty"`
+	UserID       string    `json:"user_id"`
+	Recipient    string    `json:"recipient"`
+	Subject      string    `json:"subject"`
+	DeviceID     string    `json:"device_id,omitempty"`
+	Platform     string    `json:"platform"`
+	TokenSuffix  string    `json:"token_suffix,omitempty"`
+	Status       string    `json:"status"`
+	ErrorMessage string    `json:"error_message"`
+	AttemptedAt  time.Time `json:"attempted_at"`
+}
+
+type PushNotificationAttemptListRequest struct {
+	Limit  int
+	Status string
+	UserID string
+}
+
 type SuppressionEntry struct {
 	ID              string    `json:"id"`
 	DomainID        string    `json:"domain_id"`
@@ -1898,6 +1921,83 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate exhausted delivery attempts: %w", err)
 	}
 	return attempts, nil
+}
+
+func (r *Repository) ListPushNotificationAttempts(ctx context.Context, req PushNotificationAttemptListRequest) ([]PushNotificationAttemptView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req.Limit = normalizeLimit(req.Limit)
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	req.UserID = strings.TrimSpace(req.UserID)
+	if req.Status != "" && !allowedPushNotificationAttemptStatus(req.Status) {
+		return nil, fmt.Errorf("unsupported push notification attempt status")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  message_id::text,
+  rfc_message_id,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  user_id::text,
+  recipient,
+  subject,
+  COALESCE(device_id::text, ''),
+  platform,
+  token_suffix,
+  status,
+  error_message,
+  attempted_at
+FROM push_notification_attempts
+WHERE (NULLIF($2, '') IS NULL OR status = $2)
+  AND (NULLIF($3, '')::uuid IS NULL OR user_id = NULLIF($3, '')::uuid)
+ORDER BY attempted_at DESC, id DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("list push notification attempts: %w", err)
+	}
+	defer rows.Close()
+
+	var attempts []PushNotificationAttemptView
+	for rows.Next() {
+		var attempt PushNotificationAttemptView
+		if err := rows.Scan(
+			&attempt.ID,
+			&attempt.MessageID,
+			&attempt.RFCMessageID,
+			&attempt.CompanyID,
+			&attempt.DomainID,
+			&attempt.UserID,
+			&attempt.Recipient,
+			&attempt.Subject,
+			&attempt.DeviceID,
+			&attempt.Platform,
+			&attempt.TokenSuffix,
+			&attempt.Status,
+			&attempt.ErrorMessage,
+			&attempt.AttemptedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan push notification attempt: %w", err)
+		}
+		attempts = append(attempts, attempt)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate push notification attempts: %w", err)
+	}
+	return attempts, nil
+}
+
+func allowedPushNotificationAttemptStatus(status string) bool {
+	switch status {
+	case "candidate", "queued", "delivered", "failed", "invalid_token":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *Repository) ListSuppressionEntries(ctx context.Context, limit int) ([]SuppressionEntry, error) {

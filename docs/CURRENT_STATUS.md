@@ -94,6 +94,8 @@ guidance.
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
   notification candidates with Postgres candidate-attempt audit rows without
   touching SMTP hot paths or committing to FCM/APNs SDKs.
+- Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
+  push notification candidate fan-out by status or user.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
@@ -165,6 +167,8 @@ The platform hardening sprint completed the following:
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
+- Push notification attempts are inspectable through the Admin API without
+  introducing vendor push delivery as a required runtime dependency.
 - Push notification device storage: authenticated users can register, list, and
   delete active device tokens through the Mail API while responses expose only a
   short token suffix.

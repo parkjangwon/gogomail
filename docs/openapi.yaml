@@ -509,6 +509,28 @@ paths:
                       $ref: "#/components/schemas/DeliveryAttempt"
         default:
           $ref: "#/components/responses/Error"
+  /push-notification-attempts:
+    get:
+      operationId: listAdminPushNotificationAttempts
+      summary: Admin push notification candidate and delivery attempts
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [candidate, queued, delivered, failed, invalid_token]
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/PushNotificationAttempts"
+        default:
+          $ref: "#/components/responses/Error"
   /suppression-list:
     get:
       operationId: listAdminSuppressionEntries
@@ -1110,6 +1132,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DeliveryAttemptsEnvelope"
+    PushNotificationAttempts:
+      description: Push notification attempts envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PushNotificationAttemptsEnvelope"
     SuppressionList:
       description: Suppression list envelope
       content:
@@ -2099,6 +2127,50 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeliveryAttempt"
+    PushNotificationAttempt:
+      type: object
+      required: [id, message_id, rfc_message_id, user_id, recipient, subject, platform, status, error_message, attempted_at]
+      properties:
+        id:
+          type: string
+        message_id:
+          type: string
+        rfc_message_id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        user_id:
+          type: string
+        recipient:
+          type: string
+          format: email
+        subject:
+          type: string
+        device_id:
+          type: string
+        platform:
+          type: string
+          enum: [apns, fcm, webpush]
+        token_suffix:
+          type: string
+        status:
+          type: string
+          enum: [candidate, queued, delivered, failed, invalid_token]
+        error_message:
+          type: string
+        attempted_at:
+          type: string
+          format: date-time
+    PushNotificationAttemptsEnvelope:
+      type: object
+      required: [push_notification_attempts]
+      properties:
+        push_notification_attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PushNotificationAttempt"
     SuppressionEntry:
       type: object
       required: [id, domain_id, email, reason, source_message_id, created_at]

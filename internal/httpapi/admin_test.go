@@ -801,6 +801,39 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		pushNotificationAttempts: []maildb.PushNotificationAttemptView{{
+			ID:          "push-attempt-1",
+			MessageID:   "msg-1",
+			UserID:      "user-1",
+			DeviceID:    "device-1",
+			Platform:    "fcm",
+			TokenSuffix: "token-1",
+			Status:      "candidate",
+			AttemptedAt: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&status=candidate&user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushAttemptList.Limit != 10 || service.lastPushAttemptList.Status != "candidate" || service.lastPushAttemptList.UserID != "user-1" {
+		t.Fatalf("lastPushAttemptList = %+v", service.lastPushAttemptList)
+	}
+	if !strings.Contains(rec.Body.String(), "push_notification_attempts") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminSuppressionListHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1178,6 +1211,7 @@ type fakeAdminService struct {
 	quotaReconciliation            []maildb.QuotaReconciliationView
 	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
+	pushNotificationAttempts       []maildb.PushNotificationAttemptView
 	suppression                    []maildb.SuppressionEntry
 	trustedRelays                  []maildb.TrustedRelayView
 	deliveryRoutes                 []maildb.DeliveryRouteView
@@ -1197,6 +1231,7 @@ type fakeAdminService struct {
 	lastUserStatus                 maildb.UpdateUserStatusRequest
 	lastUserQuota                  maildb.UpdateUserQuotaRequest
 	lastQuotaCorrection            maildb.CorrectQuotaReconciliationRequest
+	lastPushAttemptList            maildb.PushNotificationAttemptListRequest
 	lastCreateUser                 maildb.CreateUserRequest
 	lastCreateDKIMKey              maildb.CreateDKIMKeyInput
 	lastCreateTrustedRelay         maildb.CreateTrustedRelayRequest
@@ -1369,6 +1404,11 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([
 func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {
 	f.lastLimit = limit
 	return nil, nil
+}
+
+func (f *fakeAdminService) ListPushNotificationAttempts(_ context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error) {
+	f.lastPushAttemptList = req
+	return f.pushNotificationAttempts, nil
 }
 
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {
