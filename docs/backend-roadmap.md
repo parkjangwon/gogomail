@@ -564,6 +564,7 @@ Implementation order:
 505. Push notification candidate recording now rejects invalid-UTF-8, CR/LF-bearing, or oversized message/user/device/company/domain IDs before SQL insert dispatch, and rejects unsupported platforms at the recorder boundary.
 506. Admin API now exposes `PATCH /admin/v1/push-notification-attempts/{id}/outcome` so authenticated operators or external push gateways can record queued, delivered, failed, or invalid-token outcomes with bounded provider diagnostics.
 507. Admin API now exposes `GET /admin/v1/push-notification-attempts/{id}` for single push-attempt troubleshooting, with OpenAPI envelope coverage for generated operator clients.
+508. Admin push-notification attempt listing now supports a bounded `message_id` filter so operators can inspect fan-out and provider outcomes for one stored message.
 
 ## Deferred until backend contracts stabilize
 

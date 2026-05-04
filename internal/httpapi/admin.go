@@ -1063,6 +1063,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+		if !ok {
+			return
+		}
 		platform, ok := parseBoundedAdminQuery(w, r, "platform")
 		if !ok {
 			return
@@ -1081,6 +1085,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		attempts, err := service.ListPushNotificationAttempts(r.Context(), maildb.PushNotificationAttemptListRequest{
 			Limit:             limit,
+			MessageID:         messageID,
 			Status:            status,
 			UserID:            userID,
 			Platform:          platform,

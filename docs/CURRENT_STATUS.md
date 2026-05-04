@@ -269,8 +269,8 @@ guidance.
   and token suffixes are UTF-8 safely bounded. The webhook sink also bounds and
   normalizes direct-call payload metadata before JSON serialization.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
-  push notification candidate fan-out by status, user, platform, device,
-  provider status, provider message id, or recent time window.
+  push notification candidate fan-out by message, status, user, platform,
+  device, provider status, provider message id, or recent time window.
 - Admin API exposes `GET /admin/v1/push-notification-attempts/{id}` for
   single-attempt troubleshooting.
 - Admin API exposes

@@ -2977,7 +2977,7 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&status=%20candidate%20&user_id=%20user-1%20&platform=%20fcm%20&device_id=%20device-1%20&provider_status=%20accepted%20&provider_message_id=%20provider-message-1%20&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&message_id=%20msg-1%20&status=%20candidate%20&user_id=%20user-1%20&platform=%20fcm%20&device_id=%20device-1%20&provider_status=%20accepted%20&provider_message_id=%20provider-message-1%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2985,6 +2985,7 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	if service.lastPushAttemptList.Limit != 10 ||
+		service.lastPushAttemptList.MessageID != "msg-1" ||
 		service.lastPushAttemptList.Status != "candidate" ||
 		service.lastPushAttemptList.UserID != "user-1" ||
 		service.lastPushAttemptList.Platform != "fcm" ||
@@ -3022,6 +3023,7 @@ func TestAdminPushNotificationAttemptsHandlerRejectsUnsafeFilters(t *testing.T) 
 
 	tests := []string{
 		"/admin/v1/push-notification-attempts?status=candidate%0Abad",
+		"/admin/v1/push-notification-attempts?message_id=msg-1%0Abad",
 		"/admin/v1/push-notification-attempts?user_id=user-1%0Dbad",
 		"/admin/v1/push-notification-attempts?platform=fcm%0Abad",
 		"/admin/v1/push-notification-attempts?device_id=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),

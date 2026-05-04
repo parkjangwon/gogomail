@@ -225,6 +225,8 @@ handler error so the event can be retried by the stream consumer. The generated
 attempt id is attached to each sink target so future vendor adapters can update
 that exact row with delivered, failed, or invalid-token outcomes without
 coupling notification delivery to the SMTP transaction. Admin API exposes
+`GET /admin/v1/push-notification-attempts` with `message_id`, status, user,
+platform, device, provider status/message, and recent-window filters,
 `GET /admin/v1/push-notification-attempts/{id}` for single-attempt
 troubleshooting and
 `PATCH /admin/v1/push-notification-attempts/{id}/outcome` for authenticated

@@ -1156,6 +1156,12 @@ paths:
       summary: Admin push notification candidate and delivery attempts
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: message_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
         - name: status
           in: query
           required: false
