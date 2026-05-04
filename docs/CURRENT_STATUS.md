@@ -606,7 +606,8 @@ The platform hardening sprint completed the following:
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work, and app
   configuration validates the worker interval, stale age, and batch size before
-  runtime.
+  runtime. Stored-object delete failures are now surfaced to the caller while
+  missing objects are treated as already-cleaned idempotent deletes.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

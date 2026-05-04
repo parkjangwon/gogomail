@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1441,6 +1442,59 @@ func TestExpireStaleAttachmentUploadsDeletesStoredObjects(t *testing.T) {
 	}
 	if repo.lastAttachmentCleanup.Limit != 10 || repo.lastAttachmentCleanup.Before.IsZero() {
 		t.Fatalf("cleanup request = %+v", repo.lastAttachmentCleanup)
+	}
+}
+
+type failingDeleteStore struct {
+	err error
+}
+
+func (s failingDeleteStore) Put(context.Context, string, io.Reader) error {
+	return nil
+}
+
+func (s failingDeleteStore) Get(context.Context, string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("")), nil
+}
+
+func (s failingDeleteStore) Delete(context.Context, string) error {
+	return s.err
+}
+
+func TestExpireStaleAttachmentUploadsReportsStoredObjectDeleteFailures(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		expiredAttachments: []maildb.Attachment{{ID: "att-1", StoragePath: "uploads/user-1/upload-1/report.pdf"}},
+	}
+	service := New(repo, failingDeleteStore{err: errors.New("permission denied")})
+
+	expired, err := service.ExpireStaleAttachmentUploads(context.Background(), time.Now(), 10)
+	if err == nil {
+		t.Fatal("ExpireStaleAttachmentUploads returned nil error for delete failure")
+	}
+	if len(expired) != 1 {
+		t.Fatalf("expired = %+v", expired)
+	}
+	if !strings.Contains(err.Error(), "delete expired attachment objects") || !strings.Contains(err.Error(), "att-1") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestExpireStaleAttachmentUploadsIgnoresMissingStoredObjects(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		expiredAttachments: []maildb.Attachment{{ID: "att-1", StoragePath: "uploads/user-1/upload-1/missing.pdf"}},
+	}
+	service := New(repo, failingDeleteStore{err: os.ErrNotExist})
+
+	expired, err := service.ExpireStaleAttachmentUploads(context.Background(), time.Now(), 10)
+	if err != nil {
+		t.Fatalf("ExpireStaleAttachmentUploads returned error: %v", err)
+	}
+	if len(expired) != 1 {
+		t.Fatalf("expired = %+v", expired)
 	}
 }
 
