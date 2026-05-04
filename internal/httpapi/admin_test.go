@@ -132,6 +132,82 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCompaniesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		companies: []maildb.CompanyView{{ID: "company-1", Name: "Gogo Co", Status: "active", QuotaLimit: 10_000}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies?limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Companies []maildb.CompanyView `json:"companies"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Companies) != 1 || body.Companies[0].Name != "Gogo Co" {
+		t.Fatalf("companies = %+v", body.Companies)
+	}
+	if service.lastLimit != 10 {
+		t.Fatalf("lastLimit = %d, want 10", service.lastLimit)
+	}
+}
+
+func TestAdminGetCompanyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		companies: []maildb.CompanyView{{ID: "company-1", Name: "Gogo Co", Status: "active"}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies/company-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Company maildb.CompanyView `json:"company"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Company.ID != "company-1" || service.lastCompanyID != "company-1" {
+		t.Fatalf("company = %+v lastCompanyID=%q", body.Company, service.lastCompanyID)
+	}
+}
+
+func TestAdminUpdateCompanyQuotaHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCompanyQuota.ID != "company-1" || service.lastCompanyQuota.QuotaLimit != 8192 {
+		t.Fatalf("lastCompanyQuota = %+v", service.lastCompanyQuota)
+	}
+}
+
 func TestAdminAuthAcceptsBearerToken(t *testing.T) {
 	t.Parallel()
 
@@ -922,6 +998,7 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 }
 
 type fakeAdminService struct {
+	companies                      []maildb.CompanyView
 	domains                        []maildb.DomainView
 	dnsReport                      dnscheck.DomainReport
 	dnsChecks                      []maildb.DomainDNSCheckView
@@ -937,9 +1014,11 @@ type fakeAdminService struct {
 	backpressureState              backpressure.State
 	createdDKIMKeyID               string
 	lastLimit                      int
+	lastCompanyID                  string
 	lastDomainID                   string
 	lastUserID                     string
 	lastDomainStatus               maildb.UpdateDomainStatusRequest
+	lastCompanyQuota               maildb.UpdateCompanyQuotaRequest
 	lastDomainQuota                maildb.UpdateDomainQuotaRequest
 	lastDomainPolicy               maildb.UpdateDomainPolicyRequest
 	lastCreateDomain               maildb.CreateDomainRequest
@@ -957,6 +1036,26 @@ type fakeAdminService struct {
 	lastDeleteSuppressionID        string
 	lastDeleteTrustedRelayID       string
 	lastDeleteDeliveryRouteID      string
+}
+
+func (f *fakeAdminService) ListCompanies(_ context.Context, limit int) ([]maildb.CompanyView, error) {
+	f.lastLimit = limit
+	return f.companies, nil
+}
+
+func (f *fakeAdminService) GetCompany(_ context.Context, id string) (maildb.CompanyView, error) {
+	f.lastCompanyID = id
+	for _, company := range f.companies {
+		if company.ID == id {
+			return company, nil
+		}
+	}
+	return maildb.CompanyView{}, nil
+}
+
+func (f *fakeAdminService) UpdateCompanyQuota(_ context.Context, req maildb.UpdateCompanyQuotaRequest) error {
+	f.lastCompanyQuota = req
+	return nil
 }
 
 func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {

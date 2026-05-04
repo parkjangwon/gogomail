@@ -117,6 +117,9 @@ Attachment uploads start as `uploading`, become draft-bound or message-bound rec
 
 Admin domain/user CRUD includes list, detail, create, status update, and quota update contracts:
 
+- `GET /admin/v1/companies`
+- `GET /admin/v1/companies/{id}`
+- `PATCH /admin/v1/companies/{id}/quota`
 - `PATCH /admin/v1/domains/{id}/quota`
 - `PATCH /admin/v1/domains/{id}/policy`
 - `PATCH /admin/v1/users/{id}/quota`
@@ -127,6 +130,10 @@ domains receive allocations within that pool, and users receive unified personal
 storage usable across mailbox, attachments, future Drive, and other user-owned
 features. Domain default user quota changes should apply to users that still
 follow the default while preserving explicit custom user quota overrides.
+Runtime quota writes now increment/decrement the company, domain, and user
+ledgers atomically inside the same PostgreSQL transaction for mail storage
+growth and delete flows. User quota responses expose `quota_source` as
+`default|custom`, and domain quota updates may carry `default_user_quota`.
 Domain policy updates store a backend-only operational model under
 `domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
 and optional max-recipient/max-message-byte guardrail hints. SMTP core should
@@ -139,6 +146,8 @@ whose composed RFC 5322 message size exceeds `max_message_bytes`. `monitor` and
 
 Admin operational read models also keep explicit envelope keys:
 
+- `GET /admin/v1/companies` returns `{"companies":[...]}`
+- `GET /admin/v1/companies/{id}` returns `{"company":{...}}`
 - `GET /admin/v1/queue` returns `{"queues":[...]}`
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
@@ -151,6 +160,12 @@ Admin operational read models also keep explicit envelope keys:
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`
 so consoles can reconcile optimistic updates against the affected backend id.
+
+API call metering is a roadmap item, not a blocking MVP enforcement gate.
+Backend routes should be designed so a future metering middleware can aggregate
+company/domain/user/api-key, route, method, status, latency, and payload-size
+dimensions asynchronously. Billing/rate-limit enforcement should be policy
+driven and off by default until product plans require it.
 
 SMTP backpressure administration exposes the shared receive-pressure state used
 by Edge/Inbound SMTP receive boundaries when `GOGOMAIL_BACKPRESSURE_BACKEND=redis`:

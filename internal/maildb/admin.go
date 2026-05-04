@@ -110,6 +110,15 @@ type QueueStat struct {
 	Count  int64  `json:"count"`
 }
 
+type CompanyView struct {
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Status     string    `json:"status"`
+	QuotaUsed  int64     `json:"quota_used"`
+	QuotaLimit int64     `json:"quota_limit,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type QuotaUsageView struct {
 	Scope      string    `json:"scope"`
 	ID         string    `json:"id"`
@@ -205,6 +214,7 @@ type DomainView struct {
 	Status             string     `json:"status"`
 	QuotaUsed          int64      `json:"quota_used"`
 	QuotaLimit         int64      `json:"quota_limit,omitempty"`
+	DefaultUserQuota   int64      `json:"default_user_quota,omitempty"`
 	LastDNSCheckStatus string     `json:"last_dns_check_status,omitempty"`
 	LastDNSCheckedAt   *time.Time `json:"last_dns_checked_at,omitempty"`
 	CreatedAt          time.Time  `json:"created_at"`
@@ -219,6 +229,7 @@ type UserView struct {
 	Status      string    `json:"status"`
 	QuotaUsed   int64     `json:"quota_used"`
 	QuotaLimit  int64     `json:"quota_limit,omitempty"`
+	QuotaSource string    `json:"quota_source"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -237,6 +248,12 @@ type UpdateDomainStatusRequest struct {
 }
 
 type UpdateDomainQuotaRequest struct {
+	ID               string `json:"id"`
+	QuotaLimit       int64  `json:"quota_limit"`
+	DefaultUserQuota *int64 `json:"default_user_quota,omitempty"`
+}
+
+type UpdateCompanyQuotaRequest struct {
 	ID         string `json:"id"`
 	QuotaLimit int64  `json:"quota_limit"`
 }
@@ -270,8 +287,9 @@ type UpdateUserStatusRequest struct {
 }
 
 type UpdateUserQuotaRequest struct {
-	ID         string `json:"id"`
-	QuotaLimit int64  `json:"quota_limit"`
+	ID          string `json:"id"`
+	QuotaLimit  int64  `json:"quota_limit"`
+	QuotaSource string `json:"quota_source,omitempty"`
 }
 
 type CreateTrustedRelayRequest struct {
@@ -314,6 +332,19 @@ func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
 func ValidateUpdateDomainQuotaRequest(req UpdateDomainQuotaRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("domain id is required")
+	}
+	if req.QuotaLimit < 0 {
+		return fmt.Errorf("quota_limit must not be negative")
+	}
+	if req.DefaultUserQuota != nil && *req.DefaultUserQuota < 0 {
+		return fmt.Errorf("default_user_quota must not be negative")
+	}
+	return nil
+}
+
+func ValidateUpdateCompanyQuotaRequest(req UpdateCompanyQuotaRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("company id is required")
 	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
@@ -612,13 +643,28 @@ func (r *Repository) CreateUser(ctx context.Context, req CreateUserRequest) (Use
 	}
 	defer tx.Rollback()
 
+	quotaSource := "default"
+	if req.QuotaLimit > 0 {
+		quotaSource = "custom"
+	}
+
 	const insertUser = `
-INSERT INTO users (domain_id, username, display_name, quota_limit)
-VALUES ($1, $2, $3, NULLIF($4, 0))
-RETURNING id::text, domain_id::text, username, display_name, role, status, quota_used, COALESCE(quota_limit, 0), created_at`
+INSERT INTO users (domain_id, username, display_name, quota_limit, quota_source)
+SELECT
+  d.id,
+  $2,
+  $3,
+  CASE
+    WHEN $4::bigint > 0 THEN $4::bigint
+    ELSE NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
+  END,
+  $5
+FROM domains d
+WHERE d.id = $1
+RETURNING id::text, domain_id::text, username, display_name, role, status, quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
 
 	var user UserView
-	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), req.QuotaLimit).Scan(
+	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), req.QuotaLimit, quotaSource).Scan(
 		&user.ID,
 		&user.DomainID,
 		&user.Username,
@@ -627,6 +673,7 @@ RETURNING id::text, domain_id::text, username, display_name, role, status, quota
 		&user.Status,
 		&user.QuotaUsed,
 		&user.QuotaLimit,
+		&user.QuotaSource,
 		&user.CreatedAt,
 	); err != nil {
 		return UserView{}, fmt.Errorf("create user: %w", err)
@@ -701,7 +748,23 @@ func ValidateUpdateUserQuotaRequest(req UpdateUserQuotaRequest) error {
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
 	}
+	if _, err := normalizeQuotaSource(req.QuotaSource, "custom"); err != nil {
+		return err
+	}
 	return nil
+}
+
+func normalizeQuotaSource(value string, fallback string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		value = fallback
+	}
+	switch value {
+	case "default", "custom":
+		return value, nil
+	default:
+		return "", fmt.Errorf("quota_source must be default or custom")
+	}
 }
 
 func (r *Repository) UpdateDomainStatus(ctx context.Context, req UpdateDomainStatusRequest) error {
@@ -733,7 +796,13 @@ func (r *Repository) UpdateDomainQuota(ctx context.Context, req UpdateDomainQuot
 	if err := ValidateUpdateDomainQuotaRequest(req); err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin update domain quota transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `
 UPDATE domains
 SET quota_limit = NULLIF($2, 0),
     updated_at = now()
@@ -744,6 +813,101 @@ WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
 	affected, err := result.RowsAffected()
 	if err == nil && affected == 0 {
 		return fmt.Errorf("domain %q not found", req.ID)
+	}
+	if req.DefaultUserQuota != nil {
+		defaultQuota := *req.DefaultUserQuota
+		if _, err := tx.ExecContext(ctx, `
+UPDATE domains
+SET settings = jsonb_set(settings, '{policy,default_user_quota}', to_jsonb($2::bigint), true),
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), defaultQuota); err != nil {
+			return fmt.Errorf("update domain default user quota: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+UPDATE users
+SET quota_limit = NULLIF($2, 0),
+    updated_at = now()
+WHERE domain_id = $1
+  AND quota_source = 'default'`, strings.TrimSpace(req.ID), defaultQuota); err != nil {
+			return fmt.Errorf("apply domain default user quota: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit update domain quota transaction: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) ListCompanies(ctx context.Context, limit int) ([]CompanyView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	rows, err := r.db.QueryContext(ctx, `
+SELECT id::text, name, status, quota_used, COALESCE(quota_limit, 0), created_at
+FROM companies
+ORDER BY created_at DESC
+LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list companies: %w", err)
+	}
+	defer rows.Close()
+
+	var companies []CompanyView
+	for rows.Next() {
+		var company CompanyView
+		if err := rows.Scan(&company.ID, &company.Name, &company.Status, &company.QuotaUsed, &company.QuotaLimit, &company.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan company: %w", err)
+		}
+		companies = append(companies, company)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate companies: %w", err)
+	}
+	return companies, nil
+}
+
+func (r *Repository) GetCompany(ctx context.Context, id string) (CompanyView, error) {
+	if r.db == nil {
+		return CompanyView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return CompanyView{}, fmt.Errorf("company id is required")
+	}
+
+	var company CompanyView
+	if err := r.db.QueryRowContext(ctx, `
+SELECT id::text, name, status, quota_used, COALESCE(quota_limit, 0), created_at
+FROM companies
+WHERE id = $1`, id).Scan(&company.ID, &company.Name, &company.Status, &company.QuotaUsed, &company.QuotaLimit, &company.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return CompanyView{}, fmt.Errorf("company %q not found", id)
+		}
+		return CompanyView{}, fmt.Errorf("get company: %w", err)
+	}
+	return company, nil
+}
+
+func (r *Repository) UpdateCompanyQuota(ctx context.Context, req UpdateCompanyQuotaRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateCompanyQuotaRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE companies
+SET quota_limit = NULLIF($2, 0),
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
+	if err != nil {
+		return fmt.Errorf("update company quota: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("company %q not found", req.ID)
 	}
 	return nil
 }
@@ -771,7 +935,7 @@ func (r *Repository) UpdateDomainPolicy(ctx context.Context, req UpdateDomainPol
 
 	const query = `
 UPDATE domains
-SET settings = jsonb_set(settings, '{policy}', $2::jsonb, true),
+SET settings = jsonb_set(settings, '{policy}', COALESCE(settings->'policy', '{}'::jsonb) || $2::jsonb, true),
     updated_at = now()
 WHERE id = $1
 RETURNING updated_at`
@@ -813,11 +977,18 @@ func (r *Repository) UpdateUserQuota(ctx context.Context, req UpdateUserQuotaReq
 	if err := ValidateUpdateUserQuotaRequest(req); err != nil {
 		return err
 	}
+	quotaSource, _ := normalizeQuotaSource(req.QuotaSource, "custom")
 	result, err := r.db.ExecContext(ctx, `
-UPDATE users
-SET quota_limit = NULLIF($2, 0),
+UPDATE users u
+SET quota_limit = CASE
+      WHEN $3 = 'default' THEN NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
+      ELSE NULLIF($2, 0)
+    END,
+    quota_source = $3,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
+FROM domains d
+WHERE u.domain_id = d.id
+  AND u.id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit, quotaSource)
 	if err != nil {
 		return fmt.Errorf("update user quota: %w", err)
 	}
@@ -848,6 +1019,7 @@ SELECT
   status,
   quota_used,
   COALESCE(quota_limit, 0),
+  quota_source,
   created_at
 FROM users
 WHERE ($1 = '' OR domain_id::text = $1)
@@ -872,6 +1044,7 @@ LIMIT $2`
 			&user.Status,
 			&user.QuotaUsed,
 			&user.QuotaLimit,
+			&user.QuotaSource,
 			&user.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
@@ -903,6 +1076,7 @@ SELECT
   status,
   quota_used,
   COALESCE(quota_limit, 0),
+  quota_source,
   created_at
 FROM users
 WHERE id = $1
@@ -918,6 +1092,7 @@ LIMIT 1`
 		&user.Status,
 		&user.QuotaUsed,
 		&user.QuotaLimit,
+		&user.QuotaSource,
 		&user.CreatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -943,6 +1118,7 @@ SELECT
   d.status,
   d.quota_used,
   COALESCE(d.quota_limit, 0),
+  COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0),
   COALESCE(latest.status, ''),
   latest.checked_at,
   d.created_at
@@ -975,6 +1151,7 @@ LIMIT $1`
 			&domain.Status,
 			&domain.QuotaUsed,
 			&domain.QuotaLimit,
+			&domain.DefaultUserQuota,
 			&domain.LastDNSCheckStatus,
 			&lastDNSCheckedAt,
 			&domain.CreatedAt,
@@ -1010,6 +1187,7 @@ SELECT
   d.status,
   d.quota_used,
   COALESCE(d.quota_limit, 0),
+  COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0),
   COALESCE(latest.status, ''),
   latest.checked_at,
   d.created_at
@@ -1034,6 +1212,7 @@ LIMIT 1`
 		&domain.Status,
 		&domain.QuotaUsed,
 		&domain.QuotaLimit,
+		&domain.DefaultUserQuota,
 		&domain.LastDNSCheckStatus,
 		&lastDNSCheckedAt,
 		&domain.CreatedAt,
@@ -1266,6 +1445,17 @@ func (r *Repository) ListQuotaUsage(ctx context.Context, limit int) ([]QuotaUsag
 	const query = `
 SELECT scope, id, domain_id, name, quota_used, quota_limit, updated_at
 FROM (
+  SELECT
+    'company' AS scope,
+    id::text AS id,
+    '' AS domain_id,
+    name AS name,
+    quota_used,
+    quota_limit,
+    updated_at
+  FROM companies
+  WHERE quota_limit IS NOT NULL AND quota_limit > 0
+  UNION ALL
   SELECT
     'domain' AS scope,
     id::text AS id,

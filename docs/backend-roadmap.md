@@ -265,6 +265,8 @@ Implementation order:
 210. DMARC reject policy enforcement is opt-in via `ReceiverOptions.DMARCEnforce`; when enabled, messages failing DMARC with `p=reject` are refused with SMTP 550 5.7.1, while quarantine policy messages are delivered with the policy visible in the Authentication-Results header.
 211. Admin API now exposes per-domain aggregate statistics (`GET /admin/v1/domains/{id}/stats`): active/total user counts, inbound/outbound/active message counts, storage used/limit bytes, 24-hour delivery outcomes, and suppression list size.
 212. OpenAPI schemas expanded: DKIMKey now includes `dns_verified_at` and `status` enum; DeliveryAttempt includes `status` enum with `exhausted`; DKIM DNS verify response references typed `DKIMKeyDNSVerification` and `DNSRecordCheck` schemas; `ExhaustedAttemptsEnvelope` added.
+213. Hierarchical quota ledger first implementation: Admin API exposes company quota read/update, user records track `quota_source=default|custom`, domain quota updates can propagate `default_user_quota` to default-following users, and mail write/delete transactions atomically adjust company, domain, and user ledgers.
+214. API metering is a planned platform capability: collect company/domain/user/api-key, route, method, status, latency, response size, and timestamp asynchronously for SaaS billing, rate-limit policy, abuse detection, and operations dashboards without adding synchronous hot-path writes.
 
 ## Deferred until backend contracts stabilize
 

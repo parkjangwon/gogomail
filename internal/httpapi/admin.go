@@ -26,6 +26,9 @@ func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
 }
 
 type AdminService interface {
+	ListCompanies(ctx context.Context, limit int) ([]maildb.CompanyView, error)
+	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
+	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
 	GetDomainStats(ctx context.Context, id string) (maildb.DomainStatsView, error)
@@ -76,6 +79,49 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeJSON(w, http.StatusOK, map[string]any{"route_counters": cfg.routeCounters.Snapshot()})
 		}))
 	}
+
+	mux.HandleFunc("GET /admin/v1/companies", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		companies, err := service.ListCompanies(r.Context(), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"companies": companies})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		company, err := service.GetCompany(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"company": company})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/companies/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.UpdateCompanyQuotaRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = r.PathValue("id")
+		if err := service.UpdateCompanyQuota(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
 
 	mux.HandleFunc("GET /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		limit, ok := parseQueryLimit(w, r)

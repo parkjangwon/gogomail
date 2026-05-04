@@ -27,6 +27,28 @@ func TestValidateUpdateDomainQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateDomainQuotaRequestRejectsNegativeDefaultUserQuota(t *testing.T) {
+	t.Parallel()
+
+	defaultQuota := int64(-1)
+	err := ValidateUpdateDomainQuotaRequest(UpdateDomainQuotaRequest{
+		ID:               "domain-1",
+		DefaultUserQuota: &defaultQuota,
+	})
+	if err == nil {
+		t.Fatal("ValidateUpdateDomainQuotaRequest accepted negative default_user_quota")
+	}
+}
+
+func TestValidateUpdateCompanyQuotaRequestRejectsNegativeQuota(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateUpdateCompanyQuotaRequest(UpdateCompanyQuotaRequest{ID: "company-1", QuotaLimit: -1})
+	if err == nil {
+		t.Fatal("ValidateUpdateCompanyQuotaRequest accepted negative quota")
+	}
+}
+
 func TestValidateUpdateDomainPolicyRequestNormalizesBlankModes(t *testing.T) {
 	t.Parallel()
 
@@ -103,6 +125,15 @@ func TestValidateUpdateUserQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	err := ValidateUpdateUserQuotaRequest(UpdateUserQuotaRequest{ID: "user-1", QuotaLimit: -1})
 	if err == nil {
 		t.Fatal("ValidateUpdateUserQuotaRequest accepted negative quota")
+	}
+}
+
+func TestValidateUpdateUserQuotaRequestRejectsInvalidQuotaSource(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateUpdateUserQuotaRequest(UpdateUserQuotaRequest{ID: "user-1", QuotaSource: "inherited"})
+	if err == nil {
+		t.Fatal("ValidateUpdateUserQuotaRequest accepted invalid quota_source")
 	}
 }
 

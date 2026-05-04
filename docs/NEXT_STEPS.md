@@ -21,17 +21,20 @@ Before changing code, read:
 Current state:
 
 - Mailbox quota is enforced on selected mail write/delete paths.
-- Domain/user quota read and update APIs exist.
+- Company/domain/user quota read and update APIs exist.
+- Mail storage growth/delete paths atomically update company, domain, and user
+  quota ledgers in one transaction.
+- User quota source is tracked as `default|custom`.
+- Domain quota updates can apply a new default user quota to default-following
+  users while preserving custom overrides.
 - ADR 0003 defines company → domain → user unified storage pool semantics.
 
 Next:
 
-- Add company quota read/update models if missing from Admin API.
-- Track user quota source as `default|custom`.
-- Apply domain default user quota changes to users that still follow the
-  default, preserving custom overrides.
-- Enforce aggregate company/domain/user quota for storage-increasing mail,
-  attachment, and future Drive operations.
+- Extend the same ledger service to attachment upload and future Drive writes.
+- Add operator views that show remaining allocatable company/domain capacity.
+- Add reconciliation jobs that compare ledger counters against message and
+  attachment storage rows.
 
 ### 2. Message threading and search
 
@@ -108,6 +111,22 @@ Next:
 
 Before creating or substantially implementing frontend apps, explicitly ask the
 user for frontend-specific guidance.
+
+### 8. API metering
+
+Current state:
+
+- Product direction is agreed: collect API usage from the beginning, keep
+  billing/rate-limit enforcement policy-driven and off by default.
+
+Next:
+
+- Add a lightweight metering middleware boundary that emits asynchronous usage
+  events keyed by company/domain/user/api-key, route, method, status, latency,
+  response size, and timestamp.
+- Aggregate daily/monthly usage for future SaaS plans, Open API limits, abuse
+  detection, and operations dashboards.
+- Avoid synchronous writes on hot API paths.
 
 ## Do not do yet
 

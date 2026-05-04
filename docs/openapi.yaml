@@ -631,6 +631,41 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /companies:
+    get:
+      operationId: listAdminCompanies
+      summary: Admin company list with contracted storage pool usage
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/CompanyList"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}:
+    get:
+      operationId: getAdminCompany
+      summary: Admin company detail
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/Company"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/quota:
+    patch:
+      operationId: updateAdminCompanyQuota
+      summary: Admin update company contracted storage quota
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/QuotaUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /domains:
     get:
       operationId: listAdminDomains
@@ -989,6 +1024,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DKIMKeyListEnvelope"
+    CompanyList:
+      description: Company list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CompanyListEnvelope"
+    Company:
+      description: Company resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CompanyEnvelope"
     DomainList:
       description: Domain list envelope
       content:
@@ -1568,7 +1615,7 @@ components:
       properties:
         scope:
           type: string
-          enum: [domain, user]
+          enum: [company, domain, user]
         id:
           type: string
         domain_id:
@@ -1865,6 +1912,42 @@ components:
         suppression_count:
           type: integer
           format: int64
+    Company:
+      type: object
+      required: [id, name, status, quota_used, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, disabled]
+        quota_used:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+    CompanyListEnvelope:
+      type: object
+      required: [companies]
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Company"
+    CompanyEnvelope:
+      type: object
+      required: [company]
+      properties:
+        company:
+          $ref: "#/components/schemas/Company"
     Domain:
       type: object
       required: [id, company_id, name, name_ace, status, quota_used, created_at]
@@ -1885,6 +1968,10 @@ components:
           format: int64
           minimum: 0
         quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        default_user_quota:
           type: integer
           format: int64
           minimum: 0
@@ -2006,7 +2093,7 @@ components:
           $ref: "#/components/schemas/DomainPolicy"
     User:
       type: object
-      required: [id, domain_id, username, display_name, role, status, quota_used, created_at]
+      required: [id, domain_id, username, display_name, role, status, quota_used, quota_source, created_at]
       properties:
         id:
           type: string
@@ -2029,6 +2116,9 @@ components:
           type: integer
           format: int64
           minimum: 0
+        quota_source:
+          type: string
+          enum: [default, custom]
         created_at:
           type: string
           format: date-time
@@ -2197,6 +2287,13 @@ components:
           type: integer
           format: int64
           minimum: 0
+        default_user_quota:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_source:
+          type: string
+          enum: [default, custom]
     UserCreateRequest:
       type: object
       required: [domain_id, username, display_name, address]
