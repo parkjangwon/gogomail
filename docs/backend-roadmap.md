@@ -647,6 +647,7 @@ Implementation order:
 587. Attachment upload-session staged object paths are now validated as relative `upload-sessions/` keys before repository persistence and before service-side storage reads/deletes, hardening finalize/cancel/expiry flows against corrupted stored paths.
 588. Mailservice now validates DB-returned message and attachment storage paths before body reads or cleanup deletes, preventing corrupted rows from sending absolute, traversal, newline, backslash-bearing, or blank required object keys to storage adapters.
 589. Local storage now enforces a shared strict object-key validator before reads, writes, and deletes, rejecting non-canonical relative keys such as duplicate separators, dot segments, absolute paths, traversal, newlines, and backslashes.
+590. Admin trusted relay listing now supports bounded CIDR and description filters, letting operators audit inbound relay policy without client-side full-list scans.
 
 ## Deferred until backend contracts stabilize
 

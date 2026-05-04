@@ -429,7 +429,11 @@ Admin operational read models also keep explicit envelope keys:
   dispatch, and optional `status=active|inactive` scopes key lifecycle triage.
 - `GET /admin/v1/companies` returns `{"companies":[...]}` with optional
   `status=active|suspended|disabled` for tenant lifecycle triage.
-- `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
+- `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}` with
+  optional exact `cidr` and case-insensitive `description` filters for inbound
+  relay-policy triage. Plain IP `cidr` filters are canonicalized to host CIDRs,
+  and text filters reject CR/LF-bearing or oversized values before service
+  dispatch.
 - `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}` with
   optional `status=active|disabled`, `farm`, and `domain_pattern` filters for
   delivery control-plane audits.

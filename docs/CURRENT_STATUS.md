@@ -805,6 +805,9 @@ The platform hardening sprint completed the following:
   the HTTP boundary before service dispatch and response envelopes.
 - Admin API suppression-list and trusted-relay delete path identifiers are
   trimmed at the HTTP boundary before service dispatch and response envelopes.
+- Admin API trusted relay listing now supports bounded CIDR and description
+  filters so operators can inspect inbound relay policy without client-side
+  full-list scans.
 - Admin API company, domain, and user quota/status/policy mutation path
   identifiers are trimmed at the HTTP boundary before service dispatch and
   response envelopes.

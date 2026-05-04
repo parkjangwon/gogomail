@@ -714,6 +714,12 @@ type TrustedRelayView struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type TrustedRelayListRequest struct {
+	Limit       int
+	CIDR        string
+	Description string
+}
+
 type DeliveryRouteView struct {
 	ID            string    `json:"id"`
 	DomainPattern string    `json:"domain_pattern"`
@@ -1105,6 +1111,18 @@ func ValidateCreateTrustedRelayRequest(req CreateTrustedRelayRequest) error {
 	}
 	if len(req.Description) > 512 {
 		return fmt.Errorf("description is too long")
+	}
+	return nil
+}
+
+func ValidateTrustedRelayListRequest(req TrustedRelayListRequest) error {
+	if strings.TrimSpace(req.CIDR) != "" {
+		if _, err := normalizeTrustedRelayCIDR(req.CIDR); err != nil {
+			return err
+		}
+	}
+	if err := validatePushNotificationFilter("description", strings.TrimSpace(req.Description)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -5139,11 +5157,23 @@ func ValidateSuppressionEntryListRequest(req SuppressionEntryListRequest) error 
 	return nil
 }
 
-func (r *Repository) ListTrustedRelays(ctx context.Context, limit int) ([]TrustedRelayView, error) {
+func (r *Repository) ListTrustedRelays(ctx context.Context, req TrustedRelayListRequest) ([]TrustedRelayView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateTrustedRelayListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	cidr := strings.TrimSpace(req.CIDR)
+	if cidr != "" {
+		normalized, err := normalizeTrustedRelayCIDR(cidr)
+		if err != nil {
+			return nil, err
+		}
+		cidr = normalized
+	}
+	description := strings.TrimSpace(req.Description)
 
 	const query = `
 SELECT
@@ -5152,10 +5182,12 @@ SELECT
   description,
   created_at
 FROM trusted_relays
+WHERE ($1 = '' OR cidr = $1::cidr)
+  AND ($2 = '' OR description ILIKE '%' || $2 || '%')
 ORDER BY created_at DESC
-LIMIT $1`
+LIMIT $3`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, cidr, description, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list trusted relays: %w", err)
 	}

@@ -4421,7 +4421,7 @@ func TestAdminTrustedRelaysHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/trusted-relays?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/trusted-relays?limit=5&cidr=192.0.2.0/24&description=spam", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4437,8 +4437,39 @@ func TestAdminTrustedRelaysHandler(t *testing.T) {
 	if len(body.TrustedRelays) != 1 || body.TrustedRelays[0].CIDR != "192.0.2.0/24" {
 		t.Fatalf("trusted_relays = %+v", body.TrustedRelays)
 	}
-	if service.lastLimit != 5 {
-		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	if service.lastTrustedRelayList.Limit != 5 || service.lastTrustedRelayList.CIDR != "192.0.2.0/24" || service.lastTrustedRelayList.Description != "spam" {
+		t.Fatalf("lastTrustedRelayList = %+v", service.lastTrustedRelayList)
+	}
+}
+
+func TestAdminTrustedRelaysHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	tests := []string{
+		"/admin/v1/trusted-relays?cidr=not-a-cidr",
+		"/admin/v1/trusted-relays?description=edge%0Abad",
+		"/admin/v1/trusted-relays?description=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+	}
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastTrustedRelayList.Limit != 0 {
+				t.Fatalf("trusted relay list was called: %+v", service.lastTrustedRelayList)
+			}
+		})
 	}
 }
 
@@ -4867,6 +4898,7 @@ type fakeAdminService struct {
 	lastCreateUser                              maildb.CreateUserRequest
 	lastDKIMKeyList                             maildb.DKIMKeyListRequest
 	lastCreateDKIMKey                           maildb.CreateDKIMKeyInput
+	lastTrustedRelayList                        maildb.TrustedRelayListRequest
 	lastCreateTrustedRelay                      maildb.CreateTrustedRelayRequest
 	lastDeliveryRouteList                       maildb.DeliveryRouteListRequest
 	lastCreateDeliveryRoute                     maildb.CreateDeliveryRouteRequest
@@ -5315,8 +5347,9 @@ func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, req maildb.
 	return f.suppression, nil
 }
 
-func (f *fakeAdminService) ListTrustedRelays(_ context.Context, limit int) ([]maildb.TrustedRelayView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListTrustedRelays(_ context.Context, req maildb.TrustedRelayListRequest) ([]maildb.TrustedRelayView, error) {
+	f.lastTrustedRelayList = req
+	f.lastLimit = req.Limit
 	return f.trustedRelays, nil
 }
 
