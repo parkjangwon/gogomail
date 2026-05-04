@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after API usage retention capability advertisement)
+Last updated: 2026-05-05 (updated after repository retention future-cutoff guard)
 
 ## Current phase
 
@@ -229,6 +229,9 @@ guidance.
   export manifest signer backend.
 - API usage export capabilities now advertise retention-run support, retention
   worker support, and the remote-key requirement for destructive worker runs.
+- API usage ledger retention now rejects future cutoffs at the repository
+  boundary as well as the HTTP boundary, keeping worker/direct-call behavior
+  aligned with the Admin API guardrail.
 - Admin API exposes bounded audit-log list/detail reads with category, action,
   result, target-type, company/domain/user, and recent-window filters so stored
   operational audit records can be inspected through the release API surface.

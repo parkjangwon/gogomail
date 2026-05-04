@@ -391,6 +391,8 @@ Current state:
 - API usage export capabilities advertise retention-run and retention-worker
   support plus the destructive worker remote-key requirement for generated
   operator clients.
+- API usage ledger retention rejects future cutoffs at the repository boundary,
+  keeping worker/direct-call behavior aligned with the Admin API.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.
