@@ -657,6 +657,7 @@ Implementation order:
 597. DKIM key create/upsert, deactivate, and DNS-verification mutations now persist hash-chain admin audit rows in the same database transaction as the key lifecycle change, while excluding private key material from audit detail.
 598. Domain and user lifecycle status updates now persist hash-chain admin audit rows in the same database transaction as the status change, scoped by company/domain identifiers for tenant forensics.
 599. Company, domain, and user quota mutations now persist hash-chain admin audit rows in the same database transaction as the quota change, including domain default user quota propagation counts for quota forensics.
+600. Domain policy mutations now persist hash-chain admin audit rows in the same database transaction as the policy change, preserving inbound/outbound mode and size guardrail evidence for enforcement forensics.
 
 ## Deferred until backend contracts stabilize
 

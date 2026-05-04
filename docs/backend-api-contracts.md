@@ -361,6 +361,8 @@ whose composed RFC 5322 message size exceeds `max_message_bytes`. Attachment
 metadata reservation and direct multipart upload also reject files larger than
 `max_attachment_bytes` when outbound policy is enforced. `monitor` and `inherit`
 remain non-blocking.
+Domain policy mutations persist `domain.policy_update` admin audit rows with
+bounded JSON detail in the same database transaction as the policy change.
 
 Admin operational read models also keep explicit envelope keys:
 

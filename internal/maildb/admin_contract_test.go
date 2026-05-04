@@ -604,6 +604,44 @@ func TestValidateUpdateDomainPolicyRequestNormalizesBlankModes(t *testing.T) {
 	}
 }
 
+func TestDomainPolicyAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := domainPolicyAuditDetail(domainPolicyAuditView{
+		ID:        "domain-1",
+		CompanyID: "company-1",
+		Name:      "example.com",
+		Policy: DomainPolicyView{
+			InboundMode:             "monitor",
+			OutboundMode:            "enforce",
+			MaxRecipientsPerMessage: 100,
+			MaxMessageBytes:         1024,
+			MaxAttachmentBytes:      512,
+		},
+	})
+	if err != nil {
+		t.Fatalf("domainPolicyAuditDetail returned error: %v", err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	for key, want := range map[string]any{
+		"domain_id":                  "domain-1",
+		"company_id":                 "company-1",
+		"name":                       "example.com",
+		"inbound_mode":               "monitor",
+		"outbound_mode":              "enforce",
+		"max_recipients_per_message": float64(100),
+		"max_message_bytes":          float64(1024),
+		"max_attachment_bytes":       float64(512),
+	} {
+		if body[key] != want {
+			t.Fatalf("detail[%q] = %#v, want %#v; detail=%+v", key, body[key], want, body)
+		}
+	}
+}
+
 func TestValidateUpdateDomainPolicyRequestRejectsUnsafeValues(t *testing.T) {
 	t.Parallel()
 
