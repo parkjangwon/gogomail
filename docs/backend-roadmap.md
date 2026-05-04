@@ -494,6 +494,7 @@ Implementation order:
 435. The OpenSearch indexing adapter now bounds UTF-8 metadata fields and reference arrays before document submission, keeping direct adapter calls aligned with worker/parser metadata limits.
 436. OpenSearch relevance queries now bound UTF-8 search/filter text and escape wildcard metacharacters in sender/subject filters before submission, preserving literal Mail API filter semantics.
 437. OpenSearch relevance hit IDs are now bounded and CR/LF-guarded before Postgres hydration, keeping external search responses from sending malformed message IDs into repository lookups.
+438. OpenSearch relevance response decoding is now capped before JSON parsing, preventing oversized backend responses from allocating unbounded highlight or hit payloads in the Mail API path.
 
 ## Deferred until backend contracts stabilize
 
