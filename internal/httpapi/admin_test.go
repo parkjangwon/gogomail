@@ -414,6 +414,65 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 	}
 }
 
+func TestAdminAttachmentCleanupRunHandler(t *testing.T) {
+	t.Parallel()
+
+	before := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		expiredAttachments: []maildb.Attachment{{ID: "att-1"}, {ID: "att-2"}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/attachment-cleanup/runs", strings.NewReader(`{
+		"before": "`+before.Format(time.RFC3339)+`",
+		"limit": 25
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastAttachmentCleanupBefore.Equal(before) || service.lastAttachmentCleanupLimit != 25 {
+		t.Fatalf("cleanup request = %s/%d", service.lastAttachmentCleanupBefore, service.lastAttachmentCleanupLimit)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment_cleanup_run"`) || !strings.Contains(rec.Body.String(), `"expired_count":2`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminAttachmentCleanupRunHandlerRejectsUnsafeRequests(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		`{"limit":25}`,
+		`{"before":"not-a-time"}`,
+		`{"before":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `"}`,
+	}
+	for _, body := range tests {
+		body := body
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, "/admin/v1/attachment-cleanup/runs", strings.NewReader(body))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if !service.lastAttachmentCleanupBefore.IsZero() {
+				t.Fatalf("cleanup dispatched for %s", body)
+			}
+		})
+	}
+}
+
 func TestAdminAPIUsageDailyHandler(t *testing.T) {
 	t.Parallel()
 
@@ -3890,6 +3949,7 @@ type fakeAdminService struct {
 	apiUsageExportManifestSignatureVerification maildb.APIUsageExportManifestSignatureVerificationView
 	quotaReconciliation                         []maildb.QuotaReconciliationView
 	quotaCorrection                             maildb.QuotaCorrectionResult
+	expiredAttachments                          []maildb.Attachment
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -3919,6 +3979,8 @@ type fakeAdminService struct {
 	lastUserStatus                              maildb.UpdateUserStatusRequest
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
+	lastAttachmentCleanupBefore                 time.Time
+	lastAttachmentCleanupLimit                  int
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
 	lastAPIUsageLedgerRetention                 maildb.APIUsageLedgerRetentionRequest
 	lastAPIUsageExportCapabilities              bool
@@ -4094,6 +4156,12 @@ func (f *fakeAdminService) UpdateBackpressure(_ context.Context, req backpressur
 func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maildb.QuotaUsageView, error) {
 	f.lastLimit = limit
 	return f.quotaUsage, nil
+}
+
+func (f *fakeAdminService) RunAttachmentCleanup(_ context.Context, before time.Time, limit int) ([]maildb.Attachment, error) {
+	f.lastAttachmentCleanupBefore = before
+	f.lastAttachmentCleanupLimit = limit
+	return f.expiredAttachments, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, limit int) ([]maildb.APIUsageDailyView, error) {

@@ -1106,6 +1106,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			exportManifestSigner:        apiUsageExportManifestSigner(cfg),
 			exportManifestSignerBackend: cfg.APIUsageExportManifestSignerBackend,
 			exportManifestVerifier:      apiUsageExportManifestVerifier(cfg),
+			attachmentCleanup:           mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot)),
 		}, cfg.AdminToken)
 		logger.Info("admin api routes registered")
 	}

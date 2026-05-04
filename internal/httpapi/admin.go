@@ -49,6 +49,7 @@ type AdminService interface {
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
+	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -110,6 +111,11 @@ type adminIMAPUIDBackfillItem struct {
 type AdminBackpressureService interface {
 	GetBackpressure(ctx context.Context) (backpressure.State, error)
 	UpdateBackpressure(ctx context.Context, req backpressure.StateUpdate) (backpressure.State, error)
+}
+
+type adminAttachmentCleanupRunRequest struct {
+	Before string `json:"before"`
+	Limit  int    `json:"limit,omitempty"`
 }
 
 func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string, opts ...AdminRouteOption) {
@@ -538,6 +544,41 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_usage": usages})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		var req adminAttachmentCleanupRunRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		beforeRaw := strings.TrimSpace(req.Before)
+		if beforeRaw == "" {
+			writeError(w, http.StatusBadRequest, "before is required")
+			return
+		}
+		before, err := time.Parse(time.RFC3339, beforeRaw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "before must be RFC3339 timestamp")
+			return
+		}
+		before = before.UTC()
+		if before.After(time.Now().UTC()) {
+			writeError(w, http.StatusBadRequest, "before must not be in the future")
+			return
+		}
+		expired, err := service.RunAttachmentCleanup(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"attachment_cleanup_run": map[string]any{
+				"expired_count": len(expired),
+				"before":        before.Format(time.RFC3339),
+				"limit":         maildb.NormalizeAttachmentCleanupLimit(req.Limit),
+			},
+		})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/daily", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

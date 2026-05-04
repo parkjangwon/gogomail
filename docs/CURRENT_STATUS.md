@@ -610,6 +610,8 @@ The platform hardening sprint completed the following:
   missing objects are treated as already-cleaned idempotent deletes. Cleanup
   batch sizes use an attachment-specific 1000-row cap instead of the smaller
   message-list pagination cap.
+- Admin API exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated
+  on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment
