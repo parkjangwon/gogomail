@@ -230,6 +230,45 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for response, mediaType := range map[string]string{
+		"APIUsageLedgerExport":           "application/x-ndjson",
+		"APIUsageExportArtifactDownload": "application/x-ndjson",
+	} {
+		block := extractOpenAPIComponentBlock(t, draft, "responses", response)
+		if strings.Contains(block, "application/json:") {
+			t.Fatalf("OpenAPI response %s streams bytes and must not declare application/json", response)
+		}
+		if !strings.Contains(block, mediaType+":") {
+			t.Fatalf("OpenAPI response %s must document media type %s", response, mediaType)
+		}
+		if !strings.Contains(block, "type: string") {
+			t.Fatalf("OpenAPI response %s must document a string stream schema", response)
+		}
+	}
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["GET /messages/{id}/attachments/{attachment_id}/download"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /messages/{id}/attachments/{attachment_id}/download is missing")
+	}
+	if strings.Contains(block, "application/json:") {
+		t.Fatal("attachment download must not declare application/json")
+	}
+	for _, want := range []string{"application/octet-stream:", "type: string", "format: binary"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("attachment download must document %q", want)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsAPIUsageLedgerFilters(t *testing.T) {
 	t.Parallel()
 

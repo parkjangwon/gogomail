@@ -204,7 +204,9 @@ guidance.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests. Path parameters, Admin query filters,
   request schemas, response envelopes, and status enums are contract-tested for
-  generated-client readiness. All schemas are kept in sync with Go types.
+  generated-client readiness. Non-JSON download/export responses are guarded so
+  NDJSON streams and binary attachments are not modeled as JSON envelopes. All
+  schemas are kept in sync with Go types.
 - Redis event consumers acknowledge malformed stream entries after logging
   decode failures, preventing poison messages from pinning worker progress while
   preserving retry behavior for handler failures.
