@@ -396,6 +396,7 @@ Implementation order:
 337. IMAP mailbox event broker tests now pin non-blocking fan-out, context-cancel cleanup, and canceled-publish rejection, protecting the future IDLE foundation from slow-subscriber regressions.
 338. OpenAPI request-body contract tests now cover company quota updates and API usage export artifact create/write endpoints, preventing generated Admin clients from losing required mutation schemas.
 339. Shared EML parsing now tolerates unknown charsets on multipart text parts when go-message can still return a usable part body, preserving bounded raw body extraction instead of failing the whole parse.
+340. Migration file tests now also require contiguous numeric versions, preventing release builds from silently skipping a migration number after renames or parallel agent work.
 
 ## Deferred until backend contracts stabilize
 
