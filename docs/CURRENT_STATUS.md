@@ -462,6 +462,8 @@ The platform hardening sprint completed the following:
   mailbox-local UIDs asynchronously after SMTP storage commits.
 - IMAP UID assignment event decoding rejects CR/LF-bearing or oversized
   message, user, and folder IDs before UID work or mailbox event fan-out.
+- Push notification `mail.stored` event decoding rejects CR/LF-bearing or
+  oversized message/user IDs before target resolution or candidate fan-out.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and

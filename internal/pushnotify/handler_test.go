@@ -3,6 +3,7 @@ package pushnotify
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
@@ -199,6 +200,19 @@ func TestDecodeEventRejectsUnsupportedSchemaVersion(t *testing.T) {
 	}`))
 	if err == nil {
 		t.Fatal("DecodeEvent accepted unsupported schema version")
+	}
+}
+
+func TestDecodeEventRejectsOversizedRequiredIdentity(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeEvent(json.RawMessage(`{
+		"event":"mail.stored",
+		"message_id":"` + strings.Repeat("m", maxMailStoredEventIDBytes+1) + `",
+		"user_id":"user-1"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "message_id") {
+		t.Fatalf("DecodeEvent error = %v, want oversized message_id", err)
 	}
 }
 
