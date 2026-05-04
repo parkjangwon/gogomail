@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"sort"
 	"sync"
 	"time"
 )
@@ -72,5 +73,8 @@ func (c *RouteCounters) Snapshot() []RouteCounterSnapshot {
 			Since:     c.startAt,
 		})
 	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Pool < out[j].Pool
+	})
 	return out
 }
