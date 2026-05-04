@@ -1148,6 +1148,26 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsOversizedBody(t *testing.
 	}
 }
 
+func TestStoreAttachmentUploadSessionBodyHandlerRejectsContentRange(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+	req.Header.Set("Content-Range", "bytes 0-6/7")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastStoreUploadSessionID != "" {
+		t.Fatalf("service should not be called for range upload: session=%q", service.lastStoreUploadSessionID)
+	}
+}
+
 func TestFinalizeAttachmentUploadSessionHandler(t *testing.T) {
 	t.Parallel()
 

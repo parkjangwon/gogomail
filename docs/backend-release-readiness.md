@@ -56,6 +56,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   generated clients.
 - OpenAPI contract tests now lock the upload session body checksum header so
   generated clients do not lose the integrity precondition.
+- Upload session body storage explicitly rejects `Content-Range` requests while
+  `resumable_chunked_uploads=false`, keeping complete-body storage distinct
+  from future range-aware chunk commits.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Optional PostgreSQL integration coverage verifies upload session finalization
