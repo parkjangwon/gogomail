@@ -215,10 +215,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		messages, err := service.SearchMessages(r.Context(), maildb.MessageSearchQuery{
 			UserID:            userID,
-			Query:             r.URL.Query().Get("q"),
-			FolderID:          r.URL.Query().Get("folder_id"),
-			From:              r.URL.Query().Get("from"),
-			Subject:           r.URL.Query().Get("subject"),
+			Query:             strings.TrimSpace(r.URL.Query().Get("q")),
+			FolderID:          strings.TrimSpace(r.URL.Query().Get("folder_id")),
+			From:              strings.TrimSpace(r.URL.Query().Get("from")),
+			Subject:           strings.TrimSpace(r.URL.Query().Get("subject")),
 			HasAttachment:     hasAttachment,
 			Limit:             limit,
 			Sort:              sortMode,

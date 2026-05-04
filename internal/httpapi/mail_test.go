@@ -174,7 +174,7 @@ func TestSearchMessagesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&from=sender&subject=search&has_attachment=true&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=%20hello%20&folder_id=%20folder-1%20&from=%20sender%20&subject=%20search%20&has_attachment=true&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -190,7 +190,7 @@ func TestSearchMessagesHandler(t *testing.T) {
 	if len(body.Messages) != 1 || body.Messages[0].ID != "msg-1" {
 		t.Fatalf("messages = %+v", body.Messages)
 	}
-	if service.lastSearch.UserID != "user-1" || service.lastSearch.Query != "hello" || service.lastSearch.From != "sender" {
+	if service.lastSearch.UserID != "user-1" || service.lastSearch.Query != "hello" || service.lastSearch.FolderID != "folder-1" || service.lastSearch.From != "sender" || service.lastSearch.Subject != "search" {
 		t.Fatalf("lastSearch = %+v", service.lastSearch)
 	}
 	if service.lastSearch.HasAttachment == nil || !*service.lastSearch.HasAttachment {

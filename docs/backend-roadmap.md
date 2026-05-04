@@ -457,6 +457,7 @@ Implementation order:
 398. Attachment download `Content-Disposition` filenames are now bounded before header emission, preserving UTF-8 filename support without allowing oversized stored names to bloat responses.
 399. Mail and Admin API JSON body decoding is now capped at 1 MiB before parsing while preserving the existing trailing-token rejection guard.
 400. Admin API domain query identifiers for user listing, DKIM key listing, and delivery-route resolution are now trimmed before service dispatch, matching the existing path-id normalization stance.
+401. Mail API search query, folder, sender, and subject filters are now trimmed before backend dispatch, keeping Postgres/OpenSearch search behavior aligned when clients send accidental whitespace.
 
 ## Deferred until backend contracts stabilize
 

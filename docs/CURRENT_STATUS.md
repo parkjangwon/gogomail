@@ -442,6 +442,8 @@ The platform hardening sprint completed the following:
   preserving 400 for bad multipart syntax.
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
   the HTTP boundary before service dispatch.
+- Mail API search query, folder, sender, and subject filters are trimmed at the
+  HTTP boundary before search backend dispatch.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.
