@@ -76,6 +76,73 @@ func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
 	}
 }
 
+func TestOpenSearchIndexerUsesTrimmedMessageIDForPathAndPayload(t *testing.T) {
+	t.Parallel()
+
+	var path string
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+
+	indexer, err := NewOpenSearchIndexer(OpenSearchOptions{
+		Endpoint: server.URL,
+		Index:    "messages",
+		Client:   server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchIndexer returned error: %v", err)
+	}
+
+	if err := indexer.IndexMessage(context.Background(), Document{MessageID: " msg-1 "}); err != nil {
+		t.Fatalf("IndexMessage returned error: %v", err)
+	}
+	if path != "/messages/_doc/msg-1" {
+		t.Fatalf("path = %q, want trimmed message id", path)
+	}
+	if payload["message_id"] != "msg-1" {
+		t.Fatalf("payload message_id = %#v, want trimmed message id", payload["message_id"])
+	}
+}
+
+func TestOpenSearchIndexerRejectsUnsafeMessageID(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("OpenSearch server should not be called for unsafe message id")
+	}))
+	defer server.Close()
+
+	indexer, err := NewOpenSearchIndexer(OpenSearchOptions{
+		Endpoint: server.URL,
+		Index:    "messages",
+		Client:   server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchIndexer returned error: %v", err)
+	}
+
+	for name, messageID := range map[string]string{
+		"blank":     " ",
+		"linebreak": "msg-1\nbad",
+		"oversized": strings.Repeat("m", maxOpenSearchMetadataBytes+1),
+	} {
+		messageID := messageID
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := indexer.IndexMessage(context.Background(), Document{MessageID: messageID}); err == nil {
+				t.Fatalf("IndexMessage(%q) error = nil, want rejection", messageID)
+			}
+		})
+	}
+}
+
 func TestOpenSearchIndexerReportsServerError(t *testing.T) {
 	t.Parallel()
 
