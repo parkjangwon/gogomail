@@ -417,6 +417,7 @@ Implementation order:
 358. Project continuity docs now reflect the autonomous release-readiness hardening sprint, including parser hygiene, outbound/DSN RFC tightening, IMAP notification readiness, push outcome filters, Redis poison-message handling, and expanded OpenAPI guardrails.
 359. Redis event consumers can now reclaim idle pending stream messages with per-worker claim-idle settings, allowing event/search/API-metering/push/delivery workers to recover work left pending by crashed consumers.
 360. OpenAPI contract tests now guard non-JSON download/export responses, including NDJSON API usage exports and binary attachment downloads, so generated clients do not treat streamed bytes as JSON envelopes.
+361. Push notification workers now treat queued-outcome recording failures after sink success as operational warnings instead of handler failures, reducing duplicate push risk from Redis event redelivery while preserving candidate audit rows.
 
 ## Deferred until backend contracts stabilize
 

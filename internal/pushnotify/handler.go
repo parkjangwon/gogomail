@@ -150,21 +150,32 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	if err := h.sink.EnqueuePush(ctx, notification); err != nil {
 		return fmt.Errorf("enqueue push notification candidate: %w", err)
 	}
-	if h.outcomes != nil {
-		for _, target := range notification.Targets {
-			attemptID := strings.TrimSpace(target.AttemptID)
-			if attemptID == "" {
-				continue
-			}
-			if err := h.outcomes.RecordOutcome(ctx, AttemptOutcome{
-				AttemptID: attemptID,
-				Status:    "queued",
-			}); err != nil {
-				return fmt.Errorf("record push notification queued outcome: %w", err)
-			}
+	h.recordQueuedOutcomes(ctx, notification.Targets)
+	return nil
+}
+
+func (h *Handler) recordQueuedOutcomes(ctx context.Context, targets []Target) {
+	if h.outcomes == nil {
+		return
+	}
+	for _, target := range targets {
+		attemptID := strings.TrimSpace(target.AttemptID)
+		if attemptID == "" {
+			continue
+		}
+		if err := h.outcomes.RecordOutcome(ctx, AttemptOutcome{
+			AttemptID: attemptID,
+			Status:    "queued",
+		}); err != nil {
+			slog.Default().Warn(
+				"push notification queued outcome recording failed after sink success",
+				"attempt_id", attemptID,
+				"device_id", target.DeviceID,
+				"platform", target.Platform,
+				"error", err,
+			)
 		}
 	}
-	return nil
 }
 
 func DecodeEvent(payload json.RawMessage) (Event, error) {
