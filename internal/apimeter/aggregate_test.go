@@ -16,6 +16,8 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 
 	payload := json.RawMessage(`{
 		"event":"api.usage",
+		"schema_version":"2026-05-04.api-usage.v1",
+		"event_id":"usage-1",
 		"method":"GET",
 		"route":"GET /api/v1/messages",
 		"status":200,
@@ -40,6 +42,25 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 	}
 	if event.Route != "GET /api/v1/messages" || event.UserID != "user-1" {
 		t.Fatalf("event = %+v", event)
+	}
+	if event.EventID != "usage-1" {
+		t.Fatalf("EventID = %q, want usage-1", event.EventID)
+	}
+}
+
+func TestDecodeUsageEventRejectsUnsupportedSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	payload := json.RawMessage(`{
+		"event":"api.usage",
+		"schema_version":"2099-01-01.api-usage.v9",
+		"method":"GET",
+		"route":"GET /api/v1/messages",
+		"status":200,
+		"timestamp":"2026-05-04T00:00:00Z"
+	}`)
+	if _, err := DecodeUsageEvent(payload); err == nil {
+		t.Fatal("DecodeUsageEvent accepted unsupported schema version")
 	}
 }
 

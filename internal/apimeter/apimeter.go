@@ -14,6 +14,7 @@ const defaultTimeout = 100 * time.Millisecond
 
 // Event is the API usage record emitted by the metering middleware.
 type Event struct {
+	ID            string
 	Method        string
 	RoutePattern  string
 	Status        int

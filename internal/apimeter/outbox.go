@@ -2,7 +2,9 @@ package apimeter
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -12,6 +14,7 @@ import (
 const (
 	OutboxTopicAPIUsage = "api.event"
 	EventAPIUsage       = "api.usage"
+	APIUsageSchemaV1    = "2026-05-04.api-usage.v1"
 )
 
 type SQLExecer interface {
@@ -57,7 +60,9 @@ func apiUsagePayload(event Event) map[string]any {
 		timestamp = time.Now().UTC()
 	}
 	return map[string]any{
+		"schema_version": APIUsageSchemaV1,
 		"event":          EventAPIUsage,
+		"event_id":       apiUsageEventID(event, timestamp),
 		"method":         strings.TrimSpace(event.Method),
 		"route":          strings.TrimSpace(event.RoutePattern),
 		"status":         event.Status,
@@ -67,4 +72,22 @@ func apiUsagePayload(event Event) map[string]any {
 		"timestamp":      timestamp.UTC().Format(time.RFC3339Nano),
 		"user_id":        strings.TrimSpace(event.UserID),
 	}
+}
+
+func apiUsageEventID(event Event, timestamp time.Time) string {
+	if id := strings.TrimSpace(event.ID); id != "" {
+		return id
+	}
+	parts := []string{
+		timestamp.UTC().Format(time.RFC3339Nano),
+		strings.TrimSpace(event.Method),
+		strings.TrimSpace(event.RoutePattern),
+		fmt.Sprint(event.Status),
+		strings.TrimSpace(event.UserID),
+		fmt.Sprint(event.RequestBytes),
+		fmt.Sprint(event.ResponseBytes),
+		fmt.Sprint(event.Latency.Milliseconds()),
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return "api-usage-" + hex.EncodeToString(sum[:16])
 }

@@ -206,6 +206,8 @@ The platform hardening sprint completed the following:
 - API metering boundary: HTTP middleware can emit fail-open usage events to
   logs or the durable outbox, while the disabled-by-default aggregation worker
   can build daily/monthly Postgres read models for operations.
+- API metering events now carry an explicit schema version and deterministic
+  event ID groundwork for future idempotent billing-grade aggregation.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 

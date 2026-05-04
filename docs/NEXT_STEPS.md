@@ -193,6 +193,9 @@ Current state:
 - A disabled-by-default `api-metering-worker` can consume `api.usage` events
   from `api.event`, write Postgres daily/monthly aggregates, and serve them
   through the Admin API.
+- API usage events include an explicit schema version and deterministic
+  `event_id`, preparing future idempotent accounting without making aggregates
+  billing-grade yet.
 
 Next:
 
