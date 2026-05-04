@@ -664,6 +664,7 @@ Implementation order:
 604. Runtime database readiness now checks the applied goose migration version against the latest local SQL migration before reporting database probes healthy, preventing stale schemas from passing `/health/ready` on ping alone.
 605. Admin backpressure overrides now persist bounded hash-chain audit rows after Redis state changes, recording previous/current SMTP pressure levels as durable evidence for receive-throttle operations.
 606. Admin suppression-list deletes now persist hash-chain audit rows in the same transaction as the delete, preserving deliverability-control removal evidence for operator forensics.
+607. Admin outbox retry now persists a hash-chain audit row in the same transaction as the retry reset, preserving previous event status, attempts, and bounded error evidence before operator replay.
 
 ## Deferred until backend contracts stabilize
 
