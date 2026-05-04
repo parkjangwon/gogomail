@@ -7,6 +7,9 @@ func TestNormalizeParseOptionsAppliesSafeDefaults(t *testing.T) {
 	if opts.MaxTextBodyBytes != 1<<20 {
 		t.Fatalf("MaxTextBodyBytes = %d, want 1MiB", opts.MaxTextBodyBytes)
 	}
+	if opts.MaxHeaderBytes != 1<<20 {
+		t.Fatalf("MaxHeaderBytes = %d, want 1MiB", opts.MaxHeaderBytes)
+	}
 	if opts.MaxAttachments != 1000 {
 		t.Fatalf("MaxAttachments = %d, want 1000", opts.MaxAttachments)
 	}

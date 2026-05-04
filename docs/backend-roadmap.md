@@ -385,6 +385,7 @@ Implementation order:
 326. Admin outbox retry now trims path IDs and rejects blank IDs at the HTTP boundary before reaching repository mutation logic.
 327. Admin delivery-route counter and DKIM DNS verification responses now use reusable OpenAPI response components and drift tests, keeping operator API envelopes explicit for generated clients.
 328. Delivery route runtime counter snapshots now sort pools deterministically, keeping admin operator dashboards and API tests stable across map iteration order.
+329. Shared EML parsing now exposes a `MaxHeaderBytes` option wired into go-message header parsing, letting hot-path callers bound pathological RFC 5322 header blocks alongside body, attachment, and part limits.
 
 ## Deferred until backend contracts stabilize
 
