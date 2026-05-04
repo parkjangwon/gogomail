@@ -395,6 +395,17 @@ API call metering can now emit durable usage events:
   returns `{ "api_usage_export_manifest_digest_verification": ... }`, including
   expected and actual SHA-256 hex values, a `valid` boolean, and the canonical
   manifest JSON used for verification.
+- `POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`
+  signs the digest with the configured manifest signer and returns
+  `{ "api_usage_export_manifest_signature": ... }`.
+- `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`
+  returns `{ "api_usage_export_manifest_signatures": [...] }`, and
+  `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}`
+  returns one persisted signature.
+- `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification`
+  returns `{ "api_usage_export_manifest_signature_verification": ... }`,
+  recomputing the local-HMAC signature and confirming that the signed digest
+  still matches the persisted manifest digest.
 
 Message search starts with a small-deployment Postgres implementation:
 

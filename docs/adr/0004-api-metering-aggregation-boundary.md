@@ -67,7 +67,11 @@ limits.
 Export batches can also produce canonical SHA-256 manifest digest records over
 the saved batch metadata and registered artifacts. The Admin API exposes digest
 creation, listing, detail, and verification so operators can audit integrity
-before a future signing/KMS layer or object-store writer adapter is introduced.
+before signing. Manifest digests can be signed through a disabled-by-default
+local-HMAC signer with explicit key IDs, persisted signature rows, and Admin API
+verification. The signer boundary stays vendor-neutral so a future KMS or
+asymmetric backend can replace local HMAC without changing the export handoff
+shape.
 
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the
@@ -81,8 +85,8 @@ Postgres backend when operators want persisted aggregates.
   upserting daily/monthly totals.
 - Aggregates remain operational read models, not a financial ledger. Future
   money movement should use the immutable ledger plus explicit billing batch
-  manifests/checkpoints and signed artifact manifests or object-store writer
-  adapters rather than daily/monthly aggregates alone.
+  manifests/checkpoints, export artifacts, verified manifest digests, and signed
+  manifest records rather than daily/monthly aggregates alone.
 - Route cardinality must stay bounded by stable HTTP route patterns rather than
   raw URLs.
 - Additional plan or product-policy dimensions can be added without changing the
