@@ -150,6 +150,7 @@ func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
 		"upload_sessions",
 		"cancel_upload_sessions",
 		"upload_session_body",
+		"upload_session_checksum",
 		"finalize_upload_sessions",
 		"resumable_chunked_uploads",
 	} {

@@ -2934,6 +2934,7 @@ components:
         - upload_sessions
         - cancel_upload_sessions
         - upload_session_body
+        - upload_session_checksum
         - finalize_upload_sessions
         - resumable_chunked_uploads
         - requires_declared_size
@@ -2967,6 +2968,9 @@ components:
         upload_session_body:
           type: boolean
           description: True when clients can store a complete body against an upload session before finalization.
+        upload_session_checksum:
+          type: boolean
+          description: True when clients can send X-Content-SHA256 as a body integrity precondition.
         finalize_upload_sessions:
           type: boolean
           description: True when clients can finalize a stored upload session body into an attachment row.

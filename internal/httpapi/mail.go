@@ -698,6 +698,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 				"upload_sessions":            true,
 				"cancel_upload_sessions":     true,
 				"upload_session_body":        true,
+				"upload_session_checksum":    true,
 				"finalize_upload_sessions":   true,
 				"resumable_chunked_uploads":  false,
 				"requires_declared_size":     true,

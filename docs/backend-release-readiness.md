@@ -52,6 +52,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   writes.
 - Upload session body storage can verify optional client-provided SHA-256
   digests before recording staged bodies.
+- Attachment upload capabilities expose checksum precondition support for
+  generated clients.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Optional PostgreSQL integration coverage verifies upload session finalization
