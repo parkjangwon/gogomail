@@ -91,7 +91,10 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 		if errors.Is(err, io.EOF) {
 			break
 		}
-		if err != nil {
+		if err != nil && !gomessage.IsUnknownCharset(err) {
+			return ParsedMessage{}, fmt.Errorf("read mail part: %w", err)
+		}
+		if part == nil {
 			return ParsedMessage{}, fmt.Errorf("read mail part: %w", err)
 		}
 		partsSeen++

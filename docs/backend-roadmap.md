@@ -395,6 +395,7 @@ Implementation order:
 336. DSN composition now folds long header and `message/delivery-status` fields to keep generated bounce reports within RFC line-length limits while preserving injection sanitization.
 337. IMAP mailbox event broker tests now pin non-blocking fan-out, context-cancel cleanup, and canceled-publish rejection, protecting the future IDLE foundation from slow-subscriber regressions.
 338. OpenAPI request-body contract tests now cover company quota updates and API usage export artifact create/write endpoints, preventing generated Admin clients from losing required mutation schemas.
+339. Shared EML parsing now tolerates unknown charsets on multipart text parts when go-message can still return a usable part body, preserving bounded raw body extraction instead of failing the whole parse.
 
 ## Deferred until backend contracts stabilize
 
