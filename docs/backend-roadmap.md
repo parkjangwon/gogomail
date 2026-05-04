@@ -488,6 +488,7 @@ Implementation order:
 429. API usage aggregate storage now validates method, route, event-id, schema-version, identity dimensions, and HTTP-like status before direct store writes.
 430. Backend release verification now fails on a dirty worktree after standard tests and ignores local OpenChrome session artifacts, turning final status inspection into an enforceable release gate.
 431. Push notification target resolution now drops CR/LF-bearing device IDs or tokens before sink handoff, preparing vendor adapters to receive cleaner target metadata.
+432. Push notification candidate and provider-outcome diagnostics now truncate at UTF-8 boundaries before Postgres storage, preserving valid Admin API text for internationalized subjects and vendor messages.
 
 ## Deferred until backend contracts stabilize
 

@@ -140,38 +140,39 @@ func normalizeCandidateRecord(record CandidateRecord) CandidateRecord {
 	record.Platform = strings.ToLower(strings.TrimSpace(record.Platform))
 	record.TokenSuffix = strings.TrimSpace(record.TokenSuffix)
 	record.Status = strings.ToLower(strings.TrimSpace(record.Status))
-	record.ErrorMessage = strings.TrimSpace(record.ErrorMessage)
-	if len(record.Subject) > 500 {
-		record.Subject = record.Subject[:500]
-	}
-	if len(record.ErrorMessage) > 2000 {
-		record.ErrorMessage = record.ErrorMessage[:2000]
-	}
+	record.Subject = cleanBoundedText(record.Subject, 500)
+	record.ErrorMessage = cleanBoundedText(record.ErrorMessage, 2000)
 	return record
 }
 
 func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
 	outcome.AttemptID = strings.TrimSpace(outcome.AttemptID)
 	outcome.Status = strings.ToLower(strings.TrimSpace(outcome.Status))
-	outcome.ErrorMessage = strings.TrimSpace(outcome.ErrorMessage)
-	outcome.ProviderMessageID = strings.TrimSpace(outcome.ProviderMessageID)
-	outcome.ProviderStatus = strings.TrimSpace(outcome.ProviderStatus)
+	outcome.ErrorMessage = cleanBoundedText(outcome.ErrorMessage, 2000)
+	outcome.ProviderMessageID = cleanBoundedText(outcome.ProviderMessageID, 500)
+	outcome.ProviderStatus = cleanBoundedText(outcome.ProviderStatus, 500)
 	if outcome.AttemptID == "" {
 		return AttemptOutcome{}, fmt.Errorf("attempt_id is required")
 	}
 	if !allowedOutcomeStatus(outcome.Status) {
 		return AttemptOutcome{}, fmt.Errorf("unsupported push notification outcome status")
 	}
-	if len(outcome.ErrorMessage) > 2000 {
-		outcome.ErrorMessage = outcome.ErrorMessage[:2000]
-	}
-	if len(outcome.ProviderMessageID) > 500 {
-		outcome.ProviderMessageID = outcome.ProviderMessageID[:500]
-	}
-	if len(outcome.ProviderStatus) > 500 {
-		outcome.ProviderStatus = outcome.ProviderStatus[:500]
-	}
 	return outcome, nil
+}
+
+func cleanBoundedText(value string, maxBytes int) string {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	cut := 0
+	for i := range value {
+		if i > maxBytes {
+			return value[:cut]
+		}
+		cut = i
+	}
+	return value[:cut]
 }
 
 func allowedOutcomeStatus(status string) bool {

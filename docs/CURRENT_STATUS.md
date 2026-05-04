@@ -195,6 +195,9 @@ guidance.
   scoping for user-level and recent-window troubleshooting.
 - Push notification sinks receive the persisted candidate attempt id with each
   target, preparing clean vendor outcome updates later.
+- Push notification candidate and provider-outcome diagnostics are capped at
+  UTF-8 boundaries before Postgres storage, preserving internationalized
+  subjects and vendor messages in Admin API views.
 - The push worker marks attempts `queued` after a successful sink handoff while
   marking failed sink handoffs as `failed` with the sink error before returning
   the handler error for Redis stream retry.
