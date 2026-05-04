@@ -256,10 +256,10 @@ guidance.
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
   notification candidates or POST raw-token targets to a configured HTTP
-  webhook push gateway with Postgres candidate-attempt audit rows without
-  touching SMTP hot paths or committing to FCM/APNs SDKs. Malformed resolved
-  targets with blank or CR/LF-bearing device IDs/tokens, or unsupported
-  platforms, are dropped before sink handoff.
+  webhook push gateway with an optional bounded bearer token and Postgres
+  candidate-attempt audit rows without touching SMTP hot paths or committing to
+  FCM/APNs SDKs. Malformed resolved targets with blank or CR/LF-bearing device
+  IDs/tokens, or unsupported platforms, are dropped before sink handoff.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status, user, platform, device,
   provider status, provider message id, or recent time window.

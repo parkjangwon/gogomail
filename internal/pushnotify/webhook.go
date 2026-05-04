@@ -12,11 +12,13 @@ import (
 
 type WebhookOptions struct {
 	Endpoint string
+	Token    string
 	Client   *http.Client
 }
 
 type WebhookSink struct {
 	endpoint string
+	token    string
 	client   *http.Client
 }
 
@@ -33,7 +35,7 @@ func NewWebhookSink(opts WebhookOptions) (*WebhookSink, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &WebhookSink{endpoint: endpoint, client: client}, nil
+	return &WebhookSink{endpoint: endpoint, token: strings.TrimSpace(opts.Token), client: client}, nil
 }
 
 func (s *WebhookSink) EnqueuePush(ctx context.Context, notification Notification) error {
@@ -50,6 +52,9 @@ func (s *WebhookSink) EnqueuePush(ctx context.Context, notification Notification
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if s.token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.token)
+	}
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("call push notification webhook: %w", err)

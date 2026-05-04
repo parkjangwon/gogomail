@@ -48,6 +48,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "")
@@ -282,6 +283,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.PushNotifyWebhookURL != "" {
 		t.Fatalf("PushNotifyWebhookURL = %q, want empty", cfg.PushNotifyWebhookURL)
 	}
+	if cfg.PushNotifyWebhookToken != "" {
+		t.Fatalf("PushNotifyWebhookToken = %q, want empty", cfg.PushNotifyWebhookToken)
+	}
 	if cfg.PushNotifyWebhookTimeout != 2*time.Second {
 		t.Fatalf("PushNotifyWebhookTimeout = %s, want 2s", cfg.PushNotifyWebhookTimeout)
 	}
@@ -325,6 +329,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "https://push.internal/send")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "push-token")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT", "4s")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "5")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "25")
@@ -546,6 +551,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.PushNotifyWebhookURL != "https://push.internal/send" {
 		t.Fatalf("PushNotifyWebhookURL = %q, want webhook URL", cfg.PushNotifyWebhookURL)
+	}
+	if cfg.PushNotifyWebhookToken != "push-token" {
+		t.Fatalf("PushNotifyWebhookToken = %q, want push-token", cfg.PushNotifyWebhookToken)
 	}
 	if cfg.PushNotifyWebhookTimeout != 4*time.Second {
 		t.Fatalf("PushNotifyWebhookTimeout = %s, want 4s", cfg.PushNotifyWebhookTimeout)

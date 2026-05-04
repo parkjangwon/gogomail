@@ -47,6 +47,16 @@ func TestValidateRejectsInvalidPushNotifyWebhookConfig(t *testing.T) {
 		{name: "nonpositive timeout", mutate: func(cfg *Config) {
 			cfg.PushNotifyWebhookTimeout = 0
 		}},
+		{name: "token newline", mutate: func(cfg *Config) {
+			cfg.PushNotifyBackend = "webhook"
+			cfg.PushNotifyWebhookURL = "http://push.example/send"
+			cfg.PushNotifyWebhookToken = "bad\ntoken"
+		}},
+		{name: "token too long", mutate: func(cfg *Config) {
+			cfg.PushNotifyBackend = "webhook"
+			cfg.PushNotifyWebhookURL = "http://push.example/send"
+			cfg.PushNotifyWebhookToken = strings.Repeat("t", maxWebhookTokenBytes+1)
+		}},
 	}
 
 	for _, tt := range tests {

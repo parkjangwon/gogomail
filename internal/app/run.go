@@ -717,6 +717,7 @@ func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger) (push
 	case "webhook":
 		return pushnotify.NewWebhookSink(pushnotify.WebhookOptions{
 			Endpoint: strings.TrimSpace(cfg.PushNotifyWebhookURL),
+			Token:    cfg.PushNotifyWebhookToken,
 			Client:   &http.Client{Timeout: cfg.PushNotifyWebhookTimeout},
 		})
 	default:
