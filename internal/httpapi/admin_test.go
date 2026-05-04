@@ -3112,7 +3112,7 @@ func TestAdminUsersHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users?domain_id=%20domain-1%20&password_configured=true&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users?domain_id=%20domain-1%20&status=active&password_configured=true&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3131,6 +3131,9 @@ func TestAdminUsersHandler(t *testing.T) {
 	if service.lastDomainID != "domain-1" || service.lastLimit != 10 {
 		t.Fatalf("domain/limit = %q/%d", service.lastDomainID, service.lastLimit)
 	}
+	if service.lastUserList.Status != "active" {
+		t.Fatalf("status filter = %q, want active", service.lastUserList.Status)
+	}
 	if service.lastUserList.PasswordConfigured == nil || !*service.lastUserList.PasswordConfigured {
 		t.Fatalf("password_configured filter = %v, want true", service.lastUserList.PasswordConfigured)
 	}
@@ -3142,6 +3145,8 @@ func TestAdminUsersHandlerRejectsUnsafeFilters(t *testing.T) {
 	tests := []string{
 		"/admin/v1/users?domain_id=domain%0Abad",
 		"/admin/v1/users?domain_id=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+		"/admin/v1/users?status=archived",
+		"/admin/v1/users?status=active%0Abad",
 		"/admin/v1/users?password_configured=maybe",
 		"/admin/v1/users?password_configured=true%0Abad",
 	}

@@ -354,6 +354,14 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestValidateUserListRequestRejectsUnknownStatus(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateUserListRequest(UserListRequest{Status: "paused"}); err == nil {
+		t.Fatal("ValidateUserListRequest accepted unknown status")
+	}
+}
+
 func TestValidateUpdateUserQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	t.Parallel()
 
