@@ -404,7 +404,8 @@ The platform hardening sprint completed the following:
   introducing vendor push delivery as a required runtime dependency.
 - Push notification device storage: authenticated users can register, list, and
   delete active device tokens through the Mail API while responses expose only a
-  short token suffix.
+  short token suffix. Registration normalizes user, platform, token, and label
+  fields before validation/storage.
 - API metering boundary: HTTP middleware can emit fail-open usage events to
   logs or the durable outbox, while the disabled-by-default aggregation worker
   can build daily/monthly Postgres read models for operations.

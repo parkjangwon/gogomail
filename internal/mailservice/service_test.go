@@ -94,6 +94,26 @@ func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
 	}
 }
 
+func TestUpsertPushDeviceNormalizesRequest(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	device, err := service.UpsertPushDevice(context.Background(), maildb.UpsertPushDeviceRequest{
+		UserID:   " user-1 ",
+		Platform: " FCM ",
+		Token:    " token-1 ",
+		Label:    " phone ",
+	})
+	if err != nil {
+		t.Fatalf("UpsertPushDevice returned error: %v", err)
+	}
+	if device.Platform != "fcm" || repo.lastPushDevice.Token != "token-1" || repo.lastPushDevice.Label != "phone" || repo.lastPushDevice.UserID != "user-1" {
+		t.Fatalf("device = %+v lastPushDevice = %+v", device, repo.lastPushDevice)
+	}
+}
+
 func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 	t.Parallel()
 
@@ -613,6 +633,7 @@ type fakeRepository struct {
 	lastSentDraftID             string
 	lastSentDraftMessageID      string
 	lastOutgoing                maildb.OutgoingMessage
+	lastPushDevice              maildb.UpsertPushDeviceRequest
 	lastIMAPFlags               imapgw.MessageFlags
 	lastIMAPFlagMode            imapgw.StoreFlagsMode
 	lastIMAPUIDLookupUserID     string
@@ -734,6 +755,7 @@ func (f *fakeRepository) ListPushDevices(context.Context, string, int) ([]maildb
 }
 
 func (f *fakeRepository) UpsertPushDevice(_ context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error) {
+	f.lastPushDevice = req
 	return maildb.PushDevice{ID: "device-1", UserID: req.UserID, Platform: req.Platform, Token: req.Token, Status: "active"}, nil
 }
 

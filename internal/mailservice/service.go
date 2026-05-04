@@ -535,6 +535,10 @@ func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int)
 }
 
 func (s *Service) UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error) {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.Platform = strings.ToLower(strings.TrimSpace(req.Platform))
+	req.Token = strings.TrimSpace(req.Token)
+	req.Label = strings.TrimSpace(req.Label)
 	if err := maildb.ValidateUpsertPushDeviceRequest(req); err != nil {
 		return maildb.PushDevice{}, err
 	}
