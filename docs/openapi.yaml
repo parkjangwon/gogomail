@@ -5418,7 +5418,7 @@ components:
           $ref: "#/components/schemas/DomainPolicy"
     User:
       type: object
-      required: [id, domain_id, username, display_name, role, status, quota_used, quota_remaining, quota_source, created_at]
+      required: [id, domain_id, username, display_name, role, status, password_configured, quota_used, quota_remaining, quota_source, created_at]
       properties:
         id:
           type: string
@@ -5433,6 +5433,8 @@ components:
         status:
           type: string
           enum: [active, suspended, disabled]
+        password_configured:
+          type: boolean
         quota_used:
           type: integer
           format: int64

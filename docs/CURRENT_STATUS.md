@@ -105,7 +105,8 @@ guidance.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords
-  through the API.
+  through the API. User read models expose `password_configured` without
+  returning stored password hashes.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain
