@@ -181,8 +181,9 @@ The platform hardening sprint completed the following:
 - IMAP gateway planning: native backend interfaces, RFC-shaped flag/mailbox
   helpers, and durable UID/MODSEQ storage exist without starting a TCP protocol
   server.
-- The first `maildb` IMAP adapter methods can list/get mailboxes and list
-  mailbox messages as `internal/imapgw` DTOs while ensuring UID state.
+- The first IMAP adapter path can list/get mailboxes, list mailbox messages,
+  resolve messages by UID, and stream raw stored message bodies as
+  `internal/imapgw` DTOs while ensuring UID state.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
@@ -201,8 +202,7 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. Extend the `maildb` IMAP adapter with fetch-by-UID and flag mutation over
-   the new UID/MODSEQ storage.
+3. Extend the IMAP adapter with flag mutation over the new UID/MODSEQ storage.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
