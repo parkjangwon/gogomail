@@ -486,6 +486,37 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerList"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/ledger/export:
+    get:
+      operationId: exportAdminAPIUsageLedger
+      summary: Export immutable API usage ledger events as NDJSON
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: principal_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 event timestamp lower bound.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive RFC3339 event timestamp upper bound.
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerExport"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1160,6 +1191,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerListEnvelope"
+    APIUsageLedgerExport:
+      description: Immutable API usage ledger events as newline-delimited JSON.
+      content:
+        application/x-ndjson:
+          schema:
+            type: string
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:

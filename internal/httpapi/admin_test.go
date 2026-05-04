@@ -300,6 +300,41 @@ func TestAdminAPIUsageLedgerRejectsInvalidTimeRange(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageLedgerExportHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageLedger: []maildb.APIUsageLedgerView{{
+			EventID:       "usage-1",
+			SchemaVersion: "2026-05-04.api-usage.v2",
+			EventTime:     time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC),
+			RecordedAt:    time.Date(2026, 5, 4, 1, 0, 1, 0, time.UTC),
+			Method:        "GET",
+			Route:         "GET /api/v1/messages",
+			Status:        200,
+			RequestCount:  1,
+			Payload:       json.RawMessage(`{"event":"api.usage"}`),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/export?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/x-ndjson" {
+		t.Fatalf("content type = %q", got)
+	}
+	lines := strings.Split(strings.TrimSpace(rr.Body.String()), "\n")
+	if len(lines) != 1 || !strings.Contains(lines[0], `"event_id":"usage-1"`) {
+		t.Fatalf("ndjson = %q", rr.Body.String())
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
