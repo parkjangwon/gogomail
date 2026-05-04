@@ -277,10 +277,10 @@ Current state:
   and stats endpoints for export sanity checks without making request handling
   synchronous.
 - Admin API exposes read-only API usage ledger retention readiness. Operators
-  provide a cutoff and optional tenant/principal filters, then receive candidate
-  counts plus the covering completed export batch, artifact, digest, signature,
-  and late-recorded-row evidence before any future archive/delete job can safely
-  run.
+  provide a non-future cutoff and optional tenant/principal filters, then
+  receive candidate counts plus the covering completed export batch, artifact,
+  digest, signature, and late-recorded-row evidence before any future
+  archive/delete job can safely run.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.

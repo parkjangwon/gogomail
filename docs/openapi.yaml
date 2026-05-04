@@ -637,7 +637,7 @@ paths:
           schema:
             type: string
             format: date-time
-          description: Exclusive RFC3339 event timestamp upper bound for retention candidates.
+          description: Exclusive RFC3339 event timestamp upper bound for retention candidates; future cutoffs are rejected.
         - name: tenant_id
           in: query
           schema:
