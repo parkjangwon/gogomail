@@ -71,6 +71,8 @@ guidance.
 - Search indexing rejects ambiguous `mail.stored` storage paths that would be
   changed by path cleaning, preventing parent-traversal or duplicate-separator
   event payloads from opening a different object key.
+- Search indexing caps `mail.stored` event `References` metadata before
+  document construction, matching the parser's bounded metadata stance.
 - Shared EML text extraction and attachment metadata are bounded with UTF-8
   boundary preservation; attachment filenames are basename-normalized,
   control-character cleaned, and capped before reaching storage/API/search

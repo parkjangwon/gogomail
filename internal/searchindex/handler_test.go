@@ -209,6 +209,28 @@ func TestHandlerIndexesBoundedTruncatedBody(t *testing.T) {
 	}
 }
 
+func TestDecodeEventCapsReferences(t *testing.T) {
+	t.Parallel()
+
+	refs := make([]string, 0, maxEventReferences+10)
+	for i := 0; i < maxEventReferences+10; i++ {
+		refs = append(refs, "<ref@example.com>")
+	}
+	event, err := DecodeEvent(mustJSON(t, Event{
+		Event:       "mail.stored",
+		MessageID:   "msg-1",
+		UserID:      "user-1",
+		StoragePath: "messages/msg-1.eml",
+		References:  refs,
+	}))
+	if err != nil {
+		t.Fatalf("DecodeEvent returned error: %v", err)
+	}
+	if len(event.References) != maxEventReferences {
+		t.Fatalf("References = %d, want %d", len(event.References), maxEventReferences)
+	}
+}
+
 type fakeStore map[string]string
 
 func (s fakeStore) Open(_ context.Context, path string) (io.ReadCloser, error) {
