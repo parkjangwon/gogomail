@@ -300,6 +300,7 @@ Implementation order:
 245. `maildb` can list mailbox messages as `internal/imapgw.MessageSummary` DTOs, assigning missing mailbox-local UIDs and mapping envelope/flag fields for future IMAP FETCH/LIST flows.
 246. IMAP fetch groundwork can resolve active messages by mailbox UID and stream the raw stored `.eml` body through `mailservice` without parsing or copying it into memory.
 247. IMAP STORE groundwork can mutate `\Seen`, `\Flagged`, and `\Answered` through the existing message flag JSON while advancing message/mailbox MODSEQ only for actual flag changes.
+248. IMAP UID backfill can assign missing mailbox-local UIDs to existing active messages in bounded stable-order batches, preparing mailboxes before a live protocol listener is enabled.
 
 ## Deferred until backend contracts stabilize
 

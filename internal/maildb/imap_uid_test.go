@@ -126,6 +126,20 @@ func TestApplyIMAPStoreFlagChangesReportsActualMutation(t *testing.T) {
 	}
 }
 
+func TestNormalizeIMAPUIDBackfillLimit(t *testing.T) {
+	tests := map[int]int{
+		0:    imapUIDBackfillDefaultLimit,
+		-10:  imapUIDBackfillDefaultLimit,
+		50:   50,
+		5000: imapUIDBackfillMaxLimit,
+	}
+	for input, want := range tests {
+		if got := normalizeIMAPUIDBackfillLimit(input); got != want {
+			t.Fatalf("normalizeIMAPUIDBackfillLimit(%d) = %d, want %d", input, got, want)
+		}
+	}
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }

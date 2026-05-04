@@ -89,11 +89,11 @@ Current state:
 - `mailservice` can delegate IMAP STORE flag mutations to `maildb`, where
   `\Seen`, `\Flagged`, and `\Answered` map to persisted JSON flags and MODSEQ
   advances only for actual changes.
+- `maildb` can backfill missing mailbox-local UIDs for active messages in
+  bounded, stable-order batches.
 
 Next:
 
-- Backfill/assign UIDs for existing mailbox messages before enabling a live
-  IMAP listener.
 - Harden move/delete mailbox-local UID semantics before exposing IMAP MOVE or
   EXPUNGE.
 - Plan IMAP IDLE support for push-on-connect clients.
