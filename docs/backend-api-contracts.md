@@ -363,6 +363,14 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/export-batches` returns
   `{ "api_usage_export_batches": [...] }`, and
   `GET /admin/v1/api-usage/export-batches/{id}` returns one saved manifest.
+- `GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness` returns
+  `{ "api_usage_export_handoff_readiness": ... }`, a read-only operator report
+  summarizing batch completion, artifact event coverage, latest manifest
+  digest, latest digest signature, operational `ready`, and separate
+  `billing_ready`/`readiness_grade` fields. Local-HMAC signatures can satisfy
+  operational handoff readiness but keep `billing_ready: false` with
+  `production_manifest_signer_required` until a production signer backend is
+  wired.
 - `GET /admin/v1/api-usage/export-batches/{id}/export` streams the saved
   manifest window as NDJSON, making export replay idempotent by batch ID.
 - `POST /admin/v1/api-usage/export-batches/{id}/artifacts` registers an

@@ -73,6 +73,14 @@ verification. The signer boundary stays vendor-neutral so a future KMS or
 asymmetric backend can replace local HMAC without changing the export handoff
 shape.
 
+The Admin API also exposes a read-only handoff readiness report for a saved
+batch. The report summarizes whether the batch is complete, artifact event
+counts cover the saved batch total, at least one manifest digest exists, and the
+latest digest has a signature. It intentionally separates operational readiness
+from billing readiness: local-HMAC signed batches can be operationally ready for
+warehouse handoff checks, but remain billing-blocked until a production signer
+such as KMS-backed asymmetric signing is configured.
+
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the
 Postgres backend when operators want persisted aggregates.
@@ -86,7 +94,9 @@ Postgres backend when operators want persisted aggregates.
 - Aggregates remain operational read models, not a financial ledger. Future
   money movement should use the immutable ledger plus explicit billing batch
   manifests/checkpoints, export artifacts, verified manifest digests, and signed
-  manifest records rather than daily/monthly aggregates alone.
+  manifest records rather than daily/monthly aggregates alone. The handoff
+  readiness report is an operator summary of those records, not a replacement
+  for production-grade signing or deep artifact verification.
 - Route cardinality must stay bounded by stable HTTP route patterns rather than
   raw URLs.
 - Additional plan or product-policy dimensions can be added without changing the

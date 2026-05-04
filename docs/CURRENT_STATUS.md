@@ -115,6 +115,10 @@ guidance.
   default local HMAC signer. Admin API exposes signature create/list/detail and
   verification endpoints while keeping the signer backend pluggable for future
   KMS/asymmetric integrations.
+- Admin API exposes API usage export handoff readiness by batch. The report
+  summarizes artifact coverage, latest digest/signature state, operational
+  readiness, and a separate billing readiness grade so local-HMAC signed batches
+  are not mistaken for invoice-grade exports.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -310,6 +314,10 @@ The platform hardening sprint completed the following:
 - API usage export artifact writing now has a local object-store adapter path
   through Admin API, including full-batch streaming, retry-friendly artifact
   registration, stored artifact download, and object body byte/SHA verification.
+- API usage export handoff readiness now has a compact Admin API report that
+  shows whether a batch has artifact coverage, a latest manifest digest, and a
+  signature for that digest while keeping local-HMAC signatures billing-blocked
+  until production signing is wired.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 
