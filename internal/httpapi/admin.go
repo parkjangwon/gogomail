@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"io"
@@ -1231,10 +1232,12 @@ func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 func constantTimeTokenEqual(got string, want string) bool {
 	got = strings.TrimSpace(got)
 	want = strings.TrimSpace(want)
-	if got == "" || want == "" || len(got) != len(want) {
+	if got == "" || want == "" {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+	gotHash := sha256.Sum256([]byte(got))
+	wantHash := sha256.Sum256([]byte(want))
+	return subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) == 1
 }
 
 func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerListRequest, bool) {

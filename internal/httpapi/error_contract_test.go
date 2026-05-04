@@ -35,3 +35,16 @@ func TestWriteErrorIncludesStableStatusText(t *testing.T) {
 		t.Fatalf("error_message = %q, want %q", body.ErrorMessage, body.Error.Message)
 	}
 }
+
+func TestConstantTimeTokenEqualUsesTrimmedTokenValues(t *testing.T) {
+	t.Parallel()
+
+	if !constantTimeTokenEqual(" secret-token ", "secret-token") {
+		t.Fatal("constantTimeTokenEqual rejected matching trimmed tokens")
+	}
+	for _, got := range []string{"", "secret-token-extra", "secret"} {
+		if constantTimeTokenEqual(got, "secret-token") {
+			t.Fatalf("constantTimeTokenEqual(%q) = true, want false", got)
+		}
+	}
+}
