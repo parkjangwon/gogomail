@@ -117,6 +117,9 @@ guidance.
   worker stores those dimensions in the idempotency ledger and keys daily/monthly
   aggregates by identity so usage from different tenants or principals does not
   merge.
+- API metering auth-source dimensions are normalized to the known set
+  `anonymous|bearer|admin_token|query_user_id|unknown`; unexpected values fold
+  to `unknown` before ledger/aggregate storage.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
   upserts. Admin API exposes bounded ledger list, NDJSON export, and stats
   endpoints for billing/export preparation while keeping HTTP request handling
