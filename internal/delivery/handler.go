@@ -47,9 +47,10 @@ type DSNRecipientOptions struct {
 }
 
 const (
-	maxQueuedMessageIDBytes    = 200
-	maxQueuedRFCMessageIDBytes = 500
-	maxQueuedStoragePathBytes  = 2048
+	maxQueuedMessageIDBytes            = 200
+	maxQueuedRFCMessageIDBytes         = 500
+	maxQueuedStoragePathBytes          = 2048
+	maxQueuedDSNOriginalRecipientBytes = 500
 )
 
 type MessageOpener func(ctx context.Context) (io.ReadCloser, error)
@@ -382,6 +383,9 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 		recipient.OriginalRecipient = strings.TrimSpace(recipient.OriginalRecipient)
 		if containsLineBreak(recipient.OriginalRecipient) {
 			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
+		}
+		if len(recipient.OriginalRecipient) > maxQueuedDSNOriginalRecipientBytes {
+			return fmt.Errorf("mail.queued payload has oversized dsn original_recipient for %s", recipient.Address)
 		}
 		if recipient.OriginalRecipient != "" && !validQueuedDSNOriginalRecipient(recipient.OriginalRecipient) {
 			return fmt.Errorf("mail.queued payload has invalid dsn original_recipient for %s", recipient.Address)
