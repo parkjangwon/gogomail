@@ -69,9 +69,9 @@ the saved batch metadata and registered artifacts. The Admin API exposes digest
 creation, listing, detail, and verification so operators can audit integrity
 before signing. Manifest digests can be signed through a disabled-by-default
 local-HMAC signer with explicit key IDs, persisted signature rows, and Admin API
-verification. The signer boundary stays vendor-neutral so a future KMS or
-asymmetric backend can replace local HMAC without changing the export handoff
-shape.
+verification. Signing and verification are separate interfaces. The signer and
+verifier boundaries stay vendor-neutral so a future KMS or asymmetric backend
+can replace local HMAC without changing the export handoff shape.
 
 The Admin API also exposes a read-only handoff readiness report for a saved
 batch. The report summarizes whether the batch is complete, artifact event

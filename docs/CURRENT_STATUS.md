@@ -123,6 +123,10 @@ guidance.
   artifacts from object storage for byte/SHA verification and verifies the
   latest manifest digest/signature in one operator report while keeping
   metadata-only readiness fields stable.
+- Manifest signature verification now sits behind an
+  `apimeter.ExportManifestSignatureVerifier` boundary parallel to signing. The
+  current wired verifier is local-HMAC, leaving a clean replacement point for
+  KMS/asymmetric verification.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
