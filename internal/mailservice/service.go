@@ -911,10 +911,19 @@ func (s *Service) CancelAttachmentUploadSession(ctx context.Context, userID stri
 	if !ok {
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session repository is required")
 	}
-	return repo.CancelAttachmentUploadSession(ctx, maildb.CancelAttachmentUploadSessionRequest{
+	session, err := repo.CancelAttachmentUploadSession(ctx, maildb.CancelAttachmentUploadSessionRequest{
 		UserID:    userID,
 		SessionID: sessionID,
 	})
+	if err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	if s.store != nil && strings.TrimSpace(session.StoragePath) != "" {
+		if err := s.store.Delete(ctx, session.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return session, fmt.Errorf("delete canceled upload session object: %w", err)
+		}
+	}
+	return session, nil
 }
 
 func (s *Service) GetAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error) {

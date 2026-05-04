@@ -2187,6 +2187,35 @@ func TestCancelAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestCancelAttachmentUploadSessionDeletesStoredBody(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	path := "upload-sessions/user-1/session-1/body"
+	if err := store.Put(context.Background(), path, strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:          "session-1",
+			UserID:      "user-1",
+			StoragePath: path,
+			Status:      "canceled",
+		},
+	}
+	service := New(repo, store)
+	session, err := service.CancelAttachmentUploadSession(context.Background(), " user-1 ", " session-1 ")
+	if err != nil {
+		t.Fatalf("CancelAttachmentUploadSession returned error: %v", err)
+	}
+	if session.ID != "session-1" || repo.lastCancelUploadSession.UserID != "user-1" || repo.lastCancelUploadSession.SessionID != "session-1" {
+		t.Fatalf("session = %+v last = %+v", session, repo.lastCancelUploadSession)
+	}
+	if _, err := store.Get(context.Background(), path); err == nil {
+		t.Fatal("stored upload session body still exists after cancellation")
+	}
+}
+
 func TestGetAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 

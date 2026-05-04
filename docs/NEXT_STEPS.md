@@ -290,6 +290,8 @@ Current state:
   finalizing it into an attachment row.
 - Upload session finalization can convert a stored session body into the normal
   pending attachment row while preserving the original quota reservation.
+- Upload session cancellation deletes any staged session body after the
+  repository marks the session canceled and releases quota.
 - Admin API can preview counts, list bounded candidates, and run stale upload
   cleanup on demand with an explicit non-future cutoff for operator-controlled
   maintenance.
