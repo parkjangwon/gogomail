@@ -96,6 +96,87 @@ func TestTokenManagerRejectsBlankJWTIdentity(t *testing.T) {
 	}
 }
 
+func TestTokenManagerRejectsUnsafeJWTIdentityOnSign(t *testing.T) {
+	t.Parallel()
+
+	manager, err := NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	now := time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)
+	manager.now = func() time.Time { return now }
+
+	for _, tc := range []struct {
+		name    string
+		claims  Claims
+		wantErr string
+	}{
+		{
+			name:    "user_id_crlf",
+			claims:  Claims{UserID: "user\nbad"},
+			wantErr: "jwt identity must not contain CR or LF",
+		},
+		{
+			name:    "subject_too_long",
+			claims:  Claims{Subject: strings.Repeat("s", maxJWTIdentityBytes+1)},
+			wantErr: "jwt identity is too long",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := manager.Sign(tc.claims, time.Minute); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("Sign error = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestTokenManagerRejectsUnsafeJWTIdentityOnVerify(t *testing.T) {
+	t.Parallel()
+
+	manager, err := NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	now := time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)
+	manager.now = func() time.Time { return now }
+
+	for _, tc := range []struct {
+		name    string
+		claims  Claims
+		wantErr string
+	}{
+		{
+			name: "user_id_crlf",
+			claims: Claims{
+				UserID: "user\rbad",
+				Expiry: now.Add(time.Minute).Unix(),
+			},
+			wantErr: "jwt identity must not contain CR or LF",
+		},
+		{
+			name: "subject_too_long",
+			claims: Claims{
+				Subject: strings.Repeat("s", maxJWTIdentityBytes+1),
+				Expiry:  now.Add(time.Minute).Unix(),
+			},
+			wantErr: "jwt identity is too long",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			token := signedTestToken(t, manager, map[string]string{"alg": "HS256", "typ": "JWT"}, tc.claims)
+			if _, err := manager.Verify(token); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("Verify error = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestTokenManagerRejectsFutureIssuedAt(t *testing.T) {
 	t.Parallel()
 

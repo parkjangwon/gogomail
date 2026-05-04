@@ -524,6 +524,7 @@ Implementation order:
 465. Mail API development `user_id` query fallback values now reject CR/LF-bearing or oversized identifiers before service dispatch.
 466. Mail API folder, thread, message, draft, attachment, and push-device path identifiers now reject blank, CR/LF-bearing, or oversized values before service dispatch.
 467. Mail API message-list `folder_id` and search text/filter query parameters now reject CR/LF-bearing or oversized values before service dispatch.
+468. Mail API bearer JWT `user_id` and `sub` identities now reject CR/LF-bearing or oversized values during signing and verification before request scoping.
 
 ## Deferred until backend contracts stabilize
 

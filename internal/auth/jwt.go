@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const maxJWTIdentityBytes = 200
+
 type Claims struct {
 	Subject  string    `json:"sub"`
 	UserID   string    `json:"user_id"`
@@ -41,8 +43,15 @@ func (m *TokenManager) Sign(claims Claims, ttl time.Duration) (string, error) {
 	if ttl <= 0 {
 		ttl = 15 * time.Minute
 	}
-	claims.UserID = strings.TrimSpace(claims.UserID)
-	claims.Subject = strings.TrimSpace(claims.Subject)
+	var err error
+	claims.UserID, err = normalizeJWTIdentity(claims.UserID)
+	if err != nil {
+		return "", err
+	}
+	claims.Subject, err = normalizeJWTIdentity(claims.Subject)
+	if err != nil {
+		return "", err
+	}
 	if claims.UserID == "" && claims.Subject != "" {
 		claims.UserID = claims.Subject
 	}
@@ -111,8 +120,14 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	if err := json.Unmarshal(payloadRaw, &claims); err != nil {
 		return Claims{}, fmt.Errorf("decode jwt claims: %w", err)
 	}
-	claims.UserID = strings.TrimSpace(claims.UserID)
-	claims.Subject = strings.TrimSpace(claims.Subject)
+	claims.UserID, err = normalizeJWTIdentity(claims.UserID)
+	if err != nil {
+		return Claims{}, err
+	}
+	claims.Subject, err = normalizeJWTIdentity(claims.Subject)
+	if err != nil {
+		return Claims{}, err
+	}
 	if claims.UserID == "" {
 		claims.UserID = claims.Subject
 	}
@@ -127,6 +142,20 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	}
 	claims.Expires = time.Unix(claims.Expiry, 0).UTC()
 	return claims, nil
+}
+
+func normalizeJWTIdentity(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("jwt identity must not contain CR or LF")
+	}
+	if len(value) > maxJWTIdentityBytes {
+		return "", fmt.Errorf("jwt identity is too long")
+	}
+	return value, nil
 }
 
 func (m *TokenManager) sign(input string) string {
