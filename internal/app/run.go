@@ -1248,6 +1248,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,
 			backpressure:                pressure,
+			audit:                       audit.NewPostgresRepository(db),
 			exportStore:                 storage.NewLocalStore(cfg.MailstoreRoot),
 			exportManifestSigner:        apiUsageExportManifestSigner(cfg),
 			exportManifestSignerBackend: cfg.APIUsageExportManifestSignerBackend,

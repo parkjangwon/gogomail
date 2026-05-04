@@ -127,6 +127,9 @@ guidance.
 - Database readiness now also compares the applied `goose_db_version` against
   the latest local SQL migration, so stale schemas degrade `/health/ready`
   instead of passing on connectivity alone.
+- Admin backpressure overrides now persist bounded hash-chain audit rows after
+  Redis state changes, recording previous/current SMTP pressure levels without
+  silently accepting unaudited operational receive throttles.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords
