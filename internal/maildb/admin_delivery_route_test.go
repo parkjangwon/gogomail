@@ -1,6 +1,9 @@
 package maildb
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestValidateCreateDeliveryRouteRequestAcceptsOperationalRoute(t *testing.T) {
 	t.Parallel()
@@ -90,5 +93,52 @@ func TestDeliveryRouteResolveViewCanRepresentDirectFallback(t *testing.T) {
 	view := DeliveryRouteResolveView{Domain: "example.net", Matched: false}
 	if view.Route != nil {
 		t.Fatalf("Route = %+v, want nil for direct fallback", view.Route)
+	}
+}
+
+func TestDeliveryRouteAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := deliveryRouteAuditDetail(DeliveryRouteView{
+		ID:            "route-1",
+		DomainPattern: "*.example.net",
+		Farm:          "transactional",
+		Hosts:         []string{"relay.example.net"},
+		Port:          587,
+		TLSMode:       "require",
+		ImplicitTLS:   false,
+		SMTPHello:     "mx.example.net",
+		PoolName:      "pool-a",
+		AuthIdentity:  "identity",
+		AuthUsername:  "relay-user",
+		Status:        "active",
+		Description:   "primary route",
+	})
+	if err != nil {
+		t.Fatalf("deliveryRouteAuditDetail returned error: %v", err)
+	}
+	var body struct {
+		ID            string   `json:"delivery_route_id"`
+		DomainPattern string   `json:"domain_pattern"`
+		Farm          string   `json:"farm"`
+		Hosts         []string `json:"hosts"`
+		Port          int      `json:"port"`
+		TLSMode       string   `json:"tls_mode"`
+		Status        string   `json:"status"`
+		AuthUsername  string   `json:"auth_username"`
+	}
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.ID != "route-1" ||
+		body.DomainPattern != "*.example.net" ||
+		body.Farm != "transactional" ||
+		len(body.Hosts) != 1 ||
+		body.Hosts[0] != "relay.example.net" ||
+		body.Port != 587 ||
+		body.TLSMode != "require" ||
+		body.Status != "active" ||
+		body.AuthUsername != "relay-user" {
+		t.Fatalf("detail = %+v", body)
 	}
 }
