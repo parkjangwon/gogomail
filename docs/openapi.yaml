@@ -362,6 +362,38 @@ paths:
           $ref: "#/components/responses/Attachment"
         default:
           $ref: "#/components/responses/Error"
+  /push-devices:
+    get:
+      operationId: listPushDevices
+      summary: List user push notification devices
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/PushDeviceList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: upsertPushDevice
+      summary: Register or refresh a user push notification device
+      requestBody:
+        $ref: "#/components/requestBodies/PushDeviceUpsert"
+      responses:
+        "201":
+          $ref: "#/components/responses/PushDevice"
+        default:
+          $ref: "#/components/responses/Error"
+  /push-devices/{id}:
+    delete:
+      operationId: deletePushDevice
+      summary: Delete a user push notification device
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /queue:
     get:
       operationId: getAdminQueueStats
@@ -1018,6 +1050,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AttachmentEnvelope"
+    PushDeviceList:
+      description: Push device list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PushDeviceListEnvelope"
+    PushDevice:
+      description: Push device resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PushDeviceEnvelope"
     QueueStats:
       description: Queue stats envelope
       content:
@@ -1257,6 +1301,12 @@ components:
         multipart/form-data:
           schema:
             $ref: "#/components/schemas/AttachmentMultipartUploadRequest"
+    PushDeviceUpsert:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PushDeviceUpsertRequest"
     DomainCreate:
       required: true
       content:
@@ -1680,6 +1730,57 @@ components:
       properties:
         attachment:
           $ref: "#/components/schemas/Attachment"
+    PushDevice:
+      type: object
+      required: [id, platform, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        platform:
+          type: string
+          enum: [apns, fcm, webpush]
+        token_suffix:
+          type: string
+          description: Short suffix for display and diagnostics; raw device tokens are not returned.
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, deleted]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PushDeviceUpsertRequest:
+      type: object
+      required: [platform, token]
+      properties:
+        platform:
+          type: string
+          enum: [apns, fcm, webpush]
+        token:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        label:
+          type: string
+          maxLength: 200
+    PushDeviceListEnvelope:
+      type: object
+      required: [push_devices]
+      properties:
+        push_devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/PushDevice"
+    PushDeviceEnvelope:
+      type: object
+      required: [push_device]
+      properties:
+        push_device:
+          $ref: "#/components/schemas/PushDevice"
     QueueStat:
       type: object
       required: [topic, status, count]

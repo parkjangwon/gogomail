@@ -775,6 +775,49 @@ func TestCreateAttachmentUploadHandler(t *testing.T) {
 	}
 }
 
+func TestPushDeviceHandlers(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		pushDevices: []maildb.PushDevice{{ID: "device-1", Platform: "fcm", Token: "token-1", Status: "active"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/push-devices?user_id=user-1", strings.NewReader(`{"platform":"fcm","token":"token-1","label":"phone"}`))
+	createRec := httptest.NewRecorder()
+	mux.ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	if service.lastPushDevice.UserID != "user-1" || service.lastPushDevice.Platform != "fcm" {
+		t.Fatalf("lastPushDevice = %+v", service.lastPushDevice)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/push-devices?user_id=user-1&limit=5", nil)
+	listRec := httptest.NewRecorder()
+	mux.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	if !strings.Contains(listRec.Body.String(), "push_devices") {
+		t.Fatalf("list body = %s", listRec.Body.String())
+	}
+	if strings.Contains(listRec.Body.String(), "token-1") {
+		t.Fatalf("list body leaked raw token: %s", listRec.Body.String())
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/push-devices/device-1?user_id=user-1", nil)
+	deleteRec := httptest.NewRecorder()
+	mux.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d body=%s", deleteRec.Code, deleteRec.Body.String())
+	}
+	if service.lastDeletePushDeviceID != "device-1" {
+		t.Fatalf("lastDeletePushDeviceID = %q", service.lastDeletePushDeviceID)
+	}
+}
+
 func TestCreateAttachmentUploadHandlerMapsQuotaFull(t *testing.T) {
 	t.Parallel()
 
@@ -1087,36 +1130,39 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
-	folders              []maildb.Folder
-	createdFolder        maildb.Folder
-	list                 []maildb.MessageSummary
-	threads              []maildb.ThreadSummary
-	attachments          []maildb.Attachment
-	download             mailservice.AttachmentDownload
-	detail               maildb.MessageDetail
-	sendResult           mailservice.SendTextResult
-	deliveryStatus       maildb.MessageDeliveryStatusView
-	lastSend             mailservice.SendTextRequest
-	lastDraft            mailservice.SaveDraftRequest
-	lastAttachmentUpload mailservice.CreateAttachmentUploadRequest
-	lastAttachmentBody   string
-	attachmentErr        error
-	lastUserID           string
-	lastFolderName       string
-	lastDeletedFolderID  string
-	lastMessageID        string
-	lastFolderID         string
-	lastThreadID         string
-	lastMoveFolderID     string
-	lastDeletedID        string
-	lastDeletedDraftID   string
-	lastFlag             string
-	lastFlagValue        bool
-	lastBulkFlag         maildb.BulkMessageFlagRequest
-	lastBulkMove         maildb.BulkMessageMoveRequest
-	lastBulkDelete       maildb.BulkMessageDeleteRequest
-	lastSearch           maildb.MessageSearchQuery
-	lastLimit            int
+	folders                []maildb.Folder
+	createdFolder          maildb.Folder
+	list                   []maildb.MessageSummary
+	threads                []maildb.ThreadSummary
+	attachments            []maildb.Attachment
+	pushDevices            []maildb.PushDevice
+	download               mailservice.AttachmentDownload
+	detail                 maildb.MessageDetail
+	sendResult             mailservice.SendTextResult
+	deliveryStatus         maildb.MessageDeliveryStatusView
+	lastSend               mailservice.SendTextRequest
+	lastDraft              mailservice.SaveDraftRequest
+	lastAttachmentUpload   mailservice.CreateAttachmentUploadRequest
+	lastPushDevice         maildb.UpsertPushDeviceRequest
+	lastAttachmentBody     string
+	attachmentErr          error
+	lastUserID             string
+	lastFolderName         string
+	lastDeletedFolderID    string
+	lastMessageID          string
+	lastFolderID           string
+	lastThreadID           string
+	lastMoveFolderID       string
+	lastDeletedID          string
+	lastDeletedDraftID     string
+	lastDeletePushDeviceID string
+	lastFlag               string
+	lastFlagValue          bool
+	lastBulkFlag           maildb.BulkMessageFlagRequest
+	lastBulkMove           maildb.BulkMessageMoveRequest
+	lastBulkDelete         maildb.BulkMessageDeleteRequest
+	lastSearch             maildb.MessageSearchQuery
+	lastLimit              int
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -1224,6 +1270,23 @@ func (f *fakeMessageService) DeleteMessage(_ context.Context, userID string, mes
 func (f *fakeMessageService) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
 	f.lastBulkDelete = req
 	return int64(len(req.MessageIDs)), nil
+}
+
+func (f *fakeMessageService) ListPushDevices(_ context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
+	f.lastUserID = userID
+	f.lastLimit = limit
+	return f.pushDevices, nil
+}
+
+func (f *fakeMessageService) UpsertPushDevice(_ context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error) {
+	f.lastPushDevice = req
+	return maildb.PushDevice{ID: "device-1", UserID: req.UserID, Platform: req.Platform, Token: req.Token, Status: "active"}, nil
+}
+
+func (f *fakeMessageService) DeletePushDevice(_ context.Context, userID string, id string) error {
+	f.lastUserID = userID
+	f.lastDeletePushDeviceID = id
+	return nil
 }
 
 func (f *fakeMessageService) SaveDraft(_ context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error) {

@@ -32,6 +32,9 @@ type Repository interface {
 	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
+	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
+	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
+	DeletePushDevice(ctx context.Context, userID string, id string) error
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
@@ -221,6 +224,39 @@ func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessage
 		return 0, err
 	}
 	return s.repository.BulkDeleteMessages(ctx, req)
+}
+
+func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
+	repo, ok := s.repository.(interface {
+		ListPushDevices(context.Context, string, int) ([]maildb.PushDevice, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("push device repository is required")
+	}
+	return repo.ListPushDevices(ctx, userID, limit)
+}
+
+func (s *Service) UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error) {
+	if err := maildb.ValidateUpsertPushDeviceRequest(req); err != nil {
+		return maildb.PushDevice{}, err
+	}
+	repo, ok := s.repository.(interface {
+		UpsertPushDevice(context.Context, maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
+	})
+	if !ok {
+		return maildb.PushDevice{}, fmt.Errorf("push device repository is required")
+	}
+	return repo.UpsertPushDevice(ctx, req)
+}
+
+func (s *Service) DeletePushDevice(ctx context.Context, userID string, id string) error {
+	repo, ok := s.repository.(interface {
+		DeletePushDevice(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("push device repository is required")
+	}
+	return repo.DeletePushDevice(ctx, userID, id)
 }
 
 func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {

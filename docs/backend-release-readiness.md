@@ -37,7 +37,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API metering has a disabled-by-default fail-open middleware boundary with `slog` and outbox sinks for early operational visibility and durable usage-event collection.
 - API metering has a disabled-by-default aggregation worker and daily/monthly Postgres read models exposed through `GET /admin/v1/api-usage/daily` and `GET /admin/v1/api-usage/monthly`; the aggregates are operational telemetry, not a billing ledger yet.
 - IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
-- Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a replaceable sink and `slog` first adapter; vendor push delivery is still out of scope.
+- Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a replaceable sink and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.
@@ -79,4 +79,4 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 
 - Built-in spam scoring, pattern filtering, quarantine, or vendor-specific spam logic.
 - IMAP/POP3.
-- OpenSearch indexing, vendor push delivery/device-token management, Kafka, Vault, and etcd.
+- OpenSearch indexing, vendor push delivery adapters, Kafka, Vault, and etcd.

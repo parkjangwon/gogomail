@@ -36,6 +36,7 @@ Successful collection responses keep a stable top-level plural key:
 - `{"messages":[...],"limit":50,"has_more":false,"next_cursor":"..."}`
 - `{"threads":[...]}`
 - `{"attachments":[...]}`
+- `{"push_devices":[...]}`
 - `{"domains":[...]}`
 - `{"users":[...]}`
 - `{"queues":[...]}`
@@ -49,6 +50,7 @@ Successful resource responses keep a stable singular key:
 - `{"delivery_status":{...}}`
 - `{"draft":{...}}`
 - `{"attachment":{...}}`
+- `{"push_device":{...}}`
 - `{"domain":{...}}`
 - `{"user":{...}}`
 
@@ -119,6 +121,19 @@ returns those bytes to the quota ledger, and then asks the configured storage
 backend to remove the object. Mail API maps quota exhaustion to HTTP 507
 `insufficient_storage` while the SMTP layer continues to use SMTP-appropriate
 mailbox-full responses.
+
+## Push devices
+
+Push notification device tokens are user-scoped Mail API resources:
+
+- `GET /api/v1/push-devices`
+- `POST /api/v1/push-devices`
+- `DELETE /api/v1/push-devices/{id}`
+
+Supported platforms are `apns`, `fcm`, and `webpush`. Create/update accepts the
+raw token, but API responses do not return the raw token; clients receive only
+`token_suffix` for diagnostics and display. Delete is a soft delete scoped to
+the authenticated user.
 
 ## Admin operations
 
@@ -309,11 +324,14 @@ Message search starts with a small-deployment Postgres implementation:
 
 The current backend searches message metadata (`subject`, `from_addr`,
 `from_name`), `draft_text_body`, and indexed received-message body text using a
-simple Postgres FTS expression and bounded list limits. OpenSearch,
-highlighting, and ranking remain deferred behind the search boundary.
+simple Postgres FTS expression and bounded list limits. Search clients can opt
+into `sort=relevance`, `include_rank=true`, and `include_highlights=true` while
+newest-first ordering remains the default. OpenSearch remains deferred behind
+the same search boundary.
 
 ## Deferred from this contract
 
 - Next.js/frontend screens and shells.
 - Built-in spam scoring, pattern filtering, quarantine, or vendor-specific spam modules.
-- IMAP, push notifications, Kafka, OpenSearch, etcd, and Vault.
+- IMAP protocol service, vendor push delivery adapters, Kafka, OpenSearch, etcd,
+  and Vault.

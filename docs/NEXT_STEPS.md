@@ -41,8 +41,6 @@ Next:
 
 - Extend the same ledger service to future Drive writes and large-attachment
   share-link objects.
-- Extend the same ledger service to future Drive writes and large-attachment
-  share-link objects.
 
 ### 2. Message threading and search
 
@@ -97,11 +95,15 @@ Current state:
 - Push notification enqueue now has a disabled-by-default async
   `push-notification-worker` over `mail.stored` with a replaceable sink and
   `slog` first adapter.
+- User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
+  tokens through the Mail API. Responses expose only a token suffix; raw tokens
+  remain write-only.
 - Spam and vendor FCM/APNs delivery are not wired.
 
 Next:
 
-- Add device-token storage and FCM/APNs sink adapters behind `internal/pushnotify`.
+- Add FCM/APNs/Web Push sink adapters behind `internal/pushnotify`.
+- Add per-device notification delivery attempts and invalid-token cleanup.
 - Wire attachment scanning only when a concrete scanner backend is configured.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 

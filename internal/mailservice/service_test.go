@@ -169,6 +169,18 @@ func (f *fakeRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMe
 	return int64(len(req.MessageIDs)), nil
 }
 
+func (f *fakeRepository) ListPushDevices(context.Context, string, int) ([]maildb.PushDevice, error) {
+	return nil, nil
+}
+
+func (f *fakeRepository) UpsertPushDevice(_ context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error) {
+	return maildb.PushDevice{ID: "device-1", UserID: req.UserID, Platform: req.Platform, Token: req.Token, Status: "active"}, nil
+}
+
+func (f *fakeRepository) DeletePushDevice(context.Context, string, string) error {
+	return nil
+}
+
 func (f *fakeRepository) ListAttachments(context.Context, string, string) ([]maildb.Attachment, error) {
 	return f.attachments, nil
 }

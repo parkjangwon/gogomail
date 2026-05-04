@@ -93,6 +93,9 @@ guidance.
   `push-notification-worker` consumes `mail.stored` events and can emit
   disabled-by-default `slog` notification candidates without touching SMTP hot
   paths or committing to FCM/APNs SDKs.
+- Mail API now has user-scoped push device registration/list/delete contracts
+  for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
+  write and are not returned in API JSON responses.
 - DKIM key DNS verification workflow with `dns_verified_at` persistence.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
@@ -115,7 +118,7 @@ guidance.
 - OpenSearch indexing.
 - Kafka migration.
 - etcd/Vault production control plane.
-- Vendor push notification delivery adapters and device-token storage.
+- Vendor push notification delivery adapters.
 
 ## Important guardrails
 
@@ -160,6 +163,9 @@ The platform hardening sprint completed the following:
   helpers exist without starting a TCP protocol server.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink.
+- Push notification device storage: authenticated users can register, list, and
+  delete active device tokens through the Mail API while responses expose only a
+  short token suffix.
 - API metering boundary: HTTP middleware can emit fail-open usage events to
   logs or the durable outbox, while the disabled-by-default aggregation worker
   can build daily/monthly Postgres read models for operations.
@@ -171,8 +177,8 @@ Next focus areas:
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. IMAP UID/UIDVALIDITY/MODSEQ storage design and migrations.
-4. Push notification device-token storage and FCM/APNs adapters behind the
-   worker sink.
+4. Add FCM/APNs/Web Push sink adapters and per-device delivery audit behind the
+   push notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
    aggregates for invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.
