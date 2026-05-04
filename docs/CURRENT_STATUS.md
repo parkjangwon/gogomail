@@ -168,6 +168,9 @@ guidance.
 - API usage export batches can now carry external artifact metadata rows with
   object key, content type, byte count, SHA-256, event count, and JSON metadata.
   Artifacts are deduplicated per batch by object key and SHA-256.
+- API usage export artifact writes reject ambiguous object keys that would be
+  changed by path cleaning or contain backslash/path-traversal segments before
+  writing billing handoff objects.
 - Admin API can now write API usage export batch artifacts to the configured
   object store, register the resulting byte count/SHA-256 metadata, and download
   or verify stored NDJSON artifacts for handoff verification.
