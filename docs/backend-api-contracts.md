@@ -174,6 +174,8 @@ Clients can discover the current upload limits and supported modes with
 bytes, filename bytes, metadata reservation, direct multipart upload, pending
 upload cancellation, declared-size requirements, quota reservation semantics,
 and the fact that resumable/chunked uploads are not yet supported.
+OpenAPI documents the current maximum attachment and filename byte caps so
+generated clients can validate these limits without copying hidden constants.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

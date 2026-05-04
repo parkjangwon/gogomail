@@ -1039,6 +1039,21 @@ func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
+	var body struct {
+		Capabilities struct {
+			MaxAttachmentBytes int64 `json:"max_attachment_bytes"`
+			MaxFilenameBytes   int   `json:"max_filename_bytes"`
+		} `json:"attachment_upload_capabilities"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Capabilities.MaxAttachmentBytes != mailservice.MaxAttachmentUploadBytes {
+		t.Fatalf("max_attachment_bytes = %d, want %d", body.Capabilities.MaxAttachmentBytes, mailservice.MaxAttachmentUploadBytes)
+	}
+	if body.Capabilities.MaxFilenameBytes != mailservice.MaxAttachmentFilenameBytes {
+		t.Fatalf("max_filename_bytes = %d, want %d", body.Capabilities.MaxFilenameBytes, mailservice.MaxAttachmentFilenameBytes)
+	}
 	for _, want := range []string{
 		`"attachment_upload_capabilities"`,
 		`"metadata_reservation":true`,

@@ -2783,9 +2783,11 @@ components:
           type: integer
           format: int64
           minimum: 0
+          maximum: 26214400
         max_filename_bytes:
           type: integer
           minimum: 1
+          maximum: 255
         metadata_reservation:
           type: boolean
         direct_multipart_upload:
