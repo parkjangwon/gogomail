@@ -35,19 +35,23 @@ func (s PostgresOutboxSink) Record(ctx context.Context, event Event) error {
 	if s.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
-	payload, err := json.Marshal(apiUsagePayload(event))
+	payloadMap, err := apiUsagePayload(event)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(payloadMap)
 	if err != nil {
 		return fmt.Errorf("marshal api usage event: %w", err)
 	}
-	partitionKey := strings.TrimSpace(event.UserID)
+	partitionKey := strings.TrimSpace(payloadMap["user_id"].(string))
 	if partitionKey == "" {
-		partitionKey = strings.TrimSpace(event.Identity.PrincipalID)
+		partitionKey = strings.TrimSpace(payloadMap["principal_id"].(string))
 	}
 	if partitionKey == "" {
-		partitionKey = strings.TrimSpace(event.Identity.TenantID)
+		partitionKey = strings.TrimSpace(payloadMap["tenant_id"].(string))
 	}
 	if partitionKey == "" {
-		partitionKey = strings.TrimSpace(event.RoutePattern)
+		partitionKey = strings.TrimSpace(payloadMap["route"].(string))
 	}
 	if partitionKey == "" {
 		partitionKey = "anonymous"
@@ -62,7 +66,7 @@ VALUES ($1, $2, $3, 'pending')`
 	return nil
 }
 
-func apiUsagePayload(event Event) map[string]any {
+func apiUsagePayload(event Event) (map[string]any, error) {
 	timestamp := event.Timestamp
 	if timestamp.IsZero() {
 		timestamp = time.Now().UTC()
@@ -76,12 +80,51 @@ func apiUsagePayload(event Event) map[string]any {
 		identity.AuthSource = normalizeAuthSource(event.AuthSource)
 	}
 	identity = identity.Normalize()
+	method, err := requiredUsageEventValue("method", event.Method)
+	if err != nil {
+		return nil, err
+	}
+	route, err := requiredUsageEventValue("route", event.RoutePattern)
+	if err != nil {
+		return nil, err
+	}
+	eventID, err := optionalUsageEventValue("event_id", event.ID)
+	if err != nil {
+		return nil, err
+	}
+	identity.TenantID, err = optionalUsageEventValue("tenant_id", identity.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	identity.CompanyID, err = optionalUsageEventValue("company_id", identity.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+	identity.DomainID, err = optionalUsageEventValue("domain_id", identity.DomainID)
+	if err != nil {
+		return nil, err
+	}
+	identity.UserID, err = optionalUsageEventValue("user_id", identity.UserID)
+	if err != nil {
+		return nil, err
+	}
+	identity.APIKeyID, err = optionalUsageEventValue("api_key_id", identity.APIKeyID)
+	if err != nil {
+		return nil, err
+	}
+	identity.PrincipalID, err = optionalUsageEventValue("principal_id", identity.PrincipalID)
+	if err != nil {
+		return nil, err
+	}
+	if eventID == "" {
+		eventID = apiUsageEventID(event, timestamp, identity, method, route)
+	}
 	return map[string]any{
 		"schema_version": APIUsageSchemaCurrent,
 		"event":          EventAPIUsage,
-		"event_id":       apiUsageEventID(event, timestamp, identity),
-		"method":         strings.TrimSpace(event.Method),
-		"route":          strings.TrimSpace(event.RoutePattern),
+		"event_id":       eventID,
+		"method":         method,
+		"route":          route,
 		"status":         event.Status,
 		"request_bytes":  requestBytes,
 		"response_bytes": responseBytes,
@@ -94,10 +137,10 @@ func apiUsagePayload(event Event) map[string]any {
 		"api_key_id":     identity.APIKeyID,
 		"principal_id":   identity.PrincipalID,
 		"auth_source":    identity.AuthSource,
-	}
+	}, nil
 }
 
-func apiUsageEventID(event Event, timestamp time.Time, identity Identity) string {
+func apiUsageEventID(event Event, timestamp time.Time, identity Identity, method string, route string) string {
 	if id := strings.TrimSpace(event.ID); id != "" {
 		return id
 	}
@@ -105,8 +148,8 @@ func apiUsageEventID(event Event, timestamp time.Time, identity Identity) string
 	requestBytes, responseBytes, latencyMS := normalizedEventMetrics(event)
 	parts := []string{
 		timestamp.UTC().Format(time.RFC3339Nano),
-		strings.TrimSpace(event.Method),
-		strings.TrimSpace(event.RoutePattern),
+		method,
+		route,
 		fmt.Sprint(event.Status),
 		identity.TenantID,
 		identity.CompanyID,
