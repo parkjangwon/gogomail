@@ -31,6 +31,13 @@ assigning a message UID. Message UID assignment locks the mailbox state row,
 uses current `uidnext`, increments `uidnext`, and advances `highest_modseq` in
 one transaction.
 
+Committed receive events (`mail.stored`) are handled by the shared
+`event-worker` through an IMAP UID assignment handler. This keeps SMTP receive
+storage hot paths free of IMAP-specific side effects while still preparing
+newly received active messages for future IMAP LIST/FETCH/IDLE sessions shortly
+after commit. If the event handler fails, the event remains retryable through
+the normal Redis stream consumer path.
+
 When an existing Mail API move/delete operation removes a message from its
 active mailbox view, the repository deletes that message's `imap_message_uid`
 row in the same transaction. A later append/move into another mailbox must get
@@ -40,6 +47,8 @@ mailbox.
 ## Consequences
 
 - Existing Mail API and SMTP persistence remain unchanged.
+- The shared event worker performs receive-side IMAP UID assignment
+  asynchronously after commit, rather than inside the SMTP receive transaction.
 - IMAP UID behavior can be implemented without overloading HTTP pagination,
   message timestamps, or message UUIDs.
 - Future IMAP adapters can map `maildb` rows into `internal/imapgw` DTOs through
