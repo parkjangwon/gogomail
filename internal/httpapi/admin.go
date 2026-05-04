@@ -444,6 +444,23 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger": usages})
 	}))
 
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseAPIUsageLedgerListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		usages, err := service.ListAPIUsageLedger(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeNDJSON(w, http.StatusOK, usages)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {

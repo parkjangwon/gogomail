@@ -750,6 +750,15 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
+func writeNDJSON[T any](w http.ResponseWriter, status int, rows []T) {
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.WriteHeader(status)
+	encoder := json.NewEncoder(w)
+	for _, row := range rows {
+		_ = encoder.Encode(row)
+	}
+}
+
 func writeError(w http.ResponseWriter, status int, message string) {
 	code := "internal_error"
 	switch status {

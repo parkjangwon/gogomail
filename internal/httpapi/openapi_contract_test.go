@@ -158,6 +158,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /api-usage/daily":                   "#/components/responses/APIUsageDailyList",
 		"GET /api-usage/monthly":                 "#/components/responses/APIUsageMonthlyList",
 		"GET /api-usage/ledger":                  "#/components/responses/APIUsageLedgerList",
+		"GET /api-usage/ledger/export":           "#/components/responses/APIUsageLedgerExport",
 		"GET /quota-reconciliation":              "#/components/responses/QuotaReconciliationList",
 		"POST /quota-reconciliation/corrections": "#/components/responses/QuotaCorrection",
 		"GET /delivery-attempts":                 "#/components/responses/DeliveryAttempts",
