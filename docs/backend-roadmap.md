@@ -586,6 +586,7 @@ Implementation order:
 527. OpenAPI attachment status documentation now matches persisted API values (`uploading`, `stored`, `deleted`) and rejects the obsolete `active` enum in contract tests.
 528. Attachment upload capabilities now lock the runtime byte-limit constants to the HTTP response and OpenAPI schema through regression tests for generated clients.
 529. ADR 0007 defines resumable/chunked attachment uploads as explicit upload sessions with quota reservation, adapter-owned staged chunks, final attachment rows after assembly, and bounded cleanup.
+530. `attachment_upload_sessions` migration prepares future resumable upload state with declared/received byte counters, lifecycle status, expiry, checksum, storage adapter metadata, and cleanup indexes.
 
 ## Deferred until backend contracts stabilize
 

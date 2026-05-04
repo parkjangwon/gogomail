@@ -627,6 +627,9 @@ The platform hardening sprint completed the following:
 - ADR 0007 records the future resumable/chunked upload boundary around explicit
   upload sessions, quota reservation, storage adapters, final attachment rows,
   and bounded cleanup.
+- A migration now creates `attachment_upload_sessions` with lifecycle status,
+  declared/received byte counts, expiry, checksum, storage adapter metadata, and
+  indexes for user lookup and stale-session cleanup.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

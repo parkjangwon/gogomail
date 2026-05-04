@@ -263,6 +263,9 @@ Current state:
 - ADR 0007 defines the resumable/chunked attachment upload boundary: explicit
   upload sessions, quota reservation at session creation, adapter-owned staged
   chunks, normal attachment rows after finalization, and bounded cleanup.
+- `attachment_upload_sessions` migration defines the future resumable upload
+  session state table, including declared/received byte counts, lifecycle
+  status, expiry, storage adapter metadata, and cleanup-oriented indexes.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.
@@ -272,8 +275,8 @@ Current state:
 
 Next:
 
-- Add the resumable/chunked upload session table and Mail API session contract
-  described by ADR 0007.
+- Add the Mail API session contract and repository/service methods described by
+  ADR 0007 on top of `attachment_upload_sessions`.
 
 ### 6. OpenAPI/client readiness
 

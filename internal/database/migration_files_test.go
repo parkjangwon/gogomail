@@ -72,6 +72,7 @@ func TestRecentMigrationsDeclareGooseSections(t *testing.T) {
 		"0042_push_notification_provider_outcomes.sql",
 		"0043_delivery_attempt_diagnostics.sql",
 		"0044_message_search_index.sql",
+		"0045_attachment_upload_sessions.sql",
 	} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		if err != nil {
