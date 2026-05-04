@@ -602,6 +602,8 @@ func normalizeSaveDraftRequest(req SaveDraftRequest) SaveDraftRequest {
 }
 
 func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string) error {
+	userID = strings.TrimSpace(userID)
+	draftID = strings.TrimSpace(draftID)
 	if err := ValidateDeleteDraftRequest(userID, draftID); err != nil {
 		return err
 	}
@@ -613,6 +615,8 @@ func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string
 }
 
 func (s *Service) ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
 	return s.repository.ListAttachments(ctx, userID, messageID)
 }
 
@@ -758,6 +762,9 @@ func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID s
 	if s.store == nil {
 		return AttachmentDownload{}, fmt.Errorf("mail storage is required")
 	}
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	attachmentID = strings.TrimSpace(attachmentID)
 	attachment, err := s.repository.GetAttachment(ctx, userID, messageID, attachmentID)
 	if err != nil {
 		return AttachmentDownload{}, err
