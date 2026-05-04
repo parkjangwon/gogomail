@@ -58,6 +58,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /attachments",
 		"POST /attachments/upload",
 		"POST /push-devices",
+		"PATCH /companies/{id}/quota",
 		"POST /domains",
 		"PATCH /domains/{id}/status",
 		"PATCH /domains/{id}/quota",
@@ -69,6 +70,8 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /delivery-routes",
 		"PATCH /delivery-routes/{id}/status",
 		"PATCH /backpressure",
+		"POST /api-usage/export-batches/{id}/artifacts",
+		"POST /api-usage/export-batches/{id}/artifacts/write",
 		"POST /dkim-keys",
 		"POST /quota-reconciliation/corrections",
 	} {
