@@ -2298,6 +2298,33 @@ func TestStoreAttachmentUploadSessionBodyRejectsSizeMismatch(t *testing.T) {
 	}
 }
 
+func TestStoreAttachmentUploadSessionBodyRejectsTerminalSession(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:           "session-1",
+			UserID:       "user-1",
+			DeclaredSize: 7,
+			Status:       "finalized",
+			ExpiresAt:    time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+	_, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+		Body:      strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("StoreAttachmentUploadSessionBody accepted terminal session")
+	}
+	if repo.lastStoreUploadSessionBody.StoragePath != "" {
+		t.Fatalf("terminal body should not be recorded: %+v", repo.lastStoreUploadSessionBody)
+	}
+}
+
 func TestFinalizeAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 

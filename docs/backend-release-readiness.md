@@ -48,7 +48,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   creation rejects already-expired or overlong expiries before quota
   reservation.
 - Upload session body storage can persist a complete session body, record
-  received bytes and SHA-256.
+  received bytes and SHA-256, while rejecting terminal sessions before storage
+  writes.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Optional PostgreSQL integration coverage verifies upload session finalization
