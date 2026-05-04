@@ -391,6 +391,7 @@ Implementation order:
 332. Migration filenames now have test coverage for unique numeric versions, and the message search index migration has been moved to an idempotent latest-version file to avoid duplicate goose version ambiguity.
 333. OpenAPI contract tests now guard documented query parameters for operational triage APIs, including delivery attempts, exhausted attempts, push attempts/stats, outbox events, and API usage export handoff readiness.
 334. Delivery enhanced-status extraction now recognizes RFC 3463 codes embedded in multiline SMTP replies and bracketed diagnostics while still requiring the code class to match the SMTP reply class.
+335. Shared EML parser coverage now pins RFC 2047 encoded-word decoding for subjects and address display names, protecting internationalized header behavior used by SMTP receive, Mail API, search indexing, and future IMAP.
 
 ## Deferred until backend contracts stabilize
 
