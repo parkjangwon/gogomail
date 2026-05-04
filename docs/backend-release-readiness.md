@@ -259,6 +259,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Runtime database readiness now checks the applied goose migration version
   against the latest local SQL migration, causing stale schemas to return
   degraded `/health/ready` status instead of passing on ping alone.
+- Admin backpressure updates now write bounded hash-chain audit rows with
+  previous/current SMTP pressure state after Redis updates, so receive-throttle
+  overrides are durable operational evidence.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize

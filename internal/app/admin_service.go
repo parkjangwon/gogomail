@@ -9,20 +9,29 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gogomail/gogomail/internal/apimeter"
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
+
+const maxBackpressureAuditReasonBytes = 512
 
 type backpressureStore interface {
 	State(ctx context.Context) (backpressure.State, error)
 	SetState(ctx context.Context, update backpressure.StateUpdate) (backpressure.State, error)
 }
 
+type auditWriter interface {
+	Insert(ctx context.Context, log audit.Log) error
+}
+
 type adminService struct {
 	*maildb.Repository
 	backpressure                backpressureStore
+	audit                       auditWriter
 	exportStore                 apimeter.ExportArtifactStore
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
@@ -51,7 +60,85 @@ func (s adminService) UpdateBackpressure(ctx context.Context, req backpressure.S
 	if s.backpressure == nil {
 		return backpressure.State{}, fmt.Errorf("backpressure backend is not configured")
 	}
-	return s.backpressure.SetState(ctx, req)
+	previous, err := s.backpressure.State(ctx)
+	if err != nil {
+		return backpressure.State{}, fmt.Errorf("read previous backpressure state: %w", err)
+	}
+	state, err := s.backpressure.SetState(ctx, req)
+	if err != nil {
+		return backpressure.State{}, err
+	}
+	if s.audit != nil {
+		detail, err := backpressureAuditDetail(previous, state)
+		if err != nil {
+			return backpressure.State{}, err
+		}
+		if err := s.audit.Insert(ctx, audit.Log{
+			Category:   "admin",
+			Action:     "backpressure.update",
+			TargetType: "backpressure",
+			Result:     "updated",
+			Detail:     detail,
+		}); err != nil {
+			return backpressure.State{}, fmt.Errorf("record backpressure audit: %w", err)
+		}
+	}
+	return state, nil
+}
+
+func backpressureAuditDetail(previous backpressure.State, current backpressure.State) (json.RawMessage, error) {
+	detail := struct {
+		Scope    string                 `json:"scope"`
+		Previous backpressureAuditState `json:"previous"`
+		Current  backpressureAuditState `json:"current"`
+	}{
+		Scope:    "smtp",
+		Previous: backpressureAuditStateFromState(previous),
+		Current:  backpressureAuditStateFromState(current),
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return nil, fmt.Errorf("marshal backpressure audit detail: %w", err)
+	}
+	return raw, nil
+}
+
+type backpressureAuditState struct {
+	Level     string     `json:"level"`
+	Reason    string     `json:"reason,omitempty"`
+	Until     *time.Time `json:"until,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+func backpressureAuditStateFromState(state backpressure.State) backpressureAuditState {
+	level := strings.TrimSpace(state.Level)
+	if level == "" {
+		level = "normal"
+	}
+	reason := strings.TrimSpace(state.Reason)
+	reason = truncateBackpressureAuditString(reason, maxBackpressureAuditReasonBytes)
+	var updatedAt *time.Time
+	if !state.UpdatedAt.IsZero() {
+		normalized := state.UpdatedAt.UTC()
+		updatedAt = &normalized
+	}
+	return backpressureAuditState{
+		Level:     level,
+		Reason:    reason,
+		Until:     state.Until,
+		UpdatedAt: updatedAt,
+	}
+}
+
+func truncateBackpressureAuditString(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for len(value) > 0 && !utf8.ValidString(value) {
+		value = value[:len(value)-1]
+	}
+	return value
 }
 
 func (s adminService) RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error) {
