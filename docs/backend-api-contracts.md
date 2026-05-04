@@ -184,7 +184,8 @@ The Mail API exposes the first session lifecycle endpoints,
 `GET|DELETE /api/v1/attachments/upload-sessions/{id}`, for quota-reserving
 session creation, user-scoped status reads, and user-scoped cancellation; chunk
 upload/finalization routes are not yet exposed, so `resumable_chunked_uploads`
-remains `false`.
+remains `false`. Session creation rejects non-future `expires_at` values at the
+service boundary.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

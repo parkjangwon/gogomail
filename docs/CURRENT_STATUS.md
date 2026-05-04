@@ -645,7 +645,8 @@ The platform hardening sprint completed the following:
 - Mail API now exposes resumable upload session create/read/cancel endpoints under
   `/api/v1/attachments/upload-sessions`, reserving declared quota at session
   creation while keeping chunked upload capability disabled until upload/finalize
-  routes land.
+  routes land. Session creation rejects already-expired `expires_at` values
+  before quota reservation.
 - Attachment upload capabilities now distinguish upload session availability
   from full resumable chunk support so generated clients can adopt the staged
   lifecycle without assuming chunk receive/finalize routes exist.

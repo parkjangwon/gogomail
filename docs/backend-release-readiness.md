@@ -44,7 +44,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   preserving validation and domain attachment policy enforcement.
 - Mail API exposes upload session create/read/cancel endpoints while keeping
   `resumable_chunked_uploads=false` until chunk receive and finalize routes are
-  implemented; capabilities advertise session support separately.
+  implemented; capabilities advertise session support separately, and session
+  creation rejects already-expired expiries before quota reservation.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   including stale resumable session expiry, optional run-once execution for

@@ -594,6 +594,7 @@ Implementation order:
 535. `attachment-cleanup-worker` now expires stale resumable attachment upload sessions during the normal bounded cleanup sweep so abandoned sessions release reserved quota without a separate worker.
 536. Mail API exposes resumable attachment upload session create/read/cancel endpoints with explicit quota reservation while keeping chunked upload capability disabled until receive/finalize contracts land.
 537. Attachment upload capabilities now advertise upload session create/cancel support separately from full resumable chunk support so clients can stage integration safely.
+538. Upload session creation now rejects already-expired `expires_at` values at the service boundary before any quota reservation is attempted.
 
 ## Deferred until backend contracts stabilize
 
