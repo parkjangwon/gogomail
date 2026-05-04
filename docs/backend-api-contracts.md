@@ -113,7 +113,9 @@ Mail API folder, thread, message, draft, attachment, and push-device path
 identifiers also reject blank, CR/LF-bearing, or oversized values at the HTTP
 boundary before service dispatch.
 Folder-scoped message lists and thread-message reads apply the same resource ID
-checks before repository work.
+checks before repository work. Mail API message-list `folder_id` and search
+text/filter query parameters reject CR/LF-bearing or oversized values at the
+HTTP boundary before service dispatch.
 
 ## Mailbox bulk actions
 
