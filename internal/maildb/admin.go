@@ -1806,12 +1806,45 @@ UPDATE domains
 SET settings = jsonb_set(settings, '{policy}', COALESCE(settings->'policy', '{}'::jsonb) || $2::jsonb, true),
     updated_at = now()
 WHERE id = $1
-RETURNING updated_at`
-	if err := r.db.QueryRowContext(ctx, query, policy.DomainID, policyJSON).Scan(&policy.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
+RETURNING id::text, company_id::text, name, updated_at`
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DomainPolicyView{}, fmt.Errorf("begin domain policy transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var auditView domainPolicyAuditView
+	if err := tx.QueryRowContext(ctx, query, policy.DomainID, policyJSON).Scan(
+		&auditView.ID,
+		&auditView.CompanyID,
+		&auditView.Name,
+		&policy.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DomainPolicyView{}, fmt.Errorf("domain %q not found", req.ID)
 		}
 		return DomainPolicyView{}, fmt.Errorf("update domain policy: %w", err)
+	}
+	auditView.Policy = policy
+	detail, err := domainPolicyAuditDetail(auditView)
+	if err != nil {
+		return DomainPolicyView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  auditView.CompanyID,
+		DomainID:   auditView.ID,
+		Category:   "admin",
+		Action:     "domain.policy_update",
+		TargetType: "domain",
+		TargetID:   auditView.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return DomainPolicyView{}, fmt.Errorf("record domain policy audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return DomainPolicyView{}, fmt.Errorf("commit domain policy transaction: %w", err)
 	}
 	return policy, nil
 }
@@ -2070,6 +2103,30 @@ func userQuotaAuditDetail(view userQuotaAuditView) (json.RawMessage, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal user quota audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type domainPolicyAuditView struct {
+	ID        string
+	CompanyID string
+	Name      string
+	Policy    DomainPolicyView
+}
+
+func domainPolicyAuditDetail(view domainPolicyAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"domain_id":                  view.ID,
+		"company_id":                 view.CompanyID,
+		"name":                       view.Name,
+		"inbound_mode":               view.Policy.InboundMode,
+		"outbound_mode":              view.Policy.OutboundMode,
+		"max_recipients_per_message": view.Policy.MaxRecipientsPerMessage,
+		"max_message_bytes":          view.Policy.MaxMessageBytes,
+		"max_attachment_bytes":       view.Policy.MaxAttachmentBytes,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal domain policy audit detail: %w", err)
 	}
 	return detail, nil
 }
