@@ -1904,6 +1904,31 @@ func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 	}
 }
 
+func TestMailAuthRejectsDuplicateAuthorizationHeaders(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	req.Header.Add("Authorization", "Bearer one")
+	req.Header.Add("Authorization", "Bearer two")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "" {
+		t.Fatalf("handler should not dispatch duplicate auth headers, lastUserID = %q", service.lastUserID)
+	}
+}
+
 func TestMailRoutesTrimQueryUserID(t *testing.T) {
 	t.Parallel()
 

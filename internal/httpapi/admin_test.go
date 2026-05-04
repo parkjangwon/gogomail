@@ -3015,6 +3015,58 @@ func TestAdminAuthRejectsOversizedAuthorizationHeaders(t *testing.T) {
 	}
 }
 
+func TestAdminAuthRejectsAmbiguousAuthHeaders(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		build func(http.Header)
+	}{
+		{
+			name: "duplicate authorization",
+			build: func(header http.Header) {
+				header.Add("Authorization", "Bearer one")
+				header.Add("Authorization", "Bearer two")
+			},
+		},
+		{
+			name: "duplicate admin token",
+			build: func(header http.Header) {
+				header.Add("X-Admin-Token", "one")
+				header.Add("X-Admin-Token", "two")
+			},
+		},
+		{
+			name: "admin token and authorization",
+			build: func(header http.Header) {
+				header.Set("X-Admin-Token", "secret")
+				header.Set("Authorization", "Bearer secret")
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{
+				queueStats: []maildb.QueueStat{{Topic: "mail.outbound.general", Status: "pending", Count: 1}},
+			}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "secret")
+
+			req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+			tt.build(req.Header)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestAdminDomainsHandler(t *testing.T) {
 	t.Parallel()
 

@@ -681,6 +681,7 @@ Implementation order:
 621. Direct multipart attachment uploads now reject repeated `draft_id` or `file` parts and no longer accept `draft_id` from the URL query string, preventing ambiguous form metadata before storage writes.
 622. Successful Mail/Admin JSON, health, and service-info responses now return `X-Content-Type-Options: nosniff`, aligning browser-facing API envelopes with error, NDJSON, and download response hardening.
 623. Successful Mail/Admin JSON envelopes now return `Cache-Control: no-store` through the shared writer, preventing sensitive message, audit, usage, and control responses from being cached.
+624. Mail JWT and Admin token authentication now reject repeated credential headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before dispatch.
 
 ## Deferred until backend contracts stabilize
 

@@ -2313,17 +2313,20 @@ func parseBoundedAdminPathTriple(w http.ResponseWriter, r *http.Request, firstKe
 }
 
 func adminTokenFromRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
-	if value := strings.TrimSpace(r.Header.Get("X-Admin-Token")); value != "" {
-		if len(value) > maxHTTPAuthHeaderBytes {
-			writeError(w, http.StatusBadRequest, "X-Admin-Token is too long")
-			return "", false
-		}
-		return value, true
-	}
-	auth := strings.TrimSpace(r.Header.Get("Authorization"))
-	if len(auth) > maxHTTPAuthHeaderBytes {
-		writeError(w, http.StatusBadRequest, "Authorization is too long")
+	adminToken, ok := singleHTTPHeaderValue(w, r, "X-Admin-Token", maxHTTPAuthHeaderBytes)
+	if !ok {
 		return "", false
+	}
+	auth, ok := singleHTTPHeaderValue(w, r, "Authorization", maxHTTPAuthHeaderBytes)
+	if !ok {
+		return "", false
+	}
+	if adminToken != "" && auth != "" {
+		writeError(w, http.StatusBadRequest, "X-Admin-Token and Authorization must not both be set")
+		return "", false
+	}
+	if adminToken != "" {
+		return adminToken, true
 	}
 	if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
 		return strings.TrimSpace(auth[len("bearer "):]), true

@@ -108,6 +108,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail and Admin API JSON request bodies reject trailing JSON tokens and
   unknown object fields instead of accepting drifted payloads, and shared JSON
   decoding is capped at 1 MiB before parsing.
+- Mail JWT and Admin token authentication reject repeated credential headers,
+  and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before
+  dispatch.
 - Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
   `filename*` in `Content-Disposition`, bound stored filename length before
   response headers are written, keep responses private `no-store`, and fall
