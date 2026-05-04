@@ -1308,13 +1308,19 @@ func (r *Repository) CreateDomain(ctx context.Context, req CreateDomainRequest) 
 		nameACE = name
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DomainView{}, fmt.Errorf("begin create domain transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	const query = `
 INSERT INTO domains (company_id, name, name_ace, quota_limit)
 VALUES ($1, $2, $3, NULLIF($4, 0))
 RETURNING id::text, company_id::text, name, name_ace, status, quota_used, COALESCE(quota_limit, 0), created_at`
 
 	var domain DomainView
-	if err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(req.CompanyID), name, nameACE, req.QuotaLimit).Scan(
+	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(req.CompanyID), name, nameACE, req.QuotaLimit).Scan(
 		&domain.ID,
 		&domain.CompanyID,
 		&domain.Name,
@@ -1325,6 +1331,25 @@ RETURNING id::text, company_id::text, name, name_ace, status, quota_used, COALES
 		&domain.CreatedAt,
 	); err != nil {
 		return DomainView{}, fmt.Errorf("create domain: %w", err)
+	}
+	detail, err := domainCreateAuditDetail(domain)
+	if err != nil {
+		return DomainView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  domain.CompanyID,
+		DomainID:   domain.ID,
+		Category:   "admin",
+		Action:     "domain.create",
+		TargetType: "domain",
+		TargetID:   domain.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return DomainView{}, fmt.Errorf("record domain create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return DomainView{}, fmt.Errorf("commit create domain transaction: %w", err)
 	}
 	return domain, nil
 }
@@ -1384,6 +1409,31 @@ RETURNING id::text, domain_id::text, username, display_name, role, status, COALE
 	}
 	if err := createSystemFolders(ctx, tx, user.ID); err != nil {
 		return UserView{}, err
+	}
+	var companyID string
+	if err := tx.QueryRowContext(ctx, `SELECT company_id::text FROM domains WHERE id = $1`, user.DomainID).Scan(&companyID); err != nil {
+		return UserView{}, fmt.Errorf("lookup user company for audit: %w", err)
+	}
+	detail, err := userCreateAuditDetail(userCreateAuditView{
+		User:      user,
+		CompanyID: companyID,
+		Address:   strings.ToLower(strings.TrimSpace(req.Address)),
+	})
+	if err != nil {
+		return UserView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  companyID,
+		DomainID:   user.DomainID,
+		UserID:     user.ID,
+		Category:   "admin",
+		Action:     "user.create",
+		TargetType: "user",
+		TargetID:   user.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return UserView{}, fmt.Errorf("record user create audit: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return UserView{}, fmt.Errorf("commit create user transaction: %w", err)
@@ -1976,17 +2026,52 @@ func (r *Repository) UpdateUserPasswordHash(ctx context.Context, req UpdateUserP
 	if err := ValidateUpdateUserPasswordHashRequest(req); err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(ctx, `
-UPDATE users
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin user password hash transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var view userCredentialAuditView
+	if err := tx.QueryRowContext(ctx, `
+UPDATE users u
 SET password_hash = $2,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.PasswordHash))
-	if err != nil {
+FROM domains d
+WHERE u.domain_id = d.id
+  AND u.id = $1
+RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, COALESCE(u.password_hash, '') <> ''`, strings.TrimSpace(req.ID), strings.TrimSpace(req.PasswordHash)).Scan(
+		&view.ID,
+		&view.DomainID,
+		&view.CompanyID,
+		&view.Username,
+		&view.PasswordConfigured,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("user %q not found", req.ID)
+		}
 		return fmt.Errorf("update user password hash: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("user %q not found", req.ID)
+	detail, err := userCredentialAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.CompanyID,
+		DomainID:   view.DomainID,
+		UserID:     view.ID,
+		Category:   "admin",
+		Action:     "user.password_update",
+		TargetType: "user",
+		TargetID:   view.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record user password hash audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit user password hash transaction: %w", err)
 	}
 	return nil
 }
@@ -2015,6 +2100,21 @@ func domainStatusAuditDetail(view domainStatusAuditView) (json.RawMessage, error
 	return detail, nil
 }
 
+func domainCreateAuditDetail(domain DomainView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"domain_id":   domain.ID,
+		"company_id":  domain.CompanyID,
+		"name":        domain.Name,
+		"name_ace":    domain.NameACE,
+		"status":      domain.Status,
+		"quota_limit": domain.QuotaLimit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal domain create audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 type userStatusAuditView struct {
 	ID        string
 	DomainID  string
@@ -2033,6 +2133,54 @@ func userStatusAuditDetail(view userStatusAuditView) (json.RawMessage, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal user status audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type userCreateAuditView struct {
+	User      UserView
+	CompanyID string
+	Address   string
+}
+
+func userCreateAuditDetail(view userCreateAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"user_id":             view.User.ID,
+		"domain_id":           view.User.DomainID,
+		"company_id":          view.CompanyID,
+		"username":            view.User.Username,
+		"display_name":        view.User.DisplayName,
+		"address":             view.Address,
+		"role":                view.User.Role,
+		"status":              view.User.Status,
+		"password_configured": view.User.PasswordConfigured,
+		"quota_limit":         view.User.QuotaLimit,
+		"quota_source":        view.User.QuotaSource,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal user create audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type userCredentialAuditView struct {
+	ID                 string
+	DomainID           string
+	CompanyID          string
+	Username           string
+	PasswordConfigured bool
+}
+
+func userCredentialAuditDetail(view userCredentialAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"user_id":             view.ID,
+		"domain_id":           view.DomainID,
+		"company_id":          view.CompanyID,
+		"username":            view.Username,
+		"password_configured": view.PasswordConfigured,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal user credential audit detail: %w", err)
 	}
 	return detail, nil
 }

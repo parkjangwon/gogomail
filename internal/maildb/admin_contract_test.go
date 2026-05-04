@@ -696,6 +696,38 @@ func TestValidateCreateDomainRequestRejectsInvalidACEName(t *testing.T) {
 	}
 }
 
+func TestDomainCreateAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := domainCreateAuditDetail(DomainView{
+		ID:         "domain-1",
+		CompanyID:  "company-1",
+		Name:       "example.com",
+		NameACE:    "example.com",
+		Status:     "active",
+		QuotaLimit: 1024,
+	})
+	if err != nil {
+		t.Fatalf("domainCreateAuditDetail returned error: %v", err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	for key, want := range map[string]any{
+		"domain_id":   "domain-1",
+		"company_id":  "company-1",
+		"name":        "example.com",
+		"name_ace":    "example.com",
+		"status":      "active",
+		"quota_limit": float64(1024),
+	} {
+		if body[key] != want {
+			t.Fatalf("detail[%q] = %#v, want %#v; detail=%+v", key, body[key], want, body)
+		}
+	}
+}
+
 func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	t.Parallel()
 
@@ -842,6 +874,53 @@ func TestValidateCreateUserRequestRejectsUnsafePasswordHash(t *testing.T) {
 	}
 }
 
+func TestUserCreateAuditDetailDoesNotIncludePasswordHash(t *testing.T) {
+	t.Parallel()
+
+	detail, err := userCreateAuditDetail(userCreateAuditView{
+		User: UserView{
+			ID:                 "user-1",
+			DomainID:           "domain-1",
+			Username:           "alex",
+			DisplayName:        "Alex",
+			Role:               "user",
+			Status:             "active",
+			PasswordConfigured: true,
+			QuotaLimit:         512,
+			QuotaSource:        "custom",
+		},
+		CompanyID: "company-1",
+		Address:   "alex@example.com",
+	})
+	if err != nil {
+		t.Fatalf("userCreateAuditDetail returned error: %v", err)
+	}
+	if strings.Contains(string(detail), "plain:") || strings.Contains(string(detail), "password_hash") {
+		t.Fatalf("audit detail leaked password hash material: %s", detail)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	for key, want := range map[string]any{
+		"user_id":             "user-1",
+		"domain_id":           "domain-1",
+		"company_id":          "company-1",
+		"username":            "alex",
+		"display_name":        "Alex",
+		"address":             "alex@example.com",
+		"role":                "user",
+		"status":              "active",
+		"password_configured": true,
+		"quota_limit":         float64(512),
+		"quota_source":        "custom",
+	} {
+		if body[key] != want {
+			t.Fatalf("detail[%q] = %#v, want %#v; detail=%+v", key, body[key], want, body)
+		}
+	}
+}
+
 func TestValidateUpdateUserPasswordHashRequest(t *testing.T) {
 	t.Parallel()
 
@@ -866,6 +945,39 @@ func TestValidateUpdateUserPasswordHashRequest(t *testing.T) {
 				t.Fatalf("ValidateUpdateUserPasswordHashRequest accepted %+v", req)
 			}
 		})
+	}
+}
+
+func TestUserCredentialAuditDetailDoesNotIncludePasswordHash(t *testing.T) {
+	t.Parallel()
+
+	detail, err := userCredentialAuditDetail(userCredentialAuditView{
+		ID:                 "user-1",
+		DomainID:           "domain-1",
+		CompanyID:          "company-1",
+		Username:           "alex",
+		PasswordConfigured: true,
+	})
+	if err != nil {
+		t.Fatalf("userCredentialAuditDetail returned error: %v", err)
+	}
+	if strings.Contains(string(detail), "plain:") || strings.Contains(string(detail), "password_hash") {
+		t.Fatalf("audit detail leaked password hash material: %s", detail)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	for key, want := range map[string]any{
+		"user_id":             "user-1",
+		"domain_id":           "domain-1",
+		"company_id":          "company-1",
+		"username":            "alex",
+		"password_configured": true,
+	} {
+		if body[key] != want {
+			t.Fatalf("detail[%q] = %#v, want %#v; detail=%+v", key, body[key], want, body)
+		}
 	}
 }
 
