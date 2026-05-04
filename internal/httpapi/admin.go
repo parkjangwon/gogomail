@@ -425,9 +425,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		events, err := service.ListOutboxEvents(r.Context(), maildb.OutboxEventListRequest{
 			Limit:        limit,
-			Topic:        r.URL.Query().Get("topic"),
-			PartitionKey: r.URL.Query().Get("partition_key"),
-			Status:       r.URL.Query().Get("status"),
+			Topic:        strings.TrimSpace(r.URL.Query().Get("topic")),
+			PartitionKey: strings.TrimSpace(r.URL.Query().Get("partition_key")),
+			Status:       strings.TrimSpace(r.URL.Query().Get("status")),
 			Since:        since,
 		})
 		if err != nil {
