@@ -258,8 +258,10 @@ guidance.
   notification candidates or POST raw-token targets to a configured HTTP
   webhook push gateway with an optional bounded bearer token and Postgres
   candidate-attempt audit rows without touching SMTP hot paths or committing to
-  FCM/APNs SDKs. Malformed resolved targets with blank or CR/LF-bearing device
-  IDs/tokens, or unsupported platforms, are dropped before sink handoff.
+  FCM/APNs SDKs. `docs/webhook-integrations.md` documents the push gateway
+  payload, authentication, HTTPS requirement, and queued/failed attempt
+  semantics. Malformed resolved targets with blank or CR/LF-bearing device IDs
+  or tokens, or unsupported platforms, are dropped before sink handoff.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status, user, platform, device,
   provider status, provider message id, or recent time window.
@@ -482,7 +484,9 @@ The platform hardening sprint completed the following:
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
   token, requires HTTPS in production, and is wired only at SMTP
-  receive/submission app boundaries.
+  receive/submission app boundaries. `docs/webhook-integrations.md` documents
+  the scanner request, bounded response, and accept/reject/tempfail verdict
+  contract.
 - Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
   message IDs or recipient addresses cannot create oversized Redis keys.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
