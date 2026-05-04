@@ -50,6 +50,8 @@ type AdminService interface {
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
 	GetAPIUsageLedgerStats(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error)
+	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
+	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
 	ListQuotaReconciliation(ctx context.Context, limit int) ([]maildb.QuotaReconciliationView, error)
 	CorrectQuotaReconciliation(ctx context.Context, req maildb.CorrectQuotaReconciliationRequest) (maildb.QuotaCorrectionResult, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
@@ -473,6 +475,32 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_stats": stats})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		req, ok := parseAPIUsageLedgerListRequest(w, r, 0)
+		if !ok {
+			return
+		}
+		batch, err := service.CreateAPIUsageExportBatch(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_batch": batch})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		batches, err := service.ListAPIUsageExportBatches(r.Context(), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_batches": batches})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

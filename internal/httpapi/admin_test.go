@@ -377,6 +377,79 @@ func TestAdminAPIUsageLedgerStatsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCreateAPIUsageExportBatchHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportBatch: maildb.APIUsageExportBatchView{
+			ID:           "api-usage-export-1",
+			Status:       "completed",
+			ExportFormat: "ndjson",
+			TenantID:     "tenant-1",
+			EventCount:   2,
+			Manifest:     json.RawMessage(`{"version":"2026-05-04.api-usage-export.v1"}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches?tenant_id=tenant-1&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Batch maildb.APIUsageExportBatchView `json:"api_usage_export_batch"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Batch.ID != "api-usage-export-1" || body.Batch.EventCount != 2 {
+		t.Fatalf("batch = %+v", body.Batch)
+	}
+	if service.lastAPIUsageLedgerList.TenantID != "tenant-1" || service.lastAPIUsageLedgerList.From.IsZero() {
+		t.Fatalf("lastAPIUsageLedgerList = %+v", service.lastAPIUsageLedgerList)
+	}
+}
+
+func TestAdminListAPIUsageExportBatchesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportBatches: []maildb.APIUsageExportBatchView{{
+			ID:           "api-usage-export-1",
+			Status:       "completed",
+			ExportFormat: "ndjson",
+			EventCount:   2,
+			Manifest:     json.RawMessage(`{}`),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Batches []maildb.APIUsageExportBatchView `json:"api_usage_export_batches"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Batches) != 1 || body.Batches[0].ID != "api-usage-export-1" {
+		t.Fatalf("batches = %+v", body.Batches)
+	}
+	if service.lastLimit != 5 {
+		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1397,6 +1470,8 @@ type fakeAdminService struct {
 	apiUsageMonthly                []maildb.APIUsageMonthlyView
 	apiUsageLedger                 []maildb.APIUsageLedgerView
 	apiUsageLedgerStats            maildb.APIUsageLedgerStatsView
+	apiUsageExportBatch            maildb.APIUsageExportBatchView
+	apiUsageExportBatches          []maildb.APIUsageExportBatchView
 	quotaReconciliation            []maildb.QuotaReconciliationView
 	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
@@ -1586,6 +1661,16 @@ func (f *fakeAdminService) ListAPIUsageLedger(_ context.Context, req maildb.APIU
 func (f *fakeAdminService) GetAPIUsageLedgerStats(_ context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error) {
 	f.lastAPIUsageLedgerList = req
 	return f.apiUsageLedgerStats, nil
+}
+
+func (f *fakeAdminService) CreateAPIUsageExportBatch(_ context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error) {
+	f.lastAPIUsageLedgerList = req
+	return f.apiUsageExportBatch, nil
+}
+
+func (f *fakeAdminService) ListAPIUsageExportBatches(_ context.Context, limit int) ([]maildb.APIUsageExportBatchView, error) {
+	f.lastLimit = limit
+	return f.apiUsageExportBatches, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
