@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after API usage retention worker mode)
+Last updated: 2026-05-05 (updated after API usage retention worker signer guard)
 
 ## Current phase
 
@@ -224,6 +224,9 @@ guidance.
 - `api-usage-retention-worker` can run bounded API usage ledger retention on an
   interval or once-and-exit, dry-run by default, reusing the same readiness gate
   and persisted retention-run audit rows as the Admin API.
+- Destructive API usage retention worker runs require both explicit
+  `confirm_ready` configuration and a production-oriented `remote-ed25519`
+  export manifest signer backend.
 - Admin API exposes bounded audit-log list/detail reads with category, action,
   result, target-type, company/domain/user, and recent-window filters so stored
   operational audit records can be inspected through the release API surface.

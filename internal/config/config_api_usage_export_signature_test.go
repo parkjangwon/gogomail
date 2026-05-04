@@ -78,6 +78,20 @@ func TestValidateRequiresRemoteEd25519ExportManifestSignerConfig(t *testing.T) {
 	}
 }
 
+func TestValidateAllowsDestructiveAPIUsageRetentionWithRemoteEd25519Signer(t *testing.T) {
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	cfg := Load()
+	cfg.APIUsageRetentionDryRun = false
+	cfg.APIUsageRetentionConfirmReady = true
+	cfg.APIUsageExportManifestSignerBackend = "remote-ed25519"
+	cfg.APIUsageExportManifestSignerKeyID = "key-1"
+	cfg.APIUsageExportSignerURL = "https://signer.example.test/sign"
+	cfg.APIUsageExportSignerPublicKey = base64.StdEncoding.EncodeToString(publicKey)
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+}
+
 func TestValidateRejectsUnsafeExportManifestSignerCredentials(t *testing.T) {
 	t.Parallel()
 

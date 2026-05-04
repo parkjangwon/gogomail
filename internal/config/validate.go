@@ -192,6 +192,9 @@ func (c Config) Validate() error {
 			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_TOKEN is too long")
 		}
 	}
+	if !c.APIUsageRetentionDryRun && !strings.EqualFold(strings.TrimSpace(c.APIUsageExportManifestSignerBackend), "remote-ed25519") {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false requires GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=remote-ed25519")
+	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
 		return err
 	}

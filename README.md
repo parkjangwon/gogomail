@@ -108,7 +108,8 @@ GOGOMAIL_API_USAGE_RETENTION_PRINCIPAL_ID=
 
 Set `GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false` only after export storage and
 signing policy are production-ready; validation requires
-`GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true` for destructive runs.
+`GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true` and a configured
+`remote-ed25519` export manifest signer for destructive runs.
 
 Webhook push handoff:
 
