@@ -462,6 +462,7 @@ Implementation order:
 403. Admin API outbox event topic, partition key, and status filters are now trimmed before operational queue inspection.
 404. Admin API delivery-attempt status and recipient-domain filters are now trimmed before retry/bounce inspection.
 405. Admin API push-notification attempt and stats filters are now trimmed before device/provider troubleshooting queries.
+406. Mail API push-device registration now normalizes user, platform, token, and label fields before validation/storage while keeping raw tokens write-only in responses.
 
 ## Deferred until backend contracts stabilize
 
