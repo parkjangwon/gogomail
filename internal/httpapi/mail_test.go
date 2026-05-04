@@ -332,6 +332,26 @@ func TestCreateFolderHandler(t *testing.T) {
 	}
 }
 
+func TestCreateFolderHandlerRejectsOversizedJSONBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	body := `{"name":"` + strings.Repeat("a", maxJSONBodyBytes) + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastFolderName != "" {
+		t.Fatalf("handler should not dispatch oversized body, created folder %q", service.lastFolderName)
+	}
+}
+
 func TestRenameFolderHandler(t *testing.T) {
 	t.Parallel()
 

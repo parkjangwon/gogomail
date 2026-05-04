@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,8 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 )
+
+const maxJSONBodyBytes = 1 << 20
 
 type MessageService interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
@@ -707,7 +710,14 @@ func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key stri
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {
-	decoder := json.NewDecoder(r.Body)
+	raw, err := io.ReadAll(io.LimitReader(r.Body, maxJSONBodyBytes+1))
+	if err != nil {
+		return err
+	}
+	if len(raw) > maxJSONBodyBytes {
+		return errors.New("json body too large")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	if err := decoder.Decode(dst); err != nil {
 		return err
 	}
