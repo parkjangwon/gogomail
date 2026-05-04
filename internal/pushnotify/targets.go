@@ -44,7 +44,7 @@ func (r *DeviceResolver) ResolvePushTargets(ctx context.Context, event Event) ([
 		deviceID := strings.TrimSpace(device.ID)
 		platform := strings.ToLower(strings.TrimSpace(device.Platform))
 		token := strings.TrimSpace(device.Token)
-		if deviceID == "" || token == "" || !maildbAllowedPushPlatform(platform) {
+		if invalidPushTargetValue(deviceID) || invalidPushTargetValue(platform) || invalidPushTargetValue(token) || !maildbAllowedPushPlatform(platform) {
 			continue
 		}
 		targets = append(targets, Target{
@@ -56,6 +56,10 @@ func (r *DeviceResolver) ResolvePushTargets(ctx context.Context, event Event) ([
 		})
 	}
 	return targets, nil
+}
+
+func invalidPushTargetValue(value string) bool {
+	return value == "" || strings.ContainsAny(value, "\r\n")
 }
 
 func pushTokenSuffix(token string, existing string) string {
