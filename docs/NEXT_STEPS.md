@@ -101,12 +101,16 @@ Current state:
 - The worker can resolve active user devices from Postgres with
   `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT`, then pass those targets to the
   sink without coupling SMTP or storage writes to vendor delivery.
+- The worker records per-device candidate attempts to
+  `push_notification_attempts` after sink enqueue succeeds, giving operators a
+  trace before vendor adapters exist.
 - Spam and vendor FCM/APNs delivery are not wired.
 
 Next:
 
 - Add FCM/APNs/Web Push sink adapters behind `internal/pushnotify`.
-- Add per-device notification delivery attempts and invalid-token cleanup.
+- Extend candidate attempts with vendor delivery outcomes and invalid-token
+  cleanup.
 - Wire attachment scanning only when a concrete scanner backend is configured.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 

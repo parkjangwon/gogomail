@@ -37,10 +37,11 @@ func TestHandlerResolvesNotificationTargets(t *testing.T) {
 	t.Parallel()
 
 	sink := &fakeSink{}
+	recorder := &fakeCandidateRecorder{}
 	resolver := &fakeTargetResolver{
 		targets: []Target{{DeviceID: "device-1", Platform: "fcm", Token: "token-1", TokenSuffix: "token-1"}},
 	}
-	handler := NewHandler(sink, WithTargetResolver(resolver))
+	handler := NewHandler(sink, WithTargetResolver(resolver), WithCandidateRecorder(recorder))
 
 	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: validMailStoredPayload()}); err != nil {
 		t.Fatalf("HandleEvent returned error: %v", err)
@@ -50,6 +51,9 @@ func TestHandlerResolvesNotificationTargets(t *testing.T) {
 	}
 	if sink.calls != 1 || len(sink.last.Targets) != 1 || sink.last.Targets[0].DeviceID != "device-1" {
 		t.Fatalf("sink calls=%d notification=%+v", sink.calls, sink.last)
+	}
+	if len(recorder.records) != 1 || recorder.records[0].MessageID != "msg-1" || recorder.records[0].DeviceID != "device-1" {
+		t.Fatalf("records = %+v", recorder.records)
 	}
 }
 
@@ -95,6 +99,15 @@ type fakeTargetResolver struct {
 func (r *fakeTargetResolver) ResolvePushTargets(_ context.Context, event Event) ([]Target, error) {
 	r.last = event
 	return r.targets, nil
+}
+
+type fakeCandidateRecorder struct {
+	records []CandidateRecord
+}
+
+func (r *fakeCandidateRecorder) RecordCandidate(_ context.Context, record CandidateRecord) error {
+	r.records = append(r.records, record)
+	return nil
 }
 
 func validMailStoredPayload() json.RawMessage {

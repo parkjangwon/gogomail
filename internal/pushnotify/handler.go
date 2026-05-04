@@ -52,9 +52,29 @@ type TargetResolver interface {
 	ResolvePushTargets(ctx context.Context, event Event) ([]Target, error)
 }
 
+type CandidateRecord struct {
+	MessageID    string
+	RFCMessageID string
+	CompanyID    string
+	DomainID     string
+	UserID       string
+	Recipient    string
+	Subject      string
+	DeviceID     string
+	Platform     string
+	TokenSuffix  string
+	Status       string
+	ErrorMessage string
+}
+
+type CandidateRecorder interface {
+	RecordCandidate(ctx context.Context, record CandidateRecord) error
+}
+
 type Handler struct {
 	sink           Sink
 	targetResolver TargetResolver
+	recorder       CandidateRecorder
 }
 
 type HandlerOption func(*Handler)
@@ -62,6 +82,12 @@ type HandlerOption func(*Handler)
 func WithTargetResolver(resolver TargetResolver) HandlerOption {
 	return func(h *Handler) {
 		h.targetResolver = resolver
+	}
+}
+
+func WithCandidateRecorder(recorder CandidateRecorder) HandlerOption {
+	return func(h *Handler) {
+		h.recorder = recorder
 	}
 }
 
@@ -91,6 +117,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			return nil
 		}
 		notification.Targets = targets
+	}
+	if h.recorder != nil {
+		for _, target := range notification.Targets {
+			if err := h.recorder.RecordCandidate(ctx, candidateRecordFromNotification(notification, target)); err != nil {
+				return fmt.Errorf("record push notification candidate: %w", err)
+			}
+		}
 	}
 	if err := h.sink.EnqueuePush(ctx, notification); err != nil {
 		return fmt.Errorf("enqueue push notification candidate: %w", err)
@@ -151,6 +184,22 @@ func notificationFromEvent(event Event) Notification {
 		Recipient:    event.Recipient,
 		Subject:      event.Subject,
 		ReceivedAt:   event.ReceivedAt,
+	}
+}
+
+func candidateRecordFromNotification(notification Notification, target Target) CandidateRecord {
+	return CandidateRecord{
+		MessageID:    notification.MessageID,
+		RFCMessageID: notification.RFCMessageID,
+		CompanyID:    notification.CompanyID,
+		DomainID:     notification.DomainID,
+		UserID:       notification.UserID,
+		Recipient:    notification.Recipient,
+		Subject:      notification.Subject,
+		DeviceID:     target.DeviceID,
+		Platform:     target.Platform,
+		TokenSuffix:  target.TokenSuffix,
+		Status:       "candidate",
 	}
 }
 

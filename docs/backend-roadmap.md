@@ -286,6 +286,7 @@ Implementation order:
 231. API metering aggregation now writes both daily and monthly Postgres read models from the same `api.usage` event, with Admin API exposing `GET /admin/v1/api-usage/monthly` for plan/billing analysis groundwork.
 232. Mail API now supports user-scoped push device registration, listing, and soft deletion for APNs, FCM, and Web Push tokens; raw tokens are write-only while response envelopes expose only a short token suffix for diagnostics.
 233. The push notification worker now resolves bounded active device targets from PostgreSQL before invoking its sink, so future FCM/APNs/Web Push adapters receive explicit per-device targets without touching SMTP hot paths.
+234. Push notification candidates are now persisted to `push_notification_attempts` after worker sink enqueue succeeds, creating an operator audit trail for per-device notification fan-out before vendor delivery adapters are enabled.
 
 ## Deferred until backend contracts stabilize
 

@@ -564,6 +564,7 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(
 		pushnotify.SlogSink{Logger: logger},
 		pushnotify.WithTargetResolver(pushnotify.NewDeviceResolver(repository, cfg.PushNotifyDeviceLimit)),
+		pushnotify.WithCandidateRecorder(pushnotify.NewPostgresRecorder(db)),
 	)); err != nil {
 		return err
 	}
