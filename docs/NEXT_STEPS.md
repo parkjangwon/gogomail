@@ -49,12 +49,14 @@ Current state:
 
 - Admin delivery attempt read model exists.
 - Mail API send lifecycle status is documented.
+- Mail API exposes user-scoped `GET /api/v1/messages/{id}/delivery-status`.
 
 Next:
 
-- Add Mail API endpoint/read model for a user to inspect delivery/bounce status
-  of sent messages.
-- Do not leak other tenants' delivery attempts.
+- Add aggregate recipient delivery timelines if webmail needs richer per-recipient
+  visualization.
+- Keep delivery attempts scoped by message ownership before exposing them to
+  non-admin users.
 
 ### 4. DNS and DKIM onboarding
 
@@ -64,11 +66,11 @@ Current state:
 - Admin DNS check endpoint exists.
 - DNS check persistence exists.
 - DKIM public DNS record can be derived from private key.
+- DNS check history/list endpoint exists and domain views expose latest DNS
+  check status/timestamp.
 
 Next:
 
-- Add DNS check history/list endpoint.
-- Add "last DNS check" domain summary if useful.
 - Add DKIM record verification workflow around active keys.
 
 ### 5. Backpressure and operational observability

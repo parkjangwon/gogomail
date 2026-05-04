@@ -36,6 +36,7 @@ type MessageService interface {
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
+	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
 }
 
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
@@ -168,6 +169,19 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
+	})
+
+	mux.HandleFunc("GET /api/v1/messages/{id}/delivery-status", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		status, err := service.MessageDeliveryStatus(r.Context(), userID, r.PathValue("id"))
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"delivery_status": status})
 	})
 
 	mux.HandleFunc("PATCH /api/v1/messages/{id}/flags", func(w http.ResponseWriter, r *http.Request) {

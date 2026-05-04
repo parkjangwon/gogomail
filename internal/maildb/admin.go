@@ -175,15 +175,25 @@ type DeliveryRouteResolveView struct {
 	Route   *DeliveryRouteView `json:"route,omitempty"`
 }
 
+type DomainDNSCheckView struct {
+	ID        string                `json:"id"`
+	DomainID  string                `json:"domain_id"`
+	Status    string                `json:"status"`
+	Report    dnscheck.DomainReport `json:"report"`
+	CheckedAt time.Time             `json:"checked_at"`
+}
+
 type DomainView struct {
-	ID         string    `json:"id"`
-	CompanyID  string    `json:"company_id"`
-	Name       string    `json:"name"`
-	NameACE    string    `json:"name_ace"`
-	Status     string    `json:"status"`
-	QuotaUsed  int64     `json:"quota_used"`
-	QuotaLimit int64     `json:"quota_limit,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID                 string     `json:"id"`
+	CompanyID          string     `json:"company_id"`
+	Name               string     `json:"name"`
+	NameACE            string     `json:"name_ace"`
+	Status             string     `json:"status"`
+	QuotaUsed          int64      `json:"quota_used"`
+	QuotaLimit         int64      `json:"quota_limit,omitempty"`
+	LastDNSCheckStatus string     `json:"last_dns_check_status,omitempty"`
+	LastDNSCheckedAt   *time.Time `json:"last_dns_checked_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
 }
 
 type UserView struct {
@@ -912,16 +922,25 @@ func (r *Repository) ListDomains(ctx context.Context, limit int) ([]DomainView, 
 
 	const query = `
 SELECT
-  id::text,
-  company_id::text,
-  name,
-  name_ace,
-  status,
-  quota_used,
-  COALESCE(quota_limit, 0),
-  created_at
-FROM domains
-ORDER BY created_at DESC
+  d.id::text,
+  d.company_id::text,
+  d.name,
+  d.name_ace,
+  d.status,
+  d.quota_used,
+  COALESCE(d.quota_limit, 0),
+  COALESCE(latest.status, ''),
+  latest.checked_at,
+  d.created_at
+FROM domains d
+LEFT JOIN LATERAL (
+  SELECT status, checked_at
+  FROM domain_dns_checks
+  WHERE domain_id = d.id
+  ORDER BY checked_at DESC
+  LIMIT 1
+) latest ON true
+ORDER BY d.created_at DESC
 LIMIT $1`
 
 	rows, err := r.db.QueryContext(ctx, query, limit)
@@ -933,6 +952,7 @@ LIMIT $1`
 	var domains []DomainView
 	for rows.Next() {
 		var domain DomainView
+		var lastDNSCheckedAt sql.NullTime
 		if err := rows.Scan(
 			&domain.ID,
 			&domain.CompanyID,
@@ -941,9 +961,14 @@ LIMIT $1`
 			&domain.Status,
 			&domain.QuotaUsed,
 			&domain.QuotaLimit,
+			&domain.LastDNSCheckStatus,
+			&lastDNSCheckedAt,
 			&domain.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan domain: %w", err)
+		}
+		if lastDNSCheckedAt.Valid {
+			domain.LastDNSCheckedAt = &lastDNSCheckedAt.Time
 		}
 		domains = append(domains, domain)
 	}
@@ -964,19 +989,29 @@ func (r *Repository) GetDomain(ctx context.Context, id string) (DomainView, erro
 
 	const query = `
 SELECT
-  id::text,
-  company_id::text,
-  name,
-  name_ace,
-  status,
-  quota_used,
-  COALESCE(quota_limit, 0),
-  created_at
-FROM domains
-WHERE id = $1
+  d.id::text,
+  d.company_id::text,
+  d.name,
+  d.name_ace,
+  d.status,
+  d.quota_used,
+  COALESCE(d.quota_limit, 0),
+  COALESCE(latest.status, ''),
+  latest.checked_at,
+  d.created_at
+FROM domains d
+LEFT JOIN LATERAL (
+  SELECT status, checked_at
+  FROM domain_dns_checks
+  WHERE domain_id = d.id
+  ORDER BY checked_at DESC
+  LIMIT 1
+) latest ON true
+WHERE d.id = $1
 LIMIT 1`
 
 	var domain DomainView
+	var lastDNSCheckedAt sql.NullTime
 	if err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&domain.ID,
 		&domain.CompanyID,
@@ -985,6 +1020,8 @@ LIMIT 1`
 		&domain.Status,
 		&domain.QuotaUsed,
 		&domain.QuotaLimit,
+		&domain.LastDNSCheckStatus,
+		&lastDNSCheckedAt,
 		&domain.CreatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -992,7 +1029,62 @@ LIMIT 1`
 		}
 		return DomainView{}, fmt.Errorf("get domain: %w", err)
 	}
+	if lastDNSCheckedAt.Valid {
+		domain.LastDNSCheckedAt = &lastDNSCheckedAt.Time
+	}
 	return domain, nil
+}
+
+func (r *Repository) ListDomainDNSChecks(ctx context.Context, domainID string, limit int) ([]DomainDNSCheckView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	domainID = strings.TrimSpace(domainID)
+	if domainID == "" {
+		return nil, fmt.Errorf("domain id is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  domain_id::text,
+  status,
+  report,
+  checked_at
+FROM domain_dns_checks
+WHERE domain_id = $1
+ORDER BY checked_at DESC
+LIMIT $2`
+
+	rows, err := r.db.QueryContext(ctx, query, domainID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list domain dns checks: %w", err)
+	}
+	defer rows.Close()
+
+	var checks []DomainDNSCheckView
+	for rows.Next() {
+		var check DomainDNSCheckView
+		var rawReport []byte
+		if err := rows.Scan(
+			&check.ID,
+			&check.DomainID,
+			&check.Status,
+			&rawReport,
+			&check.CheckedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan domain dns check: %w", err)
+		}
+		if err := json.Unmarshal(rawReport, &check.Report); err != nil {
+			return nil, fmt.Errorf("decode domain dns check report: %w", err)
+		}
+		checks = append(checks, check)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate domain dns checks: %w", err)
+	}
+	return checks, nil
 }
 
 func (r *Repository) VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error) {

@@ -237,6 +237,46 @@ func TestAdminDomainDNSCheckHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDomainDNSCheckHistoryHandler(t *testing.T) {
+	t.Parallel()
+
+	checkedAt := time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		dnsChecks: []maildb.DomainDNSCheckView{{
+			ID:        "check-1",
+			DomainID:  "domain-1",
+			Status:    "ok",
+			CheckedAt: checkedAt,
+			Report: dnscheck.DomainReport{
+				Domain: "example.com",
+				MX:     dnscheck.RecordCheck{Name: "mx", Host: "example.com", Status: dnscheck.StatusOK},
+			},
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/dns-checks?limit=5", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		DNSChecks []maildb.DomainDNSCheckView `json:"dns_checks"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.DNSChecks) != 1 || body.DNSChecks[0].ID != "check-1" {
+		t.Fatalf("dns_checks = %+v", body.DNSChecks)
+	}
+	if service.lastDomainID != "domain-1" || service.lastLimit != 5 {
+		t.Fatalf("lastDomainID=%q lastLimit=%d", service.lastDomainID, service.lastLimit)
+	}
+}
+
 func TestAdminCreateDomainHandler(t *testing.T) {
 	t.Parallel()
 
@@ -829,38 +869,39 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 }
 
 type fakeAdminService struct {
-	domains                   []maildb.DomainView
-	dnsReport                 dnscheck.DomainReport
-	users                     []maildb.UserView
-	queueStats                []maildb.QueueStat
-	quotaUsage                []maildb.QuotaUsageView
-	attempts                  []maildb.DeliveryAttemptView
-	suppression               []maildb.SuppressionEntry
-	trustedRelays             []maildb.TrustedRelayView
-	deliveryRoutes            []maildb.DeliveryRouteView
-	deliveryRouteResolution   maildb.DeliveryRouteResolveView
-	dkimKeys                  []maildb.DKIMKeyView
-	createdDKIMKeyID          string
-	lastLimit                 int
-	lastDomainID              string
-	lastUserID                string
-	lastDomainStatus          maildb.UpdateDomainStatusRequest
-	lastDomainQuota           maildb.UpdateDomainQuotaRequest
-	lastDomainPolicy          maildb.UpdateDomainPolicyRequest
-	lastCreateDomain          maildb.CreateDomainRequest
-	lastUserStatus            maildb.UpdateUserStatusRequest
-	lastUserQuota             maildb.UpdateUserQuotaRequest
-	lastCreateUser            maildb.CreateUserRequest
-	lastCreateDKIMKey         maildb.CreateDKIMKeyInput
-	lastCreateTrustedRelay    maildb.CreateTrustedRelayRequest
-	lastCreateDeliveryRoute   maildb.CreateDeliveryRouteRequest
+	domains                        []maildb.DomainView
+	dnsReport                      dnscheck.DomainReport
+	dnsChecks                      []maildb.DomainDNSCheckView
+	users                          []maildb.UserView
+	queueStats                     []maildb.QueueStat
+	quotaUsage                     []maildb.QuotaUsageView
+	attempts                       []maildb.DeliveryAttemptView
+	suppression                    []maildb.SuppressionEntry
+	trustedRelays                  []maildb.TrustedRelayView
+	deliveryRoutes                 []maildb.DeliveryRouteView
+	deliveryRouteResolution        maildb.DeliveryRouteResolveView
+	dkimKeys                       []maildb.DKIMKeyView
+	createdDKIMKeyID               string
+	lastLimit                      int
+	lastDomainID                   string
+	lastUserID                     string
+	lastDomainStatus               maildb.UpdateDomainStatusRequest
+	lastDomainQuota                maildb.UpdateDomainQuotaRequest
+	lastDomainPolicy               maildb.UpdateDomainPolicyRequest
+	lastCreateDomain               maildb.CreateDomainRequest
+	lastUserStatus                 maildb.UpdateUserStatusRequest
+	lastUserQuota                  maildb.UpdateUserQuotaRequest
+	lastCreateUser                 maildb.CreateUserRequest
+	lastCreateDKIMKey              maildb.CreateDKIMKeyInput
+	lastCreateTrustedRelay         maildb.CreateTrustedRelayRequest
+	lastCreateDeliveryRoute        maildb.CreateDeliveryRouteRequest
 	lastResolveDeliveryRouteDomain string
-	lastDeliveryRouteStatus   maildb.UpdateDeliveryRouteStatusRequest
-	lastDeactivateDKIMKeyID   string
-	lastRetryOutboxID         string
-	lastDeleteSuppressionID   string
-	lastDeleteTrustedRelayID  string
-	lastDeleteDeliveryRouteID string
+	lastDeliveryRouteStatus        maildb.UpdateDeliveryRouteStatusRequest
+	lastDeactivateDKIMKeyID        string
+	lastRetryOutboxID              string
+	lastDeleteSuppressionID        string
+	lastDeleteTrustedRelayID       string
+	lastDeleteDeliveryRouteID      string
 }
 
 func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {
@@ -886,6 +927,12 @@ func (f *fakeAdminService) GetDomain(_ context.Context, id string) (maildb.Domai
 func (f *fakeAdminService) VerifyDomainDNS(_ context.Context, id string) (dnscheck.DomainReport, error) {
 	f.lastDomainID = id
 	return f.dnsReport, nil
+}
+
+func (f *fakeAdminService) ListDomainDNSChecks(_ context.Context, id string, limit int) ([]maildb.DomainDNSCheckView, error) {
+	f.lastDomainID = id
+	f.lastLimit = limit
+	return f.dnsChecks, nil
 }
 
 func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {

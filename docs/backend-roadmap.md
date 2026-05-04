@@ -246,6 +246,8 @@ Implementation order:
 199. Domain DNS verification now has a backend checker and Admin API envelope for MX, SPF, DMARC, and active DKIM TXT records, preparing domain onboarding without starting frontend implementation.
 198. Admin backend now persists and exposes delivery gateway/smart-host route management, letting operators define exact, wildcard, and default outbound routes with TLS, pool, and SMTP AUTH settings while keeping SMTP core focused on protocol boundaries.
 199. Delivery workers can opt into PostgreSQL-backed route lookup with `GOGOMAIL_DELIVERY_ROUTE_BACKEND=postgres`; exact, wildcard, and default routes map into the existing delivery router boundary and fall back to direct MX delivery when no active route matches.
+200. Domain DNS verification now has a persisted history endpoint and domain list/detail summaries expose the latest DNS check status/timestamp, so admin consoles can show onboarding progress without triggering fresh DNS lookups.
+201. Mail API exposes a user-scoped sent-message delivery status endpoint that summarizes delivery attempts as pending/retrying/delivered/partial/failed/bounced without leaking other tenants' attempts.
 
 ## Deferred until backend contracts stabilize
 

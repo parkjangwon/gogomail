@@ -744,6 +744,48 @@ func TestSendMessageHandler(t *testing.T) {
 	}
 }
 
+func TestMessageDeliveryStatusHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		deliveryStatus: maildb.MessageDeliveryStatusView{
+			MessageID:      "msg-1",
+			RFCMessageID:   "<msg-1@example.com>",
+			DeliveryStatus: "delivered",
+			BounceStatus:   "none",
+			Attempts: []maildb.DeliveryAttemptView{{
+				ID:        "attempt-1",
+				MessageID: "msg-1",
+				Recipient: "recipient@example.net",
+				Status:    "delivered",
+			}},
+		},
+	}
+
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/delivery-status?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		DeliveryStatus maildb.MessageDeliveryStatusView `json:"delivery_status"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.DeliveryStatus.MessageID != "msg-1" || body.DeliveryStatus.DeliveryStatus != "delivered" {
+		t.Fatalf("delivery_status = %+v", body.DeliveryStatus)
+	}
+	if service.lastUserID != "user-1" || service.lastMessageID != "msg-1" {
+		t.Fatalf("lastUserID=%q lastMessageID=%q", service.lastUserID, service.lastMessageID)
+	}
+}
+
 func TestSendReplyHandlerPassesSourceMessageID(t *testing.T) {
 	t.Parallel()
 
@@ -845,6 +887,7 @@ type fakeMessageService struct {
 	download             mailservice.AttachmentDownload
 	detail               maildb.MessageDetail
 	sendResult           mailservice.SendTextResult
+	deliveryStatus       maildb.MessageDeliveryStatusView
 	lastSend             mailservice.SendTextRequest
 	lastDraft            mailservice.SaveDraftRequest
 	lastAttachmentUpload mailservice.CreateAttachmentUploadRequest
@@ -1010,4 +1053,10 @@ func (f *fakeMessageService) OpenAttachment(_ context.Context, userID string, me
 func (f *fakeMessageService) SendText(_ context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error) {
 	f.lastSend = req
 	return f.sendResult, nil
+}
+
+func (f *fakeMessageService) MessageDeliveryStatus(_ context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
+	f.lastUserID = userID
+	f.lastMessageID = messageID
+	return f.deliveryStatus, nil
 }

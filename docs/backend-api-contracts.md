@@ -45,6 +45,7 @@ Successful collection responses keep a stable top-level plural key:
 Successful resource responses keep a stable singular key:
 
 - `{"message":{...}}`
+- `{"delivery_status":{...}}`
 - `{"draft":{...}}`
 - `{"attachment":{...}}`
 - `{"domain":{...}}`
@@ -135,6 +136,7 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
 - `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}`
+- `GET /admin/v1/domains/{id}/dns-checks` returns `{"dns_checks":[...]}`
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`
 so consoles can reconcile optimistic updates against the affected backend id.
@@ -172,11 +174,27 @@ without sending mail.
 Domain onboarding and deliverability checks include DNS verification:
 
 - `GET /admin/v1/domains/{id}/dns-check`
+- `GET /admin/v1/domains/{id}/dns-checks`
 
 The response is wrapped as `{"dns_check":{...}}` and reports MX, SPF, DMARC,
 and active DKIM TXT status values as `ok`, `missing`, `mismatch`, or `error`.
 Each run persists the report for operational audit and records an admin audit
 log entry with the summarized status.
+The history endpoint returns persisted checks newest-first so admin consoles can
+show onboarding progress without re-querying DNS on every page load. Domain list
+and detail responses also include the latest DNS check status/timestamp when a
+check has run.
+
+User-facing delivery status is exposed through:
+
+- `GET /api/v1/messages/{id}/delivery-status`
+
+The read model is scoped by the authenticated/fallback user id before delivery
+attempts are read, preventing cross-tenant leakage. It returns
+`{"delivery_status":{...}}` with normalized delivery states
+`pending|retrying|delivered|partial|failed|bounced`, bounce status
+`none|hard`, and up to 200 recent attempts for webmail sent-message detail
+panels.
 
 ## Deferred from this contract
 

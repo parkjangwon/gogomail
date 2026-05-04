@@ -35,9 +35,9 @@ guidance.
   domain DNS checks, and policy-bearing domain settings.
 - Admin APIs for domains, users, quotas, DKIM keys, trusted relays, delivery
   routes, delivery route resolution, queue stats, delivery attempts,
-  suppression list, quota usage, domain DNS checks, and domain policy.
+  suppression list, quota usage, domain DNS checks/history, and domain policy.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
-  attachments.
+  attachments, plus user-scoped sent-message delivery/bounce status.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests.
 - Backend release verification script and SMTP release runbook.
@@ -71,7 +71,9 @@ Focus on turning the backend into a releasable webmail service platform:
 
 1. Apply quota and policy enforcement at SMTP, Submission, Mail API, and
    delivery boundaries.
-2. Expose user-facing send/delivery/bounce status.
-3. Strengthen domain onboarding with DNS check history and DKIM verification.
+2. Apply runtime quota/policy enforcement at SMTP, Submission, Mail API, and
+   delivery boundaries.
+3. Strengthen domain onboarding with DKIM verification workflows and admin
+   remediation UX contracts.
 4. Improve Admin API observability for queue, delivery routes, and backpressure.
 5. Keep OpenAPI and implementation synchronized for future generated clients.

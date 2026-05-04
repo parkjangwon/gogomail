@@ -57,6 +57,10 @@ type AttachmentCleanupRepository interface {
 	ExpireStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error)
 }
 
+type DeliveryStatusRepository interface {
+	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
+}
+
 type Service struct {
 	repository Repository
 	store      storage.Store
@@ -123,6 +127,14 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	}
 	detail.TextBody = parsed.TextBody
 	return detail, nil
+}
+
+func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
+	repo, ok := s.repository.(DeliveryStatusRepository)
+	if !ok {
+		return maildb.MessageDeliveryStatusView{}, fmt.Errorf("delivery status repository is required")
+	}
+	return repo.MessageDeliveryStatus(ctx, userID, messageID)
 }
 
 func messageFlagRead(flags json.RawMessage) bool {

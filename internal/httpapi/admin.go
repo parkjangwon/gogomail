@@ -15,6 +15,7 @@ type AdminService interface {
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
 	VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error)
+	ListDomainDNSChecks(ctx context.Context, id string, limit int) ([]maildb.DomainDNSCheckView, error)
 	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
@@ -83,6 +84,24 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"dns_check": report})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-checks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		checks, err := service.ListDomainDNSChecks(r.Context(), id, limit)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dns_checks": checks})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

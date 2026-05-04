@@ -117,6 +117,17 @@ paths:
           $ref: "#/components/responses/Status"
         default:
           $ref: "#/components/responses/Error"
+  /messages/{id}/delivery-status:
+    get:
+      operationId: getMessageDeliveryStatus
+      summary: Get user-scoped delivery and bounce status for a sent message
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/MessageDeliveryStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/flags:
     patch:
       operationId: updateMessageFlags
@@ -516,6 +527,18 @@ paths:
           $ref: "#/components/responses/DomainDNSCheck"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/dns-checks:
+    get:
+      operationId: listAdminDomainDnsChecks
+      summary: Admin list persisted domain DNS verification history
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/DomainDNSCheckHistory"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/status:
     patch:
       operationId: updateAdminDomainStatus
@@ -688,6 +711,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/MessageEnvelope"
+    MessageDeliveryStatus:
+      description: User-scoped delivery status envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageDeliveryStatusEnvelope"
     Draft:
       description: Draft resource envelope
       content:
@@ -790,6 +819,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainDNSCheckEnvelope"
+    DomainDNSCheckHistory:
+      description: Domain DNS verification history envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainDNSCheckHistoryEnvelope"
     DomainPolicy:
       description: Domain operational policy envelope
       content:
@@ -1149,6 +1184,34 @@ components:
       properties:
         message:
           $ref: "#/components/schemas/MessageDetail"
+    MessageDeliveryStatus:
+      type: object
+      required: [message_id, rfc_message_id, delivery_status, bounce_status, attempts]
+      properties:
+        message_id:
+          type: string
+        rfc_message_id:
+          type: string
+        delivery_status:
+          type: string
+          enum: [pending, retrying, delivered, partial, failed, bounced]
+        bounce_status:
+          type: string
+          enum: [none, hard]
+        attempts:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/DeliveryAttempt"
+        updated_at:
+          type: string
+          format: date-time
+    MessageDeliveryStatusEnvelope:
+      type: object
+      required: [delivery_status]
+      properties:
+        delivery_status:
+          $ref: "#/components/schemas/MessageDeliveryStatus"
     DraftEnvelope:
       type: object
       required: [draft]
@@ -1488,6 +1551,12 @@ components:
           type: integer
           format: int64
           minimum: 0
+        last_dns_check_status:
+          type: string
+          enum: [ok, missing, mismatch, error]
+        last_dns_checked_at:
+          type: string
+          format: date-time
         created_at:
           type: string
           format: date-time
@@ -1546,6 +1615,30 @@ components:
       properties:
         dns_check:
           $ref: "#/components/schemas/DomainDNSReport"
+    DomainDNSCheckHistoryItem:
+      type: object
+      required: [id, domain_id, status, report, checked_at]
+      properties:
+        id:
+          type: string
+        domain_id:
+          type: string
+        status:
+          type: string
+          enum: [ok, missing, mismatch, error]
+        report:
+          $ref: "#/components/schemas/DomainDNSReport"
+        checked_at:
+          type: string
+          format: date-time
+    DomainDNSCheckHistoryEnvelope:
+      type: object
+      required: [dns_checks]
+      properties:
+        dns_checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainDNSCheckHistoryItem"
     DomainPolicy:
       type: object
       required: [domain_id, inbound_mode, outbound_mode, updated_at]
