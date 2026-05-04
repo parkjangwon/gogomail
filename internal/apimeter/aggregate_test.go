@@ -111,6 +111,28 @@ func TestDecodeUsageEventDefaultsMissingAuthSource(t *testing.T) {
 	}
 }
 
+func TestDecodeUsageEventClampsNegativeMetrics(t *testing.T) {
+	t.Parallel()
+
+	payload := json.RawMessage(`{
+		"event":"api.usage",
+		"method":"GET",
+		"route":"GET /api/v1/messages",
+		"status":200,
+		"request_bytes":-12,
+		"response_bytes":-34,
+		"latency_ms":-25,
+		"timestamp":"2026-05-04T00:00:00Z"
+	}`)
+	event, err := DecodeUsageEvent(payload)
+	if err != nil {
+		t.Fatalf("DecodeUsageEvent returned error: %v", err)
+	}
+	if event.RequestBytes != 0 || event.ResponseBytes != 0 || event.LatencyMS != 0 {
+		t.Fatalf("metrics = request:%d response:%d latency:%d", event.RequestBytes, event.ResponseBytes, event.LatencyMS)
+	}
+}
+
 func TestDecodeUsageEventKeepsV1Compatibility(t *testing.T) {
 	t.Parallel()
 
@@ -274,6 +296,30 @@ func TestPostgresAggregateStoreUpsertsMonthlyUsage(t *testing.T) {
 	}
 	if db.argSets[1][0] != time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC) {
 		t.Fatalf("monthly args = %+v", db.argSets[1])
+	}
+}
+
+func TestPostgresAggregateStoreClampsNegativeMetrics(t *testing.T) {
+	t.Parallel()
+
+	db := &fakeUsageSQL{}
+	store := NewPostgresAggregateStore(db)
+	err := store.AddUsage(context.Background(), UsageEvent{
+		Day:           time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:        "GET",
+		Route:         "GET /api/v1/messages",
+		Status:        200,
+		RequestBytes:  -12,
+		ResponseBytes: -34,
+		LatencyMS:     -25,
+		RequestCount:  0,
+	})
+	if err != nil {
+		t.Fatalf("AddUsage returned error: %v", err)
+	}
+	args := db.argSets[0]
+	if args[11] != int64(1) || args[12] != int64(0) || args[13] != int64(0) || args[14] != int64(0) || args[15] != int64(0) {
+		t.Fatalf("aggregate metric args = %+v", args)
 	}
 }
 

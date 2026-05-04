@@ -412,6 +412,9 @@ API call metering can now emit durable usage events:
   `admin_token`, `query_user_id`, or `unknown`; unexpected values are folded to
   `unknown` before ledger/aggregate storage to avoid billing dimension
   cardinality drift.
+- Negative request byte, response byte, and latency values from durable usage
+  events are clamped to zero before ledger/aggregate storage; request count
+  defaults to one when absent or nonpositive.
 - The aggregate worker claims `event_id` values before daily/monthly upserts, so
   replayed durable events do not double-count operational totals.
 - The middleware remains async and fail-open; request handling does not wait on

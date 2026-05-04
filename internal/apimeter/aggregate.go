@@ -48,6 +48,7 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 	if s.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	event = normalizeUsageEventMetrics(event)
 	claimed, err := s.claimEvent(ctx, event)
 	if err != nil {
 		return err
@@ -71,6 +72,22 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 		return err
 	}
 	return nil
+}
+
+func normalizeUsageEventMetrics(event UsageEvent) UsageEvent {
+	if event.RequestBytes < 0 {
+		event.RequestBytes = 0
+	}
+	if event.ResponseBytes < 0 {
+		event.ResponseBytes = 0
+	}
+	if event.LatencyMS < 0 {
+		event.LatencyMS = 0
+	}
+	if event.RequestCount <= 0 {
+		event.RequestCount = 1
+	}
+	return event
 }
 
 func (s PostgresAggregateStore) recordLedger(ctx context.Context, event UsageEvent) error {
@@ -330,7 +347,7 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	}
 	day := timestamp.UTC().Truncate(24 * time.Hour)
 	month := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
-	return UsageEvent{
+	return normalizeUsageEventMetrics(UsageEvent{
 		EventID:       strings.TrimSpace(raw.EventID),
 		SchemaVersion: strings.TrimSpace(raw.SchemaVersion),
 		RawPayload:    append(json.RawMessage(nil), payload...),
@@ -350,5 +367,5 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		ResponseBytes: raw.ResponseBytes,
 		LatencyMS:     raw.LatencyMS,
 		RequestCount:  1,
-	}, nil
+	}), nil
 }
