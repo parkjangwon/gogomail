@@ -606,9 +606,18 @@ func (r *Repository) MoveMessage(ctx context.Context, userID string, messageID s
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	folderID = strings.TrimSpace(folderID)
 	if strings.TrimSpace(folderID) == "" {
 		return fmt.Errorf("folder_id is required")
 	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin move message transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	const query = `
 UPDATE messages
@@ -622,18 +631,21 @@ WHERE user_id = $1
     FROM folders
     WHERE folders.id = $3
       AND folders.user_id = $1
-  )`
+  )
+RETURNING id::text`
 
-	result, err := r.db.ExecContext(ctx, query, userID, messageID, folderID)
-	if err != nil {
+	var movedID string
+	if err := tx.QueryRowContext(ctx, query, userID, messageID, folderID).Scan(&movedID); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("message %q or folder %q not found", messageID, folderID)
+		}
 		return fmt.Errorf("move message: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("inspect message move: %w", err)
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, []string{movedID}); err != nil {
+		return err
 	}
-	if affected == 0 {
-		return fmt.Errorf("message %q or folder %q not found", messageID, folderID)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit move message transaction: %w", err)
 	}
 	return nil
 }
@@ -645,10 +657,18 @@ func (r *Repository) BulkMoveMessages(ctx context.Context, req BulkMessageMoveRe
 	if err := ValidateBulkMessageMoveRequest(req); err != nil {
 		return 0, err
 	}
+	userID := strings.TrimSpace(req.UserID)
+	folderID := strings.TrimSpace(req.FolderID)
 	rawIDs, err := json.Marshal(req.MessageIDs)
 	if err != nil {
 		return 0, fmt.Errorf("encode message ids: %w", err)
 	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin bulk move transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	const query = `
 UPDATE messages
@@ -662,17 +682,35 @@ WHERE user_id = $1
     FROM folders
     WHERE folders.id = $3
       AND folders.user_id = $1
-  )`
+  )
+RETURNING id::text`
 
-	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), string(rawIDs), strings.TrimSpace(req.FolderID))
+	rows, err := tx.QueryContext(ctx, query, userID, string(rawIDs), folderID)
 	if err != nil {
 		return 0, fmt.Errorf("bulk move messages: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("inspect bulk message move: %w", err)
+	var movedIDs []string
+	for rows.Next() {
+		var movedID string
+		if err := rows.Scan(&movedID); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan bulk moved message: %w", err)
+		}
+		movedIDs = append(movedIDs, movedID)
 	}
-	return affected, nil
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close bulk moved message rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate bulk moved messages: %w", err)
+	}
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, movedIDs); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit bulk move transaction: %w", err)
+	}
+	return int64(len(movedIDs)), nil
 }
 
 func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID string) error {
@@ -708,6 +746,9 @@ WHERE user_id = $1
 		return fmt.Errorf("delete message: %w", err)
 	}
 
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, []string{messageID}); err != nil {
+		return err
+	}
 	if err := decrementUserQuota(ctx, tx, userID, size); err != nil {
 		return err
 	}
@@ -762,6 +803,9 @@ WHERE user_id = $1
 		return 0, fmt.Errorf("inspect bulk message delete: %w", err)
 	}
 
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, strings.TrimSpace(req.UserID), req.MessageIDs); err != nil {
+		return 0, err
+	}
 	if err := decrementUserQuota(ctx, tx, strings.TrimSpace(req.UserID), totalSize); err != nil {
 		return 0, err
 	}
@@ -778,6 +822,24 @@ func allowedMessageFlag(flag string) bool {
 	default:
 		return false
 	}
+}
+
+func deleteIMAPUIDRowsForMessages(ctx context.Context, tx *sql.Tx, userID string, messageIDs []string) error {
+	if len(messageIDs) == 0 {
+		return nil
+	}
+	rawIDs, err := json.Marshal(messageIDs)
+	if err != nil {
+		return fmt.Errorf("encode imap uid message ids: %w", err)
+	}
+	const query = `
+DELETE FROM imap_message_uid
+WHERE user_id = $1::uuid
+  AND message_id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))`
+	if _, err := tx.ExecContext(ctx, query, strings.TrimSpace(userID), string(rawIDs)); err != nil {
+		return fmt.Errorf("delete imap message uid rows: %w", err)
+	}
+	return nil
 }
 
 func normalizeLimit(limit int) int {
