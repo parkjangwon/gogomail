@@ -90,6 +90,9 @@ guidance.
 - OpenSearch relevance hits now clean bounded message IDs from `_source`/`_id`
   before Postgres hydration, dropping CR/LF-bearing IDs from external search
   responses.
+- OpenSearch indexing now rejects blank, CR/LF-bearing, or oversized document
+  message IDs before constructing `_doc/{id}` URLs, keeping URL IDs aligned
+  with bounded JSON metadata.
 - OpenSearch relevance response decoding is capped before JSON parsing so
   oversized search backend responses cannot allocate unbounded highlight or hit
   payloads in the Mail API path, and trailing JSON tokens are rejected before

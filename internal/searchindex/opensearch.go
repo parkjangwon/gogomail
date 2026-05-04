@@ -60,10 +60,11 @@ func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
 }
 
 func (i OpenSearchIndexer) IndexMessage(ctx context.Context, doc Document) error {
-	messageID := strings.TrimSpace(doc.MessageID)
-	if messageID == "" {
-		return fmt.Errorf("message_id is required")
+	messageID, err := cleanOpenSearchDocumentID(doc.MessageID)
+	if err != nil {
+		return err
 	}
+	doc.MessageID = messageID
 	payload, err := json.Marshal(openSearchDocument(doc))
 	if err != nil {
 		return fmt.Errorf("marshal opensearch document: %w", err)
@@ -90,6 +91,20 @@ func (i OpenSearchIndexer) IndexMessage(ctx context.Context, doc Document) error
 		return fmt.Errorf("index opensearch message %q: status %d: %s", messageID, resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return nil
+}
+
+func cleanOpenSearchDocumentID(value string) (string, error) {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	if value == "" {
+		return "", fmt.Errorf("message_id is required")
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("message_id is invalid")
+	}
+	if len(value) > maxOpenSearchMetadataBytes {
+		return "", fmt.Errorf("message_id is oversized")
+	}
+	return value, nil
 }
 
 func (i OpenSearchIndexer) EnsureIndex(ctx context.Context) error {
