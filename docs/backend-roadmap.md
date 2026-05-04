@@ -312,6 +312,7 @@ Implementation order:
 257. The OpenSearch writer can bootstrap a strict message index mapping for identity fields, tenant/user filters, subject/body text, timestamps, and bounded body metadata.
 258. `search-index-worker` can optionally bootstrap the OpenSearch index mapping on startup through `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
 259. OpenSearch query-side groundwork can search user-scoped indexed documents and return ranked gogomail message IDs for later metadata hydration.
+260. `maildb` can hydrate ordered search message IDs into active `MessageSummary` rows, preparing OpenSearch read-side results to preserve the existing Mail API response envelope.
 
 ## Deferred until backend contracts stabilize
 
