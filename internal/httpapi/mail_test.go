@@ -250,6 +250,147 @@ func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
 	}
 }
 
+func TestMailBodylessHandlersRejectPayloadMetadata(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		body        string
+		contentType string
+		dispatched  func(*fakeMessageService) bool
+	}{
+		{
+			name:   "folder list body",
+			method: http.MethodGet,
+			path:   "/api/v1/folders?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name:        "message list content type",
+			method:      http.MethodGet,
+			path:        "/api/v1/messages?user_id=user-1",
+			contentType: "application/json",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name:   "message detail body",
+			method: http.MethodGet,
+			path:   "/api/v1/messages/msg-1?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastMessageID != ""
+			},
+		},
+		{
+			name:   "delete message body",
+			method: http.MethodDelete,
+			path:   "/api/v1/messages/msg-1?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastDeletedID != ""
+			},
+		},
+		{
+			name:        "draft send content type",
+			method:      http.MethodPost,
+			path:        "/api/v1/drafts/draft-1/send?user_id=user-1",
+			contentType: "application/json",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastDeletedDraftID != ""
+			},
+		},
+		{
+			name:   "attachment capabilities body",
+			method: http.MethodGet,
+			path:   "/api/v1/attachments/capabilities?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name:   "upload session read body",
+			method: http.MethodGet,
+			path:   "/api/v1/attachments/upload-sessions/session-1?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastGetUploadSessionID != ""
+			},
+		},
+		{
+			name:   "upload session finalize body",
+			method: http.MethodPost,
+			path:   "/api/v1/attachments/upload-sessions/session-1/finalize?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastFinalizeUploadSessionID != ""
+			},
+		},
+		{
+			name:   "attachment download body",
+			method: http.MethodGet,
+			path:   "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastMessageID != ""
+			},
+		},
+		{
+			name:        "push device list content type",
+			method:      http.MethodGet,
+			path:        "/api/v1/push-devices?user_id=user-1",
+			contentType: "application/json",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name:   "push device delete body",
+			method: http.MethodDelete,
+			path:   "/api/v1/push-devices/device-1?user_id=user-1",
+			body:   `{}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastDeletePushDeviceID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			var body io.Reader
+			if tt.body != "" {
+				body = strings.NewReader(tt.body)
+			}
+			req := httptest.NewRequest(tt.method, tt.path, body)
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for bodyless payload metadata: %+v", service)
+			}
+		})
+	}
+}
+
 func TestListFoldersHandler(t *testing.T) {
 	t.Parallel()
 

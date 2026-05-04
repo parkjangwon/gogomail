@@ -924,6 +924,10 @@ The platform hardening sprint completed the following:
   application/json`, accepting normal media-type parameters such as
   `charset=utf-8` but rejecting missing, repeated, or non-JSON content types
   before dispatch.
+- Mail API read and bodyless mutation routes now reject request bodies and
+  `Content-Type` headers before dispatch, preventing ignored JSON or multipart
+  metadata on resource reads, deletes, draft-send, upload-session finalization,
+  capability discovery, downloads, and push-device list/delete operations.
 - Mail JWT and Admin token authentication now reject repeated credential
   headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials
   before dispatch.
