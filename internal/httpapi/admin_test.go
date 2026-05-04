@@ -828,7 +828,7 @@ func TestAdminAPIUsageDailyHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/daily?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/daily?limit=5&tenant_id=%20tenant-1%20&company_id=company-1&domain_id=domain-1&user_id=user-1&api_key_id=api-key-1&principal_id=principal-1&auth_source=bearer&method=GET&route=GET%20/api/v1/messages&status=200&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -849,6 +849,47 @@ func TestAdminAPIUsageDailyHandler(t *testing.T) {
 	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+	if service.lastAPIUsageDailyList.TenantID != "tenant-1" ||
+		service.lastAPIUsageDailyList.CompanyID != "company-1" ||
+		service.lastAPIUsageDailyList.DomainID != "domain-1" ||
+		service.lastAPIUsageDailyList.UserID != "user-1" ||
+		service.lastAPIUsageDailyList.APIKeyID != "api-key-1" ||
+		service.lastAPIUsageDailyList.PrincipalID != "principal-1" ||
+		service.lastAPIUsageDailyList.AuthSource != "bearer" ||
+		service.lastAPIUsageDailyList.Method != "GET" ||
+		service.lastAPIUsageDailyList.Route != "GET /api/v1/messages" ||
+		service.lastAPIUsageDailyList.Status != 200 ||
+		service.lastAPIUsageDailyList.From.IsZero() ||
+		service.lastAPIUsageDailyList.To.IsZero() {
+		t.Fatalf("lastAPIUsageDailyList = %+v", service.lastAPIUsageDailyList)
+	}
+}
+
+func TestAdminAPIUsageDailyHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/api-usage/daily?tenant_id=tenant%0Abad",
+		"/admin/v1/api-usage/daily?principal_id=" + strings.Repeat("p", maxAdminQueryFilterBytes+1),
+		"/admin/v1/api-usage/daily?status=9999",
+		"/admin/v1/api-usage/daily?from=2026-05-05T00:00:00Z&to=2026-05-04T00:00:00Z",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastAPIUsageDailyList.Limit != 0 {
+			t.Fatalf("%s dispatched request %+v", path, service.lastAPIUsageDailyList)
+		}
 	}
 }
 
@@ -872,7 +913,7 @@ func TestAdminAPIUsageMonthlyHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/monthly?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/monthly?limit=5&tenant_id=tenant-1&principal_id=principal-1&auth_source=bearer&method=GET&route=GET%20/api/v1/messages&status=200&from=2026-05-01T00:00:00Z&to=2026-06-01T00:00:00Z", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -890,6 +931,17 @@ func TestAdminAPIUsageMonthlyHandler(t *testing.T) {
 	}
 	if body.APIUsageMonthly[0].TenantID != "tenant-1" || body.APIUsageMonthly[0].PrincipalID != "principal-1" {
 		t.Fatalf("api_usage_monthly identity = %+v", body.APIUsageMonthly[0])
+	}
+	if service.lastAPIUsageMonthlyList.Limit != 5 ||
+		service.lastAPIUsageMonthlyList.TenantID != "tenant-1" ||
+		service.lastAPIUsageMonthlyList.PrincipalID != "principal-1" ||
+		service.lastAPIUsageMonthlyList.AuthSource != "bearer" ||
+		service.lastAPIUsageMonthlyList.Method != "GET" ||
+		service.lastAPIUsageMonthlyList.Route != "GET /api/v1/messages" ||
+		service.lastAPIUsageMonthlyList.Status != 200 ||
+		service.lastAPIUsageMonthlyList.From.IsZero() ||
+		service.lastAPIUsageMonthlyList.To.IsZero() {
+		t.Fatalf("lastAPIUsageMonthlyList = %+v", service.lastAPIUsageMonthlyList)
 	}
 }
 
@@ -4759,6 +4811,8 @@ type fakeAdminService struct {
 	lastAttachmentCleanupListLimit              int
 	lastAttachmentSessionCleanupListBefore      time.Time
 	lastAttachmentSessionCleanupListLimit       int
+	lastAPIUsageDailyList                       maildb.APIUsageAggregateListRequest
+	lastAPIUsageMonthlyList                     maildb.APIUsageAggregateListRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
 	lastAPIUsageLedgerRetention                 maildb.APIUsageLedgerRetentionRequest
 	lastAPIUsageLedgerRetentionRun              maildb.APIUsageLedgerRetentionRunRequest
@@ -5004,13 +5058,15 @@ func (f *fakeAdminService) ListStaleAttachmentUploadSessions(_ context.Context, 
 	return f.staleAttachmentSessionCandidates, nil
 }
 
-func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, limit int) ([]maildb.APIUsageDailyView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error) {
+	f.lastLimit = req.Limit
+	f.lastAPIUsageDailyList = req
 	return f.apiUsageDaily, nil
 }
 
-func (f *fakeAdminService) ListAPIUsageMonthly(_ context.Context, limit int) ([]maildb.APIUsageMonthlyView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListAPIUsageMonthly(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error) {
+	f.lastLimit = req.Limit
+	f.lastAPIUsageMonthlyList = req
 	return f.apiUsageMonthly, nil
 }
 

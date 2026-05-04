@@ -160,6 +160,9 @@ guidance.
   consumes `api.usage` events from `api.event`, upserts Postgres daily
   and monthly aggregates, and exposes `GET /admin/v1/api-usage/daily` plus
   `GET /admin/v1/api-usage/monthly` for operations.
+- API usage daily/monthly aggregate reads can filter by tenant, company, domain,
+  user, API key, principal, auth source, method, route, status, and time window
+  for scoped billing and operational triage.
 - API metering events now use `2026-05-04.api-usage.v2` payloads with
   tenant/company/domain/user/API-key/principal/auth-source dimensions. The
   worker stores those dimensions in the idempotency ledger and keys daily/monthly

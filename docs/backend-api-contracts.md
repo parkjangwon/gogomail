@@ -601,9 +601,12 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/daily` returns `{ "api_usage_daily": [...] }` with
   day/method/route/status plus tenant/company/domain/user/API-key/principal/auth
   dimensions, request/byte counters, and latency totals/maximum/average for
-  operations dashboards.
+  operations dashboards. It supports bounded tenant, company, domain, user,
+  API-key, principal, auth-source, method, route, status, `from`, and `to`
+  filters for scoped billing and incident triage.
 - `GET /admin/v1/api-usage/monthly` returns `{ "api_usage_monthly": [...] }`
-  with the same dimensions rolled up by UTC month for plan and billing analysis.
+  with the same dimensions rolled up by UTC month for plan and billing analysis,
+  and supports the same bounded filters.
 - The worker also records immutable rows in `api_usage_ledger` before updating
   aggregate read models. `GET /admin/v1/api-usage/ledger` returns
   `{ "api_usage_ledger": [...] }` and supports bounded `tenant_id`,

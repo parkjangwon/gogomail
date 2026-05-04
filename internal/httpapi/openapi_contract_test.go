@@ -432,6 +432,8 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /outbox-events":                                   {"limit", "topic", "partition_key", "status", "since"},
 		"GET /audit-logs":                                      {"limit", "category", "action", "result", "target_type", "company_id", "domain_id", "user_id", "since"},
 		"GET /audit-logs/integrity":                            {"limit", "since"},
+		"GET /api-usage/daily":                                 {"limit", "tenant_id", "company_id", "domain_id", "user_id", "api_key_id", "principal_id", "auth_source", "method", "route", "status", "from", "to"},
+		"GET /api-usage/monthly":                               {"limit", "tenant_id", "company_id", "domain_id", "user_id", "api_key_id", "principal_id", "auth_source", "method", "route", "status", "from", "to"},
 		"GET /api-usage/ledger/retention-readiness":            {"cutoff", "tenant_id", "principal_id"},
 		"GET /api-usage/ledger/retention-runs":                 {"limit", "tenant_id", "principal_id", "created_from", "created_to"},
 		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},

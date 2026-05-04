@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateUpdateDomainStatusRequestRejectsUnknownStatus(t *testing.T) {
@@ -164,6 +165,54 @@ func TestNormalizeDeliveryAttemptFiltersTrimsOperationalFilters(t *testing.T) {
 		got.Farm != "general" ||
 		got.Sender != "sender@example.com" {
 		t.Fatalf("filters = %+v, want normalized filters", got)
+	}
+}
+
+func TestNormalizeAPIUsageAggregateListRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []APIUsageAggregateListRequest{
+		{TenantID: "tenant\nbad"},
+		{CompanyID: strings.Repeat("c", maxPushNotificationFilterBytes+1)},
+		{Route: "GET /api/v1/messages\rbad"},
+		{Status: -1},
+		{Status: 1000},
+		{From: time.Unix(2, 0), To: time.Unix(1, 0)},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.TenantID+req.CompanyID+req.Route, func(t *testing.T) {
+			t.Parallel()
+			if _, err := normalizeAPIUsageAggregateListRequest(req); err == nil {
+				t.Fatalf("normalizeAPIUsageAggregateListRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
+func TestNormalizeAPIUsageAggregateListRequestNormalizesFilters(t *testing.T) {
+	t.Parallel()
+
+	got, err := normalizeAPIUsageAggregateListRequest(APIUsageAggregateListRequest{
+		Limit:       5,
+		TenantID:    " tenant-1 ",
+		PrincipalID: " principal-1 ",
+		AuthSource:  " Bearer ",
+		Method:      " get ",
+		Route:       " GET /api/v1/messages ",
+		Status:      200,
+	})
+	if err != nil {
+		t.Fatalf("normalizeAPIUsageAggregateListRequest returned error: %v", err)
+	}
+	if got.Limit != 5 ||
+		got.TenantID != "tenant-1" ||
+		got.PrincipalID != "principal-1" ||
+		got.AuthSource != "bearer" ||
+		got.Method != "get" ||
+		got.Route != "GET /api/v1/messages" ||
+		got.Status != 200 {
+		t.Fatalf("request = %+v, want normalized filters", got)
 	}
 }
 
