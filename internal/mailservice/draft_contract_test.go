@@ -75,6 +75,21 @@ func TestValidateSaveDraftRequestRejectsInvalidRecipientEmail(t *testing.T) {
 	}
 }
 
+func TestValidateSaveDraftRequestRejectsRecipientHeaderInjection(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSaveDraftRequest(SaveDraftRequest{
+		UserID: "user-1",
+		Cc: []outbound.Address{{
+			Name:  "Recipient\nBcc: victim@example.net",
+			Email: "user@example.net",
+		}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSaveDraftRequest accepted newline-bearing recipient name")
+	}
+}
+
 func TestValidateSaveDraftRequestRejectsOversizedTextBody(t *testing.T) {
 	t.Parallel()
 

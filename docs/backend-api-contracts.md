@@ -117,10 +117,10 @@ Bulk endpoints reject missing, blank, duplicate, or over-limit message IDs inste
 
 Draft save/update and immediate send requests share the same compose guardrails
 for subject size, text-body size, recipient syntax/count, intent/source rules,
-and attachment IDs. Drafts may omit recipients while a message is still being
-composed, but draft attachment ID lists are capped at the same 100-item limit as
-send requests so clients cannot persist oversized compose payloads for later
-send-time rejection.
+attachment IDs, and CR/LF-free recipient display names/emails. Drafts may omit
+recipients while a message is still being composed, but draft attachment ID
+lists are capped at the same 100-item limit as send requests so clients cannot
+persist oversized compose payloads for later send-time rejection.
 
 ## Attachment lifecycle
 
