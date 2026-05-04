@@ -26,7 +26,8 @@ guidance.
 - SMTP receive engine with real TCP integration coverage.
 - Authenticated Submission MTA with STARTTLS and SMTPS support.
 - Outbound SMTP delivery with direct MX, smart-host, TLS policy, retry, and
-  partial recipient failure handling.
+  partial recipient failure handling. Admin-created delivery routes reject
+  impossible TLS/auth combinations before relay routes are stored.
 - DSN/bounce handling with RFC 3461/3464-oriented metadata, null reverse-path,
   `NOTIFY=NEVER`, deterministic outbox dedupe, and loop-risk reduction.
 - Shared high-performance-minded EML parsing boundary under `internal/message`.
