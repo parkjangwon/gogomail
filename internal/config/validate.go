@@ -79,6 +79,9 @@ func (c Config) Validate() error {
 		if err := validateHTTPURL("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", c.PushNotifyWebhookURL); err != nil {
 			return err
 		}
+		if err := validateOptionalSecret("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", c.PushNotifyWebhookToken); err != nil {
+			return err
+		}
 	}
 	if c.PushNotifyWebhookTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT must be positive")

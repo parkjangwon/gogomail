@@ -20,6 +20,9 @@ func TestWebhookSinkPostsNotificationTargets(t *testing.T) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Fatalf("Content-Type = %q, want application/json", r.Header.Get("Content-Type"))
 		}
+		if r.Header.Get("Authorization") != "Bearer push-token" {
+			t.Fatalf("Authorization = %q, want bearer token", r.Header.Get("Authorization"))
+		}
 		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
@@ -27,7 +30,7 @@ func TestWebhookSinkPostsNotificationTargets(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Token: " push-token ", Client: server.Client()})
 	if err != nil {
 		t.Fatalf("NewWebhookSink returned error: %v", err)
 	}

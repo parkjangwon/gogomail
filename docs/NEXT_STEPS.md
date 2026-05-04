@@ -177,7 +177,8 @@ Current state:
 - Push notification enqueue now has a disabled-by-default async
   `push-notification-worker` over `mail.stored` with a replaceable sink and
   `slog` first adapter plus `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` for
-  handing raw-token targets to an external push gateway.
+  handing raw-token targets to an external push gateway with an optional
+  bounded bearer token.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
   remain write-only.
