@@ -335,6 +335,7 @@ Implementation order:
 280. `mailservice` now exposes IMAP mailbox/message listing and mailbox-event subscription methods, keeping the future protocol listener on the service boundary instead of reaching into `maildb` internals.
 281. `mailservice` now exposes bounded IMAP UID backfill through the same service boundary, preparing future operator/bootstrap modes without coupling them directly to `maildb`.
 282. IMAP mailbox event publication from service mutations is now best-effort after successful database updates, preventing future IDLE fan-out failures from making committed mail writes look failed to clients.
+283. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.Store`, giving a future IMAP protocol listener a narrow adapter over service methods instead of direct repository access.
 
 ## Deferred until backend contracts stabilize
 
