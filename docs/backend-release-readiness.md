@@ -32,7 +32,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch.
 - Mail and Admin API JSON request bodies reject trailing JSON tokens instead of
-  accepting the first object and ignoring the rest of the body.
+  accepting the first object and ignoring the rest of the body, and shared JSON
+  decoding is capped at 1 MiB before parsing.
 - Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
   `filename*` in `Content-Disposition`, bound stored filename length before
   response headers are written, keep responses private `no-store`, and fall
