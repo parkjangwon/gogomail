@@ -23,6 +23,30 @@ func TestValidateUpdateDomainStatusRequestAcceptsSuspended(t *testing.T) {
 	}
 }
 
+func TestDomainStatusAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := domainStatusAuditDetail(domainStatusAuditView{
+		ID:        "domain-1",
+		CompanyID: "company-1",
+		Name:      "example.com",
+		Status:    "suspended",
+	})
+	if err != nil {
+		t.Fatalf("domainStatusAuditDetail returned error: %v", err)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body["domain_id"] != "domain-1" ||
+		body["company_id"] != "company-1" ||
+		body["name"] != "example.com" ||
+		body["status"] != "suspended" {
+		t.Fatalf("detail = %+v", body)
+	}
+}
+
 func TestValidateDomainListRequestRejectsUnknownFilters(t *testing.T) {
 	t.Parallel()
 
@@ -543,6 +567,32 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 
 	if err := ValidateUpdateUserStatusRequest(UpdateUserStatusRequest{ID: "user-1", Status: "paused"}); err == nil {
 		t.Fatal("ValidateUpdateUserStatusRequest accepted unknown status")
+	}
+}
+
+func TestUserStatusAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := userStatusAuditDetail(userStatusAuditView{
+		ID:        "user-1",
+		DomainID:  "domain-1",
+		CompanyID: "company-1",
+		Username:  "alex",
+		Status:    "disabled",
+	})
+	if err != nil {
+		t.Fatalf("userStatusAuditDetail returned error: %v", err)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body["user_id"] != "user-1" ||
+		body["domain_id"] != "domain-1" ||
+		body["company_id"] != "company-1" ||
+		body["username"] != "alex" ||
+		body["status"] != "disabled" {
+		t.Fatalf("detail = %+v", body)
 	}
 }
 
