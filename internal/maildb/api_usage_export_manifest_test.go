@@ -52,3 +52,35 @@ func TestAPIUsageExportManifestDoesNotMutateArtifacts(t *testing.T) {
 		t.Fatalf("artifacts were mutated: %+v", artifacts)
 	}
 }
+
+func TestAPIUsageExportManifestDigestVerification(t *testing.T) {
+	t.Parallel()
+
+	manifest := apimeter.ExportManifest{
+		SchemaVersion: apimeter.ExportManifestSchemaV1,
+		Batch: apimeter.ExportManifestBatch{
+			ID:           "batch-1",
+			EventCount:   2,
+			RequestCount: 2,
+		},
+	}
+	digestHex, raw, err := apimeter.DigestExportManifest(manifest)
+	if err != nil {
+		t.Fatalf("DigestExportManifest returned error: %v", err)
+	}
+
+	verification, err := apiUsageExportManifestDigestVerification(APIUsageExportManifestDigestView{
+		ID:              "digest-1",
+		BatchID:         "batch-1",
+		SchemaVersion:   apimeter.ExportManifestSchemaV1,
+		DigestAlgorithm: "sha256",
+		DigestHex:       digestHex,
+		Manifest:        raw,
+	})
+	if err != nil {
+		t.Fatalf("apiUsageExportManifestDigestVerification returned error: %v", err)
+	}
+	if !verification.Valid || verification.ActualDigestHex != digestHex || len(verification.CanonicalManifest) == 0 {
+		t.Fatalf("verification = %+v", verification)
+	}
+}
