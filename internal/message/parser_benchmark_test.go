@@ -44,3 +44,16 @@ func BenchmarkParseEMLMetadataOnly(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkReadLimitedTextTruncatedBody(b *testing.B) {
+	body := strings.Repeat("0123456789abcdef", 1<<16)
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if _, truncated, err := readLimitedText(strings.NewReader(body), 4096); err != nil {
+			b.Fatal(err)
+		} else if !truncated {
+			b.Fatal("body was not truncated")
+		}
+	}
+}
