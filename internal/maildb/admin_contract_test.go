@@ -97,6 +97,102 @@ func TestValidateUpdateCompanyQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	}
 }
 
+func TestQuotaAuditDetails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		detail json.RawMessage
+		want   map[string]any
+	}{
+		{
+			name: "company",
+			detail: mustAuditDetail(t, func() (json.RawMessage, error) {
+				return companyQuotaAuditDetail(companyQuotaAuditView{
+					ID:         "company-1",
+					Name:       "Acme",
+					Status:     "active",
+					QuotaLimit: 1024,
+				})
+			}),
+			want: map[string]any{
+				"company_id":  "company-1",
+				"name":        "Acme",
+				"status":      "active",
+				"quota_limit": float64(1024),
+			},
+		},
+		{
+			name: "domain",
+			detail: mustAuditDetail(t, func() (json.RawMessage, error) {
+				return domainQuotaAuditDetail(domainQuotaAuditView{
+					ID:                          "domain-1",
+					CompanyID:                   "company-1",
+					Name:                        "example.com",
+					QuotaLimit:                  512,
+					DefaultUserQuotaSet:         true,
+					DefaultUserQuota:            128,
+					DefaultUserQuotaUserUpdates: 7,
+				})
+			}),
+			want: map[string]any{
+				"domain_id":                       "domain-1",
+				"company_id":                      "company-1",
+				"name":                            "example.com",
+				"quota_limit":                     float64(512),
+				"default_user_quota_set":          true,
+				"default_user_quota":              float64(128),
+				"default_user_quota_user_updates": float64(7),
+			},
+		},
+		{
+			name: "user",
+			detail: mustAuditDetail(t, func() (json.RawMessage, error) {
+				return userQuotaAuditDetail(userQuotaAuditView{
+					ID:          "user-1",
+					DomainID:    "domain-1",
+					CompanyID:   "company-1",
+					Username:    "alex",
+					QuotaLimit:  64,
+					QuotaSource: "custom",
+				})
+			}),
+			want: map[string]any{
+				"user_id":      "user-1",
+				"domain_id":    "domain-1",
+				"company_id":   "company-1",
+				"username":     "alex",
+				"quota_limit":  float64(64),
+				"quota_source": "custom",
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var body map[string]any
+			if err := json.Unmarshal(tt.detail, &body); err != nil {
+				t.Fatalf("json.Unmarshal returned error: %v", err)
+			}
+			for key, want := range tt.want {
+				if body[key] != want {
+					t.Fatalf("%s detail[%q] = %#v, want %#v; detail=%+v", tt.name, key, body[key], want, body)
+				}
+			}
+		})
+	}
+}
+
+func mustAuditDetail(t *testing.T, build func() (json.RawMessage, error)) json.RawMessage {
+	t.Helper()
+	detail, err := build()
+	if err != nil {
+		t.Fatalf("audit detail returned error: %v", err)
+	}
+	return detail
+}
+
 func TestValidateCompanyListRequestRejectsUnknownStatus(t *testing.T) {
 	t.Parallel()
 
