@@ -34,23 +34,27 @@ func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Mes
 
 func MailStoredAuditLog(payload json.RawMessage) (Log, error) {
 	var event struct {
-		Event        string `json:"event"`
-		MessageID    string `json:"message_id"`
-		RFCMessageID string `json:"rfc_message_id"`
-		CompanyID    string `json:"company_id"`
-		DomainID     string `json:"domain_id"`
-		UserID       string `json:"user_id"`
-		Recipient    string `json:"recipient"`
-		Subject      string `json:"subject"`
-		StoragePath  string `json:"storage_path"`
-		ReceivedAt   string `json:"received_at"`
-		Size         int64  `json:"size"`
+		Event         string `json:"event"`
+		SchemaVersion string `json:"schema_version"`
+		MessageID     string `json:"message_id"`
+		RFCMessageID  string `json:"rfc_message_id"`
+		CompanyID     string `json:"company_id"`
+		DomainID      string `json:"domain_id"`
+		UserID        string `json:"user_id"`
+		Recipient     string `json:"recipient"`
+		Subject       string `json:"subject"`
+		StoragePath   string `json:"storage_path"`
+		ReceivedAt    string `json:"received_at"`
+		Size          int64  `json:"size"`
 	}
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return Log{}, fmt.Errorf("decode mail.stored audit payload: %w", err)
 	}
 	if event.Event != "mail.stored" {
 		return Log{}, fmt.Errorf("unexpected audit event %q", event.Event)
+	}
+	if event.SchemaVersion != "" && event.SchemaVersion != "2026-05-04.mail-stored.v1" {
+		return Log{}, fmt.Errorf("unsupported mail.stored audit schema_version %q", event.SchemaVersion)
 	}
 	if event.MessageID == "" {
 		return Log{}, fmt.Errorf("mail.stored audit payload is missing message_id")

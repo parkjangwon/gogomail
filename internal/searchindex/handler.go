@@ -14,23 +14,25 @@ import (
 
 const (
 	EventMailStored        = "mail.stored"
+	MailStoredSchemaV1     = "2026-05-04.mail-stored.v1"
 	defaultMaxTextBodyByte = int64(1 << 20)
 )
 
 type Event struct {
-	Event        string   `json:"event"`
-	MessageID    string   `json:"message_id"`
-	RFCMessageID string   `json:"rfc_message_id"`
-	InReplyTo    string   `json:"in_reply_to"`
-	References   []string `json:"references"`
-	CompanyID    string   `json:"company_id"`
-	DomainID     string   `json:"domain_id"`
-	UserID       string   `json:"user_id"`
-	Recipient    string   `json:"recipient"`
-	Subject      string   `json:"subject"`
-	StoragePath  string   `json:"storage_path"`
-	ReceivedAt   string   `json:"received_at"`
-	Size         int64    `json:"size"`
+	Event         string   `json:"event"`
+	SchemaVersion string   `json:"schema_version"`
+	MessageID     string   `json:"message_id"`
+	RFCMessageID  string   `json:"rfc_message_id"`
+	InReplyTo     string   `json:"in_reply_to"`
+	References    []string `json:"references"`
+	CompanyID     string   `json:"company_id"`
+	DomainID      string   `json:"domain_id"`
+	UserID        string   `json:"user_id"`
+	Recipient     string   `json:"recipient"`
+	Subject       string   `json:"subject"`
+	StoragePath   string   `json:"storage_path"`
+	ReceivedAt    string   `json:"received_at"`
+	Size          int64    `json:"size"`
 }
 
 type Document struct {
@@ -161,6 +163,10 @@ func validateEvent(event *Event) error {
 	event.Event = strings.TrimSpace(event.Event)
 	if event.Event != EventMailStored {
 		return fmt.Errorf("unexpected search index event %q", event.Event)
+	}
+	event.SchemaVersion = strings.TrimSpace(event.SchemaVersion)
+	if event.SchemaVersion != "" && event.SchemaVersion != MailStoredSchemaV1 {
+		return fmt.Errorf("unsupported mail.stored search schema_version %q", event.SchemaVersion)
 	}
 
 	var err error

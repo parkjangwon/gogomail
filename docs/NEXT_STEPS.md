@@ -118,6 +118,8 @@ Current state:
 - `mail.stored` event payloads carry an explicit schema version; preserve this
   contract when adding fields for audit, search, push, IMAP, or future fan-out
   workers.
+- Audit, search, and push consumers enforce known explicit schema versions; add
+  a new accepted version before introducing incompatible event payload changes.
 - Spam and vendor FCM/APNs delivery are not wired.
 
 Next:
