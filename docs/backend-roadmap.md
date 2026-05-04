@@ -406,6 +406,7 @@ Implementation order:
 347. OpenAPI response envelope drift tests now cover company list/detail, delivery route counters, and DKIM DNS verification envelopes, closing gaps in generated Admin client response guarantees.
 348. OpenAPI query-parameter drift tests now cover common Admin list and lookup filters for companies, domains, users, quota usage, trusted relays, delivery routes, DKIM keys, and DNS check history.
 349. Shared EML text-body truncation now backs up to a valid UTF-8 boundary before storing bounded text previews, protecting Mail API/search/IMAP consumers from malformed strings on multibyte bodies.
+350. Shared EML attachment filename metadata is now basename-normalized, control-character cleaned, UTF-8-safe, and capped before storage/API/search consumers see it.
 
 ## Deferred until backend contracts stabilize
 
