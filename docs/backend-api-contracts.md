@@ -139,7 +139,9 @@ When `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog`, `push-notification-worker`
 resolves active devices for the `mail.stored.user_id` after commit and before
 invoking its sink. `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT` bounds per-message
 fan-out. Vendor delivery remains a future sink adapter, not a Mail API or SMTP
-side effect.
+side effect. The worker records one `push_notification_attempts` candidate row
+per resolved device before invoking the current sink so operations can inspect
+fan-out without coupling notification delivery to the SMTP transaction.
 
 ## Admin operations
 

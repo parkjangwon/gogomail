@@ -92,8 +92,8 @@ guidance.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
-  notification candidates without touching SMTP hot paths or committing to
-  FCM/APNs SDKs.
+  notification candidates with Postgres candidate-attempt audit rows without
+  touching SMTP hot paths or committing to FCM/APNs SDKs.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
@@ -164,7 +164,7 @@ The platform hardening sprint completed the following:
   helpers exist without starting a TCP protocol server.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
-  device-target resolver.
+  device-target resolver plus candidate-attempt persistence.
 - Push notification device storage: authenticated users can register, list, and
   delete active device tokens through the Mail API while responses expose only a
   short token suffix.
@@ -179,8 +179,8 @@ Next focus areas:
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. IMAP UID/UIDVALIDITY/MODSEQ storage design and migrations.
-4. Add FCM/APNs/Web Push sink adapters and per-device delivery audit behind the
-   push notification worker.
+4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
+   notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
    aggregates for invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.
