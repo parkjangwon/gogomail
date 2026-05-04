@@ -83,7 +83,9 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	}
 	parsed.InReplyTo = firstMessageID(&parsed, reader.Header, "In-Reply-To", opts)
 	parsed.References, parsed.ReferencesTruncated = messageIDList(&parsed, reader.Header, "References", opts)
-	if parsed.Subject, err = reader.Header.Subject(); err != nil {
+	if rawMetadataHeaderTooLarge(reader.Header, "Subject", opts) {
+		parsed.MetadataTruncated = true
+	} else if parsed.Subject, err = reader.Header.Subject(); err != nil {
 		parsed.Subject = ""
 	} else {
 		parsed.Subject, parsed.MetadataTruncated = sanitizeHeaderMetadata(parsed.Subject, opts.MaxMetadataBytes, parsed.MetadataTruncated)
@@ -328,6 +330,21 @@ func rawStructuredHeaderTooLarge(header gomail.Header, key string, opts ParseOpt
 	}
 	limit *= 32
 	if limit <= 0 || limit > maxStructuredHeaderParseBytes {
+		limit = maxStructuredHeaderParseBytes
+	}
+	return len(raw) > limit
+}
+
+func rawMetadataHeaderTooLarge(header gomail.Header, key string, opts ParseOptions) bool {
+	raw := header.Get(key)
+	if raw == "" {
+		return false
+	}
+	limit := opts.MaxMetadataBytes
+	if limit <= 0 {
+		limit = defaultMaxMetadataBytes
+	}
+	if limit > maxStructuredHeaderParseBytes {
 		limit = maxStructuredHeaderParseBytes
 	}
 	return len(raw) > limit
