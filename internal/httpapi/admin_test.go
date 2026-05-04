@@ -3156,6 +3156,66 @@ func TestAdminDomainsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCoreListHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		path       string
+		dispatched func(*fakeAdminService) bool
+	}{
+		{
+			name: "companies",
+			path: "/admin/v1/companies?limit=10&state=active",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastLimit != 0
+			},
+		},
+		{
+			name: "domains",
+			path: "/admin/v1/domains?company_id=company-1&dns_state=ok",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDomainList.CompanyID != ""
+			},
+		},
+		{
+			name: "domain dns checks",
+			path: "/admin/v1/domains/domain-1/dns-checks?status=missing&from=2026-05-04T00:00:00Z",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDomainDNSCheckList.DomainID != ""
+			},
+		},
+		{
+			name: "users",
+			path: "/admin/v1/users?domain_id=domain-1&passwordReady=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastUserList.DomainID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminListHandlerRejectsInvalidLimit(t *testing.T) {
 	t.Parallel()
 

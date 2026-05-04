@@ -690,6 +690,7 @@ Implementation order:
 630. Shared EML parsing now pre-bounds oversized structured address and message-id-list headers before list parsing, preserving parser hot-path memory guardrails in addition to retained metadata caps.
 631. Shared EML parsing now pre-bounds oversized Subject headers before RFC 2047 decoding, preserving parser hot-path memory guardrails while retaining normal encoded-subject support.
 632. Mail API read/search/list routes now reject unknown query parameter names before dispatch, making generated-client typos visible as HTTP 400 responses instead of silently ignoring them.
+633. Admin company/domain/DNS-check/user list routes now reject unknown query parameter names before dispatch, keeping core operator filters aligned with the documented contract.
 
 ## Deferred until backend contracts stabilize
 

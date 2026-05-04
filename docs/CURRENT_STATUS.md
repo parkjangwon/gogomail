@@ -932,6 +932,9 @@ The platform hardening sprint completed the following:
   and operational filters from being interpreted by first-value wins behavior.
 - Mail API read/search/list routes now reject unknown query parameter names
   before dispatch, making generated-client typos visible as HTTP 400 responses.
+- Admin company/domain/DNS-check/user list routes now reject unknown query
+  parameter names before dispatch, keeping core operator filters aligned with
+  the documented contract.
 - API error responses now use `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`, with the reusable OpenAPI error response
   documenting both headers for generated clients.

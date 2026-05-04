@@ -249,6 +249,8 @@ filters must appear at most once; duplicate scalar query controls return HTTP
 Mail API read/search/list routes reject query parameter names outside their
 documented allowlists before service dispatch, so generated-client typos fail
 fast instead of being silently ignored.
+Admin company/domain/DNS-check/user list routes apply the same unknown-query
+rejection for their documented operational filters.
 Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
 when the raw body exceeds the attachment upload size cap. Upload session body
 control headers such as `Content-Range` and `X-Content-SHA256` must appear at
