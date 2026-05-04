@@ -234,6 +234,8 @@ guidance.
 - Admin token authorization and API metering admin-token classification compare
   fixed-length SHA-256 digests of trimmed token values for both bearer tokens
   and `X-Admin-Token`.
+- Mail API JWT verification rejects unsupported JWT `alg` values and non-JWT
+  `typ` headers before accepting signed bearer claims.
 - Redis event consumers acknowledge malformed stream entries after logging
   decode failures, preventing poison messages from pinning worker progress while
   preserving retry behavior for handler failures.

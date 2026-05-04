@@ -78,6 +78,23 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	if len(parts) != 3 {
 		return Claims{}, fmt.Errorf("invalid jwt format")
 	}
+	headerRaw, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return Claims{}, fmt.Errorf("decode jwt header: %w", err)
+	}
+	var header struct {
+		Algorithm string `json:"alg"`
+		Type      string `json:"typ"`
+	}
+	if err := json.Unmarshal(headerRaw, &header); err != nil {
+		return Claims{}, fmt.Errorf("decode jwt header: %w", err)
+	}
+	if header.Algorithm != "HS256" {
+		return Claims{}, fmt.Errorf("unsupported jwt algorithm")
+	}
+	if header.Type != "" && !strings.EqualFold(header.Type, "JWT") {
+		return Claims{}, fmt.Errorf("unsupported jwt type")
+	}
 	signingInput := parts[0] + "." + parts[1]
 	expected := m.sign(signingInput)
 	if !hmac.Equal([]byte(expected), []byte(parts[2])) {
