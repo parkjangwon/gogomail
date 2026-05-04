@@ -26,6 +26,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
 - Pending attachment uploads can be canceled immediately, releasing quota and
   deleting any stored upload object without waiting for stale cleanup.
+- Attachment upload capability discovery exposes current limits and supported
+  modes for future clients without hard-coded constants.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin

@@ -389,6 +389,15 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /attachments/capabilities:
+    get:
+      operationId: getAttachmentUploadCapabilities
+      summary: Get attachment upload limits and supported modes
+      responses:
+        "200":
+          $ref: "#/components/responses/AttachmentUploadCapabilities"
+        default:
+          $ref: "#/components/responses/Error"
   /attachments/{id}:
     delete:
       operationId: cancelAttachmentUpload
@@ -2025,6 +2034,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AttachmentCleanupRunEnvelope"
+    AttachmentUploadCapabilities:
+      description: Attachment upload capability envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentUploadCapabilitiesEnvelope"
     AttachmentCleanupCandidates:
       description: Attachment cleanup candidate preview envelope
       content:
@@ -2752,6 +2767,44 @@ components:
       properties:
         attachment:
           $ref: "#/components/schemas/Attachment"
+    AttachmentUploadCapabilities:
+      type: object
+      required:
+        - max_attachment_bytes
+        - max_filename_bytes
+        - metadata_reservation
+        - direct_multipart_upload
+        - cancel_pending_uploads
+        - resumable_chunked_uploads
+        - requires_declared_size
+        - quota_reserved_on_metadata
+      properties:
+        max_attachment_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        max_filename_bytes:
+          type: integer
+          minimum: 1
+        metadata_reservation:
+          type: boolean
+        direct_multipart_upload:
+          type: boolean
+        cancel_pending_uploads:
+          type: boolean
+        resumable_chunked_uploads:
+          type: boolean
+          description: False until resumable/chunked upload contracts are implemented.
+        requires_declared_size:
+          type: boolean
+        quota_reserved_on_metadata:
+          type: boolean
+    AttachmentUploadCapabilitiesEnvelope:
+      type: object
+      required: [attachment_upload_capabilities]
+      properties:
+        attachment_upload_capabilities:
+          $ref: "#/components/schemas/AttachmentUploadCapabilities"
     PushDevice:
       type: object
       required: [id, platform, status, created_at, updated_at]

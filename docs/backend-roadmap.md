@@ -578,6 +578,7 @@ Implementation order:
 519. Admin API now exposes `POST /admin/v1/attachment-cleanup/candidates` so operators can inspect the bounded stale upload candidate set before running cleanup.
 520. Attachment cleanup candidate previews now include total and batch-limited candidate counts alongside the bounded candidate list.
 521. Mail API now exposes user-scoped pending attachment upload cancellation, releasing reserved quota and deleting any stored upload object before stale cleanup is needed.
+522. Mail API now exposes attachment upload capability discovery with current limits and supported modes, including an explicit `resumable_chunked_uploads=false` until that contract lands.
 
 ## Deferred until backend contracts stabilize
 
