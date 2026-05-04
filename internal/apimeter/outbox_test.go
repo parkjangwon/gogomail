@@ -93,6 +93,27 @@ func TestAPIUsagePayloadFallsBackToLegacyEventIdentityFields(t *testing.T) {
 	}
 }
 
+func TestAPIUsageEventIDIncludesIdentityDimensions(t *testing.T) {
+	t.Parallel()
+
+	base := Event{
+		Method:        "GET",
+		RoutePattern:  "GET /api/v1/messages",
+		Status:        200,
+		RequestBytes:  1,
+		ResponseBytes: 2,
+		Latency:       time.Millisecond,
+		Timestamp:     time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Identity:      Identity{TenantID: "tenant-1", UserID: "user-1", AuthSource: AuthSourceBearer},
+	}
+	first := apiUsagePayload(base)["event_id"]
+	base.Identity.TenantID = "tenant-2"
+	second := apiUsagePayload(base)["event_id"]
+	if first == second {
+		t.Fatalf("event_id did not change when tenant changed: %v", first)
+	}
+}
+
 func TestAPIUsagePayloadUsesProvidedEventID(t *testing.T) {
 	t.Parallel()
 
