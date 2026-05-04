@@ -471,6 +471,7 @@ Implementation order:
 412. Folder, message-list, thread-list, and message-detail service reads now trim user, folder, thread, message, and folder-name inputs before repository work.
 413. Mail search service queries now normalize user, text, folder, sender, subject, and sort inputs before Postgres or OpenSearch dispatch.
 414. Push-device list and delete service methods now trim user and device identifiers before repository work.
+415. Message delivery-status and reply source-thread service lookups now trim user, message, and source-message identifiers before repository work.
 
 ## Deferred until backend contracts stabilize
 

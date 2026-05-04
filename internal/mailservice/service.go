@@ -467,6 +467,8 @@ func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, mess
 	if !ok {
 		return maildb.MessageDeliveryStatusView{}, fmt.Errorf("delivery status repository is required")
 	}
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
 	return repo.MessageDeliveryStatus(ctx, userID, messageID)
 }
 
@@ -1085,11 +1087,12 @@ func normalizeBulkMessageDeleteRequest(req maildb.BulkMessageDeleteRequest) mail
 }
 
 func (s *Service) sourceThread(ctx context.Context, req SendTextRequest) (maildb.SourceThreadView, error) {
+	req = normalizeSendTextRequest(req)
 	intent, err := NormalizeComposeIntent(string(req.Intent))
 	if err != nil {
 		return maildb.SourceThreadView{}, err
 	}
-	if intent != ComposeIntentReply || strings.TrimSpace(req.SourceMessageID) == "" {
+	if intent != ComposeIntentReply || req.SourceMessageID == "" {
 		return maildb.SourceThreadView{}, nil
 	}
 	repo, ok := s.repository.(SourceThreadRepository)
