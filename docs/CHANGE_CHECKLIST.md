@@ -46,6 +46,7 @@ Optional when database behavior changed:
 
 ```bash
 GOGOMAIL_TEST_DATABASE_URL='postgres://...' go test ./internal/maildb ./internal/outbox
+GOGOMAIL_TEST_OPENSEARCH_URL='http://localhost:9200' go test ./internal/searchindex
 ```
 
 ## Finish

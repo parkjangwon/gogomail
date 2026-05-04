@@ -195,6 +195,9 @@ The platform hardening sprint completed the following:
   filters before Postgres metadata hydration.
 - OpenSearch relevance search can return subject/from/body highlights and map
   them into the existing Mail API `search_highlights` response field.
+- Optional OpenSearch integration coverage can create a disposable index and
+  verify indexing plus folder-aware relevance search when
+  `GOGOMAIL_TEST_OPENSEARCH_URL` is available.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.
