@@ -478,6 +478,8 @@ The platform hardening sprint completed the following:
   arrays before normalization, routing, or retry bookkeeping.
 - Attachment scanner hook rejection/tempfail reasons are CR/LF-stripped and
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
+- Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
+  message IDs or recipient addresses cannot create oversized Redis keys.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and

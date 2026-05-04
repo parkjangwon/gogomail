@@ -121,6 +121,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   arrays before normalization, routing, or retry bookkeeping.
 - Attachment scanner hook rejection/tempfail reasons are CR/LF-stripped and
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
+- Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
+  message IDs or recipient addresses cannot create oversized Redis keys.
 - Redis outbox publishing trims event id, topic, partition key, and payload
   metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a

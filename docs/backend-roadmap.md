@@ -547,6 +547,7 @@ Implementation order:
 488. Delivery `mail.queued` DSN option decoding now rejects oversized `original_recipient` values before retry/delivery attempt recording.
 489. Delivery `mail.queued` decoding now rejects oversized recipient and DSN-recipient arrays before normalization, routing, or retry bookkeeping.
 490. Attachment scanner hook rejection/tempfail reasons are now CR/LF-stripped and UTF-8 safely bounded before they are surfaced as SMTP hook errors.
+491. Redis duplicate-message detection now uses fixed-length hashed dedup keys so raw message IDs or recipient addresses cannot create oversized Redis keys.
 
 ## Deferred until backend contracts stabilize
 
