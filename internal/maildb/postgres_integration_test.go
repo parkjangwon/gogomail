@@ -671,6 +671,57 @@ WHERE id = $1`, run.ID).Scan(&deletedCount, &ready, &dry, &readinessCandidateCou
 	}
 }
 
+func TestPostgresQuotaCorrectionRecordsAudit(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `UPDATE users SET quota_used = 123 WHERE id = $1`, seed.userID); err != nil {
+		t.Fatalf("seed quota drift: %v", err)
+	}
+	dryRun, err := repo.CorrectQuotaReconciliation(ctx, CorrectQuotaReconciliationRequest{
+		Scope:  "user",
+		ID:     seed.userID,
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("CorrectQuotaReconciliation dry-run returned error: %v", err)
+	}
+	if !dryRun.DryRun || len(dryRun.Corrected) != 1 {
+		t.Fatalf("dry quota correction = %+v", dryRun)
+	}
+	applied, err := repo.CorrectQuotaReconciliation(ctx, CorrectQuotaReconciliationRequest{
+		Scope: "user",
+		ID:    seed.userID,
+	})
+	if err != nil {
+		t.Fatalf("CorrectQuotaReconciliation returned error: %v", err)
+	}
+	if applied.DryRun || len(applied.Corrected) != 0 {
+		t.Fatalf("applied quota correction = %+v", applied)
+	}
+
+	var auditRows int
+	var beforeCount int
+	var afterCount int
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)::int,
+  max((detail->>'before_drift_count')::int),
+  min((detail->>'after_drift_count')::int)
+FROM audit_logs
+WHERE action = 'quota.reconciliation_correction'
+  AND target_type = 'user'
+  AND target_id = $1`, seed.userID).Scan(&auditRows, &beforeCount, &afterCount); err != nil {
+		t.Fatalf("query quota correction audit: %v", err)
+	}
+	if auditRows != 2 || beforeCount != 1 || afterCount != 0 {
+		t.Fatalf("quota correction audit rows/counts = %d/%d/%d, want 2/1/0", auditRows, beforeCount, afterCount)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 

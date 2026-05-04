@@ -116,7 +116,8 @@ guidance.
 - Admin API exposes a read-only quota reconciliation report comparing ledger
   counters with message and attachment source rows.
 - Admin API can run operator-controlled quota reconciliation corrections with
-  transaction/advisory locking.
+  transaction/advisory locking and bounded audit-log detail for dry-run and
+  applied correction attempts.
 - Product quota direction is company pool → domain allocation → user unified
   storage allowance. User quota should cover mailbox, attachments, future Drive,
   and other user-owned storage features.
@@ -488,7 +489,8 @@ The platform hardening sprint completed the following:
 - Quota operations read models: capacity fields and reconciliation reporting
   show ledger pressure and drift without mutating counters.
 - Quota correction actions: operators can explicitly apply reconciliation
-  results to company/domain/user ledgers after reviewing drift.
+  results to company/domain/user ledgers after reviewing drift, with dry-run and
+  applied correction attempts recorded in audit logs.
 - IMAP gateway planning: native backend interfaces, RFC-shaped flag/mailbox
   helpers, and durable UID/MODSEQ storage exist without starting a TCP protocol
   server.
