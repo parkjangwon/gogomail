@@ -86,13 +86,16 @@ Current state:
   messages to stored raw body paths.
 - `mailservice` can open UID-addressed IMAP messages as raw `io.ReadCloser`
   bodies for future IMAP FETCH handling.
+- `mailservice` can delegate IMAP STORE flag mutations to `maildb`, where
+  `\Seen`, `\Flagged`, and `\Answered` map to persisted JSON flags and MODSEQ
+  advances only for actual changes.
 
 Next:
 
-- Add IMAP flag mutation over the existing JSON flag model while preserving
-  explicit `\Deleted`/EXPUNGE deferral.
 - Backfill/assign UIDs for existing mailbox messages before enabling a live
   IMAP listener.
+- Harden move/delete mailbox-local UID semantics before exposing IMAP MOVE or
+  EXPUNGE.
 - Plan IMAP IDLE support for push-on-connect clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 

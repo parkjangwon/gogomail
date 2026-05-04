@@ -182,8 +182,9 @@ The platform hardening sprint completed the following:
   helpers, and durable UID/MODSEQ storage exist without starting a TCP protocol
   server.
 - The first IMAP adapter path can list/get mailboxes, list mailbox messages,
-  resolve messages by UID, and stream raw stored message bodies as
-  `internal/imapgw` DTOs while ensuring UID state.
+  resolve messages by UID, stream raw stored message bodies, and mutate
+  persisted IMAP-visible flags with MODSEQ advancement as `internal/imapgw`
+  DTOs while ensuring UID state.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
@@ -202,7 +203,8 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. Extend the IMAP adapter with flag mutation over the new UID/MODSEQ storage.
+3. Add an IMAP UID backfill path for existing mailbox contents before enabling
+   any live IMAP listener.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
