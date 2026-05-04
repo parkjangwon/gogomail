@@ -36,6 +36,15 @@ func TestHMACExportManifestSignerSignsAndVerifiesDigest(t *testing.T) {
 	if valid {
 		t.Fatal("signature should not verify with a different secret")
 	}
+
+	verifier := HMACExportManifestSignatureVerifier{Secret: []byte("secret")}
+	valid, err = verifier.VerifyExportManifestSignature(signature)
+	if err != nil {
+		t.Fatalf("verifier returned error: %v", err)
+	}
+	if !valid {
+		t.Fatal("verifier should accept signature")
+	}
 }
 
 func TestHMACExportManifestSignerRejectsInvalidInput(t *testing.T) {
