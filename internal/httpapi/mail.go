@@ -691,6 +691,8 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 				"metadata_reservation":       true,
 				"direct_multipart_upload":    true,
 				"cancel_pending_uploads":     true,
+				"upload_sessions":            true,
+				"cancel_upload_sessions":     true,
 				"resumable_chunked_uploads":  false,
 				"requires_declared_size":     true,
 				"quota_reserved_on_metadata": true,

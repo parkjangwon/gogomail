@@ -144,6 +144,8 @@ func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
 	for _, want := range []string{
 		"maximum: " + strconv.FormatInt(mailservice.MaxAttachmentUploadBytes, 10),
 		"maximum: " + strconv.Itoa(mailservice.MaxAttachmentFilenameBytes),
+		"upload_sessions",
+		"cancel_upload_sessions",
 		"resumable_chunked_uploads",
 	} {
 		if !strings.Contains(block, want) {

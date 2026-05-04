@@ -2879,6 +2879,8 @@ components:
         - metadata_reservation
         - direct_multipart_upload
         - cancel_pending_uploads
+        - upload_sessions
+        - cancel_upload_sessions
         - resumable_chunked_uploads
         - requires_declared_size
         - quota_reserved_on_metadata
@@ -2898,6 +2900,12 @@ components:
           type: boolean
         cancel_pending_uploads:
           type: boolean
+        upload_sessions:
+          type: boolean
+          description: True when clients can create quota-reserving upload sessions.
+        cancel_upload_sessions:
+          type: boolean
+          description: True when clients can cancel pending upload sessions.
         resumable_chunked_uploads:
           type: boolean
           description: False until resumable/chunked upload contracts are implemented.

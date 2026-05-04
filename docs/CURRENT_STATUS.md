@@ -646,6 +646,9 @@ The platform hardening sprint completed the following:
   `/api/v1/attachments/upload-sessions`, reserving declared quota at session
   creation while keeping chunked upload capability disabled until upload/finalize
   routes land.
+- Attachment upload capabilities now distinguish upload session availability
+  from full resumable chunk support so generated clients can adopt the staged
+  lifecycle without assuming chunk receive/finalize routes exist.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment
