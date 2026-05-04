@@ -220,6 +220,12 @@ type APIUsageLedgerListRequest struct {
 
 const APIUsageLedgerNoLimit = -1
 
+type APIUsageLedgerRetentionRequest struct {
+	Cutoff      time.Time
+	TenantID    string
+	PrincipalID string
+}
+
 type APIUsageLedgerStatsView struct {
 	EventCount       int64      `json:"event_count"`
 	RequestCount     int64      `json:"request_count"`
@@ -230,6 +236,32 @@ type APIUsageLedgerStatsView struct {
 	FirstEventAt     *time.Time `json:"first_event_at,omitempty"`
 	LastEventAt      *time.Time `json:"last_event_at,omitempty"`
 	LatencyMSAverage float64    `json:"latency_ms_average"`
+}
+
+type APIUsageLedgerRetentionReadinessView struct {
+	Cutoff                         time.Time  `json:"cutoff"`
+	TenantID                       string     `json:"tenant_id,omitempty"`
+	PrincipalID                    string     `json:"principal_id,omitempty"`
+	CandidateEventCount            int64      `json:"candidate_event_count"`
+	CandidateRequestCount          int64      `json:"candidate_request_count"`
+	CandidateRequestBytes          int64      `json:"candidate_request_bytes"`
+	CandidateResponseBytes         int64      `json:"candidate_response_bytes"`
+	CandidateLatencyMSTotal        int64      `json:"candidate_latency_ms_total"`
+	CandidateLatencyMSMax          int64      `json:"candidate_latency_ms_max"`
+	FirstCandidateEventAt          *time.Time `json:"first_candidate_event_at,omitempty"`
+	LastCandidateEventAt           *time.Time `json:"last_candidate_event_at,omitempty"`
+	LatestCandidateRecordedAt      *time.Time `json:"latest_candidate_recorded_at,omitempty"`
+	CoveringExportBatchID          string     `json:"covering_export_batch_id,omitempty"`
+	CoveringExportBatchCompletedAt *time.Time `json:"covering_export_batch_completed_at,omitempty"`
+	CoveringExportBatchWindowStart *time.Time `json:"covering_export_batch_window_start,omitempty"`
+	CoveringExportBatchWindowEnd   *time.Time `json:"covering_export_batch_window_end,omitempty"`
+	CoveringExportBatchEventCount  int64      `json:"covering_export_batch_event_count,omitempty"`
+	CoveringArtifactCount          int64      `json:"covering_artifact_count"`
+	CoveringArtifactEventCount     int64      `json:"covering_artifact_event_count"`
+	CoveringManifestDigestCount    int64      `json:"covering_manifest_digest_count"`
+	CoveringManifestSignatureCount int64      `json:"covering_manifest_signature_count"`
+	Ready                          bool       `json:"ready"`
+	BlockingReasons                []string   `json:"blocking_reasons"`
 }
 
 type APIUsageExportBatchView struct {
@@ -2241,6 +2273,174 @@ FROM api_usage_ledger`
 		stats.LatencyMSAverage = float64(stats.LatencyMSTotal) / float64(stats.RequestCount)
 	}
 	return stats, nil
+}
+
+func (r *Repository) GetAPIUsageLedgerRetentionReadiness(ctx context.Context, req APIUsageLedgerRetentionRequest) (APIUsageLedgerRetentionReadinessView, error) {
+	if r.db == nil {
+		return APIUsageLedgerRetentionReadinessView{}, fmt.Errorf("database handle is required")
+	}
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	req.PrincipalID = strings.TrimSpace(req.PrincipalID)
+	if req.Cutoff.IsZero() {
+		return APIUsageLedgerRetentionReadinessView{}, fmt.Errorf("cutoff is required")
+	}
+	req.Cutoff = req.Cutoff.UTC()
+
+	view := APIUsageLedgerRetentionReadinessView{
+		Cutoff:      req.Cutoff,
+		TenantID:    req.TenantID,
+		PrincipalID: req.PrincipalID,
+	}
+	query := `
+SELECT
+  count(*)::bigint,
+  COALESCE(sum(request_count), 0)::bigint,
+  COALESCE(sum(request_bytes), 0)::bigint,
+  COALESCE(sum(response_bytes), 0)::bigint,
+  COALESCE(sum(latency_ms), 0)::bigint,
+  COALESCE(max(latency_ms), 0)::bigint,
+  min(event_timestamp),
+  max(event_timestamp),
+  max(recorded_at)
+FROM api_usage_ledger`
+	var conditions []string
+	var args []any
+	args = append(args, req.Cutoff)
+	conditions = append(conditions, fmt.Sprintf("event_timestamp < $%d", len(args)))
+	if req.TenantID != "" {
+		args = append(args, req.TenantID)
+		conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", len(args)))
+	}
+	if req.PrincipalID != "" {
+		args = append(args, req.PrincipalID)
+		conditions = append(conditions, fmt.Sprintf("principal_id = $%d", len(args)))
+	}
+	query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+
+	var firstCandidateAt sql.NullTime
+	var lastCandidateAt sql.NullTime
+	var latestRecordedAt sql.NullTime
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&view.CandidateEventCount,
+		&view.CandidateRequestCount,
+		&view.CandidateRequestBytes,
+		&view.CandidateResponseBytes,
+		&view.CandidateLatencyMSTotal,
+		&view.CandidateLatencyMSMax,
+		&firstCandidateAt,
+		&lastCandidateAt,
+		&latestRecordedAt,
+	); err != nil {
+		return APIUsageLedgerRetentionReadinessView{}, fmt.Errorf("get api usage ledger retention candidates: %w", err)
+	}
+	if firstCandidateAt.Valid {
+		view.FirstCandidateEventAt = &firstCandidateAt.Time
+	}
+	if lastCandidateAt.Valid {
+		view.LastCandidateEventAt = &lastCandidateAt.Time
+	}
+	if latestRecordedAt.Valid {
+		view.LatestCandidateRecordedAt = &latestRecordedAt.Time
+	}
+	if view.CandidateEventCount > 0 && view.FirstCandidateEventAt != nil {
+		if err := r.findAPIUsageLedgerRetentionCoveringBatch(ctx, req, view.FirstCandidateEventAt, &view); err != nil {
+			return APIUsageLedgerRetentionReadinessView{}, err
+		}
+	}
+	applyAPIUsageLedgerRetentionReadiness(&view)
+	return view, nil
+}
+
+func (r *Repository) findAPIUsageLedgerRetentionCoveringBatch(ctx context.Context, req APIUsageLedgerRetentionRequest, firstCandidateAt *time.Time, view *APIUsageLedgerRetentionReadinessView) error {
+	const query = `
+SELECT
+  b.id,
+  b.completed_at,
+  b.window_start,
+  b.window_end,
+  b.event_count,
+  COALESCE(a.artifact_count, 0)::bigint,
+  COALESCE(a.artifact_event_count, 0)::bigint,
+  COALESCE(d.digest_count, 0)::bigint,
+  COALESCE(s.signature_count, 0)::bigint
+FROM api_usage_export_batches b
+LEFT JOIN LATERAL (
+  SELECT count(*)::bigint AS artifact_count, COALESCE(sum(event_count), 0)::bigint AS artifact_event_count
+  FROM api_usage_export_artifacts
+  WHERE batch_id = b.id
+) a ON true
+LEFT JOIN LATERAL (
+  SELECT count(*)::bigint AS digest_count
+  FROM api_usage_export_manifest_digests
+  WHERE batch_id = b.id
+) d ON true
+LEFT JOIN LATERAL (
+  SELECT count(*)::bigint AS signature_count
+  FROM api_usage_export_manifest_signatures
+  WHERE batch_id = b.id
+) s ON true
+WHERE b.status = 'completed'
+  AND b.completed_at IS NOT NULL
+  AND b.tenant_id = $1
+  AND b.principal_id = $2
+  AND (b.window_start IS NULL OR b.window_start <= $3)
+  AND b.window_end IS NOT NULL
+  AND b.window_end >= $4
+ORDER BY b.completed_at DESC, b.id DESC
+LIMIT 1`
+	var completedAt sql.NullTime
+	var windowStart sql.NullTime
+	var windowEnd sql.NullTime
+	err := r.db.QueryRowContext(ctx, query, req.TenantID, req.PrincipalID, firstCandidateAt.UTC(), req.Cutoff).Scan(
+		&view.CoveringExportBatchID,
+		&completedAt,
+		&windowStart,
+		&windowEnd,
+		&view.CoveringExportBatchEventCount,
+		&view.CoveringArtifactCount,
+		&view.CoveringArtifactEventCount,
+		&view.CoveringManifestDigestCount,
+		&view.CoveringManifestSignatureCount,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("get api usage ledger retention covering export batch: %w", err)
+	}
+	if completedAt.Valid {
+		view.CoveringExportBatchCompletedAt = &completedAt.Time
+	}
+	if windowStart.Valid {
+		view.CoveringExportBatchWindowStart = &windowStart.Time
+	}
+	if windowEnd.Valid {
+		view.CoveringExportBatchWindowEnd = &windowEnd.Time
+	}
+	return nil
+}
+
+func applyAPIUsageLedgerRetentionReadiness(view *APIUsageLedgerRetentionReadinessView) {
+	var blocking []string
+	if view.CandidateEventCount > 0 {
+		if view.CoveringExportBatchID == "" {
+			blocking = append(blocking, "covering_export_batch_required")
+		}
+		if view.CoveringExportBatchCompletedAt != nil && view.LatestCandidateRecordedAt != nil && view.CoveringExportBatchCompletedAt.Before(*view.LatestCandidateRecordedAt) {
+			blocking = append(blocking, "covering_export_batch_stale")
+		}
+		if view.CoveringExportBatchID != "" && (view.CoveringArtifactCount == 0 || view.CoveringArtifactEventCount < view.CoveringExportBatchEventCount) {
+			blocking = append(blocking, "covering_export_artifact_required")
+		}
+		if view.CoveringExportBatchID != "" && view.CoveringManifestDigestCount == 0 {
+			blocking = append(blocking, "covering_manifest_digest_required")
+		}
+		if view.CoveringExportBatchID != "" && view.CoveringManifestSignatureCount == 0 {
+			blocking = append(blocking, "covering_manifest_signature_required")
+		}
+	}
+	view.BlockingReasons = blocking
+	view.Ready = len(blocking) == 0
 }
 
 func (r *Repository) CreateAPIUsageExportBatch(ctx context.Context, req APIUsageLedgerListRequest) (APIUsageExportBatchView, error) {

@@ -47,6 +47,14 @@ The immutable ledger is exposed through bounded Admin API list, NDJSON export,
 and stats endpoints so billing or warehouse jobs can consume event-level data
 instead of operational aggregates.
 
+Retention and archival must remain gated by explicit export evidence. The Admin
+API exposes a read-only retention readiness report for a cutoff and optional
+tenant/principal filters. It marks rows ready only when no candidates exist or a
+completed export batch with matching filters covers the candidate time range
+through the cutoff, was completed after the latest candidate row was recorded,
+and has artifact, manifest digest, and signature evidence. Actual archive/delete
+jobs remain deferred behind that operator-visible gate.
+
 Operators can also create persisted export batch manifests over a bounded
 ledger window. A saved batch fixes the filter window and totals, and can be
 replayed as NDJSON by batch ID.

@@ -51,6 +51,7 @@ type AdminService interface {
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
 	GetAPIUsageLedgerStats(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error)
+	GetAPIUsageLedgerRetentionReadiness(ctx context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
@@ -493,6 +494,19 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_stats": stats})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		req, ok := parseAPIUsageLedgerRetentionRequest(w, r)
+		if !ok {
+			return
+		}
+		readiness, err := service.GetAPIUsageLedgerRetentionReadiness(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_readiness": readiness})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -1154,6 +1168,22 @@ func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limi
 		return maildb.APIUsageLedgerListRequest{}, false
 	}
 	return req, true
+}
+
+func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request) (maildb.APIUsageLedgerRetentionRequest, bool) {
+	cutoff, ok := parseOptionalRFC3339Query(w, r, "cutoff")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	if cutoff.IsZero() {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	return maildb.APIUsageLedgerRetentionRequest{
+		Cutoff:      cutoff,
+		TenantID:    r.URL.Query().Get("tenant_id"),
+		PrincipalID: r.URL.Query().Get("principal_id"),
+	}, true
 }
 
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {

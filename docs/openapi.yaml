@@ -547,6 +547,31 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerStats"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/ledger/retention-readiness:
+    get:
+      operationId: getAdminAPIUsageLedgerRetentionReadiness
+      summary: Check whether immutable API usage ledger rows are ready for retention handling
+      parameters:
+        - name: cutoff
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive RFC3339 event timestamp upper bound for retention candidates.
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: principal_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerRetentionReadiness"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches:
     get:
       operationId: listAdminAPIUsageExportBatches
@@ -1612,6 +1637,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerStatsEnvelope"
+    APIUsageLedgerRetentionReadiness:
+      description: Immutable API usage ledger retention readiness envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageLedgerRetentionReadinessEnvelope"
     APIUsageExportArtifact:
       description: API usage export artifact envelope
       content:
@@ -2743,6 +2774,99 @@ components:
       properties:
         api_usage_ledger_stats:
           $ref: "#/components/schemas/APIUsageLedgerStats"
+    APIUsageLedgerRetentionReadiness:
+      type: object
+      required: [cutoff, candidate_event_count, candidate_request_count, candidate_request_bytes, candidate_response_bytes, candidate_latency_ms_total, candidate_latency_ms_max, covering_artifact_count, covering_artifact_event_count, covering_manifest_digest_count, covering_manifest_signature_count, ready, blocking_reasons]
+      properties:
+        cutoff:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+        principal_id:
+          type: string
+        candidate_event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        candidate_request_count:
+          type: integer
+          format: int64
+          minimum: 0
+        candidate_request_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        candidate_response_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        candidate_latency_ms_total:
+          type: integer
+          format: int64
+          minimum: 0
+        candidate_latency_ms_max:
+          type: integer
+          format: int64
+          minimum: 0
+        first_candidate_event_at:
+          type: string
+          format: date-time
+        last_candidate_event_at:
+          type: string
+          format: date-time
+        latest_candidate_recorded_at:
+          type: string
+          format: date-time
+        covering_export_batch_id:
+          type: string
+        covering_export_batch_completed_at:
+          type: string
+          format: date-time
+        covering_export_batch_window_start:
+          type: string
+          format: date-time
+        covering_export_batch_window_end:
+          type: string
+          format: date-time
+        covering_export_batch_event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        covering_artifact_count:
+          type: integer
+          format: int64
+          minimum: 0
+        covering_artifact_event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        covering_manifest_digest_count:
+          type: integer
+          format: int64
+          minimum: 0
+        covering_manifest_signature_count:
+          type: integer
+          format: int64
+          minimum: 0
+        ready:
+          type: boolean
+        blocking_reasons:
+          type: array
+          items:
+            type: string
+            enum:
+              - covering_export_batch_required
+              - covering_export_batch_stale
+              - covering_export_artifact_required
+              - covering_manifest_digest_required
+              - covering_manifest_signature_required
+    APIUsageLedgerRetentionReadinessEnvelope:
+      type: object
+      required: [api_usage_ledger_retention_readiness]
+      properties:
+        api_usage_ledger_retention_readiness:
+          $ref: "#/components/schemas/APIUsageLedgerRetentionReadiness"
     APIUsageExportBatch:
       type: object
       required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]

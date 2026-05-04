@@ -98,6 +98,10 @@ guidance.
   upserts. Admin API exposes bounded ledger list, NDJSON export, and stats
   endpoints for billing/export preparation while keeping HTTP request handling
   fail-open.
+- Admin API exposes API usage ledger retention readiness so operators can check
+  whether cutoff-bound ledger rows are covered by a completed export batch with
+  artifact, manifest digest, and signature evidence before any future archive or
+  purge job is allowed.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID.

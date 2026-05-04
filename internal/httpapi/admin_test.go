@@ -378,6 +378,61 @@ func TestAdminAPIUsageLedgerStatsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageLedgerRetentionReadinessHandler(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		apiUsageLedgerRetentionReadiness: maildb.APIUsageLedgerRetentionReadinessView{
+			Cutoff:                cutoff,
+			TenantID:              "tenant-1",
+			PrincipalID:           "principal-1",
+			CandidateEventCount:   10,
+			CandidateRequestCount: 10,
+			CoveringExportBatchID: "api-usage-export-1",
+			Ready:                 true,
+			BlockingReasons:       []string{},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness?cutoff=2026-05-05T00:00:00Z&tenant_id=tenant-1&principal_id=principal-1", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Readiness maildb.APIUsageLedgerRetentionReadinessView `json:"api_usage_ledger_retention_readiness"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.Readiness.Ready || body.Readiness.CoveringExportBatchID != "api-usage-export-1" {
+		t.Fatalf("readiness = %+v", body.Readiness)
+	}
+	if service.lastAPIUsageLedgerRetention.TenantID != "tenant-1" || service.lastAPIUsageLedgerRetention.PrincipalID != "principal-1" || service.lastAPIUsageLedgerRetention.Cutoff.IsZero() {
+		t.Fatalf("lastAPIUsageLedgerRetention = %+v", service.lastAPIUsageLedgerRetention)
+	}
+}
+
+func TestAdminAPIUsageLedgerRetentionReadinessRequiresCutoff(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestAdminCreateAPIUsageExportBatchHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2288,6 +2343,7 @@ type fakeAdminService struct {
 	apiUsageMonthly                             []maildb.APIUsageMonthlyView
 	apiUsageLedger                              []maildb.APIUsageLedgerView
 	apiUsageLedgerStats                         maildb.APIUsageLedgerStatsView
+	apiUsageLedgerRetentionReadiness            maildb.APIUsageLedgerRetentionReadinessView
 	apiUsageExportCapabilities                  maildb.APIUsageExportCapabilityView
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
@@ -2327,6 +2383,7 @@ type fakeAdminService struct {
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
+	lastAPIUsageLedgerRetention                 maildb.APIUsageLedgerRetentionRequest
 	lastAPIUsageExportCapabilities              bool
 	lastAPIUsageExportBatchID                   string
 	lastAPIUsageExportHandoffDeep               bool
@@ -2499,6 +2556,11 @@ func (f *fakeAdminService) ListAPIUsageLedger(_ context.Context, req maildb.APIU
 func (f *fakeAdminService) GetAPIUsageLedgerStats(_ context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error) {
 	f.lastAPIUsageLedgerList = req
 	return f.apiUsageLedgerStats, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageLedgerRetentionReadiness(_ context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error) {
+	f.lastAPIUsageLedgerRetention = req
+	return f.apiUsageLedgerRetentionReadiness, nil
 }
 
 func (f *fakeAdminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {
