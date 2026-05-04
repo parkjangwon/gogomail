@@ -2294,6 +2294,61 @@ WHERE id = $1`
 	return batch, nil
 }
 
+func (r *Repository) CreateAPIUsageExportArtifact(ctx context.Context, req CreateAPIUsageExportArtifactRequest) (APIUsageExportArtifactView, error) {
+	if r.db == nil {
+		return APIUsageExportArtifactView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateCreateAPIUsageExportArtifactRequest(&req); err != nil {
+		return APIUsageExportArtifactView{}, err
+	}
+	id, err := newAPIUsageExportArtifactID()
+	if err != nil {
+		return APIUsageExportArtifactView{}, err
+	}
+	const query = `
+INSERT INTO api_usage_export_artifacts (
+  id,
+  batch_id,
+  storage_backend,
+  object_key,
+  content_type,
+  byte_count,
+  sha256_hex,
+  event_count,
+  metadata
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
+  byte_count, sha256_hex, event_count, metadata`
+	var artifact APIUsageExportArtifactView
+	if err := r.db.QueryRowContext(
+		ctx,
+		query,
+		id,
+		req.BatchID,
+		req.StorageBackend,
+		req.ObjectKey,
+		req.ContentType,
+		req.ByteCount,
+		req.SHA256Hex,
+		req.EventCount,
+		req.Metadata,
+	).Scan(
+		&artifact.ID,
+		&artifact.BatchID,
+		&artifact.CreatedAt,
+		&artifact.StorageBackend,
+		&artifact.ObjectKey,
+		&artifact.ContentType,
+		&artifact.ByteCount,
+		&artifact.SHA256Hex,
+		&artifact.EventCount,
+		&artifact.Metadata,
+	); err != nil {
+		return APIUsageExportArtifactView{}, fmt.Errorf("create api usage export artifact: %w", err)
+	}
+	return artifact, nil
+}
+
 func ValidateCreateAPIUsageExportArtifactRequest(req *CreateAPIUsageExportArtifactRequest) error {
 	req.BatchID = strings.TrimSpace(req.BatchID)
 	req.StorageBackend = strings.TrimSpace(req.StorageBackend)
@@ -2355,6 +2410,14 @@ func newAPIUsageExportBatchID() (string, error) {
 		return "", fmt.Errorf("generate api usage export batch id: %w", err)
 	}
 	return "api-usage-export-" + hex.EncodeToString(random[:]), nil
+}
+
+func newAPIUsageExportArtifactID() (string, error) {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate api usage export artifact id: %w", err)
+	}
+	return "api-usage-artifact-" + hex.EncodeToString(random[:]), nil
 }
 
 func optionalTimeString(value time.Time) string {
