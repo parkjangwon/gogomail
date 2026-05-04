@@ -2186,7 +2186,7 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=bounced&recipient_domain=example.net&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=%20bounced%20&recipient_domain=%20example.net%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2254,7 +2254,7 @@ func TestAdminDeliveryAttemptStatsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?status=failed&recipient_domain=example.net&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?status=%20failed%20&recipient_domain=%20example.net%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2329,7 +2329,7 @@ func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?limit=10&recipient_domain=example.net&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?limit=10&recipient_domain=%20example.net%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
