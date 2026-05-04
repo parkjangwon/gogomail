@@ -3660,6 +3660,9 @@ components:
           type: string
         farm:
           type: string
+        sender:
+          type: string
+          format: email
         recipient:
           type: string
           format: email
@@ -3668,8 +3671,25 @@ components:
         status:
           type: string
           enum: [delivered, failed, bounced, exhausted]
+        enhanced_status:
+          type: string
+          description: RFC 3463 enhanced status code captured from SMTP diagnostics or fallback status class.
         error_message:
           type: string
+        dsn_return:
+          type: string
+          description: RFC 3461 RET value carried by the delivery job.
+        dsn_envelope_id:
+          type: string
+          description: RFC 3461 ENVID value carried by the delivery job.
+        dsn_notify:
+          type: array
+          items:
+            type: string
+          description: RFC 3461 NOTIFY values for this recipient.
+        original_recipient:
+          type: string
+          description: RFC 3461 ORCPT value for this recipient.
         attempted_at:
           type: string
           format: date-time

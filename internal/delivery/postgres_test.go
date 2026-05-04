@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -71,5 +72,35 @@ func TestShouldSuppressBouncedRecipientSkipsNullReversePath(t *testing.T) {
 	}
 	if shouldSuppressBouncedRecipient(Attempt{Status: AttemptFailed, Sender: "sender@example.com"}) {
 		t.Fatal("temporary failure should not create suppression entries")
+	}
+}
+
+func TestDeliveryAttemptDiagnosticsBoundsFields(t *testing.T) {
+	t.Parallel()
+
+	diagnostics, err := deliveryAttemptDiagnostics(Attempt{
+		Sender:            strings.Repeat("s", 400),
+		EnhancedStatus:    strings.Repeat("e", 80),
+		DSNReturn:         " HDRS ",
+		DSNEnvelopeID:     strings.Repeat("i", 120),
+		DSNNotify:         []string{"FAILURE", "DELAY"},
+		OriginalRecipient: strings.Repeat("o", 600),
+	})
+	if err != nil {
+		t.Fatalf("deliveryAttemptDiagnostics returned error: %v", err)
+	}
+	if len(diagnostics.Sender) != 320 || len(diagnostics.EnhancedStatus) != 64 || len(diagnostics.DSNEnvelopeID) != 100 || len(diagnostics.OriginalRecipient) != 500 {
+		t.Fatalf("diagnostics not bounded: %+v", diagnostics)
+	}
+	if diagnostics.DSNReturn != "HDRS" || string(diagnostics.DSNNotify) != `["FAILURE","DELAY"]` {
+		t.Fatalf("diagnostics DSN fields = %+v", diagnostics)
+	}
+
+	empty, err := deliveryAttemptDiagnostics(Attempt{})
+	if err != nil {
+		t.Fatalf("deliveryAttemptDiagnostics empty returned error: %v", err)
+	}
+	if string(empty.DSNNotify) != "[]" {
+		t.Fatalf("empty DSNNotify = %s, want []", empty.DSNNotify)
 	}
 }

@@ -458,15 +458,21 @@ type WriteAPIUsageExportArtifactRequest struct {
 }
 
 type DeliveryAttemptView struct {
-	ID              string    `json:"id"`
-	MessageID       string    `json:"message_id"`
-	RFCMessageID    string    `json:"rfc_message_id"`
-	Farm            string    `json:"farm"`
-	Recipient       string    `json:"recipient"`
-	RecipientDomain string    `json:"recipient_domain"`
-	Status          string    `json:"status"`
-	ErrorMessage    string    `json:"error_message"`
-	AttemptedAt     time.Time `json:"attempted_at"`
+	ID                string    `json:"id"`
+	MessageID         string    `json:"message_id"`
+	RFCMessageID      string    `json:"rfc_message_id"`
+	Farm              string    `json:"farm"`
+	Sender            string    `json:"sender,omitempty"`
+	Recipient         string    `json:"recipient"`
+	RecipientDomain   string    `json:"recipient_domain"`
+	Status            string    `json:"status"`
+	EnhancedStatus    string    `json:"enhanced_status,omitempty"`
+	ErrorMessage      string    `json:"error_message"`
+	DSNReturn         string    `json:"dsn_return,omitempty"`
+	DSNEnvelopeID     string    `json:"dsn_envelope_id,omitempty"`
+	DSNNotify         []string  `json:"dsn_notify,omitempty"`
+	OriginalRecipient string    `json:"original_recipient,omitempty"`
+	AttemptedAt       time.Time `json:"attempted_at"`
 }
 
 type DeliveryAttemptListRequest struct {
@@ -490,6 +496,39 @@ type DeliveryAttemptStatsView struct {
 	Failed           int64 `json:"failed"`
 	Bounced          int64 `json:"bounced"`
 	Exhausted        int64 `json:"exhausted"`
+}
+
+type deliveryAttemptScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanDeliveryAttempt(scanner deliveryAttemptScanner, attempt *DeliveryAttemptView) error {
+	var dsnNotify json.RawMessage
+	if err := scanner.Scan(
+		&attempt.ID,
+		&attempt.MessageID,
+		&attempt.RFCMessageID,
+		&attempt.Farm,
+		&attempt.Sender,
+		&attempt.Recipient,
+		&attempt.RecipientDomain,
+		&attempt.Status,
+		&attempt.EnhancedStatus,
+		&attempt.ErrorMessage,
+		&attempt.DSNReturn,
+		&attempt.DSNEnvelopeID,
+		&dsnNotify,
+		&attempt.OriginalRecipient,
+		&attempt.AttemptedAt,
+	); err != nil {
+		return err
+	}
+	if len(dsnNotify) > 0 {
+		if err := json.Unmarshal(dsnNotify, &attempt.DSNNotify); err != nil {
+			return fmt.Errorf("decode delivery attempt dsn notify: %w", err)
+		}
+	}
+	return nil
 }
 
 type ExhaustedAttemptListRequest struct {
@@ -3743,10 +3782,16 @@ SELECT
   message_id::text,
   rfc_message_id,
   farm,
+  sender,
   recipient,
   recipient_domain,
   status,
+  enhanced_status,
   error_message,
+  dsn_return,
+  dsn_envelope_id,
+  dsn_notify,
+  original_recipient,
   attempted_at
 FROM delivery_attempts
 WHERE (NULLIF($2, '') IS NULL OR status = $2)
@@ -3764,17 +3809,7 @@ LIMIT $1`
 	var attempts []DeliveryAttemptView
 	for rows.Next() {
 		var attempt DeliveryAttemptView
-		if err := rows.Scan(
-			&attempt.ID,
-			&attempt.MessageID,
-			&attempt.RFCMessageID,
-			&attempt.Farm,
-			&attempt.Recipient,
-			&attempt.RecipientDomain,
-			&attempt.Status,
-			&attempt.ErrorMessage,
-			&attempt.AttemptedAt,
-		); err != nil {
+		if err := scanDeliveryAttempt(rows, &attempt); err != nil {
 			return nil, fmt.Errorf("scan delivery attempt: %w", err)
 		}
 		attempts = append(attempts, attempt)
@@ -3849,10 +3884,16 @@ SELECT
   message_id::text,
   rfc_message_id,
   farm,
+  sender,
   recipient,
   recipient_domain,
   status,
+  enhanced_status,
   error_message,
+  dsn_return,
+  dsn_envelope_id,
+  dsn_notify,
+  original_recipient,
   attempted_at
 FROM delivery_attempts
 WHERE status = 'exhausted'
@@ -3870,17 +3911,7 @@ LIMIT $1`
 	var attempts []DeliveryAttemptView
 	for rows.Next() {
 		var attempt DeliveryAttemptView
-		if err := rows.Scan(
-			&attempt.ID,
-			&attempt.MessageID,
-			&attempt.RFCMessageID,
-			&attempt.Farm,
-			&attempt.Recipient,
-			&attempt.RecipientDomain,
-			&attempt.Status,
-			&attempt.ErrorMessage,
-			&attempt.AttemptedAt,
-		); err != nil {
+		if err := scanDeliveryAttempt(rows, &attempt); err != nil {
 			return nil, fmt.Errorf("scan exhausted delivery attempt: %w", err)
 		}
 		attempts = append(attempts, attempt)
