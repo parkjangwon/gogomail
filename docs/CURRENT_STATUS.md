@@ -528,6 +528,9 @@ The platform hardening sprint completed the following:
   the HTTP boundary before service dispatch and response envelopes.
 - Admin API suppression-list and trusted-relay delete path identifiers are
   trimmed at the HTTP boundary before service dispatch and response envelopes.
+- Admin API company, domain, and user quota/status/policy mutation path
+  identifiers are trimmed at the HTTP boundary before service dispatch and
+  response envelopes.
 - Admin API outbox event topic, partition key, and status filters are trimmed
   at the HTTP boundary before operational queue inspection.
 - Admin API delivery-attempt status and recipient-domain filters are trimmed at

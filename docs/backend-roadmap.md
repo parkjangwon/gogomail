@@ -500,6 +500,7 @@ Implementation order:
 441. API usage export manifest signing now rejects blank, CR/LF-bearing, or oversized key IDs for local and remote signer metadata before signature evidence is returned.
 442. Admin API DKIM key deactivate and DNS-verify path identifiers are now trimmed before service dispatch and response envelopes, aligning DKIM operations with other Admin route ID handling.
 443. Admin API suppression-list and trusted-relay delete path identifiers are now trimmed before service dispatch and response envelopes, aligning operator delete routes with other Admin ID handling.
+444. Admin API company, domain, and user quota/status/policy mutation path identifiers are now trimmed before service dispatch and response envelopes, keeping operator mutations tolerant of incidental URL whitespace.
 
 ## Deferred until backend contracts stabilize
 
