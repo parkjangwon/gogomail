@@ -64,3 +64,16 @@ func TestMailStoredAuditLog(t *testing.T) {
 		t.Fatal("Detail is not valid JSON")
 	}
 }
+
+func TestMailStoredAuditLogRejectsUnsupportedSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	_, err := MailStoredAuditLog([]byte(`{
+		"event":"mail.stored",
+		"schema_version":"2099-01-01.mail-stored.v9",
+		"message_id":"018f0000-0000-7000-8000-000000000001"
+	}`))
+	if err == nil {
+		t.Fatal("MailStoredAuditLog accepted unsupported schema version")
+	}
+}

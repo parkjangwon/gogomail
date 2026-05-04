@@ -117,6 +117,27 @@ func TestHandlerRejectsMissingRequiredFields(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsUnsupportedSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	indexer := &fakeIndexer{}
+	handler := NewHandler(fakeStore{}, indexer, HandlerOptions{})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: mustJSON(t, Event{
+		Event:         "mail.stored",
+		SchemaVersion: "2099-01-01.mail-stored.v9",
+		MessageID:     "msg-1",
+		UserID:        "user-1",
+		StoragePath:   "messages/msg-1.eml",
+	})})
+	if err == nil {
+		t.Fatal("HandleEvent returned nil, want schema version validation error")
+	}
+	if !strings.Contains(err.Error(), "schema_version") {
+		t.Fatalf("error = %q, want schema_version", err.Error())
+	}
+}
+
 func TestHandlerIndexesBoundedTruncatedBody(t *testing.T) {
 	store := fakeStore{
 		"messages/msg-1.eml": "Subject: Long\r\n\r\nabcdefghijklmnopqrstuvwxyz",

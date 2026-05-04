@@ -83,6 +83,20 @@ func TestDecodeEventRequiresStoredMessageIdentity(t *testing.T) {
 	}
 }
 
+func TestDecodeEventRejectsUnsupportedSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeEvent(json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2099-01-01.mail-stored.v9",
+		"message_id":"msg-1",
+		"user_id":"user-1"
+	}`))
+	if err == nil {
+		t.Fatal("DecodeEvent accepted unsupported schema version")
+	}
+}
+
 type fakeSink struct {
 	calls int
 	last  Notification

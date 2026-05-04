@@ -153,7 +153,9 @@ The committed `mail.stored` event includes
 `schema_version: "2026-05-04.mail-stored.v1"` plus message, tenant, recipient,
 subject, storage, DSN, and authentication fields used by audit, search, and
 push workers. Downstream workers should treat the schema version as the
-compatibility boundary for future event changes.
+compatibility boundary for future event changes; current audit, search, and
+push consumers reject unknown explicit versions while accepting legacy
+versionless events.
 
 ## Admin operations
 

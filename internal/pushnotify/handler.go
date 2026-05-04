@@ -10,18 +10,22 @@ import (
 	"github.com/gogomail/gogomail/internal/eventstream"
 )
 
-const EventMailStored = "mail.stored"
+const (
+	EventMailStored           = "mail.stored"
+	MailStoredSchemaVersionV1 = "2026-05-04.mail-stored.v1"
+)
 
 type Event struct {
-	Event        string `json:"event"`
-	MessageID    string `json:"message_id"`
-	RFCMessageID string `json:"rfc_message_id"`
-	CompanyID    string `json:"company_id"`
-	DomainID     string `json:"domain_id"`
-	UserID       string `json:"user_id"`
-	Recipient    string `json:"recipient"`
-	Subject      string `json:"subject"`
-	ReceivedAt   string `json:"received_at"`
+	Event         string `json:"event"`
+	SchemaVersion string `json:"schema_version"`
+	MessageID     string `json:"message_id"`
+	RFCMessageID  string `json:"rfc_message_id"`
+	CompanyID     string `json:"company_id"`
+	DomainID      string `json:"domain_id"`
+	UserID        string `json:"user_id"`
+	Recipient     string `json:"recipient"`
+	Subject       string `json:"subject"`
+	ReceivedAt    string `json:"received_at"`
 }
 
 type Notification struct {
@@ -153,6 +157,10 @@ func validateEvent(event *Event) error {
 	event.Event = strings.TrimSpace(event.Event)
 	if event.Event != EventMailStored {
 		return fmt.Errorf("unexpected push notification event %q", event.Event)
+	}
+	event.SchemaVersion = strings.TrimSpace(event.SchemaVersion)
+	if event.SchemaVersion != "" && event.SchemaVersion != MailStoredSchemaVersionV1 {
+		return fmt.Errorf("unsupported mail.stored push schema_version %q", event.SchemaVersion)
 	}
 	var err error
 	if event.MessageID, err = requiredValue("message_id", event.MessageID); err != nil {

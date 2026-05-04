@@ -107,6 +107,9 @@ guidance.
 - `mail.stored` events now carry an explicit
   `2026-05-04.mail-stored.v1` schema version for downstream audit, search, and
   push workers.
+- Audit, search indexing, and push notification consumers reject unsupported
+  explicit `mail.stored` schema versions while accepting versionless legacy
+  events.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
