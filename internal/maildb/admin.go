@@ -357,6 +357,20 @@ type APIUsageExportHandoffView struct {
 	ManifestSignatureVerification *APIUsageExportManifestSignatureVerificationView `json:"manifest_signature_verification,omitempty"`
 }
 
+type APIUsageExportCapabilityView struct {
+	ExportFormat                  string   `json:"export_format"`
+	ArtifactContentType           string   `json:"artifact_content_type"`
+	ManifestDigestAlgorithm       string   `json:"manifest_digest_algorithm"`
+	SignerBackend                 string   `json:"signer_backend"`
+	SignerConfigured              bool     `json:"signer_configured"`
+	SignerKeyID                   string   `json:"signer_key_id,omitempty"`
+	VerifierConfigured            bool     `json:"verifier_configured"`
+	ProductionSignatureReady      bool     `json:"production_signature_ready"`
+	BillingReadySupported         bool     `json:"billing_ready_supported"`
+	VerifiedBillingReadySupported bool     `json:"verified_billing_ready_supported"`
+	BlockingReasons               []string `json:"blocking_reasons,omitempty"`
+}
+
 type CreateAPIUsageExportManifestSignatureRequest struct {
 	BatchID       string                           `json:"-"`
 	DigestID      string                           `json:"-"`

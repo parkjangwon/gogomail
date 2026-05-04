@@ -587,6 +587,15 @@ paths:
           $ref: "#/components/responses/APIUsageExportBatch"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-capabilities:
+    get:
+      operationId: getAdminAPIUsageExportCapabilities
+      summary: Inspect API usage export signing and verification capabilities
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportCapabilities"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches/{id}:
     get:
       operationId: getAdminAPIUsageExportBatch
@@ -1680,6 +1689,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportBatchListEnvelope"
+    APIUsageExportCapabilities:
+      description: API usage export signing and verification capabilities envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportCapabilitiesEnvelope"
     APIUsageExportHandoffReadiness:
       description: API usage export batch handoff readiness envelope
       content:
@@ -2803,6 +2818,56 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportBatch"
+    APIUsageExportCapabilities:
+      type: object
+      required:
+        - export_format
+        - artifact_content_type
+        - manifest_digest_algorithm
+        - signer_backend
+        - signer_configured
+        - verifier_configured
+        - production_signature_ready
+        - billing_ready_supported
+        - verified_billing_ready_supported
+      properties:
+        export_format:
+          type: string
+          enum: [ndjson]
+        artifact_content_type:
+          type: string
+          enum: [application/x-ndjson]
+        manifest_digest_algorithm:
+          type: string
+          enum: [sha256]
+        signer_backend:
+          type: string
+        signer_configured:
+          type: boolean
+        signer_key_id:
+          type: string
+        verifier_configured:
+          type: boolean
+        production_signature_ready:
+          type: boolean
+        billing_ready_supported:
+          type: boolean
+        verified_billing_ready_supported:
+          type: boolean
+        blocking_reasons:
+          type: array
+          items:
+            type: string
+            enum:
+              - manifest_signer_not_configured
+              - manifest_signature_verifier_not_configured
+              - production_manifest_signer_required
+    APIUsageExportCapabilitiesEnvelope:
+      type: object
+      required: [api_usage_export_capabilities]
+      properties:
+        api_usage_export_capabilities:
+          $ref: "#/components/schemas/APIUsageExportCapabilities"
     APIUsageExportHandoffReadiness:
       type: object
       required:
