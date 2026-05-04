@@ -3892,10 +3892,24 @@ components:
           minimum: 1
           maximum: 1000
           default: 100
+        dry_run:
+          type: boolean
+          default: false
+          description: When true, preview matching stale uploads without expiring rows or deleting stored objects.
     AttachmentCleanupRun:
       type: object
-      required: [expired_count, before, limit]
+      required: [dry_run, candidate_count, limited_count, expired_count, before, limit]
       properties:
+        dry_run:
+          type: boolean
+        candidate_count:
+          type: integer
+          minimum: 0
+          description: Total stale uploading attachments matching the cutoff before the run.
+        limited_count:
+          type: integer
+          minimum: 0
+          description: Number of matching attachments eligible under the normalized batch limit.
         expired_count:
           type: integer
           minimum: 0

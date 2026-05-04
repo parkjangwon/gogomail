@@ -1046,11 +1046,13 @@ type fakeRepository struct {
 	lastDraft                      maildb.SaveDraftRequest
 	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
+	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentUserID           string
 	lastAttachmentMessageID        string
 	lastAttachmentID               string
 	attachment                     maildb.Attachment
 	expiredAttachments             []maildb.Attachment
+	staleAttachmentCount           maildb.StaleAttachmentUploadCount
 	lastListFoldersUserID          string
 	lastCreateFolder               maildb.CreateFolderRequest
 	lastRenameFolderUserID         string
@@ -1418,6 +1420,11 @@ func (f *fakeRepository) ExpireStaleAttachmentUploads(_ context.Context, req mai
 	return f.expiredAttachments, nil
 }
 
+func (f *fakeRepository) CountStaleAttachmentUploads(_ context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) (maildb.StaleAttachmentUploadCount, error) {
+	f.lastAttachmentCleanupCount = req
+	return f.staleAttachmentCount, nil
+}
+
 func TestExpireStaleAttachmentUploadsDeletesStoredObjects(t *testing.T) {
 	t.Parallel()
 
@@ -1512,6 +1519,30 @@ func TestExpireStaleAttachmentUploadsValidatesRequestBeforeRepository(t *testing
 	}
 	if !repo.lastAttachmentCleanup.Before.IsZero() {
 		t.Fatalf("repository was called with %+v", repo.lastAttachmentCleanup)
+	}
+}
+
+func TestCountStaleAttachmentUploadsUsesRepositoryPreview(t *testing.T) {
+	t.Parallel()
+
+	before := time.Now()
+	repo := &fakeRepository{
+		staleAttachmentCount: maildb.StaleAttachmentUploadCount{
+			TotalCount:   11,
+			LimitedCount: 5,
+		},
+	}
+	service := New(repo, nil)
+
+	counts, err := service.CountStaleAttachmentUploads(context.Background(), before, 5)
+	if err != nil {
+		t.Fatalf("CountStaleAttachmentUploads returned error: %v", err)
+	}
+	if counts.TotalCount != 11 || counts.LimitedCount != 5 {
+		t.Fatalf("counts = %+v", counts)
+	}
+	if !repo.lastAttachmentCleanupCount.Before.Equal(before) || repo.lastAttachmentCleanupCount.Limit != 5 {
+		t.Fatalf("count request = %+v", repo.lastAttachmentCleanupCount)
 	}
 }
 

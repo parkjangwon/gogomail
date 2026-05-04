@@ -62,6 +62,7 @@ type AttachmentUploadRepository interface {
 
 type AttachmentCleanupRepository interface {
 	ExpireStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error)
+	CountStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) (maildb.StaleAttachmentUploadCount, error)
 }
 
 type DeliveryStatusRepository interface {
@@ -951,6 +952,21 @@ func (s *Service) ExpireStaleAttachmentUploads(ctx context.Context, before time.
 		return expired, fmt.Errorf("delete expired attachment objects: %w", errors.Join(deleteErrors...))
 	}
 	return expired, nil
+}
+
+func (s *Service) CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error) {
+	repo, ok := s.repository.(AttachmentCleanupRepository)
+	if !ok {
+		return maildb.StaleAttachmentUploadCount{}, fmt.Errorf("attachment cleanup repository is required")
+	}
+	req := maildb.ExpireStaleAttachmentUploadsRequest{
+		Before: before,
+		Limit:  limit,
+	}
+	if err := maildb.ValidateExpireStaleAttachmentUploadsRequest(req); err != nil {
+		return maildb.StaleAttachmentUploadCount{}, err
+	}
+	return repo.CountStaleAttachmentUploads(ctx, req)
 }
 
 type SendTextRequest struct {
