@@ -208,6 +208,9 @@ reservation and direct-upload `draft_id` values reject CR/LF-bearing or
 oversized identifiers before quota reservation or object writes.
 Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
 when the raw body exceeds the attachment upload size cap.
+Because `resumable_chunked_uploads` remains `false`, `Content-Range` requests
+to the upload session body endpoint are rejected instead of being interpreted as
+partial chunk commits.
 
 Authenticated operators can run stale attachment cleanup on demand with
 `POST /admin/v1/attachment-cleanup/runs`. The JSON body requires an explicit
