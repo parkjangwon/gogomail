@@ -147,7 +147,9 @@ requests that exceed the direct upload envelope return HTTP 413
 HTTP 400 `bad_request`. Mail API path identifiers and the direct upload
 multipart `draft_id` field are trimmed at the HTTP boundary before service
 dispatch, keeping user-facing routes tolerant of incidental whitespace without
-storing whitespace-padded resource IDs.
+storing whitespace-padded resource IDs. Attachment reservation and direct-upload
+`draft_id` values reject CR/LF-bearing or oversized identifiers before quota
+reservation or object writes.
 
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of
