@@ -75,6 +75,30 @@ func TestHookRejectsScannerVerdict(t *testing.T) {
 	}
 }
 
+func TestHookBoundsScannerReason(t *testing.T) {
+	t.Parallel()
+
+	scanner := &fakeScanner{result: Result{Verdict: VerdictTempfail, Reason: strings.Repeat("\u20ac", maxScannerReasonBytes)}}
+	hook := Hook(HookOptions{Scanner: scanner})
+	err := hook(context.Background(), smtpd.Event{
+		Stage: smtpd.StageParsed,
+		Parsed: message.ParsedMessage{
+			HasAttachment: true,
+			Attachments:   []message.Attachment{{Filename: "large.bin"}},
+		},
+	})
+	if err == nil {
+		t.Fatal("hook accepted temporary attachment scanner failure")
+	}
+	reason := strings.TrimPrefix(err.Error(), "attachment scanner temporarily failed message: ")
+	if len(reason) > maxScannerReasonBytes {
+		t.Fatalf("reason length = %d, want <= %d", len(reason), maxScannerReasonBytes)
+	}
+	if strings.ContainsRune(reason, '\uFFFD') {
+		t.Fatalf("reason is not UTF-8 safely truncated: %q", reason)
+	}
+}
+
 type fakeScanner struct {
 	calls  int
 	last   Request

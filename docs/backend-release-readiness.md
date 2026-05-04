@@ -119,6 +119,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `original_recipient` values before retry/delivery attempt recording.
 - Delivery `mail.queued` decoding rejects oversized recipient and DSN-recipient
   arrays before normalization, routing, or retry bookkeeping.
+- Attachment scanner hook rejection/tempfail reasons are CR/LF-stripped and
+  UTF-8 safely bounded before they are surfaced as SMTP hook errors.
 - Redis outbox publishing trims event id, topic, partition key, and payload
   metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
