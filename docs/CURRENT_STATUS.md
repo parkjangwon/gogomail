@@ -99,6 +99,9 @@ guidance.
   separate compose-focused `GET /api/v1/drafts/search` contract over active
   draft subject, sender, recipient JSON, body text, attachment state, and
   newest-updated ordering.
+- `gogomail --mode=all-in-one` serves Mail API and Admin API routes from the
+  same HTTP process, keeping single-node/local release smoke tests aligned with
+  the documented backend mode.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain

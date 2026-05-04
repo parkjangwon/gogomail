@@ -76,6 +76,9 @@ go run ./cmd/gogomail --mode=admin-api
 store adapter and process-local mailbox event broker, while the TCP protocol
 listener remains deferred.
 
+`all-in-one` serves health, Mail API, and Admin API routes from one HTTP
+process for small deployments and local release smoke tests.
+
 `push-notification-worker` stays disabled until
 `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` or
 `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` is set. The worker consumes
