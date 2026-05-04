@@ -30,3 +30,31 @@ func TestNormalizeCandidateRecordBoundsDiagnostics(t *testing.T) {
 		t.Fatalf("ErrorMessage length = %d, want 2000", len(record.ErrorMessage))
 	}
 }
+
+func TestNormalizeAttemptOutcome(t *testing.T) {
+	t.Parallel()
+
+	outcome, err := normalizeAttemptOutcome(AttemptOutcome{
+		AttemptID:    " attempt-1 ",
+		Status:       " INVALID_TOKEN ",
+		ErrorMessage: strings.Repeat("e", 2100),
+	})
+	if err != nil {
+		t.Fatalf("normalizeAttemptOutcome returned error: %v", err)
+	}
+	if outcome.AttemptID != "attempt-1" || outcome.Status != "invalid_token" {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+	if len(outcome.ErrorMessage) != 2000 {
+		t.Fatalf("ErrorMessage length = %d, want 2000", len(outcome.ErrorMessage))
+	}
+}
+
+func TestNormalizeAttemptOutcomeRejectsInvalidStatus(t *testing.T) {
+	t.Parallel()
+
+	_, err := normalizeAttemptOutcome(AttemptOutcome{AttemptID: "attempt-1", Status: "candidate"})
+	if err == nil {
+		t.Fatal("normalizeAttemptOutcome accepted candidate status")
+	}
+}

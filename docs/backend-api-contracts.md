@@ -144,7 +144,8 @@ side effect. The worker records one `push_notification_attempts` candidate row
 per resolved device before invoking the current sink. The generated attempt id
 is attached to each sink target so future vendor adapters can update that exact
 row with delivered, failed, or invalid-token outcomes without coupling
-notification delivery to the SMTP transaction.
+notification delivery to the SMTP transaction. Outcome updates are available
+inside `internal/pushnotify` and are not exposed as a public API.
 
 ## Admin operations
 
