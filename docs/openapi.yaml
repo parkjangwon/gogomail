@@ -3604,8 +3604,13 @@ components:
           description: Required when dry_run is false.
     APIUsageLedgerRetentionRun:
       type: object
-      required: [cutoff, limit, dry_run, confirm_ready, ready, candidate_count, limited_count, deleted_count, readiness]
+      required: [id, created_at, cutoff, limit, dry_run, confirm_ready, ready, candidate_count, limited_count, deleted_count, readiness]
       properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
         cutoff:
           type: string
           format: date-time

@@ -55,9 +55,11 @@ through the cutoff, was completed after the latest candidate row was recorded,
 and has artifact, manifest digest, and signature evidence. Admin API also
 exposes an operator-controlled bounded retention run that reuses the same
 readiness gate, requires explicit destructive confirmation, and deletes only a
-normalized batch of ready immutable ledger rows. Scheduled archive/delete
-workers remain deferred until production export storage and signer policy are
-settled.
+normalized batch of ready immutable ledger rows. Each blocked, dry-run, or
+destructive retention attempt is persisted as an audit row with the filters,
+counts, deleted rows, and readiness snapshot used for the decision. Scheduled
+archive/delete workers remain deferred until production export storage and
+signer policy are settled.
 
 Operators can also create persisted export batch manifests over a bounded
 ledger window. A saved batch fixes the filter window and totals, and can be

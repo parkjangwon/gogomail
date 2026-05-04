@@ -139,4 +139,7 @@ curl -sS -X POST -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
 For a destructive bounded batch, set `dry_run` to `false` and include
 `confirm_ready:true`. The run rechecks readiness before deleting rows and
 returns the embedded readiness evidence plus candidate, limited, and deleted
-counts.
+counts. Every blocked, dry-run, or destructive retention attempt is persisted in
+`api_usage_ledger_retention_runs` with its returned `id`, `created_at`, filters,
+counts, and readiness snapshot so operators can audit ledger purges after the
+fact.
