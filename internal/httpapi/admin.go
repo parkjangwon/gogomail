@@ -70,7 +70,7 @@ type AdminService interface {
 	GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (maildb.APIUsageLedgerRetentionRunView, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
-	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
+	ListAPIUsageExportBatches(ctx context.Context, req maildb.APIUsageExportBatchListRequest) ([]maildb.APIUsageExportBatchView, error)
 	GetAPIUsageExportBatch(ctx context.Context, id string) (maildb.APIUsageExportBatchView, error)
 	GetAPIUsageExportHandoff(ctx context.Context, batchID string, deep bool) (maildb.APIUsageExportHandoffView, error)
 	CreateAPIUsageExportArtifact(ctx context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
@@ -1020,7 +1020,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		batches, err := service.ListAPIUsageExportBatches(r.Context(), limit)
+		req, ok := parseAPIUsageExportBatchListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		batches, err := service.ListAPIUsageExportBatches(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -1931,6 +1935,31 @@ func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limi
 	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
 		writeError(w, http.StatusBadRequest, "from must be before to")
 		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	return req, true
+}
+
+func parseAPIUsageExportBatchListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageExportBatchListRequest, bool) {
+	var ok bool
+	req := maildb.APIUsageExportBatchListRequest{Limit: limit}
+	if req.TenantID, ok = parseBoundedAdminQuery(w, r, "tenant_id"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.PrincipalID, ok = parseBoundedAdminQuery(w, r, "principal_id"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.Status, ok = parseBoundedAdminQuery(w, r, "status"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.From, ok = parseOptionalRFC3339Query(w, r, "from"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.To, ok = parseOptionalRFC3339Query(w, r, "to"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if err := maildb.ValidateAPIUsageExportBatchListRequest(req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return maildb.APIUsageExportBatchListRequest{}, false
 	}
 	return req, true
 }

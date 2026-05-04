@@ -436,6 +436,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /api-usage/monthly":                               {"limit", "tenant_id", "company_id", "domain_id", "user_id", "api_key_id", "principal_id", "auth_source", "method", "route", "status", "from", "to"},
 		"GET /api-usage/ledger/retention-readiness":            {"cutoff", "tenant_id", "principal_id"},
 		"GET /api-usage/ledger/retention-runs":                 {"limit", "tenant_id", "principal_id", "created_from", "created_to"},
+		"GET /api-usage/export-batches":                        {"limit", "tenant_id", "principal_id", "status", "from", "to"},
 		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},
 		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
 		"GET /suppression-list":                                {"limit", "domain_id", "email", "reason"},

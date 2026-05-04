@@ -1056,6 +1056,36 @@ paths:
       summary: Admin API usage export batch manifests
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - in: query
+          name: tenant_id
+          schema:
+            type: string
+            maxLength: 1024
+          description: Optional tenant identifier filter.
+        - in: query
+          name: principal_id
+          schema:
+            type: string
+            maxLength: 1024
+          description: Optional principal identifier filter.
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, completed, failed]
+          description: Optional export batch status filter.
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          description: Optional lower bound for the exported ledger window start.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          description: Optional exclusive upper bound for the exported ledger window end.
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportBatchList"
