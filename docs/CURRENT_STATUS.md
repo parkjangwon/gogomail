@@ -284,6 +284,8 @@ guidance.
   the handler error for Redis stream retry.
 - `internal/pushnotify` can update attempt outcomes to queued, delivered,
   failed, or invalid-token without exposing that mutation as a public API.
+- Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
+  oversized attempt IDs before SQL update dispatch.
 - Invalid-token outcomes automatically soft-delete the affected push device in
   the same Postgres transaction.
 - `mail.stored` events now carry an explicit

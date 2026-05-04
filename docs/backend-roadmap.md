@@ -560,6 +560,7 @@ Implementation order:
 501. Push notification target resolution now drops oversized device IDs and tokens before candidate recording or sink handoff, and bounds optional labels/token suffixes at UTF-8 boundaries for cleaner provider adapter inputs.
 502. Push-device create/update validation now rejects invalid-UTF-8, CR/LF-bearing, or oversized user and token metadata before repository upsert, keeping raw provider tokens bounded at the storage boundary.
 503. Admin push-notification attempt and stats repository filters now reject invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL dispatch, aligning database access with HTTP query guardrails.
+504. Push notification outcome recording now rejects invalid-UTF-8, CR/LF-bearing, or oversized attempt IDs before SQL update dispatch, keeping future provider adapters from sending unsafe attempt keys into storage.
 
 ## Deferred until backend contracts stabilize
 

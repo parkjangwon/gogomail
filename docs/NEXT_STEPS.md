@@ -216,6 +216,8 @@ Current state:
   in Admin API views.
 - `internal/pushnotify.PostgresRecorder` can update an existing attempt with
   queued, delivered, failed, or invalid-token outcomes.
+- Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
+  oversized attempt IDs before SQL update dispatch.
 - Invalid-token outcomes soft-delete the matching user push device in the same
   Postgres transaction as the attempt update.
 - `mail.stored` event payloads carry an explicit schema version; preserve this
