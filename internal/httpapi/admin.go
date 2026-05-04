@@ -54,6 +54,7 @@ type AdminService interface {
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
 	GetAPIUsageExportBatch(ctx context.Context, id string) (maildb.APIUsageExportBatchView, error)
+	GetAPIUsageExportHandoff(ctx context.Context, batchID string) (maildb.APIUsageExportHandoffView, error)
 	CreateAPIUsageExportArtifact(ctx context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
 	WriteAPIUsageExportArtifact(ctx context.Context, batchID string, req maildb.WriteAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
 	ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportArtifactView, error)
@@ -531,6 +532,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_batch": batch})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		handoff, err := service.GetAPIUsageExportHandoff(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_handoff_readiness": handoff})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
