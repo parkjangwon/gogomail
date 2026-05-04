@@ -46,6 +46,36 @@ func TestParseEMLWithOptionsLimitsRetainedMetadata(t *testing.T) {
 	}
 }
 
+func TestParseEMLWithOptionsPreboundsStructuredHeaderParsing(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: Sender <sender@example.net>",
+		"To: " + strings.Repeat("Recipient <recipient@example.com>, ", 96),
+		"References: " + strings.Repeat("<reference@example.com> ", 96),
+		"Subject: oversized structured headers",
+		"",
+		"body",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{
+		MaxHeaderBytes:   int64(len(raw) + 1024),
+		MaxMetadataBytes: 32,
+	})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if len(parsed.To) != 0 {
+		t.Fatalf("To = %+v, want oversized structured header skipped before address parsing", parsed.To)
+	}
+	if len(parsed.References) != 0 {
+		t.Fatalf("References = %+v, want oversized structured header skipped before msg-id parsing", parsed.References)
+	}
+	if !parsed.AddressesTruncated || !parsed.ReferencesTruncated || !parsed.MetadataTruncated {
+		t.Fatalf("truncation flags = addresses:%v references:%v metadata:%v", parsed.AddressesTruncated, parsed.ReferencesTruncated, parsed.MetadataTruncated)
+	}
+}
+
 func TestSanitizeHeaderMetadataRemovesControlCharacters(t *testing.T) {
 	t.Parallel()
 

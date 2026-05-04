@@ -17,6 +17,7 @@ import (
 
 const maxAttachmentFilenameBytes = 255
 const defaultMaxMetadataBytes = 2048
+const maxStructuredHeaderParseBytes = 64 << 10
 
 type Address struct {
 	Name    string
@@ -205,6 +206,10 @@ func firstMessageID(parsed *ParsedMessage, header gomail.Header, key string, opt
 }
 
 func messageIDList(parsed *ParsedMessage, header gomail.Header, key string, opts ParseOptions) ([]string, bool) {
+	if rawStructuredHeaderTooLarge(header, key, opts) {
+		parsed.MetadataTruncated = true
+		return nil, true
+	}
 	ids, err := header.MsgIDList(key)
 	if err != nil {
 		return nil, false
@@ -275,6 +280,11 @@ func readLimitedText(r io.Reader, maxBytes int64) (string, bool, error) {
 }
 
 func firstAddress(parsed *ParsedMessage, opts ParseOptions, header gomail.Header, key string) (Address, error) {
+	if rawStructuredHeaderTooLarge(header, key, opts) {
+		parsed.AddressesTruncated = true
+		parsed.MetadataTruncated = true
+		return Address{}, nil
+	}
 	addrs, err := header.AddressList(key)
 	if err != nil || len(addrs) == 0 {
 		return Address{}, err
@@ -283,6 +293,11 @@ func firstAddress(parsed *ParsedMessage, opts ParseOptions, header gomail.Header
 }
 
 func addressList(parsed *ParsedMessage, opts ParseOptions, header gomail.Header, key string) []Address {
+	if rawStructuredHeaderTooLarge(header, key, opts) {
+		parsed.AddressesTruncated = true
+		parsed.MetadataTruncated = true
+		return nil
+	}
 	addrs, err := header.AddressList(key)
 	if err != nil {
 		return nil
@@ -300,6 +315,22 @@ func addressList(parsed *ParsedMessage, opts ParseOptions, header gomail.Header,
 		result = append(result, convertAddress(parsed, opts, addr))
 	}
 	return result
+}
+
+func rawStructuredHeaderTooLarge(header gomail.Header, key string, opts ParseOptions) bool {
+	raw := header.Get(key)
+	if raw == "" {
+		return false
+	}
+	limit := opts.MaxMetadataBytes
+	if limit <= 0 {
+		limit = defaultMaxMetadataBytes
+	}
+	limit *= 32
+	if limit <= 0 || limit > maxStructuredHeaderParseBytes {
+		limit = maxStructuredHeaderParseBytes
+	}
+	return len(raw) > limit
 }
 
 func convertAddress(parsed *ParsedMessage, opts ParseOptions, addr *gomail.Address) Address {

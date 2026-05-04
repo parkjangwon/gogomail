@@ -242,9 +242,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   MIME part-count cap with `PartsTruncated` signaling, retained subject,
   address, message-id, and reference metadata caps with UTF-8-safe truncation or
   oversized-ID dropping, and a large-body plus metadata-only benchmark. Retained
-  address-list and `References` counts are also capped with truncation flags so
-  oversized headers cannot expand downstream storage and search metadata without
-  bound.
+  address-list and `References` counts are also capped with truncation flags,
+  and oversized structured address/message-id-list headers are pre-bounded
+  before list parsing so they cannot expand downstream storage and search
+  metadata without bound.
 - EML attachment metadata detection includes inline filename parts and non-text
   inline parts without reading attachment bodies.
 - The audit `mail.stored` consumer trims event, tenant, recipient, subject,

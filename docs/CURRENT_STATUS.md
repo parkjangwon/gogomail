@@ -108,8 +108,9 @@ guidance.
   are basename-normalized, control-character cleaned, and capped before
   reaching storage/API/search consumers. Subject, address display-name/address,
   message-id, address-list, and `References` metadata are capped before
-  downstream storage, search, and threading use them, with truncation flags for
-  retained metadata/list caps.
+  downstream storage, search, and threading use them. Oversized structured
+  address and message-id-list headers are pre-bounded before list parsing, with
+  truncation flags for retained metadata/list caps.
 - Search responses can now opt into relevance sorting, rank scores, and bounded
   Postgres headline snippets while preserving date-sorted results by default.
 - Postgres and OpenSearch relevance search now share a metadata-first tuning
