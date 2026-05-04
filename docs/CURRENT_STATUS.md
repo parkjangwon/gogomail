@@ -193,6 +193,8 @@ The platform hardening sprint completed the following:
   move invalidation when `GOGOMAIL_TEST_DATABASE_URL` is available.
 - `internal/imapgw` has a small in-memory mailbox event broker for future IDLE
   fan-out without introducing a protocol listener yet.
+- EML parser guardrails include a truncation-probe test and benchmark for the
+  bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
