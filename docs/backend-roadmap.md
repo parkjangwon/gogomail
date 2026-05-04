@@ -467,6 +467,7 @@ Implementation order:
 408. Attachment upload reservation and direct-upload service requests now normalize user, draft, filename, MIME type, and storage-path metadata before quota, storage, and repository work.
 409. Attachment list/download and draft-delete service methods now trim user, message, attachment, and draft identifiers before repository/storage work.
 410. Single-message flag, move, and delete service methods now trim user/message/flag and folder identifiers before repository mutation and IMAP event fan-out.
+411. Bulk flag, move, and delete service methods now trim user/message/flag and folder identifiers before repository mutation, IMAP UID lookup, and mailbox event fan-out.
 
 ## Deferred until backend contracts stabilize
 

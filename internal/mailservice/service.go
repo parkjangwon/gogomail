@@ -460,6 +460,7 @@ func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID s
 }
 
 func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
+	req = normalizeBulkMessageFlagRequest(req)
 	if err := maildb.ValidateBulkMessageFlagRequest(req); err != nil {
 		return 0, err
 	}
@@ -487,6 +488,7 @@ func (s *Service) MoveMessage(ctx context.Context, userID string, messageID stri
 }
 
 func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error) {
+	req = normalizeBulkMessageMoveRequest(req)
 	if err := maildb.ValidateBulkMessageMoveRequest(req); err != nil {
 		return 0, err
 	}
@@ -517,6 +519,7 @@ func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID st
 }
 
 func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
+	req = normalizeBulkMessageDeleteRequest(req)
 	if err := maildb.ValidateBulkMessageDeleteRequest(req); err != nil {
 		return 0, err
 	}
@@ -1023,6 +1026,26 @@ func normalizeStringList(values []string) []string {
 		values[i] = strings.TrimSpace(values[i])
 	}
 	return values
+}
+
+func normalizeBulkMessageFlagRequest(req maildb.BulkMessageFlagRequest) maildb.BulkMessageFlagRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	req.Flag = strings.TrimSpace(req.Flag)
+	return req
+}
+
+func normalizeBulkMessageMoveRequest(req maildb.BulkMessageMoveRequest) maildb.BulkMessageMoveRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	req.FolderID = strings.TrimSpace(req.FolderID)
+	return req
+}
+
+func normalizeBulkMessageDeleteRequest(req maildb.BulkMessageDeleteRequest) maildb.BulkMessageDeleteRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	return req
 }
 
 func (s *Service) sourceThread(ctx context.Context, req SendTextRequest) (maildb.SourceThreadView, error) {
