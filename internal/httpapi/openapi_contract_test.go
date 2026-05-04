@@ -167,6 +167,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /api-usage/export-batches/{id}/artifacts":  "#/components/responses/APIUsageExportArtifactList",
 		"POST /api-usage/export-batches/{id}/artifacts": "#/components/responses/APIUsageExportArtifact",
 		"GET /api-usage/export-batches/{id}/artifacts/{artifact_id}":                   "#/components/responses/APIUsageExportArtifact",
+		"POST /api-usage/export-batches/{id}/artifacts/write":                          "#/components/responses/APIUsageExportArtifact",
 		"GET /api-usage/export-batches/{id}/manifest-digests":                          "#/components/responses/APIUsageExportManifestDigestList",
 		"POST /api-usage/export-batches/{id}/manifest-digests":                         "#/components/responses/APIUsageExportManifestDigest",
 		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}":              "#/components/responses/APIUsageExportManifestDigest",

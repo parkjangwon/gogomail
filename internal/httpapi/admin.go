@@ -54,6 +54,7 @@ type AdminService interface {
 	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
 	GetAPIUsageExportBatch(ctx context.Context, id string) (maildb.APIUsageExportBatchView, error)
 	CreateAPIUsageExportArtifact(ctx context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
+	WriteAPIUsageExportArtifact(ctx context.Context, batchID string, req maildb.WriteAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
 	ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportArtifactView, error)
 	GetAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, error)
 	CreateAPIUsageExportManifestDigest(ctx context.Context, batchID string) (maildb.APIUsageExportManifestDigestView, error)
@@ -586,6 +587,28 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifacts": artifacts})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts/write", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		var req maildb.WriteAPIUsageExportArtifactRequest
+		if r.ContentLength != 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON body")
+				return
+			}
+		}
+		artifact, err := service.WriteAPIUsageExportArtifact(r.Context(), id, req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_artifact": artifact})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

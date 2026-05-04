@@ -578,6 +578,47 @@ func TestAdminCreateAPIUsageExportArtifactHandler(t *testing.T) {
 	}
 }
 
+func TestAdminWriteAPIUsageExportArtifactHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifact: maildb.APIUsageExportArtifactView{
+			ID:             "api-usage-artifact-1",
+			BatchID:        "api-usage-export-1",
+			StorageBackend: "local",
+			ObjectKey:      "exports/api-usage/api-usage-export-1.ndjson",
+			ContentType:    "application/x-ndjson",
+			ByteCount:      12,
+			SHA256Hex:      strings.Repeat("a", 64),
+			EventCount:     2,
+			Metadata:       json.RawMessage(`{"writer":"gogomail-admin-api"}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := strings.NewReader(`{"object_key":"exports/api-usage/api-usage-export-1.ndjson","metadata":{"purpose":"billing"}}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/write", body)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Artifact maildb.APIUsageExportArtifactView `json:"api_usage_export_artifact"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Artifact.ID != "api-usage-artifact-1" || service.lastAPIUsageExportBatchID != "api-usage-export-1" {
+		t.Fatalf("artifact = %+v lastBatch=%q", response.Artifact, service.lastAPIUsageExportBatchID)
+	}
+	if service.lastWriteAPIUsageExportArtifact.ObjectKey != "exports/api-usage/api-usage-export-1.ndjson" {
+		t.Fatalf("last write request = %+v", service.lastWriteAPIUsageExportArtifact)
+	}
+}
+
 func TestAdminListAPIUsageExportArtifactsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1857,6 +1898,7 @@ type fakeAdminService struct {
 	lastAPIUsageExportArtifactID             string
 	lastAPIUsageExportManifestDigestID       string
 	lastCreateAPIUsageExportArtifact         maildb.CreateAPIUsageExportArtifactRequest
+	lastWriteAPIUsageExportArtifact          maildb.WriteAPIUsageExportArtifactRequest
 	lastPushAttemptList                      maildb.PushNotificationAttemptListRequest
 	lastCreateUser                           maildb.CreateUserRequest
 	lastCreateDKIMKey                        maildb.CreateDKIMKeyInput
@@ -2040,6 +2082,12 @@ func (f *fakeAdminService) GetAPIUsageExportBatch(_ context.Context, id string) 
 
 func (f *fakeAdminService) CreateAPIUsageExportArtifact(_ context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error) {
 	f.lastCreateAPIUsageExportArtifact = req
+	return f.apiUsageExportArtifact, nil
+}
+
+func (f *fakeAdminService) WriteAPIUsageExportArtifact(_ context.Context, batchID string, req maildb.WriteAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastWriteAPIUsageExportArtifact = req
 	return f.apiUsageExportArtifact, nil
 }
 
