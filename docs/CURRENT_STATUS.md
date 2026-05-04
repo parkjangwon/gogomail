@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after admin cleanup upload-session visibility)
+Last updated: 2026-05-05 (updated after API usage retention audit visibility)
 
 ## Current phase
 
@@ -217,7 +217,9 @@ guidance.
   blocked candidates, dry-runs do not mutate ready candidates, and destructive
   ready runs persist retention-run audit rows, delete only the requested bounded
   batch, and preserve newer ledger rows.
-  ledger rows.
+- Admin API exposes list/detail reads for persisted API usage ledger retention
+  runs so operators can inspect blocked, dry-run, and destructive retention
+  attempts after the fact.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`

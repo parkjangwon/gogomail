@@ -143,3 +143,13 @@ counts. Every blocked, dry-run, or destructive retention attempt is persisted in
 `api_usage_ledger_retention_runs` with its returned `id`, `created_at`, filters,
 counts, and readiness snapshot so operators can audit ledger purges after the
 fact.
+
+Use the Admin API to review retention attempts later:
+
+```bash
+curl -sS -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
+  "$GOGOMAIL_ADMIN_URL/admin/v1/api-usage/ledger/retention-runs?tenant_id=$TENANT_ID&limit=20"
+```
+
+Fetch the returned run `id` for the exact readiness snapshot used by that
+blocked, dry-run, or destructive attempt.

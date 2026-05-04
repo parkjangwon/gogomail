@@ -57,9 +57,10 @@ exposes an operator-controlled bounded retention run that reuses the same
 readiness gate, requires explicit destructive confirmation, and deletes only a
 normalized batch of ready immutable ledger rows. Each blocked, dry-run, or
 destructive retention attempt is persisted as an audit row with the filters,
-counts, deleted rows, and readiness snapshot used for the decision. Scheduled
-archive/delete workers remain deferred until production export storage and
-signer policy are settled.
+counts, deleted rows, and readiness snapshot used for the decision. The Admin
+API exposes list/detail reads for these audit rows so operators can inspect
+purge attempts without direct database access. Scheduled archive/delete workers
+remain deferred until production export storage and signer policy are settled.
 
 Operators can also create persisted export batch manifests over a bounded
 ledger window. A saved batch fixes the filter window and totals, and can be

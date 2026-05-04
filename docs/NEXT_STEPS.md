@@ -425,8 +425,6 @@ Next:
   before invoices or hard Open API limits depend on completed export batches.
 - Extend bounded API usage ledger retention runs into a scheduled worker only
   after production export storage and signer policy are settled.
-- Add an Admin API list/detail surface for `api_usage_ledger_retention_runs`
-  before turning retention into scheduled autonomous work.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet

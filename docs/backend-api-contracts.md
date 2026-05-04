@@ -592,6 +592,12 @@ API call metering can now emit durable usage events:
   `created_at`, candidate, limited, deleted, and embedded readiness fields. A
   retention-run audit row is recorded for blocked, dry-run, and destructive
   attempts; when readiness is blocked, deleted count stays zero.
+- `GET /admin/v1/api-usage/ledger/retention-runs` returns
+  `{ "api_usage_ledger_retention_runs": [...] }` and supports bounded `limit`,
+  `tenant_id`, `principal_id`, `created_from`, and `created_to` filters over
+  persisted retention-run audit rows. `GET
+  /admin/v1/api-usage/ledger/retention-runs/{id}` returns one persisted run
+  with its readiness snapshot for purge forensics.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
   ledger filter window with fixed event/request/byte/latency totals. The

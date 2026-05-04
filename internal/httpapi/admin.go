@@ -61,6 +61,8 @@ type AdminService interface {
 	GetAPIUsageLedgerStats(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error)
 	GetAPIUsageLedgerRetentionReadiness(ctx context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error)
 	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
+	ListAPIUsageLedgerRetentionRuns(ctx context.Context, req maildb.APIUsageLedgerRetentionRunListRequest) ([]maildb.APIUsageLedgerRetentionRunView, error)
+	GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (maildb.APIUsageLedgerRetentionRunView, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
@@ -782,6 +784,36 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		run, err := service.RunAPIUsageLedgerRetention(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseAPIUsageLedgerRetentionRunListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		runs, err := service.ListAPIUsageLedgerRetentionRuns(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_runs": runs})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		run, err := service.GetAPIUsageLedgerRetentionRun(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
@@ -1691,6 +1723,36 @@ func parseAPIUsageLedgerRetentionRunRequest(w http.ResponseWriter, req adminAPIU
 		Limit:        req.Limit,
 		DryRun:       req.DryRun,
 		ConfirmReady: req.ConfirmReady,
+	}, true
+}
+
+func parseAPIUsageLedgerRetentionRunListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerRetentionRunListRequest, bool) {
+	tenantID, ok := parseBoundedAdminQuery(w, r, "tenant_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	principalID, ok := parseBoundedAdminQuery(w, r, "principal_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	createdFrom, ok := parseOptionalRFC3339Query(w, r, "created_from")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	createdTo, ok := parseOptionalRFC3339Query(w, r, "created_to")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	if !createdFrom.IsZero() && !createdTo.IsZero() && !createdFrom.Before(createdTo) {
+		writeError(w, http.StatusBadRequest, "created_from must be before created_to")
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	return maildb.APIUsageLedgerRetentionRunListRequest{
+		Limit:       limit,
+		TenantID:    tenantID,
+		PrincipalID: principalID,
+		CreatedFrom: createdFrom,
+		CreatedTo:   createdTo,
 	}, true
 }
 

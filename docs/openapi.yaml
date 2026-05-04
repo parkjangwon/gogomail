@@ -779,11 +779,54 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /api-usage/ledger/retention-runs:
+    get:
+      operationId: listAdminAPIUsageLedgerRetentionRuns
+      summary: List immutable API usage ledger retention run audit records
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: principal_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive retention-run creation timestamp lower bound.
+        - name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive retention-run creation timestamp upper bound.
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerRetentionRunList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: runAdminAPIUsageLedgerRetention
       summary: Run bounded immutable API usage ledger retention after readiness checks
       requestBody:
         $ref: "#/components/requestBodies/APIUsageLedgerRetentionRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerRetentionRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api-usage/ledger/retention-runs/{id}:
+    get:
+      operationId: getAdminAPIUsageLedgerRetentionRun
+      summary: Get one immutable API usage ledger retention run audit record
+      parameters:
+        - $ref: "#/components/parameters/PathID"
       responses:
         "200":
           $ref: "#/components/responses/APIUsageLedgerRetentionRun"
@@ -2007,6 +2050,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerRetentionRunEnvelope"
+    APIUsageLedgerRetentionRunList:
+      description: Immutable API usage ledger retention run list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageLedgerRetentionRunListEnvelope"
     ExhaustedAttempts:
       description: Exhausted delivery attempts envelope
       content:
@@ -3654,6 +3703,14 @@ components:
       properties:
         api_usage_ledger_retention_run:
           $ref: "#/components/schemas/APIUsageLedgerRetentionRun"
+    APIUsageLedgerRetentionRunListEnvelope:
+      type: object
+      required: [api_usage_ledger_retention_runs]
+      properties:
+        api_usage_ledger_retention_runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageLedgerRetentionRun"
     APIUsageExportBatch:
       type: object
       required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]
