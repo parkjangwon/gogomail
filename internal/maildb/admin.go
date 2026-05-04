@@ -264,6 +264,14 @@ type APIUsageLedgerRetentionRunRequest struct {
 	ConfirmReady bool
 }
 
+type APIUsageLedgerRetentionRunListRequest struct {
+	Limit       int
+	TenantID    string
+	PrincipalID string
+	CreatedFrom time.Time
+	CreatedTo   time.Time
+}
+
 type APIUsageLedgerStatsView struct {
 	EventCount       int64      `json:"event_count"`
 	RequestCount     int64      `json:"request_count"`
@@ -2782,6 +2790,121 @@ WHERE event_id IN (
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("commit api usage ledger retention transaction: %w", err)
 	}
 	return view, nil
+}
+
+func (r *Repository) ListAPIUsageLedgerRetentionRuns(ctx context.Context, req APIUsageLedgerRetentionRunListRequest) ([]APIUsageLedgerRetentionRunView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req.Limit = normalizeLimit(req.Limit)
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	req.PrincipalID = strings.TrimSpace(req.PrincipalID)
+
+	query := `
+SELECT id, created_at, cutoff, tenant_id, principal_id, limit_count, dry_run,
+  confirm_ready, ready, candidate_count, limited_count, deleted_count, readiness
+FROM api_usage_ledger_retention_runs`
+	var conditions []string
+	var args []any
+	if req.TenantID != "" {
+		args = append(args, req.TenantID)
+		conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", len(args)))
+	}
+	if req.PrincipalID != "" {
+		args = append(args, req.PrincipalID)
+		conditions = append(conditions, fmt.Sprintf("principal_id = $%d", len(args)))
+	}
+	if !req.CreatedFrom.IsZero() {
+		args = append(args, req.CreatedFrom.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if !req.CreatedTo.IsZero() {
+		args = append(args, req.CreatedTo.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at < $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	args = append(args, req.Limit)
+	query += fmt.Sprintf(`
+ORDER BY created_at DESC, id DESC
+LIMIT $%d`, len(args))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage ledger retention runs: %w", err)
+	}
+	defer rows.Close()
+
+	var runs []APIUsageLedgerRetentionRunView
+	for rows.Next() {
+		run, err := scanAPIUsageLedgerRetentionRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage ledger retention runs: %w", err)
+	}
+	return runs, nil
+}
+
+func (r *Repository) GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (APIUsageLedgerRetentionRunView, error) {
+	if r.db == nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("api usage ledger retention run id is required")
+	}
+	const query = `
+SELECT id, created_at, cutoff, tenant_id, principal_id, limit_count, dry_run,
+  confirm_ready, ready, candidate_count, limited_count, deleted_count, readiness
+FROM api_usage_ledger_retention_runs
+WHERE id = $1`
+	run, err := scanAPIUsageLedgerRetentionRun(r.db.QueryRowContext(ctx, query, id))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return APIUsageLedgerRetentionRunView{}, fmt.Errorf("api usage ledger retention run not found")
+		}
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("get api usage ledger retention run: %w", err)
+	}
+	return run, nil
+}
+
+type apiUsageLedgerRetentionRunScanner interface {
+	Scan(...any) error
+}
+
+func scanAPIUsageLedgerRetentionRun(scanner apiUsageLedgerRetentionRunScanner) (APIUsageLedgerRetentionRunView, error) {
+	var run APIUsageLedgerRetentionRunView
+	var readiness json.RawMessage
+	if err := scanner.Scan(
+		&run.ID,
+		&run.CreatedAt,
+		&run.Cutoff,
+		&run.TenantID,
+		&run.PrincipalID,
+		&run.Limit,
+		&run.DryRun,
+		&run.ConfirmReady,
+		&run.Ready,
+		&run.CandidateCount,
+		&run.LimitedCount,
+		&run.DeletedCount,
+		&readiness,
+	); err != nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("scan api usage ledger retention run: %w", err)
+	}
+	if len(readiness) > 0 {
+		if err := json.Unmarshal(readiness, &run.Readiness); err != nil {
+			return APIUsageLedgerRetentionRunView{}, fmt.Errorf("decode api usage ledger retention run readiness: %w", err)
+		}
+	}
+	run.CreatedAt = run.CreatedAt.UTC()
+	run.Cutoff = run.Cutoff.UTC()
+	return run, nil
 }
 
 func (r *Repository) insertAPIUsageLedgerRetentionRun(ctx context.Context, execer interface {

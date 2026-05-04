@@ -34,6 +34,19 @@ func TestRunAPIUsageLedgerRetentionRejectsNilDatabase(t *testing.T) {
 	}
 }
 
+func TestAPIUsageLedgerRetentionRunReadsRejectNilDatabase(t *testing.T) {
+	t.Parallel()
+
+	runs, err := (&Repository{}).ListAPIUsageLedgerRetentionRuns(context.Background(), APIUsageLedgerRetentionRunListRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("runs = %+v err = %v", runs, err)
+	}
+	view, err := (&Repository{}).GetAPIUsageLedgerRetentionRun(context.Background(), "api-usage-retention-1")
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("view = %+v err = %v", view, err)
+	}
+}
+
 func TestNormalizeAPIUsageLedgerRetentionLimit(t *testing.T) {
 	t.Parallel()
 

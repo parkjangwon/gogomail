@@ -648,6 +648,27 @@ WHERE id = $1`, run.ID).Scan(&deletedCount, &ready, &dry, &readinessCandidateCou
 	if deletedCount != 2 || !ready || dry || readinessCandidateCount != 3 {
 		t.Fatalf("destructive retention audit row = deleted:%d ready:%v dry:%v candidates:%d", deletedCount, ready, dry, readinessCandidateCount)
 	}
+
+	runs, err := repo.ListAPIUsageLedgerRetentionRuns(ctx, APIUsageLedgerRetentionRunListRequest{
+		TenantID:    "tenant-1",
+		PrincipalID: "principal-1",
+		CreatedFrom: now.Add(-time.Hour),
+		CreatedTo:   now.Add(time.Hour),
+		Limit:       10,
+	})
+	if err != nil {
+		t.Fatalf("ListAPIUsageLedgerRetentionRuns returned error: %v", err)
+	}
+	if len(runs) != 3 || runs[0].ID == "" || runs[0].Readiness.CandidateEventCount == 0 {
+		t.Fatalf("retention audit runs = %+v", runs)
+	}
+	gotRun, err := repo.GetAPIUsageLedgerRetentionRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetAPIUsageLedgerRetentionRun returned error: %v", err)
+	}
+	if gotRun.ID != run.ID || gotRun.DeletedCount != 2 || gotRun.Readiness.CandidateEventCount != 3 {
+		t.Fatalf("retention audit detail = %+v", gotRun)
+	}
 }
 
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
