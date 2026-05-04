@@ -136,6 +136,9 @@ guidance.
 - Admin outbox retry now persists a hash-chain audit row in the same transaction
   as the retry reset, preserving previous topic, partition key, status,
   attempts, and bounded error evidence for replay forensics.
+- Admin push-notification outcome updates now persist hash-chain audit rows in
+  the same transaction as provider-status updates and invalid-token device
+  deletion, without including raw push tokens or token suffixes in audit detail.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

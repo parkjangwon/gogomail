@@ -757,6 +757,48 @@ func TestOutboxRetryAuditDetail(t *testing.T) {
 	}
 }
 
+func TestPushNotificationOutcomeAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := pushNotificationOutcomeAuditDetail(PushNotificationAttemptView{
+		ID:                "11111111-1111-1111-1111-111111111111",
+		MessageID:         "22222222-2222-2222-2222-222222222222",
+		RFCMessageID:      "<msg@example.net>",
+		Platform:          "fcm",
+		DeviceID:          "33333333-3333-3333-3333-333333333333",
+		Status:            "queued",
+		ErrorMessage:      "previous error",
+		ProviderMessageID: "provider-old",
+		ProviderStatus:    "accepted",
+	}, UpdatePushNotificationOutcomeRequest{
+		Status:            "invalid_token",
+		ErrorMessage:      "provider says token expired",
+		ProviderMessageID: "provider-new",
+		ProviderStatus:    "410",
+	}, true)
+	if err != nil {
+		t.Fatalf("pushNotificationOutcomeAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		AttemptID                 string `json:"attempt_id"`
+		MessageID                 string `json:"message_id"`
+		Platform                  string `json:"platform"`
+		PreviousStatus            string `json:"previous_status"`
+		Status                    string `json:"status"`
+		ProviderMessageID         string `json:"provider_message_id"`
+		InvalidTokenDeviceDeleted bool   `json:"invalid_token_device_deleted"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.AttemptID == "" || got.MessageID == "" || got.Platform != "fcm" || got.PreviousStatus != "queued" || got.Status != "invalid_token" || got.ProviderMessageID != "provider-new" || !got.InvalidTokenDeviceDeleted {
+		t.Fatalf("audit detail = %+v", got)
+	}
+	if strings.Contains(string(detail), "token_suffix") {
+		t.Fatalf("audit detail leaked token suffix: %s", detail)
+	}
+}
+
 func TestDomainCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 

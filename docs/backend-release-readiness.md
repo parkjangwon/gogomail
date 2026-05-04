@@ -267,6 +267,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   forensically inspectable through audit APIs.
 - Admin outbox retry now writes a hash-chain audit row in the same transaction
   as the retry reset, preserving previous event state before operator replay.
+- Admin push-notification outcome updates now write hash-chain audit rows in the
+  same transaction as provider-status changes and invalid-token device cleanup,
+  while keeping raw push tokens and token suffixes out of audit detail.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize
