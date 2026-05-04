@@ -192,7 +192,8 @@ The platform hardening sprint completed the following:
 - OpenSearch indexed documents now include parsed sender and attachment
   presence fields needed for Mail API search-filter parity.
 - OpenSearch relevance search can apply folder, from, subject, and attachment
-  filters before Postgres metadata hydration.
+  filters before Postgres metadata hydration; sender filtering uses a
+  lower-cased keyword field to preserve case-insensitive filter behavior.
 - OpenSearch relevance search can return subject/from/body highlights and map
   them into the existing Mail API `search_highlights` response field.
 - Optional OpenSearch integration coverage can create a disposable index and
