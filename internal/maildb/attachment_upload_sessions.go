@@ -66,6 +66,13 @@ type ExpireAttachmentUploadSessionsRequest struct {
 	Limit  int
 }
 
+type AttachmentUploadSessionListRequest struct {
+	Limit   int
+	UserID  string
+	DraftID string
+	Status  string
+}
+
 type StaleAttachmentUploadSessionCount struct {
 	TotalCount   int64
 	LimitedCount int64
@@ -220,6 +227,94 @@ func ValidateExpireAttachmentUploadSessionsRequest(req ExpireAttachmentUploadSes
 		return fmt.Errorf("limit must not be negative")
 	}
 	return nil
+}
+
+func ValidateAttachmentUploadSessionListRequest(req AttachmentUploadSessionListRequest) error {
+	for field, value := range map[string]string{
+		"user_id":  strings.TrimSpace(req.UserID),
+		"draft_id": strings.TrimSpace(req.DraftID),
+	} {
+		if value == "" {
+			continue
+		}
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("%s must not contain newlines", field)
+		}
+		if len(value) > 200 {
+			return fmt.Errorf("%s is too long", field)
+		}
+	}
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status != "" && !isAttachmentUploadSessionStatus(status) {
+		return fmt.Errorf("unsupported attachment upload session status %q", req.Status)
+	}
+	return nil
+}
+
+func isAttachmentUploadSessionStatus(status string) bool {
+	switch status {
+	case "pending", "uploading", "finalized", "canceled", "expired":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *Repository) ListAttachmentUploadSessions(ctx context.Context, req AttachmentUploadSessionListRequest) ([]AttachmentUploadSession, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateAttachmentUploadSessionListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	userID := strings.TrimSpace(req.UserID)
+	draftID := strings.TrimSpace(req.DraftID)
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  COALESCE(upload_id::text, ''),
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  COALESCE(storage_path, ''),
+  COALESCE(checksum_sha256, ''),
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM attachment_upload_sessions
+WHERE ($1 = '' OR user_id::text = $1)
+  AND ($2 = '' OR COALESCE(draft_id::text, '') = $2)
+  AND ($3 = '' OR status = $3)
+ORDER BY created_at DESC, id DESC
+LIMIT $4`
+	rows, err := r.db.QueryContext(ctx, query, userID, draftID, status, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list attachment upload sessions: %w", err)
+	}
+	defer rows.Close()
+
+	sessions := make([]AttachmentUploadSession, 0)
+	for rows.Next() {
+		session, err := scanAttachmentUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan attachment upload session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate attachment upload sessions: %w", err)
+	}
+	return sessions, nil
 }
 
 func (r *Repository) CreateAttachmentUploadSession(ctx context.Context, req CreateAttachmentUploadSessionRequest) (AttachmentUploadSession, error) {

@@ -651,6 +651,7 @@ Implementation order:
 591. Admin domain DNS-check history now supports summary-status and RFC3339 `since` filters, letting operators inspect recent onboarding and deliverability failures without re-querying DNS or scanning every persisted check.
 592. Admin API usage export batch listing now supports bounded tenant, principal, status, and export-window filters, letting operators find covering manifests for handoff and retention checks without global scans.
 593. HTTP readiness can now include runtime database and Redis dependency probes for Mail/Admin/API-metered modes and returns a degraded 503 readiness response when an injected dependency check fails.
+594. Admin attachment upload-session listing now supports bounded user, draft, and lifecycle-status filters, giving operators direct visibility into pending, uploading, finalized, canceled, or expired resumable sessions.
 
 ## Deferred until backend contracts stabilize
 

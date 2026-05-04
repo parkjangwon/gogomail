@@ -754,6 +754,35 @@ paths:
           $ref: "#/components/responses/AttachmentCleanupCandidates"
         default:
           $ref: "#/components/responses/Error"
+  /attachment-upload-sessions:
+    get:
+      operationId: listAdminAttachmentUploadSessions
+      summary: Admin inspect attachment upload sessions
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit upload sessions to one user.
+        - name: draft_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit upload sessions to one draft.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, uploading, finalized, canceled, expired]
+          description: Limit upload sessions by lifecycle status.
+      responses:
+        "200":
+          $ref: "#/components/responses/AttachmentUploadSessionList"
+        default:
+          $ref: "#/components/responses/Error"
   /attachment-cleanup/runs:
     post:
       operationId: runAdminAttachmentCleanup
@@ -2618,6 +2647,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AttachmentUploadSessionEnvelope"
+    AttachmentUploadSessionList:
+      description: Attachment upload session list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentUploadSessionListEnvelope"
     AttachmentCleanupCandidates:
       description: Attachment cleanup candidate preview envelope
       content:
@@ -3447,6 +3482,14 @@ components:
       properties:
         attachment_upload_session:
           $ref: "#/components/schemas/AttachmentUploadSession"
+    AttachmentUploadSessionListEnvelope:
+      type: object
+      required: [attachment_upload_sessions]
+      properties:
+        attachment_upload_sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentUploadSession"
     AttachmentUploadCapabilities:
       type: object
       required:

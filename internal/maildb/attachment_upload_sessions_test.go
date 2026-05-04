@@ -84,6 +84,26 @@ func TestValidateCancelAttachmentUploadSessionRequest(t *testing.T) {
 	}
 }
 
+func TestValidateAttachmentUploadSessionListRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []AttachmentUploadSessionListRequest{
+		{UserID: "user\nbad"},
+		{DraftID: strings.Repeat("d", 201)},
+		{Status: "ready"},
+		{Status: "uploading\nbad"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.UserID+req.DraftID+req.Status, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateAttachmentUploadSessionListRequest(req); err == nil {
+				t.Fatalf("ValidateAttachmentUploadSessionListRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
 func TestValidateGetAttachmentUploadSessionRequest(t *testing.T) {
 	t.Parallel()
 

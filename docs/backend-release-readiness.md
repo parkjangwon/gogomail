@@ -87,8 +87,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   including stale resumable session expiry, optional run-once execution for
-  scheduler-driven deployments, and Admin API dry-run previews plus candidate
-  listing before on-demand cleanup. Admin cleanup run responses now include
+  scheduler-driven deployments, and Admin API direct upload-session inspection,
+  dry-run previews, plus candidate listing before on-demand cleanup. Admin
+  cleanup run responses now include
   stale upload-session candidate and expired counts so operator previews cover
   the same quota reservations that the worker can release, and candidate
   previews include bounded upload-session rows for row-level operator review.
