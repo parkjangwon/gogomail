@@ -18,7 +18,10 @@ import (
 	"github.com/gogomail/gogomail/internal/mailservice"
 )
 
-const maxJSONBodyBytes = 1 << 20
+const (
+	maxJSONBodyBytes       = 1 << 20
+	maxHTTPResourceIDBytes = 200
+)
 
 type MessageService interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
@@ -735,14 +738,29 @@ func pathValue(r *http.Request, key string) string {
 	return strings.TrimSpace(r.PathValue(key))
 }
 
-func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {
-	if tokenManager == nil {
-		userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
-		if userID == "" {
-			writeError(w, http.StatusBadRequest, "user_id is required")
+func parseBoundedHTTPQuery(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		if required {
+			writeError(w, http.StatusBadRequest, key+" is required")
 			return "", false
 		}
-		return userID, true
+		return "", true
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > maxBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
+}
+
+func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {
+	if tokenManager == nil {
+		return parseBoundedHTTPQuery(w, r, "user_id", true, maxHTTPResourceIDBytes)
 	}
 	claims, ok := claimsFromRequest(w, r, tokenManager)
 	if !ok {

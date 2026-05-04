@@ -162,6 +162,8 @@ guidance.
 - Admin IMAP UID backfill mailbox IDs, outbox event/retry IDs, DKIM key IDs,
   suppression IDs, trusted-relay IDs, and delivery-route IDs now use the same
   path boundary validation before service dispatch.
+- Mail API development `user_id` query fallback values now reject CR/LF-bearing
+  or oversized identifiers before service dispatch.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

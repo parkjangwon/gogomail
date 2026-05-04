@@ -88,6 +88,8 @@ Errors use the stable envelope:
 
 - Mail API uses HS256 bearer JWT when `GOGOMAIL_AUTH_JWT_SECRET` is configured.
 - Without JWT configuration, development requests must pass `user_id` as a query parameter.
+- Development `user_id` query fallback values are trimmed and reject CR/LF-bearing
+  or oversized identifiers before Mail API service dispatch.
 - Admin API uses `Authorization: Bearer <token>` or `X-Admin-Token` when `GOGOMAIL_ADMIN_TOKEN` is configured.
 
 ## Pagination
