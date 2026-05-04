@@ -213,8 +213,8 @@ Current state:
   invalid-token outcomes with bounded provider diagnostics.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
   and status-count summaries, with optional `message_id`, `user_id`, and
-  `platform`/`since` scoping for per-message, per-user, provider-platform, and
-  recent-window troubleshooting.
+  `platform`/`device_id`/`since` scoping for per-message, per-user,
+  provider-platform, per-device, and recent-window troubleshooting.
 - Candidate recording returns an attempt id to the worker sink, giving future
   vendor adapters a stable row to update with delivered/failed/invalid-token
   outcomes.

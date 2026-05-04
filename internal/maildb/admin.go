@@ -580,6 +580,7 @@ type PushNotificationStatsRequest struct {
 	MessageID string
 	UserID    string
 	Platform  string
+	DeviceID  string
 	Since     time.Time
 }
 
@@ -4220,7 +4221,14 @@ func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotif
 
 	const query = `
 SELECT
-  COALESCE((SELECT COUNT(*) FROM push_devices WHERE status = 'active' AND (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid) AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))), 0),
+  COALESCE((
+    SELECT COUNT(*)
+    FROM push_devices
+    WHERE status = 'active'
+      AND (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
+      AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))
+      AND (NULLIF($4, '')::uuid IS NULL OR id = NULLIF($4, '')::uuid)
+  ), 0),
   COALESCE(COUNT(*), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'candidate'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'queued'), 0),
@@ -4231,10 +4239,11 @@ FROM push_notification_attempts
 WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
   AND (NULLIF($2, '')::uuid IS NULL OR message_id = NULLIF($2, '')::uuid)
   AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))
-  AND ($4::timestamptz IS NULL OR attempted_at >= $4::timestamptz)`
+  AND (NULLIF($4, '')::uuid IS NULL OR device_id = NULLIF($4, '')::uuid)
+  AND ($5::timestamptz IS NULL OR attempted_at >= $5::timestamptz)`
 
 	var stats PushNotificationStatsView
-	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.MessageID, req.Platform, nullableTime(req.Since)).Scan(
+	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.MessageID, req.Platform, req.DeviceID, nullableTime(req.Since)).Scan(
 		&stats.ActiveDevices,
 		&stats.TotalAttempts,
 		&stats.Candidate,
@@ -4252,6 +4261,7 @@ func normalizePushNotificationStatsRequest(req PushNotificationStatsRequest) (Pu
 	req.MessageID = strings.TrimSpace(req.MessageID)
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.Platform = strings.ToLower(strings.TrimSpace(req.Platform))
+	req.DeviceID = strings.TrimSpace(req.DeviceID)
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
 	}
@@ -4259,6 +4269,7 @@ func normalizePushNotificationStatsRequest(req PushNotificationStatsRequest) (Pu
 		"message_id": req.MessageID,
 		"user_id":    req.UserID,
 		"platform":   req.Platform,
+		"device_id":  req.DeviceID,
 	} {
 		if err := validatePushNotificationFilter(field, value); err != nil {
 			return PushNotificationStatsRequest{}, err

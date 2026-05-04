@@ -1263,6 +1263,12 @@ paths:
           schema:
             type: string
             enum: [apns, fcm, webpush]
+        - name: device_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
         - name: since
           in: query
           required: false
