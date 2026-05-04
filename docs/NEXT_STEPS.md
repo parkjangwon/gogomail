@@ -282,6 +282,8 @@ Current state:
   bounded sweep.
 - Mail API exposes upload session create/read/cancel endpoints, reserving declared
   quota for future resumable workflows without yet advertising chunk support.
+- Upload session creation rejects already-expired `expires_at` values before
+  quota reservation.
 - Attachment upload capabilities advertise session create/cancel support
   separately from `resumable_chunked_uploads`.
 - Admin API can preview counts, list bounded candidates, and run stale upload
