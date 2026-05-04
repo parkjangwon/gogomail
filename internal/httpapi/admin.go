@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,8 +60,8 @@ type AdminService interface {
 	RunAttachmentUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error)
 	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
-	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
-	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
+	ListAPIUsageDaily(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error)
+	ListAPIUsageMonthly(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
 	GetAPIUsageLedgerStats(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error)
 	GetAPIUsageLedgerRetentionReadiness(ctx context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error)
@@ -808,9 +809,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		usages, err := service.ListAPIUsageDaily(r.Context(), limit)
+		req, ok := parseAPIUsageAggregateListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		usages, err := service.ListAPIUsageDaily(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_daily": usages})
@@ -821,9 +826,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		usages, err := service.ListAPIUsageMonthly(r.Context(), limit)
+		req, ok := parseAPIUsageAggregateListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		usages, err := service.ListAPIUsageMonthly(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_monthly": usages})
@@ -1867,6 +1876,66 @@ func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limi
 		return maildb.APIUsageLedgerListRequest{}, false
 	}
 	return req, true
+}
+
+func parseAPIUsageAggregateListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageAggregateListRequest, bool) {
+	req := maildb.APIUsageAggregateListRequest{Limit: limit}
+	var ok bool
+	if req.TenantID, ok = parseBoundedAdminQuery(w, r, "tenant_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.CompanyID, ok = parseBoundedAdminQuery(w, r, "company_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.DomainID, ok = parseBoundedAdminQuery(w, r, "domain_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.UserID, ok = parseBoundedAdminQuery(w, r, "user_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.APIKeyID, ok = parseBoundedAdminQuery(w, r, "api_key_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.PrincipalID, ok = parseBoundedAdminQuery(w, r, "principal_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.AuthSource, ok = parseBoundedAdminQuery(w, r, "auth_source"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.Method, ok = parseBoundedAdminQuery(w, r, "method"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.Route, ok = parseBoundedAdminQuery(w, r, "route"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	var statusOK bool
+	if req.Status, statusOK = parseOptionalHTTPStatusQuery(w, r, "status"); !statusOK {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.From, ok = parseOptionalRFC3339Query(w, r, "from"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.To, ok = parseOptionalRFC3339Query(w, r, "to"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
+		writeError(w, http.StatusBadRequest, "from must be before to")
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	return req, true
+}
+
+func parseOptionalHTTPStatusQuery(w http.ResponseWriter, r *http.Request, key string) (int, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	if raw == "" {
+		return 0, true
+	}
+	status, err := strconv.Atoi(raw)
+	if err != nil || status < 100 || status > 599 {
+		writeError(w, http.StatusBadRequest, key+" must be an HTTP status code")
+		return 0, false
+	}
+	return status, true
 }
 
 func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.AuditLogListRequest, bool) {

@@ -219,6 +219,22 @@ type APIUsageMonthlyView struct {
 	LastSeenAt       time.Time `json:"last_seen_at"`
 }
 
+type APIUsageAggregateListRequest struct {
+	Limit       int
+	TenantID    string
+	CompanyID   string
+	DomainID    string
+	UserID      string
+	APIKeyID    string
+	PrincipalID string
+	AuthSource  string
+	Method      string
+	Route       string
+	Status      int
+	From        time.Time
+	To          time.Time
+}
+
 type APIUsageLedgerView struct {
 	EventID       string          `json:"event_id"`
 	SchemaVersion string          `json:"schema_version"`
@@ -2480,11 +2496,14 @@ LIMIT $1`
 	return usages, nil
 }
 
-func (r *Repository) ListAPIUsageDaily(ctx context.Context, limit int) ([]APIUsageDailyView, error) {
+func (r *Repository) ListAPIUsageDaily(ctx context.Context, req APIUsageAggregateListRequest) ([]APIUsageDailyView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	filters, err := normalizeAPIUsageAggregateListRequest(req)
+	if err != nil {
+		return nil, err
+	}
 
 	const query = `
 SELECT
@@ -2507,10 +2526,36 @@ SELECT
   first_seen_at,
   last_seen_at
 FROM api_usage_daily
+WHERE ($2 = '' OR tenant_id = $2)
+  AND ($3 = '' OR company_id = $3)
+  AND ($4 = '' OR domain_id = $4)
+  AND ($5 = '' OR user_id = $5)
+  AND ($6 = '' OR api_key_id = $6)
+  AND ($7 = '' OR principal_id = $7)
+  AND ($8 = '' OR auth_source = $8)
+  AND ($9 = '' OR method = $9)
+  AND ($10 = '' OR route = $10)
+  AND ($11 = 0 OR status = $11)
+  AND ($12::timestamptz IS NULL OR day >= $12::timestamptz)
+  AND ($13::timestamptz IS NULL OR day < $13::timestamptz)
 ORDER BY day DESC, request_count DESC, route, status
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query,
+		filters.Limit,
+		filters.TenantID,
+		filters.CompanyID,
+		filters.DomainID,
+		filters.UserID,
+		filters.APIKeyID,
+		filters.PrincipalID,
+		filters.AuthSource,
+		filters.Method,
+		filters.Route,
+		filters.Status,
+		nullableTime(filters.From),
+		nullableTime(filters.To),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage daily: %w", err)
 	}
@@ -2552,11 +2597,14 @@ LIMIT $1`
 	return usages, nil
 }
 
-func (r *Repository) ListAPIUsageMonthly(ctx context.Context, limit int) ([]APIUsageMonthlyView, error) {
+func (r *Repository) ListAPIUsageMonthly(ctx context.Context, req APIUsageAggregateListRequest) ([]APIUsageMonthlyView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	filters, err := normalizeAPIUsageAggregateListRequest(req)
+	if err != nil {
+		return nil, err
+	}
 
 	const query = `
 SELECT
@@ -2579,10 +2627,36 @@ SELECT
   first_seen_at,
   last_seen_at
 FROM api_usage_monthly
+WHERE ($2 = '' OR tenant_id = $2)
+  AND ($3 = '' OR company_id = $3)
+  AND ($4 = '' OR domain_id = $4)
+  AND ($5 = '' OR user_id = $5)
+  AND ($6 = '' OR api_key_id = $6)
+  AND ($7 = '' OR principal_id = $7)
+  AND ($8 = '' OR auth_source = $8)
+  AND ($9 = '' OR method = $9)
+  AND ($10 = '' OR route = $10)
+  AND ($11 = 0 OR status = $11)
+  AND ($12::timestamptz IS NULL OR month >= $12::timestamptz)
+  AND ($13::timestamptz IS NULL OR month < $13::timestamptz)
 ORDER BY month DESC, request_count DESC, route, status
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query,
+		filters.Limit,
+		filters.TenantID,
+		filters.CompanyID,
+		filters.DomainID,
+		filters.UserID,
+		filters.APIKeyID,
+		filters.PrincipalID,
+		filters.AuthSource,
+		filters.Method,
+		filters.Route,
+		filters.Status,
+		nullableTime(filters.From),
+		nullableTime(filters.To),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage monthly: %w", err)
 	}
@@ -2622,6 +2696,62 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate api usage monthly: %w", err)
 	}
 	return usages, nil
+}
+
+func normalizeAPIUsageAggregateListRequest(req APIUsageAggregateListRequest) (APIUsageAggregateListRequest, error) {
+	req.Limit = normalizeLimit(req.Limit)
+	var err error
+	if req.TenantID, err = normalizeAPIUsageAggregateFilter("tenant_id", req.TenantID, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.CompanyID, err = normalizeAPIUsageAggregateFilter("company_id", req.CompanyID, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.DomainID, err = normalizeAPIUsageAggregateFilter("domain_id", req.DomainID, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.UserID, err = normalizeAPIUsageAggregateFilter("user_id", req.UserID, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.APIKeyID, err = normalizeAPIUsageAggregateFilter("api_key_id", req.APIKeyID, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.PrincipalID, err = normalizeAPIUsageAggregateFilter("principal_id", req.PrincipalID, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.AuthSource, err = normalizeAPIUsageAggregateFilter("auth_source", req.AuthSource, true); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.Method, err = normalizeAPIUsageAggregateFilter("method", req.Method, true); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.Route, err = normalizeAPIUsageAggregateFilter("route", req.Route, false); err != nil {
+		return APIUsageAggregateListRequest{}, err
+	}
+	if req.Status < 0 || req.Status > 999 {
+		return APIUsageAggregateListRequest{}, fmt.Errorf("status must be an HTTP-like status code")
+	}
+	if !req.From.IsZero() {
+		req.From = req.From.UTC()
+	}
+	if !req.To.IsZero() {
+		req.To = req.To.UTC()
+	}
+	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
+		return APIUsageAggregateListRequest{}, fmt.Errorf("from must be before to")
+	}
+	return req, nil
+}
+
+func normalizeAPIUsageAggregateFilter(name, value string, lower bool) (string, error) {
+	value = strings.TrimSpace(value)
+	if lower {
+		value = strings.ToLower(value)
+	}
+	if err := validatePushNotificationFilter(name, value); err != nil {
+		return "", err
+	}
+	return value, nil
 }
 
 func (r *Repository) ListAPIUsageLedger(ctx context.Context, req APIUsageLedgerListRequest) ([]APIUsageLedgerView, error) {
