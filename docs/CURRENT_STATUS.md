@@ -185,6 +185,9 @@ guidance.
   and encoded recipients before base64 decoding DSN recipient metadata.
 - API usage export Ed25519 signer/verifier key configuration now rejects
   oversized base64 public/private keys before decoding.
+- API usage export manifest signer configuration now rejects CR/LF-bearing or
+  oversized key IDs and remote signer tokens, and local HMAC signing rejects
+  oversized secrets before MAC generation.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

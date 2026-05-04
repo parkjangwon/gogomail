@@ -78,6 +78,78 @@ func TestValidateRequiresRemoteEd25519ExportManifestSignerConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnsafeExportManifestSignerCredentials(t *testing.T) {
+	t.Parallel()
+
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	for _, tc := range []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{
+			name: "key_id_line_break",
+			mutate: func(cfg *Config) {
+				cfg.APIUsageExportManifestSignerBackend = "local-hmac"
+				cfg.APIUsageExportManifestSignerKeyID = "key\nbad"
+				cfg.APIUsageExportManifestSignerSecret = "secret"
+			},
+			wantErr: "KEY_ID cannot contain line breaks",
+		},
+		{
+			name: "key_id_too_long",
+			mutate: func(cfg *Config) {
+				cfg.APIUsageExportManifestSignerBackend = "local-hmac"
+				cfg.APIUsageExportManifestSignerKeyID = strings.Repeat("k", maxExportManifestSignerKeyIDBytes+1)
+				cfg.APIUsageExportManifestSignerSecret = "secret"
+			},
+			wantErr: "KEY_ID is too long",
+		},
+		{
+			name: "hmac_secret_too_long",
+			mutate: func(cfg *Config) {
+				cfg.APIUsageExportManifestSignerBackend = "local-hmac"
+				cfg.APIUsageExportManifestSignerKeyID = "key-1"
+				cfg.APIUsageExportManifestSignerSecret = strings.Repeat("s", maxExportManifestSignerCredentialBytes+1)
+			},
+			wantErr: "SECRET is too long",
+		},
+		{
+			name: "remote_token_line_break",
+			mutate: func(cfg *Config) {
+				cfg.APIUsageExportManifestSignerBackend = "remote-ed25519"
+				cfg.APIUsageExportManifestSignerKeyID = "key-1"
+				cfg.APIUsageExportSignerURL = "https://signer.example.test/sign"
+				cfg.APIUsageExportSignerPublicKey = base64.StdEncoding.EncodeToString(publicKey)
+				cfg.APIUsageExportSignerToken = "token\nbad"
+			},
+			wantErr: "TOKEN cannot contain line breaks",
+		},
+		{
+			name: "remote_token_too_long",
+			mutate: func(cfg *Config) {
+				cfg.APIUsageExportManifestSignerBackend = "remote-ed25519"
+				cfg.APIUsageExportManifestSignerKeyID = "key-1"
+				cfg.APIUsageExportSignerURL = "https://signer.example.test/sign"
+				cfg.APIUsageExportSignerPublicKey = base64.StdEncoding.EncodeToString(publicKey)
+				cfg.APIUsageExportSignerToken = strings.Repeat("t", maxExportManifestSignerCredentialBytes+1)
+			},
+			wantErr: "TOKEN is too long",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := Load()
+			tc.mutate(&cfg)
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("Validate error = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateRejectsOversizedEd25519ExportManifestSignerKeysBeforeDecode(t *testing.T) {
 	t.Parallel()
 
