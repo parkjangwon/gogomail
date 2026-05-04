@@ -74,7 +74,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		var req struct {
 			Name string `json:"name"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -101,7 +101,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		var req struct {
 			Name string `json:"name"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -286,7 +286,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			Flag  string `json:"flag"`
 			Value bool   `json:"value"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -307,7 +307,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		var req maildb.BulkMessageFlagRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -332,7 +332,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		var req struct {
 			FolderID string `json:"folder_id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -353,7 +353,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		var req maildb.BulkMessageMoveRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -389,7 +389,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		var req maildb.BulkMessageDeleteRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -407,7 +407,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		defer r.Body.Close()
 
 		var req mailservice.SaveDraftRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -430,7 +430,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		defer r.Body.Close()
 
 		var req mailservice.SaveDraftRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -494,7 +494,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		defer r.Body.Close()
 
 		var req mailservice.CreateAttachmentUploadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -605,7 +605,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		var req maildb.UpsertPushDeviceRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -635,7 +635,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		defer r.Body.Close()
 
 		var req mailservice.SendTextRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -701,6 +701,21 @@ func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key stri
 		return false, true
 	}
 	return *value, true
+}
+
+func decodeJSONBody(r *http.Request, dst any) error {
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("body must contain a single JSON value")
+		}
+		return err
+	}
+	return nil
 }
 
 func pathValue(r *http.Request, key string) string {
