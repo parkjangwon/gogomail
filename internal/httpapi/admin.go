@@ -96,6 +96,14 @@ type AdminService interface {
 	VerifyDKIMKeyDNS(ctx context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error)
 	RetryOutbox(ctx context.Context, id string) error
 	DeleteSuppressionEntry(ctx context.Context, id string) error
+	BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error)
+}
+
+type adminIMAPUIDBackfillItem struct {
+	MessageID string `json:"message_id"`
+	MailboxID string `json:"mailbox_id"`
+	UID       uint32 `json:"uid"`
+	ModSeq    uint64 `json:"modseq"`
 }
 
 type AdminBackpressureService interface {
@@ -377,6 +385,34 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/imap/mailboxes/{id}/uid-backfill", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
+		mailboxID := strings.TrimSpace(r.PathValue("id"))
+		if userID == "" || mailboxID == "" {
+			writeError(w, http.StatusBadRequest, "user_id and mailbox id are required")
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		assigned, err := service.BackfillIMAPMailboxUIDs(r.Context(), userID, mailboxID, limit)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		items := make([]adminIMAPUIDBackfillItem, 0, len(assigned))
+		for _, item := range assigned {
+			items = append(items, adminIMAPUIDBackfillItem{
+				MessageID: string(item.MessageID),
+				MailboxID: string(item.MailboxID),
+				UID:       uint32(item.UID),
+				ModSeq:    item.ModSeq,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"imap_uid_backfill": items})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/outbox-events", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

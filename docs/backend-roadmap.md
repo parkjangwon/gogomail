@@ -426,6 +426,7 @@ Implementation order:
 367. Event and delivery Redis worker configuration now rejects nonpositive consumer count/block settings at startup, matching the existing push, API-metering, and search-index guardrails before unusable stream consumers can run.
 368. OpenAPI drift tests now pin Mail API search query parameters, including relevance sorting, rank/highlight toggles, attachment filtering, and metadata filters, protecting generated client search controls from contract regression.
 369. Admin delivery-route status and delete handlers now trim route IDs at the HTTP boundary before service calls and response envelopes, keeping operator mutations consistent with repository validation.
+370. Admin API now exposes bounded IMAP mailbox UID backfill by user/mailbox, giving operators a bootstrap path for future IMAP enablement without starting an IMAP protocol listener.
 
 ## Deferred until backend contracts stabilize
 

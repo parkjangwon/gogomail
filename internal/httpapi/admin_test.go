@@ -14,6 +14,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/dnscheck"
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -49,6 +50,35 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 	if len(body.Queues) != 1 || body.Queues[0].Count != 2 || body.Queues[0].ReadyCount != 1 || body.Queues[0].DelayedCount != 1 || body.Queues[0].OldestReadyAt == nil {
 		t.Fatalf("queues = %+v", body.Queues)
+	}
+}
+
+func TestAdminBackfillIMAPMailboxUIDsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		imapUIDBackfill: []maildb.IMAPMessageUID{{
+			MessageID: "msg-1",
+			MailboxID: "inbox",
+			UID:       imapgw.UID(12),
+			ModSeq:    2,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/imap/mailboxes/%20inbox%20/uid-backfill?user_id=%20user-1%20&limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastIMAPBackfillUserID != "user-1" || service.lastIMAPBackfillMailboxID != "inbox" || service.lastIMAPBackfillLimit != 10 {
+		t.Fatalf("backfill request = %q/%q/%d", service.lastIMAPBackfillUserID, service.lastIMAPBackfillMailboxID, service.lastIMAPBackfillLimit)
+	}
+	if !strings.Contains(rec.Body.String(), `"imap_uid_backfill"`) || !strings.Contains(rec.Body.String(), `"message_id":"msg-1"`) || !strings.Contains(rec.Body.String(), `"uid":12`) {
+		t.Fatalf("response missing backfill envelope/items: %s", rec.Body.String())
 	}
 }
 
@@ -2735,6 +2765,7 @@ type fakeAdminService struct {
 	trustedRelays                               []maildb.TrustedRelayView
 	deliveryRoutes                              []maildb.DeliveryRouteView
 	deliveryRouteResolution                     maildb.DeliveryRouteResolveView
+	imapUIDBackfill                             []maildb.IMAPMessageUID
 	dkimKeys                                    []maildb.DKIMKeyView
 	backpressureState                           backpressure.State
 	createdDKIMKeyID                            string
@@ -2770,6 +2801,9 @@ type fakeAdminService struct {
 	lastCreateDeliveryRoute                     maildb.CreateDeliveryRouteRequest
 	lastResolveDeliveryRouteDomain              string
 	lastDeliveryRouteStatus                     maildb.UpdateDeliveryRouteStatusRequest
+	lastIMAPBackfillUserID                      string
+	lastIMAPBackfillMailboxID                   string
+	lastIMAPBackfillLimit                       int
 	lastBackpressureUpdate                      backpressure.StateUpdate
 	lastDeactivateDKIMKeyID                     string
 	lastRetryOutboxID                           string
@@ -3155,6 +3189,13 @@ func (f *fakeAdminService) UpdateDeliveryRouteStatus(_ context.Context, req mail
 func (f *fakeAdminService) DeleteDeliveryRoute(_ context.Context, id string) error {
 	f.lastDeleteDeliveryRouteID = id
 	return nil
+}
+
+func (f *fakeAdminService) BackfillIMAPMailboxUIDs(_ context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error) {
+	f.lastIMAPBackfillUserID = userID
+	f.lastIMAPBackfillMailboxID = mailboxID
+	f.lastIMAPBackfillLimit = limit
+	return f.imapUIDBackfill, nil
 }
 
 func (f *fakeAdminService) ListDKIMKeys(_ context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error) {

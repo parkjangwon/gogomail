@@ -424,6 +424,23 @@ paths:
           $ref: "#/components/responses/QueueStats"
         default:
           $ref: "#/components/responses/Error"
+  /imap/mailboxes/{id}/uid-backfill:
+    post:
+      operationId: backfillAdminIMAPMailboxUIDs
+      summary: Admin assign missing IMAP mailbox UIDs in a bounded batch
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/IMAPUIDBackfill"
+        default:
+          $ref: "#/components/responses/Error"
   /outbox-events:
     get:
       operationId: listAdminOutboxEvents
@@ -1676,6 +1693,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QueueStatsEnvelope"
+    IMAPUIDBackfill:
+      description: IMAP UID backfill result envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/IMAPUIDBackfillEnvelope"
     OutboxEventList:
       description: Outbox event metadata list envelope
       content:
@@ -2624,6 +2647,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QueueStat"
+    IMAPUIDBackfillItem:
+      type: object
+      required: [message_id, mailbox_id, uid, modseq]
+      properties:
+        message_id:
+          type: string
+        mailbox_id:
+          type: string
+        uid:
+          type: integer
+          format: int64
+          minimum: 1
+        modseq:
+          type: integer
+          format: int64
+          minimum: 1
+    IMAPUIDBackfillEnvelope:
+      type: object
+      required: [imap_uid_backfill]
+      properties:
+        imap_uid_backfill:
+          type: array
+          items:
+            $ref: "#/components/schemas/IMAPUIDBackfillItem"
     OutboxEvent:
       type: object
       required: [id, topic, partition_key, status, attempts, created_at, available_at]

@@ -141,6 +141,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /push-devices":                                    "#/components/responses/PushDeviceList",
 		"POST /push-devices":                                   "#/components/responses/PushDevice",
 		"DELETE /push-devices/{id}":                            "#/components/responses/IDStatus",
+		"POST /imap/mailboxes/{id}/uid-backfill":               "#/components/responses/IMAPUIDBackfill",
 		"GET /companies":                                       "#/components/responses/CompanyList",
 		"GET /companies/{id}":                                  "#/components/responses/Company",
 		"GET /domains":                                         "#/components/responses/DomainList",
@@ -307,6 +308,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /trusted-relays":                                  {"limit"},
 		"GET /delivery-routes":                                 {"limit"},
 		"GET /delivery-routes/resolve":                         {"domain"},
+		"POST /imap/mailboxes/{id}/uid-backfill":               {"id", "user_id", "limit"},
 		"GET /dkim-keys":                                       {"limit", "domain_id"},
 	} {
 		block, ok := operations[route]
@@ -543,6 +545,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"PushDeviceListEnvelope":                              "push_devices",
 		"PushDeviceEnvelope":                                  "push_device",
 		"QueueStatsEnvelope":                                  "queues",
+		"IMAPUIDBackfillEnvelope":                             "imap_uid_backfill",
 		"OutboxEventListEnvelope":                             "outbox_events",
 		"OutboxEventEnvelope":                                 "outbox_event",
 		"BackpressureEnvelope":                                "backpressure",

@@ -202,6 +202,9 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/queue` returns `{"queues":[...]}` with grouped topic/status
   totals plus ready, delayed, stale-processing, oldest-ready, and
   next-available metadata for operator dashboards.
+- `POST /admin/v1/imap/mailboxes/{id}/uid-backfill?user_id=...&limit=...`
+  returns `{"imap_uid_backfill":[...]}` with bounded mailbox-local UID
+  assignments for future IMAP bootstrap/operator runs.
 - `GET /admin/v1/outbox-events` returns `{"outbox_events":[...]}`;
   optional `topic`, `partition_key`, `status`, and RFC3339 `since` filters
   expose outbox event metadata without returning JSON payload bodies. List
