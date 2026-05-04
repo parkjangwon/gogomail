@@ -652,6 +652,7 @@ Implementation order:
 592. Admin API usage export batch listing now supports bounded tenant, principal, status, and export-window filters, letting operators find covering manifests for handoff and retention checks without global scans.
 593. HTTP readiness can now include runtime database and Redis dependency probes for Mail/Admin/API-metered modes and returns a degraded 503 readiness response when an injected dependency check fails.
 594. Admin attachment upload-session listing now supports bounded user, draft, and lifecycle-status filters, giving operators direct visibility into pending, uploading, finalized, canceled, or expired resumable sessions.
+595. Trusted relay create/delete mutations now persist hash-chain admin audit rows in the same database transaction as the relay policy change, making inbound relay administration tamper-evident through the Admin audit surface.
 
 ## Deferred until backend contracts stabilize
 
