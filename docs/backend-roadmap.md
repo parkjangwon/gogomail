@@ -456,6 +456,7 @@ Implementation order:
 397. Attachment and API usage artifact downloads now parse stored media types before writing `Content-Type`, falling back to safe defaults for malformed MIME values.
 398. Attachment download `Content-Disposition` filenames are now bounded before header emission, preserving UTF-8 filename support without allowing oversized stored names to bloat responses.
 399. Mail and Admin API JSON body decoding is now capped at 1 MiB before parsing while preserving the existing trailing-token rejection guard.
+400. Admin API domain query identifiers for user listing, DKIM key listing, and delivery-route resolution are now trimmed before service dispatch, matching the existing path-id normalization stance.
 
 ## Deferred until backend contracts stabilize
 
