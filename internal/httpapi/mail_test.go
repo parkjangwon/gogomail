@@ -144,6 +144,55 @@ func TestListThreadsHandler(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello search"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&from=sender&subject=search&has_attachment=true&limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Messages []maildb.MessageSummary `json:"messages"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Messages) != 1 || body.Messages[0].ID != "msg-1" {
+		t.Fatalf("messages = %+v", body.Messages)
+	}
+	if service.lastSearch.UserID != "user-1" || service.lastSearch.Query != "hello" || service.lastSearch.From != "sender" {
+		t.Fatalf("lastSearch = %+v", service.lastSearch)
+	}
+	if service.lastSearch.HasAttachment == nil || !*service.lastSearch.HasAttachment {
+		t.Fatalf("HasAttachment = %+v", service.lastSearch.HasAttachment)
+	}
+}
+
+func TestSearchMessagesHandlerRejectsInvalidHasAttachment(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&has_attachment=maybe", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestListThreadMessagesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -974,6 +1023,7 @@ type fakeMessageService struct {
 	lastBulkFlag         maildb.BulkMessageFlagRequest
 	lastBulkMove         maildb.BulkMessageMoveRequest
 	lastBulkDelete       maildb.BulkMessageDeleteRequest
+	lastSearch           maildb.MessageSearchQuery
 	lastLimit            int
 }
 
@@ -1034,6 +1084,11 @@ func (f *fakeMessageService) ListThreadMessages(_ context.Context, userID string
 	f.lastUserID = userID
 	f.lastThreadID = threadID
 	f.lastLimit = limit
+	return f.list, nil
+}
+
+func (f *fakeMessageService) SearchMessages(_ context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	f.lastSearch = query
 	return f.list, nil
 }
 

@@ -126,6 +126,16 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 	return repo.ListThreadMessages(ctx, userID, threadID, limit)
 }
 
+func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	repo, ok := s.repository.(interface {
+		SearchMessages(context.Context, maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("search repository is required")
+	}
+	return repo.SearchMessages(ctx, query)
+}
+
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
 	detail, err := s.repository.GetMessage(ctx, userID, messageID)
 	if err != nil {

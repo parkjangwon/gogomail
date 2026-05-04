@@ -46,6 +46,8 @@ guidance.
   source messages exist.
 - Reply composition writes RFC `In-Reply-To`/`References` headers into outgoing
   `.eml` messages.
+- Mail API exposes a first Postgres-backed search endpoint for message metadata
+  and draft text, with an FTS index for small deployments.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Per-domain inbound policy enforced at SMTP receive and Submission MTA (max
@@ -102,9 +104,9 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Search indexing readiness (Postgres FTS first, OpenSearch adapter later).
+1. Search indexing boundary for received message bodies and future OpenSearch.
 2. IMAP gateway design and implementation planning.
-3. Search API and indexing boundary.
+3. Search result highlighting/ranking once indexing boundary exists.
 4. Push notification hook for FCM/APNs (pluggable pipeline stage).
 5. Attachment scanning hook (pluggable pipeline stage).
 6. Frontend planning and API contract review before webmail implementation.

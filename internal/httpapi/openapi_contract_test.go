@@ -114,6 +114,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"PATCH /folders/{id}":                "#/components/responses/Folder",
 		"DELETE /folders/{id}":               "#/components/responses/Status",
 		"GET /messages":                      "#/components/responses/MessageListPage",
+		"GET /search":                        "#/components/responses/MessageList",
 		"GET /messages/{id}":                 "#/components/responses/Message",
 		"GET /messages/{id}/delivery-status": "#/components/responses/MessageDeliveryStatus",
 		"GET /threads":                       "#/components/responses/ThreadList",

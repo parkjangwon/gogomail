@@ -231,6 +231,16 @@ Reply composition also writes RFC `In-Reply-To` and `References` headers into
 the stored/sent `.eml`, allowing external MUAs and remote recipients to retain
 conversation threading.
 
+Message search starts with a small-deployment Postgres implementation:
+
+- `GET /api/v1/search`
+
+The current backend searches message metadata (`subject`, `from_addr`,
+`from_name`) plus `draft_text_body` using a simple Postgres FTS expression and
+bounded list limits. Full received-body indexing remains intentionally deferred
+to the future indexing boundary/OpenSearch worker so SMTP receive and message
+read hot paths stay streaming and allocation-aware.
+
 ## Deferred from this contract
 
 - Next.js/frontend screens and shells.

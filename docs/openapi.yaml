@@ -96,6 +96,37 @@ paths:
           $ref: "#/components/responses/MessageListPage"
         default:
           $ref: "#/components/responses/Error"
+  /search:
+    get:
+      operationId: searchMessages
+      summary: Search messages using the current backend search implementation
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: folder_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: subject
+          in: query
+          schema:
+            type: string
+        - name: has_attachment
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          $ref: "#/components/responses/MessageList"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}:
     get:
       operationId: getMessage

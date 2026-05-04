@@ -23,6 +23,7 @@ type MessageService interface {
 	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error)
 	ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error)
+	SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
@@ -171,6 +172,35 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
+	})
+
+	mux.HandleFunc("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		hasAttachment, ok := parseOptionalBoolQuery(w, r, "has_attachment")
+		if !ok {
+			return
+		}
+		messages, err := service.SearchMessages(r.Context(), maildb.MessageSearchQuery{
+			UserID:        userID,
+			Query:         r.URL.Query().Get("q"),
+			FolderID:      r.URL.Query().Get("folder_id"),
+			From:          r.URL.Query().Get("from"),
+			Subject:       r.URL.Query().Get("subject"),
+			HasAttachment: hasAttachment,
+			Limit:         limit,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"messages": messages})
 	})
 
 	mux.HandleFunc("GET /api/v1/threads", func(w http.ResponseWriter, r *http.Request) {
@@ -567,6 +597,19 @@ func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
 		return 0, false
 	}
 	return limit, true
+}
+
+func parseOptionalBoolQuery(w http.ResponseWriter, r *http.Request, key string) (*bool, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	if raw == "" {
+		return nil, true
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, key+" must be a boolean")
+		return nil, false
+	}
+	return &value, true
 }
 
 func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {

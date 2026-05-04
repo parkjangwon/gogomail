@@ -26,12 +26,14 @@ Current state:
 - New inbound and reply/forward outbound rows inherit thread IDs from local
   `References`/`In-Reply-To`/source messages.
 - Reply composition writes RFC thread headers into outgoing `.eml`.
-- No full-text search API exists yet.
+- Mail API exposes `GET /api/v1/search` backed by a small-deployment Postgres
+  FTS index over metadata and draft text.
 
 Next:
 
-- Evaluate Postgres full-text search vs OpenSearch for subject/body search.
-- Add search endpoints and an indexing boundary.
+- Add indexing boundary for received message body text extraction.
+- Add OpenSearch adapter behind the same search contract.
+- Add highlighting/ranking fields when index-worker exists.
 
 ### 2. IMAP gateway planning
 
