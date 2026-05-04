@@ -198,11 +198,13 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /delivery-routes":                                    "#/components/responses/DeliveryRouteList",
 		"POST /delivery-routes":                                   "#/components/responses/DeliveryRoute",
 		"GET /delivery-routes/resolve":                            "#/components/responses/DeliveryRouteResolution",
+		"GET /delivery-routes/counters":                           "#/components/responses/DeliveryRouteCounters",
 		"PATCH /delivery-routes/{id}/status":                      "#/components/responses/IDStatus",
 		"DELETE /delivery-routes/{id}":                            "#/components/responses/IDStatus",
 		"GET /dkim-keys":                                          "#/components/responses/DKIMKeyList",
 		"POST /dkim-keys":                                         "#/components/responses/IDStatus",
 		"DELETE /dkim-keys/{id}":                                  "#/components/responses/IDStatus",
+		"POST /dkim-keys/{id}/verify-dns":                         "#/components/responses/DKIMKeyDNSVerification",
 		"POST /outbox/{id}/retry":                                 "#/components/responses/IDStatus",
 		"GET /messages/{id}/attachments/{attachment_id}/download": "",
 	} {

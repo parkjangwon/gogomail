@@ -266,6 +266,9 @@ Plain IPs are canonicalized to `/32` or `/128` before persistence.
 When creating a DKIM key, `public_key_dns` is optional. If omitted, the backend
 derives the `v=DKIM1; k=rsa; p=...` TXT record from `private_key_pem` and stores
 that public DNS value for administrator display and DNS setup checks.
+`POST /admin/v1/dkim-keys/{id}/verify-dns` returns
+`{"dkim_verification":{...}}` and records `dns_verified_at` when the expected
+selector TXT record matches.
 
 Outbound gateway and smart-host administration includes delivery route
 management:
@@ -273,6 +276,7 @@ management:
 - `GET /admin/v1/delivery-routes`
 - `POST /admin/v1/delivery-routes`
 - `GET /admin/v1/delivery-routes/resolve?domain=mail.example.net`
+- `GET /admin/v1/delivery-routes/counters`
 - `PATCH /admin/v1/delivery-routes/{id}/status`
 - `DELETE /admin/v1/delivery-routes/{id}`
 
@@ -283,6 +287,10 @@ AUTH identity/username/password keep gateway policy out of SMTP protocol core.
 The resolve endpoint is a dry-run observability surface; it returns
 `{"delivery_route_resolution":{"domain":"...","matched":true|false,"route":...}}`
 without sending mail.
+Runtime delivery counters return `{"route_counters":[...]}` with per-pool
+delivered, failed, retried, exhausted, and process-start `since` totals so
+operators can inspect route behavior without coupling SMTP delivery to an
+external metrics vendor.
 
 Domain onboarding and deliverability checks include DNS verification:
 

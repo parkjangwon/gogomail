@@ -383,6 +383,7 @@ Implementation order:
 324. Admin outbox event metadata lists now return UTF-8-safe bounded `last_error` previews, keeping operational list responses lightweight while preserving the full stored error for future detail views.
 325. Admin outbox event detail now returns full event metadata and full stored `last_error` by id without exposing the JSON payload body, giving operators a safe drill-down path from bounded list previews.
 326. Admin outbox retry now trims path IDs and rejects blank IDs at the HTTP boundary before reaching repository mutation logic.
+327. Admin delivery-route counter and DKIM DNS verification responses now use reusable OpenAPI response components and drift tests, keeping operator API envelopes explicit for generated clients.
 
 ## Deferred until backend contracts stabilize
 
