@@ -21,13 +21,15 @@ Before changing code, read:
 Current state:
 
 - Messages store `thread_id`, `in_reply_to`, `rfc_message_id`.
-- No full-text search or thread aggregation API exists yet.
+- Thread aggregation APIs exist for `GET /api/v1/threads` and
+  `GET /api/v1/threads/{id}/messages`.
+- No full-text search API exists yet.
 
 Next:
 
-- Design a threading API that groups messages by thread_id.
+- Assign `thread_id` on receive/send using RFC `References` and `In-Reply-To`.
 - Evaluate Postgres full-text search vs OpenSearch for subject/body search.
-- Add `GET /api/v1/threads` and `GET /api/v1/threads/{id}/messages` endpoints.
+- Add search endpoints and an indexing boundary.
 
 ### 2. IMAP gateway planning
 

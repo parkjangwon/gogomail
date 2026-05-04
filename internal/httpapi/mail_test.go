@@ -107,6 +107,73 @@ func TestListFoldersHandler(t *testing.T) {
 	}
 }
 
+func TestListThreadsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		threads: []maildb.ThreadSummary{{
+			ID:              "thread-1",
+			Subject:         "hello",
+			MessageCount:    2,
+			UnreadCount:     1,
+			LatestMessageID: "msg-2",
+			LatestFromAddr:  "sender@example.net",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Threads []maildb.ThreadSummary `json:"threads"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Threads) != 1 || body.Threads[0].ID != "thread-1" {
+		t.Fatalf("threads = %+v", body.Threads)
+	}
+	if service.lastUserID != "user-1" || service.lastLimit != 10 {
+		t.Fatalf("lastUserID=%q lastLimit=%d", service.lastUserID, service.lastLimit)
+	}
+}
+
+func TestListThreadMessagesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads/thread-1/messages?user_id=user-1&limit=20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Messages []maildb.MessageSummary `json:"messages"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Messages) != 1 || service.lastThreadID != "thread-1" {
+		t.Fatalf("messages = %+v lastThreadID=%q", body.Messages, service.lastThreadID)
+	}
+	if service.lastUserID != "user-1" || service.lastLimit != 20 {
+		t.Fatalf("lastUserID=%q lastLimit=%d", service.lastUserID, service.lastLimit)
+	}
+}
+
 func TestCreateFolderHandler(t *testing.T) {
 	t.Parallel()
 
@@ -883,6 +950,7 @@ type fakeMessageService struct {
 	folders              []maildb.Folder
 	createdFolder        maildb.Folder
 	list                 []maildb.MessageSummary
+	threads              []maildb.ThreadSummary
 	attachments          []maildb.Attachment
 	download             mailservice.AttachmentDownload
 	detail               maildb.MessageDetail
@@ -897,6 +965,7 @@ type fakeMessageService struct {
 	lastDeletedFolderID  string
 	lastMessageID        string
 	lastFolderID         string
+	lastThreadID         string
 	lastMoveFolderID     string
 	lastDeletedID        string
 	lastDeletedDraftID   string
@@ -951,6 +1020,19 @@ func (f *fakeMessageService) ListMessagesInFolder(_ context.Context, userID stri
 func (f *fakeMessageService) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, _ maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	f.lastUserID = userID
 	f.lastFolderID = folderID
+	f.lastLimit = limit
+	return f.list, nil
+}
+
+func (f *fakeMessageService) ListThreads(_ context.Context, userID string, limit int) ([]maildb.ThreadSummary, error) {
+	f.lastUserID = userID
+	f.lastLimit = limit
+	return f.threads, nil
+}
+
+func (f *fakeMessageService) ListThreadMessages(_ context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
+	f.lastUserID = userID
+	f.lastThreadID = threadID
 	f.lastLimit = limit
 	return f.list, nil
 }

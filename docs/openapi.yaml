@@ -128,6 +128,29 @@ paths:
           $ref: "#/components/responses/MessageDeliveryStatus"
         default:
           $ref: "#/components/responses/Error"
+  /threads:
+    get:
+      operationId: listThreads
+      summary: List message threads for the current mailbox
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/ThreadList"
+        default:
+          $ref: "#/components/responses/Error"
+  /threads/{id}/messages:
+    get:
+      operationId: listThreadMessages
+      summary: List messages inside a thread in chronological order
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/MessageList"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/flags:
     patch:
       operationId: updateMessageFlags
@@ -821,12 +844,24 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/MessageListPageEnvelope"
+    MessageList:
+      description: Message list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageListEnvelope"
     Message:
       description: Message detail envelope
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/MessageEnvelope"
+    ThreadList:
+      description: Thread list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ThreadListEnvelope"
     MessageDeliveryStatus:
       description: User-scoped delivery status envelope
       content:
@@ -1275,6 +1310,51 @@ components:
         next_cursor:
           type: string
           description: Opaque cursor. Clients must not parse or manufacture this value.
+    MessageListEnvelope:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageSummary"
+    ThreadSummary:
+      type: object
+      required: [id, subject, message_count, unread_count, latest_message_id, latest_from_addr, latest_at, has_attachment, starred]
+      properties:
+        id:
+          type: string
+          description: Thread UUID when present, otherwise the root message id for unthreaded messages.
+        subject:
+          type: string
+        message_count:
+          type: integer
+          format: int64
+          minimum: 1
+        unread_count:
+          type: integer
+          format: int64
+          minimum: 0
+        latest_message_id:
+          type: string
+        latest_from_addr:
+          type: string
+          format: email
+        latest_at:
+          type: string
+          format: date-time
+        has_attachment:
+          type: boolean
+        starred:
+          type: boolean
+    ThreadListEnvelope:
+      type: object
+      required: [threads]
+      properties:
+        threads:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreadSummary"
     MessageDetail:
       allOf:
         - $ref: "#/components/schemas/MessageSummary"

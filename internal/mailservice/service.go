@@ -102,6 +102,26 @@ func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID 
 	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor)
 }
 
+func (s *Service) ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error) {
+	repo, ok := s.repository.(interface {
+		ListThreads(context.Context, string, int) ([]maildb.ThreadSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("thread repository is required")
+	}
+	return repo.ListThreads(ctx, userID, limit)
+}
+
+func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
+	repo, ok := s.repository.(interface {
+		ListThreadMessages(context.Context, string, string, int) ([]maildb.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("thread repository is required")
+	}
+	return repo.ListThreadMessages(ctx, userID, threadID, limit)
+}
+
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
 	detail, err := s.repository.GetMessage(ctx, userID, messageID)
 	if err != nil {

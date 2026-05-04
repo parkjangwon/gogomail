@@ -34,6 +34,7 @@ Successful collection responses keep a stable top-level plural key:
 
 - `{"folders":[...]}`
 - `{"messages":[...],"limit":50,"has_more":false,"next_cursor":"..."}`
+- `{"threads":[...]}`
 - `{"attachments":[...]}`
 - `{"domains":[...]}`
 - `{"users":[...]}`
@@ -212,6 +213,16 @@ attempts are read, preventing cross-tenant leakage. It returns
 `pending|retrying|delivered|partial|failed|bounced`, bounce status
 `none|hard`, and up to 200 recent attempts for webmail sent-message detail
 panels.
+
+Thread read APIs are exposed through:
+
+- `GET /api/v1/threads`
+- `GET /api/v1/threads/{id}/messages`
+
+Thread summaries use `COALESCE(thread_id, id)` so legacy/unthreaded messages
+still appear as single-message threads. Thread message lists are scoped by the
+authenticated/fallback user id and returned in chronological order for webmail
+conversation rendering.
 
 ## Deferred from this contract
 

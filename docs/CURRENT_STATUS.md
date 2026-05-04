@@ -39,7 +39,8 @@ guidance.
   inspection/update, domain policy, per-domain stats, DKIM DNS verification,
   delivery route runtime counters, and exhausted delivery attempts.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
-  attachments, plus user-scoped sent-message delivery/bounce status.
+  attachments, thread lists/thread messages, plus user-scoped sent-message
+  delivery/bounce status.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Per-domain inbound policy enforced at SMTP receive and Submission MTA (max
@@ -96,9 +97,10 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Message threading and search indexing readiness (OpenSearch or Postgres FTS).
-2. IMAP gateway design and implementation planning.
-3. Push notification hook for FCM/APNs (pluggable pipeline stage).
-4. Spam relay integration contract (pluggable, disabled by default).
+1. Search indexing readiness (Postgres FTS first, OpenSearch adapter later).
+2. Message thread assignment on receive/send using RFC `References` and
+   `In-Reply-To`.
+3. IMAP gateway design and implementation planning.
+4. Push notification hook for FCM/APNs (pluggable pipeline stage).
 5. Attachment scanning hook (pluggable pipeline stage).
 6. Frontend planning and API contract review before webmail implementation.

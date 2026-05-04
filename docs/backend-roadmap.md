@@ -250,6 +250,7 @@ Implementation order:
 201. Mail API exposes a user-scoped sent-message delivery status endpoint that summarizes delivery attempts as pending/retrying/delivered/partial/failed/bounced without leaking other tenants' attempts.
 202. Admin API can inspect and update the shared Redis-backed SMTP backpressure state with structured level/reason/until metadata while preserving legacy string-state compatibility for existing receive nodes.
 203. Domain policy now has a runtime read helper and Mail API send/draft-send enforces outbound recipient-count and composed-message-size guardrails when a domain policy is set to `outbound_mode=enforce`.
+204. Mail API exposes thread list and thread-message read models using `COALESCE(thread_id, id)` so existing unthreaded mail renders as conversations while future RFC References/In-Reply-To assignment can improve grouping.
 
 204. Mailbox quota is enforced atomically at SMTP receive, Submission MTA, and Mail API delete flows using a PostgreSQL row-level lock on the user row; the SMTP layer returns RFC-correct 452 4.2.2 when the mailbox is full.
 205. Per-domain inbound SMTP policy (max recipients per message, max message bytes, inbound mode) is enforced at the SMTP receive and Submission boundaries without leaking policy logic into protocol core; the `DomainPolicyLookup` interface keeps the SMTP engine decoupled from `maildb`.
