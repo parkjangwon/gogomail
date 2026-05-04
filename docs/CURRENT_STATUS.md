@@ -208,6 +208,9 @@ guidance.
 - The audit `mail.stored` consumer trims event, tenant, recipient, subject,
   storage, and timestamp fields and rejects CR/LF-bearing message identifiers
   before audit-log persistence.
+- Delivery-status audit consumers trim event, tenant, sender, recipient, farm,
+  status, error, and timestamp fields and reject CR/LF-bearing message
+  identifiers before audit-log persistence.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.

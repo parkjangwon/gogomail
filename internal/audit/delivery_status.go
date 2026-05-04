@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
 )
@@ -46,13 +47,24 @@ func DeliveryStatusAuditLog(payload json.RawMessage) (Log, error) {
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return Log{}, fmt.Errorf("decode delivery audit payload: %w", err)
 	}
+	event.Event = strings.TrimSpace(event.Event)
 	action, err := deliveryAuditAction(event.Event)
 	if err != nil {
 		return Log{}, err
 	}
-	if event.MessageID == "" {
-		return Log{}, fmt.Errorf("delivery audit payload is missing message_id")
+	if event.MessageID, err = requiredDeliveryEventValue("message_id", event.MessageID); err != nil {
+		return Log{}, err
 	}
+	event.RFCMessageID = strings.TrimSpace(event.RFCMessageID)
+	event.CompanyID = strings.TrimSpace(event.CompanyID)
+	event.DomainID = strings.TrimSpace(event.DomainID)
+	event.Farm = strings.TrimSpace(event.Farm)
+	event.Sender = strings.TrimSpace(event.Sender)
+	event.Recipient = strings.TrimSpace(event.Recipient)
+	event.RecipientDomain = strings.TrimSpace(event.RecipientDomain)
+	event.Status = strings.TrimSpace(event.Status)
+	event.ErrorMessage = strings.TrimSpace(event.ErrorMessage)
+	event.AttemptedAt = strings.TrimSpace(event.AttemptedAt)
 
 	detail, err := json.Marshal(map[string]any{
 		"sender":           event.Sender,
@@ -98,4 +110,15 @@ func deliveryAuditResult(event string) string {
 		return "success"
 	}
 	return "failure"
+}
+
+func requiredDeliveryEventValue(name string, value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("delivery audit payload is missing %s", name)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("delivery audit payload has invalid %s", name)
+	}
+	return value, nil
 }
