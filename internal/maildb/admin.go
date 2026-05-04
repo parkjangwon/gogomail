@@ -145,7 +145,13 @@ type APIUsageDailyView struct {
 	Method           string    `json:"method"`
 	Route            string    `json:"route"`
 	Status           int       `json:"status"`
+	TenantID         string    `json:"tenant_id,omitempty"`
+	CompanyID        string    `json:"company_id,omitempty"`
+	DomainID         string    `json:"domain_id,omitempty"`
 	UserID           string    `json:"user_id,omitempty"`
+	APIKeyID         string    `json:"api_key_id,omitempty"`
+	PrincipalID      string    `json:"principal_id,omitempty"`
+	AuthSource       string    `json:"auth_source,omitempty"`
 	RequestCount     int64     `json:"request_count"`
 	RequestBytes     int64     `json:"request_bytes"`
 	ResponseBytes    int64     `json:"response_bytes"`
@@ -161,7 +167,13 @@ type APIUsageMonthlyView struct {
 	Method           string    `json:"method"`
 	Route            string    `json:"route"`
 	Status           int       `json:"status"`
+	TenantID         string    `json:"tenant_id,omitempty"`
+	CompanyID        string    `json:"company_id,omitempty"`
+	DomainID         string    `json:"domain_id,omitempty"`
 	UserID           string    `json:"user_id,omitempty"`
+	APIKeyID         string    `json:"api_key_id,omitempty"`
+	PrincipalID      string    `json:"principal_id,omitempty"`
+	AuthSource       string    `json:"auth_source,omitempty"`
 	RequestCount     int64     `json:"request_count"`
 	RequestBytes     int64     `json:"request_bytes"`
 	ResponseBytes    int64     `json:"response_bytes"`
@@ -1701,7 +1713,13 @@ SELECT
   method,
   route,
   status,
+  tenant_id,
+  company_id,
+  domain_id,
   user_id,
+  api_key_id,
+  principal_id,
+  auth_source,
   request_count,
   request_bytes,
   response_bytes,
@@ -1727,7 +1745,13 @@ LIMIT $1`
 			&usage.Method,
 			&usage.Route,
 			&usage.Status,
+			&usage.TenantID,
+			&usage.CompanyID,
+			&usage.DomainID,
 			&usage.UserID,
+			&usage.APIKeyID,
+			&usage.PrincipalID,
+			&usage.AuthSource,
 			&usage.RequestCount,
 			&usage.RequestBytes,
 			&usage.ResponseBytes,
@@ -1761,7 +1785,13 @@ SELECT
   method,
   route,
   status,
+  tenant_id,
+  company_id,
+  domain_id,
   user_id,
+  api_key_id,
+  principal_id,
+  auth_source,
   request_count,
   request_bytes,
   response_bytes,
@@ -1787,7 +1817,13 @@ LIMIT $1`
 			&usage.Method,
 			&usage.Route,
 			&usage.Status,
+			&usage.TenantID,
+			&usage.CompanyID,
+			&usage.DomainID,
 			&usage.UserID,
+			&usage.APIKeyID,
+			&usage.PrincipalID,
+			&usage.AuthSource,
 			&usage.RequestCount,
 			&usage.RequestBytes,
 			&usage.ResponseBytes,
