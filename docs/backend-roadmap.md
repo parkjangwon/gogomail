@@ -639,6 +639,7 @@ Implementation order:
 579. Admin delivery-route listing now supports status, farm, and domain-pattern filters, making route audits and incident triage possible without client-side full-list scans.
 580. Shared EML parsing now caps retained subject, address, message-id, and reference metadata at UTF-8 boundaries and drops oversized message IDs instead of storing malformed partial IDs, bounding parser output before SMTP receive, Mail API, search indexing, and future IMAP consumers persist it.
 581. Admin company listing now supports lifecycle status filters, letting operators isolate active, suspended, or disabled tenant accounts without client-side full-list scans.
+582. Delivery `mail.queued` decoding now rejects ambiguous, absolute, parent-traversal, backslash-bearing, or non-`.eml` storage object keys before workers open queued message bodies, aligning delivery storage hygiene with search indexing.
 
 ## Deferred until backend contracts stabilize
 

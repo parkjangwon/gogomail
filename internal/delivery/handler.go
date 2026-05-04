@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -288,17 +289,45 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if err := normalizeQueuedDSNOptions(&queued); err != nil {
 		return QueuedMessage{}, err
 	}
-	queued.StoragePath = strings.TrimSpace(queued.StoragePath)
-	if containsLineBreak(queued.StoragePath) {
-		return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid storage_path")
+	storagePath, err := normalizeQueuedStoragePath(queued.StoragePath)
+	if err != nil {
+		return QueuedMessage{}, err
 	}
-	if len(queued.StoragePath) > maxQueuedStoragePathBytes {
-		return QueuedMessage{}, fmt.Errorf("mail.queued payload has oversized storage_path")
-	}
+	queued.StoragePath = storagePath
 	if len(queued.Recipients()) == 0 {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has no recipients")
 	}
 	return queued, nil
+}
+
+func normalizeQueuedStoragePath(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if containsLineBreak(value) || strings.Contains(value, "\\") {
+		return "", fmt.Errorf("mail.queued payload has invalid storage_path")
+	}
+	if len(value) > maxQueuedStoragePathBytes {
+		return "", fmt.Errorf("mail.queued payload has oversized storage_path")
+	}
+	cleaned := path.Clean(value)
+	if cleaned == "." || cleaned != value || strings.HasPrefix(cleaned, "/") || hasParentPathSegment(cleaned) {
+		return "", fmt.Errorf("mail.queued payload has invalid storage_path")
+	}
+	if !strings.HasSuffix(strings.ToLower(cleaned), ".eml") {
+		return "", fmt.Errorf("mail.queued payload storage_path must reference an .eml object")
+	}
+	return cleaned, nil
+}
+
+func hasParentPathSegment(value string) bool {
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 func (m QueuedMessage) Recipients() []outbound.Address {
