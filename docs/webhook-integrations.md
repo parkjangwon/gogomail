@@ -30,7 +30,11 @@ GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT=2s
 
 The scanner is called only after a message has been parsed and only when
 attachments are present. It is available to `edge-mta`, `inbound-mta`, and
-`outbound-mta`, but remains outside SMTP protocol core.
+`outbound-mta`, but remains outside SMTP protocol core. The webhook request
+normalizes and bounds message, address, subject, recipient, and attachment
+metadata before JSON serialization. Recipient arrays are capped at 500 entries,
+attachment metadata arrays are capped at 200 entries, and negative message
+sizes are sent as `0`.
 
 gogomail sends a JSON `POST` request:
 

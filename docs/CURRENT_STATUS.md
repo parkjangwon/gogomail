@@ -488,7 +488,8 @@ The platform hardening sprint completed the following:
   token, requires HTTPS in production, and is wired only at SMTP
   receive/submission app boundaries. `docs/webhook-integrations.md` documents
   the scanner request, bounded response, and accept/reject/tempfail verdict
-  contract.
+  contract. Scanner webhook requests bound and normalize message, address,
+  subject, recipient, and attachment metadata before JSON serialization.
 - Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
   message IDs or recipient addresses cannot create oversized Redis keys.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same

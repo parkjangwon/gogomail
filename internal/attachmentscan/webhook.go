@@ -11,7 +11,17 @@ import (
 	"strings"
 )
 
-const maxWebhookResponseBytes = int64(64 << 10)
+const (
+	maxWebhookResponseBytes       = int64(64 << 10)
+	maxWebhookIdentityBytes       = 200
+	maxWebhookAddressBytes        = 320
+	maxWebhookRemoteAddrBytes     = 200
+	maxWebhookMessageIDBytes      = 500
+	maxWebhookSubjectBytes        = 500
+	maxWebhookAttachmentNameBytes = 255
+	maxWebhookRecipients          = 500
+	maxWebhookAttachments         = 200
+)
 
 type WebhookOptions struct {
 	Endpoint string
@@ -118,21 +128,50 @@ type webhookAttachment struct {
 }
 
 func webhookRequestFromScan(req Request) webhookRequest {
-	attachments := make([]webhookAttachment, 0, len(req.Attachments))
+	attachments := make([]webhookAttachment, 0, min(len(req.Attachments), maxWebhookAttachments))
 	for _, attachment := range req.Attachments {
-		attachments = append(attachments, webhookAttachment{Filename: attachment.Filename})
+		if len(attachments) >= maxWebhookAttachments {
+			break
+		}
+		attachments = append(attachments, webhookAttachment{Filename: cleanWebhookText(attachment.Filename, maxWebhookAttachmentNameBytes)})
+	}
+	size := req.Size
+	if size < 0 {
+		size = 0
 	}
 	return webhookRequest{
-		RemoteAddr:     req.RemoteAddr,
-		EnvelopeFrom:   req.EnvelopeFrom,
-		Recipients:     append([]string(nil), req.Recipients...),
-		CompanyID:      req.CompanyID,
-		DomainID:       req.DomainID,
-		UserID:         req.UserID,
-		SubmissionUser: req.SubmissionUser,
-		MessageID:      req.MessageID,
-		Subject:        req.Subject,
-		Size:           req.Size,
+		RemoteAddr:     cleanWebhookText(req.RemoteAddr, maxWebhookRemoteAddrBytes),
+		EnvelopeFrom:   cleanWebhookText(req.EnvelopeFrom, maxWebhookAddressBytes),
+		Recipients:     cleanWebhookRecipients(req.Recipients),
+		CompanyID:      cleanWebhookText(req.CompanyID, maxWebhookIdentityBytes),
+		DomainID:       cleanWebhookText(req.DomainID, maxWebhookIdentityBytes),
+		UserID:         cleanWebhookText(req.UserID, maxWebhookIdentityBytes),
+		SubmissionUser: cleanWebhookText(req.SubmissionUser, maxWebhookAddressBytes),
+		MessageID:      cleanWebhookText(req.MessageID, maxWebhookMessageIDBytes),
+		Subject:        cleanWebhookText(req.Subject, maxWebhookSubjectBytes),
+		Size:           size,
 		Attachments:    attachments,
 	}
+}
+
+func cleanWebhookRecipients(recipients []string) []string {
+	cleaned := make([]string, 0, min(len(recipients), maxWebhookRecipients))
+	for _, recipient := range recipients {
+		if len(cleaned) >= maxWebhookRecipients {
+			break
+		}
+		value := cleanWebhookText(recipient, maxWebhookAddressBytes)
+		if value == "" {
+			continue
+		}
+		cleaned = append(cleaned, value)
+	}
+	return cleaned
+}
+
+func cleanWebhookText(value string, maxBytes int) string {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+	value = strings.Join(strings.Fields(value), " ")
+	return truncateUTF8Bytes(value, maxBytes)
 }

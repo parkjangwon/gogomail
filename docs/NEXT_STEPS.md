@@ -174,7 +174,8 @@ Current state:
   adapter, and `GOGOMAIL_ATTACHMENT_SCAN_BACKEND=webhook` wires a bounded HTTP
   scanner with an optional bounded bearer token into Edge, Inbound, and
   Submission MTA app boundaries. `docs/webhook-integrations.md` records the
-  scanner JSON payload, bounded response, and verdict semantics.
+  scanner JSON payload, bounded request/response behavior, and verdict
+  semantics.
 - Push notification enqueue now has a disabled-by-default async
   `push-notification-worker` over `mail.stored` with a replaceable sink and
   `slog` first adapter plus `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` for
