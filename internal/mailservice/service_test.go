@@ -2132,6 +2132,26 @@ func TestCreateAttachmentUploadSessionRejectsExpiredSession(t *testing.T) {
 	}
 }
 
+func TestCreateAttachmentUploadSessionRejectsOverlongSessionTTL(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	_, err := service.CreateAttachmentUploadSession(context.Background(), CreateAttachmentUploadSessionRequest{
+		UserID:       "user-1",
+		Filename:     "large.bin",
+		DeclaredSize: 42,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(MaxAttachmentUploadSessionTTL + time.Hour),
+	})
+	if err == nil {
+		t.Fatal("CreateAttachmentUploadSession accepted overlong session TTL")
+	}
+	if repo.lastAttachmentUploadSession.Filename != "" {
+		t.Fatalf("session should not be recorded: %+v", repo.lastAttachmentUploadSession)
+	}
+}
+
 func TestCancelAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 

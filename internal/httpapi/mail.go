@@ -689,6 +689,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			"attachment_upload_capabilities": map[string]any{
 				"max_attachment_bytes":       mailservice.MaxAttachmentUploadBytes,
 				"max_filename_bytes":         mailservice.MaxAttachmentFilenameBytes,
+				"max_session_ttl_seconds":    int64(mailservice.MaxAttachmentUploadSessionTTL.Seconds()),
 				"metadata_reservation":       true,
 				"direct_multipart_upload":    true,
 				"cancel_pending_uploads":     true,
