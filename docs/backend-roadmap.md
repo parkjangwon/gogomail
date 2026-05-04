@@ -369,6 +369,7 @@ Implementation order:
 310. `GET /api/v1/search` now explicitly stays scoped to active messages; draft search is deferred to a future dedicated contract so Postgres and OpenSearch relevance behavior remain aligned.
 311. Admin push notification stats can now be scoped by `user_id` and RFC3339 `since`, letting operators compare active devices and recent fan-out attempt outcomes for one user's delivery troubleshooting without querying PostgreSQL directly.
 312. Admin push notification attempt lists can now also be scoped by RFC3339 `since`, matching the stats endpoint so operators can drill from recent status counts into the corresponding attempt rows.
+313. Admin delivery attempt lists can now be filtered by delivery status and RFC3339 `since`, giving operators a bounded recent-window view for retry, bounce, and exhaustion triage.
 
 ## Deferred until backend contracts stabilize
 

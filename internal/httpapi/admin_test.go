@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1894,15 +1895,51 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=bounced&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastLimit != 10 {
-		t.Fatalf("lastLimit = %d, want 10", service.lastLimit)
+	if service.lastDeliveryAttemptList.Limit != 10 || service.lastDeliveryAttemptList.Status != "bounced" || service.lastDeliveryAttemptList.Since.IsZero() {
+		t.Fatalf("lastDeliveryAttemptList = %+v", service.lastDeliveryAttemptList)
+	}
+}
+
+func TestAdminDeliveryAttemptsHandlerRejectsInvalidSince(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?since=not-a-time", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "since must be RFC3339 timestamp") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminDeliveryAttemptsHandlerRejectsInvalidStatus(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?status=retrying", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "unsupported delivery attempt status") {
+		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
 
@@ -2400,6 +2437,7 @@ type fakeAdminService struct {
 	quotaReconciliation                         []maildb.QuotaReconciliationView
 	quotaCorrection                             maildb.QuotaCorrectionResult
 	attempts                                    []maildb.DeliveryAttemptView
+	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
 	pushNotificationAttempts                    []maildb.PushNotificationAttemptView
 	pushNotificationStats                       maildb.PushNotificationStatsView
 	suppression                                 []maildb.SuppressionEntry
@@ -2724,8 +2762,12 @@ func (f *fakeAdminService) CorrectQuotaReconciliation(_ context.Context, req mai
 	return f.quotaCorrection, nil
 }
 
-func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, req maildb.DeliveryAttemptListRequest) ([]maildb.DeliveryAttemptView, error) {
+	f.lastLimit = req.Limit
+	f.lastDeliveryAttemptList = req
+	if req.Status != "" && req.Status != "delivered" && req.Status != "failed" && req.Status != "bounced" && req.Status != "exhausted" {
+		return nil, fmt.Errorf("unsupported delivery attempt status")
+	}
 	return f.attempts, nil
 }
 
