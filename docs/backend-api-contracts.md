@@ -408,6 +408,10 @@ API call metering can now emit durable usage events:
   `schema_version: "2026-05-04.api-usage.v2"`, a deterministic `event_id`, and
   tenant/company/domain/user/API-key/principal/auth-source dimensions for
   idempotent accounting and future billing enrichment.
+- `auth_source` is normalized to the known set `anonymous`, `bearer`,
+  `admin_token`, `query_user_id`, or `unknown`; unexpected values are folded to
+  `unknown` before ledger/aggregate storage to avoid billing dimension
+  cardinality drift.
 - The aggregate worker claims `event_id` values before daily/monthly upserts, so
   replayed durable events do not double-count operational totals.
 - The middleware remains async and fail-open; request handling does not wait on

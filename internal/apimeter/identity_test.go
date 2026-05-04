@@ -35,6 +35,24 @@ func TestIdentityNormalizeDefaultsAuthSource(t *testing.T) {
 	}
 }
 
+func TestIdentityNormalizeRejectsUnknownAuthSource(t *testing.T) {
+	t.Parallel()
+
+	id := Identity{AuthSource: " mobile-app "}.Normalize()
+	if id.AuthSource != AuthSourceUnknown {
+		t.Fatalf("AuthSource = %q, want unknown", id.AuthSource)
+	}
+}
+
+func TestIdentityNormalizeCanonicalizesKnownAuthSource(t *testing.T) {
+	t.Parallel()
+
+	id := Identity{AuthSource: " BEARER "}.Normalize()
+	if id.AuthSource != AuthSourceBearer {
+		t.Fatalf("AuthSource = %q, want bearer", id.AuthSource)
+	}
+}
+
 func TestIdentityNormalizeDerivesPrincipalID(t *testing.T) {
 	t.Parallel()
 

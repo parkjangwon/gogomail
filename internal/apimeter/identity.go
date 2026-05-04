@@ -51,9 +51,16 @@ func principalID(id Identity) string {
 }
 
 func normalizeAuthSource(source string) string {
-	source = strings.TrimSpace(source)
-	if source == "" {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case AuthSourceAnonymous:
+		return AuthSourceAnonymous
+	case AuthSourceBearer:
+		return AuthSourceBearer
+	case AuthSourceAdminToken:
+		return AuthSourceAdminToken
+	case AuthSourceQueryUserID:
+		return AuthSourceQueryUserID
+	default:
 		return AuthSourceUnknown
 	}
-	return source
 }
