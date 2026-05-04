@@ -181,6 +181,8 @@ The platform hardening sprint completed the following:
   with `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
 - OpenSearch query-side groundwork can search user-scoped documents and return
   ranked gogomail message IDs for later metadata hydration.
+- `maildb` can hydrate ordered message ID search hits back into active
+  `MessageSummary` rows without changing the Mail API response envelope.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.
@@ -225,8 +227,8 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Hydrate OpenSearch message ID search results through Postgres message
-   metadata before exposing OpenSearch on the Mail API search path.
+1. Compose OpenSearch ID search with Postgres metadata hydration inside
+   `mailservice`.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. Wire mailbox event publication from append/flag/move/delete paths behind the
    IMAP gateway boundary.

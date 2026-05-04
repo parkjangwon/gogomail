@@ -72,11 +72,13 @@ Current state:
   `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
 - OpenSearch query-side groundwork can return ranked message IDs scoped to a
   user.
+- `maildb` can hydrate ordered message ID search hits into active
+  `MessageSummary` rows.
 
 Next:
 
-- Hydrate OpenSearch message ID search results through Postgres message
-  metadata before exposing OpenSearch on the Mail API search path.
+- Compose OpenSearch ID search with Postgres metadata hydration inside
+  `mailservice`.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning
