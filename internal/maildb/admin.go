@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/dnscheck"
@@ -139,6 +140,8 @@ type OutboxEventView struct {
 	LockedAt     *time.Time `json:"locked_at,omitempty"`
 	ProcessedAt  *time.Time `json:"processed_at,omitempty"`
 }
+
+const outboxEventListErrorPreviewBytes = 512
 
 type CompanyView struct {
 	ID                     string    `json:"id"`
@@ -1995,6 +1998,7 @@ LIMIT $1`
 		); err != nil {
 			return nil, fmt.Errorf("scan outbox event: %w", err)
 		}
+		event.LastError = truncateUTF8Bytes(event.LastError, outboxEventListErrorPreviewBytes)
 		if lockedAt.Valid {
 			event.LockedAt = &lockedAt.Time
 		}
@@ -3598,6 +3602,17 @@ func optionalTimeString(value time.Time) string {
 		return ""
 	}
 	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for !utf8.ValidString(value) && len(value) > 0 {
+		value = value[:len(value)-1]
+	}
+	return value
 }
 
 func nullableTime(value time.Time) any {
