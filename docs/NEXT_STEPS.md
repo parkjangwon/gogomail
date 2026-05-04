@@ -270,8 +270,8 @@ Current state:
   primary keys include them so cross-tenant or cross-principal usage does not
   merge.
 - Mail API metering can enrich identity from JWT claims, while Admin API
-  metering can classify configured admin-token access without coupling
-  `internal/apimeter` to `internal/auth`.
+  metering classifies configured admin-token access through trimmed SHA-256
+  digest comparison without coupling `internal/apimeter` to `internal/auth`.
 - The worker records immutable `api_usage_ledger` rows before updating
   aggregate read models. Admin API exposes bounded ledger list, NDJSON export,
   and stats endpoints for export sanity checks without making request handling

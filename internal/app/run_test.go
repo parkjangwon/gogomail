@@ -223,6 +223,24 @@ func TestMeteringIdentityResolverUsesAdminToken(t *testing.T) {
 	}
 }
 
+func TestMeteringAdminTokenMatchesTrimsAndRejectsMismatches(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/daily", nil)
+	req.Header.Set("X-Admin-Token", " secret ")
+	if !meteringAdminTokenMatches(req, "secret") {
+		t.Fatal("meteringAdminTokenMatches rejected matching trimmed token")
+	}
+
+	for _, got := range []string{"", "secre", "secret-longer"} {
+		req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/daily", nil)
+		req.Header.Set("X-Admin-Token", got)
+		if meteringAdminTokenMatches(req, "secret") {
+			t.Fatalf("meteringAdminTokenMatches(%q) = true, want false", got)
+		}
+	}
+}
+
 type fakeDKIMKeyRepository struct {
 	key          maildb.DKIMKey
 	lastDomainID string
