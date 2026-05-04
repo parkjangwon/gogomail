@@ -237,6 +237,8 @@ The platform hardening sprint completed the following:
   update succeeds.
 - Mail API single and bulk move mutations can publish mailbox `expunge` events
   for previously UID-visible source messages after the database move succeeds.
+- Mail API single and bulk delete mutations can publish mailbox `expunge`
+  events for previously UID-visible messages after soft-delete succeeds.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a

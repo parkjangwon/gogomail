@@ -135,10 +135,12 @@ Current state:
   for messages that already have IMAP UID rows.
 - Mail API single and bulk move mutations can publish mailbox `expunge` events
   for previously UID-visible source messages.
+- Mail API single and bulk delete mutations can publish mailbox `expunge`
+  events for previously UID-visible messages.
 
 Next:
 
-- Wire mailbox event publication from append/delete paths.
+- Wire mailbox event publication from append/receive paths.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).

@@ -451,14 +451,32 @@ func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMo
 }
 
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {
-	return s.repository.DeleteMessage(ctx, userID, messageID)
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
+	if err != nil {
+		return err
+	}
+	if err := s.repository.DeleteMessage(ctx, userID, messageID); err != nil {
+		return err
+	}
+	return s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
 }
 
 func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
 	if err := maildb.ValidateBulkMessageDeleteRequest(req); err != nil {
 		return 0, err
 	}
-	return s.repository.BulkDeleteMessages(ctx, req)
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, req.UserID, req.MessageIDs)
+	if err != nil {
+		return 0, err
+	}
+	updated, err := s.repository.BulkDeleteMessages(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids); err != nil {
+		return 0, err
+	}
+	return updated, nil
 }
 
 func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
