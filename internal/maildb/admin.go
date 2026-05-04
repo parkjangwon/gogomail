@@ -2,8 +2,10 @@ package maildb
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -224,6 +226,27 @@ type APIUsageLedgerStatsView struct {
 	FirstEventAt     *time.Time `json:"first_event_at,omitempty"`
 	LastEventAt      *time.Time `json:"last_event_at,omitempty"`
 	LatencyMSAverage float64    `json:"latency_ms_average"`
+}
+
+type APIUsageExportBatchView struct {
+	ID             string          `json:"id"`
+	CreatedAt      time.Time       `json:"created_at"`
+	CompletedAt    *time.Time      `json:"completed_at,omitempty"`
+	Status         string          `json:"status"`
+	ExportFormat   string          `json:"export_format"`
+	TenantID       string          `json:"tenant_id,omitempty"`
+	PrincipalID    string          `json:"principal_id,omitempty"`
+	WindowStart    *time.Time      `json:"window_start,omitempty"`
+	WindowEnd      *time.Time      `json:"window_end,omitempty"`
+	EventCount     int64           `json:"event_count"`
+	RequestCount   int64           `json:"request_count"`
+	RequestBytes   int64           `json:"request_bytes"`
+	ResponseBytes  int64           `json:"response_bytes"`
+	LatencyMSTotal int64           `json:"latency_ms_total"`
+	LatencyMSMax   int64           `json:"latency_ms_max"`
+	FirstEventAt   *time.Time      `json:"first_event_at,omitempty"`
+	LastEventAt    *time.Time      `json:"last_event_at,omitempty"`
+	Manifest       json.RawMessage `json:"manifest"`
 }
 
 type DeliveryAttemptView struct {
@@ -2043,6 +2066,149 @@ FROM api_usage_ledger`
 		stats.LatencyMSAverage = float64(stats.LatencyMSTotal) / float64(stats.RequestCount)
 	}
 	return stats, nil
+}
+
+func (r *Repository) CreateAPIUsageExportBatch(ctx context.Context, req APIUsageLedgerListRequest) (APIUsageExportBatchView, error) {
+	if r.db == nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("database handle is required")
+	}
+	stats, err := r.GetAPIUsageLedgerStats(ctx, req)
+	if err != nil {
+		return APIUsageExportBatchView{}, err
+	}
+	id, err := newAPIUsageExportBatchID()
+	if err != nil {
+		return APIUsageExportBatchView{}, err
+	}
+	manifest, err := json.Marshal(map[string]any{
+		"version":      "2026-05-04.api-usage-export.v1",
+		"tenant_id":    strings.TrimSpace(req.TenantID),
+		"principal_id": strings.TrimSpace(req.PrincipalID),
+		"from":         optionalTimeString(req.From),
+		"to":           optionalTimeString(req.To),
+		"format":       "ndjson",
+	})
+	if err != nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("marshal api usage export manifest: %w", err)
+	}
+
+	var batch APIUsageExportBatchView
+	var completedAt sql.NullTime
+	var windowStart sql.NullTime
+	var windowEnd sql.NullTime
+	var firstEventAt sql.NullTime
+	var lastEventAt sql.NullTime
+	const query = `
+INSERT INTO api_usage_export_batches (
+  id,
+  completed_at,
+  status,
+  export_format,
+  tenant_id,
+  principal_id,
+  window_start,
+  window_end,
+  event_count,
+  request_count,
+  request_bytes,
+  response_bytes,
+  latency_ms_total,
+  latency_ms_max,
+  first_event_at,
+  last_event_at,
+  manifest
+) VALUES ($1, now(), 'completed', 'ndjson', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+RETURNING id, created_at, completed_at, status, export_format, tenant_id, principal_id,
+  window_start, window_end, event_count, request_count, request_bytes, response_bytes,
+  latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest`
+	if err := r.db.QueryRowContext(
+		ctx,
+		query,
+		id,
+		strings.TrimSpace(req.TenantID),
+		strings.TrimSpace(req.PrincipalID),
+		nullableTime(req.From),
+		nullableTime(req.To),
+		stats.EventCount,
+		stats.RequestCount,
+		stats.RequestBytes,
+		stats.ResponseBytes,
+		stats.LatencyMSTotal,
+		stats.LatencyMSMax,
+		nullableTimePtr(stats.FirstEventAt),
+		nullableTimePtr(stats.LastEventAt),
+		manifest,
+	).Scan(
+		&batch.ID,
+		&batch.CreatedAt,
+		&completedAt,
+		&batch.Status,
+		&batch.ExportFormat,
+		&batch.TenantID,
+		&batch.PrincipalID,
+		&windowStart,
+		&windowEnd,
+		&batch.EventCount,
+		&batch.RequestCount,
+		&batch.RequestBytes,
+		&batch.ResponseBytes,
+		&batch.LatencyMSTotal,
+		&batch.LatencyMSMax,
+		&firstEventAt,
+		&lastEventAt,
+		&batch.Manifest,
+	); err != nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("create api usage export batch: %w", err)
+	}
+	applyExportBatchNullableTimes(&batch, completedAt, windowStart, windowEnd, firstEventAt, lastEventAt)
+	return batch, nil
+}
+
+func newAPIUsageExportBatchID() (string, error) {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate api usage export batch id: %w", err)
+	}
+	return "api-usage-export-" + hex.EncodeToString(random[:]), nil
+}
+
+func optionalTimeString(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func nullableTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value.UTC()
+}
+
+func nullableTimePtr(value *time.Time) any {
+	if value == nil {
+		return nil
+	}
+	return value.UTC()
+}
+
+func applyExportBatchNullableTimes(batch *APIUsageExportBatchView, completedAt sql.NullTime, windowStart sql.NullTime, windowEnd sql.NullTime, firstEventAt sql.NullTime, lastEventAt sql.NullTime) {
+	if completedAt.Valid {
+		batch.CompletedAt = &completedAt.Time
+	}
+	if windowStart.Valid {
+		batch.WindowStart = &windowStart.Time
+	}
+	if windowEnd.Valid {
+		batch.WindowEnd = &windowEnd.Time
+	}
+	if firstEventAt.Valid {
+		batch.FirstEventAt = &firstEventAt.Time
+	}
+	if lastEventAt.Valid {
+		batch.LastEventAt = &lastEventAt.Time
+	}
 }
 
 func quotaUsageRatio(used int64, limit int64) float64 {
