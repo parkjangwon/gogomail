@@ -187,7 +187,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Delivery status audit event decoding rejects CR/LF-bearing or oversized
   message IDs before immutable audit log construction.
 - Delivery `mail.queued` decoding rejects oversized message identities and
-  storage paths before SMTP transport or message storage access.
+  storage paths, and rejects ambiguous, absolute, parent-traversal,
+  backslash-bearing, or non-`.eml` storage object keys before SMTP transport or
+  message storage access.
 - Delivery `mail.queued` DSN option decoding rejects oversized
   `original_recipient` values before retry/delivery attempt recording.
 - Delivery `mail.queued` decoding rejects oversized recipient and DSN-recipient

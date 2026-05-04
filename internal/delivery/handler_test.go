@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -125,6 +126,38 @@ func TestDecodeQueuedMessageRejectsStoragePathLineBreak(t *testing.T) {
 	}`))
 	if err == nil || !strings.Contains(err.Error(), "invalid storage_path") {
 		t.Fatalf("DecodeQueuedMessage error = %v, want invalid storage_path", err)
+	}
+}
+
+func TestDecodeQueuedMessageRejectsAmbiguousStoragePath(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"parent segment":   "mailstore/../secret.eml",
+		"double slash":     "mailstore//msg.eml",
+		"current segment":  "./mailstore/msg.eml",
+		"backslash":        "mailstore\\msg.eml",
+		"absolute":         "/mailstore/msg.eml",
+		"non eml object":   "mailstore/msg.txt",
+		"directory marker": ".",
+	}
+	for name, storagePath := range tests {
+		storagePath := storagePath
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := DecodeQueuedMessage([]byte(`{
+				"event":"mail.queued",
+				"message_id":"msg-1",
+				"from":{"email":"sender@example.com"},
+				"to":[{"email":"recipient@example.net"}],
+				"storage_path":` + strconv.Quote(storagePath) + `,
+				"farm":"general"
+			}`))
+			if err == nil || !strings.Contains(err.Error(), "storage_path") {
+				t.Fatalf("DecodeQueuedMessage(%q) error = %v, want storage_path rejection", storagePath, err)
+			}
+		})
 	}
 }
 
