@@ -370,6 +370,8 @@ paths:
       responses:
         "201":
           $ref: "#/components/responses/Attachment"
+        "413":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /attachments/upload:
@@ -381,6 +383,8 @@ paths:
       responses:
         "201":
           $ref: "#/components/responses/Attachment"
+        "413":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /push-devices:

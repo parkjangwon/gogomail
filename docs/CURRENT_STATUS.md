@@ -416,6 +416,9 @@ The platform hardening sprint completed the following:
   default readiness read into an object-store streaming operation.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
+- Direct multipart attachment uploads now distinguish over-limit HTTP request
+  envelopes from malformed multipart bodies, returning 413 for the former and
+  preserving 400 for bad multipart syntax.
 
 Next focus areas:
 

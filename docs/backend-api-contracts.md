@@ -124,6 +124,12 @@ backend to remove the object. Mail API maps quota exhaustion to HTTP 507
 `insufficient_storage` while the SMTP layer continues to use SMTP-appropriate
 mailbox-full responses.
 
+Direct multipart attachment uploads are capped at the HTTP request boundary in
+addition to service-level declared-size and domain-policy checks. Multipart
+requests that exceed the direct upload envelope return HTTP 413
+`payload_too_large`; malformed multipart bodies that are within the cap remain
+HTTP 400 `bad_request`.
+
 ## Push devices
 
 Push notification device tokens are user-scoped Mail API resources:
