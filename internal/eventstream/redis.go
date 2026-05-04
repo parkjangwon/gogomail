@@ -116,21 +116,37 @@ func (c *RedisConsumer) ProcessOnce(ctx context.Context) (int, error) {
 	processed := 0
 	for _, stream := range streams {
 		for _, redisMessage := range stream.Messages {
-			msg, err := decodeRedisMessage(stream.Stream, redisMessage)
+			acked, err := c.processRedisMessage(ctx, stream.Stream, redisMessage, func(ctx context.Context, id string) error {
+				return c.client.XAck(ctx, c.stream, c.group, id).Err()
+			})
 			if err != nil {
 				return processed, err
 			}
-			if err := c.handler.HandleEvent(ctx, msg); err != nil {
-				c.logger.Warn("event handler failed", "stream", msg.Stream, "id", msg.ID, "error", err)
-				continue
+			if acked {
+				processed++
 			}
-			if err := c.client.XAck(ctx, c.stream, c.group, redisMessage.ID).Err(); err != nil {
-				return processed, fmt.Errorf("ack redis stream message %q: %w", redisMessage.ID, err)
-			}
-			processed++
 		}
 	}
 	return processed, nil
+}
+
+func (c *RedisConsumer) processRedisMessage(ctx context.Context, stream string, redisMessage redis.XMessage, ack func(context.Context, string) error) (bool, error) {
+	msg, err := decodeRedisMessage(stream, redisMessage)
+	if err != nil {
+		c.logger.Warn("dropping malformed redis stream message", "stream", stream, "id", redisMessage.ID, "error", err)
+		if ackErr := ack(ctx, redisMessage.ID); ackErr != nil {
+			return false, fmt.Errorf("ack malformed redis stream message %q: %w", redisMessage.ID, ackErr)
+		}
+		return true, nil
+	}
+	if err := c.handler.HandleEvent(ctx, msg); err != nil {
+		c.logger.Warn("event handler failed", "stream", msg.Stream, "id", msg.ID, "error", err)
+		return false, nil
+	}
+	if err := ack(ctx, redisMessage.ID); err != nil {
+		return false, fmt.Errorf("ack redis stream message %q: %w", redisMessage.ID, err)
+	}
+	return true, nil
 }
 
 func decodeRedisMessage(stream string, msg redis.XMessage) (Message, error) {
