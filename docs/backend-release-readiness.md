@@ -58,7 +58,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   coupling SMTP receive to future IMAP listener work.
 - EML parser hot-path guardrails include bounded-read truncation coverage and a
   large-body benchmark.
-- Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver, per-device candidate-attempt persistence, queued outcome updates after successful sink handoff, Admin API inspection/stats including user- and recent-window-scoped stats, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
+- Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver, per-device candidate-attempt persistence, queued outcome updates after successful sink handoff, Admin API inspection/stats including user- and recent-window-scoped views, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.

@@ -1022,6 +1022,13 @@ paths:
           required: false
           schema:
             type: string
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for push attempt timestamps.
       responses:
         "200":
           $ref: "#/components/responses/PushNotificationAttempts"

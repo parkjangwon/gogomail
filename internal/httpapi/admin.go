@@ -898,10 +898,15 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		since, ok := parseOptionalRFC3339Query(w, r, "since")
+		if !ok {
+			return
+		}
 		attempts, err := service.ListPushNotificationAttempts(r.Context(), maildb.PushNotificationAttemptListRequest{
 			Limit:  limit,
 			Status: r.URL.Query().Get("status"),
 			UserID: r.URL.Query().Get("user_id"),
+			Since:  since,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())

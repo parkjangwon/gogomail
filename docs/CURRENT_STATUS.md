@@ -145,7 +145,7 @@ guidance.
   notification candidates with Postgres candidate-attempt audit rows without
   touching SMTP hot paths or committing to FCM/APNs SDKs.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
-  push notification candidate fan-out by status or user.
+  push notification candidate fan-out by status, user, or recent time window.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for a compact
   active-device and attempt-status summary, with optional `user_id` and `since`
   scoping for user-level and recent-window troubleshooting.
