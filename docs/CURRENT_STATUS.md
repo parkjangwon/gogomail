@@ -213,6 +213,9 @@ guidance.
 - Redis event/search/API-metering/push/delivery workers reclaim idle pending
   Redis Stream messages via configurable claim-idle settings, improving crash
   recovery for at-least-once event processing.
+- Push notification workers no longer redeliver a Redis event solely because
+  queued-outcome recording failed after the sink accepted the notification,
+  reducing duplicate push risk while keeping the candidate attempt visible.
 - Backend release verification script and SMTP release runbook.
 - API usage export runbook covering capability checks, artifact/digest/signature
   handoff evidence, deep readiness, and retention-readiness gates.

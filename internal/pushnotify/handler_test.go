@@ -111,6 +111,33 @@ func TestHandlerDoesNotRecordQueuedOutcomeWhenSinkFails(t *testing.T) {
 	}
 }
 
+func TestHandlerDoesNotFailAfterSinkSuccessWhenQueuedOutcomeRecordingFails(t *testing.T) {
+	t.Parallel()
+
+	sink := &fakeSink{}
+	recorder := &fakeCandidateRecorder{}
+	outcomes := &fakeOutcomeRecorder{err: errFakeOutcomeRecorder}
+	resolver := &fakeTargetResolver{
+		targets: []Target{{DeviceID: "device-1", Platform: "fcm", Token: "token-1", TokenSuffix: "token-1"}},
+	}
+	handler := NewHandler(
+		sink,
+		WithTargetResolver(resolver),
+		WithCandidateRecorder(recorder),
+		WithOutcomeRecorder(outcomes),
+	)
+
+	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: validMailStoredPayload()}); err != nil {
+		t.Fatalf("HandleEvent returned error after sink success: %v", err)
+	}
+	if sink.calls != 1 {
+		t.Fatalf("sink calls = %d, want 1", sink.calls)
+	}
+	if len(outcomes.outcomes) != 1 || outcomes.outcomes[0].AttemptID != "attempt-1" {
+		t.Fatalf("outcomes = %+v, want queued attempt record", outcomes.outcomes)
+	}
+}
+
 func TestHandlerSkipsSinkWhenResolverHasNoTargets(t *testing.T) {
 	t.Parallel()
 
@@ -181,11 +208,12 @@ func (r *fakeCandidateRecorder) RecordCandidate(_ context.Context, record Candid
 
 type fakeOutcomeRecorder struct {
 	outcomes []AttemptOutcome
+	err      error
 }
 
 func (r *fakeOutcomeRecorder) RecordOutcome(_ context.Context, outcome AttemptOutcome) error {
 	r.outcomes = append(r.outcomes, outcome)
-	return nil
+	return r.err
 }
 
 var errFakeSink = &fakeSinkError{}
@@ -194,6 +222,14 @@ type fakeSinkError struct{}
 
 func (*fakeSinkError) Error() string {
 	return "fake sink error"
+}
+
+var errFakeOutcomeRecorder = &fakeOutcomeRecorderError{}
+
+type fakeOutcomeRecorderError struct{}
+
+func (*fakeOutcomeRecorderError) Error() string {
+	return "fake outcome recorder error"
 }
 
 func validMailStoredPayload() json.RawMessage {
