@@ -2629,7 +2629,7 @@ func TestAdminDeleteSuppressionHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/suppression-list/suppression-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/suppression-list/%20suppression-1%20", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2838,7 +2838,7 @@ func TestAdminDeleteTrustedRelayHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/trusted-relays/relay-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/trusted-relays/%20relay-1%20", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 

@@ -156,6 +156,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed
   before service dispatch and response envelopes.
+- Admin API suppression-list and trusted-relay delete path identifiers are
+  trimmed before service dispatch and response envelopes.
 - Admin API outbox event topic, partition key, and status filters are trimmed
   before operational queue inspection.
 - Admin API delivery-attempt status and recipient-domain filters are trimmed

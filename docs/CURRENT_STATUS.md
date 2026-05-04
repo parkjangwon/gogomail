@@ -526,6 +526,8 @@ The platform hardening sprint completed the following:
   dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed at
   the HTTP boundary before service dispatch and response envelopes.
+- Admin API suppression-list and trusted-relay delete path identifiers are
+  trimmed at the HTTP boundary before service dispatch and response envelopes.
 - Admin API outbox event topic, partition key, and status filters are trimmed
   at the HTTP boundary before operational queue inspection.
 - Admin API delivery-attempt status and recipient-domain filters are trimmed at
