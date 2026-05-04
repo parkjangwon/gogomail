@@ -71,6 +71,48 @@ func TestValidateRejectsInvalidPushNotifyWebhookConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsHTTPWebhooksInProduction(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "attachment scanner", mutate: func(cfg *Config) {
+			cfg.AttachmentScanBackend = "webhook"
+			cfg.AttachmentScanWebhookURL = "http://scanner.example/scan"
+		}},
+		{name: "push notification", mutate: func(cfg *Config) {
+			cfg.PushNotifyBackend = "webhook"
+			cfg.PushNotifyWebhookURL = "http://push.example/send"
+		}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.Environment = "production"
+			cfg.SubmissionAllowInsecureAuth = false
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want production http webhook rejection")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsHTTPSWebhooksInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.AttachmentScanBackend = "webhook"
+	cfg.AttachmentScanWebhookURL = "https://scanner.example/scan"
+	cfg.PushNotifyBackend = "webhook"
+	cfg.PushNotifyWebhookURL = "https://push.example/send"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
 	tests := []struct {
 		name   string
