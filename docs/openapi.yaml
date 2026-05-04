@@ -181,6 +181,26 @@ paths:
       summary: List message threads for the current mailbox
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: principal_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 event timestamp lower bound.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive RFC3339 event timestamp upper bound.
       responses:
         "200":
           $ref: "#/components/responses/ThreadList"

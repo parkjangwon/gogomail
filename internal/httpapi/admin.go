@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/delivery"
@@ -47,7 +48,7 @@ type AdminService interface {
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
-	ListAPIUsageLedger(ctx context.Context, limit int) ([]maildb.APIUsageLedgerView, error)
+	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
 	ListQuotaReconciliation(ctx context.Context, limit int) ([]maildb.QuotaReconciliationView, error)
 	CorrectQuotaReconciliation(ctx context.Context, req maildb.CorrectQuotaReconciliationRequest) (maildb.QuotaCorrectionResult, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
@@ -431,7 +432,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		usages, err := service.ListAPIUsageLedger(r.Context(), limit)
+		req, ok := parseAPIUsageLedgerListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		usages, err := service.ListAPIUsageLedger(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -746,6 +751,42 @@ func constantTimeTokenEqual(got string, want string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
+func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerListRequest, bool) {
+	req := maildb.APIUsageLedgerListRequest{
+		Limit:       limit,
+		TenantID:    r.URL.Query().Get("tenant_id"),
+		PrincipalID: r.URL.Query().Get("principal_id"),
+	}
+	from, ok := parseOptionalRFC3339Query(w, r, "from")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	to, ok := parseOptionalRFC3339Query(w, r, "to")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	req.From = from
+	req.To = to
+	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
+		writeError(w, http.StatusBadRequest, "from must be before to")
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	return req, true
+}
+
+func parseOptionalRFC3339Query(w http.ResponseWriter, r *http.Request, key string) (time.Time, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	if raw == "" {
+		return time.Time{}, true
+	}
+	value, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, key+" must be RFC3339 timestamp")
+		return time.Time{}, false
+	}
+	return value.UTC(), true
 }
 
 func adminTokenFromRequest(r *http.Request) string {
