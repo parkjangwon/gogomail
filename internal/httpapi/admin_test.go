@@ -487,6 +487,48 @@ func TestAdminGetAPIUsageExportBatchHandler(t *testing.T) {
 	}
 }
 
+func TestAdminGetAPIUsageExportCapabilitiesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportCapabilities: maildb.APIUsageExportCapabilityView{
+			ExportFormat:                  "ndjson",
+			ArtifactContentType:           "application/x-ndjson",
+			ManifestDigestAlgorithm:       "sha256",
+			SignerBackend:                 "local-hmac",
+			SignerConfigured:              true,
+			SignerKeyID:                   "key-1",
+			VerifierConfigured:            true,
+			ProductionSignatureReady:      false,
+			BillingReadySupported:         false,
+			VerifiedBillingReadySupported: false,
+			BlockingReasons:               []string{"production_manifest_signer_required"},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-capabilities", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Capabilities maildb.APIUsageExportCapabilityView `json:"api_usage_export_capabilities"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Capabilities.SignerBackend != "local-hmac" || body.Capabilities.ProductionSignatureReady {
+		t.Fatalf("capabilities = %+v", body.Capabilities)
+	}
+	if !service.lastAPIUsageExportCapabilities {
+		t.Fatal("GetAPIUsageExportCapabilities was not called")
+	}
+}
+
 func TestAdminGetAPIUsageExportHandoffReadinessHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2246,6 +2288,7 @@ type fakeAdminService struct {
 	apiUsageMonthly                             []maildb.APIUsageMonthlyView
 	apiUsageLedger                              []maildb.APIUsageLedgerView
 	apiUsageLedgerStats                         maildb.APIUsageLedgerStatsView
+	apiUsageExportCapabilities                  maildb.APIUsageExportCapabilityView
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	apiUsageExportHandoff                       maildb.APIUsageExportHandoffView
@@ -2284,6 +2327,7 @@ type fakeAdminService struct {
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
+	lastAPIUsageExportCapabilities              bool
 	lastAPIUsageExportBatchID                   string
 	lastAPIUsageExportHandoffDeep               bool
 	lastAPIUsageExportArtifactID                string
@@ -2455,6 +2499,11 @@ func (f *fakeAdminService) ListAPIUsageLedger(_ context.Context, req maildb.APIU
 func (f *fakeAdminService) GetAPIUsageLedgerStats(_ context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error) {
 	f.lastAPIUsageLedgerList = req
 	return f.apiUsageLedgerStats, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {
+	f.lastAPIUsageExportCapabilities = true
+	return f.apiUsageExportCapabilities, nil
 }
 
 func (f *fakeAdminService) CreateAPIUsageExportBatch(_ context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error) {

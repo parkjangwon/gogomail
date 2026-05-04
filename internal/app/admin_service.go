@@ -42,6 +42,53 @@ func (s adminService) UpdateBackpressure(ctx context.Context, req backpressure.S
 	return s.backpressure.SetState(ctx, req)
 }
 
+func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {
+	backend := strings.TrimSpace(s.exportManifestSignerBackend)
+	if backend == "" {
+		backend = "disabled"
+	}
+	view := maildb.APIUsageExportCapabilityView{
+		ExportFormat:                  "ndjson",
+		ArtifactContentType:           apimeter.ExportArtifactContentTypeNDJSON,
+		ManifestDigestAlgorithm:       "sha256",
+		SignerBackend:                 backend,
+		SignerConfigured:              s.exportManifestSigner != nil,
+		VerifierConfigured:            s.exportManifestVerifier != nil,
+		ProductionSignatureReady:      s.exportManifestSigner != nil && s.exportManifestVerifier != nil && backend != "local-hmac",
+		BillingReadySupported:         s.exportManifestSigner != nil && backend != "local-hmac",
+		VerifiedBillingReadySupported: s.exportManifestSigner != nil && s.exportManifestVerifier != nil && backend != "local-hmac",
+	}
+	if keyID, ok := exportManifestSignerKeyID(s.exportManifestSigner); ok {
+		view.SignerKeyID = keyID
+	}
+	var blocking []string
+	if s.exportManifestSigner == nil {
+		blocking = append(blocking, "manifest_signer_not_configured")
+	}
+	if s.exportManifestVerifier == nil {
+		blocking = append(blocking, "manifest_signature_verifier_not_configured")
+	}
+	if backend == "local-hmac" {
+		blocking = append(blocking, "production_manifest_signer_required")
+	}
+	view.BlockingReasons = uniqueStrings(blocking)
+	return view, nil
+}
+
+func exportManifestSignerKeyID(signer apimeter.ExportManifestSigner) (string, bool) {
+	switch signer := signer.(type) {
+	case apimeter.HMACExportManifestSigner:
+		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
+	case *apimeter.HMACExportManifestSigner:
+		if signer == nil {
+			return "", false
+		}
+		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
+	default:
+		return "", false
+	}
+}
+
 func (s adminService) GetAPIUsageExportHandoff(ctx context.Context, batchID string, deep bool) (maildb.APIUsageExportHandoffView, error) {
 	if s.Repository == nil {
 		return maildb.APIUsageExportHandoffView{}, fmt.Errorf("repository is required")

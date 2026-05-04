@@ -103,3 +103,42 @@ func TestAPIUsageExportManifestCoversArtifactsRejectsMismatch(t *testing.T) {
 		t.Fatal("coverage = true, want false")
 	}
 }
+
+func TestAdminServiceAPIUsageExportCapabilities(t *testing.T) {
+	t.Parallel()
+
+	service := adminService{
+		exportManifestSigner:        apimeter.HMACExportManifestSigner{KeyID: "key-1", Secret: []byte("secret")},
+		exportManifestSignerBackend: "local-hmac",
+		exportManifestVerifier:      apimeter.HMACExportManifestSignatureVerifier{Secret: []byte("secret")},
+	}
+	view, err := service.GetAPIUsageExportCapabilities(t.Context())
+	if err != nil {
+		t.Fatalf("GetAPIUsageExportCapabilities returned error: %v", err)
+	}
+	if view.ExportFormat != "ndjson" || view.ArtifactContentType != apimeter.ExportArtifactContentTypeNDJSON {
+		t.Fatalf("capabilities = %+v", view)
+	}
+	if !view.SignerConfigured || !view.VerifierConfigured || view.ProductionSignatureReady || view.BillingReadySupported || view.VerifiedBillingReadySupported {
+		t.Fatalf("capabilities = %+v", view)
+	}
+	if view.SignerKeyID != "key-1" || strings.Join(view.BlockingReasons, ",") != "production_manifest_signer_required" {
+		t.Fatalf("capabilities = %+v", view)
+	}
+}
+
+func TestAdminServiceAPIUsageExportCapabilitiesDisabled(t *testing.T) {
+	t.Parallel()
+
+	view, err := (adminService{}).GetAPIUsageExportCapabilities(t.Context())
+	if err != nil {
+		t.Fatalf("GetAPIUsageExportCapabilities returned error: %v", err)
+	}
+	if view.SignerConfigured || view.VerifierConfigured || view.ProductionSignatureReady {
+		t.Fatalf("capabilities = %+v", view)
+	}
+	want := "manifest_signer_not_configured,manifest_signature_verifier_not_configured"
+	if strings.Join(view.BlockingReasons, ",") != want {
+		t.Fatalf("blocking = %v, want %s", view.BlockingReasons, want)
+	}
+}
