@@ -112,6 +112,24 @@ func TestOpenAPIDraftDocumentsSupportedMessageFlags(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsAttachmentStatuses(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	block := extractOpenAPIComponentBlock(t, string(raw), "schemas", "Attachment")
+	for _, status := range []string{"uploading", "stored", "deleted"} {
+		if !strings.Contains(block, status) {
+			t.Fatalf("Attachment schema must document status %q", status)
+		}
+	}
+	if strings.Contains(block, "active") {
+		t.Fatal("Attachment schema must not document obsolete status active")
+	}
+}
+
 func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	t.Parallel()
 

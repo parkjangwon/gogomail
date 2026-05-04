@@ -154,8 +154,8 @@ CR/LF-bearing values before repository dispatch.
 ## Attachment lifecycle
 
 Attachment uploads start as `uploading`, become draft-bound or message-bound
-records when saved/sent, and stale `uploading` records can be expired by
-backend cleanup code. Upload metadata creation reserves bytes in the shared
+records before becoming `stored` when sent, and stale `uploading` records can
+be expired by backend cleanup code. Upload metadata creation reserves bytes in the shared
 company/domain/user quota ledger; stale upload cleanup marks rows `deleted`,
 returns those bytes to the quota ledger, and then asks the configured storage
 backend to remove the object. Mail API maps quota exhaustion to HTTP 507
