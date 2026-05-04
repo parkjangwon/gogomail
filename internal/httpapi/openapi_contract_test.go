@@ -231,6 +231,24 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsAttachmentUploadSizeErrors(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range []string{"POST /attachments", "POST /attachments/upload"} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if !strings.Contains(block, `"413":`) {
+			t.Fatalf("OpenAPI operation %s must document HTTP 413 for attachment size caps", route)
+		}
+		if !strings.Contains(block, `$ref: "#/components/responses/Error"`) {
+			t.Fatalf("OpenAPI operation %s must map HTTP 413 to the reusable Error response", route)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	t.Parallel()
 
