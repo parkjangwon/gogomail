@@ -159,6 +159,33 @@ func TestAPIUsageExportManifestSignerConfig(t *testing.T) {
 	}
 }
 
+func TestAPIUsageExportManifestSignerRejectsOversizedKeysBeforeDecode(t *testing.T) {
+	t.Parallel()
+
+	oversizedPrivate := config.Config{
+		APIUsageExportManifestSignerBackend: "local-ed25519",
+		APIUsageExportManifestSignerKeyID:   "key-1",
+		APIUsageExportSignerPrivateKey:      strings.Repeat("a", base64.StdEncoding.EncodedLen(ed25519.PrivateKeySize)+1),
+		APIUsageExportSignerPublicKey:       base64.StdEncoding.EncodeToString([]byte(strings.Repeat("p", ed25519.PublicKeySize))),
+	}
+	if signer := apiUsageExportManifestSigner(oversizedPrivate); signer != nil {
+		t.Fatal("apiUsageExportManifestSigner accepted oversized private key")
+	}
+
+	oversizedPublic := config.Config{
+		APIUsageExportManifestSignerBackend: "remote-ed25519",
+		APIUsageExportManifestSignerKeyID:   "key-2",
+		APIUsageExportSignerURL:             "https://signer.example.test/sign",
+		APIUsageExportSignerPublicKey:       strings.Repeat("a", base64.StdEncoding.EncodedLen(ed25519.PublicKeySize)+1),
+	}
+	if signer := apiUsageExportManifestSigner(oversizedPublic); signer != nil {
+		t.Fatal("apiUsageExportManifestSigner accepted oversized public key")
+	}
+	if verifier := apiUsageExportManifestVerifier(oversizedPublic); verifier != nil {
+		t.Fatal("apiUsageExportManifestVerifier accepted oversized public key")
+	}
+}
+
 func TestAPIMeteringHandlerWrapsSlogBackend(t *testing.T) {
 	t.Parallel()
 

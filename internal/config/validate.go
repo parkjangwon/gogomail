@@ -233,6 +233,9 @@ func decodeBase64Key(name string, value string, size int) ([]byte, error) {
 	if value == "" {
 		return nil, fmt.Errorf("%s is required", name)
 	}
+	if len(value) > base64.StdEncoding.EncodedLen(size) {
+		return nil, fmt.Errorf("%s is too long", name)
+	}
 	decoded, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		return nil, fmt.Errorf("%s must be base64: %w", name, err)

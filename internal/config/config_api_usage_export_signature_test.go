@@ -78,6 +78,27 @@ func TestValidateRequiresRemoteEd25519ExportManifestSignerConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsOversizedEd25519ExportManifestSignerKeysBeforeDecode(t *testing.T) {
+	t.Parallel()
+
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize)))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	cfg := Load()
+	cfg.APIUsageExportManifestSignerBackend = "local-ed25519"
+	cfg.APIUsageExportManifestSignerKeyID = "key-1"
+	cfg.APIUsageExportSignerPrivateKey = strings.Repeat("a", base64.StdEncoding.EncodedLen(ed25519.PrivateKeySize)+1)
+	cfg.APIUsageExportSignerPublicKey = base64.StdEncoding.EncodeToString(publicKey)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "PRIVATE_KEY is too long") {
+		t.Fatalf("Validate error = %v, want oversized private key", err)
+	}
+
+	cfg.APIUsageExportSignerPrivateKey = base64.StdEncoding.EncodeToString(privateKey)
+	cfg.APIUsageExportSignerPublicKey = strings.Repeat("a", base64.StdEncoding.EncodedLen(ed25519.PublicKeySize)+1)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "PUBLIC_KEY is too long") {
+		t.Fatalf("Validate error = %v, want oversized public key", err)
+	}
+}
+
 func TestValidateRequiresLocalHMACExportManifestSignerSecrets(t *testing.T) {
 	cfg := Load()
 	cfg.APIUsageExportManifestSignerBackend = "local-hmac"
