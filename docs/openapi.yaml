@@ -453,6 +453,17 @@ paths:
           $ref: "#/components/responses/OutboxEventList"
         default:
           $ref: "#/components/responses/Error"
+  /outbox-events/{id}:
+    get:
+      operationId: getAdminOutboxEvent
+      summary: Admin outbox event metadata detail without payload body
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/OutboxEvent"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -1722,6 +1733,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/OutboxEventListEnvelope"
+    OutboxEvent:
+      description: Outbox event metadata detail envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/OutboxEventEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -2648,6 +2665,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OutboxEvent"
+    OutboxEventEnvelope:
+      type: object
+      required: [outbox_event]
+      properties:
+        outbox_event:
+          $ref: "#/components/schemas/OutboxEvent"
     BackpressureState:
       type: object
       required: [level]

@@ -47,6 +47,7 @@ type AdminService interface {
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
+	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
@@ -398,6 +399,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"outbox_events": events})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/outbox-events/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		event, err := service.GetOutboxEvent(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"outbox_event": event})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

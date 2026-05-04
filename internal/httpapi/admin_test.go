@@ -127,6 +127,47 @@ func TestAdminOutboxEventsHandlerRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestAdminOutboxEventDetailHandler(t *testing.T) {
+	t.Parallel()
+
+	longError := strings.Repeat("redis down ", 80)
+	now := time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		outboxEvent: maildb.OutboxEventView{
+			ID:           "outbox-1",
+			Topic:        "mail.event",
+			PartitionKey: "msg-1",
+			Status:       "failed",
+			Attempts:     10,
+			LastError:    longError,
+			CreatedAt:    now,
+			AvailableAt:  now,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events/outbox-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Event maildb.OutboxEventView `json:"outbox_event"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Event.ID != "outbox-1" || body.Event.LastError != longError {
+		t.Fatalf("outbox_event = %+v", body.Event)
+	}
+	if service.lastOutboxEventID != "outbox-1" {
+		t.Fatalf("lastOutboxEventID = %q", service.lastOutboxEventID)
+	}
+}
+
 func TestAdminBackpressureHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2618,6 +2659,7 @@ type fakeAdminService struct {
 	users                                       []maildb.UserView
 	queueStats                                  []maildb.QueueStat
 	outboxEvents                                []maildb.OutboxEventView
+	outboxEvent                                 maildb.OutboxEventView
 	quotaUsage                                  []maildb.QuotaUsageView
 	apiUsageDaily                               []maildb.APIUsageDailyView
 	apiUsageMonthly                             []maildb.APIUsageMonthlyView
@@ -2656,6 +2698,7 @@ type fakeAdminService struct {
 	createdDKIMKeyID                            string
 	lastLimit                                   int
 	lastOutboxEventList                         maildb.OutboxEventListRequest
+	lastOutboxEventID                           string
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
@@ -2812,6 +2855,14 @@ func (f *fakeAdminService) ListOutboxEvents(_ context.Context, req maildb.Outbox
 		return nil, fmt.Errorf("unsupported outbox status")
 	}
 	return f.outboxEvents, nil
+}
+
+func (f *fakeAdminService) GetOutboxEvent(_ context.Context, id string) (maildb.OutboxEventView, error) {
+	f.lastOutboxEventID = id
+	if f.outboxEvent.ID == "" {
+		return maildb.OutboxEventView{}, fmt.Errorf("outbox event %q not found", id)
+	}
+	return f.outboxEvent, nil
 }
 
 func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {
