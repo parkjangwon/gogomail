@@ -109,6 +109,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
   storage, and repository work.
+- Stale attachment-upload cleanup validates its time window and limit at the
+  service boundary before repository cleanup/object deletion work.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
