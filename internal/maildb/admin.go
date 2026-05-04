@@ -6335,9 +6335,43 @@ func (r *Repository) DeleteSuppressionEntry(ctx context.Context, id string) erro
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("suppression entry id is required")
+	}
 
-	const query = `DELETE FROM suppression_list WHERE id = $1`
-	result, err := r.db.ExecContext(ctx, query, id)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin suppression delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var entry SuppressionEntry
+	if err := tx.QueryRowContext(ctx, `
+SELECT
+  id::text,
+  COALESCE(domain_id::text, ''),
+  email,
+  reason,
+  COALESCE(source_message_id::text, ''),
+  created_at
+FROM suppression_list
+WHERE id = $1
+FOR UPDATE`, id).Scan(
+		&entry.ID,
+		&entry.DomainID,
+		&entry.Email,
+		&entry.Reason,
+		&entry.SourceMessageID,
+		&entry.CreatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("suppression entry %q not found", id)
+		}
+		return fmt.Errorf("read suppression entry for deletion: %w", err)
+	}
+
+	result, err := tx.ExecContext(ctx, `DELETE FROM suppression_list WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete suppression entry: %w", err)
 	}
@@ -6345,5 +6379,37 @@ func (r *Repository) DeleteSuppressionEntry(ctx context.Context, id string) erro
 	if err == nil && affected == 0 {
 		return fmt.Errorf("suppression entry %q not found", id)
 	}
+	detail, err := suppressionEntryAuditDetail(entry)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		DomainID:   entry.DomainID,
+		Category:   "admin",
+		Action:     "suppression.delete",
+		TargetType: "suppression_entry",
+		TargetID:   entry.ID,
+		Result:     "deleted",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record suppression delete audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit suppression delete transaction: %w", err)
+	}
 	return nil
+}
+
+func suppressionEntryAuditDetail(entry SuppressionEntry) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"suppression_entry_id": entry.ID,
+		"domain_id":            entry.DomainID,
+		"email":                entry.Email,
+		"reason":               entry.Reason,
+		"source_message_id":    entry.SourceMessageID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal suppression audit detail: %w", err)
+	}
+	return detail, nil
 }

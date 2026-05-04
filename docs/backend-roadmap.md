@@ -663,6 +663,7 @@ Implementation order:
 603. Migration file guardrails now require every SQL migration to declare explicit goose Up/Down sections, and the legacy API-usage, push, IMAP, and audit-index migrations have been normalized to that structure without changing applied SQL.
 604. Runtime database readiness now checks the applied goose migration version against the latest local SQL migration before reporting database probes healthy, preventing stale schemas from passing `/health/ready` on ping alone.
 605. Admin backpressure overrides now persist bounded hash-chain audit rows after Redis state changes, recording previous/current SMTP pressure levels as durable evidence for receive-throttle operations.
+606. Admin suppression-list deletes now persist hash-chain audit rows in the same transaction as the delete, preserving deliverability-control removal evidence for operator forensics.
 
 ## Deferred until backend contracts stabilize
 
