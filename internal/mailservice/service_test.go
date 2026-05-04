@@ -2357,14 +2357,84 @@ func TestStoreAttachmentUploadSessionBodyRejectsTerminalSession(t *testing.T) {
 func TestFinalizeAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
-	repo := &fakeRepository{}
-	service := New(repo, nil)
+	checksum := sha256.Sum256([]byte("content"))
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:             "session-1",
+			UserID:         "user-1",
+			DeclaredSize:   7,
+			ReceivedSize:   7,
+			StoragePath:    "upload-sessions/user-1/session-1/body",
+			ChecksumSHA256: hex.EncodeToString(checksum[:]),
+			Status:         "uploading",
+			ExpiresAt:      time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "upload-sessions/user-1/session-1/body", strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	service := New(repo, store)
 	attachment, err := service.FinalizeAttachmentUploadSession(context.Background(), " user-1 ", " session-1 ")
 	if err != nil {
 		t.Fatalf("FinalizeAttachmentUploadSession returned error: %v", err)
 	}
 	if attachment.ID != "att-1" || repo.lastFinalizeUploadSession.UserID != "user-1" || repo.lastFinalizeUploadSession.SessionID != "session-1" {
 		t.Fatalf("attachment = %+v finalize request = %+v", attachment, repo.lastFinalizeUploadSession)
+	}
+}
+
+func TestFinalizeAttachmentUploadSessionRejectsMissingStoredBody(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:             "session-1",
+			UserID:         "user-1",
+			DeclaredSize:   7,
+			ReceivedSize:   7,
+			StoragePath:    "upload-sessions/user-1/session-1/body",
+			ChecksumSHA256: strings.Repeat("a", 64),
+			Status:         "uploading",
+			ExpiresAt:      time.Now().Add(time.Hour),
+		},
+	}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+	_, err := service.FinalizeAttachmentUploadSession(context.Background(), "user-1", "session-1")
+	if err == nil {
+		t.Fatal("FinalizeAttachmentUploadSession accepted missing stored body")
+	}
+	if repo.lastFinalizeUploadSession.SessionID != "" {
+		t.Fatalf("finalize should not be recorded: %+v", repo.lastFinalizeUploadSession)
+	}
+}
+
+func TestFinalizeAttachmentUploadSessionRejectsStoredChecksumMismatch(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:             "session-1",
+			UserID:         "user-1",
+			DeclaredSize:   7,
+			ReceivedSize:   7,
+			StoragePath:    "upload-sessions/user-1/session-1/body",
+			ChecksumSHA256: strings.Repeat("a", 64),
+			Status:         "uploading",
+			ExpiresAt:      time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "upload-sessions/user-1/session-1/body", strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	service := New(repo, store)
+	_, err := service.FinalizeAttachmentUploadSession(context.Background(), "user-1", "session-1")
+	if err == nil {
+		t.Fatal("FinalizeAttachmentUploadSession accepted checksum mismatch")
+	}
+	if repo.lastFinalizeUploadSession.SessionID != "" {
+		t.Fatalf("finalize should not be recorded: %+v", repo.lastFinalizeUploadSession)
 	}
 }
 

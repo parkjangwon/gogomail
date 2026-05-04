@@ -61,6 +61,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   from future range-aware chunk commits.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
+- Upload session finalization verifies the staged object still exists and
+  matches recorded size/SHA-256 before creating the attachment row.
 - Optional PostgreSQL integration coverage verifies upload session finalization
   creates an attachment row while preserving the original quota reservation.
 - Optional PostgreSQL integration coverage also rejects duplicate upload

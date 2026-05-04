@@ -294,6 +294,8 @@ Current state:
   upload session body storage.
 - Upload session finalization can convert a stored session body into the normal
   pending attachment row while preserving the original quota reservation.
+- Upload session finalization verifies staged object size and SHA-256 before
+  creating the attachment row.
 - Upload session cancellation deletes any staged session body after the
   repository marks the session canceled and releases quota.
 - Upload session expiry deletes staged session bodies for expired sessions,

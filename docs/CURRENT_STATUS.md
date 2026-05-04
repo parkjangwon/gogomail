@@ -661,6 +661,8 @@ The platform hardening sprint completed the following:
 - Upload session finalization now converts a ready stored session body into the
   normal pending attachment row without double-reserving quota, and marks the
   session finalized.
+- Upload session finalization now verifies the staged object exists and still
+  matches the recorded size and SHA-256 before creating the attachment row.
 - Upload session cancellation now deletes a staged session body when the
   canceled session has already written one, preventing storage leaks alongside
   quota release.
