@@ -133,10 +133,12 @@ Current state:
   broker boundary after repository flag mutations succeed.
 - Mail API single and bulk flag mutations can publish mailbox `flags` events
   for messages that already have IMAP UID rows.
+- Mail API single and bulk move mutations can publish mailbox `expunge` events
+  for previously UID-visible source messages.
 
 Next:
 
-- Wire mailbox event publication from append/move/delete paths.
+- Wire mailbox event publication from append/delete paths.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
