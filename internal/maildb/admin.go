@@ -463,6 +463,10 @@ type PushNotificationAttemptListRequest struct {
 	UserID string
 }
 
+type PushNotificationStatsRequest struct {
+	UserID string
+}
+
 type PushNotificationStatsView struct {
 	ActiveDevices int64 `json:"active_devices"`
 	TotalAttempts int64 `json:"total_attempts"`
@@ -3664,24 +3668,26 @@ func allowedPushNotificationAttemptStatus(status string) bool {
 	}
 }
 
-func (r *Repository) GetPushNotificationStats(ctx context.Context) (PushNotificationStatsView, error) {
+func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotificationStatsRequest) (PushNotificationStatsView, error) {
 	if r.db == nil {
 		return PushNotificationStatsView{}, fmt.Errorf("database handle is required")
 	}
+	req.UserID = strings.TrimSpace(req.UserID)
 
 	const query = `
 SELECT
-  COALESCE((SELECT COUNT(*) FROM push_devices WHERE status = 'active'), 0),
+  COALESCE((SELECT COUNT(*) FROM push_devices WHERE status = 'active' AND (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)), 0),
   COALESCE(COUNT(*), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'candidate'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'queued'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'delivered'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'failed'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'invalid_token'), 0)
-FROM push_notification_attempts`
+FROM push_notification_attempts
+WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)`
 
 	var stats PushNotificationStatsView
-	if err := r.db.QueryRowContext(ctx, query).Scan(
+	if err := r.db.QueryRowContext(ctx, query, req.UserID).Scan(
 		&stats.ActiveDevices,
 		&stats.TotalAttempts,
 		&stats.Candidate,

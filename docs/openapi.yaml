@@ -1031,6 +1031,12 @@ paths:
     get:
       operationId: getAdminPushNotificationStats
       summary: Admin push notification fan-out status summary
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           $ref: "#/components/responses/PushNotificationStats"

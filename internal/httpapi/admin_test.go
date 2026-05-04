@@ -1955,12 +1955,15 @@ func TestAdminPushNotificationStatsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-stats", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-stats?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushNotificationStats.UserID != "user-1" {
+		t.Fatalf("lastPushNotificationStats = %+v", service.lastPushNotificationStats)
 	}
 	if !strings.Contains(rec.Body.String(), "push_notification_stats") || !strings.Contains(rec.Body.String(), `"active_devices":3`) {
 		t.Fatalf("body = %s", rec.Body.String())
@@ -2393,6 +2396,7 @@ type fakeAdminService struct {
 	lastCreateAPIUsageExportArtifact            maildb.CreateAPIUsageExportArtifactRequest
 	lastWriteAPIUsageExportArtifact             maildb.WriteAPIUsageExportArtifactRequest
 	lastPushAttemptList                         maildb.PushNotificationAttemptListRequest
+	lastPushNotificationStats                   maildb.PushNotificationStatsRequest
 	lastCreateUser                              maildb.CreateUserRequest
 	lastCreateDKIMKey                           maildb.CreateDKIMKeyInput
 	lastCreateTrustedRelay                      maildb.CreateTrustedRelayRequest
@@ -2699,7 +2703,8 @@ func (f *fakeAdminService) ListPushNotificationAttempts(_ context.Context, req m
 	return f.pushNotificationAttempts, nil
 }
 
-func (f *fakeAdminService) GetPushNotificationStats(context.Context) (maildb.PushNotificationStatsView, error) {
+func (f *fakeAdminService) GetPushNotificationStats(_ context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error) {
+	f.lastPushNotificationStats = req
 	return f.pushNotificationStats, nil
 }
 
