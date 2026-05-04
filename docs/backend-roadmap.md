@@ -597,6 +597,7 @@ Implementation order:
 538. Upload session creation now rejects already-expired `expires_at` values at the service boundary before any quota reservation is attempted.
 539. Upload session creation now caps client-requested expiries to a 24-hour service TTL and advertises that limit through attachment upload capabilities.
 540. Mail API can store a complete upload session body, persist it under session-scoped storage, and record received bytes plus SHA-256 digest without creating the final attachment row.
+541. Upload session finalization converts a ready stored session body into the normal pending attachment row without double-reserving quota and marks the session finalized.
 
 ## Deferred until backend contracts stabilize
 

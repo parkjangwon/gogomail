@@ -653,7 +653,10 @@ The platform hardening sprint completed the following:
   the maximum upload session TTL.
 - Mail API can store a complete body for an upload session, persisting it under
   session-scoped storage and recording received bytes plus SHA-256 digest before
-  a later finalize contract creates the normal attachment row.
+  finalize creates the normal attachment row.
+- Upload session finalization now converts a ready stored session body into the
+  normal pending attachment row without double-reserving quota, and marks the
+  session finalized.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

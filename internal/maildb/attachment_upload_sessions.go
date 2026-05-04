@@ -55,6 +55,11 @@ type StoreAttachmentUploadSessionBodyRequest struct {
 	ChecksumSHA256 string
 }
 
+type FinalizeAttachmentUploadSessionRequest struct {
+	UserID    string
+	SessionID string
+}
+
 type ExpireAttachmentUploadSessionsRequest struct {
 	Before time.Time
 	Limit  int
@@ -125,6 +130,10 @@ func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSe
 		}
 	}
 	return nil
+}
+
+func ValidateFinalizeAttachmentUploadSessionRequest(req FinalizeAttachmentUploadSessionRequest) error {
+	return validateAttachmentUploadSessionIdentity(req.UserID, req.SessionID)
 }
 
 func validateAttachmentUploadSessionIdentity(userID string, sessionID string) error {
@@ -423,6 +432,114 @@ RETURNING
 		return AttachmentUploadSession{}, fmt.Errorf("store attachment upload session body: %w", err)
 	}
 	return session, nil
+}
+
+func (r *Repository) FinalizeAttachmentUploadSession(ctx context.Context, req FinalizeAttachmentUploadSessionRequest) (Attachment, error) {
+	if r.db == nil {
+		return Attachment{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateFinalizeAttachmentUploadSessionRequest(req); err != nil {
+		return Attachment{}, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Attachment{}, fmt.Errorf("begin attachment upload session finalize transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const query = `
+WITH target AS (
+  SELECT *
+  FROM attachment_upload_sessions
+  WHERE user_id = $1
+    AND id = $2
+    AND status = 'uploading'
+    AND received_size = declared_size
+    AND storage_path <> ''
+    AND checksum_sha256 <> ''
+    AND expires_at > now()
+  FOR UPDATE
+),
+inserted AS (
+  INSERT INTO attachments (
+    user_id, draft_id, upload_id, storage_path, filename, size, mime_type, status
+  )
+  SELECT
+    user_id,
+    draft_id,
+    upload_id,
+    storage_path,
+    filename,
+    declared_size,
+    mime_type,
+    'uploading'
+  FROM target
+  RETURNING id::text, COALESCE(message_id::text, '') AS message_id, upload_id, storage_path, filename, size, mime_type, status, created_at
+),
+finalized AS (
+  UPDATE attachment_upload_sessions s
+  SET status = 'finalized',
+      finalized_at = now(),
+      updated_at = now()
+  FROM target
+  WHERE s.id = target.id
+  RETURNING COALESCE(target.draft_id::text, '') AS draft_id
+)
+SELECT
+  inserted.id,
+  inserted.message_id,
+  inserted.upload_id,
+  inserted.storage_path,
+  inserted.filename,
+  inserted.size,
+  inserted.mime_type,
+  inserted.status,
+  inserted.created_at,
+  finalized.draft_id
+FROM inserted
+CROSS JOIN finalized`
+
+	var attachment Attachment
+	var draftID string
+	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(req.UserID), strings.TrimSpace(req.SessionID)).Scan(
+		&attachment.ID,
+		&attachment.MessageID,
+		&attachment.UploadID,
+		&attachment.StoragePath,
+		&attachment.Filename,
+		&attachment.Size,
+		&attachment.MIMEType,
+		&attachment.Status,
+		&attachment.CreatedAt,
+		&draftID,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return Attachment{}, fmt.Errorf("attachment upload session %q not ready for finalization", req.SessionID)
+		}
+		return Attachment{}, fmt.Errorf("finalize attachment upload session: %w", err)
+	}
+	if strings.TrimSpace(draftID) != "" {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET has_attachment = EXISTS (
+    SELECT 1
+    FROM attachments
+    WHERE user_id = $1
+      AND draft_id = $2
+      AND status = 'uploading'
+  ),
+  updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'draft'`, strings.TrimSpace(req.UserID), strings.TrimSpace(draftID)); err != nil {
+			return Attachment{}, fmt.Errorf("refresh draft attachment state: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return Attachment{}, fmt.Errorf("commit attachment upload session finalize transaction: %w", err)
+	}
+	return attachment, nil
 }
 
 func (r *Repository) ExpireAttachmentUploadSessions(ctx context.Context, req ExpireAttachmentUploadSessionsRequest) ([]AttachmentUploadSession, error) {
