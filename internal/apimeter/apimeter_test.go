@@ -60,6 +60,9 @@ func TestHandlerRecordsRequestAndResponseEvent(t *testing.T) {
 	if event.AuthSource != "query_user_id" {
 		t.Fatalf("auth source = %q, want query_user_id", event.AuthSource)
 	}
+	if event.Identity.UserID != "user-1" || event.Identity.AuthSource != "query_user_id" {
+		t.Fatalf("identity = %+v", event.Identity)
+	}
 	if event.Timestamp.IsZero() {
 		t.Fatal("timestamp was not recorded")
 	}
@@ -133,6 +136,55 @@ func TestHandlerFailsOpenWhenSinkTimesOut(t *testing.T) {
 	case <-sink.done:
 	case <-time.After(time.Second):
 		t.Fatal("sink did not observe timeout")
+	}
+}
+
+func TestHandlerUsesIdentityResolver(t *testing.T) {
+	sink := &captureSink{events: make(chan Event, 1)}
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
+	rec := httptest.NewRecorder()
+
+	Handler(next, sink, WithTimeout(time.Second), WithIdentityResolver(func(*http.Request) Identity {
+		return Identity{
+			TenantID:   " tenant-1 ",
+			CompanyID:  " company-1 ",
+			DomainID:   " domain-1 ",
+			UserID:     " user-1 ",
+			APIKeyID:   " api-key-1 ",
+			AuthSource: AuthSourceBearer,
+		}
+	})).ServeHTTP(rec, req)
+
+	event := receiveEvent(t, sink.events)
+	if event.UserID != "user-1" || event.AuthSource != AuthSourceBearer {
+		t.Fatalf("event identity fields = user:%q auth:%q", event.UserID, event.AuthSource)
+	}
+	if event.Identity.TenantID != "tenant-1" || event.Identity.CompanyID != "company-1" || event.Identity.DomainID != "domain-1" {
+		t.Fatalf("identity dimensions = %+v", event.Identity)
+	}
+	if event.Identity.PrincipalID != "user-1" {
+		t.Fatalf("principal id = %q, want user-1", event.Identity.PrincipalID)
+	}
+}
+
+func TestDefaultIdentityFromRequestExtractsHeaders(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/?user_id=user-1", nil)
+	req.Header.Set("X-Gogomail-Tenant-ID", "tenant-1")
+	req.Header.Set("X-Gogomail-Company-ID", "company-1")
+	req.Header.Set("X-Gogomail-Domain-ID", "domain-1")
+	req.Header.Set("X-Gogomail-API-Key-ID", "api-key-1")
+
+	id := defaultIdentityFromRequest(req).Normalize()
+	if id.TenantID != "tenant-1" || id.CompanyID != "company-1" || id.DomainID != "domain-1" {
+		t.Fatalf("identity dimensions = %+v", id)
+	}
+	if id.UserID != "user-1" || id.APIKeyID != "api-key-1" || id.AuthSource != AuthSourceQueryUserID {
+		t.Fatalf("identity principals = %+v", id)
 	}
 }
 
