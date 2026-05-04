@@ -3,6 +3,7 @@ package maildb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/mail"
@@ -384,6 +385,78 @@ FOR UPDATE`
 		return summaries[i].UID < summaries[j].UID
 	})
 	return summaries, nil
+}
+
+func (r *Repository) ExistingIMAPMessageUIDs(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	messageIDs = normalizeExistingIMAPMessageIDs(messageIDs)
+	if len(messageIDs) == 0 {
+		return nil, nil
+	}
+	rawIDs, err := json.Marshal(messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap uid message ids: %w", err)
+	}
+
+	const query = `
+WITH input AS (
+  SELECT value::uuid AS message_id, ordinality
+  FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY
+)
+SELECT
+  imu.message_id::text,
+  imu.mailbox_id::text,
+  imu.uid,
+  imu.modseq
+FROM input
+JOIN imap_message_uid imu
+  ON imu.message_id = input.message_id
+WHERE imu.user_id = $1::uuid
+ORDER BY input.ordinality`
+	rows, err := r.db.QueryContext(ctx, query, userID, string(rawIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list existing imap message uids: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]IMAPMessageUID, 0, len(messageIDs))
+	for rows.Next() {
+		var item IMAPMessageUID
+		if err := rows.Scan(&item.MessageID, &item.MailboxID, &item.UID, &item.ModSeq); err != nil {
+			return nil, fmt.Errorf("scan imap message uid: %w", err)
+		}
+		if err := imapgw.ValidateMessageUID(item); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap message uids: %w", err)
+	}
+	return items, nil
+}
+
+func normalizeExistingIMAPMessageIDs(messageIDs []string) []string {
+	seen := make(map[string]struct{}, len(messageIDs))
+	out := make([]string, 0, len(messageIDs))
+	for _, id := range messageIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
 }
 
 func (r *Repository) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]IMAPMessageUID, error) {
