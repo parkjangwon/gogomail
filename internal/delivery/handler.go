@@ -46,6 +46,12 @@ type DSNRecipientOptions struct {
 	OriginalRecipient string   `json:"original_recipient"`
 }
 
+const (
+	maxQueuedMessageIDBytes    = 200
+	maxQueuedRFCMessageIDBytes = 500
+	maxQueuedStoragePathBytes  = 2048
+)
+
 type MessageOpener func(ctx context.Context) (io.ReadCloser, error)
 
 type Job struct {
@@ -259,6 +265,9 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	if containsLineBreak(queued.MessageID) || containsLineBreak(queued.RFCMessageID) {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid message identity")
 	}
+	if len(queued.MessageID) > maxQueuedMessageIDBytes || len(queued.RFCMessageID) > maxQueuedRFCMessageIDBytes {
+		return QueuedMessage{}, fmt.Errorf("mail.queued payload has oversized message identity")
+	}
 	queued.From.Email = strings.TrimSpace(queued.From.Email)
 	if queued.From.Email != "" {
 		from, err := mail.NormalizeAddress(queued.From.Email)
@@ -277,6 +286,9 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 	queued.StoragePath = strings.TrimSpace(queued.StoragePath)
 	if containsLineBreak(queued.StoragePath) {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has invalid storage_path")
+	}
+	if len(queued.StoragePath) > maxQueuedStoragePathBytes {
+		return QueuedMessage{}, fmt.Errorf("mail.queued payload has oversized storage_path")
 	}
 	if len(queued.Recipients()) == 0 {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has no recipients")
