@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -65,6 +66,7 @@ type AttachmentUploadSessionRepository interface {
 	CreateAttachmentUploadSession(ctx context.Context, req maildb.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	CancelAttachmentUploadSession(ctx context.Context, req maildb.CancelAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	GetAttachmentUploadSession(ctx context.Context, req maildb.GetAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
+	StoreAttachmentUploadSessionBody(ctx context.Context, req maildb.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error)
 	ExpireAttachmentUploadSessions(ctx context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error)
 }
 
@@ -933,6 +935,66 @@ func (s *Service) GetAttachmentUploadSession(ctx context.Context, userID string,
 	})
 }
 
+func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
+	req = normalizeStoreAttachmentUploadSessionBodyRequest(req)
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(req); err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	if s.store == nil {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("mail storage is required")
+	}
+	repo, ok := s.repository.(AttachmentUploadSessionRepository)
+	if !ok {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session repository is required")
+	}
+	session, err := repo.GetAttachmentUploadSession(ctx, maildb.GetAttachmentUploadSessionRequest{
+		UserID:    req.UserID,
+		SessionID: req.SessionID,
+	})
+	if err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	if session.Status != "pending" && session.Status != "uploading" && session.Status != "failed" {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q is not writable", req.SessionID)
+	}
+	if !session.ExpiresAt.After(time.Now().UTC()) {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q is expired", req.SessionID)
+	}
+
+	path := strings.Join([]string{
+		"upload-sessions",
+		safeObjectPathSegment(req.UserID),
+		safeObjectPathSegment(req.SessionID),
+		"body",
+	}, "/")
+	counter := &countingReader{reader: req.Body}
+	limitedBody := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
+	hash := sha256.New()
+	if err := s.store.Put(ctx, path, io.TeeReader(limitedBody, hash)); err != nil {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("store attachment upload session body: %w", err)
+	}
+	if limitedBody.N == 0 {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session body exceeds declared size %d", session.DeclaredSize)
+	}
+	if counter.n != session.DeclaredSize {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session body size %d does not match declared size %d", counter.n, session.DeclaredSize)
+	}
+	stored, err := repo.StoreAttachmentUploadSessionBody(ctx, maildb.StoreAttachmentUploadSessionBodyRequest{
+		UserID:         req.UserID,
+		SessionID:      req.SessionID,
+		ReceivedSize:   counter.n,
+		StoragePath:    path,
+		ChecksumSHA256: hex.EncodeToString(hash.Sum(nil)),
+	})
+	if err != nil {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, err
+	}
+	return stored, nil
+}
+
 func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error) {
 	repo, ok := s.repository.(AttachmentUploadSessionRepository)
 	if !ok {
@@ -962,6 +1024,12 @@ func normalizeCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSes
 	req.DraftID = strings.TrimSpace(req.DraftID)
 	req.Filename = strings.TrimSpace(req.Filename)
 	req.MIMEType = strings.TrimSpace(req.MIMEType)
+	return req
+}
+
+func normalizeStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSessionBodyRequest) StoreAttachmentUploadSessionBodyRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.SessionID = strings.TrimSpace(req.SessionID)
 	return req
 }
 

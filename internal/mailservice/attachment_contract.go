@@ -40,6 +40,12 @@ type CreateAttachmentUploadSessionRequest struct {
 	ExpiresAt    time.Time
 }
 
+type StoreAttachmentUploadSessionBodyRequest struct {
+	UserID    string
+	SessionID string
+	Body      io.Reader
+}
+
 func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -107,6 +113,19 @@ func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSess
 		Size:     req.DeclaredSize,
 		MIMEType: req.MIMEType,
 	})
+}
+
+func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSessionBodyRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if err := validateServiceResourceID("session_id", strings.TrimSpace(req.SessionID)); err != nil {
+		return err
+	}
+	if req.Body == nil {
+		return fmt.Errorf("attachment upload session body is required")
+	}
+	return nil
 }
 
 func validateAttachmentStoragePath(storagePath string) error {

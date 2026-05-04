@@ -112,6 +112,47 @@ func TestValidateGetAttachmentUploadSessionRequest(t *testing.T) {
 	}
 }
 
+func TestValidateStoreAttachmentUploadSessionBodyRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := StoreAttachmentUploadSessionBodyRequest{
+		UserID:         "user-1",
+		SessionID:      "session-1",
+		ReceivedSize:   42,
+		StoragePath:    "upload-sessions/user-1/session-1/body",
+		ChecksumSHA256: strings.Repeat("a", 64),
+	}
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(valid); err != nil {
+		t.Fatalf("ValidateStoreAttachmentUploadSessionBodyRequest returned error: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*StoreAttachmentUploadSessionBodyRequest)
+	}{
+		{name: "missing user", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.UserID = " " }},
+		{name: "missing session", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.SessionID = " " }},
+		{name: "negative size", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.ReceivedSize = -1 }},
+		{name: "missing path", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.StoragePath = " " }},
+		{name: "newline path", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.StoragePath = "bad\npath" }},
+		{name: "missing checksum", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.ChecksumSHA256 = " " }},
+		{name: "short checksum", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.ChecksumSHA256 = "abc" }},
+		{name: "uppercase checksum", mutate: func(req *StoreAttachmentUploadSessionBodyRequest) { req.ChecksumSHA256 = strings.Repeat("A", 64) }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := valid
+			tt.mutate(&req)
+			if err := ValidateStoreAttachmentUploadSessionBodyRequest(req); err == nil {
+				t.Fatal("ValidateStoreAttachmentUploadSessionBodyRequest accepted invalid request")
+			}
+		})
+	}
+}
+
 func TestValidateExpireAttachmentUploadSessionsRequest(t *testing.T) {
 	t.Parallel()
 

@@ -3,6 +3,8 @@ package mailservice
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -1050,6 +1052,7 @@ type fakeRepository struct {
 	lastAttachmentUploadSession    maildb.CreateAttachmentUploadSessionRequest
 	lastCancelUploadSession        maildb.CancelAttachmentUploadSessionRequest
 	lastGetUploadSession           maildb.GetAttachmentUploadSessionRequest
+	lastStoreUploadSessionBody     maildb.StoreAttachmentUploadSessionBodyRequest
 	lastExpireUploadSessions       maildb.ExpireAttachmentUploadSessionsRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
@@ -1433,7 +1436,19 @@ func (f *fakeRepository) GetAttachmentUploadSession(_ context.Context, req maild
 	if f.uploadSession.ID != "" {
 		return f.uploadSession, nil
 	}
-	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, Status: "pending"}, nil
+	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, DeclaredSize: 7, Status: "pending", ExpiresAt: time.Now().Add(time.Hour)}, nil
+}
+
+func (f *fakeRepository) StoreAttachmentUploadSessionBody(_ context.Context, req maildb.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
+	f.lastStoreUploadSessionBody = req
+	if f.uploadSession.ID != "" {
+		f.uploadSession.ReceivedSize = req.ReceivedSize
+		f.uploadSession.StoragePath = req.StoragePath
+		f.uploadSession.ChecksumSHA256 = req.ChecksumSHA256
+		f.uploadSession.Status = "uploading"
+		return f.uploadSession, nil
+	}
+	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: req.ReceivedSize, StoragePath: req.StoragePath, ChecksumSHA256: req.ChecksumSHA256, Status: "uploading"}, nil
 }
 
 func (f *fakeRepository) ExpireAttachmentUploadSessions(_ context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error) {
@@ -2177,6 +2192,74 @@ func TestGetAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	}
 	if session.ID != "session-1" || repo.lastGetUploadSession.UserID != "user-1" || repo.lastGetUploadSession.SessionID != "session-1" {
 		t.Fatalf("session = %+v last = %+v", session, repo.lastGetUploadSession)
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyWritesStorageAndRecordsDigest(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:           "session-1",
+			UserID:       "user-1",
+			DeclaredSize: 7,
+			Status:       "pending",
+			ExpiresAt:    time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+	session, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
+		UserID:    " user-1 ",
+		SessionID: " session-1 ",
+		Body:      strings.NewReader("content"),
+	})
+	if err != nil {
+		t.Fatalf("StoreAttachmentUploadSessionBody returned error: %v", err)
+	}
+	wantChecksum := sha256.Sum256([]byte("content"))
+	if session.Status != "uploading" ||
+		repo.lastStoreUploadSessionBody.UserID != "user-1" ||
+		repo.lastStoreUploadSessionBody.SessionID != "session-1" ||
+		repo.lastStoreUploadSessionBody.ReceivedSize != 7 ||
+		repo.lastStoreUploadSessionBody.ChecksumSHA256 != hex.EncodeToString(wantChecksum[:]) {
+		t.Fatalf("session = %+v store request = %+v", session, repo.lastStoreUploadSessionBody)
+	}
+	body, err := store.Get(context.Background(), repo.lastStoreUploadSessionBody.StoragePath)
+	if err != nil {
+		t.Fatalf("Get stored body returned error: %v", err)
+	}
+	defer body.Close()
+	raw, _ := io.ReadAll(body)
+	if string(raw) != "content" {
+		t.Fatalf("stored body = %q", raw)
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyRejectsSizeMismatch(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:           "session-1",
+			UserID:       "user-1",
+			DeclaredSize: 8,
+			Status:       "pending",
+			ExpiresAt:    time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+	_, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+		Body:      strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("StoreAttachmentUploadSessionBody accepted size mismatch")
+	}
+	if repo.lastStoreUploadSessionBody.StoragePath != "" {
+		t.Fatalf("body should not be recorded: %+v", repo.lastStoreUploadSessionBody)
 	}
 }
 

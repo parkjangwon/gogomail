@@ -651,6 +651,9 @@ The platform hardening sprint completed the following:
   from full resumable chunk support so generated clients can adopt the staged
   lifecycle without assuming chunk receive/finalize routes exist, and expose
   the maximum upload session TTL.
+- Mail API can store a complete body for an upload session, persisting it under
+  session-scoped storage and recording received bytes plus SHA-256 digest before
+  a later finalize contract creates the normal attachment row.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

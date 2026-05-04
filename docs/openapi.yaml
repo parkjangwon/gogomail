@@ -443,6 +443,21 @@ paths:
           $ref: "#/components/responses/AttachmentUploadSession"
         default:
           $ref: "#/components/responses/Error"
+  /attachments/upload-sessions/{id}/body:
+    put:
+      operationId: storeAttachmentUploadSessionBody
+      summary: Store a complete resumable attachment upload session body
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentUploadSessionBody"
+      responses:
+        "200":
+          $ref: "#/components/responses/AttachmentUploadSession"
+        "413":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
   /push-devices:
     get:
       operationId: listPushDevices
@@ -2366,6 +2381,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AttachmentUploadSessionCreateRequest"
+    AttachmentUploadSessionBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
     PushDeviceUpsert:
       required: true
       content:
@@ -2893,6 +2915,7 @@ components:
         - cancel_pending_uploads
         - upload_sessions
         - cancel_upload_sessions
+        - upload_session_body
         - resumable_chunked_uploads
         - requires_declared_size
         - quota_reserved_on_metadata
@@ -2922,6 +2945,9 @@ components:
         cancel_upload_sessions:
           type: boolean
           description: True when clients can cancel pending upload sessions.
+        upload_session_body:
+          type: boolean
+          description: True when clients can store a complete body against an upload session before finalization.
         resumable_chunked_uploads:
           type: boolean
           description: False until resumable/chunked upload contracts are implemented.

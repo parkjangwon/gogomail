@@ -60,6 +60,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /attachments",
 		"POST /attachments/upload",
 		"POST /attachments/upload-sessions",
+		"PUT /attachments/upload-sessions/{id}/body",
 		"POST /push-devices",
 		"PATCH /companies/{id}/quota",
 		"POST /domains",
@@ -148,6 +149,7 @@ func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
 		"max_session_ttl_seconds",
 		"upload_sessions",
 		"cancel_upload_sessions",
+		"upload_session_body",
 		"resumable_chunked_uploads",
 	} {
 		if !strings.Contains(block, want) {
@@ -189,6 +191,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /attachments/{id}":                                   "#/components/responses/Attachment",
 		"GET /attachments/upload-sessions/{id}":                      "#/components/responses/AttachmentUploadSession",
 		"DELETE /attachments/upload-sessions/{id}":                   "#/components/responses/AttachmentUploadSession",
+		"PUT /attachments/upload-sessions/{id}/body":                 "#/components/responses/AttachmentUploadSession",
 		"GET /messages/{id}/attachments":                             "#/components/responses/AttachmentList",
 		"GET /push-devices":                                          "#/components/responses/PushDeviceList",
 		"POST /push-devices":                                         "#/components/responses/PushDevice",
@@ -906,7 +909,7 @@ func extractOpenAPIRoutes(t *testing.T, filename string) map[string]bool {
 	routes := make(map[string]bool)
 	var currentPath string
 	pathPattern := regexp.MustCompile(`^  (/[^:]+):\s*$`)
-	methodPattern := regexp.MustCompile(`^    (get|post|patch|delete):\s*$`)
+	methodPattern := regexp.MustCompile(`^    (get|put|post|patch|delete):\s*$`)
 	for _, line := range strings.Split(string(raw), "\n") {
 		if match := pathPattern.FindStringSubmatch(line); match != nil {
 			currentPath = match[1]
@@ -935,7 +938,7 @@ func extractOpenAPIOperationBlocks(t *testing.T, filename string) map[string]str
 	var currentRoute string
 	var currentBlock strings.Builder
 	pathPattern := regexp.MustCompile(`^  (/[^:]+):\s*$`)
-	methodPattern := regexp.MustCompile(`^    (get|post|patch|delete):\s*$`)
+	methodPattern := regexp.MustCompile(`^    (get|put|post|patch|delete):\s*$`)
 	flush := func() {
 		if currentRoute != "" {
 			operations[currentRoute] = currentBlock.String()

@@ -596,6 +596,7 @@ Implementation order:
 537. Attachment upload capabilities now advertise upload session create/cancel support separately from full resumable chunk support so clients can stage integration safely.
 538. Upload session creation now rejects already-expired `expires_at` values at the service boundary before any quota reservation is attempted.
 539. Upload session creation now caps client-requested expiries to a 24-hour service TTL and advertises that limit through attachment upload capabilities.
+540. Mail API can store a complete upload session body, persist it under session-scoped storage, and record received bytes plus SHA-256 digest without creating the final attachment row.
 
 ## Deferred until backend contracts stabilize
 
