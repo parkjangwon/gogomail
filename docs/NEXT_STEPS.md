@@ -257,7 +257,8 @@ Current state:
 - Domain outbound policy can enforce `max_attachment_bytes` for attachment
   metadata reservation and direct multipart upload before storage writes.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
-  interval, stale age, and batch size.
+  interval, stale age, batch size, and optional run-once mode for CronJob-style
+  deployments.
 
 Next:
 

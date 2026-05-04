@@ -430,7 +430,8 @@ The platform hardening sprint completed the following:
   upload cleanup releases quota, and API quota exhaustion maps to 507.
 - `attachment-cleanup-worker` can now run the stale upload cleanup loop
   periodically with configurable interval, stale age, and batch size, turning
-  the repository/service cleanup path into an operational mode.
+  the repository/service cleanup path into an operational mode. It can also run
+  once and exit for CronJob or timer-style deployments.
 - Search indexing boundary: bounded received body extraction runs in
   `search-index-worker` and stores Postgres search documents outside SMTP hot
   paths.

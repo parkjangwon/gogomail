@@ -57,6 +57,7 @@ type Config struct {
 	AttachmentCleanupInterval           time.Duration
 	AttachmentCleanupStaleAge           time.Duration
 	AttachmentCleanupBatchSize          int
+	AttachmentCleanupRunOnce            bool
 	PushNotifyBackend                   string
 	PushNotifyWebhookURL                string
 	PushNotifyWebhookToken              string
@@ -187,6 +188,7 @@ func Load() Config {
 		AttachmentCleanupInterval:           durationEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL", time.Hour),
 		AttachmentCleanupStaleAge:           durationEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", 24*time.Hour),
 		AttachmentCleanupBatchSize:          intEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", 100),
+		AttachmentCleanupRunOnce:            boolEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE", false),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
 		PushNotifyWebhookURL:                envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", ""),
 		PushNotifyWebhookToken:              os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN"),
