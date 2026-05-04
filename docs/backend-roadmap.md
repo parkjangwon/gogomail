@@ -507,6 +507,7 @@ Implementation order:
 448. Bulk mailbox mutation validation now rejects CR/LF-bearing or oversized message/folder identifiers before repository mutation and IMAP event fan-out.
 449. Single-message mutation/read and attachment-read service methods now reject blank, CR/LF-bearing, or oversized message/folder/attachment identifiers before repository, storage, or IMAP UID lookup work.
 450. Draft save/delete/send and reply/forward compose validation now reject blank, CR/LF-bearing, or oversized draft/source-message identifiers before repository dispatch.
+451. Mail search service validation now rejects CR/LF-bearing or oversized query/filter fields before Postgres fallback or OpenSearch relevance dispatch.
 
 ## Deferred until backend contracts stabilize
 

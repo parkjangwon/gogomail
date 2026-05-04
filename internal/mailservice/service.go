@@ -178,6 +178,9 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 
 func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
 	query = normalizeMessageSearchQuery(query)
+	if err := validateMessageSearchQuery(query); err != nil {
+		return nil, err
+	}
 	if s.searchIDSource != nil && canUseSearchIDSource(query) {
 		return s.searchMessagesByExternalIDs(ctx, query)
 	}
@@ -278,6 +281,32 @@ func normalizeMessageSearchQuery(query maildb.MessageSearchQuery) maildb.Message
 		query.Sort = strings.TrimSpace(query.Sort)
 	}
 	return query
+}
+
+const maxSearchFilterBytes = 1024
+
+func validateMessageSearchQuery(query maildb.MessageSearchQuery) error {
+	if query.UserID == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if query.FolderID != "" {
+		if err := validateServiceResourceID("folder_id", query.FolderID); err != nil {
+			return err
+		}
+	}
+	for field, value := range map[string]string{
+		"q":       query.Query,
+		"from":    query.From,
+		"subject": query.Subject,
+	} {
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("%s must not contain CR or LF", field)
+		}
+		if len(value) > maxSearchFilterBytes {
+			return fmt.Errorf("%s is too long", field)
+		}
+	}
+	return nil
 }
 
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {

@@ -149,6 +149,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - OpenAPI now documents and tests the API usage ledger `tenant_id`, `principal_id`, `from`, and `to` filters that runtime handlers already accept, keeping generated billing/export clients aligned with Admin API behavior.
 - OpenAPI contract tests pin the push-device list `limit` query parameter so
   generated clients keep pagination controls for device management.
+- Mail search requests trim query/folder/sender/subject filters at the HTTP and
+  service boundaries, then reject CR/LF-bearing or oversized query/filter fields
+  before Postgres or OpenSearch dispatch.
 - Mail API bearer JWT verification rejects unsupported `alg` values and
   non-JWT `typ` headers before accepting signed claims; `user_id`/`sub`
   identities are whitespace-normalized and blank identities are rejected during
