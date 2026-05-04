@@ -450,6 +450,42 @@ func TestAdminListAPIUsageExportBatchesHandler(t *testing.T) {
 	}
 }
 
+func TestAdminGetAPIUsageExportBatchHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportBatch: maildb.APIUsageExportBatchView{
+			ID:           "api-usage-export-1",
+			Status:       "completed",
+			ExportFormat: "ndjson",
+			EventCount:   2,
+			Manifest:     json.RawMessage(`{}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Batch maildb.APIUsageExportBatchView `json:"api_usage_export_batch"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Batch.ID != "api-usage-export-1" {
+		t.Fatalf("batch = %+v", body.Batch)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" {
+		t.Fatalf("lastAPIUsageExportBatchID = %q", service.lastAPIUsageExportBatchID)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1497,6 +1533,7 @@ type fakeAdminService struct {
 	lastUserQuota                  maildb.UpdateUserQuotaRequest
 	lastQuotaCorrection            maildb.CorrectQuotaReconciliationRequest
 	lastAPIUsageLedgerList         maildb.APIUsageLedgerListRequest
+	lastAPIUsageExportBatchID      string
 	lastPushAttemptList            maildb.PushNotificationAttemptListRequest
 	lastCreateUser                 maildb.CreateUserRequest
 	lastCreateDKIMKey              maildb.CreateDKIMKeyInput
@@ -1671,6 +1708,11 @@ func (f *fakeAdminService) CreateAPIUsageExportBatch(_ context.Context, req mail
 func (f *fakeAdminService) ListAPIUsageExportBatches(_ context.Context, limit int) ([]maildb.APIUsageExportBatchView, error) {
 	f.lastLimit = limit
 	return f.apiUsageExportBatches, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageExportBatch(_ context.Context, id string) (maildb.APIUsageExportBatchView, error) {
+	f.lastAPIUsageExportBatchID = id
+	return f.apiUsageExportBatch, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
