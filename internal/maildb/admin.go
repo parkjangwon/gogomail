@@ -214,6 +214,18 @@ type APIUsageLedgerListRequest struct {
 	To          time.Time
 }
 
+type APIUsageLedgerStatsView struct {
+	EventCount       int64      `json:"event_count"`
+	RequestCount     int64      `json:"request_count"`
+	RequestBytes     int64      `json:"request_bytes"`
+	ResponseBytes    int64      `json:"response_bytes"`
+	LatencyMSTotal   int64      `json:"latency_ms_total"`
+	LatencyMSMax     int64      `json:"latency_ms_max"`
+	FirstEventAt     *time.Time `json:"first_event_at,omitempty"`
+	LastEventAt      *time.Time `json:"last_event_at,omitempty"`
+	LatencyMSAverage float64    `json:"latency_ms_average"`
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
@@ -1967,6 +1979,70 @@ LIMIT $%d`, len(args))
 		return nil, fmt.Errorf("iterate api usage ledger: %w", err)
 	}
 	return usages, nil
+}
+
+func (r *Repository) GetAPIUsageLedgerStats(ctx context.Context, req APIUsageLedgerListRequest) (APIUsageLedgerStatsView, error) {
+	if r.db == nil {
+		return APIUsageLedgerStatsView{}, fmt.Errorf("database handle is required")
+	}
+	query := `
+SELECT
+  count(*)::bigint,
+  COALESCE(sum(request_count), 0)::bigint,
+  COALESCE(sum(request_bytes), 0)::bigint,
+  COALESCE(sum(response_bytes), 0)::bigint,
+  COALESCE(sum(latency_ms), 0)::bigint,
+  COALESCE(max(latency_ms), 0)::bigint,
+  min(event_timestamp),
+  max(event_timestamp)
+FROM api_usage_ledger`
+	var conditions []string
+	var args []any
+	if tenantID := strings.TrimSpace(req.TenantID); tenantID != "" {
+		args = append(args, tenantID)
+		conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", len(args)))
+	}
+	if principalID := strings.TrimSpace(req.PrincipalID); principalID != "" {
+		args = append(args, principalID)
+		conditions = append(conditions, fmt.Sprintf("principal_id = $%d", len(args)))
+	}
+	if !req.From.IsZero() {
+		args = append(args, req.From.UTC())
+		conditions = append(conditions, fmt.Sprintf("event_timestamp >= $%d", len(args)))
+	}
+	if !req.To.IsZero() {
+		args = append(args, req.To.UTC())
+		conditions = append(conditions, fmt.Sprintf("event_timestamp < $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	var stats APIUsageLedgerStatsView
+	var firstEventAt sql.NullTime
+	var lastEventAt sql.NullTime
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&stats.EventCount,
+		&stats.RequestCount,
+		&stats.RequestBytes,
+		&stats.ResponseBytes,
+		&stats.LatencyMSTotal,
+		&stats.LatencyMSMax,
+		&firstEventAt,
+		&lastEventAt,
+	); err != nil {
+		return APIUsageLedgerStatsView{}, fmt.Errorf("get api usage ledger stats: %w", err)
+	}
+	if firstEventAt.Valid {
+		stats.FirstEventAt = &firstEventAt.Time
+	}
+	if lastEventAt.Valid {
+		stats.LastEventAt = &lastEventAt.Time
+	}
+	if stats.RequestCount > 0 {
+		stats.LatencyMSAverage = float64(stats.LatencyMSTotal) / float64(stats.RequestCount)
+	}
+	return stats, nil
 }
 
 func quotaUsageRatio(used int64, limit int64) float64 {
