@@ -36,7 +36,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
   `filename*` in `Content-Disposition` while keeping responses private
   `no-store`, and unsafe stored MIME types fall back to
-  `application/octet-stream` at the HTTP boundary.
+  `application/octet-stream` at the HTTP boundary. OpenAPI documents the binary
+  media type and download response headers.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.

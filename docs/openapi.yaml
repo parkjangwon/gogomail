@@ -298,6 +298,16 @@ paths:
       responses:
         "200":
           description: Attachment bytes
+          headers:
+            Content-Disposition:
+              description: Attachment disposition with safe filename fallback and UTF-8 filename* when available.
+              schema:
+                type: string
+            Cache-Control:
+              description: Private attachment downloads are not cacheable by shared clients.
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/octet-stream:
               schema:

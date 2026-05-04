@@ -429,6 +429,8 @@ The platform hardening sprint completed the following:
   `filename*` `Content-Disposition` parameters for internationalized filenames.
 - Attachment downloads now fall back to `application/octet-stream` for blank or
   unsafe stored MIME types before setting response headers.
+- OpenAPI now documents attachment download `Content-Disposition` and
+  `Cache-Control: no-store` headers with drift coverage.
 
 Next focus areas:
 
