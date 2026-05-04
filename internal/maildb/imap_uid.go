@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/mail"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/imapgw"
 )
@@ -101,6 +104,113 @@ WHERE f.user_id = $1::uuid
 	return imapMailboxFromFolder(folder, state), nil
 }
 
+func (r *Repository) ListIMAPMessages(ctx context.Context, userID string, mailboxID string, limit int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if mailboxID == "" {
+		return nil, fmt.Errorf("mailbox_id is required")
+	}
+	limit = NormalizeMessageListLimit(limit)
+
+	if _, err := r.EnsureIMAPMailboxState(ctx, userID, mailboxID); err != nil {
+		return nil, err
+	}
+
+	const query = `
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  m.status,
+  i.uid,
+  i.modseq
+FROM messages m
+LEFT JOIN imap_message_uid i ON i.message_id = m.id
+WHERE m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+  AND (i.uid IS NULL OR i.uid > $3)
+ORDER BY
+  CASE WHEN i.uid IS NULL THEN 1 ELSE 0 END,
+  i.uid,
+  internal_date,
+  m.id
+LIMIT $4`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, mailboxID, int64(afterUID), limit)
+	if err != nil {
+		return nil, fmt.Errorf("list imap messages: %w", err)
+	}
+	defer rows.Close()
+
+	messages := make([]imapgw.MessageSummary, 0, limit)
+	for rows.Next() {
+		var row imapMessageRow
+		var uid sql.NullInt64
+		var modseq sql.NullInt64
+		if err := rows.Scan(
+			&row.ID,
+			&row.MailboxID,
+			&row.RFCMessageID,
+			&row.Subject,
+			&row.FromAddr,
+			&row.FromName,
+			&row.InternalDate,
+			&row.Size,
+			&row.Read,
+			&row.Starred,
+			&row.Answered,
+			&row.Forwarded,
+			&row.Draft,
+			&row.Status,
+			&uid,
+			&modseq,
+		); err != nil {
+			return nil, fmt.Errorf("scan imap message summary: %w", err)
+		}
+
+		messageUID := IMAPMessageUID{
+			MessageID: imapgw.MessageID(row.ID),
+			MailboxID: imapgw.MailboxID(row.MailboxID),
+			UID:       imapgw.UID(uid.Int64),
+			ModSeq:    uint64(modseq.Int64),
+		}
+		if !uid.Valid {
+			messageUID, err = r.EnsureIMAPMessageUID(ctx, userID, mailboxID, row.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if messageUID.UID <= afterUID {
+			continue
+		}
+		messages = append(messages, imapMessageFromRow(row, messageUID))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap message summaries: %w", err)
+	}
+	sort.Slice(messages, func(i, j int) bool {
+		return messages[i].UID < messages[j].UID
+	})
+	return messages, nil
+}
+
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 	return imapgw.Mailbox{
 		ID:          imapgw.MailboxID(folder.ID),
@@ -113,6 +223,66 @@ func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 		Messages:    uint32(folder.Total),
 		Unseen:      uint32(folder.Unread),
 	}
+}
+
+type imapMessageRow struct {
+	ID           string
+	MailboxID    string
+	RFCMessageID string
+	Subject      string
+	FromAddr     string
+	FromName     string
+	InternalDate time.Time
+	Size         int64
+	Read         bool
+	Starred      bool
+	Answered     bool
+	Forwarded    bool
+	Draft        bool
+	Status       string
+}
+
+func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSummary {
+	return imapgw.MessageSummary{
+		ID:        imapgw.MessageID(row.ID),
+		MailboxID: imapgw.MailboxID(row.MailboxID),
+		UID:       uid.UID,
+		Envelope: imapgw.Envelope{
+			MessageID: row.RFCMessageID,
+			Subject:   row.Subject,
+			From:      imapEnvelopeAddress(row.FromName, row.FromAddr),
+			Date:      row.InternalDate,
+		},
+		Flags: imapgw.MessageFlags{
+			Read:      row.Read,
+			Starred:   row.Starred,
+			Answered:  row.Answered,
+			Forwarded: row.Forwarded,
+			Draft:     row.Draft,
+			Status:    row.Status,
+		},
+		InternalDate: row.InternalDate,
+		Size:         row.Size,
+	}
+}
+
+func imapEnvelopeAddress(name string, address string) []imapgw.Address {
+	name = strings.TrimSpace(name)
+	address = strings.TrimSpace(address)
+	if address == "" {
+		return nil
+	}
+	if parsed, err := mail.ParseAddress(address); err == nil {
+		address = parsed.Address
+		if name == "" {
+			name = parsed.Name
+		}
+	}
+	mailbox, host, ok := strings.Cut(address, "@")
+	if !ok {
+		return []imapgw.Address{{Name: name, Mailbox: address}}
+	}
+	return []imapgw.Address{{Name: name, Mailbox: mailbox, Host: host}}
 }
 
 func (r *Repository) EnsureIMAPMailboxState(ctx context.Context, userID string, mailboxID string) (IMAPUIDState, error) {
