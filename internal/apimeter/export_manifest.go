@@ -52,6 +52,14 @@ func DigestExportManifest(manifest ExportManifest) (string, []byte, error) {
 	return hex.EncodeToString(sum[:]), raw, nil
 }
 
+func DigestExportManifestJSON(raw []byte) (string, []byte, error) {
+	var manifest ExportManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		return "", nil, fmt.Errorf("unmarshal api usage export manifest: %w", err)
+	}
+	return DigestExportManifest(manifest)
+}
+
 func FormatManifestTime(value *time.Time) string {
 	if value == nil || value.IsZero() {
 		return ""
