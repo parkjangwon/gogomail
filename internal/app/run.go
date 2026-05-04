@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
 	"database/sql"
@@ -1105,10 +1106,12 @@ func meteringAdminTokenMatches(r *http.Request, token string) bool {
 	if got == "" {
 		got = meteringBearerToken(r)
 	}
-	if got == "" || len(got) != len(token) {
+	if got == "" {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
+	gotHash := sha256.Sum256([]byte(got))
+	wantHash := sha256.Sum256([]byte(token))
+	return subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) == 1
 }
 
 func waitForShutdown(ctx context.Context, logger *slog.Logger, mode Mode) error {
