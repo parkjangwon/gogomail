@@ -401,6 +401,7 @@ Implementation order:
 342. OpenAPI contract tests now derive path parameters from every documented route and require matching operation parameters, preventing generated clients from silently losing IDs on nested Mail/Admin API endpoints.
 343. Nested OpenAPI path parameters for attachment downloads and API usage export digest/signature routes now use reusable components and drift tests, keeping generated clients consistent across deeply nested operational endpoints.
 344. The delivery worker now wires the Postgres recorder as the retry exhaustion hook, so exhausted retries persist terminal delivery-attempt diagnostics and emit the documented `mail.delivery_exhausted` outbox event at runtime.
+345. OpenAPI DKIM key creation now matches the Go/Admin API contract by documenting optional `public_key_dns` and rejecting the unsupported `active` request field in drift tests.
 
 ## Deferred until backend contracts stabilize
 
