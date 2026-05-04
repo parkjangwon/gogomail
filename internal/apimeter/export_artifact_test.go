@@ -69,6 +69,10 @@ func TestWriteExportArtifactRejectsUnsafeRequests(t *testing.T) {
 	}{
 		{name: "missing key", req: ExportArtifactWriteRequest{Encode: func(io.Writer) error { return nil }}},
 		{name: "path traversal", req: ExportArtifactWriteRequest{ObjectKey: "../x.ndjson", Encode: func(io.Writer) error { return nil }}},
+		{name: "nested path traversal", req: ExportArtifactWriteRequest{ObjectKey: "exports/../x.ndjson", Encode: func(io.Writer) error { return nil }}},
+		{name: "duplicate separator", req: ExportArtifactWriteRequest{ObjectKey: "exports//x.ndjson", Encode: func(io.Writer) error { return nil }}},
+		{name: "dot segment", req: ExportArtifactWriteRequest{ObjectKey: "./exports/x.ndjson", Encode: func(io.Writer) error { return nil }}},
+		{name: "backslash", req: ExportArtifactWriteRequest{ObjectKey: `exports\x.ndjson`, Encode: func(io.Writer) error { return nil }}},
 		{name: "missing encoder", req: ExportArtifactWriteRequest{ObjectKey: "exports/x.ndjson"}},
 		{name: "array metadata", req: ExportArtifactWriteRequest{ObjectKey: "exports/x.ndjson", Metadata: json.RawMessage(`[]`), Encode: func(io.Writer) error { return nil }}},
 	}

@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -125,11 +125,23 @@ func normalizeExportArtifactObjectKey(value string) (string, error) {
 	if strings.ContainsAny(value, "\r\n") {
 		return "", fmt.Errorf("object_key cannot contain line breaks")
 	}
-	cleaned := filepath.ToSlash(filepath.Clean(value))
-	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." || strings.HasPrefix(cleaned, "/") {
+	if strings.Contains(value, "\\") {
+		return "", fmt.Errorf("object_key must be a relative storage path")
+	}
+	cleaned := path.Clean(value)
+	if cleaned == "." || cleaned != value || strings.HasPrefix(cleaned, "/") || hasExportArtifactParentSegment(cleaned) {
 		return "", fmt.Errorf("object_key must be a relative storage path")
 	}
 	return cleaned, nil
+}
+
+func hasExportArtifactParentSegment(value string) bool {
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeExportArtifactMetadata(value json.RawMessage) (json.RawMessage, error) {
