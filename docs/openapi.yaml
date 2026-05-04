@@ -517,6 +517,36 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerExport"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/ledger/stats:
+    get:
+      operationId: getAdminAPIUsageLedgerStats
+      summary: Admin immutable API usage ledger export statistics
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: principal_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 event timestamp lower bound.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive RFC3339 event timestamp upper bound.
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerStats"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1197,6 +1227,12 @@ components:
         application/x-ndjson:
           schema:
             type: string
+    APIUsageLedgerStats:
+      description: Immutable API usage ledger statistics envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageLedgerStatsEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -2195,6 +2231,50 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageLedger"
+    APIUsageLedgerStats:
+      type: object
+      required: [event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, latency_ms_average]
+      properties:
+        event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        request_count:
+          type: integer
+          format: int64
+          minimum: 0
+        request_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        response_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_total:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_max:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_average:
+          type: number
+          format: double
+          minimum: 0
+        first_event_at:
+          type: string
+          format: date-time
+        last_event_at:
+          type: string
+          format: date-time
+    APIUsageLedgerStatsEnvelope:
+      type: object
+      required: [api_usage_ledger_stats]
+      properties:
+        api_usage_ledger_stats:
+          $ref: "#/components/schemas/APIUsageLedgerStats"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
