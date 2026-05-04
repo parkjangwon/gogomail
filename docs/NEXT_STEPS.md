@@ -185,6 +185,9 @@ Current state:
   state semantics. Target resolution drops blank, CR/LF-bearing, oversized, or
   unsupported targets before candidate recording, and the webhook sink bounds
   direct-call payload metadata before JSON serialization.
+- Admin push-notification attempt/stats repository filters reject
+  invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL
+  dispatch.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
   remain write-only, and create/update rejects invalid-UTF-8, unsafe, or
