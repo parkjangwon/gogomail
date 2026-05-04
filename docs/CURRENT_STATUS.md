@@ -198,6 +198,9 @@ The platform hardening sprint completed the following:
 - Optional OpenSearch integration coverage can create a disposable index and
   verify indexing plus folder-aware relevance search when
   `GOGOMAIL_TEST_OPENSEARCH_URL` is available.
+- Search index worker startup logs include non-secret backend diagnostics,
+  including OpenSearch index name and bootstrap state when that backend is
+  selected.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.

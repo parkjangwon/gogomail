@@ -320,6 +320,7 @@ Implementation order:
 265. OpenSearch relevance search can return subject/from/body highlights and map them into the existing Mail API `search_highlights` response shape.
 266. `mail.stored` events and OpenSearch message documents now carry `folder_id`, allowing relevance searches to apply Mail API folder filters before Postgres summary hydration instead of falling back to Postgres for folder-scoped queries.
 267. Optional OpenSearch integration coverage can create a disposable index, bootstrap mappings, index folder-scoped documents, refresh, and verify folder-aware relevance search against a real backend when `GOGOMAIL_TEST_OPENSEARCH_URL` is set.
+268. Search index worker startup logs now include non-secret backend diagnostics, including OpenSearch index name and bootstrap state, so operators can confirm search backend selection from logs without exposing endpoint credentials.
 
 ## Deferred until backend contracts stabilize
 
