@@ -526,6 +526,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/drafts/search", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "q", "from", "subject") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -628,6 +631,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -754,6 +760,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/attachments/capabilities", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		if _, ok := userIDFromRequest(w, r, tokenManager); !ok {
 			return
 		}
@@ -812,6 +821,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/attachments/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -883,6 +895,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -910,6 +925,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/push-devices", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
