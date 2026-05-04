@@ -158,12 +158,12 @@ func defaultIdentityFromRequest(r *http.Request) Identity {
 		return Identity{AuthSource: AuthSourceAnonymous}
 	}
 	return Identity{
-		TenantID:    r.Header.Get("X-Gogomail-Tenant-ID"),
-		CompanyID:   r.Header.Get("X-Gogomail-Company-ID"),
-		DomainID:    r.Header.Get("X-Gogomail-Domain-ID"),
-		UserID:      r.URL.Query().Get("user_id"),
-		APIKeyID:    r.Header.Get("X-Gogomail-API-Key-ID"),
-		PrincipalID: r.Header.Get("X-Gogomail-Principal-ID"),
+		TenantID:    strings.TrimSpace(r.Header.Get("X-Gogomail-Tenant-ID")),
+		CompanyID:   strings.TrimSpace(r.Header.Get("X-Gogomail-Company-ID")),
+		DomainID:    strings.TrimSpace(r.Header.Get("X-Gogomail-Domain-ID")),
+		UserID:      strings.TrimSpace(r.URL.Query().Get("user_id")),
+		APIKeyID:    strings.TrimSpace(r.Header.Get("X-Gogomail-API-Key-ID")),
+		PrincipalID: strings.TrimSpace(r.Header.Get("X-Gogomail-Principal-ID")),
 		AuthSource:  authSourceFromRequest(r),
 	}
 }
@@ -172,7 +172,8 @@ func authSourceFromRequest(r *http.Request) string {
 	if r == nil {
 		return AuthSourceAnonymous
 	}
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r.Header.Get("Authorization"))), "bearer ") {
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") && strings.TrimSpace(authHeader[len("bearer "):]) != "" {
 		return AuthSourceBearer
 	}
 	if strings.TrimSpace(r.Header.Get("X-Admin-Token")) != "" {

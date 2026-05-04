@@ -189,17 +189,18 @@ func TestHandlerUsesIdentityResolver(t *testing.T) {
 func TestDefaultIdentityFromRequestExtractsHeaders(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest(http.MethodGet, "/?user_id=user-1", nil)
-	req.Header.Set("X-Gogomail-Tenant-ID", "tenant-1")
-	req.Header.Set("X-Gogomail-Company-ID", "company-1")
-	req.Header.Set("X-Gogomail-Domain-ID", "domain-1")
-	req.Header.Set("X-Gogomail-API-Key-ID", "api-key-1")
+	req := httptest.NewRequest(http.MethodGet, "/?user_id=%20user-1%20", nil)
+	req.Header.Set("X-Gogomail-Tenant-ID", " tenant-1 ")
+	req.Header.Set("X-Gogomail-Company-ID", " company-1 ")
+	req.Header.Set("X-Gogomail-Domain-ID", " domain-1 ")
+	req.Header.Set("X-Gogomail-API-Key-ID", " api-key-1 ")
+	req.Header.Set("X-Gogomail-Principal-ID", " principal-1 ")
 
 	id := defaultIdentityFromRequest(req).Normalize()
 	if id.TenantID != "tenant-1" || id.CompanyID != "company-1" || id.DomainID != "domain-1" {
 		t.Fatalf("identity dimensions = %+v", id)
 	}
-	if id.UserID != "user-1" || id.APIKeyID != "api-key-1" || id.AuthSource != AuthSourceQueryUserID {
+	if id.UserID != "user-1" || id.APIKeyID != "api-key-1" || id.PrincipalID != "principal-1" || id.AuthSource != AuthSourceQueryUserID {
 		t.Fatalf("identity principals = %+v", id)
 	}
 }
@@ -214,6 +215,7 @@ func TestAuthSourceFromRequest(t *testing.T) {
 	}{
 		{name: "nil", want: "anonymous"},
 		{name: "bearer", req: requestWithHeader("Authorization", "Bearer token"), want: "bearer"},
+		{name: "blank bearer", req: requestWithHeader("Authorization", "Bearer  "), want: "anonymous"},
 		{name: "admin token", req: requestWithHeader("X-Admin-Token", "secret"), want: "admin_token"},
 		{name: "query user", req: httptest.NewRequest(http.MethodGet, "/?user_id=user-1", nil), want: "query_user_id"},
 		{name: "anonymous", req: httptest.NewRequest(http.MethodGet, "/", nil), want: "anonymous"},
