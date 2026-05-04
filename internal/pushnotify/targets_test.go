@@ -50,6 +50,31 @@ func TestDeviceResolverBoundsTargetLimit(t *testing.T) {
 	}
 }
 
+func TestDeviceResolverSkipsInvalidTargets(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeDeviceRepository{
+		devices: []maildb.PushDevice{
+			{ID: "", Platform: "fcm", Token: "token-1"},
+			{ID: "device-2", Platform: "pager", Token: "token-2"},
+			{ID: "device-3", Platform: "apns", Token: " "},
+			{ID: "device-4", Platform: "webpush", Token: "token-4"},
+		},
+	}
+	resolver := NewDeviceResolver(repository, 20)
+
+	targets, err := resolver.ResolvePushTargets(context.Background(), Event{UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("ResolvePushTargets returned error: %v", err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("targets = %+v, want only one valid target", targets)
+	}
+	if targets[0].DeviceID != "device-4" || targets[0].Platform != "webpush" || targets[0].Token != "token-4" {
+		t.Fatalf("target = %+v", targets[0])
+	}
+}
+
 type fakeDeviceRepository struct {
 	devices    []maildb.PushDevice
 	lastUserID string
