@@ -566,6 +566,7 @@ Implementation order:
 507. Admin API now exposes `GET /admin/v1/push-notification-attempts/{id}` for single push-attempt troubleshooting, with OpenAPI envelope coverage for generated operator clients.
 508. Admin push-notification attempt listing now supports a bounded `message_id` filter so operators can inspect fan-out and provider outcomes for one stored message.
 509. Push notification worker outcome recording now delegates to the shared `maildb` outcome update path used by the Admin API, keeping queued/delivered/failed/invalid-token validation and invalid-token device deletion consistent across internal sinks and provider callbacks.
+510. Admin push-notification stats now supports a bounded `message_id` filter, matching attempt-list drilldowns so operators can summarize one stored message's fan-out outcomes before inspecting individual attempts.
 
 ## Deferred until backend contracts stabilize
 

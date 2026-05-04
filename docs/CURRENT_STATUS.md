@@ -278,8 +278,9 @@ guidance.
   operator/provider handoff updates to queued, delivered, failed, or
   invalid-token outcomes with bounded provider diagnostics.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for a compact
-  active-device and attempt-status summary, with optional `user_id` and `since`
-  scoping for user-level and recent-window troubleshooting.
+  active-device and attempt-status summary, with optional `message_id`,
+  `user_id`, and `since` scoping for message-level, user-level, and
+  recent-window troubleshooting.
 - Push notification sinks receive the persisted candidate attempt id with each
   target, preparing clean vendor outcome updates later.
 - Push notification candidate and provider-outcome diagnostics are capped at

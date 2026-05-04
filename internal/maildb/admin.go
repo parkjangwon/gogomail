@@ -577,8 +577,9 @@ type UpdatePushNotificationOutcomeRequest struct {
 }
 
 type PushNotificationStatsRequest struct {
-	UserID string
-	Since  time.Time
+	MessageID string
+	UserID    string
+	Since     time.Time
 }
 
 type PushNotificationStatsView struct {
@@ -4227,10 +4228,11 @@ SELECT
   COALESCE(COUNT(*) FILTER (WHERE status = 'invalid_token'), 0)
 FROM push_notification_attempts
 WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
-  AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)`
+  AND (NULLIF($2, '')::uuid IS NULL OR message_id = NULLIF($2, '')::uuid)
+  AND ($3::timestamptz IS NULL OR attempted_at >= $3::timestamptz)`
 
 	var stats PushNotificationStatsView
-	if err := r.db.QueryRowContext(ctx, query, req.UserID, nullableTime(req.Since)).Scan(
+	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.MessageID, nullableTime(req.Since)).Scan(
 		&stats.ActiveDevices,
 		&stats.TotalAttempts,
 		&stats.Candidate,
@@ -4245,12 +4247,18 @@ WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
 }
 
 func normalizePushNotificationStatsRequest(req PushNotificationStatsRequest) (PushNotificationStatsRequest, error) {
+	req.MessageID = strings.TrimSpace(req.MessageID)
 	req.UserID = strings.TrimSpace(req.UserID)
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
 	}
-	if err := validatePushNotificationFilter("user_id", req.UserID); err != nil {
-		return PushNotificationStatsRequest{}, err
+	for field, value := range map[string]string{
+		"message_id": req.MessageID,
+		"user_id":    req.UserID,
+	} {
+		if err := validatePushNotificationFilter(field, value); err != nil {
+			return PushNotificationStatsRequest{}, err
+		}
 	}
 	return req, nil
 }
