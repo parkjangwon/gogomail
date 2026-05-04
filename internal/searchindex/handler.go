@@ -13,10 +13,12 @@ import (
 )
 
 const (
-	EventMailStored        = "mail.stored"
-	MailStoredSchemaV1     = "2026-05-04.mail-stored.v1"
-	defaultMaxTextBodyByte = int64(1 << 20)
-	maxEventReferences     = 1000
+	EventMailStored          = "mail.stored"
+	MailStoredSchemaV1       = "2026-05-04.mail-stored.v1"
+	defaultMaxTextBodyByte   = int64(1 << 20)
+	maxEventReferences       = 1000
+	maxEventIdentityBytes    = 200
+	maxEventStoragePathBytes = 2048
 )
 
 type Event struct {
@@ -180,10 +182,10 @@ func validateEvent(event *Event) error {
 	}
 
 	var err error
-	if event.MessageID, err = requiredValue("message_id", event.MessageID); err != nil {
+	if event.MessageID, err = requiredValue("message_id", event.MessageID, maxEventIdentityBytes); err != nil {
 		return err
 	}
-	if event.UserID, err = requiredValue("user_id", event.UserID); err != nil {
+	if event.UserID, err = requiredValue("user_id", event.UserID, maxEventIdentityBytes); err != nil {
 		return err
 	}
 	if event.StoragePath, err = requiredStoragePath(event.StoragePath); err != nil {
@@ -202,7 +204,7 @@ func validateEvent(event *Event) error {
 	return nil
 }
 
-func requiredValue(name, value string) (string, error) {
+func requiredValue(name, value string, maxBytes int) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return "", fmt.Errorf("mail.stored search payload is missing %s", name)
@@ -210,11 +212,14 @@ func requiredValue(name, value string) (string, error) {
 	if strings.ContainsAny(value, "\r\n") {
 		return "", fmt.Errorf("mail.stored search payload has invalid %s", name)
 	}
+	if maxBytes > 0 && len(value) > maxBytes {
+		return "", fmt.Errorf("mail.stored search payload has oversized %s", name)
+	}
 	return value, nil
 }
 
 func requiredStoragePath(value string) (string, error) {
-	value, err := requiredValue("storage_path", value)
+	value, err := requiredValue("storage_path", value, maxEventStoragePathBytes)
 	if err != nil {
 		return "", err
 	}
