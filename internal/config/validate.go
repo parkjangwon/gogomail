@@ -82,8 +82,16 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_DELIVERY_ROUTE_BACKEND", c.DeliveryRouteBackend, "env", "postgres"); err != nil {
 		return err
 	}
-	if err := validateEnum("GOGOMAIL_SEARCH_INDEX_BACKEND", c.SearchIndexBackend, "disabled", "postgres"); err != nil {
+	if err := validateEnum("GOGOMAIL_SEARCH_INDEX_BACKEND", c.SearchIndexBackend, "disabled", "postgres", "opensearch"); err != nil {
 		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(c.SearchIndexBackend), "opensearch") {
+		if strings.TrimSpace(c.SearchIndexOpenSearchEndpoint) == "" {
+			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT is required when GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch")
+		}
+		if strings.TrimSpace(c.SearchIndexOpenSearchIndex) == "" {
+			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX is required when GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch")
+		}
 	}
 	if c.SearchIndexMaxBodyBytes <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_MAX_BODY_BYTES must be positive")

@@ -308,6 +308,7 @@ Implementation order:
 253. API metering outbox events now include `schema_version=2026-05-04.api-usage.v1` and deterministic `event_id` values, while the aggregate consumer rejects unsupported schema versions.
 254. API metering aggregation now claims `event_id` values in `api_usage_events` before daily/monthly upserts, preventing replayed usage events from double-counting operational totals.
 255. `internal/searchindex` now has an OpenSearch writer adapter behind the existing indexing interface, using idempotent document IDs based on gogomail message IDs.
+256. `search-index-worker` can select the OpenSearch writer with explicit endpoint/index configuration while preserving the existing Postgres read-side search contract.
 
 ## Deferred until backend contracts stabilize
 

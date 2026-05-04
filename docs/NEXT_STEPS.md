@@ -64,12 +64,12 @@ Current state:
   headline snippets with `sort=relevance`, `include_rank=true`, and
   `include_highlights=true`; date ordering remains the default.
 - `internal/searchindex` has an OpenSearch writer adapter behind the same
-  indexing interface; worker configuration still needs wiring.
+  indexing interface, and `search-index-worker` can select it with
+  `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`.
 
 Next:
 
-- Wire `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch` with endpoint/index settings
-  into `search-index-worker`.
+- Add operational OpenSearch index mapping/bootstrap guidance.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning

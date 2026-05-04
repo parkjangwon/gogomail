@@ -355,8 +355,12 @@ The current backend searches message metadata (`subject`, `from_addr`,
 `from_name`), `draft_text_body`, and indexed received-message body text using a
 simple Postgres FTS expression and bounded list limits. Search clients can opt
 into `sort=relevance`, `include_rank=true`, and `include_highlights=true` while
-newest-first ordering remains the default. OpenSearch remains deferred behind
-the same search boundary.
+newest-first ordering remains the default. `search-index-worker` can also write
+received-message documents to OpenSearch with
+`GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
+`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`, and
+`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; API read-side search still uses the
+current backend contract until an OpenSearch query adapter is added.
 
 ## Deferred from this contract
 
