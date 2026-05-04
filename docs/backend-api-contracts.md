@@ -295,6 +295,11 @@ malformed, or non-JSON content types as HTTP 400 `bad_request`. They also reject
 trailing JSON tokens instead of silently dispatching the first decoded object.
 JSON object request bodies reject unknown fields as HTTP 400 `bad_request` so
 generated-client and OpenAPI drift is visible before service dispatch.
+Mail API read and bodyless mutation routes reject request bodies and
+`Content-Type` headers before service dispatch, so clients cannot attach
+ignored JSON or multipart metadata to resource reads, deletes, draft-send,
+upload-session finalization, capability discovery, downloads, or push-device
+list/delete operations.
 
 Attachment downloads set private `no-store` responses and include both a safe
 ASCII `filename` fallback and a UTF-8 `filename*` parameter in

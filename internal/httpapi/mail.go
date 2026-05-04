@@ -28,6 +28,18 @@ const (
 	maxHTTPQueryBytes      = 1024
 )
 
+func rejectBodylessRequestPayload(w http.ResponseWriter, r *http.Request) bool {
+	if r.ContentLength != 0 || len(r.TransferEncoding) > 0 {
+		writeError(w, http.StatusBadRequest, "request body is not supported")
+		return false
+	}
+	if len(r.Header.Values("Content-Type")) > 0 {
+		writeError(w, http.StatusBadRequest, "content-type is not supported without a request body")
+		return false
+	}
+	return true
+}
+
 type MessageService interface {
 	ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error)
 	CreateFolder(ctx context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error)
@@ -69,6 +81,9 @@ type MessageService interface {
 
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
 	mux.HandleFunc("GET /api/v1/folders", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -142,6 +157,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("DELETE /api/v1/folders/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -159,6 +177,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id") {
 			return
 		}
@@ -205,6 +226,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -227,6 +251,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "subject") {
 			return
 		}
@@ -298,6 +325,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/threads", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
 			return
 		}
@@ -318,6 +348,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/threads/{id}/messages", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
 			return
 		}
@@ -342,6 +375,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/delivery-status", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -463,6 +499,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("DELETE /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -526,6 +565,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/drafts/search", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "q", "from", "subject") {
 			return
 		}
@@ -597,6 +639,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("DELETE /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -613,6 +658,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("POST /api/v1/drafts/{id}/send", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -631,6 +679,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -760,6 +811,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/attachments/capabilities", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -787,6 +841,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("DELETE /api/v1/attachments/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -804,6 +861,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("DELETE /api/v1/attachments/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -821,6 +881,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/attachments/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -878,6 +941,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("POST /api/v1/attachments/upload-sessions/{id}/finalize", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -895,6 +961,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
@@ -925,6 +994,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/push-devices", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
 			return
 		}
@@ -966,6 +1038,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("DELETE /api/v1/push-devices/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return

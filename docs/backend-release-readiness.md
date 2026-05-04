@@ -113,6 +113,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail and Admin API JSON mutation bodies require `Content-Type:
   application/json` exactly once, while allowing normal media-type parameters
   such as `charset=utf-8`.
+- Mail API read and bodyless mutation routes reject request bodies and
+  `Content-Type` headers before dispatch, preventing ignored JSON or multipart
+  metadata on resource reads, deletes, draft-send, upload-session finalization,
+  capability discovery, downloads, and push-device list/delete operations.
 - Mail JWT and Admin token authentication reject repeated credential headers,
   and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before
   dispatch.
