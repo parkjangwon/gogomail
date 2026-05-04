@@ -519,6 +519,7 @@ Implementation order:
 460. Admin API usage ledger/export/stats/export-batch/retention tenant/principal filters now reject CR/LF-bearing or oversized values before service dispatch.
 461. Admin user-list, IMAP UID backfill, DKIM key-list, and delivery-route resolution query filters now reject CR/LF-bearing or oversized values before service dispatch.
 462. API usage export batch, artifact, manifest-digest, and manifest-signature path identifiers now reject blank, CR/LF-bearing, or oversized values before service dispatch.
+463. Admin company, domain, and user detail/mutation path identifiers now reject blank, CR/LF-bearing, or oversized values before service dispatch.
 
 ## Deferred until backend contracts stabilize
 
