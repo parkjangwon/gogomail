@@ -17,6 +17,7 @@ const (
 	ModeAttachmentCleanup Mode = "attachment-cleanup-worker"
 	ModeSearchIndexWorker Mode = "search-index-worker"
 	ModeAPIMeteringWorker Mode = "api-metering-worker"
+	ModeAPIUsageRetention Mode = "api-usage-retention-worker"
 	ModePushWorker        Mode = "push-notification-worker"
 	ModeBatchWorker       Mode = "batch-worker"
 	ModeOutboxRelay       Mode = "outbox-relay"
@@ -35,6 +36,7 @@ var knownModes = map[Mode]struct{}{
 	ModeAttachmentCleanup: {},
 	ModeSearchIndexWorker: {},
 	ModeAPIMeteringWorker: {},
+	ModeAPIUsageRetention: {},
 	ModePushWorker:        {},
 	ModeBatchWorker:       {},
 	ModeOutboxRelay:       {},

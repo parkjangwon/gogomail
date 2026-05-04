@@ -347,6 +347,14 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "48h")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "250")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE", "true")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_INTERVAL", "12h")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE", "720h")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE", "500")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_RUN_ONCE", "true")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_DRY_RUN", "false")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY", "true")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_TENANT_ID", "tenant-1")
+	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_PRINCIPAL_ID", "principal-1")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "https://push.internal/send")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "push-token")
@@ -496,6 +504,27 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if !cfg.AttachmentCleanupRunOnce {
 		t.Fatal("AttachmentCleanupRunOnce = false, want true")
+	}
+	if cfg.APIUsageRetentionInterval != 12*time.Hour {
+		t.Fatalf("APIUsageRetentionInterval = %s, want 12h", cfg.APIUsageRetentionInterval)
+	}
+	if cfg.APIUsageRetentionCutoffAge != 720*time.Hour {
+		t.Fatalf("APIUsageRetentionCutoffAge = %s, want 720h", cfg.APIUsageRetentionCutoffAge)
+	}
+	if cfg.APIUsageRetentionBatchSize != 500 {
+		t.Fatalf("APIUsageRetentionBatchSize = %d, want 500", cfg.APIUsageRetentionBatchSize)
+	}
+	if !cfg.APIUsageRetentionRunOnce {
+		t.Fatal("APIUsageRetentionRunOnce = false, want true")
+	}
+	if cfg.APIUsageRetentionDryRun {
+		t.Fatal("APIUsageRetentionDryRun = true, want false")
+	}
+	if !cfg.APIUsageRetentionConfirmReady {
+		t.Fatal("APIUsageRetentionConfirmReady = false, want true")
+	}
+	if cfg.APIUsageRetentionTenantID != "tenant-1" || cfg.APIUsageRetentionPrincipalID != "principal-1" {
+		t.Fatalf("APIUsageRetention filters = %q/%q", cfg.APIUsageRetentionTenantID, cfg.APIUsageRetentionPrincipalID)
 	}
 	if cfg.RcptRateLimitPerMinute != 5 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 5", cfg.RcptRateLimitPerMinute)

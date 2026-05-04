@@ -621,6 +621,7 @@ Implementation order:
 561. Admin API now exposes bounded audit-log list/detail reads with operational filters, making persisted audit records inspectable without direct database access.
 562. Domain DNS check and quota reconciliation correction audit records now reuse the shared audit hash-chain writer, avoiding empty-hash audit rows in operator-visible trails.
 563. Admin API now exposes a bounded audit-log integrity check that recomputes row hashes and reports hash-chain breaks for recent audit windows.
+564. `api-usage-retention-worker` now runs bounded API usage ledger retention on an interval or once-and-exit, dry-run by default and guarded by the existing readiness/confirm gates.
 
 ## Deferred until backend contracts stabilize
 

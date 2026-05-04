@@ -64,6 +64,7 @@ go run ./cmd/gogomail --mode=delivery-worker
 go run ./cmd/gogomail --mode=attachment-cleanup-worker
 go run ./cmd/gogomail --mode=search-index-worker
 go run ./cmd/gogomail --mode=api-metering-worker
+go run ./cmd/gogomail --mode=api-usage-retention-worker
 go run ./cmd/gogomail --mode=push-notification-worker
 go run ./cmd/gogomail --mode=auth-server
 go run ./cmd/gogomail --mode=mail-api
@@ -89,6 +90,25 @@ GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE=24h
 GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE=100
 GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE=false
 ```
+
+`api-usage-retention-worker` runs the same bounded API usage ledger retention
+path exposed by the Admin API. It is dry-run by default and reuses the retention
+readiness gate before any destructive delete. Configure it with:
+
+```bash
+GOGOMAIL_API_USAGE_RETENTION_INTERVAL=24h
+GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE=2160h
+GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE=1000
+GOGOMAIL_API_USAGE_RETENTION_RUN_ONCE=false
+GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=true
+GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=false
+GOGOMAIL_API_USAGE_RETENTION_TENANT_ID=
+GOGOMAIL_API_USAGE_RETENTION_PRINCIPAL_ID=
+```
+
+Set `GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false` only after export storage and
+signing policy are production-ready; validation requires
+`GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true` for destructive runs.
 
 Webhook push handoff:
 
