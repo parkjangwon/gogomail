@@ -425,6 +425,7 @@ Implementation order:
 366. Admin delivery-route creation now rejects impossible TLS/auth combinations, including implicit TLS with disabled TLS mode and password-only authentication, before invalid relay routes can be stored.
 367. Event and delivery Redis worker configuration now rejects nonpositive consumer count/block settings at startup, matching the existing push, API-metering, and search-index guardrails before unusable stream consumers can run.
 368. OpenAPI drift tests now pin Mail API search query parameters, including relevance sorting, rank/highlight toggles, attachment filtering, and metadata filters, protecting generated client search controls from contract regression.
+369. Admin delivery-route status and delete handlers now trim route IDs at the HTTP boundary before service calls and response envelopes, keeping operator mutations consistent with repository validation.
 
 ## Deferred until backend contracts stabilize
 
