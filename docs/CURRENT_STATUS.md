@@ -130,6 +130,9 @@ guidance.
 - Mail/Admin HTTP readiness now probes local storage with a write/read/delete
   cycle, and unsupported HTTP storage backends fail fast instead of silently
   using local storage wiring.
+- SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
+  cleanup, and HTTP runtimes now share the same storage backend validation, so
+  unsupported object-storage settings cannot silently run against local storage.
 - Admin backpressure overrides now persist bounded hash-chain audit rows after
   Redis state changes, recording previous/current SMTP pressure levels without
   silently accepting unaudited operational receive throttles.

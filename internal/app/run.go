@@ -150,7 +150,11 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	defer db.Close()
 
-	runtime := newIMAPGatewayRuntime(maildb.NewRepository(db), storage.NewLocalStore(cfg.MailstoreRoot))
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	runtime := newIMAPGatewayRuntime(maildb.NewRepository(db), store)
 	logger.Info(
 		"imap gateway scaffold ready",
 		"mode", ModeIMAP,
@@ -168,7 +172,11 @@ func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *
 	}
 	defer db.Close()
 
-	service := mailservice.New(maildb.NewRepository(db), storage.NewLocalStore(cfg.MailstoreRoot))
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	service := mailservice.New(maildb.NewRepository(db), store)
 	if cfg.AttachmentCleanupRunOnce {
 		_, err := cleanupStaleAttachmentUploadsOnce(ctx, service, time.Now, cfg.AttachmentCleanupStaleAge, cfg.AttachmentCleanupBatchSize, logger)
 		return err
@@ -419,9 +427,13 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		return err
 	}
 	hooks = append(hooks, attachmentHooks...)
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
-		Store:              storage.NewLocalStore(cfg.MailstoreRoot),
+		Store:              store,
 		Resolver:           resolver,
 		Recorder:           recorder,
 		Deduplicator:       deduplicator,
@@ -473,8 +485,12 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 	if err != nil {
 		return err
 	}
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	receiver := smtpd.NewSubmissionReceiver(smtpd.SubmissionOptions{
-		Store:              storage.NewLocalStore(cfg.MailstoreRoot),
+		Store:              store,
 		Authenticator:      repository,
 		Recorder:           repository,
 		DomainPolicyLookup: repository,
@@ -651,10 +667,14 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err := router.Register("mail.delivered", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
 		return err
 	}
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	if err := router.Register("mail.bounced", eventstream.MultiHandler{
 		audit.NewDeliveryStatusHandler(auditRepository),
 		dsnpkg.NewBounceHandler(dsnpkg.HandlerOptions{
-			Store:        storage.NewLocalStore(cfg.MailstoreRoot),
+			Store:        store,
 			Queue:        dsnpkg.NewPostgresOutboxQueue(db),
 			ReportingMTA: cfg.SMTPDomain,
 			Postmaster:   cfg.DSNPostmaster,
@@ -719,9 +739,13 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	if err := maybeBootstrapSearchIndex(ctx, cfg, indexer); err != nil {
 		return err
 	}
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	router := eventstream.NewRouter()
 	if err := router.Register("mail.stored", searchindex.NewHandler(
-		searchindex.NewStorageStoreReader(storage.NewLocalStore(cfg.MailstoreRoot)),
+		searchindex.NewStorageStoreReader(store),
 		indexer,
 		searchindex.HandlerOptions{MaxTextBodyBytes: cfg.SearchIndexMaxBodyBytes},
 	)); err != nil {
@@ -975,8 +999,12 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		logger.Info("delivery worker enabled DKIM signing transformer")
 	}
 	deliveryRecorder := delivery.NewPostgresRecorder(db)
+	store, err := localStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	handler := delivery.NewHandler(
-		storage.NewLocalStore(cfg.MailstoreRoot),
+		store,
 		transport,
 		deliveryRecorder,
 		delivery.NewPostgresRetryScheduler(db, retryPolicy),
