@@ -468,6 +468,8 @@ The platform hardening sprint completed the following:
   IDs and storage paths before stored EML objects are opened.
 - Mail receive audit event decoding rejects CR/LF-bearing or oversized
   message IDs before immutable audit log construction.
+- Delivery status audit event decoding rejects CR/LF-bearing or oversized
+  message IDs before immutable audit log construction.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
