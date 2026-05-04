@@ -447,7 +447,8 @@ The platform hardening sprint completed the following:
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens
   before service dispatch.
 - Attachment download responses now emit both ASCII fallback and UTF-8
-  `filename*` `Content-Disposition` parameters for internationalized filenames.
+  `filename*` `Content-Disposition` parameters for internationalized filenames,
+  with stored filenames bounded before response headers are written.
 - Attachment downloads now fall back to `application/octet-stream` for blank,
   unsafe, or media-type-invalid stored MIME types before setting response
   headers.

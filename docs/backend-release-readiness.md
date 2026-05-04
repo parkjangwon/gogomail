@@ -34,10 +34,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail and Admin API JSON request bodies reject trailing JSON tokens instead of
   accepting the first object and ignoring the rest of the body.
 - Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
-  `filename*` in `Content-Disposition` while keeping responses private
-  `no-store`, and unsafe or media-type-invalid stored MIME types fall back to
-  `application/octet-stream` at the HTTP boundary. OpenAPI documents the
-  binary media type and download response headers.
+  `filename*` in `Content-Disposition`, bound stored filename length before
+  response headers are written, keep responses private `no-store`, and fall
+  back to `application/octet-stream` for unsafe or media-type-invalid stored
+  MIME types. OpenAPI documents the binary media type and download response
+  headers.
 - API usage artifact downloads sanitize stored content types and SHA-256
   response headers before streaming handoff objects, including media-type
   validation before writing `Content-Type`.
