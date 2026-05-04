@@ -137,6 +137,11 @@ Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of
 silently dispatching the first decoded object.
 
+Attachment downloads set private `no-store` responses and include both a safe
+ASCII `filename` fallback and a UTF-8 `filename*` parameter in
+`Content-Disposition` so internationalized filenames survive browser downloads
+without permitting header injection.
+
 ## Push devices
 
 Push notification device tokens are user-scoped Mail API resources:

@@ -70,7 +70,7 @@ func TestContentDispositionAttachmentSanitizesFilename(t *testing.T) {
 	t.Parallel()
 
 	got := contentDispositionAttachment("bad\"\r\nname.pdf")
-	want := `attachment; filename="bad___name.pdf"`
+	want := `attachment; filename="bad___name.pdf"; filename*=UTF-8''bad___name.pdf`
 	if got != want {
 		t.Fatalf("content disposition = %q, want %q", got, want)
 	}

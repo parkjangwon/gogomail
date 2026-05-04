@@ -436,6 +436,7 @@ Implementation order:
 377. Mail API path identifiers and direct-upload `draft_id` fields are now whitespace-normalized at the HTTP boundary before service dispatch, reducing accidental client formatting drift without pushing cleanup into service/storage layers.
 378. OpenAPI drift tests now pin attachment reservation and direct-upload HTTP 413 Error responses, protecting generated clients from losing size-cap failure modeling.
 379. Mail and Admin API JSON request handlers now reject trailing JSON tokens before service dispatch, preventing malformed multi-object bodies from being partially accepted.
+380. Attachment download responses now include a safe ASCII `filename` fallback plus RFC 5987-style UTF-8 `filename*` parameter, preserving internationalized attachment filenames for webmail clients without relaxing header-injection guards.
 
 ## Deferred until backend contracts stabilize
 

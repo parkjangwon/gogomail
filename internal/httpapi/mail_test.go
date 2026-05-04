@@ -990,6 +990,34 @@ func TestDownloadAttachmentHandler(t *testing.T) {
 	}
 }
 
+func TestDownloadAttachmentHandlerUsesUTF8FilenameParameter(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		download: mailservice.AttachmentDownload{
+			Attachment: maildb.Attachment{ID: "att-1", Filename: "보고서 1.pdf", MIMEType: "application/pdf", Size: 7},
+			Body:       io.NopCloser(strings.NewReader("content")),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	got := rec.Header().Get("Content-Disposition")
+	if !strings.Contains(got, `filename="___ 1.pdf"`) {
+		t.Fatalf("Content-Disposition ASCII fallback = %q", got)
+	}
+	if !strings.Contains(got, `filename*=UTF-8''%EB%B3%B4%EA%B3%A0%EC%84%9C%201.pdf`) {
+		t.Fatalf("Content-Disposition UTF-8 parameter = %q", got)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
