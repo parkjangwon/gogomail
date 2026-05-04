@@ -20,8 +20,10 @@ type backpressureStore interface {
 
 type adminService struct {
 	*maildb.Repository
-	backpressure backpressureStore
-	exportStore  apimeter.ExportArtifactStore
+	backpressure                backpressureStore
+	exportStore                 apimeter.ExportArtifactStore
+	exportManifestSigner        apimeter.ExportManifestSigner
+	exportManifestSignerBackend string
 }
 
 func (s adminService) GetBackpressure(ctx context.Context) (backpressure.State, error) {
@@ -159,6 +161,33 @@ func (s adminService) VerifyAPIUsageExportArtifact(ctx context.Context, batchID 
 		ActualSHA256Hex:   actual,
 		Valid:             artifact.ByteCount == byteCount && artifact.SHA256Hex == actual,
 	}, nil
+}
+
+func (s adminService) CreateAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestSignatureView, error) {
+	if s.Repository == nil {
+		return maildb.APIUsageExportManifestSignatureView{}, fmt.Errorf("repository is required")
+	}
+	if s.exportManifestSigner == nil {
+		return maildb.APIUsageExportManifestSignatureView{}, fmt.Errorf("api usage export manifest signer is not configured")
+	}
+	digest, err := s.GetAPIUsageExportManifestDigest(ctx, batchID, digestID)
+	if err != nil {
+		return maildb.APIUsageExportManifestSignatureView{}, err
+	}
+	signature, err := s.exportManifestSigner.SignExportManifestDigest(digest.DigestHex)
+	if err != nil {
+		return maildb.APIUsageExportManifestSignatureView{}, err
+	}
+	backend := strings.TrimSpace(s.exportManifestSignerBackend)
+	if backend == "" {
+		backend = "local-hmac"
+	}
+	return s.Repository.CreateAPIUsageExportManifestSignature(ctx, maildb.CreateAPIUsageExportManifestSignatureRequest{
+		BatchID:       batchID,
+		DigestID:      digestID,
+		SignerBackend: backend,
+		Signature:     signature,
+	})
 }
 
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
