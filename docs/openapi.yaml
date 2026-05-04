@@ -455,14 +455,17 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: partition_key
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: status
           in: query
           schema:
             type: string
+            maxLength: 1024
             enum: [pending, processing, done, failed]
         - name: since
           in: query

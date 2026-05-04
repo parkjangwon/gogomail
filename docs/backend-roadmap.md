@@ -513,6 +513,7 @@ Implementation order:
 454. Push-device delete validation now rejects blank, CR/LF-bearing, or oversized device identifiers before repository dispatch.
 455. Folder-scoped message lists and thread-message reads now reject unsafe folder/thread identifiers before repository work.
 456. Message-list cursor decoding now rejects oversized opaque cursor strings before base64 decode and JSON parsing.
+457. Admin outbox event topic, partition-key, and status filters now reject CR/LF-bearing or oversized values before service dispatch.
 
 ## Deferred until backend contracts stabilize
 

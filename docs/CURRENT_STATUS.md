@@ -553,7 +553,8 @@ The platform hardening sprint completed the following:
   identifiers are trimmed at the HTTP boundary before service dispatch and
   response envelopes.
 - Admin API outbox event topic, partition key, and status filters are trimmed
-  at the HTTP boundary before operational queue inspection.
+  at the HTTP boundary before operational queue inspection, and CR/LF-bearing
+  or oversized filter values are rejected before service dispatch.
 - Admin API delivery-attempt status and recipient-domain filters are trimmed at
   the HTTP boundary before retry/bounce inspection.
 - Admin API push-notification attempt and stats filters are trimmed at the HTTP

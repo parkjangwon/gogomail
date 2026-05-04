@@ -269,8 +269,9 @@ Admin operational read models also keep explicit envelope keys:
   assignments for future IMAP bootstrap/operator runs.
 - `GET /admin/v1/outbox-events` returns `{"outbox_events":[...]}`;
   optional `topic`, `partition_key`, `status`, and RFC3339 `since` filters
-  expose outbox event metadata without returning JSON payload bodies. List
-  responses include a UTF-8-safe bounded `last_error` preview.
+  expose outbox event metadata without returning JSON payload bodies. Text
+  filters reject CR/LF-bearing or oversized values before service dispatch.
+  List responses include a UTF-8-safe bounded `last_error` preview.
 - `GET /admin/v1/outbox-events/{id}` returns `{"outbox_event":{...}}` with full
   event metadata and full stored `last_error`, still without returning the JSON
   payload body.

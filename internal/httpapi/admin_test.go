@@ -157,6 +157,32 @@ func TestAdminOutboxEventsHandlerRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestAdminOutboxEventsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/outbox-events?topic=mail.event%0D%0Abad",
+		"/admin/v1/outbox-events?partition_key=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+		"/admin/v1/outbox-events?status=pending%0Abad",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastOutboxEventList.Limit != 0 {
+			t.Fatalf("%s dispatched request %+v", path, service.lastOutboxEventList)
+		}
+	}
+}
+
 func TestAdminOutboxEventDetailHandler(t *testing.T) {
 	t.Parallel()
 
