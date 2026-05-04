@@ -2,6 +2,7 @@ package audit
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -95,5 +96,17 @@ func TestMailStoredAuditLogRejectsInvalidMessageID(t *testing.T) {
 	_, err := MailStoredAuditLog([]byte("{\"event\":\"mail.stored\",\"message_id\":\"msg-1\\nmsg-2\"}"))
 	if err == nil {
 		t.Fatal("MailStoredAuditLog accepted invalid message_id")
+	}
+}
+
+func TestMailStoredAuditLogRejectsOversizedMessageID(t *testing.T) {
+	t.Parallel()
+
+	_, err := MailStoredAuditLog([]byte(`{
+		"event":"mail.stored",
+		"message_id":"` + strings.Repeat("m", maxMailStoredAuditMessageIDBytes+1) + `"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "message_id") {
+		t.Fatalf("MailStoredAuditLog error = %v, want oversized message_id", err)
 	}
 }

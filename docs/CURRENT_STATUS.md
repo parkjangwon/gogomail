@@ -466,6 +466,8 @@ The platform hardening sprint completed the following:
   oversized message/user IDs before target resolution or candidate fan-out.
 - Search indexing `mail.stored` event decoding rejects oversized message/user
   IDs and storage paths before stored EML objects are opened.
+- Mail receive audit event decoding rejects CR/LF-bearing or oversized
+  message IDs before immutable audit log construction.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and

@@ -109,6 +109,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   oversized message/user IDs before target resolution or candidate fan-out.
 - Search indexing `mail.stored` event decoding rejects oversized message/user
   IDs and storage paths before stored EML objects are opened.
+- Mail receive audit event decoding rejects CR/LF-bearing or oversized
+  message IDs before immutable audit log construction.
 - Redis outbox publishing trims event id, topic, partition key, and payload
   metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a

@@ -541,6 +541,7 @@ Implementation order:
 482. IMAP UID assignment event decoding now rejects CR/LF-bearing or oversized message, user, and folder IDs before UID work or mailbox event fan-out.
 483. Push notification `mail.stored` event decoding now rejects CR/LF-bearing or oversized message/user IDs before target resolution or candidate fan-out.
 484. Search indexing `mail.stored` event decoding now rejects oversized message/user IDs and storage paths before stored EML objects are opened.
+485. Mail receive audit event decoding now rejects CR/LF-bearing or oversized message IDs before immutable audit log construction.
 
 ## Deferred until backend contracts stabilize
 
