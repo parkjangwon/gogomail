@@ -343,13 +343,13 @@ func TestPostgresAggregateStoreUpsertsIdentityDimensions(t *testing.T) {
 		Method:       "GET",
 		Route:        "GET /api/v1/messages",
 		Status:       200,
-		TenantID:     "tenant-1",
-		CompanyID:    "company-1",
-		DomainID:     "domain-1",
-		UserID:       "user-1",
-		APIKeyID:     "api-key-1",
-		PrincipalID:  "principal-1",
-		AuthSource:   "bearer",
+		TenantID:     " tenant-1 ",
+		CompanyID:    " company-1 ",
+		DomainID:     " domain-1 ",
+		UserID:       " user-1 ",
+		APIKeyID:     " api-key-1 ",
+		PrincipalID:  " principal-1 ",
+		AuthSource:   " BEARER ",
 		RequestCount: 1,
 	})
 	if err != nil {
@@ -364,6 +364,78 @@ func TestPostgresAggregateStoreUpsertsIdentityDimensions(t *testing.T) {
 	}
 	if !strings.Contains(db.queries[0], "ON CONFLICT (day, method, route, status, tenant_id, company_id, domain_id, user_id, api_key_id, principal_id, auth_source)") {
 		t.Fatalf("query = %s", db.queries[0])
+	}
+}
+
+func TestPostgresAggregateStoreRejectsInvalidUsageDimensions(t *testing.T) {
+	t.Parallel()
+
+	valid := UsageEvent{
+		Day:          time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:       "GET",
+		Route:        "GET /api/v1/messages",
+		Status:       200,
+		TenantID:     "tenant-1",
+		UserID:       "user-1",
+		RequestCount: 1,
+	}
+	tests := []struct {
+		name  string
+		patch func(*UsageEvent)
+	}{
+		{
+			name: "missing method",
+			patch: func(event *UsageEvent) {
+				event.Method = " "
+			},
+		},
+		{
+			name: "method line break",
+			patch: func(event *UsageEvent) {
+				event.Method = "GET\r\nX-Bad: 1"
+			},
+		},
+		{
+			name: "route line break",
+			patch: func(event *UsageEvent) {
+				event.Route = "GET /api/v1/messages\nX-Bad: 1"
+			},
+		},
+		{
+			name: "invalid status",
+			patch: func(event *UsageEvent) {
+				event.Status = 99
+			},
+		},
+		{
+			name: "event id line break",
+			patch: func(event *UsageEvent) {
+				event.EventID = "usage-1\r\nX-Bad: 1"
+			},
+		},
+		{
+			name: "identity line break",
+			patch: func(event *UsageEvent) {
+				event.TenantID = "tenant-1\nX-Bad: 1"
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			event := valid
+			tc.patch(&event)
+			db := &fakeUsageSQL{}
+			err := NewPostgresAggregateStore(db).AddUsage(context.Background(), event)
+			if err == nil {
+				t.Fatal("AddUsage accepted invalid usage dimensions")
+			}
+			if len(db.queries) != 0 {
+				t.Fatalf("queries = %+v, want no writes", db.queries)
+			}
+		})
 	}
 }
 
