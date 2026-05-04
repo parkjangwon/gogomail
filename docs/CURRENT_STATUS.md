@@ -186,6 +186,9 @@ guidance.
   locally with a configured public key before persistence. Admin API exposes
   signature create/list/detail and verification endpoints while keeping the
   signer backend pluggable.
+- API usage export manifest signing validates key IDs for local and remote
+  signers, rejecting blank, CR/LF-bearing, or oversized key metadata before
+  signature evidence is returned.
 - Admin API exposes API usage export handoff readiness by batch. The report
   summarizes artifact coverage, latest digest/signature state, operational
   readiness, and a separate billing readiness grade so local signers are not

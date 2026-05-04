@@ -72,6 +72,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   backslashes, and parent-traversal segments before handoff objects are written.
 - API usage export manifest digesting rejects unsupported explicit manifest
   schema versions before canonical digest evidence is generated.
+- API usage export manifest signing rejects blank, CR/LF-bearing, or oversized
+  key IDs for local and remote signer metadata before signature evidence is
+  returned.
 - Search relevance has backend-specific regression coverage for Postgres weighted `tsvector` ranking and OpenSearch field boosts, keeping subject/sender matches ahead of indexed body matches while preserving date-sorted defaults.
 - IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
 - IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows and message UID/MODSEQ rows, with transactional assignment helpers, first mailbox/message list adapters, raw body fetch groundwork, MODSEQ-aware flag mutation, bounded UID backfill, and move/delete UID invalidation; no protocol server is in release scope yet.

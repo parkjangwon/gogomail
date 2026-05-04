@@ -17,6 +17,7 @@ import (
 const (
 	ExportManifestSignatureAlgorithmHMACSHA256 = "hmac-sha256"
 	ExportManifestSignatureAlgorithmEd25519    = "ed25519"
+	maxExportManifestSignatureKeyIDBytes       = 200
 )
 
 type ExportManifestSigner interface {
@@ -44,9 +45,9 @@ func (s HMACExportManifestSigner) SignExportManifestDigest(digestHex string) (Ex
 	if !isLowerHexSHA256(digestHex) {
 		return ExportManifestSignature{}, fmt.Errorf("digest_hex must be 64 lowercase hex characters")
 	}
-	keyID := strings.TrimSpace(s.KeyID)
-	if keyID == "" {
-		return ExportManifestSignature{}, fmt.Errorf("key id is required")
+	keyID, err := normalizeExportManifestSignatureKeyID(s.KeyID)
+	if err != nil {
+		return ExportManifestSignature{}, err
 	}
 	if len(s.Secret) == 0 {
 		return ExportManifestSignature{}, fmt.Errorf("signing secret is required")
@@ -105,9 +106,9 @@ func (s Ed25519ExportManifestSigner) SignExportManifestDigest(digestHex string) 
 	if !isLowerHexSHA256(digestHex) {
 		return ExportManifestSignature{}, fmt.Errorf("digest_hex must be 64 lowercase hex characters")
 	}
-	keyID := strings.TrimSpace(s.KeyID)
-	if keyID == "" {
-		return ExportManifestSignature{}, fmt.Errorf("key id is required")
+	keyID, err := normalizeExportManifestSignatureKeyID(s.KeyID)
+	if err != nil {
+		return ExportManifestSignature{}, err
 	}
 	if len(s.PrivateKey) != ed25519.PrivateKeySize {
 		return ExportManifestSignature{}, fmt.Errorf("ed25519 private key must be %d bytes", ed25519.PrivateKeySize)
@@ -162,9 +163,9 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 	if !isLowerHexSHA256(digestHex) {
 		return ExportManifestSignature{}, fmt.Errorf("digest_hex must be 64 lowercase hex characters")
 	}
-	keyID := strings.TrimSpace(s.KeyID)
-	if keyID == "" {
-		return ExportManifestSignature{}, fmt.Errorf("key id is required")
+	keyID, err := normalizeExportManifestSignatureKeyID(s.KeyID)
+	if err != nil {
+		return ExportManifestSignature{}, err
 	}
 	endpoint := strings.TrimSpace(s.Endpoint)
 	if endpoint == "" {
@@ -205,7 +206,10 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 		return ExportManifestSignature{}, fmt.Errorf("decode remote signer response: %w", err)
 	}
 	signature.Algorithm = strings.TrimSpace(signature.Algorithm)
-	signature.KeyID = strings.TrimSpace(signature.KeyID)
+	signature.KeyID, err = normalizeExportManifestSignatureKeyID(signature.KeyID)
+	if err != nil {
+		return ExportManifestSignature{}, err
+	}
 	signature.SignedDigestHex = strings.ToLower(strings.TrimSpace(signature.SignedDigestHex))
 	signature.SignatureHex = strings.ToLower(strings.TrimSpace(signature.SignatureHex))
 	if signature.KeyID != keyID {
@@ -225,6 +229,20 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 		return ExportManifestSignature{}, fmt.Errorf("remote signer returned an invalid signature")
 	}
 	return signature, nil
+}
+
+func normalizeExportManifestSignatureKeyID(value string) (string, error) {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	if value == "" {
+		return "", fmt.Errorf("key id is required")
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("key id cannot contain line breaks")
+	}
+	if len(value) > maxExportManifestSignatureKeyIDBytes {
+		return "", fmt.Errorf("key id must be at most %d bytes", maxExportManifestSignatureKeyIDBytes)
+	}
+	return value, nil
 }
 
 type remoteEd25519SignRequest struct {
