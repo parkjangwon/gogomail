@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net/textproto"
+	"regexp"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/outbound"
 )
+
+var enhancedStatusPattern = regexp.MustCompile(`\b[245]\.[0-9]{1,3}\.[0-9]{1,3}\b`)
 
 type SMTPStatusError struct {
 	Op      string
@@ -90,17 +93,12 @@ func enhancedStatusFromError(err error) string {
 		return ""
 	}
 	class := smtpErr.Code / 100
-	for _, field := range strings.Fields(smtpErr.Message) {
-		code := trimEnhancedStatusCandidate(field)
+	for _, code := range enhancedStatusPattern.FindAllString(smtpErr.Message, -1) {
 		if validEnhancedDeliveryStatus(code) && int(code[0]-'0') == class {
 			return code
 		}
 	}
 	return ""
-}
-
-func trimEnhancedStatusCandidate(value string) string {
-	return strings.Trim(value, " \t\r\n;:,()[]<>")
 }
 
 func validEnhancedDeliveryStatus(status string) bool {

@@ -51,6 +51,16 @@ func TestEnhancedStatusForAttemptParsesSMTPReply(t *testing.T) {
 	if got := enhancedStatusForAttempt(AttemptFailed, err); got != "4.7.1" {
 		t.Fatalf("enhancedStatusForAttempt = %q, want 4.7.1", got)
 	}
+
+	err = &SMTPStatusError{Op: "data", Code: 550, Message: "550-5.1.1 mailbox unavailable\r\n550 5.1.1 rejected"}
+	if got := enhancedStatusForAttempt(AttemptBounced, err); got != "5.1.1" {
+		t.Fatalf("enhancedStatusForAttempt multiline = %q, want 5.1.1", got)
+	}
+
+	err = &SMTPStatusError{Op: "rcpt", Code: 450, Message: "temporary failure [4.2.0] mailbox busy"}
+	if got := enhancedStatusForAttempt(AttemptFailed, err); got != "4.2.0" {
+		t.Fatalf("enhancedStatusForAttempt bracketed = %q, want 4.2.0", got)
+	}
 }
 
 func TestEnhancedStatusForAttemptIgnoresMismatchedClass(t *testing.T) {
