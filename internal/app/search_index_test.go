@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/config"
 )
@@ -83,6 +84,19 @@ func TestSearchIDSourceForConfigSkipsNonOpenSearchBackends(t *testing.T) {
 	}
 	if source != nil {
 		t.Fatalf("source = %#v, want nil", source)
+	}
+}
+
+func TestOpenSearchOptionsForConfigUsesConfiguredTimeout(t *testing.T) {
+	t.Parallel()
+
+	opts := openSearchOptionsForConfig(config.Config{
+		SearchIndexOpenSearchEndpoint: "http://localhost:9200",
+		SearchIndexOpenSearchIndex:    "gogomail-messages",
+		SearchIndexOpenSearchTimeout:  3 * time.Second,
+	})
+	if opts.Client == nil || opts.Client.Timeout != 3*time.Second {
+		t.Fatalf("client timeout = %#v, want 3s", opts.Client)
 	}
 }
 

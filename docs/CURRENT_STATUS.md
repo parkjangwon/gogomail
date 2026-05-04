@@ -201,6 +201,8 @@ The platform hardening sprint completed the following:
 - Search index worker startup logs include non-secret backend diagnostics,
   including OpenSearch index name and bootstrap state when that backend is
   selected.
+- OpenSearch writer/searcher HTTP calls use a configurable timeout through
+  `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`, defaulting to 10 seconds.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.

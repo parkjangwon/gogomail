@@ -321,6 +321,7 @@ Implementation order:
 266. `mail.stored` events and OpenSearch message documents now carry `folder_id`, allowing relevance searches to apply Mail API folder filters before Postgres summary hydration instead of falling back to Postgres for folder-scoped queries.
 267. Optional OpenSearch integration coverage can create a disposable index, bootstrap mappings, index folder-scoped documents, refresh, and verify folder-aware relevance search against a real backend when `GOGOMAIL_TEST_OPENSEARCH_URL` is set.
 268. Search index worker startup logs now include non-secret backend diagnostics, including OpenSearch index name and bootstrap state, so operators can confirm search backend selection from logs without exposing endpoint credentials.
+269. OpenSearch writer/searcher calls now use `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`, giving operators an explicit external backend timeout instead of relying on a hidden adapter default.
 
 ## Deferred until backend contracts stabilize
 

@@ -359,9 +359,10 @@ newest-first ordering remains the default. `search-index-worker` can also write
 received-message documents to OpenSearch with
 `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`, and
-`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; API read-side search uses the
-current backend contract and falls back to Postgres when OpenSearch parity is
-not sufficient. The
+`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; OpenSearch writer/searcher calls use
+`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`, defaulting to 10 seconds. API
+read-side search uses the current backend contract and falls back to Postgres
+when OpenSearch parity is not sufficient. The
 OpenSearch writer includes a strict bootstrap mapping for the indexed document
 shape so deployments can create the index before enabling the worker, or set
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true` to have the worker ensure it
