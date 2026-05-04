@@ -35,11 +35,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   accepting the first object and ignoring the rest of the body.
 - Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
   `filename*` in `Content-Disposition` while keeping responses private
-  `no-store`, and unsafe stored MIME types fall back to
-  `application/octet-stream` at the HTTP boundary. OpenAPI documents the binary
-  media type and download response headers.
+  `no-store`, and unsafe or media-type-invalid stored MIME types fall back to
+  `application/octet-stream` at the HTTP boundary. OpenAPI documents the
+  binary media type and download response headers.
 - API usage artifact downloads sanitize stored content types and SHA-256
-  response headers before streaming handoff objects.
+  response headers before streaming handoff objects, including media-type
+  validation before writing `Content-Type`.
 - API usage NDJSON exports and stored export artifact downloads return
   `Cache-Control: no-store`, documented in OpenAPI for generated clients.
 - Attachment downloads, usage NDJSON exports, and stored export artifact
