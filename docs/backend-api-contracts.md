@@ -141,13 +141,15 @@ resolves active devices for the `mail.stored.user_id` after commit and before
 invoking its sink. `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT` bounds per-message
 fan-out. Vendor delivery remains a future sink adapter, not a Mail API or SMTP
 side effect. The worker records one `push_notification_attempts` candidate row
-per resolved device before invoking the current sink. The generated attempt id
-is attached to each sink target so future vendor adapters can update that exact
-row with delivered, failed, or invalid-token outcomes without coupling
-notification delivery to the SMTP transaction. Outcome updates are available
-inside `internal/pushnotify` and are not exposed as a public API. An
-`invalid_token` outcome soft-deletes the matching user device in the same
-database transaction as the attempt update.
+per resolved device before invoking the current sink. After a successful sink
+handoff, the worker records `queued` for each generated attempt id; if the sink
+fails, attempts remain `candidate` for operator inspection and retry analysis.
+The generated attempt id is attached to each sink target so future vendor
+adapters can update that exact row with delivered, failed, or invalid-token
+outcomes without coupling notification delivery to the SMTP transaction. Outcome
+updates are available inside `internal/pushnotify` and are not exposed as a
+public API. An `invalid_token` outcome soft-deletes the matching user device in
+the same database transaction as the attempt update.
 
 The committed `mail.stored` event includes
 `schema_version: "2026-05-04.mail-stored.v1"` plus message, tenant, recipient,

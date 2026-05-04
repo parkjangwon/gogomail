@@ -60,6 +60,57 @@ func TestHandlerResolvesNotificationTargets(t *testing.T) {
 	}
 }
 
+func TestHandlerRecordsQueuedOutcomesAfterSinkSuccess(t *testing.T) {
+	t.Parallel()
+
+	sink := &fakeSink{}
+	recorder := &fakeCandidateRecorder{}
+	outcomes := &fakeOutcomeRecorder{}
+	resolver := &fakeTargetResolver{
+		targets: []Target{{DeviceID: "device-1", Platform: "fcm", Token: "token-1", TokenSuffix: "token-1"}},
+	}
+	handler := NewHandler(
+		sink,
+		WithTargetResolver(resolver),
+		WithCandidateRecorder(recorder),
+		WithOutcomeRecorder(outcomes),
+	)
+
+	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: validMailStoredPayload()}); err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(outcomes.outcomes) != 1 {
+		t.Fatalf("outcomes = %+v", outcomes.outcomes)
+	}
+	if outcomes.outcomes[0].AttemptID != "attempt-1" || outcomes.outcomes[0].Status != "queued" {
+		t.Fatalf("outcome = %+v", outcomes.outcomes[0])
+	}
+}
+
+func TestHandlerDoesNotRecordQueuedOutcomeWhenSinkFails(t *testing.T) {
+	t.Parallel()
+
+	sink := &fakeSink{err: errFakeSink}
+	recorder := &fakeCandidateRecorder{}
+	outcomes := &fakeOutcomeRecorder{}
+	resolver := &fakeTargetResolver{
+		targets: []Target{{DeviceID: "device-1", Platform: "fcm", Token: "token-1", TokenSuffix: "token-1"}},
+	}
+	handler := NewHandler(
+		sink,
+		WithTargetResolver(resolver),
+		WithCandidateRecorder(recorder),
+		WithOutcomeRecorder(outcomes),
+	)
+
+	if err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: validMailStoredPayload()}); err == nil {
+		t.Fatal("HandleEvent returned nil error")
+	}
+	if len(outcomes.outcomes) != 0 {
+		t.Fatalf("outcomes = %+v", outcomes.outcomes)
+	}
+}
+
 func TestHandlerSkipsSinkWhenResolverHasNoTargets(t *testing.T) {
 	t.Parallel()
 
@@ -100,12 +151,13 @@ func TestDecodeEventRejectsUnsupportedSchemaVersion(t *testing.T) {
 type fakeSink struct {
 	calls int
 	last  Notification
+	err   error
 }
 
 func (s *fakeSink) EnqueuePush(_ context.Context, notification Notification) error {
 	s.calls++
 	s.last = notification
-	return nil
+	return s.err
 }
 
 type fakeTargetResolver struct {
@@ -125,6 +177,23 @@ type fakeCandidateRecorder struct {
 func (r *fakeCandidateRecorder) RecordCandidate(_ context.Context, record CandidateRecord) (CandidateRecordResult, error) {
 	r.records = append(r.records, record)
 	return CandidateRecordResult{ID: "attempt-1"}, nil
+}
+
+type fakeOutcomeRecorder struct {
+	outcomes []AttemptOutcome
+}
+
+func (r *fakeOutcomeRecorder) RecordOutcome(_ context.Context, outcome AttemptOutcome) error {
+	r.outcomes = append(r.outcomes, outcome)
+	return nil
+}
+
+var errFakeSink = &fakeSinkError{}
+
+type fakeSinkError struct{}
+
+func (*fakeSinkError) Error() string {
+	return "fake sink error"
 }
 
 func validMailStoredPayload() json.RawMessage {

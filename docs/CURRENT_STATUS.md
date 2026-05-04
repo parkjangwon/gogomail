@@ -148,6 +148,8 @@ guidance.
   active-device and attempt-status summary.
 - Push notification sinks receive the persisted candidate attempt id with each
   target, preparing clean vendor outcome updates later.
+- The push worker marks attempts `queued` after a successful sink handoff while
+  leaving failed sink handoffs as `candidate` for retry and operator analysis.
 - `internal/pushnotify` can update attempt outcomes to queued, delivered,
   failed, or invalid-token without exposing that mutation as a public API.
 - Invalid-token outcomes automatically soft-delete the affected push device in

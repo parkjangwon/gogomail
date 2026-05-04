@@ -169,8 +169,10 @@ Current state:
   `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT`, then pass those targets to the
   sink without coupling SMTP or storage writes to vendor delivery.
 - The worker records per-device candidate attempts to
-  `push_notification_attempts` after sink enqueue succeeds, giving operators a
-  trace before vendor adapters exist.
+  `push_notification_attempts` before sink handoff, then marks those attempts
+  `queued` only after the sink succeeds. Failed sink handoffs remain
+  `candidate`, giving operators a clear retry/audit signal before vendor
+  adapters exist.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
   status/user filters for inspecting candidate fan-out.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
