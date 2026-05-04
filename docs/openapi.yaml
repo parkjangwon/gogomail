@@ -602,6 +602,21 @@ paths:
           $ref: "#/components/responses/APIUsageExportBatch"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/handoff-readiness:
+    get:
+      operationId: getAdminAPIUsageExportHandoffReadiness
+      summary: Inspect API usage export batch handoff readiness
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportHandoffReadiness"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches/{id}/export:
     get:
       operationId: exportAdminAPIUsageExportBatch
@@ -1658,6 +1673,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportBatchListEnvelope"
+    APIUsageExportHandoffReadiness:
+      description: API usage export batch handoff readiness envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportHandoffReadinessEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -2775,6 +2796,84 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportBatch"
+    APIUsageExportHandoffReadiness:
+      type: object
+      required:
+        - batch_id
+        - batch_status
+        - batch_completed
+        - event_count
+        - artifact_count
+        - artifact_event_count
+        - artifact_byte_count
+        - events_covered
+        - manifest_digest_count
+        - latest_digest_signature_count
+        - ready
+      properties:
+        batch_id:
+          type: string
+        batch_status:
+          type: string
+          enum: [pending, completed, failed]
+        batch_completed:
+          type: boolean
+        event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        artifact_count:
+          type: integer
+          format: int64
+          minimum: 0
+        artifact_event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        artifact_byte_count:
+          type: integer
+          format: int64
+          minimum: 0
+        events_covered:
+          type: boolean
+        manifest_digest_count:
+          type: integer
+          format: int64
+          minimum: 0
+        latest_manifest_digest_id:
+          type: string
+        latest_manifest_digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        latest_manifest_digest_at:
+          type: string
+          format: date-time
+        latest_digest_signature_count:
+          type: integer
+          format: int64
+          minimum: 0
+        latest_signature_id:
+          type: string
+        latest_signature_signer:
+          type: string
+        latest_signature_key_id:
+          type: string
+        latest_signature_at:
+          type: string
+          format: date-time
+        ready:
+          type: boolean
+        missing_requirements:
+          type: array
+          items:
+            type: string
+            enum: [batch_completed, export_artifact, event_coverage, manifest_digest, manifest_signature]
+    APIUsageExportHandoffReadinessEnvelope:
+      type: object
+      required: [api_usage_export_handoff_readiness]
+      properties:
+        api_usage_export_handoff_readiness:
+          $ref: "#/components/schemas/APIUsageExportHandoffReadiness"
     APIUsageExportArtifact:
       type: object
       required: [id, batch_id, created_at, storage_backend, object_key, content_type, byte_count, sha256_hex, event_count, metadata]

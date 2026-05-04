@@ -487,6 +487,48 @@ func TestAdminGetAPIUsageExportBatchHandler(t *testing.T) {
 	}
 }
 
+func TestAdminGetAPIUsageExportHandoffReadinessHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportHandoff: maildb.APIUsageExportHandoffView{
+			BatchID:                    "api-usage-export-1",
+			BatchStatus:                "completed",
+			BatchCompleted:             true,
+			EventCount:                 2,
+			ArtifactCount:              1,
+			ArtifactEventCount:         2,
+			ManifestDigestCount:        1,
+			LatestManifestDigestID:     "api-usage-manifest-1",
+			LatestDigestSignatureCount: 1,
+			LatestSignatureID:          "api-usage-signature-1",
+			Ready:                      true,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/handoff-readiness", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Handoff maildb.APIUsageExportHandoffView `json:"api_usage_export_handoff_readiness"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.Handoff.Ready || body.Handoff.LatestSignatureID != "api-usage-signature-1" {
+		t.Fatalf("handoff = %+v", body.Handoff)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" {
+		t.Fatalf("lastAPIUsageExportBatchID = %q", service.lastAPIUsageExportBatchID)
+	}
+}
+
 func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2129,6 +2171,7 @@ type fakeAdminService struct {
 	apiUsageLedgerStats                         maildb.APIUsageLedgerStatsView
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
+	apiUsageExportHandoff                       maildb.APIUsageExportHandoffView
 	apiUsageExportArtifact                      maildb.APIUsageExportArtifactView
 	apiUsageExportArtifacts                     []maildb.APIUsageExportArtifactView
 	apiUsageExportArtifactBody                  string
@@ -2349,6 +2392,11 @@ func (f *fakeAdminService) ListAPIUsageExportBatches(_ context.Context, limit in
 func (f *fakeAdminService) GetAPIUsageExportBatch(_ context.Context, id string) (maildb.APIUsageExportBatchView, error) {
 	f.lastAPIUsageExportBatchID = id
 	return f.apiUsageExportBatch, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageExportHandoff(_ context.Context, batchID string) (maildb.APIUsageExportHandoffView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	return f.apiUsageExportHandoff, nil
 }
 
 func (f *fakeAdminService) CreateAPIUsageExportArtifact(_ context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error) {
