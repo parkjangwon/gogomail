@@ -558,6 +558,7 @@ Implementation order:
 499. Push notification webhooks now bound and normalize message, recipient, subject, timestamp, and target metadata before JSON serialization, and drop malformed direct-call targets before external gateway handoff.
 500. Attachment scanner webhooks now bound and normalize message, address, subject, recipient, and attachment metadata before JSON serialization, cap recipient and attachment arrays, and clamp negative message sizes to zero.
 501. Push notification target resolution now drops oversized device IDs and tokens before candidate recording or sink handoff, and bounds optional labels/token suffixes at UTF-8 boundaries for cleaner provider adapter inputs.
+502. Push-device create/update validation now rejects CR/LF-bearing or oversized user and token metadata before repository upsert, keeping raw provider tokens bounded at the storage boundary.
 
 ## Deferred until backend contracts stabilize
 

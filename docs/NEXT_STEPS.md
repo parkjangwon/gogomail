@@ -187,7 +187,8 @@ Current state:
   direct-call payload metadata before JSON serialization.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
-  remain write-only.
+  remain write-only, and create/update rejects unsafe or oversized user/token
+  metadata before repository upsert.
 - The worker can resolve active user devices from Postgres with
   `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT`, then pass those targets to the
   sink without coupling SMTP or storage writes to vendor delivery. Malformed
