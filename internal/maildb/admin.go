@@ -567,6 +567,14 @@ type PushNotificationAttemptListRequest struct {
 	Since             time.Time
 }
 
+type UpdatePushNotificationOutcomeRequest struct {
+	AttemptID         string `json:"-"`
+	Status            string `json:"status"`
+	ErrorMessage      string `json:"error_message,omitempty"`
+	ProviderMessageID string `json:"provider_message_id,omitempty"`
+	ProviderStatus    string `json:"provider_status,omitempty"`
+}
+
 type PushNotificationStatsRequest struct {
 	UserID string
 	Since  time.Time
@@ -4051,6 +4059,89 @@ func allowedPushNotificationAttemptStatus(status string) bool {
 	}
 }
 
+func (r *Repository) UpdatePushNotificationOutcome(ctx context.Context, req UpdatePushNotificationOutcomeRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	normalized, err := normalizeUpdatePushNotificationOutcomeRequest(req)
+	if err != nil {
+		return err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin push notification outcome transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var deviceID string
+	var userID string
+	if err := tx.QueryRowContext(
+		ctx,
+		`UPDATE push_notification_attempts
+SET status = $2,
+    error_message = $3,
+    provider_message_id = $4,
+    provider_status = $5,
+    attempted_at = now()
+WHERE id = $1::uuid
+RETURNING COALESCE(device_id::text, ''), user_id::text`,
+		normalized.AttemptID,
+		normalized.Status,
+		normalized.ErrorMessage,
+		normalized.ProviderMessageID,
+		normalized.ProviderStatus,
+	).Scan(&deviceID, &userID); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("push notification attempt %q not found", normalized.AttemptID)
+		}
+		return fmt.Errorf("update push notification outcome: %w", err)
+	}
+
+	if normalized.Status == "invalid_token" && strings.TrimSpace(deviceID) != "" {
+		if _, err := tx.ExecContext(
+			ctx,
+			`UPDATE push_devices SET status = 'deleted', updated_at = now() WHERE id = $1::uuid AND user_id = $2::uuid`,
+			deviceID,
+			userID,
+		); err != nil {
+			return fmt.Errorf("delete invalid push device: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit push notification outcome: %w", err)
+	}
+	return nil
+}
+
+func normalizeUpdatePushNotificationOutcomeRequest(req UpdatePushNotificationOutcomeRequest) (UpdatePushNotificationOutcomeRequest, error) {
+	req.AttemptID = strings.TrimSpace(req.AttemptID)
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	req.ErrorMessage = cleanAdminBoundedText(req.ErrorMessage, 2000)
+	req.ProviderMessageID = cleanAdminBoundedText(req.ProviderMessageID, 500)
+	req.ProviderStatus = cleanAdminBoundedText(req.ProviderStatus, 500)
+	if err := validatePushNotificationFilter("attempt_id", req.AttemptID); err != nil {
+		return UpdatePushNotificationOutcomeRequest{}, err
+	}
+	if req.AttemptID == "" {
+		return UpdatePushNotificationOutcomeRequest{}, fmt.Errorf("attempt_id is required")
+	}
+	if !allowedPushNotificationOutcomeStatus(req.Status) {
+		return UpdatePushNotificationOutcomeRequest{}, fmt.Errorf("unsupported push notification outcome status")
+	}
+	return req, nil
+}
+
+func allowedPushNotificationOutcomeStatus(status string) bool {
+	switch status {
+	case "queued", "delivered", "failed", "invalid_token":
+		return true
+	default:
+		return false
+	}
+}
+
 func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotificationStatsRequest) (PushNotificationStatsView, error) {
 	if r.db == nil {
 		return PushNotificationStatsView{}, fmt.Errorf("database handle is required")
@@ -4114,6 +4205,21 @@ func validatePushNotificationFilter(field string, value string) error {
 		return fmt.Errorf("%s must be valid UTF-8", field)
 	}
 	return nil
+}
+
+func cleanAdminBoundedText(value string, maxBytes int) string {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	cut := 0
+	for i := range value {
+		if i > maxBytes {
+			return value[:cut]
+		}
+		cut = i
+	}
+	return value[:cut]
 }
 
 func (r *Repository) ListSuppressionEntries(ctx context.Context, limit int) ([]SuppressionEntry, error) {

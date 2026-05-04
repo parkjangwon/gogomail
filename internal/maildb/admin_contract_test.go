@@ -148,6 +148,49 @@ func TestNormalizePushNotificationStatsRequestRejectsUnsafeUserID(t *testing.T) 
 	}
 }
 
+func TestNormalizeUpdatePushNotificationOutcomeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := normalizeUpdatePushNotificationOutcomeRequest(UpdatePushNotificationOutcomeRequest{
+		AttemptID:         " attempt-1 ",
+		Status:            " DELIVERED ",
+		ErrorMessage:      strings.Repeat("e", 2100),
+		ProviderMessageID: strings.Repeat("m", 600),
+		ProviderStatus:    strings.Repeat("s", 600),
+	})
+	if err != nil {
+		t.Fatalf("normalizeUpdatePushNotificationOutcomeRequest returned error: %v", err)
+	}
+	if req.AttemptID != "attempt-1" || req.Status != "delivered" {
+		t.Fatalf("normalized request = %+v", req)
+	}
+	if len(req.ErrorMessage) != 2000 || len(req.ProviderMessageID) != 500 || len(req.ProviderStatus) != 500 {
+		t.Fatalf("bounded lengths = %d/%d/%d", len(req.ErrorMessage), len(req.ProviderMessageID), len(req.ProviderStatus))
+	}
+}
+
+func TestNormalizeUpdatePushNotificationOutcomeRequestRejectsUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []UpdatePushNotificationOutcomeRequest{
+		{AttemptID: "", Status: "failed"},
+		{AttemptID: "attempt-1\nbad", Status: "failed"},
+		{AttemptID: strings.Repeat("a", maxPushNotificationFilterBytes+1), Status: "failed"},
+		{AttemptID: string([]byte{0xff}), Status: "failed"},
+		{AttemptID: "attempt-1", Status: "candidate"},
+		{AttemptID: "attempt-1", Status: ""},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.AttemptID+req.Status, func(t *testing.T) {
+			t.Parallel()
+			if _, err := normalizeUpdatePushNotificationOutcomeRequest(req); err == nil {
+				t.Fatalf("normalizeUpdatePushNotificationOutcomeRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
 func TestValidateUpdateDomainPolicyRequestNormalizesBlankModes(t *testing.T) {
 	t.Parallel()
 

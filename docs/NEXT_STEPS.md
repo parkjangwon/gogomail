@@ -205,6 +205,10 @@ Current state:
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
   status/user/platform/device/provider-status/provider-message/since filters
   for inspecting candidate fan-out and vendor outcomes.
+- Admin API exposes
+  `PATCH /admin/v1/push-notification-attempts/{id}/outcome` so authenticated
+  operators or external push gateways can record queued/delivered/failed/
+  invalid-token outcomes with bounded provider diagnostics.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
   and status-count summaries, with optional `user_id` and `since` scoping for
   per-user and recent-window troubleshooting.
@@ -217,8 +221,8 @@ Current state:
 - Push notification candidate recording rejects invalid-UTF-8, CR/LF-bearing,
   or oversized message/user/device/company/domain IDs before SQL insert
   dispatch, and rejects unsupported platforms at the recorder boundary.
-- `internal/pushnotify.PostgresRecorder` can update an existing attempt with
-  queued, delivered, failed, or invalid-token outcomes.
+- Existing attempts can be updated with queued, delivered, failed, or
+  invalid-token outcomes through the internal recorder or the Admin API.
 - Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
   oversized attempt IDs before SQL update dispatch.
 - Invalid-token outcomes soft-delete the matching user push device in the same
@@ -234,8 +238,8 @@ Next:
 
 - Add first-party FCM/APNs/Web Push sink adapters behind `internal/pushnotify`
   when provider credentials and deployment expectations are decided.
-- Keep provider outcome updates private to the worker/adapter boundary unless a
-  future operator mutation API is explicitly required.
+- Use the authenticated Admin outcome endpoint for external push gateway
+  callbacks until first-party provider adapters are added.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 
 ### 5. Attachment upload API
