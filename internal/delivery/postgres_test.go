@@ -29,6 +29,7 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 		DSNEnvelopeID:     " env+2D1 ",
 		DSNNotify:         []string{" FAILURE ", "", " DELAY "},
 		OriginalRecipient: " rfc822;alias+40example.net ",
+		StoragePath:       " mailstore/msg.eml ",
 	})
 	if err != nil {
 		t.Fatalf("deliveryAttemptEventPayload returned error: %v", err)
@@ -49,6 +50,9 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 	}
 	if got["sender"] != "sender@example.com" {
 		t.Fatalf("sender = %v, want original sender", got["sender"])
+	}
+	if got["storage_path"] != "mailstore/msg.eml" {
+		t.Fatalf("storage_path = %v, want original message path", got["storage_path"])
 	}
 	if got["enhanced_status"] != "5.1.1" {
 		t.Fatalf("enhanced_status = %v, want 5.1.1", got["enhanced_status"])

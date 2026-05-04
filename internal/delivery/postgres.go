@@ -261,6 +261,9 @@ func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {
 		"error_message":    strings.TrimSpace(attempt.ErrorMessage),
 		"attempted_at":     attempt.AttemptedAt,
 	}
+	if strings.TrimSpace(attempt.StoragePath) != "" {
+		payload["storage_path"] = strings.TrimSpace(attempt.StoragePath)
+	}
 	if attempt.DSNReturn != "" || attempt.DSNEnvelopeID != "" || len(attempt.DSNNotify) > 0 || attempt.OriginalRecipient != "" {
 		payload["dsn"] = map[string]any{
 			"return":             strings.TrimSpace(attempt.DSNReturn),

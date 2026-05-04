@@ -441,6 +441,9 @@ guidance.
   error when the remote MTA does not advertise SMTPUTF8.
 - DSN composition supports an optional sanitized `text/rfc822-headers` returned
   header part, preparing RFC 3464 `RET=HDRS` wiring without header injection.
+- Bounce DSN generation now honors `RET=HDRS` when the delivery event carries a
+  safe original message storage path, reading bounded original EML headers and
+  attaching them as sanitized `text/rfc822-headers` content.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests. Path parameters, Mail search/Admin query filters,
   request schemas, response envelopes, and status enums are contract-tested for

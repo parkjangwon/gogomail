@@ -421,6 +421,9 @@ Admin operational read models also keep explicit envelope keys:
   RFC 3461 DSN metadata (`RET`, `ENVID`, `NOTIFY`, and `ORCPT`) when captured
   by the delivery worker. Text filters reject CR/LF-bearing or oversized values
   before service dispatch.
+  Bounce DSN generation uses captured `RET=HDRS` plus a safe original `.eml`
+  storage path to include bounded sanitized original headers in the generated
+  RFC 3464 report.
 - `GET /admin/v1/delivery-attempts/stats` returns `{"delivery_attempt_stats":{...}}`;
   optional `status`, `recipient_domain`, and RFC3339 `since` filters mirror the
   attempt list and summarize total, unique-message, unique-recipient, and

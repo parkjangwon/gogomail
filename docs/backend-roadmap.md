@@ -659,6 +659,7 @@ Implementation order:
 599. Company, domain, and user quota mutations now persist hash-chain admin audit rows in the same database transaction as the quota change, including domain default user quota propagation counts for quota forensics.
 600. Domain policy mutations now persist hash-chain admin audit rows in the same database transaction as the policy change, preserving inbound/outbound mode and size guardrail evidence for enforcement forensics.
 601. Domain/user provisioning and user password-hash rotation now persist hash-chain admin audit rows in the same database transaction as the change, while exposing password readiness without leaking password hash material.
+602. Bounce DSN generation now honors RFC 3461 `RET=HDRS` by carrying safe original `.eml` storage paths through delivery events and attaching bounded sanitized original headers as `text/rfc822-headers` in generated RFC 3464 reports.
 
 ## Deferred until backend contracts stabilize
 

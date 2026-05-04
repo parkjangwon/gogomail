@@ -33,6 +33,7 @@ type Attempt struct {
 	DSNEnvelopeID     string
 	DSNNotify         []string
 	OriginalRecipient string
+	StoragePath       string
 }
 
 type Recorder interface {
@@ -72,6 +73,7 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 			DSNEnvelopeID:     job.DSN.EnvelopeID,
 			DSNNotify:         append([]string(nil), dsnRecipient.Notify...),
 			OriginalRecipient: dsnRecipient.OriginalRecipient,
+			StoragePath:       job.StoragePath,
 		})
 	}
 	return attempts
