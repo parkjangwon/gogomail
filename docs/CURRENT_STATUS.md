@@ -419,6 +419,8 @@ The platform hardening sprint completed the following:
 - Direct multipart attachment uploads now distinguish over-limit HTTP request
   envelopes from malformed multipart bodies, returning 413 for the former and
   preserving 400 for bad multipart syntax.
+- Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
+  the HTTP boundary before service dispatch.
 
 Next focus areas:
 

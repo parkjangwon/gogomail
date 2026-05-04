@@ -433,6 +433,7 @@ Implementation order:
 374. API usage ledger retention-readiness now rejects future cutoff timestamps at the HTTP boundary, preventing operators from marking still-open accounting windows ready for future archive/delete jobs.
 375. OpenAPI drift tests now pin API usage retention-readiness query parameters and document the non-future cutoff guardrail, keeping generated archive/delete tooling aligned with the safety gate.
 376. Direct multipart attachment uploads now classify over-limit HTTP request envelopes as 413 `payload_too_large` while preserving 400 responses for malformed multipart bodies, keeping generated clients aligned with upload retry/error handling.
+377. Mail API path identifiers and direct-upload `draft_id` fields are now whitespace-normalized at the HTTP boundary before service dispatch, reducing accidental client formatting drift without pushing cleanup into service/storage layers.
 
 ## Deferred until backend contracts stabilize
 
