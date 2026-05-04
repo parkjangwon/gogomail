@@ -343,15 +343,29 @@ func (s *Service) publishIMAPMessageUIDEvents(ctx context.Context, eventType ima
 	if s.imapEvents == nil || len(messageIDs) == 0 {
 		return nil
 	}
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, messageIDs)
+	if err != nil {
+		return err
+	}
+	return s.publishIMAPUIDEvents(ctx, eventType, userID, uids)
+}
+
+func (s *Service) lookupExistingIMAPMessageUIDs(ctx context.Context, userID string, messageIDs []string) ([]maildb.IMAPMessageUID, error) {
+	if s.imapEvents == nil || len(messageIDs) == 0 {
+		return nil, nil
+	}
 	repo, ok := s.repository.(interface {
 		ExistingIMAPMessageUIDs(context.Context, string, []string) ([]maildb.IMAPMessageUID, error)
 	})
 	if !ok {
-		return nil
+		return nil, nil
 	}
-	uids, err := repo.ExistingIMAPMessageUIDs(ctx, userID, messageIDs)
-	if err != nil {
-		return err
+	return repo.ExistingIMAPMessageUIDs(ctx, userID, messageIDs)
+}
+
+func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, uids []maildb.IMAPMessageUID) error {
+	if s.imapEvents == nil || len(uids) == 0 {
+		return nil
 	}
 	userID = strings.TrimSpace(userID)
 	for _, uid := range uids {
@@ -408,14 +422,32 @@ func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessage
 }
 
 func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
-	return s.repository.MoveMessage(ctx, userID, messageID, folderID)
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
+	if err != nil {
+		return err
+	}
+	if err := s.repository.MoveMessage(ctx, userID, messageID, folderID); err != nil {
+		return err
+	}
+	return s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
 }
 
 func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error) {
 	if err := maildb.ValidateBulkMessageMoveRequest(req); err != nil {
 		return 0, err
 	}
-	return s.repository.BulkMoveMessages(ctx, req)
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, req.UserID, req.MessageIDs)
+	if err != nil {
+		return 0, err
+	}
+	updated, err := s.repository.BulkMoveMessages(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids); err != nil {
+		return 0, err
+	}
+	return updated, nil
 }
 
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {

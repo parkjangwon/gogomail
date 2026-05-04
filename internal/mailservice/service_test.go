@@ -215,6 +215,54 @@ func TestBulkSetMessageFlagPublishesIMAPFlagEvents(t *testing.T) {
 	}
 }
 
+func TestMoveMessagePublishesIMAPExpungeEvent(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	if err := service.MoveMessage(context.Background(), "user-1", "msg-1", "archive"); err != nil {
+		t.Fatalf("MoveMessage returned error: %v", err)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 1 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
+		t.Fatalf("events = %#v, want expunge event", events.events)
+	}
+}
+
+func TestBulkMoveMessagesPublishesIMAPExpungeEvents(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		imapUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, ModSeq: 3},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	updated, err := service.BulkMoveMessages(context.Background(), maildb.BulkMessageMoveRequest{
+		UserID:     "user-1",
+		MessageIDs: []string{"msg-1", "msg-2"},
+		FolderID:   "archive",
+	})
+	if err != nil {
+		t.Fatalf("BulkMoveMessages returned error: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[1].UID != 13 {
+		t.Fatalf("events = %#v, want two expunge events", events.events)
+	}
+}
+
 func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	t.Parallel()
 
