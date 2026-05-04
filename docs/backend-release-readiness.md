@@ -277,7 +277,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   when delivery events carry a safe original `.eml` storage path.
 - DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext identity metadata before it can reach outbound SMTP command generation or RFC 3464 report composition.
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
-- Attachment upload storage paths reject absolute, parent-traversal, backslash, and newline forms, and generated attachment object paths sanitize path segments before writing to storage.
+- Attachment upload storage paths reject absolute, parent-traversal, backslash,
+  newline, oversized total-key, and oversized segment forms, and generated
+  attachment object paths sanitize path segments before writing to storage.
 - Migration file guardrails now require every SQL migration to declare explicit
   goose Up/Down sections, including the legacy API-usage, push, IMAP, and
   audit-index migration range.
@@ -445,8 +447,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   limits before repository, storage, broker, or mailbox-event work.
 - Message and attachment body reads/deletes validate DB-returned storage object
   paths before calling the storage adapter, failing closed on absolute,
-  traversal, newline, backslash-bearing, or empty stored keys where a body is
-  required.
+  traversal, newline, backslash-bearing, oversized, or empty stored keys where a
+  body is required.
 - Local storage enforces the same strict object-key contract at the adapter
   boundary, rejecting absolute, traversal, newline, backslash-bearing,
   duplicate-separator, dot-segment, and otherwise non-canonical keys before
