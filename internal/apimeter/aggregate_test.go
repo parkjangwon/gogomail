@@ -25,7 +25,12 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 		"response_bytes":34,
 		"latency_ms":25,
 		"timestamp":"2026-05-04T15:30:00+09:00",
+		"tenant_id":"tenant-1",
+		"company_id":"company-1",
+		"domain_id":"domain-1",
 		"user_id":"user-1",
+		"api_key_id":"api-key-1",
+		"principal_id":"principal-1",
 		"auth_source":"bearer"
 	}`)
 	event, err := DecodeUsageEvent(payload)
@@ -49,6 +54,35 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 	}
 	if event.AuthSource != "bearer" {
 		t.Fatalf("AuthSource = %q, want bearer", event.AuthSource)
+	}
+	if event.TenantID != "tenant-1" || event.CompanyID != "company-1" || event.DomainID != "domain-1" {
+		t.Fatalf("identity dimensions = %+v", event)
+	}
+	if event.APIKeyID != "api-key-1" || event.PrincipalID != "principal-1" {
+		t.Fatalf("identity principals = %+v", event)
+	}
+}
+
+func TestDecodeUsageEventAcceptsV2Schema(t *testing.T) {
+	t.Parallel()
+
+	payload := json.RawMessage(`{
+		"event":"api.usage",
+		"schema_version":"2026-05-04.api-usage.v2",
+		"method":"GET",
+		"route":"GET /api/v1/messages",
+		"status":200,
+		"timestamp":"2026-05-04T00:00:00Z",
+		"tenant_id":"tenant-1",
+		"principal_id":"principal-1",
+		"auth_source":"bearer"
+	}`)
+	event, err := DecodeUsageEvent(payload)
+	if err != nil {
+		t.Fatalf("DecodeUsageEvent returned error: %v", err)
+	}
+	if event.TenantID != "tenant-1" || event.PrincipalID != "principal-1" || event.AuthSource != "bearer" {
+		t.Fatalf("event = %+v", event)
 	}
 }
 

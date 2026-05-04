@@ -24,6 +24,14 @@ func TestPostgresOutboxSinkWritesAPIUsageEvent(t *testing.T) {
 		Timestamp:     time.Date(2026, 5, 4, 1, 2, 3, 4, time.UTC),
 		UserID:        "user-1",
 		AuthSource:    "bearer",
+		Identity: Identity{
+			TenantID:   "tenant-1",
+			CompanyID:  "company-1",
+			DomainID:   "domain-1",
+			UserID:     "user-1",
+			APIKeyID:   "api-key-1",
+			AuthSource: "bearer",
+		},
 	})
 	if err != nil {
 		t.Fatalf("Record returned error: %v", err)
@@ -46,8 +54,8 @@ func TestPostgresOutboxSinkWritesAPIUsageEvent(t *testing.T) {
 	if payload["event"] != EventAPIUsage {
 		t.Fatalf("event = %v, want %q", payload["event"], EventAPIUsage)
 	}
-	if payload["schema_version"] != APIUsageSchemaV1 {
-		t.Fatalf("schema_version = %v, want %q", payload["schema_version"], APIUsageSchemaV1)
+	if payload["schema_version"] != APIUsageSchemaCurrent {
+		t.Fatalf("schema_version = %v, want %q", payload["schema_version"], APIUsageSchemaCurrent)
 	}
 	if payload["event_id"] == "" {
 		t.Fatal("event_id is empty")
@@ -60,6 +68,28 @@ func TestPostgresOutboxSinkWritesAPIUsageEvent(t *testing.T) {
 	}
 	if payload["auth_source"] != "bearer" {
 		t.Fatalf("auth_source = %v, want bearer", payload["auth_source"])
+	}
+	if payload["tenant_id"] != "tenant-1" || payload["company_id"] != "company-1" || payload["domain_id"] != "domain-1" {
+		t.Fatalf("identity dimensions = %+v", payload)
+	}
+	if payload["api_key_id"] != "api-key-1" || payload["principal_id"] != "user-1" {
+		t.Fatalf("identity principals = %+v", payload)
+	}
+}
+
+func TestAPIUsagePayloadFallsBackToLegacyEventIdentityFields(t *testing.T) {
+	t.Parallel()
+
+	payload := apiUsagePayload(Event{
+		Timestamp:  time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		UserID:     "user-1",
+		AuthSource: AuthSourceQueryUserID,
+	})
+	if payload["user_id"] != "user-1" || payload["principal_id"] != "user-1" {
+		t.Fatalf("payload identity = %+v", payload)
+	}
+	if payload["auth_source"] != AuthSourceQueryUserID {
+		t.Fatalf("auth_source = %v", payload["auth_source"])
 	}
 }
 
