@@ -223,6 +223,44 @@ func TestParseEMLWithOptionsLimitsAttachmentMetadata(t *testing.T) {
 	}
 }
 
+func TestParseEMLWithOptionsLimitsPartCount(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: many parts",
+		"Content-Type: multipart/mixed; boundary=frontier",
+		"",
+		"--frontier",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+		"--frontier",
+		"Content-Type: text/plain",
+		"Content-Disposition: attachment; filename=\"one.txt\"",
+		"",
+		"one",
+		"--frontier",
+		"Content-Type: text/plain",
+		"Content-Disposition: attachment; filename=\"two.txt\"",
+		"",
+		"two",
+		"--frontier--",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxParts: 2})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if !parsed.PartsTruncated {
+		t.Fatal("PartsTruncated = false, want true")
+	}
+	if len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "one.txt" {
+		t.Fatalf("Attachments = %+v, want only first attachment before part limit", parsed.Attachments)
+	}
+}
+
 func TestFallbackMessageIDIsDeterministicAndRecipientOrderIndependent(t *testing.T) {
 	t.Parallel()
 

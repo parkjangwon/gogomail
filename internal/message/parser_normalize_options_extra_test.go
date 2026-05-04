@@ -10,4 +10,7 @@ func TestNormalizeParseOptionsAppliesSafeDefaults(t *testing.T) {
 	if opts.MaxAttachments != 1000 {
 		t.Fatalf("MaxAttachments = %d, want 1000", opts.MaxAttachments)
 	}
+	if opts.MaxParts != 10000 {
+		t.Fatalf("MaxParts = %d, want 10000", opts.MaxParts)
+	}
 }
