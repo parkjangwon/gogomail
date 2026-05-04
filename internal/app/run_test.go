@@ -9,6 +9,8 @@ import (
 	"time"
 
 	gosmtp "github.com/emersion/go-smtp"
+	"github.com/gogomail/gogomail/internal/apimeter"
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -98,7 +100,7 @@ func TestAPIMeteringHandlerDefaultsToOriginalHandler(t *testing.T) {
 	t.Parallel()
 
 	next := &sentinelHTTPHandler{}
-	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "none"}, nil, nil)
+	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "none"}, nil, nil, nil, "")
 	if handler != next {
 		t.Fatal("apiMeteringHandler wrapped handler when backend is none")
 	}
@@ -113,7 +115,7 @@ func TestAPIMeteringHandlerWrapsSlogBackend(t *testing.T) {
 	handler := apiMeteringHandler(next, config.Config{
 		APIMeteringBackend: "slog",
 		APIMeteringTimeout: 100 * time.Millisecond,
-	}, nil, nil)
+	}, nil, nil, nil, "")
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
@@ -127,9 +129,44 @@ func TestAPIMeteringHandlerRequiresOutboxDB(t *testing.T) {
 	t.Parallel()
 
 	next := &sentinelHTTPHandler{}
-	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "outbox"}, nil, nil)
+	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "outbox"}, nil, nil, nil, "")
 	if handler != next {
 		t.Fatal("apiMeteringHandler wrapped outbox backend without database handle")
+	}
+}
+
+func TestMeteringIdentityResolverUsesJWTClaims(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	token, err := manager.Sign(auth.Claims{UserID: "user-1", DomainID: "domain-1"}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	id := meteringIdentityResolver(manager, "")(req)
+	if id.UserID != "user-1" || id.DomainID != "domain-1" {
+		t.Fatalf("identity = %+v", id)
+	}
+	if id.AuthSource != apimeter.AuthSourceBearer || id.PrincipalID != "user-1" {
+		t.Fatalf("identity principal = %+v", id)
+	}
+}
+
+func TestMeteringIdentityResolverUsesAdminToken(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/daily", nil)
+	req.Header.Set("X-Admin-Token", "secret")
+
+	id := meteringIdentityResolver(nil, "secret")(req)
+	if id.AuthSource != apimeter.AuthSourceAdminToken || id.PrincipalID != apimeter.AuthSourceAdminToken {
+		t.Fatalf("identity = %+v", id)
 	}
 }
 

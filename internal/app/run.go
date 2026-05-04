@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"database/sql"
 	"errors"
@@ -844,6 +845,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	mux := http.NewServeMux()
 	httpapi.RegisterHealthRoutes(mux)
 
+	var tokenManager *auth.TokenManager
 	if mode == ModeMailAPI {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
@@ -860,7 +862,6 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		if searchIDSource != nil {
 			service.WithSearchIDSource(searchIDSource)
 		}
-		var tokenManager *auth.TokenManager
 		if cfg.AuthJWTSecret != "" {
 			tokenManager, err = auth.NewTokenManager(cfg.AuthJWTSecret)
 			if err != nil {
@@ -904,7 +905,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		meteringDB = db
 	}
 
-	handler := apiMeteringHandler(mux, cfg, logger, meteringDB)
+	handler := apiMeteringHandler(mux, cfg, logger, meteringDB, tokenManager, cfg.AdminToken)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handler,
@@ -930,7 +931,11 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	}
 }
 
-func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger, outboxDB *sql.DB) http.Handler {
+func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger, outboxDB *sql.DB, tokenManager *auth.TokenManager, adminToken string) http.Handler {
+	opts := []apimeter.Option{
+		apimeter.WithTimeout(cfg.APIMeteringTimeout),
+		apimeter.WithIdentityResolver(meteringIdentityResolver(tokenManager, adminToken)),
+	}
 	switch strings.ToLower(strings.TrimSpace(cfg.APIMeteringBackend)) {
 	case "", "none":
 		return next
@@ -938,7 +943,7 @@ func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logge
 		if logger != nil {
 			logger.Info("api metering enabled", "backend", "slog", "timeout", cfg.APIMeteringTimeout.String())
 		}
-		return apimeter.Handler(next, apimeter.SlogSink{Logger: logger}, apimeter.WithTimeout(cfg.APIMeteringTimeout))
+		return apimeter.Handler(next, apimeter.SlogSink{Logger: logger}, opts...)
 	case "outbox":
 		if outboxDB == nil {
 			return next
@@ -946,10 +951,73 @@ func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logge
 		if logger != nil {
 			logger.Info("api metering enabled", "backend", "outbox", "timeout", cfg.APIMeteringTimeout.String())
 		}
-		return apimeter.Handler(next, apimeter.NewPostgresOutboxSink(outboxDB), apimeter.WithTimeout(cfg.APIMeteringTimeout))
+		return apimeter.Handler(next, apimeter.NewPostgresOutboxSink(outboxDB), opts...)
 	default:
 		return next
 	}
+}
+
+func meteringIdentityResolver(tokenManager *auth.TokenManager, adminToken string) apimeter.IdentityResolver {
+	return func(r *http.Request) apimeter.Identity {
+		if r == nil {
+			return apimeter.Identity{AuthSource: apimeter.AuthSourceAnonymous}
+		}
+		id := apimeter.Identity{
+			TenantID:    r.Header.Get("X-Gogomail-Tenant-ID"),
+			CompanyID:   r.Header.Get("X-Gogomail-Company-ID"),
+			DomainID:    r.Header.Get("X-Gogomail-Domain-ID"),
+			UserID:      r.URL.Query().Get("user_id"),
+			APIKeyID:    r.Header.Get("X-Gogomail-API-Key-ID"),
+			PrincipalID: r.Header.Get("X-Gogomail-Principal-ID"),
+			AuthSource:  apimeter.AuthSourceAnonymous,
+		}
+		bearer := meteringBearerToken(r)
+		if tokenManager != nil && bearer != "" {
+			if claims, err := tokenManager.Verify(bearer); err == nil {
+				id.UserID = claims.UserID
+				id.DomainID = claims.DomainID
+				id.AuthSource = apimeter.AuthSourceBearer
+				return id.Normalize()
+			}
+			id.AuthSource = apimeter.AuthSourceBearer
+			return id.Normalize()
+		}
+		if meteringAdminTokenMatches(r, adminToken) {
+			id.AuthSource = apimeter.AuthSourceAdminToken
+			return id.Normalize()
+		}
+		if bearer != "" {
+			id.AuthSource = apimeter.AuthSourceBearer
+			return id.Normalize()
+		}
+		if strings.TrimSpace(id.UserID) != "" {
+			id.AuthSource = apimeter.AuthSourceQueryUserID
+		}
+		return id.Normalize()
+	}
+}
+
+func meteringBearerToken(r *http.Request) string {
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		return strings.TrimSpace(authHeader[len("bearer "):])
+	}
+	return ""
+}
+
+func meteringAdminTokenMatches(r *http.Request, token string) bool {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return false
+	}
+	got := strings.TrimSpace(r.Header.Get("X-Admin-Token"))
+	if got == "" {
+		got = meteringBearerToken(r)
+	}
+	if got == "" || len(got) != len(token) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
 }
 
 func waitForShutdown(ctx context.Context, logger *slog.Logger, mode Mode) error {
