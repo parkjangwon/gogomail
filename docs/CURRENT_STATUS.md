@@ -92,11 +92,13 @@ guidance.
   oversized search backend responses cannot allocate unbounded highlight or hit
   payloads in the Mail API path, and trailing JSON tokens are rejected before
   search hits are accepted.
-- Shared EML text extraction and attachment metadata are bounded with UTF-8
-  boundary preservation; attachment filenames are basename-normalized,
-  control-character cleaned, and capped before reaching storage/API/search
-  consumers. Address-list and `References` metadata are capped with truncation
-  flags before downstream storage, search, and threading use them.
+- Shared EML text extraction, retained header metadata, and attachment
+  metadata are bounded with UTF-8 boundary preservation; attachment filenames
+  are basename-normalized, control-character cleaned, and capped before
+  reaching storage/API/search consumers. Subject, address display-name/address,
+  message-id, address-list, and `References` metadata are capped before
+  downstream storage, search, and threading use them, with truncation flags for
+  retained metadata/list caps.
 - Search responses can now opt into relevance sorting, rank scores, and bounded
   Postgres headline snippets while preserving date-sorted results by default.
 - Postgres and OpenSearch relevance search now share a metadata-first tuning

@@ -199,10 +199,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis outbox publishing trims event id, topic, partition key, and payload
   metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
-  MIME part-count cap with `PartsTruncated` signaling, and a large-body
-  benchmark. Retained address-list and `References` metadata are also capped
-  with truncation flags so oversized headers cannot expand downstream storage
-  and search metadata without bound.
+  MIME part-count cap with `PartsTruncated` signaling, retained subject,
+  address, message-id, and reference metadata caps with UTF-8-safe truncation or
+  oversized-ID dropping, and a large-body plus metadata-only benchmark. Retained
+  address-list and `References` counts are also capped with truncation flags so
+  oversized headers cannot expand downstream storage and search metadata without
+  bound.
 - EML attachment metadata detection includes inline filename parts and non-text
   inline parts without reading attachment bodies.
 - The audit `mail.stored` consumer trims event, tenant, recipient, subject,
