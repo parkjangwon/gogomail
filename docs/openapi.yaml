@@ -1206,6 +1206,23 @@ paths:
           $ref: "#/components/responses/PushNotificationAttempts"
         default:
           $ref: "#/components/responses/Error"
+  /push-notification-attempts/{id}/outcome:
+    patch:
+      operationId: updateAdminPushNotificationOutcome
+      summary: Admin push notification provider outcome update
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushNotificationOutcomeUpdateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /push-notification-stats:
     get:
       operationId: getAdminPushNotificationStats
@@ -3939,6 +3956,24 @@ components:
         attempted_at:
           type: string
           format: date-time
+    PushNotificationOutcomeUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [queued, delivered, failed, invalid_token]
+        error_message:
+          type: string
+          maxLength: 2000
+        provider_message_id:
+          type: string
+          maxLength: 500
+          description: Vendor-assigned delivery id when a push adapter reports one.
+        provider_status:
+          type: string
+          maxLength: 500
+          description: Vendor-specific delivery status or reason code.
     PushNotificationAttemptsEnvelope:
       type: object
       required: [push_notification_attempts]

@@ -562,6 +562,7 @@ Implementation order:
 503. Admin push-notification attempt and stats repository filters now reject invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL dispatch, aligning database access with HTTP query guardrails.
 504. Push notification outcome recording now rejects invalid-UTF-8, CR/LF-bearing, or oversized attempt IDs before SQL update dispatch, keeping future provider adapters from sending unsafe attempt keys into storage.
 505. Push notification candidate recording now rejects invalid-UTF-8, CR/LF-bearing, or oversized message/user/device/company/domain IDs before SQL insert dispatch, and rejects unsupported platforms at the recorder boundary.
+506. Admin API now exposes `PATCH /admin/v1/push-notification-attempts/{id}/outcome` so authenticated operators or external push gateways can record queued, delivered, failed, or invalid-token outcomes with bounded provider diagnostics.
 
 ## Deferred until backend contracts stabilize
 

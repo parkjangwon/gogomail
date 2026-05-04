@@ -132,6 +132,13 @@ stream handler to return an error for retry.
 
 First-party FCM, APNs, and Web Push delivery adapters are intentionally future
 work. Until those adapters exist, provider-specific delivered, failed, and
-invalid-token outcomes should be recorded by a future adapter or an operator
-workflow that updates `push_notification_attempts` through a dedicated backend
-surface.
+invalid-token outcomes can be recorded through the authenticated Admin API:
+
+```bash
+PATCH /admin/v1/push-notification-attempts/{attempt_id}/outcome
+```
+
+The outcome body supports `status` (`queued`, `delivered`, `failed`, or
+`invalid_token`), plus bounded `error_message`, `provider_message_id`, and
+`provider_status` diagnostics. `invalid_token` soft-deletes the matching push
+device in the same database transaction.

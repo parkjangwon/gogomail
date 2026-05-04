@@ -222,13 +222,15 @@ per resolved device before invoking the current sink. After a successful sink
 handoff, the worker records `queued` for each generated attempt id; if the sink
 fails, the worker records `failed` with the sink error while still returning the
 handler error so the event can be retried by the stream consumer. The generated
-attempt id is attached to each sink target so future vendor
-adapters can update that exact row with delivered, failed, or invalid-token
-outcomes without coupling notification delivery to the SMTP transaction. Outcome
-updates are available inside `internal/pushnotify` and are not exposed as a
-public API. Outcomes may also record provider-specific message IDs and status
-codes for adapter audit. An `invalid_token` outcome soft-deletes the matching
-user device in the same database transaction as the attempt update.
+attempt id is attached to each sink target so future vendor adapters can update
+that exact row with delivered, failed, or invalid-token outcomes without
+coupling notification delivery to the SMTP transaction. Admin API exposes
+`PATCH /admin/v1/push-notification-attempts/{id}/outcome` for authenticated
+operator/provider handoff updates. Supported outcome statuses are `queued`,
+`delivered`, `failed`, and `invalid_token`; outcomes may also record bounded
+`error_message`, `provider_message_id`, and `provider_status` values for
+adapter audit. An `invalid_token` outcome soft-deletes the matching user device
+in the same database transaction as the attempt update.
 
 The committed `mail.stored` event includes
 `schema_version: "2026-05-04.mail-stored.v1"` plus message, tenant, recipient,

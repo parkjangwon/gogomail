@@ -271,6 +271,10 @@ guidance.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status, user, platform, device,
   provider status, provider message id, or recent time window.
+- Admin API exposes
+  `PATCH /admin/v1/push-notification-attempts/{id}/outcome` for authenticated
+  operator/provider handoff updates to queued, delivered, failed, or
+  invalid-token outcomes with bounded provider diagnostics.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for a compact
   active-device and attempt-status summary, with optional `user_id` and `since`
   scoping for user-level and recent-window troubleshooting.
@@ -285,8 +289,8 @@ guidance.
 - The push worker marks attempts `queued` after a successful sink handoff while
   marking failed sink handoffs as `failed` with the sink error before returning
   the handler error for Redis stream retry.
-- `internal/pushnotify` can update attempt outcomes to queued, delivered,
-  failed, or invalid-token without exposing that mutation as a public API.
+- Existing push attempts can be updated to queued, delivered, failed, or
+  invalid-token outcomes through the internal recorder or Admin API.
 - Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
   oversized attempt IDs before SQL update dispatch.
 - Invalid-token outcomes automatically soft-delete the affected push device in

@@ -3046,6 +3046,71 @@ func TestAdminPushNotificationAttemptsHandlerRejectsUnsafeFilters(t *testing.T) 
 	}
 }
 
+func TestAdminPushNotificationOutcomeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := strings.NewReader(`{"status":"delivered","provider_message_id":"provider-message-1","provider_status":"accepted","error_message":"ok"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/push-notification-attempts/attempt-1/outcome", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushOutcome.AttemptID != "attempt-1" ||
+		service.lastPushOutcome.Status != "delivered" ||
+		service.lastPushOutcome.ProviderMessageID != "provider-message-1" ||
+		service.lastPushOutcome.ProviderStatus != "accepted" ||
+		service.lastPushOutcome.ErrorMessage != "ok" {
+		t.Fatalf("lastPushOutcome = %+v", service.lastPushOutcome)
+	}
+	if !strings.Contains(rec.Body.String(), `"id":"attempt-1"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminPushNotificationOutcomeHandlerRejectsUnsafeID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/push-notification-attempts/bad%0Aid/outcome", strings.NewReader(`{"status":"failed"}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushOutcome.AttemptID != "" {
+		t.Fatalf("dispatched outcome %+v", service.lastPushOutcome)
+	}
+}
+
+func TestAdminPushNotificationOutcomeHandlerRejectsInvalidBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/push-notification-attempts/attempt-1/outcome", strings.NewReader(`{"status":"candidate"}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushOutcome.Status != "candidate" {
+		t.Fatalf("lastPushOutcome = %+v", service.lastPushOutcome)
+	}
+}
+
 func TestAdminPushNotificationStatsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -3804,6 +3869,7 @@ type fakeAdminService struct {
 	lastCreateAPIUsageExportArtifact            maildb.CreateAPIUsageExportArtifactRequest
 	lastWriteAPIUsageExportArtifact             maildb.WriteAPIUsageExportArtifactRequest
 	lastPushAttemptList                         maildb.PushNotificationAttemptListRequest
+	lastPushOutcome                             maildb.UpdatePushNotificationOutcomeRequest
 	lastPushNotificationStats                   maildb.PushNotificationStatsRequest
 	lastCreateUser                              maildb.CreateUserRequest
 	lastCreateDKIMKey                           maildb.CreateDKIMKeyInput
@@ -4142,6 +4208,14 @@ func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, req maildb.E
 func (f *fakeAdminService) ListPushNotificationAttempts(_ context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error) {
 	f.lastPushAttemptList = req
 	return f.pushNotificationAttempts, nil
+}
+
+func (f *fakeAdminService) UpdatePushNotificationOutcome(_ context.Context, req maildb.UpdatePushNotificationOutcomeRequest) error {
+	f.lastPushOutcome = req
+	if req.Status != "queued" && req.Status != "delivered" && req.Status != "failed" && req.Status != "invalid_token" {
+		return fmt.Errorf("unsupported push notification outcome status")
+	}
+	return nil
 }
 
 func (f *fakeAdminService) GetPushNotificationStats(_ context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error) {
