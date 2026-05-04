@@ -1560,6 +1560,21 @@ paths:
       summary: Admin suppression list
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: email
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: reason
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/SuppressionList"

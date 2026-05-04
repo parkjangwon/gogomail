@@ -436,7 +436,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /api-usage/ledger/retention-runs":                 {"limit", "tenant_id", "principal_id", "created_from", "created_to"},
 		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},
 		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
-		"GET /suppression-list":                                {"limit"},
+		"GET /suppression-list":                                {"limit", "domain_id", "email", "reason"},
 		"GET /trusted-relays":                                  {"limit"},
 		"GET /delivery-routes":                                 {"limit"},
 		"GET /delivery-routes/resolve":                         {"domain"},
