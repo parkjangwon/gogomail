@@ -1136,7 +1136,7 @@ components:
           $ref: "#/components/schemas/MessageDetail"
     SendQueued:
       type: object
-      required: [id, message_id, farm]
+      required: [id, message_id, farm, send_status, delivery_status, bounce_status]
       properties:
         id:
           type: string
@@ -1144,6 +1144,15 @@ components:
           type: string
         farm:
           type: string
+        send_status:
+          type: string
+          enum: [queued]
+        delivery_status:
+          type: string
+          enum: [pending]
+        bounce_status:
+          type: string
+          enum: [none]
     SendQueuedEnvelope:
       type: object
       required: [message]

@@ -368,6 +368,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		result = mailservice.NormalizeSendTextResult(result)
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
 	})
 
@@ -491,6 +492,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		result = mailservice.NormalizeSendTextResult(result)
 
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
 	})

@@ -374,9 +374,25 @@ type SendTextRequest struct {
 }
 
 type SendTextResult struct {
-	ID           string        `json:"id"`
-	RFCMessageID string        `json:"message_id"`
-	Farm         outbound.Farm `json:"farm"`
+	ID             string        `json:"id"`
+	RFCMessageID   string        `json:"message_id"`
+	Farm           outbound.Farm `json:"farm"`
+	SendStatus     string        `json:"send_status"`
+	DeliveryStatus string        `json:"delivery_status"`
+	BounceStatus   string        `json:"bounce_status"`
+}
+
+func NormalizeSendTextResult(result SendTextResult) SendTextResult {
+	if strings.TrimSpace(result.SendStatus) == "" {
+		result.SendStatus = "queued"
+	}
+	if strings.TrimSpace(result.DeliveryStatus) == "" {
+		result.DeliveryStatus = "pending"
+	}
+	if strings.TrimSpace(result.BounceStatus) == "" {
+		result.BounceStatus = "none"
+	}
+	return result
 }
 
 func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) (SendTextResult, error) {
@@ -503,7 +519,14 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		return SendTextResult{}, err
 	}
 
-	return SendTextResult{ID: id, RFCMessageID: composed.MessageID, Farm: farm}, nil
+	return NormalizeSendTextResult(SendTextResult{
+		ID:             id,
+		RFCMessageID:   composed.MessageID,
+		Farm:           farm,
+		SendStatus:     "queued",
+		DeliveryStatus: "pending",
+		BounceStatus:   "none",
+	}), nil
 }
 
 func (s *Service) markSourceMessageAfterSend(ctx context.Context, req SendTextRequest) error {

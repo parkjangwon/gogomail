@@ -56,6 +56,12 @@ Successful mutation responses use one of:
 - `{"status":"ok","id":"..."}`
 - `{"status":"ok","updated":2}`
 
+Mail API send responses use `{"message":{...}}` with explicit status fields:
+
+- `send_status: "queued"` means the message has been accepted into backend outbound processing.
+- `delivery_status: "pending"` means no final delivery result has been recorded yet.
+- `bounce_status: "none"` means no bounce has been generated for this queued send response.
+
 Errors use the stable envelope:
 
 ```json

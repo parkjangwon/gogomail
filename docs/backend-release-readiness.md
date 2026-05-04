@@ -12,6 +12,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment upload size is guarded in HTTP and service layers, including multipart request caps and declared-size consistency checks.
 - Draft-to-send uses the normal outbound send path, then closes the source draft and links it to the sent message.
 - Draft attachment uploads move to the sent message during draft-to-send, keeping sent folder detail and attachment list views consistent.
+- Mail API send responses explicitly expose queued send, pending delivery, and no-bounce status fields so generated clients can model send lifecycle state without guessing from queue internals.
 - Detail reads mark unread messages as read while avoiding redundant writes for already-read messages.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, and upload size.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.

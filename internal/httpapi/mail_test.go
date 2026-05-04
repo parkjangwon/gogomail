@@ -737,6 +737,11 @@ func TestSendMessageHandler(t *testing.T) {
 	if len(service.lastSend.To) != 1 || service.lastSend.To[0].Email != "recipient@example.net" {
 		t.Fatalf("lastSend.To = %+v", service.lastSend.To)
 	}
+	if !strings.Contains(rec.Body.String(), `"send_status":"queued"`) ||
+		!strings.Contains(rec.Body.String(), `"delivery_status":"pending"`) ||
+		!strings.Contains(rec.Body.String(), `"bounce_status":"none"`) {
+		t.Fatalf("send response missing status contract: %s", rec.Body.String())
+	}
 }
 
 func TestSendReplyHandlerPassesSourceMessageID(t *testing.T) {
