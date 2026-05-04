@@ -143,6 +143,8 @@ guidance.
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`
   bounds, preventing accidental all-ledger checkpoints.
+- API usage ledger/export/retention tenant and principal query filters are
+  trimmed at the Admin API boundary before billing/export service dispatch.
 - API usage export batches can now carry external artifact metadata rows with
   object key, content type, byte count, SHA-256, event count, and JSON metadata.
   Artifacts are deduplicated per batch by object key and SHA-256.

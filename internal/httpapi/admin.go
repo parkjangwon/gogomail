@@ -1302,8 +1302,8 @@ func safeSHA256Header(value string) string {
 func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerListRequest, bool) {
 	req := maildb.APIUsageLedgerListRequest{
 		Limit:       limit,
-		TenantID:    r.URL.Query().Get("tenant_id"),
-		PrincipalID: r.URL.Query().Get("principal_id"),
+		TenantID:    strings.TrimSpace(r.URL.Query().Get("tenant_id")),
+		PrincipalID: strings.TrimSpace(r.URL.Query().Get("principal_id")),
 	}
 	from, ok := parseOptionalRFC3339Query(w, r, "from")
 	if !ok {
@@ -1337,8 +1337,8 @@ func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request)
 	}
 	return maildb.APIUsageLedgerRetentionRequest{
 		Cutoff:      cutoff,
-		TenantID:    r.URL.Query().Get("tenant_id"),
-		PrincipalID: r.URL.Query().Get("principal_id"),
+		TenantID:    strings.TrimSpace(r.URL.Query().Get("tenant_id")),
+		PrincipalID: strings.TrimSpace(r.URL.Query().Get("principal_id")),
 	}, true
 }
 
