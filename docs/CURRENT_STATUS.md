@@ -171,6 +171,9 @@ The platform hardening sprint completed the following:
 - Search indexing boundary: bounded received body extraction runs in
   `search-index-worker` and stores Postgres search documents outside SMTP hot
   paths.
+- OpenSearch indexing has a first `internal/searchindex` writer adapter behind
+  the same indexing interface, but the worker is not wired to it by
+  configuration yet.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.
@@ -215,7 +218,7 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Add OpenSearch adapter behind the search indexing boundary.
+1. Wire the OpenSearch adapter into search-index-worker configuration.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. Wire mailbox event publication from append/flag/move/delete paths behind the
    IMAP gateway boundary.
