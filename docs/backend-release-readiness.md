@@ -33,6 +33,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   at the HTTP boundary before service dispatch.
 - Mail and Admin API JSON request bodies reject trailing JSON tokens instead of
   accepting the first object and ignoring the rest of the body.
+- Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
+  `filename*` in `Content-Disposition` while keeping responses private
+  `no-store`.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.

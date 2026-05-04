@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -761,11 +762,27 @@ func bearerToken(r *http.Request) string {
 }
 
 func contentDispositionAttachment(filename string) string {
-	filename = strings.NewReplacer("\\", "_", `"`, "_", "\r", "_", "\n", "_").Replace(strings.TrimSpace(filename))
-	if filename == "" {
-		filename = "attachment"
+	utf8Name := strings.NewReplacer("\\", "_", `"`, "_", "\r", "_", "\n", "_").Replace(strings.TrimSpace(filename))
+	if utf8Name == "" {
+		utf8Name = "attachment"
 	}
-	return `attachment; filename="` + filename + `"`
+	asciiName := asciiAttachmentFilename(utf8Name)
+	return `attachment; filename="` + asciiName + `"; filename*=UTF-8''` + url.PathEscape(utf8Name)
+}
+
+func asciiAttachmentFilename(filename string) string {
+	var builder strings.Builder
+	for _, r := range filename {
+		if r >= 0x20 && r <= 0x7e {
+			builder.WriteRune(r)
+			continue
+		}
+		builder.WriteByte('_')
+	}
+	if builder.Len() == 0 {
+		return "attachment"
+	}
+	return builder.String()
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

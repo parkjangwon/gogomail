@@ -425,6 +425,8 @@ The platform hardening sprint completed the following:
   error responses for size-cap failures.
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens
   before service dispatch.
+- Attachment download responses now emit both ASCII fallback and UTF-8
+  `filename*` `Content-Disposition` parameters for internationalized filenames.
 
 Next focus areas:
 
