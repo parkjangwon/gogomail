@@ -179,6 +179,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   oversized secrets before MAC generation.
 - API usage export HMAC and Ed25519 signature verification rejects incorrectly
   sized signature hex before decoding.
+- Remote Ed25519 manifest signer responses reject oversized bodies and trailing
+  JSON tokens before signature evidence is accepted.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed

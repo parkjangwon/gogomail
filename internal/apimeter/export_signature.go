@@ -20,6 +20,7 @@ const (
 	maxExportManifestSignatureKeyIDBytes       = 200
 	maxExportManifestSigningSecretBytes        = 4096
 	maxRemoteSignerTokenBytes                  = 4096
+	maxRemoteSignerResponseBytes               = 1 << 20
 	hmacSHA256SignatureHexBytes                = 64
 	ed25519SignatureHexBytes                   = ed25519.SignatureSize * 2
 )
@@ -222,8 +223,8 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return ExportManifestSignature{}, fmt.Errorf("remote signer returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
-	var signature ExportManifestSignature
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&signature); err != nil {
+	signature, err := decodeRemoteEd25519SignatureResponse(resp.Body)
+	if err != nil {
 		return ExportManifestSignature{}, fmt.Errorf("decode remote signer response: %w", err)
 	}
 	signature.Algorithm = strings.TrimSpace(signature.Algorithm)
@@ -248,6 +249,29 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 	}
 	if !valid {
 		return ExportManifestSignature{}, fmt.Errorf("remote signer returned an invalid signature")
+	}
+	return signature, nil
+}
+
+func decodeRemoteEd25519SignatureResponse(body io.Reader) (ExportManifestSignature, error) {
+	raw, err := io.ReadAll(io.LimitReader(body, maxRemoteSignerResponseBytes+1))
+	if err != nil {
+		return ExportManifestSignature{}, err
+	}
+	if len(raw) > maxRemoteSignerResponseBytes {
+		return ExportManifestSignature{}, fmt.Errorf("remote signer response is too large")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	var signature ExportManifestSignature
+	if err := decoder.Decode(&signature); err != nil {
+		return ExportManifestSignature{}, err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return ExportManifestSignature{}, fmt.Errorf("remote signer response must contain a single JSON value")
+		}
+		return ExportManifestSignature{}, err
 	}
 	return signature, nil
 }

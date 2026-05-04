@@ -232,6 +232,55 @@ func TestRemoteEd25519ExportManifestSignerRejectsInvalidRemoteSignature(t *testi
 	}
 }
 
+func TestRemoteEd25519ExportManifestSignerRejectsOversizedResponse(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("e", 64)
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", maxRemoteSignerResponseBytes+1)))
+	}))
+	defer server.Close()
+
+	_, err := (RemoteEd25519ExportManifestSigner{
+		Endpoint:  server.URL,
+		KeyID:     "remote-key-1",
+		PublicKey: publicKey,
+		Client:    server.Client(),
+	}).SignExportManifestDigest(digest)
+	if err == nil || !strings.Contains(err.Error(), "response is too large") {
+		t.Fatalf("err = %v, want oversized response error", err)
+	}
+}
+
+func TestRemoteEd25519ExportManifestSignerRejectsTrailingResponseTokens(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("e", 64)
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize)))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(ExportManifestSignature{
+			Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+			KeyID:           "remote-key-1",
+			SignedDigestHex: digest,
+			SignatureHex:    hex.EncodeToString(ed25519.Sign(privateKey, []byte(digest))),
+		})
+		_, _ = w.Write([]byte(`{"extra":true}`))
+	}))
+	defer server.Close()
+
+	_, err := (RemoteEd25519ExportManifestSigner{
+		Endpoint:  server.URL,
+		KeyID:     "remote-key-1",
+		PublicKey: publicKey,
+		Client:    server.Client(),
+	}).SignExportManifestDigest(digest)
+	if err == nil || !strings.Contains(err.Error(), "single JSON value") {
+		t.Fatalf("err = %v, want trailing token error", err)
+	}
+}
+
 func TestHMACExportManifestSignerRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
