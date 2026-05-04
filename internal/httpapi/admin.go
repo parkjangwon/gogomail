@@ -2048,7 +2048,11 @@ func parseAPIUsageAggregateListRequest(w http.ResponseWriter, r *http.Request, l
 }
 
 func parseOptionalHTTPStatusQuery(w http.ResponseWriter, r *http.Request, key string) (int, bool) {
-	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	raw, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return 0, false
+	}
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return 0, true
 	}
@@ -2232,7 +2236,11 @@ func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit 
 }
 
 func parseOptionalRFC3339Query(w http.ResponseWriter, r *http.Request, key string) (time.Time, bool) {
-	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	raw, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return time.Time{}, false
+	}
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return time.Time{}, true
 	}
@@ -2247,7 +2255,11 @@ func parseOptionalRFC3339Query(w http.ResponseWriter, r *http.Request, key strin
 const maxAdminQueryFilterBytes = 1024
 
 func parseBoundedAdminQuery(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
-	value := strings.TrimSpace(r.URL.Query().Get(key))
+	value, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
 	if strings.ContainsAny(value, "\r\n") {
 		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
 		return "", false

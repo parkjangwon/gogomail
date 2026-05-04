@@ -3503,6 +3503,66 @@ func TestAdminGetUserHandler(t *testing.T) {
 	}
 }
 
+func TestAdminHandlersRejectDuplicateScalarQuery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		path       string
+		dispatched func(*fakeAdminService) bool
+	}{
+		{
+			name: "duplicate limit",
+			path: "/admin/v1/domains?limit=5&limit=10",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastLimit != 0
+			},
+		},
+		{
+			name: "duplicate bool",
+			path: "/admin/v1/users?password_configured=true&password_configured=false",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastUserList.PasswordConfigured != nil
+			},
+		},
+		{
+			name: "duplicate text filter",
+			path: "/admin/v1/users?domain_id=domain-1&domain_id=domain-2",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDomainID != ""
+			},
+		},
+		{
+			name: "duplicate deep",
+			path: "/admin/v1/api-usage/export-batches/api-usage-export-1/handoff-readiness?deep=true&deep=false",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for duplicate scalar query: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminCreateUserHandler(t *testing.T) {
 	t.Parallel()
 

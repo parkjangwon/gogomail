@@ -914,6 +914,9 @@ The platform hardening sprint completed the following:
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens and
   unknown object fields before service dispatch, and common JSON request
   decoding is capped at 1 MiB before parsing.
+- Mail and Admin API scalar query parameters now reject duplicate values before
+  dispatch, preventing ambiguous user IDs, list limits, booleans, timestamps,
+  and operational filters from being interpreted by first-value wins behavior.
 - API error responses now use `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`, with the reusable OpenAPI error response
   documenting both headers for generated clients.

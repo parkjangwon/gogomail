@@ -164,7 +164,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		cursor, err := maildb.DecodeMessageListCursor(r.URL.Query().Get("cursor"))
+		cursorRaw, ok := singleQueryValue(w, r, "cursor")
+		if !ok {
+			return
+		}
+		cursor, err := maildb.DecodeMessageListCursor(cursorRaw)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -954,7 +958,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 }
 
 func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
-	raw := strings.TrimSpace(r.URL.Query().Get("limit"))
+	raw, ok := singleQueryValue(w, r, "limit")
+	if !ok {
+		return 0, false
+	}
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return 0, true
 	}
@@ -979,7 +987,11 @@ func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
 }
 
 func parseOptionalBoolQuery(w http.ResponseWriter, r *http.Request, key string) (*bool, bool) {
-	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	raw, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return nil, false
+	}
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, true
 	}
@@ -997,6 +1009,18 @@ func parseOptionalBoolQuery(w http.ResponseWriter, r *http.Request, key string) 
 		return nil, false
 	}
 	return &value, true
+}
+
+func singleQueryValue(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	values, ok := r.URL.Query()[key]
+	if !ok || len(values) == 0 {
+		return "", true
+	}
+	if len(values) > 1 {
+		writeError(w, http.StatusBadRequest, key+" must not be repeated")
+		return "", false
+	}
+	return values[0], true
 }
 
 func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key string) (bool, bool) {
@@ -1063,7 +1087,11 @@ func parseBoundedHTTPPathPair(w http.ResponseWriter, r *http.Request, firstKey s
 }
 
 func parseBoundedHTTPQuery(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {
-	value := strings.TrimSpace(r.URL.Query().Get(key))
+	value, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
 	return parseBoundedHTTPValue(w, key, value, required, maxBytes)
 }
 

@@ -74,6 +74,66 @@ func TestListMessagesHandler(t *testing.T) {
 	}
 }
 
+func TestMailHandlersRejectDuplicateScalarQuery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		path       string
+		dispatched func(*fakeMessageService) bool
+	}{
+		{
+			name: "duplicate user id",
+			path: "/api/v1/folders?user_id=user-1&user_id=user-2",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name: "duplicate limit",
+			path: "/api/v1/search?user_id=user-1&limit=10&limit=20",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastSearch.UserID != ""
+			},
+		},
+		{
+			name: "duplicate bool",
+			path: "/api/v1/search?user_id=user-1&has_attachment=true&has_attachment=false",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastSearch.UserID != ""
+			},
+		},
+		{
+			name: "duplicate cursor",
+			path: "/api/v1/messages?user_id=user-1&cursor=a&cursor=b",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for duplicate scalar query: %+v", service)
+			}
+		})
+	}
+}
+
 func TestListFoldersHandler(t *testing.T) {
 	t.Parallel()
 

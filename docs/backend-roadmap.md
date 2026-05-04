@@ -677,6 +677,7 @@ Implementation order:
 617. The shared HTTP server now has configurable and validated read, write, idle, read-header, and maximum-header guardrails for Mail/Admin/API-metered modes.
 618. Mail and Admin API JSON request decoding now rejects unknown object fields before service dispatch, making generated-client and OpenAPI drift visible as HTTP 400 errors.
 619. API error responses now return `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`, and the reusable OpenAPI error response documents both headers.
+620. Mail and Admin API scalar query parameters now reject duplicate values before dispatch, preventing HTTP parameter pollution ambiguity for user IDs, limits, booleans, timestamps, and operational filters.
 
 ## Deferred until backend contracts stabilize
 
