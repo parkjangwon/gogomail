@@ -444,6 +444,7 @@ Implementation order:
 385. Attachment downloads, API usage NDJSON exports, and stored usage artifact downloads now return `X-Content-Type-Options: nosniff`, with OpenAPI drift coverage to keep browser-facing stream responses from being MIME-sniffed.
 386. API metering auth-source dimensions now normalize to the fixed known set `anonymous|bearer|admin_token|query_user_id|unknown`, folding unexpected resolver values to `unknown` before ledger and aggregate storage to prevent billing dimension cardinality drift.
 387. API metering durable event metrics now clamp negative request bytes, response bytes, and latency to zero and default nonpositive request counts to one before ledger and aggregate storage, keeping replayed usage payloads inside database accounting constraints.
+388. API metering durable events now require nonblank method/route keys and HTTP-like status codes before ledger and aggregate storage, preventing malformed usage payloads from polluting billing/export dimensions.
 
 ## Deferred until backend contracts stabilize
 

@@ -122,6 +122,8 @@ guidance.
   to `unknown` before ledger/aggregate storage.
 - API metering durable event metrics clamp negative byte/latency values to zero
   and default nonpositive request counts to one before ledger/aggregate storage.
+- API metering durable events require nonblank method/route keys and HTTP-like
+  status codes before ledger/aggregate storage.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
   upserts. Admin API exposes bounded ledger list, NDJSON export, and stats
   endpoints for billing/export preparation while keeping HTTP request handling

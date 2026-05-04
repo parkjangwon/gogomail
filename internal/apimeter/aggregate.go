@@ -341,6 +341,17 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	if schemaVersion := strings.TrimSpace(raw.SchemaVersion); schemaVersion != "" && schemaVersion != APIUsageSchemaV1 && schemaVersion != APIUsageSchemaV2 {
 		return UsageEvent{}, fmt.Errorf("unsupported api usage schema_version %q", schemaVersion)
 	}
+	method := strings.TrimSpace(raw.Method)
+	if method == "" {
+		return UsageEvent{}, fmt.Errorf("api usage method is required")
+	}
+	route := strings.TrimSpace(raw.Route)
+	if route == "" {
+		return UsageEvent{}, fmt.Errorf("api usage route is required")
+	}
+	if raw.Status < 100 || raw.Status > 999 {
+		return UsageEvent{}, fmt.Errorf("api usage status must be between 100 and 999")
+	}
 	timestamp, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(raw.Timestamp))
 	if err != nil {
 		return UsageEvent{}, fmt.Errorf("parse api usage timestamp: %w", err)
@@ -353,8 +364,8 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		RawPayload:    append(json.RawMessage(nil), payload...),
 		Day:           day,
 		Month:         month,
-		Method:        strings.TrimSpace(raw.Method),
-		Route:         strings.TrimSpace(raw.Route),
+		Method:        method,
+		Route:         route,
 		Status:        raw.Status,
 		TenantID:      strings.TrimSpace(raw.TenantID),
 		CompanyID:     strings.TrimSpace(raw.CompanyID),
