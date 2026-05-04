@@ -2059,7 +2059,7 @@ func TestAdminUsersHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users?domain_id=domain-1&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users?domain_id=%20domain-1%20&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2511,7 +2511,7 @@ func TestAdminDKIMKeysHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/dkim-keys?domain_id=domain-1&limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/dkim-keys?domain_id=%20domain-1%20&limit=5", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2759,7 +2759,7 @@ func TestAdminResolveDeliveryRouteHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-routes/resolve?domain=mail.example.net", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-routes/resolve?domain=%20mail.example.net%20", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 

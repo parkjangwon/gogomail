@@ -442,6 +442,9 @@ The platform hardening sprint completed the following:
   preserving 400 for bad multipart syntax.
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
   the HTTP boundary before service dispatch.
+- Admin API domain query identifiers for user listing, DKIM key listing, and
+  delivery-route resolution are trimmed at the HTTP boundary before service
+  dispatch.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
   error responses for size-cap failures.
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens

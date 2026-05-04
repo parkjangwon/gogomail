@@ -307,7 +307,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		users, err := service.ListUsers(r.Context(), r.URL.Query().Get("domain_id"), limit)
+		users, err := service.ListUsers(r.Context(), strings.TrimSpace(r.URL.Query().Get("domain_id")), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -1127,7 +1127,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-routes/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		result, err := service.ResolveDeliveryRoute(r.Context(), r.URL.Query().Get("domain"))
+		result, err := service.ResolveDeliveryRoute(r.Context(), strings.TrimSpace(r.URL.Query().Get("domain")))
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1156,7 +1156,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		keys, err := service.ListDKIMKeys(r.Context(), r.URL.Query().Get("domain_id"), limit)
+		keys, err := service.ListDKIMKeys(r.Context(), strings.TrimSpace(r.URL.Query().Get("domain_id")), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
