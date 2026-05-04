@@ -1895,14 +1895,14 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=bounced&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=bounced&recipient_domain=example.net&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastDeliveryAttemptList.Limit != 10 || service.lastDeliveryAttemptList.Status != "bounced" || service.lastDeliveryAttemptList.Since.IsZero() {
+	if service.lastDeliveryAttemptList.Limit != 10 || service.lastDeliveryAttemptList.Status != "bounced" || service.lastDeliveryAttemptList.RecipientDomain != "example.net" || service.lastDeliveryAttemptList.Since.IsZero() {
 		t.Fatalf("lastDeliveryAttemptList = %+v", service.lastDeliveryAttemptList)
 	}
 }

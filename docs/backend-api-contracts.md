@@ -202,7 +202,8 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`;
-  optional `status` and RFC3339 `since` filters keep delivery triage bounded.
+  optional `status`, `recipient_domain`, and RFC3339 `since` filters keep
+  delivery triage bounded.
 - `GET /admin/v1/push-notification-attempts` returns `{"push_notification_attempts":[...]}`;
   optional `status`, `user_id`, and RFC3339 `since` filters keep fan-out
   inspection bounded.

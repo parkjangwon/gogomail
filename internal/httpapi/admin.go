@@ -877,9 +877,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		attempts, err := service.ListDeliveryAttempts(r.Context(), maildb.DeliveryAttemptListRequest{
-			Limit:  limit,
-			Status: r.URL.Query().Get("status"),
-			Since:  since,
+			Limit:           limit,
+			Status:          r.URL.Query().Get("status"),
+			RecipientDomain: r.URL.Query().Get("recipient_domain"),
+			Since:           since,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())

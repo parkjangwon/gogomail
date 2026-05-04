@@ -985,6 +985,12 @@ paths:
           schema:
             type: string
             enum: [delivered, failed, bounced, exhausted]
+        - name: recipient_domain
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Lower-cased recipient domain to inspect one destination domain.
         - name: since
           in: query
           required: false
