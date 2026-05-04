@@ -2361,6 +2361,9 @@ INSERT INTO api_usage_export_artifacts (
   event_count,
   metadata
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (batch_id, object_key) DO UPDATE SET
+  metadata = EXCLUDED.metadata
+WHERE api_usage_export_artifacts.sha256_hex = EXCLUDED.sha256_hex
 RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
   byte_count, sha256_hex, event_count, metadata`
 	var artifact APIUsageExportArtifactView
