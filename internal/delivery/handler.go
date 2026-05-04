@@ -57,14 +57,20 @@ type Transport interface {
 	Deliver(ctx context.Context, job Job) error
 }
 
+// ExhaustionHook is called once when all retries for a message are exhausted.
+type ExhaustionHook interface {
+	RecordExhausted(ctx context.Context, queued QueuedMessage, cause error) error
+}
+
 type Handler struct {
-	store        storage.Store
-	transport    Transport
-	recorder     Recorder
-	retry        RetryScheduler
-	metrics      Metrics
-	throttler    Throttler
-	routeCounter *RouteCounters
+	store          storage.Store
+	transport      Transport
+	recorder       Recorder
+	retry          RetryScheduler
+	metrics        Metrics
+	throttler      Throttler
+	routeCounter   *RouteCounters
+	exhaustionHook ExhaustionHook
 }
 
 func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
@@ -86,6 +92,11 @@ func (h *Handler) WithThrottler(throttler Throttler) *Handler {
 
 func (h *Handler) WithRouteCounters(counters *RouteCounters) *Handler {
 	h.routeCounter = counters
+	return h
+}
+
+func (h *Handler) WithExhaustionHook(hook ExhaustionHook) *Handler {
+	h.exhaustionHook = hook
 	return h
 }
 
@@ -126,7 +137,7 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 				}
 				if errors.Is(retryErr, ErrRetryExhausted) {
 					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
-					return nil
+					return h.notifyExhausted(ctx, queued, retryErr)
 				}
 				return retryErr
 			}
@@ -156,9 +167,9 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
 				if errors.Is(retryErr, ErrRetryExhausted) {
 					h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryExhausted, MetricFailed, retryErr))
-				} else {
-					h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryScheduled, MetricDeferred, err))
+					return h.notifyExhausted(ctx, retryJob.QueuedMessage, retryErr)
 				}
+				h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryScheduled, MetricDeferred, err))
 				return nil
 			}
 			return retryErr
@@ -181,9 +192,9 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
 				if errors.Is(retryErr, ErrRetryExhausted) {
 					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
-				} else {
-					h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
+					return h.notifyExhausted(ctx, queued, retryErr)
 				}
+				h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
 				return nil
 			}
 			return retryErr
@@ -527,6 +538,13 @@ func (h *Handler) recordPartialAttempts(ctx context.Context, job Job, partial *P
 				return fmt.Errorf("record partial failed attempt: %w", err)
 			}
 		}
+	}
+	return nil
+}
+
+func (h *Handler) notifyExhausted(ctx context.Context, queued QueuedMessage, cause error) error {
+	if h.exhaustionHook != nil {
+		return h.exhaustionHook.RecordExhausted(ctx, queued, cause)
 	}
 	return nil
 }

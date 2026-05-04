@@ -13,6 +13,7 @@ const (
 	AttemptDelivered AttemptStatus = "delivered"
 	AttemptFailed    AttemptStatus = "failed"
 	AttemptBounced   AttemptStatus = "bounced"
+	AttemptExhausted AttemptStatus = "exhausted"
 )
 
 type Attempt struct {

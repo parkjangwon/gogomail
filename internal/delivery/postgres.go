@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type PostgresRecorder struct {
@@ -95,6 +96,82 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 		return fmt.Errorf("insert delivery attempt event: %w", err)
 	}
 	return nil
+}
+
+func (r *PostgresRecorder) RecordExhausted(ctx context.Context, queued QueuedMessage, cause error) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin exhaustion transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	causeMsg := ""
+	if cause != nil {
+		causeMsg = truncateUTF8Bytes(cause.Error(), 2000)
+	}
+
+	const attemptQuery = `
+INSERT INTO delivery_attempts (
+  message_id, rfc_message_id, farm,
+  recipient, recipient_domain,
+  status, error_message, attempted_at
+) VALUES (
+  $1, $2, $3,
+  $4, $5,
+  'exhausted', $6, now()
+)`
+
+	for _, recipient := range queued.Recipients() {
+		_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
+		domain = strings.ToLower(strings.TrimSuffix(domain, "."))
+		if _, err := tx.ExecContext(ctx, attemptQuery,
+			queued.MessageID, queued.RFCMessageID, string(queued.Farm),
+			recipient.Email, domain, causeMsg,
+		); err != nil {
+			return fmt.Errorf("insert exhausted delivery attempt: %w", err)
+		}
+	}
+
+	payload, err := exhaustedEventPayload(queued, causeMsg)
+	if err != nil {
+		return err
+	}
+	const outboxQuery = `
+INSERT INTO outbox (topic, partition_key, payload, status)
+VALUES ('mail.event', $1, $2::jsonb, 'pending')`
+	if _, err := tx.ExecContext(ctx, outboxQuery, queued.MessageID, string(payload)); err != nil {
+		return fmt.Errorf("insert delivery_exhausted event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit exhaustion transaction: %w", err)
+	}
+	return nil
+}
+
+func exhaustedEventPayload(queued QueuedMessage, causeMsg string) ([]byte, error) {
+	recipients := make([]string, 0, len(queued.Recipients()))
+	for _, r := range queued.Recipients() {
+		recipients = append(recipients, r.Email)
+	}
+	raw, err := json.Marshal(map[string]any{
+		"event":          "mail.delivery_exhausted",
+		"message_id":     queued.MessageID,
+		"rfc_message_id": queued.RFCMessageID,
+		"company_id":     queued.CompanyID,
+		"domain_id":      queued.DomainID,
+		"farm":           string(queued.Farm),
+		"sender":         queued.From.Email,
+		"recipients":     recipients,
+		"error_message":  causeMsg,
+		"exhausted_at":   timeNow(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal delivery_exhausted event: %w", err)
+	}
+	return raw, nil
 }
 
 func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {

@@ -342,6 +342,27 @@ paths:
           $ref: "#/components/responses/DeliveryAttempts"
         default:
           $ref: "#/components/responses/Error"
+  /delivery-attempts/exhausted:
+    get:
+      operationId: listAdminExhaustedAttempts
+      summary: List delivery attempts where all retries were exhausted
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Exhausted delivery attempts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exhausted_attempts]
+                properties:
+                  exhausted_attempts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeliveryAttempt"
+        default:
+          $ref: "#/components/responses/Error"
   /suppression-list:
     get:
       operationId: listAdminSuppressionEntries

@@ -1315,6 +1315,58 @@ LIMIT $1`
 	return attempts, nil
 }
 
+func (r *Repository) ListExhaustedAttempts(ctx context.Context, limit int) ([]DeliveryAttemptView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  message_id::text,
+  rfc_message_id,
+  farm,
+  recipient,
+  recipient_domain,
+  status,
+  error_message,
+  attempted_at
+FROM delivery_attempts
+WHERE status = 'exhausted'
+ORDER BY attempted_at DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list exhausted delivery attempts: %w", err)
+	}
+	defer rows.Close()
+
+	var attempts []DeliveryAttemptView
+	for rows.Next() {
+		var attempt DeliveryAttemptView
+		if err := rows.Scan(
+			&attempt.ID,
+			&attempt.MessageID,
+			&attempt.RFCMessageID,
+			&attempt.Farm,
+			&attempt.Recipient,
+			&attempt.RecipientDomain,
+			&attempt.Status,
+			&attempt.ErrorMessage,
+			&attempt.AttemptedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan exhausted delivery attempt: %w", err)
+		}
+		attempts = append(attempts, attempt)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate exhausted delivery attempts: %w", err)
+	}
+	return attempts, nil
+}
+
 func (r *Repository) ListSuppressionEntries(ctx context.Context, limit int) ([]SuppressionEntry, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

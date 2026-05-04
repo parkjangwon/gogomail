@@ -1068,6 +1068,11 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([
 	return f.attempts, nil
 }
 
+func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {
+	f.lastLimit = limit
+	return nil, nil
+}
+
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {
 	f.lastLimit = limit
 	return f.suppression, nil
