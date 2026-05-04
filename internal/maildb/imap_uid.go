@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"net/mail"
 	"sort"
 	"strings"
@@ -19,6 +20,11 @@ type IMAPStoredMessage struct {
 	Summary     imapgw.MessageSummary
 	StoragePath string
 }
+
+const (
+	imapUIDBackfillDefaultLimit = 500
+	imapUIDBackfillMaxLimit     = 5000
+)
 
 func (r *Repository) ListIMAPMailboxes(ctx context.Context, userID string) ([]imapgw.Mailbox, error) {
 	if r.db == nil {
@@ -380,6 +386,114 @@ FOR UPDATE`
 	return summaries, nil
 }
 
+func (r *Repository) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]IMAPMessageUID, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if mailboxID == "" {
+		return nil, fmt.Errorf("mailbox_id is required")
+	}
+	limit = normalizeIMAPUIDBackfillLimit(limit)
+
+	if _, err := r.EnsureIMAPMailboxState(ctx, userID, mailboxID); err != nil {
+		return nil, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin imap uid backfill transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var uidNext uint32
+	var highestModSeq uint64
+	const lockMailbox = `
+SELECT uidnext, highest_modseq
+FROM imap_mailbox_state
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid
+FOR UPDATE`
+	if err := tx.QueryRowContext(ctx, lockMailbox, mailboxID, userID).Scan(&uidNext, &highestModSeq); err != nil {
+		return nil, fmt.Errorf("lock imap mailbox state: %w", err)
+	}
+
+	const selectMessages = `
+SELECT m.id::text
+FROM messages m
+LEFT JOIN imap_message_uid i ON i.message_id = m.id
+WHERE m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+  AND i.message_id IS NULL
+ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at), m.id
+LIMIT $3
+FOR UPDATE OF m`
+	rows, err := tx.QueryContext(ctx, selectMessages, userID, mailboxID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("select imap uid backfill messages: %w", err)
+	}
+	var messageIDs []string
+	for rows.Next() {
+		var messageID string
+		if err := rows.Scan(&messageID); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan imap uid backfill message: %w", err)
+		}
+		messageIDs = append(messageIDs, messageID)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close imap uid backfill rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap uid backfill messages: %w", err)
+	}
+
+	assigned := make([]IMAPMessageUID, 0, len(messageIDs))
+	const insertUID = `
+INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5)
+	RETURNING message_id::text, mailbox_id::text, uid, modseq`
+	for _, messageID := range messageIDs {
+		if uidNext == 0 || uidNext == math.MaxUint32 {
+			return nil, fmt.Errorf("imap uid space exhausted")
+		}
+		highestModSeq++
+		var result IMAPMessageUID
+		if err := tx.QueryRowContext(ctx, insertUID, messageID, mailboxID, userID, uidNext, highestModSeq).Scan(
+			&result.MessageID,
+			&result.MailboxID,
+			&result.UID,
+			&result.ModSeq,
+		); err != nil {
+			return nil, fmt.Errorf("insert imap uid backfill row: %w", err)
+		}
+		if err := imapgw.ValidateMessageUID(result); err != nil {
+			return nil, err
+		}
+		assigned = append(assigned, result)
+		uidNext++
+	}
+	if len(assigned) > 0 {
+		const updateMailbox = `
+UPDATE imap_mailbox_state
+SET uidnext = $2,
+    highest_modseq = $3,
+    updated_at = now()
+WHERE mailbox_id = $1::uuid`
+		if _, err := tx.ExecContext(ctx, updateMailbox, mailboxID, uidNext, int64(highestModSeq)); err != nil {
+			return nil, fmt.Errorf("update imap uid backfill state: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit imap uid backfill transaction: %w", err)
+	}
+	return assigned, nil
+}
+
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 	return imapgw.Mailbox{
 		ID:          imapgw.MailboxID(folder.ID),
@@ -472,6 +586,16 @@ func applyIMAPStoreFlagChanges(row imapMessageRow, changes imapStoreFlagChanges)
 
 func boolPointer(value bool) *bool {
 	return &value
+}
+
+func normalizeIMAPUIDBackfillLimit(limit int) int {
+	if limit <= 0 {
+		return imapUIDBackfillDefaultLimit
+	}
+	if limit > imapUIDBackfillMaxLimit {
+		return imapUIDBackfillMaxLimit
+	}
+	return limit
 }
 
 func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSummary {
