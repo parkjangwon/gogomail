@@ -1936,8 +1936,21 @@ components:
           type: integer
           minimum: 100
           maximum: 599
+        tenant_id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
         user_id:
           type: string
+        api_key_id:
+          type: string
+        principal_id:
+          type: string
+        auth_source:
+          type: string
+          enum: [anonymous, unknown, bearer, admin_token, query_user_id]
         request_count:
           type: integer
           format: int64
@@ -1991,8 +2004,21 @@ components:
           type: integer
           minimum: 100
           maximum: 599
+        tenant_id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
         user_id:
           type: string
+        api_key_id:
+          type: string
+        principal_id:
+          type: string
+        auth_source:
+          type: string
+          enum: [anonymous, unknown, bearer, admin_token, query_user_id]
         request_count:
           type: integer
           format: int64
