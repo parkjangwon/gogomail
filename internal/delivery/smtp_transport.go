@@ -217,27 +217,52 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 }
 
 func smtpMail(client *smtp.Client, job Job) error {
-	if !shouldSendOutboundDSNMailOptions(job) || !smtpClientSupports(client, "DSN") {
+	needsExtensions := shouldSendOutboundDSNMailOptions(job) ||
+		jobNeedsUTF8(job) && smtpClientSupports(client, "SMTPUTF8")
+	if !needsExtensions {
 		return client.Mail(job.From.Email)
 	}
 	parts := []string{"MAIL FROM:<" + job.From.Email + ">"}
 	if smtpClientSupports(client, "8BITMIME") {
 		parts = append(parts, "BODY=8BITMIME")
 	}
-	if smtpClientSupports(client, "SMTPUTF8") {
+	if jobNeedsUTF8(job) && smtpClientSupports(client, "SMTPUTF8") {
 		parts = append(parts, "SMTPUTF8")
 	}
-	if job.DSN.Return != "" {
-		parts = append(parts, "RET="+job.DSN.Return)
-	}
-	if job.DSN.EnvelopeID != "" {
-		parts = append(parts, "ENVID="+job.DSN.EnvelopeID)
+	if shouldSendOutboundDSNMailOptions(job) && smtpClientSupports(client, "DSN") {
+		if job.DSN.Return != "" {
+			parts = append(parts, "RET="+job.DSN.Return)
+		}
+		if job.DSN.EnvelopeID != "" {
+			parts = append(parts, "ENVID="+job.DSN.EnvelopeID)
+		}
 	}
 	return smtpCommand(client, 250, strings.Join(parts, " "))
 }
 
 func shouldSendOutboundDSNMailOptions(job Job) bool {
 	return job.From.Email != "" && (job.DSN.Return != "" || job.DSN.EnvelopeID != "")
+}
+
+func jobNeedsUTF8(job Job) bool {
+	if containsNonASCIIByte(job.From.Email) {
+		return true
+	}
+	for _, r := range job.Recipients() {
+		if containsNonASCIIByte(r.Email) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsNonASCIIByte(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] > 127 {
+			return true
+		}
+	}
+	return false
 }
 
 func smtpRcpt(client *smtp.Client, job Job, recipient outbound.Address) error {
@@ -247,7 +272,7 @@ func smtpRcpt(client *smtp.Client, job Job, recipient outbound.Address) error {
 	}
 	parts := []string{"RCPT TO:<" + recipient.Email + ">"}
 	parts = append(parts, options...)
-	return smtpCommand(client, 25, strings.Join(parts, " "))
+	return smtpCommand(client, 250, strings.Join(parts, " "))
 }
 
 func shouldSendOutboundDSNRcptOptions(job Job) bool {
