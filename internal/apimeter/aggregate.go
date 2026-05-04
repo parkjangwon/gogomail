@@ -135,7 +135,13 @@ INSERT INTO %s (
   method,
   route,
   status,
+  tenant_id,
+  company_id,
+  domain_id,
   user_id,
+  api_key_id,
+  principal_id,
+  auth_source,
   request_count,
   request_bytes,
   response_bytes,
@@ -143,8 +149,8 @@ INSERT INTO %s (
   latency_ms_max,
   first_seen_at,
   last_seen_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
-ON CONFLICT (%s, method, route, status, user_id)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now(), now())
+ON CONFLICT (%s, method, route, status, tenant_id, company_id, domain_id, user_id, api_key_id, principal_id, auth_source)
 DO UPDATE SET
   request_count = %[1]s.request_count + EXCLUDED.request_count,
   request_bytes = %[1]s.request_bytes + EXCLUDED.request_bytes,
@@ -152,6 +158,15 @@ DO UPDATE SET
   latency_ms_total = %[1]s.latency_ms_total + EXCLUDED.latency_ms_total,
   latency_ms_max = GREATEST(%[1]s.latency_ms_max, EXCLUDED.latency_ms_max),
   last_seen_at = GREATEST(%[1]s.last_seen_at, EXCLUDED.last_seen_at)`, table, bucketColumn, bucketColumn)
+	identity := Identity{
+		TenantID:    event.TenantID,
+		CompanyID:   event.CompanyID,
+		DomainID:    event.DomainID,
+		UserID:      event.UserID,
+		APIKeyID:    event.APIKeyID,
+		PrincipalID: event.PrincipalID,
+		AuthSource:  event.AuthSource,
+	}.Normalize()
 	if _, err := s.db.ExecContext(
 		ctx,
 		query,
@@ -159,7 +174,13 @@ DO UPDATE SET
 		event.Method,
 		event.Route,
 		event.Status,
-		event.UserID,
+		identity.TenantID,
+		identity.CompanyID,
+		identity.DomainID,
+		identity.UserID,
+		identity.APIKeyID,
+		identity.PrincipalID,
+		identity.AuthSource,
 		event.RequestCount,
 		event.RequestBytes,
 		event.ResponseBytes,

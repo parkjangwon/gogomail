@@ -173,8 +173,45 @@ func TestPostgresAggregateStoreUpsertsDailyUsage(t *testing.T) {
 	if len(db.queries) == 0 || !strings.Contains(db.queries[0], "INSERT INTO api_usage_daily") {
 		t.Fatalf("queries = %+v, want api_usage_daily upsert", db.queries)
 	}
+	if !strings.Contains(db.queries[0], "tenant_id, company_id, domain_id, user_id, api_key_id, principal_id, auth_source") {
+		t.Fatalf("query = %s", db.queries[0])
+	}
 	if db.argSets[0][1] != "GET" || db.argSets[0][2] != "GET /api/v1/messages" {
 		t.Fatalf("args = %+v", db.argSets[0])
+	}
+}
+
+func TestPostgresAggregateStoreUpsertsIdentityDimensions(t *testing.T) {
+	t.Parallel()
+
+	db := &fakeUsageSQL{}
+	store := NewPostgresAggregateStore(db)
+	err := store.AddUsage(context.Background(), UsageEvent{
+		Day:          time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:       "GET",
+		Route:        "GET /api/v1/messages",
+		Status:       200,
+		TenantID:     "tenant-1",
+		CompanyID:    "company-1",
+		DomainID:     "domain-1",
+		UserID:       "user-1",
+		APIKeyID:     "api-key-1",
+		PrincipalID:  "principal-1",
+		AuthSource:   "bearer",
+		RequestCount: 1,
+	})
+	if err != nil {
+		t.Fatalf("AddUsage returned error: %v", err)
+	}
+	args := db.argSets[0]
+	if args[4] != "tenant-1" || args[5] != "company-1" || args[6] != "domain-1" {
+		t.Fatalf("aggregate dimension args = %+v", args)
+	}
+	if args[7] != "user-1" || args[8] != "api-key-1" || args[9] != "principal-1" || args[10] != "bearer" {
+		t.Fatalf("aggregate principal args = %+v", args)
+	}
+	if !strings.Contains(db.queries[0], "ON CONFLICT (day, method, route, status, tenant_id, company_id, domain_id, user_id, api_key_id, principal_id, auth_source)") {
+		t.Fatalf("query = %s", db.queries[0])
 	}
 }
 
