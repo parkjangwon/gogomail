@@ -87,6 +87,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   CR/LF-bearing event names before worker dispatch.
 - Redis stream event decoding trims outbox id, partition key, and payload
   fields and rejects blank metadata before handler dispatch.
+- Redis outbox publishing trims event id, topic, partition key, and payload
+  metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
   MIME part-count cap with `PartsTruncated` signaling, and a large-body
   benchmark. Retained address-list and `References` metadata are also capped
