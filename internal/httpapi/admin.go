@@ -47,6 +47,7 @@ type AdminService interface {
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
+	ListAPIUsageLedger(ctx context.Context, limit int) ([]maildb.APIUsageLedgerView, error)
 	ListQuotaReconciliation(ctx context.Context, limit int) ([]maildb.QuotaReconciliationView, error)
 	CorrectQuotaReconciliation(ctx context.Context, req maildb.CorrectQuotaReconciliationRequest) (maildb.QuotaCorrectionResult, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
@@ -423,6 +424,19 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_monthly": usages})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		usages, err := service.ListAPIUsageLedger(r.Context(), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger": usages})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

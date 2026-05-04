@@ -455,6 +455,17 @@ paths:
           $ref: "#/components/responses/APIUsageMonthlyList"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/ledger:
+    get:
+      operationId: listAdminAPIUsageLedger
+      summary: Admin immutable API usage ledger events
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerList"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1123,6 +1134,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageMonthlyListEnvelope"
+    APIUsageLedgerList:
+      description: Immutable API usage ledger event envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageLedgerListEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -2057,6 +2074,70 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageMonthly"
+    APIUsageLedger:
+      type: object
+      required: [event_id, schema_version, event_timestamp, recorded_at, method, route, status, request_count, request_bytes, response_bytes, latency_ms, payload]
+      properties:
+        event_id:
+          type: string
+        schema_version:
+          type: string
+        event_timestamp:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+        method:
+          type: string
+        route:
+          type: string
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        tenant_id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        user_id:
+          type: string
+        api_key_id:
+          type: string
+        principal_id:
+          type: string
+        auth_source:
+          type: string
+          enum: [anonymous, unknown, bearer, admin_token, query_user_id]
+        request_count:
+          type: integer
+          format: int64
+          minimum: 0
+        request_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        response_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          type: object
+          additionalProperties: true
+    APIUsageLedgerListEnvelope:
+      type: object
+      required: [api_usage_ledger]
+      properties:
+        api_usage_ledger:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageLedger"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
