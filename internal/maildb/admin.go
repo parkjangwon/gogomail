@@ -266,6 +266,17 @@ type APIUsageExportArtifactView struct {
 	Metadata       json.RawMessage `json:"metadata"`
 }
 
+type APIUsageExportArtifactVerificationView struct {
+	BatchID           string `json:"batch_id"`
+	ArtifactID        string `json:"artifact_id"`
+	ObjectKey         string `json:"object_key"`
+	ExpectedByteCount int64  `json:"expected_byte_count"`
+	ActualByteCount   int64  `json:"actual_byte_count"`
+	ExpectedSHA256Hex string `json:"expected_sha256_hex"`
+	ActualSHA256Hex   string `json:"actual_sha256_hex"`
+	Valid             bool   `json:"valid"`
+}
+
 type APIUsageExportManifestDigestView struct {
 	ID              string          `json:"id"`
 	BatchID         string          `json:"batch_id"`
