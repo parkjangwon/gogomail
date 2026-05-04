@@ -54,6 +54,8 @@ guidance.
   documents used by the existing search endpoint.
 - Search responses can now opt into relevance sorting, rank scores, and bounded
   Postgres headline snippets while preserving date-sorted results by default.
+- Postgres and OpenSearch relevance search now share a metadata-first tuning
+  intent: subject and sender matches rank above draft/body text matches.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain
@@ -186,7 +188,7 @@ guidance.
   records native IMAP gateway DTOs, mailbox helpers, and flag semantics; durable
   UIDVALIDITY/UIDNEXT/MODSEQ storage and first `maildb` mailbox/message adapters
   exist, but no TCP protocol server is enabled.
-- OpenSearch indexing.
+- OpenSearch as the default/mandatory search backend.
 - Kafka migration.
 - etcd/Vault production control plane.
 - Vendor push notification delivery adapters.

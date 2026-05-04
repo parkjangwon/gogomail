@@ -136,8 +136,13 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	if searchText != "" {
 		must = append(must, map[string]any{
 			"multi_match": map[string]any{
-				"query":  searchText,
-				"fields": []string{"subject^2", "from_name", "from_addr", "body_text"},
+				"query": searchText,
+				"fields": []string{
+					"subject^4",
+					"from_addr^4",
+					"from_name^2",
+					"body_text",
+				},
 			},
 		})
 	}
