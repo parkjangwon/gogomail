@@ -194,6 +194,8 @@ The platform hardening sprint completed the following:
 - OpenSearch relevance search can apply from, subject, and attachment filters
   before Postgres metadata hydration; folder filters and highlights still fall
   back to Postgres.
+- OpenSearch relevance search can return subject/from/body highlights and map
+  them into the existing Mail API `search_highlights` response field.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.
