@@ -140,6 +140,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /drafts/{id}/send":                               "#/components/responses/SendQueued",
 		"POST /attachments":                                    "#/components/responses/Attachment",
 		"POST /attachments/upload":                             "#/components/responses/Attachment",
+		"DELETE /attachments/{id}":                             "#/components/responses/Attachment",
 		"GET /messages/{id}/attachments":                       "#/components/responses/AttachmentList",
 		"GET /push-devices":                                    "#/components/responses/PushDeviceList",
 		"POST /push-devices":                                   "#/components/responses/PushDevice",

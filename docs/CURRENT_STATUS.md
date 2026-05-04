@@ -616,6 +616,9 @@ The platform hardening sprint completed the following:
   candidate counts before destructive cleanup. Operators can also list the
   bounded candidate set through
   `POST /admin/v1/attachment-cleanup/candidates`.
+- Mail API exposes `DELETE /api/v1/attachments/{id}` so users can cancel
+  unbound pending uploads immediately, releasing quota and removing any stored
+  upload object without waiting for stale cleanup.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment
