@@ -276,12 +276,14 @@ WHERE user_id = $1
   AND id = $2
   AND status = 'uploading'
   AND message_id IS NULL
-RETURNING id::text, COALESCE(message_id::text, ''), upload_id, storage_path, filename, size, mime_type, status, created_at`
+RETURNING id::text, COALESCE(message_id::text, ''), COALESCE(draft_id::text, ''), upload_id, storage_path, filename, size, mime_type, status, created_at`
 
 	var attachment Attachment
+	var draftID string
 	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(userID), strings.TrimSpace(attachmentID)).Scan(
 		&attachment.ID,
 		&attachment.MessageID,
+		&draftID,
 		&attachment.UploadID,
 		&attachment.StoragePath,
 		&attachment.Filename,
@@ -297,6 +299,23 @@ RETURNING id::text, COALESCE(message_id::text, ''), upload_id, storage_path, fil
 	}
 	if err := decrementUserQuota(ctx, tx, strings.TrimSpace(userID), attachment.Size); err != nil {
 		return Attachment{}, err
+	}
+	if strings.TrimSpace(draftID) != "" {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET has_attachment = EXISTS (
+    SELECT 1
+    FROM attachments
+    WHERE user_id = $1
+      AND draft_id = $2
+      AND status = 'uploading'
+  ),
+  updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'draft'`, strings.TrimSpace(userID), strings.TrimSpace(draftID)); err != nil {
+			return Attachment{}, fmt.Errorf("refresh draft attachment state: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return Attachment{}, fmt.Errorf("commit attachment cancel transaction: %w", err)

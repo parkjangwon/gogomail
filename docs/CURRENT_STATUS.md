@@ -619,7 +619,8 @@ The platform hardening sprint completed the following:
 - Mail API exposes `DELETE /api/v1/attachments/{id}` so users can cancel
   unbound pending uploads immediately, releasing quota and removing any stored
   upload object without waiting for stale cleanup. Draft binding and send
-  handoff ignore canceled/deleted uploads.
+  handoff ignore canceled/deleted uploads, and canceling a draft-bound upload
+  refreshes the draft attachment-state cache.
 - Mail API exposes `GET /api/v1/attachments/capabilities` so clients can
   discover upload limits, supported modes, and resumable-upload readiness
   without hard-coded constants.
