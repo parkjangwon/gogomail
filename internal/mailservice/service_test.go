@@ -139,10 +139,11 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
+	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
 		imapFlagSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12}},
 	}
-	service := New(repo, nil)
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	got, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
 		UserID:    "user-1",
@@ -159,6 +160,9 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	}
 	if repo.lastIMAPFlagMode != imapgw.StoreFlagsAdd || !repo.lastIMAPFlags.Read {
 		t.Fatalf("stored flags = %#v/%q, want read add", repo.lastIMAPFlags, repo.lastIMAPFlagMode)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventFlags || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
+		t.Fatalf("events = %#v, want flags event", events.events)
 	}
 }
 
@@ -554,6 +558,15 @@ type fakeSearchIDSource struct {
 func (s *fakeSearchIDSource) SearchMessageIDs(_ context.Context, query searchindex.OpenSearchSearchQuery) ([]searchindex.OpenSearchHit, error) {
 	s.lastQuery = query
 	return s.hits, nil
+}
+
+type fakeIMAPEventPublisher struct {
+	events []imapgw.MailboxEvent
+}
+
+func (p *fakeIMAPEventPublisher) Publish(_ context.Context, event imapgw.MailboxEvent) error {
+	p.events = append(p.events, event)
+	return nil
 }
 
 func (f *fakeRepository) ExpireStaleAttachmentUploads(context.Context, maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error) {
