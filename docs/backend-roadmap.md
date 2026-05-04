@@ -478,6 +478,7 @@ Implementation order:
 419. IMAP service methods now trim user/mailbox identifiers and normalize list/backfill limits before repository, storage, broker, or mailbox-event work.
 420. Domain policy service lookups now trim domain and user identifiers before repository policy reads for outbound and attachment enforcement.
 421. The audit `mail.stored` consumer now trims event, tenant, recipient, subject, storage, and timestamp fields and rejects CR/LF-bearing message identifiers before audit-log persistence.
+422. Delivery-status audit consumers now trim event, tenant, sender, recipient, farm, status, error, and timestamp fields and reject CR/LF-bearing message identifiers before audit-log persistence.
 
 ## Deferred until backend contracts stabilize
 
