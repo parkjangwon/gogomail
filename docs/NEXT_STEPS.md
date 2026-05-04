@@ -115,6 +115,9 @@ Current state:
   queued, delivered, failed, or invalid-token outcomes.
 - Invalid-token outcomes soft-delete the matching user push device in the same
   Postgres transaction as the attempt update.
+- `mail.stored` event payloads carry an explicit schema version; preserve this
+  contract when adding fields for audit, search, push, IMAP, or future fan-out
+  workers.
 - Spam and vendor FCM/APNs delivery are not wired.
 
 Next:
