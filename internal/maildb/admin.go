@@ -2013,6 +2013,59 @@ LIMIT $1`
 	return events, nil
 }
 
+func (r *Repository) GetOutboxEvent(ctx context.Context, id string) (OutboxEventView, error) {
+	if r.db == nil {
+		return OutboxEventView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return OutboxEventView{}, fmt.Errorf("outbox event id is required")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  topic,
+  partition_key,
+  status,
+  attempts,
+  COALESCE(last_error, ''),
+  created_at,
+  available_at,
+  locked_at,
+  processed_at
+FROM outbox
+WHERE id = $1`
+
+	var event OutboxEventView
+	var lockedAt sql.NullTime
+	var processedAt sql.NullTime
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&event.ID,
+		&event.Topic,
+		&event.PartitionKey,
+		&event.Status,
+		&event.Attempts,
+		&event.LastError,
+		&event.CreatedAt,
+		&event.AvailableAt,
+		&lockedAt,
+		&processedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return OutboxEventView{}, fmt.Errorf("outbox event %q not found", id)
+		}
+		return OutboxEventView{}, fmt.Errorf("get outbox event: %w", err)
+	}
+	if lockedAt.Valid {
+		event.LockedAt = &lockedAt.Time
+	}
+	if processedAt.Valid {
+		event.ProcessedAt = &processedAt.Time
+	}
+	return event, nil
+}
+
 func allowedOutboxStatus(status string) bool {
 	switch status {
 	case "pending", "processing", "done", "failed":

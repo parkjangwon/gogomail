@@ -381,6 +381,7 @@ Implementation order:
 322. Outbound RFC 5322 text composition rejects CR/LF-bearing subject, display-name, email, and explicit Message-ID inputs before header serialization, tightening header-injection safety for send and draft-send paths.
 323. Admin outbox event metadata lists can now filter by partition key as well as topic, status, and RFC3339 creation lower bound, making message/batch-specific async troubleshooting possible without exposing payload bodies.
 324. Admin outbox event metadata lists now return UTF-8-safe bounded `last_error` previews, keeping operational list responses lightweight while preserving the full stored error for future detail views.
+325. Admin outbox event detail now returns full event metadata and full stored `last_error` by id without exposing the JSON payload body, giving operators a safe drill-down path from bounded list previews.
 
 ## Deferred until backend contracts stabilize
 

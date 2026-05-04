@@ -205,6 +205,9 @@ Admin operational read models also keep explicit envelope keys:
   optional `topic`, `partition_key`, `status`, and RFC3339 `since` filters
   expose outbox event metadata without returning JSON payload bodies. List
   responses include a UTF-8-safe bounded `last_error` preview.
+- `GET /admin/v1/outbox-events/{id}` returns `{"outbox_event":{...}}` with full
+  event metadata and full stored `last_error`, still without returning the JSON
+  payload body.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
