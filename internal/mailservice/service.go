@@ -1036,7 +1036,21 @@ func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before tim
 	if err := maildb.ValidateExpireAttachmentUploadSessionsRequest(req); err != nil {
 		return nil, err
 	}
-	return repo.ExpireAttachmentUploadSessions(ctx, req)
+	expired, err := repo.ExpireAttachmentUploadSessions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if s.store != nil {
+		for _, session := range expired {
+			if strings.TrimSpace(session.StoragePath) == "" {
+				continue
+			}
+			if err := s.store.Delete(ctx, session.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return expired, fmt.Errorf("delete expired upload session object: %w", err)
+			}
+		}
+	}
+	return expired, nil
 }
 
 func normalizeCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) CreateAttachmentUploadRequest {
