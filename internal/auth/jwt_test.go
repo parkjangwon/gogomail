@@ -177,6 +177,54 @@ func TestTokenManagerRejectsUnsafeJWTIdentityOnVerify(t *testing.T) {
 	}
 }
 
+func TestTokenManagerRejectsOversizedJWTSegmentsBeforeDecode(t *testing.T) {
+	t.Parallel()
+
+	manager, err := NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+
+	validHeader := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	validPayload := base64.RawURLEncoding.EncodeToString([]byte(`{"user_id":"user-1","exp":1770000000}`))
+	validSignature := "signature"
+	for _, tc := range []struct {
+		name    string
+		token   string
+		wantErr string
+	}{
+		{
+			name:    "token",
+			token:   strings.Repeat("x", maxJWTTokenBytes+1),
+			wantErr: "jwt token is too long",
+		},
+		{
+			name:    "header",
+			token:   strings.Repeat("a", maxJWTHeaderSegmentBytes+1) + "." + validPayload + "." + validSignature,
+			wantErr: "jwt header is too long",
+		},
+		{
+			name:    "payload",
+			token:   validHeader + "." + strings.Repeat("b", maxJWTPayloadSegmentBytes+1) + "." + validSignature,
+			wantErr: "jwt payload is too long",
+		},
+		{
+			name:    "signature",
+			token:   validHeader + "." + validPayload + "." + strings.Repeat("c", maxJWTSignatureSegmentBytes+1),
+			wantErr: "jwt signature is too long",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := manager.Verify(tc.token); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("Verify error = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestTokenManagerRejectsFutureIssuedAt(t *testing.T) {
 	t.Parallel()
 

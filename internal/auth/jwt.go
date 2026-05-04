@@ -10,7 +10,13 @@ import (
 	"time"
 )
 
-const maxJWTIdentityBytes = 200
+const (
+	maxJWTTokenBytes            = 8192
+	maxJWTHeaderSegmentBytes    = 1024
+	maxJWTPayloadSegmentBytes   = 4096
+	maxJWTSignatureSegmentBytes = 512
+	maxJWTIdentityBytes         = 200
+)
 
 type Claims struct {
 	Subject  string    `json:"sub"`
@@ -85,9 +91,16 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	if m == nil || len(m.secret) == 0 {
 		return Claims{}, fmt.Errorf("token manager is not configured")
 	}
-	parts := strings.Split(strings.TrimSpace(token), ".")
+	token = strings.TrimSpace(token)
+	if len(token) > maxJWTTokenBytes {
+		return Claims{}, fmt.Errorf("jwt token is too long")
+	}
+	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return Claims{}, fmt.Errorf("invalid jwt format")
+	}
+	if err := validateJWTSegments(parts); err != nil {
+		return Claims{}, err
 	}
 	headerRaw, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
@@ -142,6 +155,19 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	}
 	claims.Expires = time.Unix(claims.Expiry, 0).UTC()
 	return claims, nil
+}
+
+func validateJWTSegments(parts []string) error {
+	if len(parts[0]) > maxJWTHeaderSegmentBytes {
+		return fmt.Errorf("jwt header is too long")
+	}
+	if len(parts[1]) > maxJWTPayloadSegmentBytes {
+		return fmt.Errorf("jwt payload is too long")
+	}
+	if len(parts[2]) > maxJWTSignatureSegmentBytes {
+		return fmt.Errorf("jwt signature is too long")
+	}
+	return nil
 }
 
 func normalizeJWTIdentity(value string) (string, error) {
