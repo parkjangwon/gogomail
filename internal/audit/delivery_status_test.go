@@ -2,6 +2,7 @@ package audit
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -55,5 +56,17 @@ func TestDeliveryStatusAuditLogRejectsInvalidMessageID(t *testing.T) {
 	_, err := DeliveryStatusAuditLog([]byte("{\"event\":\"mail.delivered\",\"message_id\":\"msg-1\\r\\nmsg-2\"}"))
 	if err == nil {
 		t.Fatal("DeliveryStatusAuditLog accepted invalid message_id")
+	}
+}
+
+func TestDeliveryStatusAuditLogRejectsOversizedMessageID(t *testing.T) {
+	t.Parallel()
+
+	_, err := DeliveryStatusAuditLog([]byte(`{
+		"event":"mail.delivered",
+		"message_id":"` + strings.Repeat("m", maxDeliveryAuditMessageIDBytes+1) + `"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "message_id") {
+		t.Fatalf("DeliveryStatusAuditLog error = %v, want oversized message_id", err)
 	}
 }

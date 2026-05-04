@@ -13,6 +13,8 @@ type DeliveryStatusHandler struct {
 	repository Repository
 }
 
+const maxDeliveryAuditMessageIDBytes = 200
+
 func NewDeliveryStatusHandler(repository Repository) *DeliveryStatusHandler {
 	return &DeliveryStatusHandler{repository: repository}
 }
@@ -119,6 +121,9 @@ func requiredDeliveryEventValue(name string, value string) (string, error) {
 	}
 	if strings.ContainsAny(value, "\r\n") {
 		return "", fmt.Errorf("delivery audit payload has invalid %s", name)
+	}
+	if len(value) > maxDeliveryAuditMessageIDBytes {
+		return "", fmt.Errorf("delivery audit payload has oversized %s", name)
 	}
 	return value, nil
 }
