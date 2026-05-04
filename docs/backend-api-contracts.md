@@ -164,7 +164,9 @@ mailbox-full responses.
 Pending uploads can be canceled through `DELETE /api/v1/attachments/{id}`;
 successful cancellation is user-scoped, only applies to unbound `uploading`
 attachments, marks the row `deleted`, releases the reserved quota, and removes
-the stored object when one exists.
+the stored object when one exists. Draft binding, draft attachment reads, and
+draft-send handoff only consider `uploading` attachments, so canceled uploads
+cannot be rebound to drafts or moved onto sent messages.
 Clients can discover the current upload limits and supported modes with
 `GET /api/v1/attachments/capabilities`. The response records max attachment
 bytes, filename bytes, metadata reservation, direct multipart upload, pending

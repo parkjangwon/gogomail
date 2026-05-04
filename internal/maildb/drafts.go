@@ -123,7 +123,8 @@ SET draft_id = NULL,
     status = 'stored'
 WHERE user_id = $1
   AND draft_id = $2
-  AND message_id IS NULL`, strings.TrimSpace(userID), strings.TrimSpace(draftID), strings.TrimSpace(sentMessageID)); err != nil {
+  AND message_id IS NULL
+  AND status = 'uploading'`, strings.TrimSpace(userID), strings.TrimSpace(draftID), strings.TrimSpace(sentMessageID)); err != nil {
 		return fmt.Errorf("attach sent draft uploads: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
@@ -133,6 +134,7 @@ SET has_attachment = EXISTS (
     FROM attachments
     WHERE message_id = $2
       AND user_id = $1
+      AND status = 'stored'
   ),
   updated_at = now()
 WHERE user_id = $1
@@ -413,7 +415,8 @@ UPDATE attachments
 SET draft_id = $3
 WHERE user_id = $1
   AND id = $2
-  AND message_id IS NULL`, strings.TrimSpace(userID), strings.TrimSpace(attachmentID), strings.TrimSpace(draftID))
+  AND message_id IS NULL
+  AND status = 'uploading'`, strings.TrimSpace(userID), strings.TrimSpace(attachmentID), strings.TrimSpace(draftID))
 		if err != nil {
 			return fmt.Errorf("bind draft attachment %q: %w", attachmentID, err)
 		}
@@ -433,6 +436,7 @@ SET has_attachment = EXISTS (
     FROM attachments
     WHERE draft_id = $2
       AND user_id = $1
+      AND status = 'uploading'
   ),
   updated_at = now()
 WHERE user_id = $1
@@ -481,6 +485,7 @@ SELECT
 FROM attachments
 WHERE user_id = $1
   AND draft_id = $2
+  AND status = 'uploading'
 ORDER BY created_at ASC, filename ASC`
 
 	rows, err := tx.QueryContext(ctx, query, strings.TrimSpace(userID), strings.TrimSpace(draftID))
@@ -530,6 +535,7 @@ SELECT id::text
 FROM attachments
 WHERE user_id = $1
   AND draft_id = $2
+  AND status = 'uploading'
 ORDER BY created_at ASC, filename ASC`, strings.TrimSpace(userID), strings.TrimSpace(draftID))
 	if err != nil {
 		return nil, fmt.Errorf("list draft attachment ids: %w", err)
