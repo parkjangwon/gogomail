@@ -513,10 +513,11 @@ The response is wrapped as `{"dns_check":{...}}` and reports MX, SPF, DMARC,
 and active DKIM TXT status values as `ok`, `missing`, `mismatch`, or `error`.
 Each run persists the report for operational audit and records an admin audit
 log entry with the summarized status.
-The history endpoint returns persisted checks newest-first so admin consoles can
-show onboarding progress without re-querying DNS on every page load. Domain list
-and detail responses also include the latest DNS check status/timestamp when a
-check has run.
+The history endpoint returns persisted checks newest-first and supports
+`status=ok|missing|mismatch|error` plus an RFC3339 `since` filter so admin
+consoles can show focused onboarding progress without re-querying DNS on every
+page load. Domain list and detail responses also include the latest DNS check
+status/timestamp when a check has run.
 
 User-facing delivery status is exposed through:
 

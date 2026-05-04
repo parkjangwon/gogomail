@@ -3065,7 +3065,7 @@ func TestAdminDomainDNSCheckHistoryHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/dns-checks?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/dns-checks?limit=5&status=missing&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3081,8 +3081,39 @@ func TestAdminDomainDNSCheckHistoryHandler(t *testing.T) {
 	if len(body.DNSChecks) != 1 || body.DNSChecks[0].ID != "check-1" {
 		t.Fatalf("dns_checks = %+v", body.DNSChecks)
 	}
-	if service.lastDomainID != "domain-1" || service.lastLimit != 5 {
-		t.Fatalf("lastDomainID=%q lastLimit=%d", service.lastDomainID, service.lastLimit)
+	if service.lastDomainDNSCheckList.DomainID != "domain-1" || service.lastDomainDNSCheckList.Limit != 5 || service.lastDomainDNSCheckList.Status != "missing" || service.lastDomainDNSCheckList.Since.IsZero() {
+		t.Fatalf("lastDomainDNSCheckList=%+v", service.lastDomainDNSCheckList)
+	}
+}
+
+func TestAdminDomainDNSCheckHistoryHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	tests := []string{
+		"/admin/v1/domains/domain-1/dns-checks?status=pass",
+		"/admin/v1/domains/domain-1/dns-checks?status=missing%0Abad",
+		"/admin/v1/domains/domain-1/dns-checks?since=not-a-time",
+	}
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDomainDNSCheckList.DomainID != "" {
+				t.Fatalf("dns check list was called: %+v", service.lastDomainDNSCheckList)
+			}
+		})
 	}
 }
 
@@ -4856,6 +4887,7 @@ type fakeAdminService struct {
 	lastUserID                                  string
 	lastUserList                                maildb.UserListRequest
 	lastDomainStatus                            maildb.UpdateDomainStatusRequest
+	lastDomainDNSCheckList                      maildb.DomainDNSCheckListRequest
 	lastCompanyQuota                            maildb.UpdateCompanyQuotaRequest
 	lastDomainQuota                             maildb.UpdateDomainQuotaRequest
 	lastDomainPolicy                            maildb.UpdateDomainPolicyRequest
@@ -4969,9 +5001,10 @@ func (f *fakeAdminService) VerifyDomainDNS(_ context.Context, id string) (dnsche
 	return f.dnsReport, nil
 }
 
-func (f *fakeAdminService) ListDomainDNSChecks(_ context.Context, id string, limit int) ([]maildb.DomainDNSCheckView, error) {
-	f.lastDomainID = id
-	f.lastLimit = limit
+func (f *fakeAdminService) ListDomainDNSChecks(_ context.Context, req maildb.DomainDNSCheckListRequest) ([]maildb.DomainDNSCheckView, error) {
+	f.lastDomainID = req.DomainID
+	f.lastLimit = req.Limit
+	f.lastDomainDNSCheckList = req
 	return f.dnsChecks, nil
 }
 

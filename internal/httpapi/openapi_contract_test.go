@@ -420,7 +420,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /drafts/search":                                   {"limit", "q", "from", "subject", "has_attachment"},
 		"GET /companies":                                       {"limit", "status"},
 		"GET /domains":                                         {"limit", "company_id", "status", "dns_status"},
-		"GET /domains/{id}/dns-checks":                         {"id", "limit"},
+		"GET /domains/{id}/dns-checks":                         {"id", "limit", "status", "since"},
 		"GET /users":                                           {"limit", "domain_id", "status", "password_configured"},
 		"GET /quota-usage":                                     {"limit", "scope", "domain_id", "over_limit", "over_allocated"},
 		"GET /delivery-attempts":                               {"limit", "status", "recipient_domain", "message_id", "farm", "sender", "since"},

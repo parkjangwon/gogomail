@@ -2076,6 +2076,18 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/Limit"
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [ok, missing, mismatch, error]
+          description: DNS verification summary status filter.
+        - in: query
+          name: since
+          schema:
+            type: string
+            format: date-time
+          description: Return checks with checked_at at or after this RFC3339 timestamp.
       responses:
         "200":
           $ref: "#/components/responses/DomainDNSCheckHistory"

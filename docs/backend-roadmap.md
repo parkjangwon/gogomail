@@ -648,6 +648,7 @@ Implementation order:
 588. Mailservice now validates DB-returned message and attachment storage paths before body reads or cleanup deletes, preventing corrupted rows from sending absolute, traversal, newline, backslash-bearing, or blank required object keys to storage adapters.
 589. Local storage now enforces a shared strict object-key validator before reads, writes, and deletes, rejecting non-canonical relative keys such as duplicate separators, dot segments, absolute paths, traversal, newlines, and backslashes.
 590. Admin trusted relay listing now supports bounded CIDR and description filters, letting operators audit inbound relay policy without client-side full-list scans.
+591. Admin domain DNS-check history now supports summary-status and RFC3339 `since` filters, letting operators inspect recent onboarding and deliverability failures without re-querying DNS or scanning every persisted check.
 
 ## Deferred until backend contracts stabilize
 

@@ -760,6 +760,13 @@ type DomainDNSCheckView struct {
 	CheckedAt time.Time             `json:"checked_at"`
 }
 
+type DomainDNSCheckListRequest struct {
+	DomainID string
+	Limit    int
+	Status   string
+	Since    time.Time
+}
+
 type DomainView struct {
 	ID                   string     `json:"id"`
 	CompanyID            string     `json:"company_id"`
@@ -2110,15 +2117,44 @@ LIMIT 1`
 	return stats, nil
 }
 
-func (r *Repository) ListDomainDNSChecks(ctx context.Context, domainID string, limit int) ([]DomainDNSCheckView, error) {
+func ValidateDomainDNSCheckListRequest(req DomainDNSCheckListRequest) error {
+	domainID := strings.TrimSpace(req.DomainID)
+	if domainID == "" {
+		return fmt.Errorf("domain id is required")
+	}
+	if err := validatePushNotificationFilter("domain_id", domainID); err != nil {
+		return err
+	}
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status != "" && !isDomainDNSCheckStatus(status) {
+		return fmt.Errorf("unsupported domain dns check status %q", req.Status)
+	}
+	return nil
+}
+
+func isDomainDNSCheckStatus(status string) bool {
+	switch dnscheck.Status(status) {
+	case dnscheck.StatusOK, dnscheck.StatusMissing, dnscheck.StatusMismatch, dnscheck.StatusError:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *Repository) ListDomainDNSChecks(ctx context.Context, req DomainDNSCheckListRequest) ([]DomainDNSCheckView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	domainID = strings.TrimSpace(domainID)
-	if domainID == "" {
-		return nil, fmt.Errorf("domain id is required")
+	if err := ValidateDomainDNSCheckListRequest(req); err != nil {
+		return nil, err
 	}
-	limit = normalizeLimit(limit)
+	domainID := strings.TrimSpace(req.DomainID)
+	limit := normalizeLimit(req.Limit)
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	since := sql.NullTime{}
+	if !req.Since.IsZero() {
+		since = sql.NullTime{Time: req.Since.UTC(), Valid: true}
+	}
 
 	const query = `
 SELECT
@@ -2129,10 +2165,12 @@ SELECT
   checked_at
 FROM domain_dns_checks
 WHERE domain_id = $1
+  AND ($2 = '' OR status = $2)
+  AND ($3::timestamptz IS NULL OR checked_at >= $3)
 ORDER BY checked_at DESC
-LIMIT $2`
+LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, domainID, limit)
+	rows, err := r.db.QueryContext(ctx, query, domainID, status, since, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list domain dns checks: %w", err)
 	}
