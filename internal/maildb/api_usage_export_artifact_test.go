@@ -56,3 +56,14 @@ func TestValidateCreateAPIUsageExportArtifactRequestRejectsUnsafeInput(t *testin
 		})
 	}
 }
+
+func TestAPIUsageExportArtifactsQueryLimitModes(t *testing.T) {
+	t.Parallel()
+
+	if got := apiUsageExportArtifactsQuery(false); !strings.Contains(got, "LIMIT $2") {
+		t.Fatalf("bounded query missing limit: %s", got)
+	}
+	if got := apiUsageExportArtifactsQuery(true); strings.Contains(got, "LIMIT") {
+		t.Fatalf("unbounded query should not include limit: %s", got)
+	}
+}
