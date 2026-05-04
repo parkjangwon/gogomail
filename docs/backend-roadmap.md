@@ -686,6 +686,7 @@ Implementation order:
 626. Mail and Admin API JSON mutation bodies now require `Content-Type: application/json`, accepting normal media-type parameters but rejecting missing or non-JSON content types before dispatch.
 627. Shared storage object path validation now enforces total-key and per-segment byte caps before local storage, mailservice body reads, cleanup deletes, and artifact/storage-key callers reach storage adapters.
 628. Shared audit-log normalization now bounds scalar metadata and JSON detail size before hash computation or database insertion, keeping every audit producer on the same persistence guardrails.
+629. Mail and Admin API JSON mutation bodies now reject repeated `Content-Type` headers before JSON decoding, preventing ambiguous media-type interpretation at the HTTP boundary.
 
 ## Deferred until backend contracts stabilize
 

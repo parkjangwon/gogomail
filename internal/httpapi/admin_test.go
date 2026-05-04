@@ -2959,9 +2959,11 @@ func TestAdminJSONHandlersRejectMissingOrNonJSONContentType(t *testing.T) {
 	tests := []struct {
 		name        string
 		contentType string
+		extra       string
 	}{
 		{name: "missing"},
 		{name: "text plain", contentType: "text/plain"},
+		{name: "duplicate", contentType: "application/json", extra: "application/json"},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -2975,6 +2977,9 @@ func TestAdminJSONHandlersRejectMissingOrNonJSONContentType(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192}`)))
 			if tt.contentType != "" {
 				req.Header.Set("Content-Type", tt.contentType)
+			}
+			if tt.extra != "" {
+				req.Header.Add("Content-Type", tt.extra)
 			}
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
