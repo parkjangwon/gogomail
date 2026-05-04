@@ -762,6 +762,45 @@ func TestAdminGetAPIUsageExportManifestDigestHandler(t *testing.T) {
 	}
 }
 
+func TestAdminVerifyAPIUsageExportManifestDigestHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportManifestDigestVerification: maildb.APIUsageExportManifestDigestVerificationView{
+			BatchID:           "api-usage-export-1",
+			DigestID:          "api-usage-manifest-1",
+			SchemaVersion:     "2026-05-04.api-usage-export-manifest.v1",
+			DigestAlgorithm:   "sha256",
+			ExpectedDigestHex: strings.Repeat("a", 64),
+			ActualDigestHex:   strings.Repeat("a", 64),
+			Valid:             true,
+			CanonicalManifest: json.RawMessage(`{}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/verification", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Verification maildb.APIUsageExportManifestDigestVerificationView `json:"api_usage_export_manifest_digest_verification"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !response.Verification.Valid {
+		t.Fatalf("verification = %+v", response.Verification)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportManifestDigestID != "api-usage-manifest-1" {
+		t.Fatalf("last ids = %q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportManifestDigestID)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1771,65 +1810,66 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 }
 
 type fakeAdminService struct {
-	companies                          []maildb.CompanyView
-	domains                            []maildb.DomainView
-	dnsReport                          dnscheck.DomainReport
-	dnsChecks                          []maildb.DomainDNSCheckView
-	users                              []maildb.UserView
-	queueStats                         []maildb.QueueStat
-	quotaUsage                         []maildb.QuotaUsageView
-	apiUsageDaily                      []maildb.APIUsageDailyView
-	apiUsageMonthly                    []maildb.APIUsageMonthlyView
-	apiUsageLedger                     []maildb.APIUsageLedgerView
-	apiUsageLedgerStats                maildb.APIUsageLedgerStatsView
-	apiUsageExportBatch                maildb.APIUsageExportBatchView
-	apiUsageExportBatches              []maildb.APIUsageExportBatchView
-	apiUsageExportArtifact             maildb.APIUsageExportArtifactView
-	apiUsageExportArtifacts            []maildb.APIUsageExportArtifactView
-	apiUsageExportManifestDigest       maildb.APIUsageExportManifestDigestView
-	apiUsageExportManifestDigests      []maildb.APIUsageExportManifestDigestView
-	quotaReconciliation                []maildb.QuotaReconciliationView
-	quotaCorrection                    maildb.QuotaCorrectionResult
-	attempts                           []maildb.DeliveryAttemptView
-	pushNotificationAttempts           []maildb.PushNotificationAttemptView
-	pushNotificationStats              maildb.PushNotificationStatsView
-	suppression                        []maildb.SuppressionEntry
-	trustedRelays                      []maildb.TrustedRelayView
-	deliveryRoutes                     []maildb.DeliveryRouteView
-	deliveryRouteResolution            maildb.DeliveryRouteResolveView
-	dkimKeys                           []maildb.DKIMKeyView
-	backpressureState                  backpressure.State
-	createdDKIMKeyID                   string
-	lastLimit                          int
-	lastCompanyID                      string
-	lastDomainID                       string
-	lastUserID                         string
-	lastDomainStatus                   maildb.UpdateDomainStatusRequest
-	lastCompanyQuota                   maildb.UpdateCompanyQuotaRequest
-	lastDomainQuota                    maildb.UpdateDomainQuotaRequest
-	lastDomainPolicy                   maildb.UpdateDomainPolicyRequest
-	lastCreateDomain                   maildb.CreateDomainRequest
-	lastUserStatus                     maildb.UpdateUserStatusRequest
-	lastUserQuota                      maildb.UpdateUserQuotaRequest
-	lastQuotaCorrection                maildb.CorrectQuotaReconciliationRequest
-	lastAPIUsageLedgerList             maildb.APIUsageLedgerListRequest
-	lastAPIUsageExportBatchID          string
-	lastAPIUsageExportArtifactID       string
-	lastAPIUsageExportManifestDigestID string
-	lastCreateAPIUsageExportArtifact   maildb.CreateAPIUsageExportArtifactRequest
-	lastPushAttemptList                maildb.PushNotificationAttemptListRequest
-	lastCreateUser                     maildb.CreateUserRequest
-	lastCreateDKIMKey                  maildb.CreateDKIMKeyInput
-	lastCreateTrustedRelay             maildb.CreateTrustedRelayRequest
-	lastCreateDeliveryRoute            maildb.CreateDeliveryRouteRequest
-	lastResolveDeliveryRouteDomain     string
-	lastDeliveryRouteStatus            maildb.UpdateDeliveryRouteStatusRequest
-	lastBackpressureUpdate             backpressure.StateUpdate
-	lastDeactivateDKIMKeyID            string
-	lastRetryOutboxID                  string
-	lastDeleteSuppressionID            string
-	lastDeleteTrustedRelayID           string
-	lastDeleteDeliveryRouteID          string
+	companies                                []maildb.CompanyView
+	domains                                  []maildb.DomainView
+	dnsReport                                dnscheck.DomainReport
+	dnsChecks                                []maildb.DomainDNSCheckView
+	users                                    []maildb.UserView
+	queueStats                               []maildb.QueueStat
+	quotaUsage                               []maildb.QuotaUsageView
+	apiUsageDaily                            []maildb.APIUsageDailyView
+	apiUsageMonthly                          []maildb.APIUsageMonthlyView
+	apiUsageLedger                           []maildb.APIUsageLedgerView
+	apiUsageLedgerStats                      maildb.APIUsageLedgerStatsView
+	apiUsageExportBatch                      maildb.APIUsageExportBatchView
+	apiUsageExportBatches                    []maildb.APIUsageExportBatchView
+	apiUsageExportArtifact                   maildb.APIUsageExportArtifactView
+	apiUsageExportArtifacts                  []maildb.APIUsageExportArtifactView
+	apiUsageExportManifestDigest             maildb.APIUsageExportManifestDigestView
+	apiUsageExportManifestDigests            []maildb.APIUsageExportManifestDigestView
+	apiUsageExportManifestDigestVerification maildb.APIUsageExportManifestDigestVerificationView
+	quotaReconciliation                      []maildb.QuotaReconciliationView
+	quotaCorrection                          maildb.QuotaCorrectionResult
+	attempts                                 []maildb.DeliveryAttemptView
+	pushNotificationAttempts                 []maildb.PushNotificationAttemptView
+	pushNotificationStats                    maildb.PushNotificationStatsView
+	suppression                              []maildb.SuppressionEntry
+	trustedRelays                            []maildb.TrustedRelayView
+	deliveryRoutes                           []maildb.DeliveryRouteView
+	deliveryRouteResolution                  maildb.DeliveryRouteResolveView
+	dkimKeys                                 []maildb.DKIMKeyView
+	backpressureState                        backpressure.State
+	createdDKIMKeyID                         string
+	lastLimit                                int
+	lastCompanyID                            string
+	lastDomainID                             string
+	lastUserID                               string
+	lastDomainStatus                         maildb.UpdateDomainStatusRequest
+	lastCompanyQuota                         maildb.UpdateCompanyQuotaRequest
+	lastDomainQuota                          maildb.UpdateDomainQuotaRequest
+	lastDomainPolicy                         maildb.UpdateDomainPolicyRequest
+	lastCreateDomain                         maildb.CreateDomainRequest
+	lastUserStatus                           maildb.UpdateUserStatusRequest
+	lastUserQuota                            maildb.UpdateUserQuotaRequest
+	lastQuotaCorrection                      maildb.CorrectQuotaReconciliationRequest
+	lastAPIUsageLedgerList                   maildb.APIUsageLedgerListRequest
+	lastAPIUsageExportBatchID                string
+	lastAPIUsageExportArtifactID             string
+	lastAPIUsageExportManifestDigestID       string
+	lastCreateAPIUsageExportArtifact         maildb.CreateAPIUsageExportArtifactRequest
+	lastPushAttemptList                      maildb.PushNotificationAttemptListRequest
+	lastCreateUser                           maildb.CreateUserRequest
+	lastCreateDKIMKey                        maildb.CreateDKIMKeyInput
+	lastCreateTrustedRelay                   maildb.CreateTrustedRelayRequest
+	lastCreateDeliveryRoute                  maildb.CreateDeliveryRouteRequest
+	lastResolveDeliveryRouteDomain           string
+	lastDeliveryRouteStatus                  maildb.UpdateDeliveryRouteStatusRequest
+	lastBackpressureUpdate                   backpressure.StateUpdate
+	lastDeactivateDKIMKeyID                  string
+	lastRetryOutboxID                        string
+	lastDeleteSuppressionID                  string
+	lastDeleteTrustedRelayID                 string
+	lastDeleteDeliveryRouteID                string
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, limit int) ([]maildb.CompanyView, error) {
@@ -2030,6 +2070,12 @@ func (f *fakeAdminService) GetAPIUsageExportManifestDigest(_ context.Context, ba
 	f.lastAPIUsageExportBatchID = batchID
 	f.lastAPIUsageExportManifestDigestID = digestID
 	return f.apiUsageExportManifestDigest, nil
+}
+
+func (f *fakeAdminService) VerifyAPIUsageExportManifestDigest(_ context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestDigestVerificationView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportManifestDigestID = digestID
+	return f.apiUsageExportManifestDigestVerification, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
