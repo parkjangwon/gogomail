@@ -102,6 +102,23 @@ func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
 	}
 }
 
+func TestAllInOneHTTPModeIncludesMailAndAdminAPIs(t *testing.T) {
+	t.Parallel()
+
+	if !modeIncludesMailAPI(ModeAllInOne) {
+		t.Fatal("all-in-one did not include Mail API routes")
+	}
+	if !modeIncludesAdminAPI(ModeAllInOne) {
+		t.Fatal("all-in-one did not include Admin API routes")
+	}
+	if modeIncludesAdminAPI(ModeMailAPI) {
+		t.Fatal("mail-api should not include Admin API routes")
+	}
+	if modeIncludesMailAPI(ModeAdminAPI) {
+		t.Fatal("admin-api should not include Mail API routes")
+	}
+}
+
 func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
 	t.Parallel()
 

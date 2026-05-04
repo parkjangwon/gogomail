@@ -1197,7 +1197,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	httpapi.RegisterHealthRoutes(mux)
 
 	var tokenManager *auth.TokenManager
-	if mode == ModeMailAPI {
+	if modeIncludesMailAPI(mode) {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
 			return err
@@ -1222,7 +1222,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		httpapi.RegisterMailRoutes(mux, service, tokenManager)
 		logger.Info("mail api routes registered")
 	}
-	if mode == ModeAdminAPI {
+	if modeIncludesAdminAPI(mode) {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
 			return err
@@ -1288,6 +1288,14 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		return err
 	}
+}
+
+func modeIncludesMailAPI(mode Mode) bool {
+	return mode == ModeMailAPI || mode == ModeAllInOne
+}
+
+func modeIncludesAdminAPI(mode Mode) bool {
+	return mode == ModeAdminAPI || mode == ModeAllInOne
 }
 
 func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger, outboxDB *sql.DB, tokenManager *auth.TokenManager, adminToken string) http.Handler {

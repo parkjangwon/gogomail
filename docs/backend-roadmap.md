@@ -627,6 +627,7 @@ Implementation order:
 567. API usage ledger retention now rejects future cutoffs inside the repository boundary, aligning worker/direct-call behavior with the Admin API future-cutoff guard.
 568. Draft search now has a separate compose-focused Mail API contract, keeping active-message search and OpenSearch relevance semantics separate from draft body/recipient lookup.
 569. `gogomail --mode=imap` now initializes a service-backed IMAP gateway scaffold with a process-local mailbox event broker while keeping the TCP IMAP protocol listener deferred.
+570. `gogomail --mode=all-in-one` now registers Mail API and Admin API routes in one HTTP process, making the documented single-node mode usable for local release smoke tests.
 
 ## Deferred until backend contracts stabilize
 
