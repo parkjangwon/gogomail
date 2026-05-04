@@ -266,6 +266,8 @@ Current state:
 - `attachment_upload_sessions` migration defines the future resumable upload
   session state table, including declared/received byte counts, lifecycle
   status, expiry, storage adapter metadata, and cleanup-oriented indexes.
+- `maildb` can create a resumable upload session record and reserve the
+  declared size in the shared quota ledger in one transaction.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.
@@ -275,8 +277,8 @@ Current state:
 
 Next:
 
-- Add the Mail API session contract and repository/service methods described by
-  ADR 0007 on top of `attachment_upload_sessions`.
+- Add the Mail API session contract and service methods described by ADR 0007
+  on top of `attachment_upload_sessions`.
 
 ### 6. OpenAPI/client readiness
 

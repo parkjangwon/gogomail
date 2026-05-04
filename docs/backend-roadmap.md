@@ -587,6 +587,7 @@ Implementation order:
 528. Attachment upload capabilities now lock the runtime byte-limit constants to the HTTP response and OpenAPI schema through regression tests for generated clients.
 529. ADR 0007 defines resumable/chunked attachment uploads as explicit upload sessions with quota reservation, adapter-owned staged chunks, final attachment rows after assembly, and bounded cleanup.
 530. `attachment_upload_sessions` migration prepares future resumable upload state with declared/received byte counters, lifecycle status, expiry, checksum, storage adapter metadata, and cleanup indexes.
+531. `maildb` can create resumable attachment upload sessions and reserve declared bytes in the shared quota ledger transactionally, with optional PostgreSQL integration coverage.
 
 ## Deferred until backend contracts stabilize
 

@@ -211,6 +211,40 @@ WHERE m.id = $1`, draft.ID, attachment.ID).Scan(&hasAttachment, &canceledDraftID
 	}
 }
 
+func TestPostgresCreateAttachmentUploadSessionReservesQuota(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var before int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&before); err != nil {
+		t.Fatalf("query quota before: %v", err)
+	}
+	session, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "large.bin",
+		DeclaredSize: 512,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession returned error: %v", err)
+	}
+	if session.ID == "" || session.UploadID == "" || session.Status != "pending" || session.DeclaredSize != 512 {
+		t.Fatalf("session = %+v", session)
+	}
+	var after int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&after); err != nil {
+		t.Fatalf("query quota after: %v", err)
+	}
+	if after != before+512 {
+		t.Fatalf("quota after = %d, want %d", after, before+512)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 
