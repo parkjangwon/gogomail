@@ -452,6 +452,7 @@ Implementation order:
 393. Mail API JWT verification now validates signed token headers, accepting only HS256 and optional JWT `typ` values before trusting bearer claims.
 394. JWT signing and verification now whitespace-normalize `user_id`/`sub` identities and reject blank identities, keeping Mail API bearer scoping from accepting formatting-only subjects.
 395. API metering request identity extraction now trims tenant/company/domain/user/API-key/principal dimensions and treats blank bearer headers as anonymous unless another auth signal is present.
+396. JWT verification now rejects tokens whose `iat` is more than one minute in the future, reducing acceptance of misissued bearer tokens while allowing modest clock skew.
 
 ## Deferred until backend contracts stabilize
 
