@@ -230,6 +230,8 @@ The platform hardening sprint completed the following:
 - `internal/imapgw` has a small in-memory mailbox event broker for future IDLE
   fan-out without introducing a protocol listener yet; broker delivery is
   scoped by both user and mailbox to preserve tenant isolation.
+- `mailservice.StoreIMAPFlags` can publish IMAP mailbox `flags` events through
+  an optional event publisher after repository flag mutations succeed.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a

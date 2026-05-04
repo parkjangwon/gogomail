@@ -129,10 +129,13 @@ Current state:
   invalidation when a test database URL is configured.
 - `internal/imapgw` includes an in-memory mailbox event broker that future IDLE
   sessions can subscribe to without blocking write paths.
+- `mailservice.StoreIMAPFlags` can publish mailbox `flags` events through the
+  broker boundary after repository flag mutations succeed.
 
 Next:
 
-- Wire mailbox event publication from append/flag/move/delete paths.
+- Wire mailbox event publication from append/move/delete and Mail API flag
+  mutation paths.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).

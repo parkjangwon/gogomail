@@ -82,6 +82,7 @@ type Service struct {
 	repository     Repository
 	store          storage.Store
 	searchIDSource SearchIDSource
+	imapEvents     IMAPMailboxEventPublisher
 }
 
 func New(repository Repository, store storage.Store) *Service {
@@ -92,8 +93,17 @@ type SearchIDSource interface {
 	SearchMessageIDs(ctx context.Context, query searchindex.OpenSearchSearchQuery) ([]searchindex.OpenSearchHit, error)
 }
 
+type IMAPMailboxEventPublisher interface {
+	Publish(ctx context.Context, event imapgw.MailboxEvent) error
+}
+
 func (s *Service) WithSearchIDSource(source SearchIDSource) *Service {
 	s.searchIDSource = source
+	return s
+}
+
+func (s *Service) WithIMAPMailboxEvents(publisher IMAPMailboxEventPublisher) *Service {
+	s.imapEvents = publisher
 	return s
 }
 
@@ -298,7 +308,35 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if !ok {
 		return nil, fmt.Errorf("imap flag repository is required")
 	}
-	return repo.StoreIMAPFlags(ctx, string(req.UserID), string(req.MailboxID), req.UIDs, req.Flags, req.Mode)
+	summaries, err := repo.StoreIMAPFlags(ctx, string(req.UserID), string(req.MailboxID), req.UIDs, req.Flags, req.Mode)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries); err != nil {
+		return nil, err
+	}
+	return summaries, nil
+}
+
+func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, summaries []imapgw.MessageSummary) error {
+	if s.imapEvents == nil || len(summaries) == 0 {
+		return nil
+	}
+	userID = strings.TrimSpace(userID)
+	for _, summary := range summaries {
+		if summary.MailboxID == "" {
+			continue
+		}
+		if err := s.imapEvents.Publish(ctx, imapgw.MailboxEvent{
+			Type:      eventType,
+			UserID:    imapgw.UserID(userID),
+			MailboxID: summary.MailboxID,
+			UID:       summary.UID,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
