@@ -1,0 +1,105 @@
+package app
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/gogomail/gogomail/internal/apimeter"
+	"github.com/gogomail/gogomail/internal/maildb"
+)
+
+func TestAPIUsageExportManifestCoversArtifacts(t *testing.T) {
+	t.Parallel()
+
+	artifacts := []maildb.APIUsageExportArtifactView{
+		{
+			ID:             "artifact-b",
+			StorageBackend: "local",
+			ObjectKey:      "exports/b.ndjson",
+			ContentType:    apimeter.ExportArtifactContentTypeNDJSON,
+			ByteCount:      20,
+			SHA256Hex:      strings.Repeat("b", 64),
+			EventCount:     2,
+		},
+		{
+			ID:             "artifact-a",
+			StorageBackend: "local",
+			ObjectKey:      "exports/a.ndjson",
+			ContentType:    apimeter.ExportArtifactContentTypeNDJSON,
+			ByteCount:      10,
+			SHA256Hex:      strings.Repeat("a", 64),
+			EventCount:     1,
+		},
+	}
+	raw, err := json.Marshal(apimeter.ExportManifest{
+		SchemaVersion: apimeter.ExportManifestSchemaV1,
+		Artifacts: []apimeter.ExportManifestArtifact{
+			{
+				ID:             "artifact-a",
+				StorageBackend: "local",
+				ObjectKey:      "exports/a.ndjson",
+				ContentType:    apimeter.ExportArtifactContentTypeNDJSON,
+				ByteCount:      10,
+				SHA256Hex:      strings.Repeat("a", 64),
+				EventCount:     1,
+			},
+			{
+				ID:             "artifact-b",
+				StorageBackend: "local",
+				ObjectKey:      "exports/b.ndjson",
+				ContentType:    apimeter.ExportArtifactContentTypeNDJSON,
+				ByteCount:      20,
+				SHA256Hex:      strings.Repeat("b", 64),
+				EventCount:     2,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+
+	valid, err := apiUsageExportManifestCoversArtifacts(raw, artifacts)
+	if err != nil {
+		t.Fatalf("apiUsageExportManifestCoversArtifacts returned error: %v", err)
+	}
+	if !valid {
+		t.Fatal("coverage = false, want true")
+	}
+}
+
+func TestAPIUsageExportManifestCoversArtifactsRejectsMismatch(t *testing.T) {
+	t.Parallel()
+
+	raw, err := json.Marshal(apimeter.ExportManifest{
+		SchemaVersion: apimeter.ExportManifestSchemaV1,
+		Artifacts: []apimeter.ExportManifestArtifact{{
+			ID:             "artifact-a",
+			StorageBackend: "local",
+			ObjectKey:      "exports/a.ndjson",
+			ContentType:    apimeter.ExportArtifactContentTypeNDJSON,
+			ByteCount:      10,
+			SHA256Hex:      strings.Repeat("a", 64),
+			EventCount:     1,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+
+	valid, err := apiUsageExportManifestCoversArtifacts(raw, []maildb.APIUsageExportArtifactView{{
+		ID:             "artifact-a",
+		StorageBackend: "local",
+		ObjectKey:      "exports/a.ndjson",
+		ContentType:    apimeter.ExportArtifactContentTypeNDJSON,
+		ByteCount:      11,
+		SHA256Hex:      strings.Repeat("a", 64),
+		EventCount:     1,
+	}})
+	if err != nil {
+		t.Fatalf("apiUsageExportManifestCoversArtifacts returned error: %v", err)
+	}
+	if valid {
+		t.Fatal("coverage = true, want false")
+	}
+}

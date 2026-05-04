@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/apimeter"
@@ -89,30 +90,70 @@ func (s adminService) applyAPIUsageExportDeepHandoff(ctx context.Context, handof
 			if !verification.Valid {
 				blocking = append(blocking, "manifest_digest_verification_failed")
 			}
+			coverageValid, err := apiUsageExportManifestCoversArtifacts(verification.CanonicalManifest, artifacts)
+			if err != nil {
+				handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("verify manifest artifact coverage: %v", err))
+				blocking = append(blocking, "manifest_artifact_coverage_error")
+			} else {
+				handoff.ManifestArtifactCoverageValid = &coverageValid
+				if !coverageValid {
+					blocking = append(blocking, "manifest_artifact_mismatch")
+				}
+			}
 		}
 	}
 
 	if handoff.LatestManifestDigestID != "" && handoff.LatestSignatureID != "" {
-		verification, err := s.VerifyAPIUsageExportManifestSignature(ctx, handoff.BatchID, handoff.LatestManifestDigestID, handoff.LatestSignatureID)
-		if err != nil {
-			handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("verify manifest signature %s: %v", handoff.LatestSignatureID, err))
-			blocking = append(blocking, "manifest_signature_verification_error")
+		if handoff.LatestSignatureSigner != "" && handoff.LatestSignatureSigner != "local-hmac" {
+			blocking = append(blocking, "manifest_signature_verifier_unavailable")
 		} else {
-			handoff.ManifestSignatureVerification = &verification
-			if !verification.Valid {
-				blocking = append(blocking, "manifest_signature_verification_failed")
+			verification, err := s.VerifyAPIUsageExportManifestSignature(ctx, handoff.BatchID, handoff.LatestManifestDigestID, handoff.LatestSignatureID)
+			if err != nil {
+				handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("verify manifest signature %s: %v", handoff.LatestSignatureID, err))
+				blocking = append(blocking, "manifest_signature_verification_error")
+			} else {
+				handoff.ManifestSignatureVerification = &verification
+				if !verification.Valid {
+					blocking = append(blocking, "manifest_signature_verification_failed")
+				}
 			}
 		}
 	}
 
 	handoff.DeepBlockingReasons = uniqueStrings(blocking)
 	handoff.DeepReady = handoff.Ready && len(handoff.DeepBlockingReasons) == 0
-	if !handoff.DeepReady {
-		handoff.Ready = false
-		handoff.ReadinessGrade = "billing_blocked"
-		handoff.BillingReady = false
-		handoff.BillingBlockingReasons = uniqueStrings(append(handoff.BillingBlockingReasons, "deep_verification_required"))
+	handoff.VerifiedBillingReady = handoff.BillingReady && handoff.DeepReady
+}
+
+func apiUsageExportManifestCoversArtifacts(raw []byte, artifacts []maildb.APIUsageExportArtifactView) (bool, error) {
+	var manifest apimeter.ExportManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		return false, fmt.Errorf("unmarshal manifest: %w", err)
 	}
+	current := make([]apimeter.ExportManifestArtifact, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		current = append(current, apimeter.ExportManifestArtifact{
+			ID:             artifact.ID,
+			StorageBackend: artifact.StorageBackend,
+			ObjectKey:      artifact.ObjectKey,
+			ContentType:    artifact.ContentType,
+			ByteCount:      artifact.ByteCount,
+			SHA256Hex:      artifact.SHA256Hex,
+			EventCount:     artifact.EventCount,
+		})
+	}
+	sort.Slice(current, func(i, j int) bool { return current[i].ID < current[j].ID })
+	manifestArtifacts := append([]apimeter.ExportManifestArtifact(nil), manifest.Artifacts...)
+	sort.Slice(manifestArtifacts, func(i, j int) bool { return manifestArtifacts[i].ID < manifestArtifacts[j].ID })
+	if len(current) != len(manifestArtifacts) {
+		return false, nil
+	}
+	for i := range current {
+		if current[i] != manifestArtifacts[i] {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func uniqueStrings(values []string) []string {
