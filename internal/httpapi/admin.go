@@ -556,6 +556,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		w.Header().Set("Cache-Control", "no-store")
 		writeNDJSON(w, http.StatusOK, usages)
 	}))
 
@@ -673,6 +674,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		w.Header().Set("Cache-Control", "no-store")
 		writeNDJSON(w, http.StatusOK, usages)
 	}))
 
@@ -769,6 +771,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if sha256Hex := safeSHA256Header(artifact.SHA256Hex); sha256Hex != "" {
 			w.Header().Set("X-Gogomail-Artifact-SHA256", sha256Hex)
 		}
+		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, body)
 	}))

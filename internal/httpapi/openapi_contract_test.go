@@ -271,6 +271,9 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		if !strings.Contains(block, "type: string") {
 			t.Fatalf("OpenAPI response %s must document a string stream schema", response)
 		}
+		if !strings.Contains(block, "Cache-Control:") || !strings.Contains(block, "enum: [no-store]") {
+			t.Fatalf("OpenAPI response %s must document Cache-Control: no-store", response)
+		}
 	}
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")

@@ -148,7 +148,10 @@ OpenAPI contract documents the binary media type plus `Content-Disposition` and
 API usage artifact downloads apply the same defensive response-header stance:
 unsafe or blank stored content types fall back to `application/x-ndjson`, and
 the `X-Gogomail-Artifact-SHA256` header is emitted only when the stored digest
-is a valid 64-character lowercase/uppercase hexadecimal SHA-256 value.
+is a valid 64-character lowercase/uppercase hexadecimal SHA-256 value. API
+usage ledger NDJSON exports, batch replay exports, and stored artifact
+downloads all return `Cache-Control: no-store` because usage exports are
+sensitive operational/billing data.
 
 ## Push devices
 
