@@ -37,6 +37,23 @@ func TestMessageSearchSQLOrdersByRankForRelevance(t *testing.T) {
 	}
 }
 
+func TestMessageSearchSQLWeightsMetadataAboveBody(t *testing.T) {
+	t.Parallel()
+
+	query := messageSearchSQL(MessageSearchSortRelevance)
+	for _, want := range []string{
+		"setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A')",
+		"setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A')",
+		"setweight(to_tsvector('simple', coalesce(messages.from_name, '')), 'B')",
+		"setweight(to_tsvector('simple', coalesce(messages.draft_text_body, '')), 'C')",
+		"setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D')",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("query does not include weighted search vector %q:\n%s", want, query)
+		}
+	}
+}
+
 func TestHighlightFragmentsDropsUnmarkedText(t *testing.T) {
 	t.Parallel()
 

@@ -76,6 +76,9 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	if request["highlight"] == nil {
 		t.Fatalf("request did not include highlighter: %#v", request)
 	}
+	if !queryMustContainsMultiMatchField(request, "subject^4") || !queryMustContainsMultiMatchField(request, "from_addr^4") || !queryMustContainsMultiMatchField(request, "from_name^2") {
+		t.Fatalf("request query did not include expected relevance boosts: %#v", request["query"])
+	}
 }
 
 func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
@@ -135,6 +138,30 @@ func queryMustContainsWildcard(request map[string]any, field string) bool {
 		}
 		if _, ok := wildcard[field]; ok {
 			return true
+		}
+	}
+	return false
+}
+
+func queryMustContainsMultiMatchField(request map[string]any, field string) bool {
+	must := request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)
+	for _, clause := range must {
+		item, ok := clause.(map[string]any)
+		if !ok {
+			continue
+		}
+		multiMatch, ok := item["multi_match"].(map[string]any)
+		if !ok {
+			continue
+		}
+		fields, ok := multiMatch["fields"].([]any)
+		if !ok {
+			continue
+		}
+		for _, got := range fields {
+			if got == field {
+				return true
+			}
 		}
 	}
 	return false

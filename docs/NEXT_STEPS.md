@@ -94,10 +94,12 @@ Current state:
   Postgres summary hydration.
 - Search index worker startup logs include non-secret backend diagnostics, and
   OpenSearch calls have an explicit configurable timeout.
+- Postgres and OpenSearch relevance queries now share metadata-first tuning:
+  subject and sender matches are weighted above draft and indexed body text, with
+  regression tests guarding both backend query shapes.
 
 Next:
 
-- Add backend-specific relevance tuning and regression tests as the corpus grows.
 - Decide whether draft search should be indexed before expanding OpenSearch
   beyond relevance-sorted received-message searches.
 

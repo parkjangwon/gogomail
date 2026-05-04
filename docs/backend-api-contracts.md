@@ -474,14 +474,16 @@ searches; OpenSearch message IDs are hydrated through Postgres summaries before
 responses are returned. Indexed OpenSearch documents include folder, parsed
 sender, lower-cased sender/subject, and attachment-presence fields for filter
 parity work, and OpenSearch relevance searches can apply folder, from, subject,
-and attachment filters before hydration. OpenSearch highlights map into the
-existing `search_highlights` response shape after fragment count and byte-size
-bounding. Newest-first search remains on the Postgres path so the default
-response ordering stays stable.
+and attachment filters before hydration. Relevance tuning is metadata-first:
+subject and sender matches are boosted above draft/body text on both Postgres
+and OpenSearch paths. OpenSearch highlights map into the existing
+`search_highlights` response shape after fragment count and byte-size bounding.
+Newest-first search remains on the Postgres path so the default response
+ordering stays stable.
 
 ## Deferred from this contract
 
 - Next.js/frontend screens and shells.
 - Built-in spam scoring, pattern filtering, quarantine, or vendor-specific spam modules.
-- IMAP protocol service, vendor push delivery adapters, Kafka, OpenSearch, etcd,
-  and Vault.
+- IMAP protocol service, vendor push delivery adapters, Kafka, OpenSearch as the
+  default/mandatory search backend, etcd, and Vault.

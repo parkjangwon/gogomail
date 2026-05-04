@@ -137,14 +137,11 @@ SELECT
   COALESCE((flags->>'starred')::boolean, false) AS starred,
   CASE WHEN $8::boolean AND $2 <> '' THEN
     ts_rank_cd(
-      to_tsvector(
-        'simple',
-        coalesce(messages.subject, '') || ' ' ||
-        coalesce(messages.from_addr, '') || ' ' ||
-        coalesce(messages.from_name, '') || ' ' ||
-        coalesce(messages.draft_text_body, '') || ' ' ||
-        coalesce(msd.body_text, '')
-      ),
+      setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(messages.from_name, '')), 'B') ||
+      setweight(to_tsvector('simple', coalesce(messages.draft_text_body, '')), 'C') ||
+      setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D'),
       search_input.tsq
     )
   ELSE NULL END AS search_rank,
@@ -165,13 +162,12 @@ LEFT JOIN message_search_documents msd
 WHERE messages.user_id = $1
   AND messages.status = 'active'
   AND ($2 = '' OR (
-    to_tsvector(
-      'simple',
-      coalesce(subject, '') || ' ' ||
-      coalesce(from_addr, '') || ' ' ||
-      coalesce(from_name, '') || ' ' ||
-      coalesce(draft_text_body, '') || ' ' ||
-      coalesce(msd.body_text, '')
+    (
+      setweight(to_tsvector('simple', coalesce(subject, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(from_addr, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(from_name, '')), 'B') ||
+      setweight(to_tsvector('simple', coalesce(draft_text_body, '')), 'C') ||
+      setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D')
     ) @@ plainto_tsquery('simple', $2)
     OR subject ILIKE '%' || $2 || '%'
     OR from_addr ILIKE '%' || $2 || '%'
