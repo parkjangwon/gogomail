@@ -2,6 +2,8 @@ package dedup
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"time"
 
@@ -31,5 +33,10 @@ func (d *RedisDeduplicator) CheckAndSet(ctx context.Context, key smtpd.DedupKey)
 }
 
 func redisKey(key smtpd.DedupKey) string {
-	return "dedup:" + strings.TrimSpace(key.MessageID) + ":" + strings.ToLower(strings.TrimSpace(key.Recipient))
+	return "dedup:v2:" + redisKeyHash(strings.TrimSpace(key.MessageID)) + ":" + redisKeyHash(strings.ToLower(strings.TrimSpace(key.Recipient)))
+}
+
+func redisKeyHash(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
