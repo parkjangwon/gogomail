@@ -11,7 +11,11 @@ import (
 	"time"
 )
 
-const defaultTimeout = 100 * time.Millisecond
+const (
+	defaultTimeout            = 100 * time.Millisecond
+	maxRequestIdentityBytes   = 200
+	maxRequestAuthHeaderBytes = 16 << 10
+)
 
 // Event is the API usage record emitted by the metering middleware.
 type Event struct {
@@ -157,14 +161,15 @@ func defaultIdentityFromRequest(r *http.Request) Identity {
 	if r == nil {
 		return Identity{AuthSource: AuthSourceAnonymous}
 	}
+	userID := boundedRequestIdentityValue(r.URL.Query().Get("user_id"))
 	return Identity{
-		TenantID:    strings.TrimSpace(r.Header.Get("X-Gogomail-Tenant-ID")),
-		CompanyID:   strings.TrimSpace(r.Header.Get("X-Gogomail-Company-ID")),
-		DomainID:    strings.TrimSpace(r.Header.Get("X-Gogomail-Domain-ID")),
-		UserID:      strings.TrimSpace(r.URL.Query().Get("user_id")),
-		APIKeyID:    strings.TrimSpace(r.Header.Get("X-Gogomail-API-Key-ID")),
-		PrincipalID: strings.TrimSpace(r.Header.Get("X-Gogomail-Principal-ID")),
-		AuthSource:  authSourceFromRequest(r),
+		TenantID:    boundedRequestIdentityValue(r.Header.Get("X-Gogomail-Tenant-ID")),
+		CompanyID:   boundedRequestIdentityValue(r.Header.Get("X-Gogomail-Company-ID")),
+		DomainID:    boundedRequestIdentityValue(r.Header.Get("X-Gogomail-Domain-ID")),
+		UserID:      userID,
+		APIKeyID:    boundedRequestIdentityValue(r.Header.Get("X-Gogomail-API-Key-ID")),
+		PrincipalID: boundedRequestIdentityValue(r.Header.Get("X-Gogomail-Principal-ID")),
+		AuthSource:  authSourceFromRequestWithUserID(r, userID),
 	}
 }
 
@@ -172,17 +177,36 @@ func authSourceFromRequest(r *http.Request) string {
 	if r == nil {
 		return AuthSourceAnonymous
 	}
+	return authSourceFromRequestWithUserID(r, boundedRequestIdentityValue(r.URL.Query().Get("user_id")))
+}
+
+func authSourceFromRequestWithUserID(r *http.Request, userID string) string {
+	if r == nil {
+		return AuthSourceAnonymous
+	}
 	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if len(authHeader) > maxRequestAuthHeaderBytes || strings.ContainsAny(authHeader, "\r\n") {
+		authHeader = ""
+	}
 	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") && strings.TrimSpace(authHeader[len("bearer "):]) != "" {
 		return AuthSourceBearer
 	}
-	if strings.TrimSpace(r.Header.Get("X-Admin-Token")) != "" {
+	adminToken := strings.TrimSpace(r.Header.Get("X-Admin-Token"))
+	if len(adminToken) <= maxRequestAuthHeaderBytes && !strings.ContainsAny(adminToken, "\r\n") && adminToken != "" {
 		return AuthSourceAdminToken
 	}
-	if strings.TrimSpace(r.URL.Query().Get("user_id")) != "" {
+	if userID != "" {
 		return AuthSourceQueryUserID
 	}
 	return AuthSourceAnonymous
+}
+
+func boundedRequestIdentityValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.ContainsAny(value, "\r\n") || len(value) > maxRequestIdentityBytes {
+		return ""
+	}
+	return value
 }
 
 func recordFailOpen(sink Sink, timeout time.Duration, event Event) {
