@@ -148,6 +148,12 @@ func (c Config) Validate() error {
 	if c.SearchIndexConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK must be positive")
 	}
+	if c.EventConsumerCount <= 0 {
+		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_COUNT must be positive")
+	}
+	if c.EventConsumerBlock <= 0 {
+		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_BLOCK must be positive")
+	}
 	if c.EventConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE must not be negative")
 	}
@@ -184,6 +190,12 @@ func (c Config) Validate() error {
 	}
 	if c.DeliveryThrottleEnabled && c.DeliveryDefaultConcurrency == 0 && len(c.DeliveryFarmConcurrency) == 0 && len(c.DeliveryDomainConcurrency) == 0 {
 		return fmt.Errorf("delivery throttling requires at least one default, farm, or domain concurrency limit")
+	}
+	if c.DeliveryConsumerCount <= 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_COUNT must be positive")
+	}
+	if c.DeliveryConsumerBlock <= 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_BLOCK must be positive")
 	}
 	if c.DeliveryConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE must not be negative")

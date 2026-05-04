@@ -82,6 +82,29 @@ func TestValidateRejectsNonpositiveAPIMeteringConsumerSettings(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNonpositiveEventAndDeliveryConsumerSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "event count", mutate: func(cfg *Config) { cfg.EventConsumerCount = 0 }},
+		{name: "event block", mutate: func(cfg *Config) { cfg.EventConsumerBlock = 0 }},
+		{name: "delivery count", mutate: func(cfg *Config) { cfg.DeliveryConsumerCount = 0 }},
+		{name: "delivery block", mutate: func(cfg *Config) { cfg.DeliveryConsumerBlock = 0 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want event or delivery consumer setting rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNegativeConsumerClaimIdle(t *testing.T) {
 	tests := []struct {
 		name   string

@@ -220,7 +220,9 @@ guidance.
   preserving retry behavior for handler failures.
 - Redis event/search/API-metering/push/delivery workers reclaim idle pending
   Redis Stream messages via configurable claim-idle settings, improving crash
-  recovery for at-least-once event processing.
+  recovery for at-least-once event processing. Startup validation now also
+  rejects nonpositive event and delivery consumer count/block settings before
+  workers run with unusable Redis Stream options.
 - Push notification workers no longer redeliver a Redis event solely because
   queued-outcome recording failed after the sink accepted the notification,
   reducing duplicate push risk while keeping the candidate attempt visible.
