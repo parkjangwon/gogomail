@@ -16,7 +16,24 @@ Before changing code, read:
 
 ## Immediate backend priorities
 
-### 1. Message threading and search
+### 1. Hierarchical quota ledger
+
+Current state:
+
+- Mailbox quota is enforced on selected mail write/delete paths.
+- Domain/user quota read and update APIs exist.
+- ADR 0003 defines company → domain → user unified storage pool semantics.
+
+Next:
+
+- Add company quota read/update models if missing from Admin API.
+- Track user quota source as `default|custom`.
+- Apply domain default user quota changes to users that still follow the
+  default, preserving custom overrides.
+- Enforce aggregate company/domain/user quota for storage-increasing mail,
+  attachment, and future Drive operations.
+
+### 2. Message threading and search
 
 Current state:
 
@@ -35,7 +52,7 @@ Next:
 - Add OpenSearch adapter behind the same search contract.
 - Add highlighting/ranking fields when index-worker exists.
 
-### 2. IMAP gateway planning
+### 3. IMAP gateway planning
 
 Current state:
 
@@ -48,7 +65,7 @@ Next:
 - Plan IMAP IDLE support for push-on-connect clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 
-### 3. Pipeline extension hooks
+### 4. Pipeline extension hooks
 
 Current state:
 
@@ -61,7 +78,7 @@ Next:
 - Add `AttachmentScanner` hook interface at the SMTP receive stage.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 
-### 4. Attachment upload API
+### 5. Attachment upload API
 
 Current state:
 
@@ -73,7 +90,7 @@ Next:
 - Add multipart upload support for large attachments.
 - Enforce per-domain attachment size limits.
 
-### 5. OpenAPI/client readiness
+### 6. OpenAPI/client readiness
 
 Current state:
 
@@ -87,7 +104,7 @@ Next:
 - Consider generating a TypeScript client from the OpenAPI spec for future
   frontend use.
 
-### 6. Frontend planning
+### 7. Frontend planning
 
 Before creating or substantially implementing frontend apps, explicitly ask the
 user for frontend-specific guidance.

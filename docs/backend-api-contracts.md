@@ -122,6 +122,11 @@ Admin domain/user CRUD includes list, detail, create, status update, and quota u
 - `PATCH /admin/v1/users/{id}/quota`
 
 `quota_limit: 0` clears the limit and negative values are rejected.
+Quota semantics follow ADR 0003: company owns the contracted storage pool,
+domains receive allocations within that pool, and users receive unified personal
+storage usable across mailbox, attachments, future Drive, and other user-owned
+features. Domain default user quota changes should apply to users that still
+follow the default while preserving explicit custom user quota overrides.
 Domain policy updates store a backend-only operational model under
 `domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
 and optional max-recipient/max-message-byte guardrail hints. SMTP core should

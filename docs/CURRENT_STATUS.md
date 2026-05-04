@@ -54,6 +54,10 @@ guidance.
   recipients, max message size, inbound mode).
 - Mailbox quota enforced at SMTP receive, Submission, and delete flows.
   Quota is decremented atomically on delete.
+- Product quota direction is company pool → domain allocation → user unified
+  storage allowance. User quota should cover mailbox, attachments, future Drive,
+  and other user-owned storage features; domain default user quota should update
+  users that follow defaults while preserving custom overrides.
 - DKIM key DNS verification workflow with `dns_verified_at` persistence.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
@@ -105,8 +109,9 @@ The platform hardening sprint completed the following:
 Next focus areas:
 
 1. Search indexing boundary for received message bodies and future OpenSearch.
-2. IMAP gateway design and implementation planning.
-3. Search result highlighting/ranking once indexing boundary exists.
-4. Push notification hook for FCM/APNs (pluggable pipeline stage).
-5. Attachment scanning hook (pluggable pipeline stage).
+2. Hierarchical quota ledger: company/domain/user aggregate enforcement and
+   default-vs-custom user quota source tracking.
+3. IMAP gateway design and implementation planning.
+4. Search result highlighting/ranking once indexing boundary exists.
+5. Push notification hook for FCM/APNs (pluggable pipeline stage).
 6. Frontend planning and API contract review before webmail implementation.
