@@ -106,6 +106,8 @@ Current state:
   trace before vendor adapters exist.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
   status/user filters for inspecting candidate fan-out.
+- Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
+  and status-count summaries.
 - Candidate recording returns an attempt id to the worker sink, giving future
   vendor adapters a stable row to update with delivered/failed/invalid-token
   outcomes.

@@ -834,6 +834,34 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminPushNotificationStatsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		pushNotificationStats: maildb.PushNotificationStatsView{
+			ActiveDevices: 3,
+			TotalAttempts: 9,
+			Candidate:     4,
+			Delivered:     2,
+			Failed:        1,
+			InvalidToken:  2,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-stats", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "push_notification_stats") || !strings.Contains(rec.Body.String(), `"active_devices":3`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminSuppressionListHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1212,6 +1240,7 @@ type fakeAdminService struct {
 	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
 	pushNotificationAttempts       []maildb.PushNotificationAttemptView
+	pushNotificationStats          maildb.PushNotificationStatsView
 	suppression                    []maildb.SuppressionEntry
 	trustedRelays                  []maildb.TrustedRelayView
 	deliveryRoutes                 []maildb.DeliveryRouteView
@@ -1409,6 +1438,10 @@ func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, limit int) (
 func (f *fakeAdminService) ListPushNotificationAttempts(_ context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error) {
 	f.lastPushAttemptList = req
 	return f.pushNotificationAttempts, nil
+}
+
+func (f *fakeAdminService) GetPushNotificationStats(context.Context) (maildb.PushNotificationStatsView, error) {
+	return f.pushNotificationStats, nil
 }
 
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {

@@ -531,6 +531,15 @@ paths:
           $ref: "#/components/responses/PushNotificationAttempts"
         default:
           $ref: "#/components/responses/Error"
+  /push-notification-stats:
+    get:
+      operationId: getAdminPushNotificationStats
+      summary: Admin push notification fan-out status summary
+      responses:
+        "200":
+          $ref: "#/components/responses/PushNotificationStats"
+        default:
+          $ref: "#/components/responses/Error"
   /suppression-list:
     get:
       operationId: listAdminSuppressionEntries
@@ -1138,6 +1147,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PushNotificationAttemptsEnvelope"
+    PushNotificationStats:
+      description: Push notification stats envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PushNotificationStatsEnvelope"
     SuppressionList:
       description: Suppression list envelope
       content:
@@ -2171,6 +2186,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PushNotificationAttempt"
+    PushNotificationStats:
+      type: object
+      required: [active_devices, total_attempts, candidate, queued, delivered, failed, invalid_token]
+      properties:
+        active_devices:
+          type: integer
+          format: int64
+          minimum: 0
+        total_attempts:
+          type: integer
+          format: int64
+          minimum: 0
+        candidate:
+          type: integer
+          format: int64
+          minimum: 0
+        queued:
+          type: integer
+          format: int64
+          minimum: 0
+        delivered:
+          type: integer
+          format: int64
+          minimum: 0
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        invalid_token:
+          type: integer
+          format: int64
+          minimum: 0
+    PushNotificationStatsEnvelope:
+      type: object
+      required: [push_notification_stats]
+      properties:
+        push_notification_stats:
+          $ref: "#/components/schemas/PushNotificationStats"
     SuppressionEntry:
       type: object
       required: [id, domain_id, email, reason, source_message_id, created_at]

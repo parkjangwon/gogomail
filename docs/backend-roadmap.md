@@ -291,6 +291,7 @@ Implementation order:
 236. Push notification candidate recording returns the persisted attempt id to sink targets, giving future FCM/APNs/Web Push adapters a stable row for delivery outcome updates.
 237. `internal/pushnotify` now includes a Postgres outcome updater for queued, delivered, failed, and invalid-token statuses, completing the internal write path future vendor sinks need.
 238. Invalid-token push notification outcomes now soft-delete the matching user device in the same transaction as the attempt update, preparing automatic token hygiene for future vendor sinks.
+239. Admin API exposes `GET /admin/v1/push-notification-stats`, summarizing active devices and push notification attempt statuses for release operations dashboards.
 
 ## Deferred until backend contracts stabilize
 
