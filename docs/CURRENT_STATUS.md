@@ -523,6 +523,9 @@ The platform hardening sprint completed the following:
 - API usage outbox production now rejects CR/LF-bearing method, route,
   event-id, tenant, company, domain, user, API-key, and principal dimensions
   before inserting durable usage events.
+- API usage aggregate storage now applies the same route-key, identity, event-id,
+  schema-version, and HTTP-like status validation when called directly by
+  internal adapters.
 - API usage NDJSON exports and stored export artifact downloads now return
   `Cache-Control: no-store`, with OpenAPI drift coverage.
 - Attachment downloads, usage NDJSON exports, and stored export artifact

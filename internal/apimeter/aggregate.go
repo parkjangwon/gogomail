@@ -48,7 +48,11 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 	if s.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
-	event = normalizeUsageEventMetrics(event)
+	var err error
+	event, err = normalizeUsageEventForStorage(event)
+	if err != nil {
+		return err
+	}
 	claimed, err := s.claimEvent(ctx, event)
 	if err != nil {
 		return err
@@ -88,6 +92,74 @@ func normalizeUsageEventMetrics(event UsageEvent) UsageEvent {
 		event.RequestCount = 1
 	}
 	return event
+}
+
+func normalizeUsageEventForStorage(event UsageEvent) (UsageEvent, error) {
+	event = normalizeUsageEventMetrics(event)
+	method, err := requiredUsageEventValue("method", event.Method)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	route, err := requiredUsageEventValue("route", event.Route)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	if event.Status < 100 || event.Status > 999 {
+		return UsageEvent{}, fmt.Errorf("api usage status must be between 100 and 999")
+	}
+	eventID, err := optionalUsageEventValue("event_id", event.EventID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	schemaVersion, err := optionalUsageEventValue("schema_version", event.SchemaVersion)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	identity := Identity{
+		TenantID:    event.TenantID,
+		CompanyID:   event.CompanyID,
+		DomainID:    event.DomainID,
+		UserID:      event.UserID,
+		APIKeyID:    event.APIKeyID,
+		PrincipalID: event.PrincipalID,
+		AuthSource:  event.AuthSource,
+	}.Normalize()
+	identity.TenantID, err = optionalUsageEventValue("tenant_id", identity.TenantID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	identity.CompanyID, err = optionalUsageEventValue("company_id", identity.CompanyID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	identity.DomainID, err = optionalUsageEventValue("domain_id", identity.DomainID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	identity.UserID, err = optionalUsageEventValue("user_id", identity.UserID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	identity.APIKeyID, err = optionalUsageEventValue("api_key_id", identity.APIKeyID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	identity.PrincipalID, err = optionalUsageEventValue("principal_id", identity.PrincipalID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	event.EventID = eventID
+	event.SchemaVersion = schemaVersion
+	event.Method = method
+	event.Route = route
+	event.TenantID = identity.TenantID
+	event.CompanyID = identity.CompanyID
+	event.DomainID = identity.DomainID
+	event.UserID = identity.UserID
+	event.APIKeyID = identity.APIKeyID
+	event.PrincipalID = identity.PrincipalID
+	event.AuthSource = identity.AuthSource
+	return event, nil
 }
 
 func (s PostgresAggregateStore) recordLedger(ctx context.Context, event UsageEvent) error {
