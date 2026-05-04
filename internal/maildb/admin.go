@@ -298,6 +298,27 @@ type APIUsageExportManifestDigestVerificationView struct {
 	CanonicalManifest json.RawMessage `json:"canonical_manifest"`
 }
 
+type APIUsageExportManifestSignatureView struct {
+	ID                 string          `json:"id"`
+	DigestID           string          `json:"digest_id"`
+	BatchID            string          `json:"batch_id"`
+	CreatedAt          time.Time       `json:"created_at"`
+	SignerBackend      string          `json:"signer_backend"`
+	KeyID              string          `json:"key_id"`
+	SignatureAlgorithm string          `json:"signature_algorithm"`
+	SignedDigestHex    string          `json:"signed_digest_hex"`
+	SignatureHex       string          `json:"signature_hex"`
+	Metadata           json.RawMessage `json:"metadata"`
+}
+
+type CreateAPIUsageExportManifestSignatureRequest struct {
+	BatchID       string                           `json:"-"`
+	DigestID      string                           `json:"-"`
+	SignerBackend string                           `json:"signer_backend"`
+	Signature     apimeter.ExportManifestSignature `json:"-"`
+	Metadata      json.RawMessage                  `json:"metadata,omitempty"`
+}
+
 type CreateAPIUsageExportArtifactRequest struct {
 	BatchID        string          `json:"-"`
 	StorageBackend string          `json:"storage_backend"`
@@ -2679,6 +2700,109 @@ func apiUsageExportManifestDigestVerification(digest APIUsageExportManifestDiges
 	}, nil
 }
 
+func (r *Repository) CreateAPIUsageExportManifestSignature(ctx context.Context, req CreateAPIUsageExportManifestSignatureRequest) (APIUsageExportManifestSignatureView, error) {
+	if r.db == nil {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateCreateAPIUsageExportManifestSignatureRequest(&req); err != nil {
+		return APIUsageExportManifestSignatureView{}, err
+	}
+	digest, err := r.GetAPIUsageExportManifestDigest(ctx, req.BatchID, req.DigestID)
+	if err != nil {
+		return APIUsageExportManifestSignatureView{}, err
+	}
+	if digest.DigestHex != req.Signature.SignedDigestHex {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("signed_digest_hex must match manifest digest")
+	}
+	id, err := newAPIUsageExportManifestSignatureID()
+	if err != nil {
+		return APIUsageExportManifestSignatureView{}, err
+	}
+	const query = `
+INSERT INTO api_usage_export_manifest_signatures (
+  id,
+  digest_id,
+  batch_id,
+  signer_backend,
+  key_id,
+  signature_algorithm,
+  signed_digest_hex,
+  signature_hex,
+  metadata
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (digest_id, signature_algorithm, key_id, signature_hex) DO UPDATE SET
+  metadata = EXCLUDED.metadata
+RETURNING id, digest_id, batch_id, created_at, signer_backend, key_id,
+  signature_algorithm, signed_digest_hex, signature_hex, metadata`
+	var view APIUsageExportManifestSignatureView
+	if err := r.db.QueryRowContext(
+		ctx,
+		query,
+		id,
+		req.DigestID,
+		req.BatchID,
+		req.SignerBackend,
+		req.Signature.KeyID,
+		req.Signature.Algorithm,
+		req.Signature.SignedDigestHex,
+		req.Signature.SignatureHex,
+		req.Metadata,
+	).Scan(
+		&view.ID,
+		&view.DigestID,
+		&view.BatchID,
+		&view.CreatedAt,
+		&view.SignerBackend,
+		&view.KeyID,
+		&view.SignatureAlgorithm,
+		&view.SignedDigestHex,
+		&view.SignatureHex,
+		&view.Metadata,
+	); err != nil {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("create api usage export manifest signature: %w", err)
+	}
+	return view, nil
+}
+
+func ValidateCreateAPIUsageExportManifestSignatureRequest(req *CreateAPIUsageExportManifestSignatureRequest) error {
+	req.BatchID = strings.TrimSpace(req.BatchID)
+	req.DigestID = strings.TrimSpace(req.DigestID)
+	req.SignerBackend = strings.TrimSpace(req.SignerBackend)
+	req.Signature.Algorithm = strings.TrimSpace(req.Signature.Algorithm)
+	req.Signature.KeyID = strings.TrimSpace(req.Signature.KeyID)
+	req.Signature.SignedDigestHex = strings.ToLower(strings.TrimSpace(req.Signature.SignedDigestHex))
+	req.Signature.SignatureHex = strings.ToLower(strings.TrimSpace(req.Signature.SignatureHex))
+	if req.BatchID == "" {
+		return fmt.Errorf("batch_id is required")
+	}
+	if req.DigestID == "" {
+		return fmt.Errorf("digest_id is required")
+	}
+	if req.SignerBackend == "" {
+		return fmt.Errorf("signer_backend is required")
+	}
+	if req.Signature.Algorithm != apimeter.ExportManifestSignatureAlgorithmHMACSHA256 {
+		return fmt.Errorf("signature_algorithm must be hmac-sha256")
+	}
+	if req.Signature.KeyID == "" {
+		return fmt.Errorf("key_id is required")
+	}
+	if !isLowerHexSHA256(req.Signature.SignedDigestHex) {
+		return fmt.Errorf("signed_digest_hex must be 64 lowercase hex characters")
+	}
+	if !isLowerHexSHA256(req.Signature.SignatureHex) {
+		return fmt.Errorf("signature_hex must be 64 lowercase hex characters")
+	}
+	if len(req.Metadata) == 0 {
+		req.Metadata = json.RawMessage(`{}`)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(req.Metadata, &metadata); err != nil {
+		return fmt.Errorf("metadata must be a JSON object: %w", err)
+	}
+	return nil
+}
+
 func apiUsageExportManifest(batch APIUsageExportBatchView, artifacts []APIUsageExportArtifactView) apimeter.ExportManifest {
 	ordered := append([]APIUsageExportArtifactView(nil), artifacts...)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -2792,6 +2916,14 @@ func newAPIUsageExportManifestDigestID() (string, error) {
 		return "", fmt.Errorf("generate api usage export manifest digest id: %w", err)
 	}
 	return "api-usage-manifest-" + hex.EncodeToString(random[:]), nil
+}
+
+func newAPIUsageExportManifestSignatureID() (string, error) {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate api usage export manifest signature id: %w", err)
+	}
+	return "api-usage-signature-" + hex.EncodeToString(random[:]), nil
 }
 
 func optionalTimeString(value time.Time) string {
