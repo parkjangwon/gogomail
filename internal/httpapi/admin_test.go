@@ -616,6 +616,44 @@ func TestAdminListAPIUsageExportArtifactsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminGetAPIUsageExportArtifactHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifact: maildb.APIUsageExportArtifactView{
+			ID:             "api-usage-artifact-1",
+			BatchID:        "api-usage-export-1",
+			StorageBackend: "s3",
+			ObjectKey:      "exports/api-usage-export-1.ndjson",
+			ContentType:    "application/x-ndjson",
+			SHA256Hex:      strings.Repeat("a", 64),
+			Metadata:       json.RawMessage(`{}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Artifact maildb.APIUsageExportArtifactView `json:"api_usage_export_artifact"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Artifact.ID != "api-usage-artifact-1" {
+		t.Fatalf("artifact = %+v", response.Artifact)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportArtifactID != "api-usage-artifact-1" {
+		t.Fatalf("last ids = %q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportArtifactID)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1666,6 +1704,7 @@ type fakeAdminService struct {
 	lastQuotaCorrection              maildb.CorrectQuotaReconciliationRequest
 	lastAPIUsageLedgerList           maildb.APIUsageLedgerListRequest
 	lastAPIUsageExportBatchID        string
+	lastAPIUsageExportArtifactID     string
 	lastCreateAPIUsageExportArtifact maildb.CreateAPIUsageExportArtifactRequest
 	lastPushAttemptList              maildb.PushNotificationAttemptListRequest
 	lastCreateUser                   maildb.CreateUserRequest
@@ -1857,6 +1896,12 @@ func (f *fakeAdminService) ListAPIUsageExportArtifacts(_ context.Context, batchI
 	f.lastAPIUsageExportBatchID = batchID
 	f.lastLimit = limit
 	return f.apiUsageExportArtifacts, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageExportArtifact(_ context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportArtifactID = artifactID
+	return f.apiUsageExportArtifact, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
