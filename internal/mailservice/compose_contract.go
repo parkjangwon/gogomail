@@ -80,6 +80,12 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 
 func validateComposeAddresses(field string, addresses []outbound.Address) error {
 	for i, address := range addresses {
+		if strings.ContainsAny(address.Name, "\r\n") {
+			return fmt.Errorf("%s[%d].name must not contain CR or LF", field, i)
+		}
+		if strings.ContainsAny(address.Email, "\r\n") {
+			return fmt.Errorf("%s[%d].email must not contain CR or LF", field, i)
+		}
 		if strings.TrimSpace(address.Email) == "" {
 			return fmt.Errorf("%s[%d].email is required", field, i)
 		}

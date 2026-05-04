@@ -63,6 +63,21 @@ func TestValidateSendTextRequestRejectsInvalidRecipientEmail(t *testing.T) {
 	}
 }
 
+func TestValidateSendTextRequestRejectsRecipientHeaderInjection(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID: "user-1",
+		To: []outbound.Address{{
+			Name:  "Recipient\r\nBcc: victim@example.net",
+			Email: "user@example.net",
+		}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted newline-bearing recipient name")
+	}
+}
+
 func TestValidateSendTextRequestRejectsOversizedTextBody(t *testing.T) {
 	t.Parallel()
 
