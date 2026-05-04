@@ -559,7 +559,8 @@ The platform hardening sprint completed the following:
   the HTTP boundary before retry/bounce inspection, and CR/LF-bearing or
   oversized filter values are rejected before service dispatch.
 - Admin API push-notification attempt and stats filters are trimmed at the HTTP
-  boundary before device/provider troubleshooting queries.
+  boundary before device/provider troubleshooting queries, and CR/LF-bearing
+  or oversized filter values are rejected before service dispatch.
 - OpenAPI drift tests now pin the push-device list `limit` query parameter so
   generated clients keep pagination controls for device management.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413

@@ -1054,14 +1054,38 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
+		platform, ok := parseBoundedAdminQuery(w, r, "platform")
+		if !ok {
+			return
+		}
+		deviceID, ok := parseBoundedAdminQuery(w, r, "device_id")
+		if !ok {
+			return
+		}
+		providerStatus, ok := parseBoundedAdminQuery(w, r, "provider_status")
+		if !ok {
+			return
+		}
+		providerMessageID, ok := parseBoundedAdminQuery(w, r, "provider_message_id")
+		if !ok {
+			return
+		}
 		attempts, err := service.ListPushNotificationAttempts(r.Context(), maildb.PushNotificationAttemptListRequest{
 			Limit:             limit,
-			Status:            strings.TrimSpace(r.URL.Query().Get("status")),
-			UserID:            strings.TrimSpace(r.URL.Query().Get("user_id")),
-			Platform:          strings.TrimSpace(r.URL.Query().Get("platform")),
-			DeviceID:          strings.TrimSpace(r.URL.Query().Get("device_id")),
-			ProviderStatus:    strings.TrimSpace(r.URL.Query().Get("provider_status")),
-			ProviderMessageID: strings.TrimSpace(r.URL.Query().Get("provider_message_id")),
+			Status:            status,
+			UserID:            userID,
+			Platform:          platform,
+			DeviceID:          deviceID,
+			ProviderStatus:    providerStatus,
+			ProviderMessageID: providerMessageID,
 			Since:             since,
 		})
 		if err != nil {
@@ -1076,8 +1100,12 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
 		stats, err := service.GetPushNotificationStats(r.Context(), maildb.PushNotificationStatsRequest{
-			UserID: strings.TrimSpace(r.URL.Query().Get("user_id")),
+			UserID: userID,
 			Since:  since,
 		})
 		if err != nil {
