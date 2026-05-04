@@ -137,6 +137,8 @@ Current state:
   for previously UID-visible source messages.
 - Mail API single and bulk delete mutations can publish mailbox `expunge`
   events for previously UID-visible messages.
+- `mailservice` exposes IMAP mailbox/message listing and event subscription
+  methods for a future protocol listener.
 
 Next:
 

@@ -239,6 +239,9 @@ The platform hardening sprint completed the following:
   for previously UID-visible source messages after the database move succeeds.
 - Mail API single and bulk delete mutations can publish mailbox `expunge`
   events for previously UID-visible messages after soft-delete succeeds.
+- `mailservice` exposes IMAP mailbox/message listing and mailbox-event
+  subscription methods, keeping the future protocol listener pointed at the
+  service boundary instead of `maildb` internals.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a
