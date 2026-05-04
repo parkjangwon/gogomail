@@ -4102,6 +4102,138 @@ func TestAdminOperationalGetHandlersRejectUnknownQueryParameters(t *testing.T) {
 	}
 }
 
+func TestAdminBodylessHandlersRejectPayloadMetadata(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		body        string
+		contentType string
+		dispatched  func(*fakeAdminService) bool
+	}{
+		{
+			name:   "get outbox body",
+			method: http.MethodGet,
+			path:   "/admin/v1/outbox-events/outbox-1",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastOutboxEventID != ""
+			},
+		},
+		{
+			name:        "get audit content type",
+			method:      http.MethodGet,
+			path:        "/admin/v1/audit-logs/audit-1",
+			contentType: "application/json",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAuditLogID != ""
+			},
+		},
+		{
+			name:   "delete dkim body",
+			method: http.MethodDelete,
+			path:   "/admin/v1/dkim-keys/dkim-1",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeactivateDKIMKeyID != ""
+			},
+		},
+		{
+			name:        "delete suppression content type",
+			method:      http.MethodDelete,
+			path:        "/admin/v1/suppression-list/suppression-1",
+			contentType: "application/json",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeleteSuppressionID != ""
+			},
+		},
+		{
+			name:   "imap backfill body",
+			method: http.MethodPost,
+			path:   "/admin/v1/imap/mailboxes/inbox/uid-backfill?user_id=user-1&limit=10",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastIMAPBackfillUserID != ""
+			},
+		},
+		{
+			name:        "export batch create content type",
+			method:      http.MethodPost,
+			path:        "/admin/v1/api-usage/export-batches?tenant_id=tenant-1&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z",
+			contentType: "application/json",
+			dispatched: func(service *fakeAdminService) bool {
+				return !service.lastAPIUsageLedgerList.From.IsZero()
+			},
+		},
+		{
+			name:   "manifest digest body",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportBatchID != ""
+			},
+		},
+		{
+			name:   "manifest signature body",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAPIUsageExportManifestDigestID != ""
+			},
+		},
+		{
+			name:   "dkim verify body",
+			method: http.MethodPost,
+			path:   "/admin/v1/dkim-keys/dkim-1/verify-dns",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastVerifyDKIMKeyID != ""
+			},
+		},
+		{
+			name:   "outbox retry body",
+			method: http.MethodPost,
+			path:   "/admin/v1/outbox/outbox-1/retry",
+			body:   `{}`,
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastRetryOutboxID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			var body io.Reader
+			if tt.body != "" {
+				body = strings.NewReader(tt.body)
+			}
+			req := httptest.NewRequest(tt.method, tt.path, body)
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for bodyless payload metadata: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminGetUserHandler(t *testing.T) {
 	t.Parallel()
 
