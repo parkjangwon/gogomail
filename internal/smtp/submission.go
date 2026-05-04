@@ -44,38 +44,40 @@ type SubmissionRecorder interface {
 }
 
 type SubmissionOptions struct {
-	Store             storage.Store
-	Authenticator     SubmissionAuthenticator
-	Recorder          SubmissionRecorder
-	Metrics           Metrics
-	Hooks             []Hook
-	SupportSMTPUTF8   bool
-	SupportRequireTLS bool
-	SupportDSN        bool
-	SupportBinaryMIME bool
-	AddReceivedHeader bool
-	ReceivedDomain    string
-	Policy            ReceivePolicy
-	IDGenerator       IDGenerator
-	Clock             func() time.Time
-	MaxMessageBytes   int64
+	Store               storage.Store
+	Authenticator       SubmissionAuthenticator
+	Recorder            SubmissionRecorder
+	DomainPolicyLookup  DomainPolicyLookup
+	Metrics             Metrics
+	Hooks               []Hook
+	SupportSMTPUTF8     bool
+	SupportRequireTLS   bool
+	SupportDSN          bool
+	SupportBinaryMIME   bool
+	AddReceivedHeader   bool
+	ReceivedDomain      string
+	Policy              ReceivePolicy
+	IDGenerator         IDGenerator
+	Clock               func() time.Time
+	MaxMessageBytes     int64
 }
 
 type SubmissionReceiver struct {
-	store             storage.Store
-	authenticator     SubmissionAuthenticator
-	recorder          SubmissionRecorder
-	metrics           Metrics
-	hooks             []Hook
-	supportSMTPUTF8   bool
-	supportRequireTLS bool
-	supportDSN        bool
-	supportBinaryMIME bool
-	addReceivedHeader bool
-	receivedDomain    string
-	policy            ReceivePolicy
-	idGenerator       IDGenerator
-	clock             func() time.Time
+	store               storage.Store
+	authenticator       SubmissionAuthenticator
+	recorder            SubmissionRecorder
+	domainPolicyLookup  DomainPolicyLookup
+	metrics             Metrics
+	hooks               []Hook
+	supportSMTPUTF8     bool
+	supportRequireTLS   bool
+	supportDSN          bool
+	supportBinaryMIME   bool
+	addReceivedHeader   bool
+	receivedDomain      string
+	policy              ReceivePolicy
+	idGenerator         IDGenerator
+	clock               func() time.Time
 }
 
 func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
@@ -84,20 +86,21 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		idGenerator = randomMessageID
 	}
 	return &SubmissionReceiver{
-		store:             opts.Store,
-		authenticator:     opts.Authenticator,
-		recorder:          opts.Recorder,
-		metrics:           metricsOrDefault(opts.Metrics),
-		hooks:             append([]Hook(nil), opts.Hooks...),
-		supportSMTPUTF8:   opts.SupportSMTPUTF8,
-		supportRequireTLS: opts.SupportRequireTLS,
-		supportDSN:        opts.SupportDSN,
-		supportBinaryMIME: opts.SupportBinaryMIME,
-		addReceivedHeader: opts.AddReceivedHeader,
-		receivedDomain:    opts.ReceivedDomain,
-		policy:            normalizePolicy(opts.Policy, opts.MaxMessageBytes),
-		idGenerator:       idGenerator,
-		clock:             clockOrDefault(opts.Clock),
+		store:               opts.Store,
+		authenticator:       opts.Authenticator,
+		recorder:            opts.Recorder,
+		domainPolicyLookup:  opts.DomainPolicyLookup,
+		metrics:             metricsOrDefault(opts.Metrics),
+		hooks:               append([]Hook(nil), opts.Hooks...),
+		supportSMTPUTF8:     opts.SupportSMTPUTF8,
+		supportRequireTLS:   opts.SupportRequireTLS,
+		supportDSN:          opts.SupportDSN,
+		supportBinaryMIME:   opts.SupportBinaryMIME,
+		addReceivedHeader:   opts.AddReceivedHeader,
+		receivedDomain:      opts.ReceivedDomain,
+		policy:              normalizePolicy(opts.Policy, opts.MaxMessageBytes),
+		idGenerator:         idGenerator,
+		clock:               clockOrDefault(opts.Clock),
 	}
 }
 
@@ -280,7 +283,20 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	recipients = append([]string(nil), s.recipients...)
 	defer s.Reset()
 
-	spooled, size, err := spoolMessage(r, s.receiver.policy.MaxMessageBytes)
+	var domainPolicy *InboundDomainPolicy
+	if s.receiver.domainPolicyLookup != nil && s.user.DomainID != "" {
+		if dp, lookupErr := s.receiver.domainPolicyLookup.InboundDomainPolicy(context.Background(), s.user.DomainID); lookupErr == nil {
+			domainPolicy = &dp
+		}
+	}
+
+	// Apply per-domain recipient cap against what was already collected.
+	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, domainPolicy)
+	if len(s.recipients) > maxRecipients {
+		return smtpTooManyRecipients(maxRecipients)
+	}
+
+	spooled, size, err := spoolMessage(r, effectiveMaxBytes(s.receiver.policy.MaxMessageBytes, domainPolicy))
 	if err != nil {
 		return err
 	}

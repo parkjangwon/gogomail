@@ -7,7 +7,23 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
+
+// InboundDomainPolicy implements smtpd.DomainPolicyLookup so Repository can be
+// wired directly into the SMTP receiver and submission engines.
+func (r *Repository) InboundDomainPolicy(ctx context.Context, domainID string) (smtpd.InboundDomainPolicy, error) {
+	view, err := r.DomainPolicy(ctx, domainID)
+	if err != nil {
+		return smtpd.InboundDomainPolicy{}, err
+	}
+	return smtpd.InboundDomainPolicy{
+		InboundMode:             view.InboundMode,
+		MaxRecipientsPerMessage: view.MaxRecipientsPerMessage,
+		MaxMessageBytes:         view.MaxMessageBytes,
+	}, nil
+}
 
 func (r *Repository) DomainPolicy(ctx context.Context, domainID string) (DomainPolicyView, error) {
 	if r.db == nil {

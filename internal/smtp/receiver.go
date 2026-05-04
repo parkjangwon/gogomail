@@ -107,52 +107,54 @@ type DSNRecipientOptions struct {
 }
 
 type ReceiverOptions struct {
-	Store             storage.Store
-	Resolver          RecipientResolver
-	Recorder          MessageRecorder
-	Deduplicator      Deduplicator
-	RateLimiter       RateLimiter
-	Backpressure      Backpressure
-	AuthVerifier      AuthenticationVerifier
-	Authenticator     Authenticator
-	RelayAuthorizer   RelayAuthorizer
-	Metrics           Metrics
-	RequireAuth       bool
-	SupportSMTPUTF8   bool
-	SupportRequireTLS bool
-	SupportDSN        bool
-	SupportBinaryMIME bool
-	AddReceivedHeader bool
-	ReceivedDomain    string
-	Hooks             []Hook
-	Policy            ReceivePolicy
-	IDGenerator       IDGenerator
-	Clock             func() time.Time
-	MaxMessageBytes   int64
+	Store               storage.Store
+	Resolver            RecipientResolver
+	Recorder            MessageRecorder
+	Deduplicator        Deduplicator
+	RateLimiter         RateLimiter
+	Backpressure        Backpressure
+	AuthVerifier        AuthenticationVerifier
+	Authenticator       Authenticator
+	RelayAuthorizer     RelayAuthorizer
+	DomainPolicyLookup  DomainPolicyLookup
+	Metrics             Metrics
+	RequireAuth         bool
+	SupportSMTPUTF8     bool
+	SupportRequireTLS   bool
+	SupportDSN          bool
+	SupportBinaryMIME   bool
+	AddReceivedHeader   bool
+	ReceivedDomain      string
+	Hooks               []Hook
+	Policy              ReceivePolicy
+	IDGenerator         IDGenerator
+	Clock               func() time.Time
+	MaxMessageBytes     int64
 }
 
 type Receiver struct {
-	store             storage.Store
-	resolver          RecipientResolver
-	recorder          MessageRecorder
-	deduplicator      Deduplicator
-	rateLimiter       RateLimiter
-	backpressure      Backpressure
-	authVerifier      AuthenticationVerifier
-	authenticator     Authenticator
-	relayAuthorizer   RelayAuthorizer
-	metrics           Metrics
-	requireAuth       bool
-	supportSMTPUTF8   bool
-	supportRequireTLS bool
-	supportDSN        bool
-	supportBinaryMIME bool
-	addReceivedHeader bool
-	receivedDomain    string
-	hooks             []Hook
-	policy            ReceivePolicy
-	idGenerator       IDGenerator
-	clock             func() time.Time
+	store               storage.Store
+	resolver            RecipientResolver
+	recorder            MessageRecorder
+	deduplicator        Deduplicator
+	rateLimiter         RateLimiter
+	backpressure        Backpressure
+	authVerifier        AuthenticationVerifier
+	authenticator       Authenticator
+	relayAuthorizer     RelayAuthorizer
+	domainPolicyLookup  DomainPolicyLookup
+	metrics             Metrics
+	requireAuth         bool
+	supportSMTPUTF8     bool
+	supportRequireTLS   bool
+	supportDSN          bool
+	supportBinaryMIME   bool
+	addReceivedHeader   bool
+	receivedDomain      string
+	hooks               []Hook
+	policy              ReceivePolicy
+	idGenerator         IDGenerator
+	clock               func() time.Time
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -167,10 +169,11 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		deduplicator:      deduplicatorOrDefault(opts.Deduplicator),
 		rateLimiter:       rateLimiterOrDefault(opts.RateLimiter),
 		backpressure:      backpressureOrDefault(opts.Backpressure),
-		authVerifier:      opts.AuthVerifier,
-		authenticator:     opts.Authenticator,
-		relayAuthorizer:   opts.RelayAuthorizer,
-		metrics:           metricsOrDefault(opts.Metrics),
+		authVerifier:       opts.AuthVerifier,
+		authenticator:      opts.Authenticator,
+		relayAuthorizer:    opts.RelayAuthorizer,
+		domainPolicyLookup: opts.DomainPolicyLookup,
+		metrics:            metricsOrDefault(opts.Metrics),
 		requireAuth:       opts.RequireAuth,
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
 		supportRequireTLS: opts.SupportRequireTLS,
@@ -204,6 +207,7 @@ type session struct {
 	smtpUTF8      bool
 	remoteAddr    string
 	authenticated bool
+	domainPolicy  *InboundDomainPolicy
 }
 
 func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
@@ -280,8 +284,9 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
-	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
-		return smtpTooManyRecipients(s.receiver.policy.MaxRecipientsPerMessage)
+	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.domainPolicy)
+	if len(s.recipients) >= maxRecipients {
+		return smtpTooManyRecipients(maxRecipients)
 	}
 
 	allowed, err := s.receiver.rateLimiter.Allow(context.Background(), RateLimitKey{
@@ -303,6 +308,14 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	if err := validateSMTPUTF8Address(to, mailbox.Address, s.smtpUTF8, s.receiver.supportSMTPUTF8); err != nil {
 		return err
 	}
+
+	// Cache per-domain policy from the first resolved recipient.
+	if s.receiver.domainPolicyLookup != nil && s.domainPolicy == nil {
+		if dp, lookupErr := s.receiver.domainPolicyLookup.InboundDomainPolicy(context.Background(), mailbox.DomainID); lookupErr == nil {
+			s.domainPolicy = &dp
+		}
+	}
+
 	s.recipients = append(s.recipients, mailbox)
 	s.dsn.Recipients = append(s.dsn.Recipients, normalizeDSNRecipientOptions(mailbox.Address, opts))
 	return nil
@@ -351,7 +364,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		return err
 	}
 
-	spooled, size, err := spoolMessage(r, s.receiver.policy.MaxMessageBytes)
+	spooled, size, err := spoolMessage(r, effectiveMaxBytes(s.receiver.policy.MaxMessageBytes, s.domainPolicy))
 	if err != nil {
 		return err
 	}
@@ -690,6 +703,7 @@ func (s *session) clearEnvelope() {
 	s.recipients = nil
 	s.dsn = DSNOptions{}
 	s.smtpUTF8 = false
+	s.domainPolicy = nil
 }
 
 func (s *session) Logout() error {

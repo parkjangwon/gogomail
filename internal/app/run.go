@@ -99,6 +99,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	var pressure smtpd.Backpressure
 	var relayAuthorizer smtpd.RelayAuthorizer
 	var redisClient *redis.Client
+	var maildbRepo *maildb.Repository
 
 	if len(cfg.LocalRecipients) > 0 {
 		staticResolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
@@ -114,9 +115,9 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		}
 		defer db.Close()
 
-		repository := maildb.NewRepository(db)
-		resolver = repository
-		recorder = repository
+		maildbRepo = maildb.NewRepository(db)
+		resolver = maildbRepo
+		recorder = maildbRepo
 		logger.Info(opts.Component + " using database recipient resolver and message recorder")
 	}
 
@@ -185,23 +186,24 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
-		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
-		Resolver:          resolver,
-		Recorder:          recorder,
-		Deduplicator:      deduplicator,
-		RateLimiter:       rateLimiter,
-		Backpressure:      pressure,
-		AuthVerifier:      authVerifier,
-		RelayAuthorizer:   relayAuthorizer,
-		Metrics:           smtpMetrics(cfg, logger),
-		AddReceivedHeader: cfg.SMTPAddReceivedHeader,
-		ReceivedDomain:    cfg.SMTPDomain,
-		RequireAuth:       cfg.SMTPRequireAuth,
-		SupportSMTPUTF8:   cfg.SMTPSupportSMTPUTF8,
-		SupportRequireTLS: cfg.SMTPSupportRequireTLS,
-		SupportDSN:        cfg.SMTPSupportDSN,
-		SupportBinaryMIME: cfg.SMTPSupportBinaryMIME,
-		Hooks:             hooks,
+		Store:               storage.NewLocalStore(cfg.MailstoreRoot),
+		Resolver:            resolver,
+		Recorder:            recorder,
+		Deduplicator:        deduplicator,
+		RateLimiter:         rateLimiter,
+		Backpressure:        pressure,
+		AuthVerifier:        authVerifier,
+		RelayAuthorizer:     relayAuthorizer,
+		DomainPolicyLookup:  maildbRepo,
+		Metrics:             smtpMetrics(cfg, logger),
+		AddReceivedHeader:   cfg.SMTPAddReceivedHeader,
+		ReceivedDomain:      cfg.SMTPDomain,
+		RequireAuth:         cfg.SMTPRequireAuth,
+		SupportSMTPUTF8:     cfg.SMTPSupportSMTPUTF8,
+		SupportRequireTLS:   cfg.SMTPSupportRequireTLS,
+		SupportDSN:          cfg.SMTPSupportDSN,
+		SupportBinaryMIME:   cfg.SMTPSupportBinaryMIME,
+		Hooks:               hooks,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SMTPMaxRecipients,
 			MaxMessageBytes:         cfg.SMTPMaxMessageBytes,
@@ -233,15 +235,16 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 	repository := maildb.NewRepository(db)
 	receiver := smtpd.NewSubmissionReceiver(smtpd.SubmissionOptions{
-		Store:             storage.NewLocalStore(cfg.MailstoreRoot),
-		Authenticator:     repository,
-		Recorder:          repository,
-		AddReceivedHeader: cfg.SubmissionAddReceivedHeader,
-		ReceivedDomain:    cfg.SMTPDomain,
-		SupportSMTPUTF8:   cfg.SubmissionSupportSMTPUTF8,
-		SupportRequireTLS: cfg.SubmissionSupportRequireTLS,
-		SupportDSN:        cfg.SubmissionSupportDSN,
-		SupportBinaryMIME: cfg.SubmissionSupportBinaryMIME,
+		Store:               storage.NewLocalStore(cfg.MailstoreRoot),
+		Authenticator:       repository,
+		Recorder:            repository,
+		DomainPolicyLookup:  repository,
+		AddReceivedHeader:   cfg.SubmissionAddReceivedHeader,
+		ReceivedDomain:      cfg.SMTPDomain,
+		SupportSMTPUTF8:     cfg.SubmissionSupportSMTPUTF8,
+		SupportRequireTLS:   cfg.SubmissionSupportRequireTLS,
+		SupportDSN:          cfg.SubmissionSupportDSN,
+		SupportBinaryMIME:   cfg.SubmissionSupportBinaryMIME,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SubmissionMaxRecipients,
 			MaxMessageBytes:         cfg.SubmissionMaxMessageBytes,
