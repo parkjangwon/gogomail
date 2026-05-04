@@ -20,8 +20,16 @@ import (
 func TestAdminQueueHandler(t *testing.T) {
 	t.Parallel()
 
+	oldestReadyAt := time.Date(2026, 5, 4, 8, 0, 0, 0, time.UTC)
 	service := &fakeAdminService{
-		queueStats: []maildb.QueueStat{{Topic: "mail.outbound.general", Status: "pending", Count: 2}},
+		queueStats: []maildb.QueueStat{{
+			Topic:         "mail.outbound.general",
+			Status:        "pending",
+			Count:         2,
+			ReadyCount:    1,
+			DelayedCount:  1,
+			OldestReadyAt: &oldestReadyAt,
+		}},
 	}
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
@@ -39,7 +47,7 @@ func TestAdminQueueHandler(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
 	}
-	if len(body.Queues) != 1 || body.Queues[0].Count != 2 {
+	if len(body.Queues) != 1 || body.Queues[0].Count != 2 || body.Queues[0].ReadyCount != 1 || body.Queues[0].DelayedCount != 1 || body.Queues[0].OldestReadyAt == nil {
 		t.Fatalf("queues = %+v", body.Queues)
 	}
 }

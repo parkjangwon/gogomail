@@ -109,9 +109,14 @@ func parsePostgresTextArray(raw string) ([]string, error) {
 }
 
 type QueueStat struct {
-	Topic  string `json:"topic"`
-	Status string `json:"status"`
-	Count  int64  `json:"count"`
+	Topic                string     `json:"topic"`
+	Status               string     `json:"status"`
+	Count                int64      `json:"count"`
+	ReadyCount           int64      `json:"ready_count"`
+	DelayedCount         int64      `json:"delayed_count"`
+	StaleProcessingCount int64      `json:"stale_processing_count"`
+	OldestReadyAt        *time.Time `json:"oldest_ready_at,omitempty"`
+	NextAvailableAt      *time.Time `json:"next_available_at,omitempty"`
 }
 
 type OutboxEventListRequest struct {
@@ -1879,7 +1884,15 @@ func (r *Repository) ListQueueStats(ctx context.Context) ([]QueueStat, error) {
 	}
 
 	const query = `
-SELECT topic, status, count(*)
+SELECT
+  topic,
+  status,
+  count(*)::bigint,
+  count(*) FILTER (WHERE status = 'pending' AND available_at <= now())::bigint,
+  count(*) FILTER (WHERE status = 'pending' AND available_at > now())::bigint,
+  count(*) FILTER (WHERE status = 'processing' AND locked_at < now() - interval '5 minutes')::bigint,
+  min(created_at) FILTER (WHERE status = 'pending' AND available_at <= now()),
+  min(available_at) FILTER (WHERE status = 'pending' AND available_at > now())
 FROM outbox
 GROUP BY topic, status
 ORDER BY topic, status`
@@ -1893,8 +1906,25 @@ ORDER BY topic, status`
 	var stats []QueueStat
 	for rows.Next() {
 		var stat QueueStat
-		if err := rows.Scan(&stat.Topic, &stat.Status, &stat.Count); err != nil {
+		var oldestReadyAt sql.NullTime
+		var nextAvailableAt sql.NullTime
+		if err := rows.Scan(
+			&stat.Topic,
+			&stat.Status,
+			&stat.Count,
+			&stat.ReadyCount,
+			&stat.DelayedCount,
+			&stat.StaleProcessingCount,
+			&oldestReadyAt,
+			&nextAvailableAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan queue stat: %w", err)
+		}
+		if oldestReadyAt.Valid {
+			stat.OldestReadyAt = &oldestReadyAt.Time
+		}
+		if nextAvailableAt.Valid {
+			stat.NextAvailableAt = &nextAvailableAt.Time
 		}
 		stats = append(stats, stat)
 	}
