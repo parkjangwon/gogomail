@@ -121,7 +121,7 @@ func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 		event := Event{
 			Identity:      identity,
 			Method:        r.Method,
-			RoutePattern:  r.Pattern,
+			RoutePattern:  routePatternFromRequest(r),
 			Status:        mw.status,
 			RequestBytes:  requestBytes,
 			ResponseBytes: mw.bytes,
@@ -132,6 +132,25 @@ func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 		}
 		go recordFailOpen(sink, cfg.timeout, event)
 	})
+}
+
+func routePatternFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	pattern := strings.TrimSpace(r.Pattern)
+	if pattern != "" {
+		return pattern
+	}
+	path := strings.TrimSpace(r.URL.Path)
+	if path == "" {
+		path = "/"
+	}
+	method := strings.TrimSpace(r.Method)
+	if method == "" {
+		return path
+	}
+	return method + " " + path
 }
 
 func defaultIdentityFromRequest(r *http.Request) Identity {

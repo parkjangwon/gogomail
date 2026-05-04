@@ -94,6 +94,22 @@ func TestHandlerDefaultsStatusAndUsesContentLengthWhenBodyUnread(t *testing.T) {
 	}
 }
 
+func TestHandlerFallsBackToMethodPathRoutePattern(t *testing.T) {
+	sink := &captureSink{events: make(chan Event, 1)}
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/unmatched", nil)
+	rec := httptest.NewRecorder()
+
+	Handler(next, sink, WithTimeout(time.Second)).ServeHTTP(rec, req)
+
+	event := receiveEvent(t, sink.events)
+	if event.RoutePattern != "GET /unmatched" {
+		t.Fatalf("route pattern = %q, want method/path fallback", event.RoutePattern)
+	}
+}
+
 func TestHandlerFailsOpenWhenSinkReturnsError(t *testing.T) {
 	sink := &errorSink{called: make(chan struct{}, 1)}
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
