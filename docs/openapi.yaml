@@ -1768,6 +1768,18 @@ paths:
       summary: Admin trusted relay CIDR list
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - in: query
+          name: cidr
+          schema:
+            type: string
+            maxLength: 128
+          description: Exact trusted relay CIDR filter. Plain IPv4/IPv6 addresses are normalized to host CIDRs by the backend.
+        - in: query
+          name: description
+          schema:
+            type: string
+            maxLength: 1024
+          description: Case-insensitive trusted relay description substring filter.
       responses:
         "200":
           $ref: "#/components/responses/TrustedRelayList"

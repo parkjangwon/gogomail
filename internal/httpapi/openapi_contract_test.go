@@ -439,7 +439,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},
 		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
 		"GET /suppression-list":                                {"limit", "domain_id", "email", "reason"},
-		"GET /trusted-relays":                                  {"limit"},
+		"GET /trusted-relays":                                  {"limit", "cidr", "description"},
 		"GET /delivery-routes":                                 {"limit", "status", "farm", "domain_pattern"},
 		"GET /delivery-routes/resolve":                         {"domain"},
 		"POST /imap/mailboxes/{id}/uid-backfill":               {"id", "user_id", "limit"},

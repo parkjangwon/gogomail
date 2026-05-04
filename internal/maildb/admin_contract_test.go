@@ -691,3 +691,22 @@ func TestValidateDeliveryRouteListRequestRejectsUnknownFilters(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateTrustedRelayListRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []TrustedRelayListRequest{
+		{CIDR: "not-a-cidr"},
+		{Description: "edge\nbad"},
+		{Description: strings.Repeat("d", maxPushNotificationFilterBytes+1)},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CIDR+req.Description, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateTrustedRelayListRequest(req); err == nil {
+				t.Fatalf("ValidateTrustedRelayListRequest accepted %+v", req)
+			}
+		})
+	}
+}

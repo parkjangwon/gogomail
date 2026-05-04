@@ -97,7 +97,7 @@ type AdminService interface {
 	UpdatePushNotificationOutcome(ctx context.Context, req maildb.UpdatePushNotificationOutcomeRequest) error
 	GetPushNotificationStats(ctx context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error)
 	ListSuppressionEntries(ctx context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error)
-	ListTrustedRelays(ctx context.Context, limit int) ([]maildb.TrustedRelayView, error)
+	ListTrustedRelays(ctx context.Context, req maildb.TrustedRelayListRequest) ([]maildb.TrustedRelayView, error)
 	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
 	DeleteTrustedRelay(ctx context.Context, id string) error
 	ListDeliveryRoutes(ctx context.Context, req maildb.DeliveryRouteListRequest) ([]maildb.DeliveryRouteView, error)
@@ -1598,7 +1598,24 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		relays, err := service.ListTrustedRelays(r.Context(), limit)
+		cidr, ok := parseBoundedAdminQuery(w, r, "cidr")
+		if !ok {
+			return
+		}
+		description, ok := parseBoundedAdminQuery(w, r, "description")
+		if !ok {
+			return
+		}
+		listReq := maildb.TrustedRelayListRequest{
+			Limit:       limit,
+			CIDR:        cidr,
+			Description: description,
+		}
+		if err := maildb.ValidateTrustedRelayListRequest(listReq); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		relays, err := service.ListTrustedRelays(r.Context(), listReq)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
