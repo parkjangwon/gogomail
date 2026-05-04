@@ -119,6 +119,43 @@ func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
 	}
 }
 
+func TestOpenSearchSearcherCleansHitMessageIDs(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"hits": {
+				"hits": [
+					{"_id":"fallback%2D1","_score":1,"_source":{"message_id":"msg-1\r\nbad"}},
+					{"_id":"bad%0Aid","_score":1,"_source":{}},
+					{"_id":"fallback%2D2","_score":1,"_source":{}}
+				]
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	searcher, err := NewOpenSearchSearcher(OpenSearchOptions{
+		Endpoint: server.URL,
+		Index:    "gogomail-messages",
+		Client:   server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchSearcher returned error: %v", err)
+	}
+	hits, err := searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{
+		UserID: "user-1",
+		Query:  "hello",
+	})
+	if err != nil {
+		t.Fatalf("SearchMessageIDs returned error: %v", err)
+	}
+	if len(hits) != 2 || hits[0].MessageID != "fallback-1" || hits[1].MessageID != "fallback-2" {
+		t.Fatalf("hits = %#v", hits)
+	}
+}
+
 func TestOpenSearchHighlightsAreBounded(t *testing.T) {
 	t.Parallel()
 

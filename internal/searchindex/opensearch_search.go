@@ -17,6 +17,7 @@ const (
 	maxOpenSearchHighlightFragments     = 3
 	maxOpenSearchHighlightFragmentBytes = 512
 	maxOpenSearchSearchTextBytes        = 1000
+	maxOpenSearchHitIDBytes             = 500
 )
 
 type OpenSearchSearchQuery struct {
@@ -110,11 +111,11 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 	}
 	hits := make([]OpenSearchHit, 0, len(result.Hits.Hits))
 	for _, hit := range result.Hits.Hits {
-		messageID := strings.TrimSpace(hit.Source.MessageID)
+		messageID := cleanOpenSearchHitID(hit.Source.MessageID)
 		if messageID == "" {
-			messageID = strings.TrimSpace(hit.ID)
+			messageID = cleanOpenSearchHitID(hit.ID)
 			if unescaped, err := url.PathUnescape(messageID); err == nil {
-				messageID = unescaped
+				messageID = cleanOpenSearchHitID(unescaped)
 			}
 		}
 		if messageID == "" {
@@ -127,6 +128,14 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 		})
 	}
 	return hits, nil
+}
+
+func cleanOpenSearchHitID(value string) string {
+	value = truncateUTF8Bytes(strings.ToValidUTF8(strings.TrimSpace(value), ""), maxOpenSearchHitIDBytes)
+	if value == "" || strings.ContainsAny(value, "\r\n") {
+		return ""
+	}
+	return value
 }
 
 func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit int) map[string]any {
