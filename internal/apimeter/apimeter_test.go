@@ -57,6 +57,9 @@ func TestHandlerRecordsRequestAndResponseEvent(t *testing.T) {
 	if event.UserID != "user-1" {
 		t.Fatalf("user id = %q, want user-1", event.UserID)
 	}
+	if event.AuthSource != "query_user_id" {
+		t.Fatalf("auth source = %q, want query_user_id", event.AuthSource)
+	}
 	if event.Timestamp.IsZero() {
 		t.Fatal("timestamp was not recorded")
 	}
@@ -131,6 +134,37 @@ func TestHandlerFailsOpenWhenSinkTimesOut(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("sink did not observe timeout")
 	}
+}
+
+func TestAuthSourceFromRequest(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		req  *http.Request
+		want string
+	}{
+		{name: "nil", want: "anonymous"},
+		{name: "bearer", req: requestWithHeader("Authorization", "Bearer token"), want: "bearer"},
+		{name: "admin token", req: requestWithHeader("X-Admin-Token", "secret"), want: "admin_token"},
+		{name: "query user", req: httptest.NewRequest(http.MethodGet, "/?user_id=user-1", nil), want: "query_user_id"},
+		{name: "anonymous", req: httptest.NewRequest(http.MethodGet, "/", nil), want: "anonymous"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := authSourceFromRequest(tc.req); got != tc.want {
+				t.Fatalf("authSourceFromRequest() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func requestWithHeader(key, value string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set(key, value)
+	return req
 }
 
 type captureSink struct {

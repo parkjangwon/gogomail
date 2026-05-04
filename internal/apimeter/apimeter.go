@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type Event struct {
 	Latency       time.Duration
 	Timestamp     time.Time
 	UserID        string
+	AuthSource    string
 }
 
 // Sink receives API metering events.
@@ -55,6 +57,7 @@ func (s SlogSink) Record(_ context.Context, event Event) error {
 		"response_bytes", event.ResponseBytes,
 		"latency_ms", event.Latency.Milliseconds(),
 		"user_id", event.UserID,
+		"auth_source", event.AuthSource,
 		"timestamp", event.Timestamp.Format(time.RFC3339Nano),
 	)
 	return nil
@@ -108,9 +111,26 @@ func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 			Latency:       time.Since(start),
 			Timestamp:     start,
 			UserID:        r.URL.Query().Get("user_id"),
+			AuthSource:    authSourceFromRequest(r),
 		}
 		go recordFailOpen(sink, cfg.timeout, event)
 	})
+}
+
+func authSourceFromRequest(r *http.Request) string {
+	if r == nil {
+		return "anonymous"
+	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r.Header.Get("Authorization"))), "bearer ") {
+		return "bearer"
+	}
+	if strings.TrimSpace(r.Header.Get("X-Admin-Token")) != "" {
+		return "admin_token"
+	}
+	if strings.TrimSpace(r.URL.Query().Get("user_id")) != "" {
+		return "query_user_id"
+	}
+	return "anonymous"
 }
 
 func recordFailOpen(sink Sink, timeout time.Duration, event Event) {

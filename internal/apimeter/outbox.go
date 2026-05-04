@@ -71,6 +71,7 @@ func apiUsagePayload(event Event) map[string]any {
 		"latency_ms":     event.Latency.Milliseconds(),
 		"timestamp":      timestamp.UTC().Format(time.RFC3339Nano),
 		"user_id":        strings.TrimSpace(event.UserID),
+		"auth_source":    strings.TrimSpace(event.AuthSource),
 	}
 }
 
@@ -84,6 +85,7 @@ func apiUsageEventID(event Event, timestamp time.Time) string {
 		strings.TrimSpace(event.RoutePattern),
 		fmt.Sprint(event.Status),
 		strings.TrimSpace(event.UserID),
+		strings.TrimSpace(event.AuthSource),
 		fmt.Sprint(event.RequestBytes),
 		fmt.Sprint(event.ResponseBytes),
 		fmt.Sprint(event.Latency.Milliseconds()),
