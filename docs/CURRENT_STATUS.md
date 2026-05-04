@@ -139,6 +139,9 @@ guidance.
 - Admin push-notification outcome updates now persist hash-chain audit rows in
   the same transaction as provider-status updates and invalid-token device
   deletion, without including raw push tokens or token suffixes in audit detail.
+- Admin attachment cleanup runs now persist bounded hash-chain audit rows after
+  stale upload and upload-session expiry sweeps, recording cutoff, normalized
+  limit, expired counts, and bounded ID samples without storage paths.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords
