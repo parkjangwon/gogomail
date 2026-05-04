@@ -644,6 +644,24 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
 	})
 
+	mux.HandleFunc("GET /api/v1/attachments/capabilities", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := userIDFromRequest(w, r, tokenManager); !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"attachment_upload_capabilities": map[string]any{
+				"max_attachment_bytes":       mailservice.MaxAttachmentUploadBytes,
+				"max_filename_bytes":         mailservice.MaxAttachmentFilenameBytes,
+				"metadata_reservation":       true,
+				"direct_multipart_upload":    true,
+				"cancel_pending_uploads":     true,
+				"resumable_chunked_uploads":  false,
+				"requires_declared_size":     true,
+				"quota_reserved_on_metadata": true,
+			},
+		})
+	})
+
 	mux.HandleFunc("DELETE /api/v1/attachments/{id}", func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {

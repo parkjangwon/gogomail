@@ -619,6 +619,9 @@ The platform hardening sprint completed the following:
 - Mail API exposes `DELETE /api/v1/attachments/{id}` so users can cancel
   unbound pending uploads immediately, releasing quota and removing any stored
   upload object without waiting for stale cleanup.
+- Mail API exposes `GET /api/v1/attachments/capabilities` so clients can
+  discover upload limits, supported modes, and resumable-upload readiness
+  without hard-coded constants.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

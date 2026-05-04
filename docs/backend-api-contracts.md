@@ -165,6 +165,11 @@ Pending uploads can be canceled through `DELETE /api/v1/attachments/{id}`;
 successful cancellation is user-scoped, only applies to unbound `uploading`
 attachments, marks the row `deleted`, releases the reserved quota, and removes
 the stored object when one exists.
+Clients can discover the current upload limits and supported modes with
+`GET /api/v1/attachments/capabilities`. The response records max attachment
+bytes, filename bytes, metadata reservation, direct multipart upload, pending
+upload cancellation, declared-size requirements, quota reservation semantics,
+and the fact that resumable/chunked uploads are not yet supported.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

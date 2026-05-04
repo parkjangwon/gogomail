@@ -258,6 +258,8 @@ Current state:
   metadata reservation and direct multipart upload before storage writes.
 - Mail API can cancel a pending user-scoped upload immediately, releasing
   reserved quota and deleting any stored upload object.
+- Mail API exposes attachment upload capabilities so clients can discover
+  current limits and supported modes without hard-coding them.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.

@@ -1025,6 +1025,34 @@ func TestCancelAttachmentUploadHandler(t *testing.T) {
 	}
 }
 
+func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/attachments/capabilities?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{
+		`"attachment_upload_capabilities"`,
+		`"metadata_reservation":true`,
+		`"direct_multipart_upload":true`,
+		`"cancel_pending_uploads":true`,
+		`"resumable_chunked_uploads":false`,
+		`"requires_declared_size":true`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body missing %s: %s", want, rec.Body.String())
+		}
+	}
+}
+
 func TestUploadAttachmentHandlerRejectsOversizedRequestBody(t *testing.T) {
 	t.Parallel()
 
