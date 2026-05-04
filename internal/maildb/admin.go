@@ -2764,6 +2764,99 @@ RETURNING id, digest_id, batch_id, created_at, signer_backend, key_id,
 	return view, nil
 }
 
+func (r *Repository) ListAPIUsageExportManifestSignatures(ctx context.Context, batchID string, digestID string, limit int) ([]APIUsageExportManifestSignatureView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	batchID = strings.TrimSpace(batchID)
+	digestID = strings.TrimSpace(digestID)
+	if batchID == "" {
+		return nil, fmt.Errorf("batch_id is required")
+	}
+	if digestID == "" {
+		return nil, fmt.Errorf("digest_id is required")
+	}
+	limit = normalizeLimit(limit)
+	const query = `
+SELECT id, digest_id, batch_id, created_at, signer_backend, key_id,
+  signature_algorithm, signed_digest_hex, signature_hex, metadata
+FROM api_usage_export_manifest_signatures
+WHERE batch_id = $1
+  AND digest_id = $2
+ORDER BY created_at DESC, id DESC
+LIMIT $3`
+	rows, err := r.db.QueryContext(ctx, query, batchID, digestID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage export manifest signatures: %w", err)
+	}
+	defer rows.Close()
+
+	var signatures []APIUsageExportManifestSignatureView
+	for rows.Next() {
+		var signature APIUsageExportManifestSignatureView
+		if err := scanAPIUsageExportManifestSignature(rows, &signature); err != nil {
+			return nil, fmt.Errorf("scan api usage export manifest signature: %w", err)
+		}
+		signatures = append(signatures, signature)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage export manifest signatures: %w", err)
+	}
+	return signatures, nil
+}
+
+func (r *Repository) GetAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string, signatureID string) (APIUsageExportManifestSignatureView, error) {
+	if r.db == nil {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("database handle is required")
+	}
+	batchID = strings.TrimSpace(batchID)
+	digestID = strings.TrimSpace(digestID)
+	signatureID = strings.TrimSpace(signatureID)
+	if batchID == "" {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("batch_id is required")
+	}
+	if digestID == "" {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("digest_id is required")
+	}
+	if signatureID == "" {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("signature_id is required")
+	}
+	const query = `
+SELECT id, digest_id, batch_id, created_at, signer_backend, key_id,
+  signature_algorithm, signed_digest_hex, signature_hex, metadata
+FROM api_usage_export_manifest_signatures
+WHERE batch_id = $1
+  AND digest_id = $2
+  AND id = $3`
+	var signature APIUsageExportManifestSignatureView
+	if err := scanAPIUsageExportManifestSignature(r.db.QueryRowContext(ctx, query, batchID, digestID, signatureID), &signature); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return APIUsageExportManifestSignatureView{}, fmt.Errorf("api usage export manifest signature not found")
+		}
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("get api usage export manifest signature: %w", err)
+	}
+	return signature, nil
+}
+
+type apiUsageExportManifestSignatureScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanAPIUsageExportManifestSignature(scanner apiUsageExportManifestSignatureScanner, signature *APIUsageExportManifestSignatureView) error {
+	return scanner.Scan(
+		&signature.ID,
+		&signature.DigestID,
+		&signature.BatchID,
+		&signature.CreatedAt,
+		&signature.SignerBackend,
+		&signature.KeyID,
+		&signature.SignatureAlgorithm,
+		&signature.SignedDigestHex,
+		&signature.SignatureHex,
+		&signature.Metadata,
+	)
+}
+
 func ValidateCreateAPIUsageExportManifestSignatureRequest(req *CreateAPIUsageExportManifestSignatureRequest) error {
 	req.BatchID = strings.TrimSpace(req.BatchID)
 	req.DigestID = strings.TrimSpace(req.DigestID)
