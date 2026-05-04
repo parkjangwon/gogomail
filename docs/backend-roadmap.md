@@ -491,6 +491,7 @@ Implementation order:
 432. Push notification candidate and provider-outcome diagnostics now truncate at UTF-8 boundaries before Postgres storage, preserving valid Admin API text for internationalized subjects and vendor messages.
 433. Search indexing now rejects ambiguous `mail.stored` storage paths that would be changed by path cleaning, preventing traversal-shaped event payloads from opening a different `.eml` object key.
 434. Search indexing now caps `mail.stored` event `References` metadata before document construction, aligning event payload handling with parser metadata bounds.
+435. The OpenSearch indexing adapter now bounds UTF-8 metadata fields and reference arrays before document submission, keeping direct adapter calls aligned with worker/parser metadata limits.
 
 ## Deferred until backend contracts stabilize
 

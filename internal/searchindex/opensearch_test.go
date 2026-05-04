@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
@@ -95,6 +96,37 @@ func TestOpenSearchIndexerReportsServerError(t *testing.T) {
 	err = indexer.IndexMessage(context.Background(), Document{MessageID: "msg-1"})
 	if err == nil || !strings.Contains(err.Error(), "502") {
 		t.Fatalf("error = %v, want status error", err)
+	}
+}
+
+func TestOpenSearchDocumentBoundsMetadata(t *testing.T) {
+	t.Parallel()
+
+	refs := make([]string, 0, maxEventReferences+10)
+	for i := 0; i < maxEventReferences+10; i++ {
+		refs = append(refs, strings.Repeat("참", 400))
+	}
+	doc := openSearchDocument(Document{
+		MessageID:  "msg-1",
+		Subject:    strings.Repeat("제", 400),
+		FromName:   strings.Repeat("보", 400),
+		References: append(refs, "bad\nref"),
+	})
+
+	subject := doc["subject"].(string)
+	if len(subject) > maxOpenSearchMetadataBytes || !utf8.ValidString(subject) {
+		t.Fatalf("subject length/utf8 = %d/%v", len(subject), utf8.ValidString(subject))
+	}
+	fromName := doc["from_name"].(string)
+	if len(fromName) > maxOpenSearchMetadataBytes || !utf8.ValidString(fromName) {
+		t.Fatalf("from_name length/utf8 = %d/%v", len(fromName), utf8.ValidString(fromName))
+	}
+	references := doc["references"].([]string)
+	if len(references) != maxEventReferences {
+		t.Fatalf("references = %d, want %d", len(references), maxEventReferences)
+	}
+	if len(references[0]) > maxOpenSearchMetadataBytes || !utf8.ValidString(references[0]) {
+		t.Fatalf("reference length/utf8 = %d/%v", len(references[0]), utf8.ValidString(references[0]))
 	}
 }
 
