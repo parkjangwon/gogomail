@@ -111,6 +111,8 @@ Current state:
   outcomes.
 - `internal/pushnotify.PostgresRecorder` can update an existing attempt with
   queued, delivered, failed, or invalid-token outcomes.
+- Invalid-token outcomes soft-delete the matching user push device in the same
+  Postgres transaction as the attempt update.
 - Spam and vendor FCM/APNs delivery are not wired.
 
 Next:

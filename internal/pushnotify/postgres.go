@@ -78,19 +78,44 @@ func (r *PostgresRecorder) RecordOutcome(ctx context.Context, outcome AttemptOut
 	if err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin push notification outcome transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var deviceID string
+	var userID string
+	if err := tx.QueryRowContext(
 		ctx,
-		`UPDATE push_notification_attempts SET status = $2, error_message = $3, attempted_at = now() WHERE id = $1::uuid`,
+		`UPDATE push_notification_attempts
+SET status = $2, error_message = $3, attempted_at = now()
+WHERE id = $1::uuid
+RETURNING COALESCE(device_id::text, ''), user_id::text`,
 		normalized.AttemptID,
 		normalized.Status,
 		normalized.ErrorMessage,
-	)
-	if err != nil {
+	).Scan(&deviceID, &userID); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("push notification attempt %q not found", normalized.AttemptID)
+		}
 		return fmt.Errorf("record push notification outcome: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("push notification attempt %q not found", normalized.AttemptID)
+
+	if normalized.Status == "invalid_token" && strings.TrimSpace(deviceID) != "" {
+		if _, err := tx.ExecContext(
+			ctx,
+			`UPDATE push_devices SET status = 'deleted', updated_at = now() WHERE id = $1::uuid AND user_id = $2::uuid`,
+			deviceID,
+			userID,
+		); err != nil {
+			return fmt.Errorf("delete invalid push device: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit push notification outcome: %w", err)
 	}
 	return nil
 }
