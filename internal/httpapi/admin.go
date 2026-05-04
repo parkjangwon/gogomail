@@ -423,11 +423,23 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		topic, ok := parseBoundedAdminQuery(w, r, "topic")
+		if !ok {
+			return
+		}
+		partitionKey, ok := parseBoundedAdminQuery(w, r, "partition_key")
+		if !ok {
+			return
+		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
 		events, err := service.ListOutboxEvents(r.Context(), maildb.OutboxEventListRequest{
 			Limit:        limit,
-			Topic:        strings.TrimSpace(r.URL.Query().Get("topic")),
-			PartitionKey: strings.TrimSpace(r.URL.Query().Get("partition_key")),
-			Status:       strings.TrimSpace(r.URL.Query().Get("status")),
+			Topic:        topic,
+			PartitionKey: partitionKey,
+			Status:       status,
 			Since:        since,
 		})
 		if err != nil {
@@ -1368,6 +1380,21 @@ func parseOptionalRFC3339Query(w http.ResponseWriter, r *http.Request, key strin
 		return time.Time{}, false
 	}
 	return value.UTC(), true
+}
+
+const maxAdminQueryFilterBytes = 1024
+
+func parseBoundedAdminQuery(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
 }
 
 func adminTokenFromRequest(r *http.Request) string {
