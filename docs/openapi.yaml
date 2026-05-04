@@ -618,6 +618,42 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerExport"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/artifacts:
+    get:
+      operationId: listAdminAPIUsageExportArtifacts
+      summary: List API usage export artifacts for a batch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportArtifactList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminAPIUsageExportArtifact
+      summary: Register an external API usage export artifact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/APIUsageExportArtifactCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/APIUsageExportArtifact"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1304,6 +1340,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerStatsEnvelope"
+    APIUsageExportArtifact:
+      description: API usage export artifact envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportArtifactEnvelope"
+    APIUsageExportArtifactList:
+      description: API usage export artifact list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportArtifactListEnvelope"
     APIUsageExportBatch:
       description: API usage export batch manifest envelope
       content:
@@ -2433,6 +2481,79 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportBatch"
+    APIUsageExportArtifact:
+      type: object
+      required: [id, batch_id, created_at, storage_backend, object_key, content_type, byte_count, sha256_hex, event_count, metadata]
+      properties:
+        id:
+          type: string
+        batch_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        storage_backend:
+          type: string
+        object_key:
+          type: string
+        content_type:
+          type: string
+          enum: [application/x-ndjson]
+        byte_count:
+          type: integer
+          format: int64
+          minimum: 0
+        sha256_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        metadata:
+          type: object
+          additionalProperties: true
+    APIUsageExportArtifactCreate:
+      type: object
+      required: [object_key, byte_count, sha256_hex]
+      properties:
+        storage_backend:
+          type: string
+          default: external
+        object_key:
+          type: string
+        content_type:
+          type: string
+          enum: [application/x-ndjson]
+          default: application/x-ndjson
+        byte_count:
+          type: integer
+          format: int64
+          minimum: 0
+        sha256_hex:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+        event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        metadata:
+          type: object
+          additionalProperties: true
+    APIUsageExportArtifactEnvelope:
+      type: object
+      required: [api_usage_export_artifact]
+      properties:
+        api_usage_export_artifact:
+          $ref: "#/components/schemas/APIUsageExportArtifact"
+    APIUsageExportArtifactListEnvelope:
+      type: object
+      required: [api_usage_export_artifacts]
+      properties:
+        api_usage_export_artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageExportArtifact"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
