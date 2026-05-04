@@ -49,6 +49,42 @@ func TestValidateUpdateCompanyQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	}
 }
 
+func TestValidateCorrectQuotaReconciliationRequestDefaultsAll(t *testing.T) {
+	t.Parallel()
+
+	got, err := ValidateCorrectQuotaReconciliationRequest(CorrectQuotaReconciliationRequest{})
+	if err != nil {
+		t.Fatalf("ValidateCorrectQuotaReconciliationRequest returned error: %v", err)
+	}
+	if got.Scope != "all" {
+		t.Fatalf("scope = %q, want all", got.Scope)
+	}
+}
+
+func TestValidateCorrectQuotaReconciliationRequestRejectsInvalidScope(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ValidateCorrectQuotaReconciliationRequest(CorrectQuotaReconciliationRequest{Scope: "folder"}); err == nil {
+		t.Fatal("ValidateCorrectQuotaReconciliationRequest accepted invalid scope")
+	}
+}
+
+func TestValidateCorrectQuotaReconciliationRequestRequiresIDForScopedCorrection(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ValidateCorrectQuotaReconciliationRequest(CorrectQuotaReconciliationRequest{Scope: "domain"}); err == nil {
+		t.Fatal("ValidateCorrectQuotaReconciliationRequest accepted missing scoped id")
+	}
+}
+
+func TestValidateCorrectQuotaReconciliationRequestRejectsIDForAll(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ValidateCorrectQuotaReconciliationRequest(CorrectQuotaReconciliationRequest{Scope: "all", ID: "domain-1"}); err == nil {
+		t.Fatal("ValidateCorrectQuotaReconciliationRequest accepted id with all scope")
+	}
+}
+
 func TestValidateUpdateDomainPolicyRequestNormalizesBlankModes(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +103,7 @@ func TestValidateUpdateDomainPolicyRequestRejectsUnsafeValues(t *testing.T) {
 		{ID: "domain-1", InboundMode: "inherit", OutboundMode: "block"},
 		{ID: "domain-1", MaxRecipientsPerMessage: -1},
 		{ID: "domain-1", MaxMessageBytes: -1},
+		{ID: "domain-1", MaxAttachmentBytes: -1},
 	} {
 		if err := ValidateUpdateDomainPolicyRequest(req); err == nil {
 			t.Fatalf("ValidateUpdateDomainPolicyRequest(%+v) returned nil", req)

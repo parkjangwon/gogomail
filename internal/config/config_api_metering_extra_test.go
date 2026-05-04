@@ -11,6 +11,15 @@ func TestValidateRejectsUnknownAPIMeteringBackend(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsOutboxAPIMeteringBackend(t *testing.T) {
+	cfg := Load()
+	cfg.APIMeteringBackend = "outbox"
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate rejected outbox API metering backend: %v", err)
+	}
+}
+
 func TestValidateRejectsNonpositiveAPIMeteringTimeout(t *testing.T) {
 	cfg := Load()
 	cfg.APIMeteringTimeout = 0

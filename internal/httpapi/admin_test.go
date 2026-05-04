@@ -178,6 +178,45 @@ func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	}
 }
 
+func TestAdminQuotaCorrectionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		quotaCorrection: maildb.QuotaCorrectionResult{
+			DryRun: true,
+			Corrected: []maildb.QuotaReconciliationView{{
+				Scope:      "domain",
+				ID:         "domain-1",
+				LedgerUsed: 10,
+				ActualUsed: 20,
+				Delta:      -10,
+			}},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/quota-reconciliation/corrections", strings.NewReader(`{"scope":"domain","id":"domain-1","dry_run":true}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastQuotaCorrection.Scope != "domain" || service.lastQuotaCorrection.ID != "domain-1" || !service.lastQuotaCorrection.DryRun {
+		t.Fatalf("lastQuotaCorrection = %+v", service.lastQuotaCorrection)
+	}
+	var body struct {
+		QuotaCorrection maildb.QuotaCorrectionResult `json:"quota_correction"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.QuotaCorrection.Corrected) != 1 || body.QuotaCorrection.Corrected[0].Delta != -10 {
+		t.Fatalf("quota_correction = %+v", body.QuotaCorrection)
+	}
+}
+
 func TestAdminCompaniesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -521,7 +560,8 @@ func TestAdminUpdateDomainPolicyHandler(t *testing.T) {
 		"inbound_mode": "monitor",
 		"outbound_mode": "enforce",
 		"max_recipients_per_message": 50,
-		"max_message_bytes": 1048576
+		"max_message_bytes": 1048576,
+		"max_attachment_bytes": 524288
 	}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -531,6 +571,9 @@ func TestAdminUpdateDomainPolicyHandler(t *testing.T) {
 	}
 	if service.lastDomainPolicy.ID != "domain-1" || service.lastDomainPolicy.InboundMode != "monitor" {
 		t.Fatalf("lastDomainPolicy = %+v", service.lastDomainPolicy)
+	}
+	if service.lastDomainPolicy.MaxAttachmentBytes != 524288 {
+		t.Fatalf("MaxAttachmentBytes = %d, want 524288", service.lastDomainPolicy.MaxAttachmentBytes)
 	}
 	if !strings.Contains(rec.Body.String(), `"domain_policy"`) {
 		t.Fatalf("response missing domain_policy envelope: %s", rec.Body.String())
@@ -1052,6 +1095,7 @@ type fakeAdminService struct {
 	queueStats                     []maildb.QueueStat
 	quotaUsage                     []maildb.QuotaUsageView
 	quotaReconciliation            []maildb.QuotaReconciliationView
+	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
 	suppression                    []maildb.SuppressionEntry
 	trustedRelays                  []maildb.TrustedRelayView
@@ -1071,6 +1115,7 @@ type fakeAdminService struct {
 	lastCreateDomain               maildb.CreateDomainRequest
 	lastUserStatus                 maildb.UpdateUserStatusRequest
 	lastUserQuota                  maildb.UpdateUserQuotaRequest
+	lastQuotaCorrection            maildb.CorrectQuotaReconciliationRequest
 	lastCreateUser                 maildb.CreateUserRequest
 	lastCreateDKIMKey              maildb.CreateDKIMKeyInput
 	lastCreateTrustedRelay         maildb.CreateTrustedRelayRequest
@@ -1159,6 +1204,7 @@ func (f *fakeAdminService) UpdateDomainPolicy(_ context.Context, req maildb.Upda
 		OutboundMode:            req.OutboundMode,
 		MaxRecipientsPerMessage: req.MaxRecipientsPerMessage,
 		MaxMessageBytes:         req.MaxMessageBytes,
+		MaxAttachmentBytes:      req.MaxAttachmentBytes,
 	}, nil
 }
 
@@ -1217,6 +1263,11 @@ func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maild
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
 	f.lastLimit = limit
 	return f.quotaReconciliation, nil
+}
+
+func (f *fakeAdminService) CorrectQuotaReconciliation(_ context.Context, req maildb.CorrectQuotaReconciliationRequest) (maildb.QuotaCorrectionResult, error) {
+	f.lastQuotaCorrection = req
+	return f.quotaCorrection, nil
 }
 
 func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {

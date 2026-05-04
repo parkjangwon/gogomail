@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -709,7 +710,17 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		logger.Info("admin api routes registered")
 	}
 
-	handler := apiMeteringHandler(mux, cfg, logger)
+	var meteringDB *sql.DB
+	if strings.EqualFold(strings.TrimSpace(cfg.APIMeteringBackend), "outbox") {
+		db, err := database.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		meteringDB = db
+	}
+
+	handler := apiMeteringHandler(mux, cfg, logger, meteringDB)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handler,
@@ -735,7 +746,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	}
 }
 
-func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger) http.Handler {
+func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger, outboxDB *sql.DB) http.Handler {
 	switch strings.ToLower(strings.TrimSpace(cfg.APIMeteringBackend)) {
 	case "", "none":
 		return next
@@ -744,6 +755,14 @@ func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logge
 			logger.Info("api metering enabled", "backend", "slog", "timeout", cfg.APIMeteringTimeout.String())
 		}
 		return apimeter.Handler(next, apimeter.SlogSink{Logger: logger}, apimeter.WithTimeout(cfg.APIMeteringTimeout))
+	case "outbox":
+		if outboxDB == nil {
+			return next
+		}
+		if logger != nil {
+			logger.Info("api metering enabled", "backend", "outbox", "timeout", cfg.APIMeteringTimeout.String())
+		}
+		return apimeter.Handler(next, apimeter.NewPostgresOutboxSink(outboxDB), apimeter.WithTimeout(cfg.APIMeteringTimeout))
 	default:
 		return next
 	}

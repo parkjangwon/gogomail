@@ -49,7 +49,7 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_METRICS_BACKEND", c.MetricsBackend, "none", "slog"); err != nil {
 		return err
 	}
-	if err := validateEnum("GOGOMAIL_API_METERING_BACKEND", c.APIMeteringBackend, "none", "slog"); err != nil {
+	if err := validateEnum("GOGOMAIL_API_METERING_BACKEND", c.APIMeteringBackend, "none", "slog", "outbox"); err != nil {
 		return err
 	}
 	if c.APIMeteringTimeout <= 0 {

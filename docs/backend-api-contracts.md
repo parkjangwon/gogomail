@@ -144,13 +144,15 @@ expose `quota_source` as `default|custom`, and domain quota updates may carry
 `default_user_quota`.
 Domain policy updates store a backend-only operational model under
 `domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
-and optional max-recipient/max-message-byte guardrail hints. SMTP core should
+and optional max-recipient/max-message-byte/max-attachment-byte guardrail hints. SMTP core should
 continue to treat these as policy-boundary data until explicit runtime wiring is
 added. Mail API send/draft-send now reads the outbound domain policy after
 resolving the authenticated sender. In `outbound_mode=enforce`, it rejects
 messages whose unique recipient count exceeds `max_recipients_per_message` or
-whose composed RFC 5322 message size exceeds `max_message_bytes`. `monitor` and
-`inherit` remain non-blocking.
+whose composed RFC 5322 message size exceeds `max_message_bytes`. Attachment
+metadata reservation and direct multipart upload also reject files larger than
+`max_attachment_bytes` when outbound policy is enforced. `monitor` and `inherit`
+remain non-blocking.
 
 Admin operational read models also keep explicit envelope keys:
 
@@ -273,11 +275,20 @@ Search indexing now has a backend boundary for received-message body text:
 Quota reconciliation is exposed as a read-only admin report:
 
 - `GET /admin/v1/quota-reconciliation`
+- `POST /admin/v1/quota-reconciliation/corrections`
 - The report compares company/domain/user ledger counters with current
   source-of-truth message and attachment rows and returns `ledger_used`,
   `actual_used`, `delta`, and `in_sync`.
-- This endpoint does not mutate ledgers; correction jobs remain a future
-  operator-controlled step.
+- Corrections are explicit operator actions. They acquire a transaction-scoped
+  advisory lock, lock the affected quota hierarchy rows, and set ledger counters
+  from current source rows rather than applying stored deltas.
+
+API call metering can now emit durable usage events:
+
+- Set `GOGOMAIL_API_METERING_BACKEND=outbox` to enqueue `api.usage` events into
+  the generic outbox on topic `api.event`.
+- The middleware remains async and fail-open; request handling does not wait on
+  downstream aggregation.
 
 Message search starts with a small-deployment Postgres implementation:
 

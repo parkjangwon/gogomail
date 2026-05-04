@@ -24,11 +24,11 @@ func TestDomainPolicyFromJSONDefaultsToInherit(t *testing.T) {
 func TestDomainPolicyFromJSONNormalizesBlankModes(t *testing.T) {
 	t.Parallel()
 
-	policy, err := domainPolicyFromJSON("domain-1", []byte(`{"inbound_mode":"","outbound_mode":"","max_recipients_per_message":5}`), time.Time{})
+	policy, err := domainPolicyFromJSON("domain-1", []byte(`{"inbound_mode":"","outbound_mode":"","max_recipients_per_message":5,"max_attachment_bytes":42}`), time.Time{})
 	if err != nil {
 		t.Fatalf("domainPolicyFromJSON returned error: %v", err)
 	}
-	if policy.InboundMode != "inherit" || policy.OutboundMode != "inherit" || policy.MaxRecipientsPerMessage != 5 {
+	if policy.InboundMode != "inherit" || policy.OutboundMode != "inherit" || policy.MaxRecipientsPerMessage != 5 || policy.MaxAttachmentBytes != 42 {
 		t.Fatalf("policy = %+v", policy)
 	}
 }
@@ -40,6 +40,7 @@ func TestDomainPolicyFromJSONRejectsInvalidStoredValues(t *testing.T) {
 		[]byte(`{"outbound_mode":"panic"}`),
 		[]byte(`{"max_message_bytes":-1}`),
 		[]byte(`{"max_recipients_per_message":-1}`),
+		[]byte(`{"max_attachment_bytes":-1}`),
 	} {
 		if _, err := domainPolicyFromJSON("domain-1", raw, time.Time{}); err == nil {
 			t.Fatalf("domainPolicyFromJSON(%s) returned nil", raw)

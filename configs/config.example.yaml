@@ -18,6 +18,10 @@ delivery_smarthost_tls_mode: ""
 delivery_smarthost_implicit_tls: false
 delivery_smarthost_username: ""
 metrics_backend: none
+api_metering_backend: none
+api_metering_timeout: 100ms
+search_index_backend: disabled
+search_index_max_body_bytes: 1048576
 database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable
 redis_addr: localhost:16379
 storage_backend: local

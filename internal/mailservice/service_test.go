@@ -207,6 +207,13 @@ func (f *fakeRepository) DomainPolicy(context.Context, string) (maildb.DomainPol
 	return f.domainPolicy, nil
 }
 
+func (f *fakeRepository) DomainPolicyForUser(context.Context, string) (maildb.DomainPolicyView, error) {
+	if f.domainPolicy.DomainID == "" {
+		return maildb.DomainPolicyView{DomainID: "domain-1", InboundMode: "inherit", OutboundMode: "inherit"}, nil
+	}
+	return f.domainPolicy, nil
+}
+
 func (f *fakeRepository) SourceThread(context.Context, string, string) (maildb.SourceThreadView, error) {
 	return f.sourceThread, nil
 }
@@ -567,6 +574,30 @@ func TestCreateAttachmentUploadDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestCreateAttachmentUploadRejectsDomainAttachmentLimit(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{domainPolicy: maildb.DomainPolicyView{
+		DomainID:           "domain-1",
+		InboundMode:        "inherit",
+		OutboundMode:       "enforce",
+		MaxAttachmentBytes: 10,
+	}}
+	service := New(repo, nil)
+	_, err := service.CreateAttachmentUpload(context.Background(), CreateAttachmentUploadRequest{
+		UserID:   "user-1",
+		Filename: "report.pdf",
+		Size:     11,
+		MIMEType: "application/pdf",
+	})
+	if err == nil {
+		t.Fatal("CreateAttachmentUpload accepted attachment over domain limit")
+	}
+	if repo.lastAttachmentUpload.Filename != "" {
+		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
+	}
+}
+
 func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -602,6 +633,33 @@ func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	}
 	if string(raw) != "content" {
 		t.Fatalf("stored body = %q", raw)
+	}
+}
+
+func TestUploadAttachmentRejectsDomainAttachmentLimitBeforeStorageWrite(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{domainPolicy: maildb.DomainPolicyView{
+		DomainID:           "domain-1",
+		InboundMode:        "inherit",
+		OutboundMode:       "enforce",
+		MaxAttachmentBytes: 4,
+	}}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+
+	_, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
+		UserID:   "user-1",
+		Filename: "report.pdf",
+		Size:     7,
+		MIMEType: "application/pdf",
+		Body:     strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("UploadAttachment accepted attachment over domain limit")
+	}
+	if repo.lastAttachmentUpload.Filename != "" {
+		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
 	}
 }
 

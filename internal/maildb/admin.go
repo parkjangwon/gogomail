@@ -253,6 +253,7 @@ type DomainPolicyView struct {
 	OutboundMode            string    `json:"outbound_mode"`
 	MaxRecipientsPerMessage int       `json:"max_recipients_per_message,omitempty"`
 	MaxMessageBytes         int64     `json:"max_message_bytes,omitempty"`
+	MaxAttachmentBytes      int64     `json:"max_attachment_bytes,omitempty"`
 	UpdatedAt               time.Time `json:"updated_at"`
 }
 
@@ -278,6 +279,7 @@ type UpdateDomainPolicyRequest struct {
 	OutboundMode            string `json:"outbound_mode"`
 	MaxRecipientsPerMessage int    `json:"max_recipients_per_message,omitempty"`
 	MaxMessageBytes         int64  `json:"max_message_bytes,omitempty"`
+	MaxAttachmentBytes      int64  `json:"max_attachment_bytes,omitempty"`
 }
 
 type CreateDomainRequest struct {
@@ -381,6 +383,9 @@ func ValidateUpdateDomainPolicyRequest(req UpdateDomainPolicyRequest) error {
 	}
 	if req.MaxMessageBytes < 0 {
 		return fmt.Errorf("max_message_bytes must not be negative")
+	}
+	if req.MaxAttachmentBytes < 0 {
+		return fmt.Errorf("max_attachment_bytes must not be negative")
 	}
 	return nil
 }
@@ -989,6 +994,7 @@ func (r *Repository) UpdateDomainPolicy(ctx context.Context, req UpdateDomainPol
 		OutboundMode:            outboundMode,
 		MaxRecipientsPerMessage: req.MaxRecipientsPerMessage,
 		MaxMessageBytes:         req.MaxMessageBytes,
+		MaxAttachmentBytes:      req.MaxAttachmentBytes,
 	}
 	policyJSON, err := json.Marshal(policy)
 	if err != nil {

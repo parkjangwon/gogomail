@@ -98,7 +98,7 @@ func TestAPIMeteringHandlerDefaultsToOriginalHandler(t *testing.T) {
 	t.Parallel()
 
 	next := &sentinelHTTPHandler{}
-	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "none"}, nil)
+	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "none"}, nil, nil)
 	if handler != next {
 		t.Fatal("apiMeteringHandler wrapped handler when backend is none")
 	}
@@ -113,13 +113,23 @@ func TestAPIMeteringHandlerWrapsSlogBackend(t *testing.T) {
 	handler := apiMeteringHandler(next, config.Config{
 		APIMeteringBackend: "slog",
 		APIMeteringTimeout: 100 * time.Millisecond,
-	}, nil)
+	}, nil, nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+	}
+}
+
+func TestAPIMeteringHandlerRequiresOutboxDB(t *testing.T) {
+	t.Parallel()
+
+	next := &sentinelHTTPHandler{}
+	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "outbox"}, nil, nil)
+	if handler != next {
+		t.Fatal("apiMeteringHandler wrapped outbox backend without database handle")
 	}
 }
 

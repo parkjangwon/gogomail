@@ -30,6 +30,8 @@ Current state:
   allocatable capacity, and over-allocation indicators.
 - Admin API exposes a read-only quota reconciliation report comparing ledger
   counters with active message rows and reserved/stored attachment rows.
+- Admin API can apply operator-controlled quota reconciliation corrections with
+  transaction-scoped advisory locking and affected quota-row locks.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.
@@ -39,8 +41,8 @@ Next:
 
 - Extend the same ledger service to future Drive writes and large-attachment
   share-link objects.
-- Add operator-controlled reconciliation correction jobs that can apply
-  reviewed ledger fixes safely.
+- Extend the same ledger service to future Drive writes and large-attachment
+  share-link objects.
 
 ### 2. Message threading and search
 
@@ -98,11 +100,13 @@ Current state:
 
 - Attachment table and storage model exist.
 - Attachment endpoints exist in the Mail API.
+- Domain outbound policy can enforce `max_attachment_bytes` for attachment
+  metadata reservation and direct multipart upload before storage writes.
 
 Next:
 
 - Add multipart upload support for large attachments.
-- Enforce per-domain attachment size limits.
+- Add resumable/chunked upload contracts for large attachment workflows.
 
 ### 6. OpenAPI/client readiness
 
@@ -130,12 +134,11 @@ Current state:
 - Product direction is agreed: collect API usage from the beginning, keep
   billing/rate-limit enforcement policy-driven and off by default.
 - A disabled-by-default API metering middleware boundary exists with async,
-  fail-open event capture and a `slog` sink.
+  fail-open event capture, a `slog` sink, and a durable outbox sink.
 
 Next:
 
-- Add a durable outbox/event sink for API metering and async enrichment keyed by
-  company/domain/user/api-key.
+- Add async enrichment keyed by company/domain/user/api-key.
 - Aggregate daily/monthly usage for future SaaS plans, Open API limits, abuse
   detection, and operations dashboards.
 - Avoid synchronous writes on hot API paths.

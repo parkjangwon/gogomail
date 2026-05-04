@@ -65,6 +65,10 @@ type DomainPolicyRepository interface {
 	DomainPolicy(ctx context.Context, domainID string) (maildb.DomainPolicyView, error)
 }
 
+type UserDomainPolicyRepository interface {
+	DomainPolicyForUser(ctx context.Context, userID string) (maildb.DomainPolicyView, error)
+}
+
 type SourceThreadRepository interface {
 	SourceThread(ctx context.Context, userID string, sourceMessageID string) (maildb.SourceThreadView, error)
 }
@@ -261,6 +265,9 @@ func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachme
 	if err := ValidateCreateAttachmentUploadRequest(req); err != nil {
 		return maildb.Attachment{}, err
 	}
+	if err := s.enforceAttachmentPolicy(ctx, req.UserID, req.Size); err != nil {
+		return maildb.Attachment{}, err
+	}
 	repo, ok := s.repository.(AttachmentUploadRepository)
 	if !ok {
 		return maildb.Attachment{}, fmt.Errorf("attachment upload repository is required")
@@ -277,6 +284,9 @@ func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachme
 
 func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequest) (maildb.Attachment, error) {
 	if err := ValidateUploadAttachmentRequest(req); err != nil {
+		return maildb.Attachment{}, err
+	}
+	if err := s.enforceAttachmentPolicy(ctx, req.UserID, req.Size); err != nil {
 		return maildb.Attachment{}, err
 	}
 	if s.store == nil {
@@ -618,6 +628,18 @@ func (s *Service) domainPolicy(ctx context.Context, domainID string) (maildb.Dom
 	return repo.DomainPolicy(ctx, domainID)
 }
 
+func (s *Service) enforceAttachmentPolicy(ctx context.Context, userID string, size int64) error {
+	repo, ok := s.repository.(UserDomainPolicyRepository)
+	if !ok {
+		return nil
+	}
+	policy, err := repo.DomainPolicyForUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return enforceAttachmentSizePolicy(size, policy)
+}
+
 func enforceOutboundRecipientPolicy(req SendTextRequest, policy maildb.DomainPolicyView) error {
 	if policy.OutboundMode != "enforce" || policy.MaxRecipientsPerMessage <= 0 {
 		return nil
@@ -635,6 +657,16 @@ func enforceOutboundSizePolicy(size int64, policy maildb.DomainPolicyView) error
 	}
 	if size > policy.MaxMessageBytes {
 		return fmt.Errorf("domain outbound policy max_message_bytes exceeded: %d > %d", size, policy.MaxMessageBytes)
+	}
+	return nil
+}
+
+func enforceAttachmentSizePolicy(size int64, policy maildb.DomainPolicyView) error {
+	if policy.OutboundMode != "enforce" || policy.MaxAttachmentBytes <= 0 {
+		return nil
+	}
+	if size > policy.MaxAttachmentBytes {
+		return fmt.Errorf("domain outbound policy max_attachment_bytes exceeded: %d > %d", size, policy.MaxAttachmentBytes)
 	}
 	return nil
 }

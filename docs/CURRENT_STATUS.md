@@ -54,6 +54,9 @@ guidance.
   documents used by the existing search endpoint.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
+- Mail API attachment reservation/direct upload applies enforced domain
+  `max_attachment_bytes` policy before quota reservation or object storage
+  writes.
 - Per-domain inbound policy enforced at SMTP receive and Submission MTA (max
   recipients, max message size, inbound mode).
 - Hierarchical quota ledger enforced at mail storage write/delete boundaries:
@@ -69,6 +72,8 @@ guidance.
   company/domain/user operations.
 - Admin API exposes a read-only quota reconciliation report comparing ledger
   counters with message and attachment source rows.
+- Admin API can run operator-controlled quota reconciliation corrections with
+  transaction/advisory locking.
 - Product quota direction is company pool → domain allocation → user unified
   storage allowance. User quota should cover mailbox, attachments, future Drive,
   and other user-owned storage features.
@@ -76,7 +81,8 @@ guidance.
   dimensions early through an async middleware/event boundary, but keep
   billing/rate-limit enforcement policy-driven and disabled by default.
 - API metering has a first disabled-by-default middleware boundary with a
-  `slog` sink for low-risk operational visibility.
+  `slog` sink for low-risk operational visibility and an outbox sink for durable
+  `api.usage` event emission.
 - DKIM key DNS verification workflow with `dns_verified_at` persistence.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
@@ -134,16 +140,19 @@ The platform hardening sprint completed the following:
   paths.
 - Quota operations read models: capacity fields and reconciliation reporting
   show ledger pressure and drift without mutating counters.
-- API metering boundary: HTTP middleware can emit fail-open usage events and is
-  disabled by default.
+- Quota correction actions: operators can explicitly apply reconciliation
+  results to company/domain/user ledgers after reviewing drift.
+- API metering boundary: HTTP middleware can emit fail-open usage events to
+  logs or the durable outbox and is disabled by default.
+- Attachment policy hardening: domain outbound policy can cap individual
+  attachment upload sizes.
 
 Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
-2. Add quota reconciliation correction jobs for messages/attachments and extend the ledger
-   to future Drive writes.
+2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. IMAP gateway design and implementation planning.
 4. Search result highlighting/ranking once indexing boundary exists.
 5. Push notification hook for FCM/APNs (pluggable pipeline stage).
-6. API metering middleware boundary for future SaaS billing/abuse analytics.
+6. API metering aggregation consumers for future SaaS billing/abuse analytics.
 7. Frontend planning and API contract review before webmail implementation.
