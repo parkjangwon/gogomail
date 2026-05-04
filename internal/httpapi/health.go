@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
@@ -20,6 +21,8 @@ type ReadinessCheck struct {
 	Detail string `json:"detail,omitempty"`
 }
 
+type ReadinessCheckFunc func(context.Context) ReadinessCheck
+
 type InfoResponse struct {
 	Service                string `json:"service"`
 	Status                 string `json:"status"`
@@ -34,7 +37,13 @@ const (
 
 func RegisterHealthRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health/live", writeHealth)
-	mux.HandleFunc("GET /health/ready", writeReady)
+	mux.HandleFunc("GET /health/ready", writeReadyWithChecks(nil))
+	mux.HandleFunc("GET /api/v1/info", writeInfo)
+}
+
+func RegisterHealthRoutesWithChecks(mux *http.ServeMux, checks ...ReadinessCheckFunc) {
+	mux.HandleFunc("GET /health/live", writeHealth)
+	mux.HandleFunc("GET /health/ready", writeReadyWithChecks(checks))
 	mux.HandleFunc("GET /api/v1/info", writeInfo)
 }
 
@@ -44,18 +53,46 @@ func writeHealth(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(HealthResponse{Status: "ok"})
 }
 
-func writeReady(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(ReadinessResponse{
-		Status: "ok",
-		Checks: []ReadinessCheck{
-			{Name: "http", Status: "ok", Detail: "router registered"},
-			{Name: "api_contract", Status: "ok", Detail: "v1 backend-release"},
-			{Name: "storage_boundary", Status: "ok", Detail: "configured by runtime mode"},
-			{Name: "outbox_boundary", Status: "ok", Detail: "async delivery via outbox"},
-		},
-	})
+func writeReadyWithChecks(checks []ReadinessCheckFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		response := ReadinessResponse{
+			Status: "ok",
+			Checks: append([]ReadinessCheck{
+				{Name: "http", Status: "ok", Detail: "router registered"},
+				{Name: "api_contract", Status: "ok", Detail: "v1 backend-release"},
+				{Name: "storage_boundary", Status: "ok", Detail: "configured by runtime mode"},
+				{Name: "outbox_boundary", Status: "ok", Detail: "async delivery via outbox"},
+			}, runReadinessChecks(r.Context(), checks)...),
+		}
+		statusCode := http.StatusOK
+		for _, check := range response.Checks {
+			if check.Status != "ok" {
+				response.Status = "degraded"
+				statusCode = http.StatusServiceUnavailable
+				break
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(statusCode)
+		_ = json.NewEncoder(w).Encode(response)
+	}
+}
+
+func runReadinessChecks(ctx context.Context, checks []ReadinessCheckFunc) []ReadinessCheck {
+	results := make([]ReadinessCheck, 0, len(checks))
+	for _, check := range checks {
+		if check == nil {
+			continue
+		}
+		results = append(results, check(ctx))
+	}
+	return results
+}
+
+func StaticReadinessCheck(name string, detail string) ReadinessCheckFunc {
+	return func(context.Context) ReadinessCheck {
+		return ReadinessCheck{Name: name, Status: "ok", Detail: detail}
+	}
 }
 
 func writeInfo(w http.ResponseWriter, _ *http.Request) {

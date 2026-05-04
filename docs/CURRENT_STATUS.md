@@ -121,6 +121,9 @@ guidance.
 - `gogomail --mode=all-in-one` serves Mail API and Admin API routes from the
   same HTTP process, keeping single-node/local release smoke tests aligned with
   the documented backend mode.
+- `/health/ready` can now include runtime database and Redis dependency probes
+  for HTTP modes that use those services, returning `degraded` with HTTP 503
+  when a required probe fails.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

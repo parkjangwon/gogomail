@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -63,6 +64,39 @@ func TestReadyHandlerIncludesChecks(t *testing.T) {
 	}
 	if !foundContract {
 		t.Fatalf("api contract readiness check missing: %+v", body.Checks)
+	}
+}
+
+func TestReadyHandlerReportsRuntimeCheckFailure(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterHealthRoutesWithChecks(mux, func(_ context.Context) ReadinessCheck {
+		return ReadinessCheck{Name: "database", Status: "error", Detail: "ping failed"}
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/health/ready", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body ReadinessResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Status != "degraded" {
+		t.Fatalf("body = %+v", body)
+	}
+	foundDatabase := false
+	for _, check := range body.Checks {
+		if check.Name == "database" && check.Status == "error" && check.Detail != "" {
+			foundDatabase = true
+		}
+	}
+	if !foundDatabase {
+		t.Fatalf("database check missing: %+v", body.Checks)
 	}
 }
 

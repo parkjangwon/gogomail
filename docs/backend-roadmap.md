@@ -650,6 +650,7 @@ Implementation order:
 590. Admin trusted relay listing now supports bounded CIDR and description filters, letting operators audit inbound relay policy without client-side full-list scans.
 591. Admin domain DNS-check history now supports summary-status and RFC3339 `since` filters, letting operators inspect recent onboarding and deliverability failures without re-querying DNS or scanning every persisted check.
 592. Admin API usage export batch listing now supports bounded tenant, principal, status, and export-window filters, letting operators find covering manifests for handoff and retention checks without global scans.
+593. HTTP readiness can now include runtime database and Redis dependency probes for Mail/Admin/API-metered modes and returns a degraded 503 readiness response when an injected dependency check fails.
 
 ## Deferred until backend contracts stabilize
 
