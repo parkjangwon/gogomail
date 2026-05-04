@@ -405,6 +405,7 @@ Implementation order:
 346. OpenAPI quota update requests are now split by company, domain, and user scope, documenting domain `default_user_quota` and user `quota_source` while keeping generated Admin clients aligned with Go request types.
 347. OpenAPI response envelope drift tests now cover company list/detail, delivery route counters, and DKIM DNS verification envelopes, closing gaps in generated Admin client response guarantees.
 348. OpenAPI query-parameter drift tests now cover common Admin list and lookup filters for companies, domains, users, quota usage, trusted relays, delivery routes, DKIM keys, and DNS check history.
+349. Shared EML text-body truncation now backs up to a valid UTF-8 boundary before storing bounded text previews, protecting Mail API/search/IMAP consumers from malformed strings on multibyte bodies.
 
 ## Deferred until backend contracts stabilize
 
