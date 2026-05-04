@@ -52,6 +52,12 @@ type Config struct {
 	MetricsBackend               string
 	APIMeteringBackend           string
 	APIMeteringTimeout           time.Duration
+	APIMeteringAggregateBackend  string
+	APIMeteringStream            string
+	APIMeteringConsumerGroup     string
+	APIMeteringConsumerName      string
+	APIMeteringConsumerCount     int
+	APIMeteringConsumerBlock     time.Duration
 	RcptRateLimitPerMinute       int
 	OutboxRelayBatchSize         int
 	OutboxRelayPollInterval      time.Duration
@@ -142,6 +148,12 @@ func Load() Config {
 		MetricsBackend:               envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
 		APIMeteringBackend:           envOrDefault("GOGOMAIL_API_METERING_BACKEND", "none"),
 		APIMeteringTimeout:           durationEnvOrDefault("GOGOMAIL_API_METERING_TIMEOUT", 100*time.Millisecond),
+		APIMeteringAggregateBackend:  envOrDefault("GOGOMAIL_API_METERING_AGGREGATE_BACKEND", "disabled"),
+		APIMeteringStream:            envOrDefault("GOGOMAIL_API_METERING_STREAM", "api.event"),
+		APIMeteringConsumerGroup:     envOrDefault("GOGOMAIL_API_METERING_CONSUMER_GROUP", "gogomail.api-metering-worker"),
+		APIMeteringConsumerName:      envOrDefault("GOGOMAIL_API_METERING_CONSUMER_NAME", "api-metering-worker-1"),
+		APIMeteringConsumerCount:     intEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_COUNT", 100),
+		APIMeteringConsumerBlock:     durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_BLOCK", time.Second),
 		RcptRateLimitPerMinute:       intEnvOrDefault("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", 60),
 		OutboxRelayBatchSize:         intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", 100),
 		OutboxRelayPollInterval:      durationEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", time.Second),

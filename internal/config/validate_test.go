@@ -22,6 +22,35 @@ func TestValidateRejectsUnknownMetricsBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownAPIMeteringAggregateBackend(t *testing.T) {
+	cfg := Load()
+	cfg.APIMeteringAggregateBackend = "warehouse-ish"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want unknown api metering aggregate backend rejection")
+	}
+}
+
+func TestValidateRejectsNonpositiveAPIMeteringConsumerSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "count", mutate: func(cfg *Config) { cfg.APIMeteringConsumerCount = 0 }},
+		{name: "block", mutate: func(cfg *Config) { cfg.APIMeteringConsumerBlock = 0 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want api metering consumer setting rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 	cfg := Load()
 	cfg.DeliveryThrottleEnabled = true

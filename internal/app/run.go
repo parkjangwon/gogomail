@@ -74,6 +74,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runEventWorker(ctx, cfg, logger)
 	case ModeSearchIndexWorker:
 		return runSearchIndexWorker(ctx, cfg, logger)
+	case ModeAPIMeteringWorker:
+		return runAPIMeteringWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
@@ -481,6 +483,53 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		"consumer", cfg.SearchIndexConsumerName,
 		"backend", cfg.SearchIndexBackend,
 		"max_body_bytes", cfg.SearchIndexMaxBodyBytes,
+	)
+	return consumer.Run(ctx)
+}
+
+func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	if strings.EqualFold(strings.TrimSpace(cfg.APIMeteringAggregateBackend), "disabled") {
+		return waitForShutdown(ctx, logger, ModeAPIMeteringWorker)
+	}
+
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	router := eventstream.NewRouter()
+	if err := router.Register(apimeter.EventAPIUsage, apimeter.NewUsageHandler(apimeter.NewPostgresAggregateStore(db))); err != nil {
+		return err
+	}
+
+	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
+		Client:   redisClient,
+		Stream:   cfg.APIMeteringStream,
+		Group:    cfg.APIMeteringConsumerGroup,
+		Consumer: cfg.APIMeteringConsumerName,
+		Count:    int64(cfg.APIMeteringConsumerCount),
+		Block:    cfg.APIMeteringConsumerBlock,
+		Handler:  router,
+		Logger:   logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"api metering worker started",
+		"stream", cfg.APIMeteringStream,
+		"group", cfg.APIMeteringConsumerGroup,
+		"consumer", cfg.APIMeteringConsumerName,
+		"backend", cfg.APIMeteringAggregateBackend,
 	)
 	return consumer.Run(ctx)
 }

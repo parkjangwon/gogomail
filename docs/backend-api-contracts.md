@@ -289,16 +289,21 @@ API call metering can now emit durable usage events:
   the generic outbox on topic `api.event`.
 - The middleware remains async and fail-open; request handling does not wait on
   downstream aggregation.
+- Set `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=postgres` and run
+  `gogomail --mode=api-metering-worker` to consume `api.event` and upsert
+  daily aggregates into `api_usage_daily`.
+- `GET /admin/v1/api-usage/daily` returns `{ "api_usage_daily": [...] }` with
+  day/method/route/status/user dimensions, request/byte counters, and latency
+  totals/maximum/average for operations dashboards.
 
 Message search starts with a small-deployment Postgres implementation:
 
 - `GET /api/v1/search`
 
 The current backend searches message metadata (`subject`, `from_addr`,
-`from_name`) plus `draft_text_body` using a simple Postgres FTS expression and
-bounded list limits. Full received-body indexing remains intentionally deferred
-to the future indexing boundary/OpenSearch worker so SMTP receive and message
-read hot paths stay streaming and allocation-aware.
+`from_name`), `draft_text_body`, and indexed received-message body text using a
+simple Postgres FTS expression and bounded list limits. OpenSearch,
+highlighting, and ranking remain deferred behind the search boundary.
 
 ## Deferred from this contract
 

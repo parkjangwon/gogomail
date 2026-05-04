@@ -30,6 +30,8 @@ Key architecture decisions:
 
 - `docs/adr/0001-domain-is-tenant.md`
 - `docs/adr/0002-smtp-core-is-not-spam-engine.md`
+- `docs/adr/0003-company-domain-user-quota-pool.md`
+- `docs/adr/0004-api-metering-aggregation-boundary.md`
 
 Guardrails:
 
@@ -57,6 +59,7 @@ go run ./cmd/gogomail --mode=inbound-mta
 go run ./cmd/gogomail --mode=outbound-mta
 go run ./cmd/gogomail --mode=delivery-worker
 go run ./cmd/gogomail --mode=search-index-worker
+go run ./cmd/gogomail --mode=api-metering-worker
 go run ./cmd/gogomail --mode=auth-server
 go run ./cmd/gogomail --mode=mail-api
 go run ./cmd/gogomail --mode=admin-api

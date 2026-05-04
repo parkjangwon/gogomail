@@ -135,12 +135,15 @@ Current state:
   billing/rate-limit enforcement policy-driven and off by default.
 - A disabled-by-default API metering middleware boundary exists with async,
   fail-open event capture, a `slog` sink, and a durable outbox sink.
+- A disabled-by-default `api-metering-worker` can consume `api.usage` events
+  from `api.event`, write Postgres daily aggregates, and serve them through the
+  Admin API.
 
 Next:
 
 - Add async enrichment keyed by company/domain/user/api-key.
-- Aggregate daily/monthly usage for future SaaS plans, Open API limits, abuse
-  detection, and operations dashboards.
+- Add monthly rollups, idempotent event accounting, and billing-grade ledgers
+  before aggregates drive invoices or hard Open API limits.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet

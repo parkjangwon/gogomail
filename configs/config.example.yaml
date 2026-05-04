@@ -20,6 +20,12 @@ delivery_smarthost_username: ""
 metrics_backend: none
 api_metering_backend: none
 api_metering_timeout: 100ms
+api_metering_aggregate_backend: disabled
+api_metering_stream: api.event
+api_metering_consumer_group: gogomail.api-metering-worker
+api_metering_consumer_name: api-metering-worker-1
+api_metering_consumer_count: 100
+api_metering_consumer_block: 1s
 search_index_backend: disabled
 search_index_max_body_bytes: 1048576
 database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable

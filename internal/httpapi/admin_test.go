@@ -139,6 +139,50 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageDailyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageDaily: []maildb.APIUsageDailyView{{
+			Day:              time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+			Method:           "GET",
+			Route:            "GET /api/v1/messages",
+			Status:           200,
+			UserID:           "user-1",
+			RequestCount:     4,
+			RequestBytes:     40,
+			ResponseBytes:    400,
+			LatencyMSTotal:   100,
+			LatencyMSMax:     40,
+			LatencyMSAverage: 25,
+			FirstSeenAt:      time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC),
+			LastSeenAt:       time.Date(2026, 5, 4, 2, 0, 0, 0, time.UTC),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/daily?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		APIUsageDaily []maildb.APIUsageDailyView `json:"api_usage_daily"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.APIUsageDaily) != 1 || body.APIUsageDaily[0].LatencyMSAverage != 25 {
+		t.Fatalf("api_usage_daily = %+v", body.APIUsageDaily)
+	}
+	if service.lastLimit != 5 {
+		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1094,6 +1138,7 @@ type fakeAdminService struct {
 	users                          []maildb.UserView
 	queueStats                     []maildb.QueueStat
 	quotaUsage                     []maildb.QuotaUsageView
+	apiUsageDaily                  []maildb.APIUsageDailyView
 	quotaReconciliation            []maildb.QuotaReconciliationView
 	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
@@ -1258,6 +1303,11 @@ func (f *fakeAdminService) UpdateBackpressure(_ context.Context, req backpressur
 func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maildb.QuotaUsageView, error) {
 	f.lastLimit = limit
 	return f.quotaUsage, nil
+}
+
+func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, limit int) ([]maildb.APIUsageDailyView, error) {
+	f.lastLimit = limit
+	return f.apiUsageDaily, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {

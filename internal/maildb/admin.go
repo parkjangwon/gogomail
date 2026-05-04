@@ -140,6 +140,22 @@ type QuotaUsageView struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type APIUsageDailyView struct {
+	Day              time.Time `json:"day"`
+	Method           string    `json:"method"`
+	Route            string    `json:"route"`
+	Status           int       `json:"status"`
+	UserID           string    `json:"user_id,omitempty"`
+	RequestCount     int64     `json:"request_count"`
+	RequestBytes     int64     `json:"request_bytes"`
+	ResponseBytes    int64     `json:"response_bytes"`
+	LatencyMSTotal   int64     `json:"latency_ms_total"`
+	LatencyMSMax     int64     `json:"latency_ms_max"`
+	LatencyMSAverage float64   `json:"latency_ms_average"`
+	FirstSeenAt      time.Time `json:"first_seen_at"`
+	LastSeenAt       time.Time `json:"last_seen_at"`
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
@@ -1620,6 +1636,66 @@ LIMIT $1`
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate quota usage: %w", err)
+	}
+	return usages, nil
+}
+
+func (r *Repository) ListAPIUsageDaily(ctx context.Context, limit int) ([]APIUsageDailyView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  day,
+  method,
+  route,
+  status,
+  user_id,
+  request_count,
+  request_bytes,
+  response_bytes,
+  latency_ms_total,
+  latency_ms_max,
+  first_seen_at,
+  last_seen_at
+FROM api_usage_daily
+ORDER BY day DESC, request_count DESC, route, status
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage daily: %w", err)
+	}
+	defer rows.Close()
+
+	var usages []APIUsageDailyView
+	for rows.Next() {
+		var usage APIUsageDailyView
+		if err := rows.Scan(
+			&usage.Day,
+			&usage.Method,
+			&usage.Route,
+			&usage.Status,
+			&usage.UserID,
+			&usage.RequestCount,
+			&usage.RequestBytes,
+			&usage.ResponseBytes,
+			&usage.LatencyMSTotal,
+			&usage.LatencyMSMax,
+			&usage.FirstSeenAt,
+			&usage.LastSeenAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan api usage daily: %w", err)
+		}
+		if usage.RequestCount > 0 {
+			usage.LatencyMSAverage = float64(usage.LatencyMSTotal) / float64(usage.RequestCount)
+		}
+		usages = append(usages, usage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage daily: %w", err)
 	}
 	return usages, nil
 }

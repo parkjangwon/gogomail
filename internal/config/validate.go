@@ -55,6 +55,15 @@ func (c Config) Validate() error {
 	if c.APIMeteringTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_TIMEOUT must be positive")
 	}
+	if err := validateEnum("GOGOMAIL_API_METERING_AGGREGATE_BACKEND", c.APIMeteringAggregateBackend, "disabled", "postgres"); err != nil {
+		return err
+	}
+	if c.APIMeteringConsumerCount <= 0 {
+		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_COUNT must be positive")
+	}
+	if c.APIMeteringConsumerBlock <= 0 {
+		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_BLOCK must be positive")
+	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
 		return err
 	}

@@ -83,6 +83,9 @@ guidance.
 - API metering has a first disabled-by-default middleware boundary with a
   `slog` sink for low-risk operational visibility and an outbox sink for durable
   `api.usage` event emission.
+- API metering now has an aggregation worker boundary: `api-metering-worker`
+  consumes `api.usage` events from `api.event`, upserts Postgres daily
+  aggregates, and exposes `GET /admin/v1/api-usage/daily` for operations.
 - DKIM key DNS verification workflow with `dns_verified_at` persistence.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
@@ -143,7 +146,8 @@ The platform hardening sprint completed the following:
 - Quota correction actions: operators can explicitly apply reconciliation
   results to company/domain/user ledgers after reviewing drift.
 - API metering boundary: HTTP middleware can emit fail-open usage events to
-  logs or the durable outbox and is disabled by default.
+  logs or the durable outbox, while the disabled-by-default aggregation worker
+  can build daily Postgres read models for operations.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 
@@ -154,5 +158,6 @@ Next focus areas:
 3. IMAP gateway design and implementation planning.
 4. Search result highlighting/ranking once indexing boundary exists.
 5. Push notification hook for FCM/APNs (pluggable pipeline stage).
-6. API metering aggregation consumers for future SaaS billing/abuse analytics.
+6. Add billing-grade API metering dimensions/idempotency before using
+   aggregates for invoices or hard limits.
 7. Frontend planning and API contract review before webmail implementation.
