@@ -157,9 +157,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   service boundaries, then reject CR/LF-bearing or oversized query/filter fields
   before Postgres or OpenSearch dispatch.
 - Mail API bearer JWT verification rejects unsupported `alg` values and
-  non-JWT `typ` headers before accepting signed claims; `user_id`/`sub`
+  non-JWT `typ` headers before accepting signed claims; token/header/payload/
+  signature segments are size-bounded before base64 decoding; `user_id`/`sub`
   identities are whitespace-normalized and blank, CR/LF-bearing, or oversized
-  identities are rejected during signing and verification, and future `iat`
+  identities are rejected during signing and verification; and future `iat`
   values beyond a one-minute skew are rejected.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.

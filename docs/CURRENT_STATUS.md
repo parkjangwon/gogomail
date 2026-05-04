@@ -171,6 +171,8 @@ guidance.
   reject CR/LF-bearing or oversized values before service dispatch.
 - Mail API bearer JWT `user_id` and `sub` identities now reject CR/LF-bearing
   or oversized claims during signing and verification before request scoping.
+- Mail API bearer JWT verification now rejects oversized token, header,
+  payload, and signature segments before base64 decoding claim data.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
