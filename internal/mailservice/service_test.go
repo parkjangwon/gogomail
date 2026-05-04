@@ -632,6 +632,8 @@ type fakeRepository struct {
 	lastHydrateIDs              []string
 	lastSentDraftID             string
 	lastSentDraftMessageID      string
+	lastSenderUserID            string
+	lastSenderFrom              string
 	lastOutgoing                maildb.OutgoingMessage
 	lastPushDevice              maildb.UpsertPushDeviceRequest
 	lastIMAPFlags               imapgw.MessageFlags
@@ -771,7 +773,9 @@ func (f *fakeRepository) GetAttachment(context.Context, string, string, string) 
 	return maildb.Attachment{}, nil
 }
 
-func (f *fakeRepository) SenderForUser(context.Context, string, string) (maildb.Sender, error) {
+func (f *fakeRepository) SenderForUser(_ context.Context, userID string, from string) (maildb.Sender, error) {
+	f.lastSenderUserID = userID
+	f.lastSenderFrom = from
 	return maildb.Sender{
 		CompanyID:   "company-1",
 		DomainID:    "domain-1",
@@ -899,13 +903,18 @@ func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	t.Parallel()
 
 	store := storage.NewLocalStore(t.TempDir())
-	service := New(&fakeRepository{}, store)
+	repo := &fakeRepository{}
+	service := New(repo, store)
 
 	result, err := service.SendText(context.Background(), SendTextRequest{
-		UserID:   "user-1",
-		To:       []outbound.Address{{Email: "user@example.net"}},
-		Subject:  "hello",
-		TextBody: "body",
+		UserID:          " user-1 ",
+		Intent:          " New ",
+		SourceMessageID: " source-ignored ",
+		From:            " sender@example.com ",
+		To:              []outbound.Address{{Name: " User ", Email: " user@example.net "}},
+		AttachmentIDs:   []string{" att-1 "},
+		Subject:         "hello",
+		TextBody:        "body",
 	})
 	if err != nil {
 		t.Fatalf("SendText returned error: %v", err)
@@ -915,6 +924,12 @@ func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	}
 	if result.Farm != outbound.FarmGeneral {
 		t.Fatalf("Farm = %q, want general", result.Farm)
+	}
+	if repo.lastSenderUserID != "user-1" || repo.lastSenderFrom != "sender@example.com" {
+		t.Fatalf("sender lookup = %q/%q", repo.lastSenderUserID, repo.lastSenderFrom)
+	}
+	if repo.lastOutgoing.ComposeIntent != "new" || repo.lastOutgoing.To[0].Email != "user@example.net" || repo.lastOutgoing.To[0].Name != "User" || !repo.lastOutgoing.HasAttachment {
+		t.Fatalf("lastOutgoing = %+v", repo.lastOutgoing)
 	}
 }
 
@@ -1143,13 +1158,28 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 	repo := &fakeRepository{}
 	service := New(repo, nil)
 	draft, err := service.SaveDraft(context.Background(), SaveDraftRequest{
-		UserID:  "user-1",
-		Subject: "draft",
+		UserID:          " user-1 ",
+		DraftID:         " draft-1 ",
+		Intent:          " Reply ",
+		SourceMessageID: " source-1 ",
+		From:            " sender@example.com ",
+		To:              []outbound.Address{{Name: " User ", Email: " user@example.net "}},
+		AttachmentIDs:   []string{" att-1 "},
+		Subject:         "draft",
 	})
 	if err != nil {
 		t.Fatalf("SaveDraft returned error: %v", err)
 	}
-	if draft.ID != "draft-1" || repo.lastDraft.Subject != "draft" {
+	if draft.ID != "draft-1" ||
+		repo.lastDraft.UserID != "user-1" ||
+		repo.lastDraft.DraftID != "draft-1" ||
+		repo.lastDraft.Intent != "reply" ||
+		repo.lastDraft.SourceMessageID != "source-1" ||
+		repo.lastDraft.From != "sender@example.com" ||
+		repo.lastDraft.To[0].Name != "User" ||
+		repo.lastDraft.To[0].Email != "user@example.net" ||
+		repo.lastDraft.AttachmentIDs[0] != "att-1" ||
+		repo.lastDraft.Subject != "draft" {
 		t.Fatalf("draft = %+v last = %+v", draft, repo.lastDraft)
 	}
 }
