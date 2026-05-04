@@ -367,7 +367,9 @@ shape so deployments can create the index before enabling the worker, or set
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true` to have the worker ensure it
 at startup. Mail API can inject the OpenSearch source for relevance-only
 searches whose filters/highlights can be preserved; OpenSearch message IDs are
-hydrated through Postgres summaries before responses are returned.
+hydrated through Postgres summaries before responses are returned. Indexed
+OpenSearch documents include parsed sender and attachment-presence fields for
+filter parity work.
 
 ## Deferred from this contract
 
