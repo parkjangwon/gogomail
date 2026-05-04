@@ -263,6 +263,9 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/companies/{id}` returns `{"company":{...}}`
 - Admin company, domain, and user detail/mutation path identifiers reject blank,
   CR/LF-bearing, or oversized values before service dispatch.
+- Admin IMAP UID backfill mailbox IDs, outbox event/retry IDs, DKIM key IDs,
+  suppression IDs, trusted-relay IDs, and delivery-route IDs use the same path
+  identifier validation.
 - `GET /admin/v1/queue` returns `{"queues":[...]}` with grouped topic/status
   totals plus ready, delayed, stale-processing, oldest-ready, and
   next-available metadata for operator dashboards.
