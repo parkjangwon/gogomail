@@ -482,6 +482,60 @@ func TestAdminAPIUsageLedgerRejectsInvalidTimeRange(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageLedgerRejectsUnsafeIdentityFilters(t *testing.T) {
+	t.Parallel()
+
+	oversizedPrincipalID := strings.Repeat("p", maxAdminQueryFilterBytes+1)
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{
+			name:   "tenant crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger?tenant_id=tenant%0Abad",
+		},
+		{
+			name:   "export principal oversized",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/export?principal_id=" + oversizedPrincipalID,
+		},
+		{
+			name:   "stats tenant crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/ledger/stats?tenant_id=tenant%0Dbad",
+		},
+		{
+			name:   "export batch principal oversized",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches?principal_id=" + oversizedPrincipalID + "&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if service.lastAPIUsageLedgerList.TenantID != "" || service.lastAPIUsageLedgerList.PrincipalID != "" {
+				t.Fatalf("lastAPIUsageLedgerList = %+v", service.lastAPIUsageLedgerList)
+			}
+		})
+	}
+}
+
 func TestAdminAPIUsageLedgerExportHandler(t *testing.T) {
 	t.Parallel()
 
@@ -636,6 +690,47 @@ func TestAdminAPIUsageLedgerRetentionReadinessRejectsFutureCutoff(t *testing.T) 
 	}
 	if !strings.Contains(rr.Body.String(), "cutoff must not be in the future") {
 		t.Fatalf("body = %s", rr.Body.String())
+	}
+}
+
+func TestAdminAPIUsageLedgerRetentionReadinessRejectsUnsafeIdentityFilters(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "tenant crlf",
+			path: "/admin/v1/api-usage/ledger/retention-readiness?cutoff=" + cutoff + "&tenant_id=tenant%0Abad",
+		},
+		{
+			name: "principal oversized",
+			path: "/admin/v1/api-usage/ledger/retention-readiness?cutoff=" + cutoff + "&principal_id=" + strings.Repeat("p", maxAdminQueryFilterBytes+1),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if !service.lastAPIUsageLedgerRetention.Cutoff.IsZero() || service.lastAPIUsageLedgerRetention.TenantID != "" || service.lastAPIUsageLedgerRetention.PrincipalID != "" {
+				t.Fatalf("lastAPIUsageLedgerRetention = %+v", service.lastAPIUsageLedgerRetention)
+			}
+		})
 	}
 }
 

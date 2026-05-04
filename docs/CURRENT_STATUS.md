@@ -149,6 +149,9 @@ guidance.
 - API metering durable event decoding rejects CR/LF-bearing method, route,
   event-id, tenant, company, domain, user, API-key, and principal dimensions
   before ledger/aggregate storage.
+- Admin API usage ledger, NDJSON export, stats, export-batch creation, and
+  retention-readiness tenant/principal filters now reject CR/LF-bearing or
+  oversized values before service dispatch.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
