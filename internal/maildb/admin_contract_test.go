@@ -673,6 +673,26 @@ func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 	}
 }
 
+func TestValidateDomainDNSCheckListRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []DomainDNSCheckListRequest{
+		{DomainID: "", Status: "ok"},
+		{DomainID: "domain\nbad", Status: "ok"},
+		{DomainID: "domain-1", Status: "pass"},
+		{DomainID: "domain-1", Status: "missing\nbad"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.DomainID+req.Status, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateDomainDNSCheckListRequest(req); err == nil {
+				t.Fatalf("ValidateDomainDNSCheckListRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
 func TestValidateDeliveryRouteListRequestRejectsUnknownFilters(t *testing.T) {
 	t.Parallel()
 

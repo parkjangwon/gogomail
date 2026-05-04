@@ -45,6 +45,9 @@ guidance.
   targeted retry/bounce incident triage.
 - Domain listing can filter by company, lifecycle status, and latest DNS-check
   status for onboarding and tenant triage.
+- Domain DNS check history can filter by summary status and RFC3339 `since`
+  windows so operators can inspect recent onboarding or deliverability failures
+  without re-querying DNS or scanning every persisted check.
 - Company listing can filter by lifecycle status for tenant-level suspension
   and disabled-account triage.
 - Delivery-route listing can filter by status, farm, and domain pattern for
