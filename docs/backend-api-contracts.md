@@ -300,6 +300,10 @@ Mail API read and bodyless mutation routes reject request bodies and
 ignored JSON or multipart metadata to resource reads, deletes, draft-send,
 upload-session finalization, capability discovery, downloads, or push-device
 list/delete operations.
+Admin GET/DELETE routes and bodyless Admin POST commands reject request bodies
+and `Content-Type` headers before service dispatch, so operator reads, deletes,
+route verification, retry, IMAP UID backfill, API-usage export-batch creation,
+and manifest digest/signature creation cannot silently ignore client payloads.
 
 Attachment downloads set private `no-store` responses and include both a safe
 ASCII `filename` fallback and a UTF-8 `filename*` parameter in

@@ -624,6 +624,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/imap/mailboxes/{id}/uid-backfill", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
 		if !ok {
 			return
@@ -1164,6 +1167,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownAPIUsageExportBatchCreateQuery(w, r) {
 			return
 		}
@@ -1390,6 +1396,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1458,6 +1467,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2062,6 +2074,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -2075,6 +2090,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -2125,16 +2143,18 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 	token = strings.TrimSpace(token)
-	if token == "" {
-		return next
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		got, ok := adminTokenFromRequest(w, r)
-		if !ok {
-			return
+		if token != "" {
+			got, ok := adminTokenFromRequest(w, r)
+			if !ok {
+				return
+			}
+			if !constantTimeTokenEqual(got, token) {
+				writeError(w, http.StatusUnauthorized, "admin token is required")
+				return
+			}
 		}
-		if !constantTimeTokenEqual(got, token) {
-			writeError(w, http.StatusUnauthorized, "admin token is required")
+		if (r.Method == http.MethodGet || r.Method == http.MethodDelete) && !rejectBodylessRequestPayload(w, r) {
 			return
 		}
 		next(w, r)

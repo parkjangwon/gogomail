@@ -117,6 +117,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `Content-Type` headers before dispatch, preventing ignored JSON or multipart
   metadata on resource reads, deletes, draft-send, upload-session finalization,
   capability discovery, downloads, and push-device list/delete operations.
+- Admin GET/DELETE routes and bodyless Admin POST commands reject request
+  bodies and `Content-Type` headers before dispatch, preventing ignored payloads
+  on operator reads, deletes, route verification, retry, IMAP UID backfill,
+  API-usage export-batch creation, and manifest digest/signature creation.
 - Mail JWT and Admin token authentication reject repeated credential headers,
   and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before
   dispatch.
