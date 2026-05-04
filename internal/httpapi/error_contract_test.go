@@ -42,6 +42,23 @@ func TestWriteErrorIncludesStableStatusText(t *testing.T) {
 	}
 }
 
+func TestWriteJSONIncludesNoSniffHeader(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	writeJSON(rec, http.StatusCreated, map[string]string{"status": "ok"})
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+}
+
 func TestConstantTimeTokenEqualUsesTrimmedTokenValues(t *testing.T) {
 	t.Parallel()
 

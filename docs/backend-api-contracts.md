@@ -84,6 +84,8 @@ Errors use the stable envelope:
 
 `error_message` remains temporarily for backward compatibility. New clients
 should read `error`. Error responses return `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff`. Successful Mail/Admin JSON responses,
+including health and service-info envelopes, also return
 `X-Content-Type-Options: nosniff`.
 
 ## Authentication
@@ -287,6 +289,8 @@ downloads all return `Cache-Control: no-store` because usage exports are
 sensitive operational/billing data. Attachment downloads, usage NDJSON exports,
 and stored usage artifact downloads also return `X-Content-Type-Options:
 nosniff` so browsers do not reinterpret streamed bytes as another content type.
+Successful JSON envelopes return the same `nosniff` header for consistent
+browser behavior across Mail, Admin, health, and service-info routes.
 
 ## Push devices
 

@@ -49,6 +49,7 @@ func RegisterHealthRoutesWithChecks(mux *http.ServeMux, checks ...ReadinessCheck
 
 func writeHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(HealthResponse{Status: "ok"})
 }
@@ -73,6 +74,7 @@ func writeReadyWithChecks(checks []ReadinessCheckFunc) http.HandlerFunc {
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(statusCode)
 		_ = json.NewEncoder(w).Encode(response)
 	}
@@ -97,6 +99,7 @@ func StaticReadinessCheck(name string, detail string) ReadinessCheckFunc {
 
 func writeInfo(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(InfoResponse{
 		Service:                "gogomail",

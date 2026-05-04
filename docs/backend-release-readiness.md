@@ -125,6 +125,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API errors use a stable structured envelope with code, message, HTTP status,
   and HTTP status text, and return `Cache-Control: no-store` plus
   `X-Content-Type-Options: nosniff`.
+- Successful Mail/Admin JSON, health, and service-info responses return
+  `X-Content-Type-Options: nosniff`, keeping browser-visible envelopes aligned
+  with error, NDJSON, and download hardening.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata and
   runtime-injected database/Redis probes for HTTP modes that depend on those
