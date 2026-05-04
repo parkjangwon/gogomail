@@ -620,6 +620,35 @@ func TestAdminWriteAPIUsageExportArtifactHandler(t *testing.T) {
 	}
 }
 
+func TestAdminWriteAPIUsageExportArtifactHandlerAcceptsEmptyBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifact: maildb.APIUsageExportArtifactView{
+			ID:          "api-usage-artifact-1",
+			BatchID:     "api-usage-export-1",
+			ContentType: "application/x-ndjson",
+			SHA256Hex:   strings.Repeat("a", 64),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/write", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" {
+		t.Fatalf("last batch = %q", service.lastAPIUsageExportBatchID)
+	}
+	if service.lastWriteAPIUsageExportArtifact.ObjectKey != "" || len(service.lastWriteAPIUsageExportArtifact.Metadata) != 0 {
+		t.Fatalf("last write request = %+v", service.lastWriteAPIUsageExportArtifact)
+	}
+}
+
 func TestAdminListAPIUsageExportArtifactsHandler(t *testing.T) {
 	t.Parallel()
 
