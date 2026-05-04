@@ -27,6 +27,31 @@ func TestValidateUpdateDomainQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateDomainPolicyRequestNormalizesBlankModes(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateUpdateDomainPolicyRequest(UpdateDomainPolicyRequest{ID: "domain-1"})
+	if err != nil {
+		t.Fatalf("ValidateUpdateDomainPolicyRequest returned error: %v", err)
+	}
+}
+
+func TestValidateUpdateDomainPolicyRequestRejectsUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	for _, req := range []UpdateDomainPolicyRequest{
+		{ID: "", InboundMode: "inherit", OutboundMode: "inherit"},
+		{ID: "domain-1", InboundMode: "block", OutboundMode: "inherit"},
+		{ID: "domain-1", InboundMode: "inherit", OutboundMode: "block"},
+		{ID: "domain-1", MaxRecipientsPerMessage: -1},
+		{ID: "domain-1", MaxMessageBytes: -1},
+	} {
+		if err := ValidateUpdateDomainPolicyRequest(req); err == nil {
+			t.Fatalf("ValidateUpdateDomainPolicyRequest(%+v) returned nil", req)
+		}
+	}
+}
+
 func TestValidateCreateDomainRequestRejectsInvalidName(t *testing.T) {
 	t.Parallel()
 

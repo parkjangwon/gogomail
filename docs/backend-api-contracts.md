@@ -110,9 +110,15 @@ Attachment uploads start as `uploading`, become draft-bound or message-bound rec
 Admin domain/user CRUD includes list, detail, create, status update, and quota update contracts:
 
 - `PATCH /admin/v1/domains/{id}/quota`
+- `PATCH /admin/v1/domains/{id}/policy`
 - `PATCH /admin/v1/users/{id}/quota`
 
 `quota_limit: 0` clears the limit and negative values are rejected.
+Domain policy updates store a backend-only operational model under
+`domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
+and optional max-recipient/max-message-byte guardrail hints. SMTP core should
+continue to treat these as policy-boundary data until explicit runtime wiring is
+added.
 
 Admin operational read models also keep explicit envelope keys:
 

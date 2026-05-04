@@ -18,6 +18,7 @@ type AdminService interface {
 	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
+	UpdateDomainPolicy(ctx context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error)
 	ListUsers(ctx context.Context, domainID string, limit int) ([]maildb.UserView, error)
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
@@ -129,6 +130,23 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/domains/{id}/policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.UpdateDomainPolicyRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = r.PathValue("id")
+		policy, err := service.UpdateDomainPolicy(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"domain_policy": policy})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

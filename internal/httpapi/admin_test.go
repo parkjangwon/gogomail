@@ -295,6 +295,33 @@ func TestAdminUpdateDomainQuotaHandler(t *testing.T) {
 	}
 }
 
+func TestAdminUpdateDomainPolicyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/domain-1/policy", bytes.NewReader([]byte(`{
+		"inbound_mode": "monitor",
+		"outbound_mode": "enforce",
+		"max_recipients_per_message": 50,
+		"max_message_bytes": 1048576
+	}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDomainPolicy.ID != "domain-1" || service.lastDomainPolicy.InboundMode != "monitor" {
+		t.Fatalf("lastDomainPolicy = %+v", service.lastDomainPolicy)
+	}
+	if !strings.Contains(rec.Body.String(), `"domain_policy"`) {
+		t.Fatalf("response missing domain_policy envelope: %s", rec.Body.String())
+	}
+}
+
 func TestAdminUsersHandler(t *testing.T) {
 	t.Parallel()
 
@@ -790,6 +817,7 @@ type fakeAdminService struct {
 	lastUserID                string
 	lastDomainStatus          maildb.UpdateDomainStatusRequest
 	lastDomainQuota           maildb.UpdateDomainQuotaRequest
+	lastDomainPolicy          maildb.UpdateDomainPolicyRequest
 	lastCreateDomain          maildb.CreateDomainRequest
 	lastUserStatus            maildb.UpdateUserStatusRequest
 	lastUserQuota             maildb.UpdateUserQuotaRequest
@@ -838,6 +866,17 @@ func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.Upda
 func (f *fakeAdminService) UpdateDomainQuota(_ context.Context, req maildb.UpdateDomainQuotaRequest) error {
 	f.lastDomainQuota = req
 	return nil
+}
+
+func (f *fakeAdminService) UpdateDomainPolicy(_ context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error) {
+	f.lastDomainPolicy = req
+	return maildb.DomainPolicyView{
+		DomainID:                req.ID,
+		InboundMode:             req.InboundMode,
+		OutboundMode:            req.OutboundMode,
+		MaxRecipientsPerMessage: req.MaxRecipientsPerMessage,
+		MaxMessageBytes:         req.MaxMessageBytes,
+	}, nil
 }
 
 func (f *fakeAdminService) ListUsers(_ context.Context, domainID string, limit int) ([]maildb.UserView, error) {

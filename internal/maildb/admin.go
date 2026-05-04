@@ -192,6 +192,15 @@ type UserView struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type DomainPolicyView struct {
+	DomainID                string    `json:"domain_id"`
+	InboundMode             string    `json:"inbound_mode"`
+	OutboundMode            string    `json:"outbound_mode"`
+	MaxRecipientsPerMessage int       `json:"max_recipients_per_message,omitempty"`
+	MaxMessageBytes         int64     `json:"max_message_bytes,omitempty"`
+	UpdatedAt               time.Time `json:"updated_at"`
+}
+
 type UpdateDomainStatusRequest struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
@@ -200,6 +209,14 @@ type UpdateDomainStatusRequest struct {
 type UpdateDomainQuotaRequest struct {
 	ID         string `json:"id"`
 	QuotaLimit int64  `json:"quota_limit"`
+}
+
+type UpdateDomainPolicyRequest struct {
+	ID                      string `json:"id"`
+	InboundMode             string `json:"inbound_mode"`
+	OutboundMode            string `json:"outbound_mode"`
+	MaxRecipientsPerMessage int    `json:"max_recipients_per_message,omitempty"`
+	MaxMessageBytes         int64  `json:"max_message_bytes,omitempty"`
 }
 
 type CreateDomainRequest struct {
@@ -272,6 +289,38 @@ func ValidateUpdateDomainQuotaRequest(req UpdateDomainQuotaRequest) error {
 		return fmt.Errorf("quota_limit must not be negative")
 	}
 	return nil
+}
+
+func ValidateUpdateDomainPolicyRequest(req UpdateDomainPolicyRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("domain id is required")
+	}
+	if _, err := normalizeDomainPolicyMode(req.InboundMode); err != nil {
+		return fmt.Errorf("inbound_mode %w", err)
+	}
+	if _, err := normalizeDomainPolicyMode(req.OutboundMode); err != nil {
+		return fmt.Errorf("outbound_mode %w", err)
+	}
+	if req.MaxRecipientsPerMessage < 0 {
+		return fmt.Errorf("max_recipients_per_message must not be negative")
+	}
+	if req.MaxMessageBytes < 0 {
+		return fmt.Errorf("max_message_bytes must not be negative")
+	}
+	return nil
+}
+
+func normalizeDomainPolicyMode(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "inherit", nil
+	}
+	switch value {
+	case "inherit", "monitor", "enforce":
+		return value, nil
+	default:
+		return "", fmt.Errorf("must be inherit, monitor, or enforce")
+	}
 }
 
 func ValidateCreateDomainRequest(req CreateDomainRequest) error {
@@ -667,6 +716,42 @@ WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
 		return fmt.Errorf("domain %q not found", req.ID)
 	}
 	return nil
+}
+
+func (r *Repository) UpdateDomainPolicy(ctx context.Context, req UpdateDomainPolicyRequest) (DomainPolicyView, error) {
+	if r.db == nil {
+		return DomainPolicyView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateDomainPolicyRequest(req); err != nil {
+		return DomainPolicyView{}, err
+	}
+	inboundMode, _ := normalizeDomainPolicyMode(req.InboundMode)
+	outboundMode, _ := normalizeDomainPolicyMode(req.OutboundMode)
+	policy := DomainPolicyView{
+		DomainID:                strings.TrimSpace(req.ID),
+		InboundMode:             inboundMode,
+		OutboundMode:            outboundMode,
+		MaxRecipientsPerMessage: req.MaxRecipientsPerMessage,
+		MaxMessageBytes:         req.MaxMessageBytes,
+	}
+	policyJSON, err := json.Marshal(policy)
+	if err != nil {
+		return DomainPolicyView{}, fmt.Errorf("marshal domain policy: %w", err)
+	}
+
+	const query = `
+UPDATE domains
+SET settings = jsonb_set(settings, '{policy}', $2::jsonb, true),
+    updated_at = now()
+WHERE id = $1
+RETURNING updated_at`
+	if err := r.db.QueryRowContext(ctx, query, policy.DomainID, policyJSON).Scan(&policy.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return DomainPolicyView{}, fmt.Errorf("domain %q not found", req.ID)
+		}
+		return DomainPolicyView{}, fmt.Errorf("update domain policy: %w", err)
+	}
+	return policy, nil
 }
 
 func (r *Repository) UpdateUserStatus(ctx context.Context, req UpdateUserStatusRequest) error {

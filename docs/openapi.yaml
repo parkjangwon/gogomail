@@ -527,6 +527,19 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/policy:
+    patch:
+      operationId: updateAdminDomainPolicy
+      summary: Admin update domain operational policy model
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/DomainPolicyUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/DomainPolicy"
+        default:
+          $ref: "#/components/responses/Error"
   /users:
     get:
       operationId: listAdminUsers
@@ -756,6 +769,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainDNSCheckEnvelope"
+    DomainPolicy:
+      description: Domain operational policy envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainPolicyEnvelope"
     UserList:
       description: User list envelope
       content:
@@ -887,6 +906,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QuotaUpdateRequest"
+    DomainPolicyUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainPolicyUpdateRequest"
     DKIMKeyCreate:
       required: true
       content:
@@ -1475,6 +1500,34 @@ components:
       properties:
         dns_check:
           $ref: "#/components/schemas/DomainDNSReport"
+    DomainPolicy:
+      type: object
+      required: [domain_id, inbound_mode, outbound_mode, updated_at]
+      properties:
+        domain_id:
+          type: string
+        inbound_mode:
+          type: string
+          enum: [inherit, monitor, enforce]
+        outbound_mode:
+          type: string
+          enum: [inherit, monitor, enforce]
+        max_recipients_per_message:
+          type: integer
+          minimum: 0
+        max_message_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        updated_at:
+          type: string
+          format: date-time
+    DomainPolicyEnvelope:
+      type: object
+      required: [domain_policy]
+      properties:
+        domain_policy:
+          $ref: "#/components/schemas/DomainPolicy"
     User:
       type: object
       required: [id, domain_id, username, display_name, role, status, quota_used, created_at]
@@ -1697,6 +1750,23 @@ components:
       required: [quota_limit]
       properties:
         quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+    DomainPolicyUpdateRequest:
+      type: object
+      required: [inbound_mode, outbound_mode]
+      properties:
+        inbound_mode:
+          type: string
+          enum: [inherit, monitor, enforce]
+        outbound_mode:
+          type: string
+          enum: [inherit, monitor, enforce]
+        max_recipients_per_message:
+          type: integer
+          minimum: 0
+        max_message_bytes:
           type: integer
           format: int64
           minimum: 0

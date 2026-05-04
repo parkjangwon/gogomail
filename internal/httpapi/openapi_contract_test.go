@@ -60,6 +60,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /domains",
 		"PATCH /domains/{id}/status",
 		"PATCH /domains/{id}/quota",
+		"PATCH /domains/{id}/policy",
 		"POST /users",
 		"PATCH /users/{id}/status",
 		"PATCH /users/{id}/quota",
@@ -132,6 +133,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /domains":                      "#/components/responses/Domain",
 		"PATCH /domains/{id}/status":         "#/components/responses/IDStatus",
 		"PATCH /domains/{id}/quota":          "#/components/responses/IDStatus",
+		"PATCH /domains/{id}/policy":         "#/components/responses/DomainPolicy",
 		"GET /users":                         "#/components/responses/UserList",
 		"GET /users/{id}":                    "#/components/responses/User",
 		"POST /users":                        "#/components/responses/User",
@@ -252,6 +254,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"DeliveryRouteEnvelope":     "delivery_route",
 		"DomainListEnvelope":        "domains",
 		"DomainEnvelope":            "domain",
+		"DomainPolicyEnvelope":      "domain_policy",
 		"UserListEnvelope":          "users",
 		"UserEnvelope":              "user",
 	} {
