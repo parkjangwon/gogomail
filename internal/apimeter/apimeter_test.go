@@ -110,6 +110,27 @@ func TestHandlerFallsBackToMethodPathRoutePattern(t *testing.T) {
 	}
 }
 
+func TestRoutePatternFromRequestDropsUnsafeRouteKeys(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/safe", nil)
+	req.Pattern = "GET /safe\nbad"
+	if got := routePatternFromRequest(req); got != "GET /safe" {
+		t.Fatalf("route pattern = %q, want fallback safe path", got)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/"+strings.Repeat("p", maxRequestRoutePatternBytes+1), nil)
+	if got := routePatternFromRequest(req); got != "GET /" {
+		t.Fatalf("route pattern = %q, want method/root fallback for oversized path", got)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/safe", nil)
+	req.Pattern = strings.Repeat("r", maxRequestRoutePatternBytes+1)
+	if got := routePatternFromRequest(req); got != "GET /safe" {
+		t.Fatalf("route pattern = %q, want method/path fallback", got)
+	}
+}
+
 func TestHandlerFailsOpenWhenSinkReturnsError(t *testing.T) {
 	sink := &errorSink{called: make(chan struct{}, 1)}
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -536,6 +536,7 @@ Implementation order:
 477. Remote Ed25519 manifest signer responses now reject oversized bodies and trailing JSON tokens before signature evidence is accepted.
 478. OpenSearch relevance response decoding now rejects oversized bodies and trailing JSON tokens before search hits are accepted.
 479. API metering default request identity extraction now drops CR/LF-bearing or oversized dimensions and avoids classifying unsafe auth headers or `user_id` query values as bearer/admin/query-user traffic.
+480. API metering middleware route-key extraction now drops CR/LF-bearing or oversized ServeMux patterns and fallback paths before sink dispatch.
 
 ## Deferred until backend contracts stabilize
 

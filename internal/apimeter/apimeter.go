@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	defaultTimeout            = 100 * time.Millisecond
-	maxRequestIdentityBytes   = 200
-	maxRequestAuthHeaderBytes = 16 << 10
+	defaultTimeout              = 100 * time.Millisecond
+	maxRequestIdentityBytes     = 200
+	maxRequestAuthHeaderBytes   = 16 << 10
+	maxRequestRoutePatternBytes = 1024
 )
 
 // Event is the API usage record emitted by the metering middleware.
@@ -142,19 +143,19 @@ func routePatternFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	pattern := strings.TrimSpace(r.Pattern)
+	pattern := boundedRequestRouteValue(r.Pattern)
 	if pattern != "" {
 		return pattern
 	}
-	path := strings.TrimSpace(r.URL.Path)
+	path := boundedRequestRouteValue(r.URL.Path)
 	if path == "" {
 		path = "/"
 	}
-	method := strings.TrimSpace(r.Method)
+	method := boundedRequestRouteValue(r.Method)
 	if method == "" {
 		return path
 	}
-	return method + " " + path
+	return boundedRequestRouteValue(method + " " + path)
 }
 
 func defaultIdentityFromRequest(r *http.Request) Identity {
@@ -204,6 +205,14 @@ func authSourceFromRequestWithUserID(r *http.Request, userID string) string {
 func boundedRequestIdentityValue(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" || strings.ContainsAny(value, "\r\n") || len(value) > maxRequestIdentityBytes {
+		return ""
+	}
+	return value
+}
+
+func boundedRequestRouteValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.ContainsAny(value, "\r\n") || len(value) > maxRequestRoutePatternBytes {
 		return ""
 	}
 	return value

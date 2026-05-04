@@ -148,6 +148,8 @@ guidance.
   deterministic event IDs are generated.
 - API metering durable events require nonblank method/route keys and HTTP-like
   status codes before ledger/aggregate storage.
+- API metering middleware route-key extraction drops CR/LF-bearing or oversized
+  ServeMux patterns and fallback paths before sink dispatch.
 - API metering durable event decoding rejects CR/LF-bearing method, route,
   event-id, tenant, company, domain, user, API-key, and principal dimensions
   before ledger/aggregate storage.
