@@ -692,6 +692,21 @@ func TestDecodeQueuedMessageRejectsInvalidDSNOptions(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageRejectsOversizedDSNOriginalRecipient(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"user@example.net"}],
+		"dsn":{"recipients":[{"address":"user@example.net","original_recipient":"rfc822;` + strings.Repeat("a", maxQueuedDSNOriginalRecipientBytes) + `"}]}
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "oversized dsn original_recipient") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want oversized dsn original_recipient", err)
+	}
+}
+
 func TestDecodeQueuedMessageNormalizesFarm(t *testing.T) {
 	t.Parallel()
 

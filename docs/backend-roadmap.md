@@ -544,6 +544,7 @@ Implementation order:
 485. Mail receive audit event decoding now rejects CR/LF-bearing or oversized message IDs before immutable audit log construction.
 486. Delivery status audit event decoding now rejects CR/LF-bearing or oversized message IDs before immutable audit log construction.
 487. Delivery `mail.queued` decoding now rejects oversized message identities and storage paths before SMTP transport or message storage access.
+488. Delivery `mail.queued` DSN option decoding now rejects oversized `original_recipient` values before retry/delivery attempt recording.
 
 ## Deferred until backend contracts stabilize
 
