@@ -208,6 +208,8 @@ The platform hardening sprint completed the following:
   can build daily/monthly Postgres read models for operations.
 - API metering events now carry an explicit schema version and deterministic
   event ID groundwork for future idempotent billing-grade aggregation.
+- API metering aggregation now has an `api_usage_events` idempotency ledger so
+  duplicate `event_id` deliveries do not increment daily/monthly counters again.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 

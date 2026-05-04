@@ -40,6 +40,13 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 	if s.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	claimed, err := s.claimEvent(ctx, event)
+	if err != nil {
+		return err
+	}
+	if !claimed {
+		return nil
+	}
 	if event.RequestCount <= 0 {
 		event.RequestCount = 1
 	}
@@ -53,6 +60,45 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 		return err
 	}
 	return nil
+}
+
+func (s PostgresAggregateStore) claimEvent(ctx context.Context, event UsageEvent) (bool, error) {
+	eventID := strings.TrimSpace(event.EventID)
+	if eventID == "" {
+		return true, nil
+	}
+	eventTime := event.Day
+	if eventTime.IsZero() {
+		eventTime = time.Now().UTC()
+	}
+	const query = `
+INSERT INTO api_usage_events (
+  event_id,
+  event_timestamp,
+  method,
+  route,
+  status,
+  user_id
+) VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (event_id) DO NOTHING`
+	result, err := s.db.ExecContext(
+		ctx,
+		query,
+		eventID,
+		eventTime,
+		event.Method,
+		event.Route,
+		event.Status,
+		event.UserID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("claim api usage event: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("inspect api usage event claim: %w", err)
+	}
+	return affected > 0, nil
 }
 
 func (s PostgresAggregateStore) upsert(ctx context.Context, table string, bucketColumn string, bucket time.Time, event UsageEvent) error {

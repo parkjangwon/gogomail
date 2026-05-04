@@ -196,12 +196,14 @@ Current state:
 - API usage events include an explicit schema version and deterministic
   `event_id`, preparing future idempotent accounting without making aggregates
   billing-grade yet.
+- `api_usage_events` records claimed event IDs before aggregate upserts, so
+  replayed usage events do not double-count daily/monthly operational totals.
 
 Next:
 
 - Add async enrichment keyed by company/domain/user/api-key.
-- Add idempotent event accounting and billing-grade ledgers before aggregates
-  drive invoices or hard Open API limits.
+- Add billing-grade ledger semantics before aggregates drive invoices or hard
+  Open API limits.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet
