@@ -455,6 +455,8 @@ The platform hardening sprint completed the following:
 - Mail compose draft/save/send requests normalize user/source/from/address and
   attachment identifier fields at the service boundary before repository,
   storage, suppression, and outbound composition work.
+- Single-message flag, move, and delete service methods trim user/message/flag
+  and folder identifiers before repository mutation and IMAP event fan-out.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.

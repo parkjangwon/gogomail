@@ -449,6 +449,9 @@ func messageFlagRead(flags json.RawMessage) bool {
 }
 
 func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	flag = strings.TrimSpace(flag)
 	if err := s.repository.SetMessageFlag(ctx, userID, messageID, flag, value); err != nil {
 		return err
 	}
@@ -469,6 +472,9 @@ func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessage
 }
 
 func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	folderID = strings.TrimSpace(folderID)
 	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
 	if err != nil {
 		return err
@@ -497,6 +503,8 @@ func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMo
 }
 
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
 	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
 	if err != nil {
 		return err

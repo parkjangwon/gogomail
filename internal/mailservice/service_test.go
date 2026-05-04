@@ -320,8 +320,11 @@ func TestSetMessageFlagPublishesIMAPFlagEvent(t *testing.T) {
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
-	if err := service.SetMessageFlag(context.Background(), "user-1", "msg-1", "read", true); err != nil {
+	if err := service.SetMessageFlag(context.Background(), " user-1 ", " msg-1 ", " read ", true); err != nil {
 		t.Fatalf("SetMessageFlag returned error: %v", err)
+	}
+	if repo.lastMutationUserID != "user-1" || repo.lastFlagMessageID != "msg-1" || repo.lastFlag != "read" {
+		t.Fatalf("flag mutation = %q/%q/%q", repo.lastMutationUserID, repo.lastFlagMessageID, repo.lastFlag)
 	}
 	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 1 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" {
 		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
@@ -382,8 +385,11 @@ func TestMoveMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
-	if err := service.MoveMessage(context.Background(), "user-1", "msg-1", "archive"); err != nil {
+	if err := service.MoveMessage(context.Background(), " user-1 ", " msg-1 ", " archive "); err != nil {
 		t.Fatalf("MoveMessage returned error: %v", err)
+	}
+	if repo.lastMutationUserID != "user-1" || repo.lastMoveMessageID != "msg-1" || repo.lastMoveFolderID != "archive" {
+		t.Fatalf("move mutation = %q/%q/%q", repo.lastMutationUserID, repo.lastMoveMessageID, repo.lastMoveFolderID)
 	}
 	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 1 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" {
 		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
@@ -430,8 +436,11 @@ func TestDeleteMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
-	if err := service.DeleteMessage(context.Background(), "user-1", "msg-1"); err != nil {
+	if err := service.DeleteMessage(context.Background(), " user-1 ", " msg-1 "); err != nil {
 		t.Fatalf("DeleteMessage returned error: %v", err)
+	}
+	if repo.lastMutationUserID != "user-1" || repo.lastDeleteMessageID != "msg-1" {
+		t.Fatalf("delete mutation = %q/%q", repo.lastMutationUserID, repo.lastDeleteMessageID)
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
 		t.Fatalf("events = %#v, want expunge event", events.events)
@@ -676,6 +685,10 @@ type fakeRepository struct {
 	expiredAttachments          []maildb.Attachment
 	lastFlagMessageID           string
 	lastFlag                    string
+	lastMutationUserID          string
+	lastMoveMessageID           string
+	lastMoveFolderID            string
+	lastDeleteMessageID         string
 	lastPageCursor              maildb.MessageListCursor
 	lastHydrateIDs              []string
 	lastSentDraftID             string
@@ -774,7 +787,8 @@ func (f *fakeRepository) ExistingIMAPMessageUIDs(_ context.Context, userID strin
 	return f.imapUIDs, nil
 }
 
-func (f *fakeRepository) SetMessageFlag(_ context.Context, _ string, messageID string, flag string, _ bool) error {
+func (f *fakeRepository) SetMessageFlag(_ context.Context, userID string, messageID string, flag string, _ bool) error {
+	f.lastMutationUserID = userID
 	f.lastFlagMessageID = messageID
 	f.lastFlag = flag
 	return nil
@@ -784,7 +798,10 @@ func (f *fakeRepository) BulkSetMessageFlag(_ context.Context, req maildb.BulkMe
 	return int64(len(req.MessageIDs)), nil
 }
 
-func (f *fakeRepository) MoveMessage(context.Context, string, string, string) error {
+func (f *fakeRepository) MoveMessage(_ context.Context, userID string, messageID string, folderID string) error {
+	f.lastMutationUserID = userID
+	f.lastMoveMessageID = messageID
+	f.lastMoveFolderID = folderID
 	return nil
 }
 
@@ -792,7 +809,9 @@ func (f *fakeRepository) BulkMoveMessages(_ context.Context, req maildb.BulkMess
 	return int64(len(req.MessageIDs)), nil
 }
 
-func (f *fakeRepository) DeleteMessage(context.Context, string, string) error {
+func (f *fakeRepository) DeleteMessage(_ context.Context, userID string, messageID string) error {
+	f.lastMutationUserID = userID
+	f.lastDeleteMessageID = messageID
 	return nil
 }
 
