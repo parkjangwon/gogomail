@@ -106,6 +106,8 @@ dispatch.
 User-created folder names reject blank, path-bearing, CR/LF-bearing, or
 oversized values. Folder rename/delete identifiers are whitespace-normalized and
 reject blank, CR/LF-bearing, or oversized IDs before repository dispatch.
+Folder-scoped message lists and thread-message reads apply the same resource ID
+checks before repository work.
 
 ## Mailbox bulk actions
 

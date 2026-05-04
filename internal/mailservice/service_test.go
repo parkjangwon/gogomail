@@ -199,6 +199,47 @@ func TestFolderMutationsRejectUnsafeFolderID(t *testing.T) {
 	}
 }
 
+func TestMailboxListMethodsRejectUnsafeResourceIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		run  func(*Service) error
+	}{
+		{
+			name: "list folder",
+			run: func(service *Service) error {
+				_, err := service.ListMessagesInFolder(context.Background(), "user-1", "inbox\r\nbad", 10)
+				return err
+			},
+		},
+		{
+			name: "page folder",
+			run: func(service *Service) error {
+				_, err := service.ListMessagesPage(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1), 10, maildb.MessageListCursor{})
+				return err
+			},
+		},
+		{
+			name: "thread messages",
+			run: func(service *Service) error {
+				_, err := service.ListThreadMessages(context.Background(), "user-1", "thread-1\nbad", 10)
+				return err
+			},
+		},
+	}
+	for _, tc := range tests {
+		repo := &fakeRepository{}
+		service := New(repo, nil)
+		if err := tc.run(service); err == nil {
+			t.Fatalf("%s accepted unsafe resource ID", tc.name)
+		}
+		if repo.lastListMessagesFolderID != "" || repo.lastPageFolderID != "" || repo.lastThreadID != "" {
+			t.Fatalf("%s called repository with folder/thread IDs %q/%q/%q", tc.name, repo.lastListMessagesFolderID, repo.lastPageFolderID, repo.lastThreadID)
+		}
+	}
+}
+
 func TestListMethodsNormalizeLimits(t *testing.T) {
 	t.Parallel()
 

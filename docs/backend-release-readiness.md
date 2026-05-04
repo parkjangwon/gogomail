@@ -196,7 +196,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   user, folder, thread, message, and folder-name inputs before repository work;
   user folder create/rename rejects blank, path-bearing, CR/LF-bearing, or
   oversized names, and rename/delete reject unsafe folder identifiers before
-  repository dispatch.
+  repository dispatch. Folder-scoped message lists and thread-message reads
+  also reject unsafe folder/thread identifiers before repository work.
 - Message, thread, and push-device list service methods normalize list limits
   to the documented message-list bounds before repository work.
 - IMAP service methods trim user/mailbox identifiers and normalize list/backfill
