@@ -120,10 +120,11 @@ type QueueStat struct {
 }
 
 type OutboxEventListRequest struct {
-	Limit  int
-	Topic  string
-	Status string
-	Since  time.Time
+	Limit        int
+	Topic        string
+	PartitionKey string
+	Status       string
+	Since        time.Time
 }
 
 type OutboxEventView struct {
@@ -1940,6 +1941,7 @@ func (r *Repository) ListOutboxEvents(ctx context.Context, req OutboxEventListRe
 	}
 	req.Limit = normalizeLimit(req.Limit)
 	req.Topic = strings.TrimSpace(req.Topic)
+	req.PartitionKey = strings.TrimSpace(req.PartitionKey)
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
@@ -1962,12 +1964,13 @@ SELECT
   processed_at
 FROM outbox
 WHERE (NULLIF($2, '') IS NULL OR topic = $2)
-  AND (NULLIF($3, '') IS NULL OR status = $3)
-  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
+  AND (NULLIF($3, '') IS NULL OR partition_key = $3)
+  AND (NULLIF($4, '') IS NULL OR status = $4)
+  AND ($5::timestamptz IS NULL OR created_at >= $5::timestamptz)
 ORDER BY created_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Topic, req.Status, nullableTime(req.Since))
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Topic, req.PartitionKey, req.Status, nullableTime(req.Since))
 	if err != nil {
 		return nil, fmt.Errorf("list outbox events: %w", err)
 	}

@@ -202,8 +202,8 @@ Admin operational read models also keep explicit envelope keys:
   totals plus ready, delayed, stale-processing, oldest-ready, and
   next-available metadata for operator dashboards.
 - `GET /admin/v1/outbox-events` returns `{"outbox_events":[...]}`;
-  optional `topic`, `status`, and RFC3339 `since` filters expose outbox event
-  metadata without returning JSON payload bodies.
+  optional `topic`, `partition_key`, `status`, and RFC3339 `since` filters
+  expose outbox event metadata without returning JSON payload bodies.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`

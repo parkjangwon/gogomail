@@ -70,7 +70,7 @@ func TestAdminOutboxEventsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?limit=10&topic=mail.event&status=pending&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?limit=10&topic=mail.event&partition_key=msg-1&status=pending&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -86,7 +86,7 @@ func TestAdminOutboxEventsHandler(t *testing.T) {
 	if len(body.Events) != 1 || body.Events[0].ID != "outbox-1" {
 		t.Fatalf("outbox_events = %+v", body.Events)
 	}
-	if service.lastOutboxEventList.Limit != 10 || service.lastOutboxEventList.Topic != "mail.event" || service.lastOutboxEventList.Status != "pending" || service.lastOutboxEventList.Since.IsZero() {
+	if service.lastOutboxEventList.Limit != 10 || service.lastOutboxEventList.Topic != "mail.event" || service.lastOutboxEventList.PartitionKey != "msg-1" || service.lastOutboxEventList.Status != "pending" || service.lastOutboxEventList.Since.IsZero() {
 		t.Fatalf("lastOutboxEventList = %+v", service.lastOutboxEventList)
 	}
 }
