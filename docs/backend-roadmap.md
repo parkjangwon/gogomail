@@ -446,6 +446,7 @@ Implementation order:
 387. API metering durable event metrics now clamp negative request bytes, response bytes, and latency to zero and default nonpositive request counts to one before ledger and aggregate storage, keeping replayed usage payloads inside database accounting constraints.
 388. API metering durable events now require nonblank method/route keys and HTTP-like status codes before ledger and aggregate storage, preventing malformed usage payloads from polluting billing/export dimensions.
 389. API metering outbox payload generation now clamps negative byte and latency values before deterministic event IDs are generated, aligning source emission with worker-side ledger/aggregate normalization.
+390. API metering middleware now falls back to `METHOD /path` when no `http.ServeMux` route pattern is available, keeping durable usage event route keys nonblank even around custom handlers or unmatched routes.
 
 ## Deferred until backend contracts stabilize
 

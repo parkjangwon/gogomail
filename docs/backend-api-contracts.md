@@ -420,6 +420,9 @@ API call metering can now emit durable usage events:
 - Durable usage events must include nonblank `method` and `route` fields and an
   HTTP-like status code from 100 through 999 before they can enter ledger or
   aggregate storage.
+- The metering middleware prefers the `http.ServeMux` route pattern, but falls
+  back to `METHOD /path` when no pattern is available so durable events still
+  have a stable nonblank route key.
 - The aggregate worker claims `event_id` values before daily/monthly upserts, so
   replayed durable events do not double-count operational totals.
 - The middleware remains async and fail-open; request handling does not wait on

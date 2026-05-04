@@ -126,6 +126,8 @@ guidance.
   deterministic event IDs are generated.
 - API metering durable events require nonblank method/route keys and HTTP-like
   status codes before ledger/aggregate storage.
+- API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
+  route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
   upserts. Admin API exposes bounded ledger list, NDJSON export, and stats
   endpoints for billing/export preparation while keeping HTTP request handling
