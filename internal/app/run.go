@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -456,10 +457,14 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	defer redisClient.Close()
 
 	repository := maildb.NewRepository(db)
+	indexer, err := searchIndexerForConfig(cfg, repository)
+	if err != nil {
+		return err
+	}
 	router := eventstream.NewRouter()
 	if err := router.Register("mail.stored", searchindex.NewHandler(
 		searchindex.NewStorageStoreReader(storage.NewLocalStore(cfg.MailstoreRoot)),
-		searchindex.NewPostgresIndexer(repository),
+		indexer,
 		searchindex.HandlerOptions{MaxTextBodyBytes: cfg.SearchIndexMaxBodyBytes},
 	)); err != nil {
 		return err
@@ -488,6 +493,22 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		"max_body_bytes", cfg.SearchIndexMaxBodyBytes,
 	)
 	return consumer.Run(ctx)
+}
+
+func searchIndexerForConfig(cfg config.Config, repository *maildb.Repository) (searchindex.Indexer, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.SearchIndexBackend)) {
+	case "postgres":
+		return searchindex.NewPostgresIndexer(repository), nil
+	case "opensearch":
+		return searchindex.NewOpenSearchIndexer(searchindex.OpenSearchOptions{
+			Endpoint: cfg.SearchIndexOpenSearchEndpoint,
+			Index:    cfg.SearchIndexOpenSearchIndex,
+			Username: cfg.SearchIndexOpenSearchUsername,
+			Password: cfg.SearchIndexOpenSearchPassword,
+		})
+	default:
+		return nil, fmt.Errorf("unsupported search index backend %q", cfg.SearchIndexBackend)
+	}
 }
 
 func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
