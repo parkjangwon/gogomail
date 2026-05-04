@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -27,6 +28,14 @@ func TestDecodeMessageListCursorRejectsMalformedInput(t *testing.T) {
 
 	if _, err := DecodeMessageListCursor("not-base64"); err == nil {
 		t.Fatal("DecodeMessageListCursor accepted malformed input")
+	}
+}
+
+func TestDecodeMessageListCursorRejectsOversizedInput(t *testing.T) {
+	t.Parallel()
+
+	if _, err := DecodeMessageListCursor(strings.Repeat("a", MessageListCursorMaxBytes+1)); err == nil {
+		t.Fatal("DecodeMessageListCursor accepted oversized input")
 	}
 }
 

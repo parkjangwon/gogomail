@@ -200,6 +200,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   also reject unsafe folder/thread identifiers before repository work.
 - Message, thread, and push-device list service methods normalize list limits
   to the documented message-list bounds before repository work.
+- Message-list cursor decoding rejects oversized opaque cursor strings before
+  base64 decode and JSON parsing.
 - IMAP service methods trim user/mailbox identifiers and normalize list/backfill
   limits before repository, storage, broker, or mailbox-event work.
 - Mail search service queries normalize user, text, folder, sender, subject,
