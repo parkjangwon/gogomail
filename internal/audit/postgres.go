@@ -21,16 +21,31 @@ func (r *PostgresRepository) Insert(ctx context.Context, log Log) error {
 		return fmt.Errorf("database handle is required")
 	}
 
-	normalized, err := log.normalized()
-	if err != nil {
-		return err
-	}
-
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin audit log transaction: %w", err)
 	}
 	defer tx.Rollback()
+
+	if err := InsertTx(ctx, tx, log); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit audit log transaction: %w", err)
+	}
+	return nil
+}
+
+func InsertTx(ctx context.Context, tx *sql.Tx, log Log) error {
+	if tx == nil {
+		return fmt.Errorf("audit transaction is required")
+	}
+
+	normalized, err := log.normalized()
+	if err != nil {
+		return err
+	}
 
 	prevHash, err := latestAuditHash(ctx, tx)
 	if err != nil {
@@ -75,10 +90,6 @@ INSERT INTO audit_logs (
 	)
 	if err != nil {
 		return fmt.Errorf("insert audit log: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit audit log transaction: %w", err)
 	}
 	return nil
 }

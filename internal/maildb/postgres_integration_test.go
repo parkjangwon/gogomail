@@ -707,18 +707,20 @@ func TestPostgresQuotaCorrectionRecordsAudit(t *testing.T) {
 	var auditRows int
 	var beforeCount int
 	var afterCount int
+	var hashedRows int
 	if err := db.QueryRowContext(ctx, `
 SELECT count(*)::int,
   max((detail->>'before_drift_count')::int),
-  min((detail->>'after_drift_count')::int)
+  min((detail->>'after_drift_count')::int),
+  count(*) FILTER (WHERE hash <> '')::int
 FROM audit_logs
 WHERE action = 'quota.reconciliation_correction'
   AND target_type = 'user'
-  AND target_id = $1`, seed.userID).Scan(&auditRows, &beforeCount, &afterCount); err != nil {
+  AND target_id = $1`, seed.userID).Scan(&auditRows, &beforeCount, &afterCount, &hashedRows); err != nil {
 		t.Fatalf("query quota correction audit: %v", err)
 	}
-	if auditRows != 2 || beforeCount != 1 || afterCount != 0 {
-		t.Fatalf("quota correction audit rows/counts = %d/%d/%d, want 2/1/0", auditRows, beforeCount, afterCount)
+	if auditRows != 2 || beforeCount != 1 || afterCount != 0 || hashedRows != 2 {
+		t.Fatalf("quota correction audit rows/counts/hash = %d/%d/%d/%d, want 2/1/0/2", auditRows, beforeCount, afterCount, hashedRows)
 	}
 }
 

@@ -36,6 +36,8 @@ Current state:
 - Admin API exposes bounded audit-log list/detail reads so quota correction,
   domain onboarding, mail receive, and delivery-status audit rows are
   inspectable through the operator API.
+- Domain DNS check and quota correction audit records now reuse the shared
+  hash-chain writer, keeping operator-visible audit rows tamper-evident.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.

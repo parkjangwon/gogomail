@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -30,6 +31,19 @@ func TestComputeHashChangesWithPrevHash(t *testing.T) {
 	}
 	if first == second {
 		t.Fatal("hash did not change when prev_hash changed")
+	}
+}
+
+func TestInsertTxRejectsNilTransaction(t *testing.T) {
+	t.Parallel()
+
+	err := InsertTx(context.Background(), nil, Log{
+		Category: "admin",
+		Action:   "domain.dns_check",
+		Result:   "pass",
+	})
+	if err == nil || !strings.Contains(err.Error(), "audit transaction is required") {
+		t.Fatalf("InsertTx err = %v", err)
 	}
 }
 

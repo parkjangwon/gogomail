@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gogomail/gogomail/internal/apimeter"
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/mail"
 )
@@ -1970,16 +1971,16 @@ RETURNING id::text`, domain.ID, status, reportJSON).Scan(&checkID); err != nil {
 	if err != nil {
 		return fmt.Errorf("marshal domain dns check audit detail: %w", err)
 	}
-	if _, err := r.db.ExecContext(ctx, `
-INSERT INTO audit_logs (
-  company_id, domain_id, category, action, target_type, target_id, result, detail
-)
-VALUES ($1, $2, 'admin', 'domain.dns_check', 'domain', $2, $3, $4)`,
-		domain.CompanyID,
-		domain.ID,
-		status,
-		detailJSON,
-	); err != nil {
+	if err := audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
+		CompanyID:  domain.CompanyID,
+		DomainID:   domain.ID,
+		Category:   "admin",
+		Action:     "domain.dns_check",
+		TargetType: "domain",
+		TargetID:   domain.ID,
+		Result:     status,
+		Detail:     detailJSON,
+	}); err != nil {
 		return fmt.Errorf("record domain dns check audit: %w", err)
 	}
 	return nil
