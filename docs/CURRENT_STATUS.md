@@ -342,7 +342,9 @@ guidance.
   rejects nonpositive event and delivery consumer count/block settings before
   workers run with unusable Redis Stream options.
 - Event routing trims registered and payload event names and rejects
-  CR/LF-bearing event names before worker dispatch.
+  CR/LF-bearing or oversized event names before worker dispatch.
+- Redis stream event decoding rejects CR/LF-bearing or oversized outbox IDs,
+  partition keys, and payloads before worker fan-out.
 - Redis stream event decoding trims outbox id, partition key, and payload
   fields and rejects blank metadata before handler dispatch.
 - Redis outbox publishing trims event id, topic, partition key, and payload

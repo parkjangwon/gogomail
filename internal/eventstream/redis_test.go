@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,6 +71,50 @@ func TestDecodeRedisMessageRejectsBlankMetadata(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("decodeRedisMessage accepted blank outbox_id")
+	}
+}
+
+func TestDecodeRedisMessageRejectsUnsafeMetadata(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		values map[string]any
+	}{
+		{
+			name: "outbox_crlf",
+			values: map[string]any{
+				"outbox_id":     "outbox-1\nbad",
+				"partition_key": "message-1",
+				"payload":       `{"event":"mail.stored"}`,
+			},
+		},
+		{
+			name: "partition_too_long",
+			values: map[string]any{
+				"outbox_id":     "outbox-1",
+				"partition_key": strings.Repeat("p", maxRedisMetadataBytes+1),
+				"payload":       `{"event":"mail.stored"}`,
+			},
+		},
+		{
+			name: "payload_too_long",
+			values: map[string]any{
+				"outbox_id":     "outbox-1",
+				"partition_key": "message-1",
+				"payload":       strings.Repeat(" ", maxRedisPayloadBytes+1),
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := decodeRedisMessage("mail.event", redis.XMessage{ID: "1-0", Values: tc.values}); err == nil {
+				t.Fatal("decodeRedisMessage accepted unsafe metadata")
+			}
+		})
 	}
 }
 

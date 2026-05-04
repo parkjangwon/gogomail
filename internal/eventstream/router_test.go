@@ -3,6 +3,7 @@ package eventstream
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -61,6 +62,15 @@ func TestEventNameRejectsInvalidEvent(t *testing.T) {
 	}
 }
 
+func TestEventNameRejectsOversizedEvent(t *testing.T) {
+	t.Parallel()
+
+	_, err := EventName([]byte(`{"event":"` + strings.Repeat("e", maxEventNameBytes+1) + `"}`))
+	if err == nil {
+		t.Fatal("EventName accepted oversized event name")
+	}
+}
+
 func TestRouterRejectsInvalidRegisteredEvent(t *testing.T) {
 	t.Parallel()
 
@@ -70,6 +80,18 @@ func TestRouterRejectsInvalidRegisteredEvent(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("Register accepted invalid event name")
+	}
+}
+
+func TestRouterRejectsOversizedRegisteredEvent(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	err := router.Register(strings.Repeat("e", maxEventNameBytes+1), HandlerFunc(func(context.Context, Message) error {
+		return nil
+	}))
+	if err == nil {
+		t.Fatal("Register accepted oversized event name")
 	}
 }
 

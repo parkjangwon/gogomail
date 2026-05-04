@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+const maxEventNameBytes = 200
+
 type Message struct {
 	ID           string
 	Stream       string
@@ -50,12 +52,10 @@ func NewRouter() *Router {
 }
 
 func (r *Router) Register(event string, handler Handler) error {
-	event = strings.TrimSpace(event)
-	if event == "" {
-		return fmt.Errorf("event name is required")
-	}
-	if strings.ContainsAny(event, "\r\n") {
-		return fmt.Errorf("event name is invalid")
+	var err error
+	event, err = cleanEventName(event)
+	if err != nil {
+		return err
 	}
 	if handler == nil {
 		return fmt.Errorf("handler is required")
@@ -89,12 +89,23 @@ func EventName(payload json.RawMessage) (string, error) {
 	if err := json.Unmarshal(payload, &envelope); err != nil {
 		return "", fmt.Errorf("decode event payload: %w", err)
 	}
-	envelope.Event = strings.TrimSpace(envelope.Event)
-	if envelope.Event == "" {
-		return "", fmt.Errorf("event payload is missing event field")
+	event, err := cleanEventName(envelope.Event)
+	if err != nil {
+		return "", fmt.Errorf("event payload has invalid event field: %w", err)
 	}
-	if strings.ContainsAny(envelope.Event, "\r\n") {
-		return "", fmt.Errorf("event payload has invalid event field")
+	return event, nil
+}
+
+func cleanEventName(event string) (string, error) {
+	event = strings.TrimSpace(event)
+	if event == "" {
+		return "", fmt.Errorf("event name is required")
 	}
-	return envelope.Event, nil
+	if strings.ContainsAny(event, "\r\n") {
+		return "", fmt.Errorf("event name is invalid")
+	}
+	if len(event) > maxEventNameBytes {
+		return "", fmt.Errorf("event name is too long")
+	}
+	return event, nil
 }
