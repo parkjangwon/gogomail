@@ -465,6 +465,7 @@ type PushNotificationAttemptListRequest struct {
 
 type PushNotificationStatsRequest struct {
 	UserID string
+	Since  time.Time
 }
 
 type PushNotificationStatsView struct {
@@ -3673,6 +3674,9 @@ func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotif
 		return PushNotificationStatsView{}, fmt.Errorf("database handle is required")
 	}
 	req.UserID = strings.TrimSpace(req.UserID)
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
 
 	const query = `
 SELECT
@@ -3684,10 +3688,11 @@ SELECT
   COALESCE(COUNT(*) FILTER (WHERE status = 'failed'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'invalid_token'), 0)
 FROM push_notification_attempts
-WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)`
+WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
+  AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)`
 
 	var stats PushNotificationStatsView
-	if err := r.db.QueryRowContext(ctx, query, req.UserID).Scan(
+	if err := r.db.QueryRowContext(ctx, query, req.UserID, nullableTime(req.Since)).Scan(
 		&stats.ActiveDevices,
 		&stats.TotalAttempts,
 		&stats.Candidate,
