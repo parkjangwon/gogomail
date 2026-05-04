@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -82,6 +83,43 @@ func TestAPIUsageExportManifestDigestVerification(t *testing.T) {
 	}
 	if !verification.Valid || verification.ActualDigestHex != digestHex || len(verification.CanonicalManifest) == 0 {
 		t.Fatalf("verification = %+v", verification)
+	}
+}
+
+func TestAPIUsageExportManifestDigestAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := apiUsageExportManifestDigestAuditDetail(APIUsageExportManifestDigestView{
+		ID:              "digest-1",
+		BatchID:         "batch-1",
+		SchemaVersion:   apimeter.ExportManifestSchemaV1,
+		DigestAlgorithm: "sha256",
+		DigestHex:       strings.Repeat("a", 64),
+		Manifest:        json.RawMessage(`{"schema_version":"2026-05-04.api-usage-export-manifest.v1","artifacts":[{"object_key":"private.ndjson"}]}`),
+	}, 1)
+	if err != nil {
+		t.Fatalf("apiUsageExportManifestDigestAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		DigestID        string `json:"digest_id"`
+		BatchID         string `json:"batch_id"`
+		SchemaVersion   string `json:"schema_version"`
+		DigestAlgorithm string `json:"digest_algorithm"`
+		DigestHex       string `json:"digest_hex"`
+		ManifestBytes   int    `json:"manifest_bytes"`
+		ArtifactCount   int    `json:"artifact_count"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.DigestID != "digest-1" || got.BatchID != "batch-1" || got.DigestAlgorithm != "sha256" {
+		t.Fatalf("audit detail identity = %+v", got)
+	}
+	if got.DigestHex != strings.Repeat("a", 64) || got.ManifestBytes == 0 || got.ArtifactCount != 1 {
+		t.Fatalf("audit detail evidence = %+v", got)
+	}
+	if strings.Contains(string(detail), "private.ndjson") || strings.Contains(string(detail), "artifacts") {
+		t.Fatalf("audit detail leaked manifest body: %s", detail)
 	}
 }
 

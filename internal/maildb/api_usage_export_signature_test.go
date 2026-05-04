@@ -55,6 +55,50 @@ func TestValidateCreateAPIUsageExportManifestSignatureRequestAcceptsEd25519(t *t
 	}
 }
 
+func TestAPIUsageExportManifestSignatureAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := apiUsageExportManifestSignatureAuditDetail(APIUsageExportManifestSignatureView{
+		ID:                 "signature-1",
+		DigestID:           "digest-1",
+		BatchID:            "batch-1",
+		SignerBackend:      "local-hmac",
+		KeyID:              "key-1",
+		SignatureAlgorithm: apimeter.ExportManifestSignatureAlgorithmHMACSHA256,
+		SignedDigestHex:    strings.Repeat("a", 64),
+		SignatureHex:       strings.Repeat("b", 64),
+		Metadata:           json.RawMessage(`{"ignored":"metadata is not audit detail"}`),
+	})
+	if err != nil {
+		t.Fatalf("apiUsageExportManifestSignatureAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		SignatureID        string `json:"signature_id"`
+		DigestID           string `json:"digest_id"`
+		BatchID            string `json:"batch_id"`
+		SignerBackend      string `json:"signer_backend"`
+		KeyID              string `json:"key_id"`
+		SignatureAlgorithm string `json:"signature_algorithm"`
+		SignedDigestHex    string `json:"signed_digest_hex"`
+		SignatureHexLen    int    `json:"signature_hex_len"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.SignatureID != "signature-1" || got.DigestID != "digest-1" || got.BatchID != "batch-1" {
+		t.Fatalf("audit detail identity = %+v", got)
+	}
+	if got.SignerBackend != "local-hmac" || got.KeyID != "key-1" || got.SignatureAlgorithm != string(apimeter.ExportManifestSignatureAlgorithmHMACSHA256) {
+		t.Fatalf("audit detail signer = %+v", got)
+	}
+	if got.SignedDigestHex != strings.Repeat("a", 64) || got.SignatureHexLen != 64 {
+		t.Fatalf("audit detail evidence = %+v", got)
+	}
+	if strings.Contains(string(detail), "metadata") || strings.Contains(string(detail), strings.Repeat("b", 64)) {
+		t.Fatalf("audit detail leaked metadata or full signature: %s", detail)
+	}
+}
+
 func TestValidateCreateAPIUsageExportManifestSignatureRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
