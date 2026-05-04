@@ -715,6 +715,26 @@ paths:
           $ref: "#/components/responses/APIUsageExportArtifactDownload"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/artifacts/{artifact_id}/verification:
+    get:
+      operationId: verifyAdminAPIUsageExportArtifact
+      summary: Verify a stored API usage export artifact object
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportArtifactVerification"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches/{id}/manifest-digests:
     get:
       operationId: listAdminAPIUsageExportManifestDigests
@@ -1494,6 +1514,12 @@ components:
         application/x-ndjson:
           schema:
             type: string
+    APIUsageExportArtifactVerification:
+      description: API usage export artifact object verification envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportArtifactVerificationEnvelope"
     APIUsageExportManifestDigest:
       description: Canonical API usage export manifest digest envelope
       content:
@@ -2726,6 +2752,38 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportArtifact"
+    APIUsageExportArtifactVerification:
+      type: object
+      required: [batch_id, artifact_id, object_key, expected_byte_count, actual_byte_count, expected_sha256_hex, actual_sha256_hex, valid]
+      properties:
+        batch_id:
+          type: string
+        artifact_id:
+          type: string
+        object_key:
+          type: string
+        expected_byte_count:
+          type: integer
+          format: int64
+          minimum: 0
+        actual_byte_count:
+          type: integer
+          format: int64
+          minimum: 0
+        expected_sha256_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        actual_sha256_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        valid:
+          type: boolean
+    APIUsageExportArtifactVerificationEnvelope:
+      type: object
+      required: [api_usage_export_artifact_verification]
+      properties:
+        api_usage_export_artifact_verification:
+          $ref: "#/components/schemas/APIUsageExportArtifactVerification"
     APIUsageExportManifestDigest:
       type: object
       required: [id, batch_id, created_at, schema_version, digest_algorithm, digest_hex, manifest]
