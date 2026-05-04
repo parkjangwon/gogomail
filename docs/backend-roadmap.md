@@ -538,6 +538,7 @@ Implementation order:
 479. API metering default request identity extraction now drops CR/LF-bearing or oversized dimensions and avoids classifying unsafe auth headers or `user_id` query values as bearer/admin/query-user traffic.
 480. API metering middleware route-key extraction now drops CR/LF-bearing or oversized ServeMux patterns and fallback paths before sink dispatch.
 481. Eventstream routing and Redis stream decoding now reject CR/LF-bearing or oversized event names, stream metadata, and payloads before worker fan-out.
+482. IMAP UID assignment event decoding now rejects CR/LF-bearing or oversized message, user, and folder IDs before UID work or mailbox event fan-out.
 
 ## Deferred until backend contracts stabilize
 

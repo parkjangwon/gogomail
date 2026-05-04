@@ -85,6 +85,21 @@ func TestDecodeMailStoredEventRequiresFolderID(t *testing.T) {
 	}
 }
 
+func TestDecodeMailStoredEventRejectsOversizedIDs(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeMailStoredEvent(json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"` + strings.Repeat("m", maxMailStoredEventIDBytes+1) + `",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "message_id") {
+		t.Fatalf("DecodeMailStoredEvent error = %v, want oversized message_id", err)
+	}
+}
+
 type fakeUIDEnsurer struct {
 	userID    string
 	mailboxID string
