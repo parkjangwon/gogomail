@@ -604,6 +604,7 @@ Implementation order:
 545. Optional PostgreSQL integration coverage now verifies duplicate upload session finalization does not change quota or create extra attachment rows.
 546. Upload session body storage now maps over-limit HTTP request bodies to the shared 413 `payload_too_large` envelope before storage work.
 547. Upload session body storage now has regression coverage that terminal sessions are rejected before storage writes or repository body-recording.
+548. Upload session body storage now accepts an optional `X-Content-SHA256` precondition and rejects checksum mismatches before recording staged body metadata.
 
 ## Deferred until backend contracts stabilize
 

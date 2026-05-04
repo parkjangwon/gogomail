@@ -3,6 +3,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1111,14 +1113,16 @@ func TestStoreAttachmentUploadSessionBodyHandler(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+	checksum := sha256.Sum256([]byte("content"))
+	req.Header.Set("X-Content-SHA256", hex.EncodeToString(checksum[:]))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastUserID != "user-1" || service.lastStoreUploadSessionID != "session-1" || service.lastUploadSessionBody != "content" {
-		t.Fatalf("store session request = user:%q session:%q body:%q", service.lastUserID, service.lastStoreUploadSessionID, service.lastUploadSessionBody)
+	if service.lastUserID != "user-1" || service.lastStoreUploadSessionID != "session-1" || service.lastUploadSessionChecksum != hex.EncodeToString(checksum[:]) || service.lastUploadSessionBody != "content" {
+		t.Fatalf("store session request = user:%q session:%q checksum:%q body:%q", service.lastUserID, service.lastStoreUploadSessionID, service.lastUploadSessionChecksum, service.lastUploadSessionBody)
 	}
 	if !strings.Contains(rec.Body.String(), `"attachment_upload_session"`) || !strings.Contains(rec.Body.String(), `"status":"uploading"`) {
 		t.Fatalf("body = %s", rec.Body.String())
@@ -1819,6 +1823,7 @@ type fakeMessageService struct {
 	lastPushDevice              maildb.UpsertPushDeviceRequest
 	lastAttachmentBody          string
 	lastUploadSessionBody       string
+	lastUploadSessionChecksum   string
 	attachmentErr               error
 	lastUserID                  string
 	lastFolderName              string
@@ -2027,6 +2032,7 @@ func (f *fakeMessageService) GetAttachmentUploadSession(_ context.Context, userI
 func (f *fakeMessageService) StoreAttachmentUploadSessionBody(_ context.Context, req mailservice.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
 	f.lastUserID = req.UserID
 	f.lastStoreUploadSessionID = req.SessionID
+	f.lastUploadSessionChecksum = req.ExpectedChecksumSHA256
 	raw, err := io.ReadAll(req.Body)
 	if err != nil {
 		return maildb.AttachmentUploadSession{}, err

@@ -288,6 +288,8 @@ Current state:
   separately from `resumable_chunked_uploads` and include the max session TTL.
 - Upload session body storage can persist a complete body and checksum without
   finalizing it into an attachment row.
+- Upload session body storage can reject checksum mismatches when clients send
+  `X-Content-SHA256`.
 - Upload session finalization can convert a stored session body into the normal
   pending attachment row while preserving the original quota reservation.
 - Upload session cancellation deletes any staged session body after the

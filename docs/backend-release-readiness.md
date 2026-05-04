@@ -50,6 +50,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Upload session body storage can persist a complete session body, record
   received bytes and SHA-256, while rejecting terminal sessions before storage
   writes.
+- Upload session body storage can verify optional client-provided SHA-256
+  digests before recording staged bodies.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Optional PostgreSQL integration coverage verifies upload session finalization

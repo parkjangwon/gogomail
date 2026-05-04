@@ -770,9 +770,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		body := http.MaxBytesReader(w, r.Body, mailservice.MaxAttachmentUploadBytes+1)
 		session, err := service.StoreAttachmentUploadSessionBody(r.Context(), mailservice.StoreAttachmentUploadSessionBodyRequest{
-			UserID:    userID,
-			SessionID: sessionID,
-			Body:      body,
+			UserID:                 userID,
+			SessionID:              sessionID,
+			ExpectedChecksumSHA256: r.Header.Get("X-Content-SHA256"),
+			Body:                   body,
 		})
 		if err != nil {
 			writeMailServiceError(w, err)

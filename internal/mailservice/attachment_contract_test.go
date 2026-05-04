@@ -160,3 +160,31 @@ func TestValidateCreateAttachmentUploadSessionRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateStoreAttachmentUploadSessionBodyRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := StoreAttachmentUploadSessionBodyRequest{
+		UserID:                 "user-1",
+		SessionID:              "session-1",
+		ExpectedChecksumSHA256: strings.Repeat("a", 64),
+		Body:                   strings.NewReader("content"),
+	}
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(valid); err != nil {
+		t.Fatalf("ValidateStoreAttachmentUploadSessionBodyRequest returned error: %v", err)
+	}
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(StoreAttachmentUploadSessionBodyRequest{
+		UserID:                 "user-1",
+		SessionID:              "session-1",
+		ExpectedChecksumSHA256: strings.Repeat("A", 64),
+		Body:                   strings.NewReader("content"),
+	}); err == nil {
+		t.Fatal("ValidateStoreAttachmentUploadSessionBodyRequest accepted uppercase checksum")
+	}
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(StoreAttachmentUploadSessionBodyRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+	}); err == nil {
+		t.Fatal("ValidateStoreAttachmentUploadSessionBodyRequest accepted missing body")
+	}
+}

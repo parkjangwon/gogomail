@@ -449,6 +449,13 @@ paths:
       summary: Store a complete resumable attachment upload session body
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - name: X-Content-SHA256
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+          description: Optional lowercase SHA-256 hex digest the stored body must match.
       requestBody:
         $ref: "#/components/requestBodies/AttachmentUploadSessionBody"
       responses:
