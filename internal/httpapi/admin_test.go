@@ -947,6 +947,126 @@ func TestAdminVerifyAPIUsageExportManifestDigestHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCreateAPIUsageExportManifestSignatureHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportManifestSignature: maildb.APIUsageExportManifestSignatureView{
+			ID:                 "api-usage-signature-1",
+			DigestID:           "api-usage-manifest-1",
+			BatchID:            "api-usage-export-1",
+			SignerBackend:      "local-hmac",
+			KeyID:              "key-1",
+			SignatureAlgorithm: "hmac-sha256",
+			SignedDigestHex:    strings.Repeat("a", 64),
+			SignatureHex:       strings.Repeat("b", 64),
+			Metadata:           json.RawMessage(`{}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Signature maildb.APIUsageExportManifestSignatureView `json:"api_usage_export_manifest_signature"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Signature.ID != "api-usage-signature-1" {
+		t.Fatalf("signature = %+v", response.Signature)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportManifestDigestID != "api-usage-manifest-1" {
+		t.Fatalf("last ids = %q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportManifestDigestID)
+	}
+}
+
+func TestAdminListAPIUsageExportManifestSignaturesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportManifestSignatures: []maildb.APIUsageExportManifestSignatureView{{
+			ID:                 "api-usage-signature-1",
+			DigestID:           "api-usage-manifest-1",
+			BatchID:            "api-usage-export-1",
+			SignerBackend:      "local-hmac",
+			KeyID:              "key-1",
+			SignatureAlgorithm: "hmac-sha256",
+			SignedDigestHex:    strings.Repeat("a", 64),
+			SignatureHex:       strings.Repeat("b", 64),
+			Metadata:           json.RawMessage(`{}`),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Signatures []maildb.APIUsageExportManifestSignatureView `json:"api_usage_export_manifest_signatures"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(response.Signatures) != 1 || response.Signatures[0].ID != "api-usage-signature-1" {
+		t.Fatalf("signatures = %+v", response.Signatures)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportManifestDigestID != "api-usage-manifest-1" || service.lastLimit != 5 {
+		t.Fatalf("last = %q/%q/%d", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportManifestDigestID, service.lastLimit)
+	}
+}
+
+func TestAdminGetAPIUsageExportManifestSignatureHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportManifestSignature: maildb.APIUsageExportManifestSignatureView{
+			ID:                 "api-usage-signature-1",
+			DigestID:           "api-usage-manifest-1",
+			BatchID:            "api-usage-export-1",
+			SignerBackend:      "local-hmac",
+			KeyID:              "key-1",
+			SignatureAlgorithm: "hmac-sha256",
+			SignedDigestHex:    strings.Repeat("a", 64),
+			SignatureHex:       strings.Repeat("b", 64),
+			Metadata:           json.RawMessage(`{}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures/api-usage-signature-1", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Signature maildb.APIUsageExportManifestSignatureView `json:"api_usage_export_manifest_signature"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Signature.ID != "api-usage-signature-1" {
+		t.Fatalf("signature = %+v", response.Signature)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportManifestDigestID != "api-usage-manifest-1" || service.lastAPIUsageExportManifestSignatureID != "api-usage-signature-1" {
+		t.Fatalf("last ids = %q/%q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportManifestDigestID, service.lastAPIUsageExportManifestSignatureID)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1976,6 +2096,8 @@ type fakeAdminService struct {
 	apiUsageExportManifestDigest             maildb.APIUsageExportManifestDigestView
 	apiUsageExportManifestDigests            []maildb.APIUsageExportManifestDigestView
 	apiUsageExportManifestDigestVerification maildb.APIUsageExportManifestDigestVerificationView
+	apiUsageExportManifestSignature          maildb.APIUsageExportManifestSignatureView
+	apiUsageExportManifestSignatures         []maildb.APIUsageExportManifestSignatureView
 	quotaReconciliation                      []maildb.QuotaReconciliationView
 	quotaCorrection                          maildb.QuotaCorrectionResult
 	attempts                                 []maildb.DeliveryAttemptView
@@ -2004,6 +2126,7 @@ type fakeAdminService struct {
 	lastAPIUsageExportBatchID                string
 	lastAPIUsageExportArtifactID             string
 	lastAPIUsageExportManifestDigestID       string
+	lastAPIUsageExportManifestSignatureID    string
 	lastCreateAPIUsageExportArtifact         maildb.CreateAPIUsageExportArtifactRequest
 	lastWriteAPIUsageExportArtifact          maildb.WriteAPIUsageExportArtifactRequest
 	lastPushAttemptList                      maildb.PushNotificationAttemptListRequest
@@ -2243,6 +2366,26 @@ func (f *fakeAdminService) VerifyAPIUsageExportManifestDigest(_ context.Context,
 	f.lastAPIUsageExportBatchID = batchID
 	f.lastAPIUsageExportManifestDigestID = digestID
 	return f.apiUsageExportManifestDigestVerification, nil
+}
+
+func (f *fakeAdminService) CreateAPIUsageExportManifestSignature(_ context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestSignatureView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportManifestDigestID = digestID
+	return f.apiUsageExportManifestSignature, nil
+}
+
+func (f *fakeAdminService) ListAPIUsageExportManifestSignatures(_ context.Context, batchID string, digestID string, limit int) ([]maildb.APIUsageExportManifestSignatureView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportManifestDigestID = digestID
+	f.lastLimit = limit
+	return f.apiUsageExportManifestSignatures, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageExportManifestSignature(_ context.Context, batchID string, digestID string, signatureID string) (maildb.APIUsageExportManifestSignatureView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportManifestDigestID = digestID
+	f.lastAPIUsageExportManifestSignatureID = signatureID
+	return f.apiUsageExportManifestSignature, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {

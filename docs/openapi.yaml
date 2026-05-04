@@ -805,6 +805,71 @@ paths:
           $ref: "#/components/responses/APIUsageExportManifestDigestVerification"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures:
+    get:
+      operationId: listAdminAPIUsageExportManifestSignatures
+      summary: List API usage export manifest signatures
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: digest_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportManifestSignatureList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminAPIUsageExportManifestSignature
+      summary: Sign an API usage export manifest digest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: digest_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/APIUsageExportManifestSignature"
+        default:
+          $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}:
+    get:
+      operationId: getAdminAPIUsageExportManifestSignature
+      summary: API usage export manifest signature detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: digest_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: signature_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportManifestSignature"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1538,6 +1603,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportManifestDigestVerificationEnvelope"
+    APIUsageExportManifestSignature:
+      description: API usage export manifest signature envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportManifestSignatureEnvelope"
+    APIUsageExportManifestSignatureList:
+      description: API usage export manifest signature list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportManifestSignatureListEnvelope"
     APIUsageExportBatch:
       description: API usage export batch manifest envelope
       content:
@@ -2852,6 +2929,50 @@ components:
       properties:
         api_usage_export_manifest_digest_verification:
           $ref: "#/components/schemas/APIUsageExportManifestDigestVerification"
+    APIUsageExportManifestSignature:
+      type: object
+      required: [id, digest_id, batch_id, created_at, signer_backend, key_id, signature_algorithm, signed_digest_hex, signature_hex, metadata]
+      properties:
+        id:
+          type: string
+        digest_id:
+          type: string
+        batch_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        signer_backend:
+          type: string
+          enum: [local-hmac]
+        key_id:
+          type: string
+        signature_algorithm:
+          type: string
+          enum: [hmac-sha256]
+        signed_digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        signature_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        metadata:
+          type: object
+          additionalProperties: true
+    APIUsageExportManifestSignatureEnvelope:
+      type: object
+      required: [api_usage_export_manifest_signature]
+      properties:
+        api_usage_export_manifest_signature:
+          $ref: "#/components/schemas/APIUsageExportManifestSignature"
+    APIUsageExportManifestSignatureListEnvelope:
+      type: object
+      required: [api_usage_export_manifest_signatures]
+      properties:
+        api_usage_export_manifest_signatures:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageExportManifestSignature"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
