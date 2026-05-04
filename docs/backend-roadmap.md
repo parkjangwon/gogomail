@@ -413,6 +413,7 @@ Implementation order:
 354. The IMAP `mail.stored` notification handler can now publish UID-bearing `EXISTS` mailbox events after successful async UID assignment, preparing the future IDLE listener without adding work to SMTP receive.
 355. Admin push notification attempt triage can now filter by platform, device id, provider status, and provider message id in addition to status/user/since, improving vendor-outcome troubleshooting readiness.
 356. Redis event consumers now acknowledge malformed stream entries after logging decode failures, preventing poison messages from pinning worker progress while preserving retry behavior for handler failures.
+357. OpenAPI drift tests now pin Admin domain/user and delivery-route status enums against backend validators, preventing generated clients from drifting on supported lifecycle states.
 
 ## Deferred until backend contracts stabilize
 

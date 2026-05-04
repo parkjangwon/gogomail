@@ -395,6 +395,38 @@ func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsAdminStatusEnums(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for _, status := range []string{"active", "suspended", "disabled"} {
+		if err := maildb.ValidateUpdateDomainStatusRequest(maildb.UpdateDomainStatusRequest{ID: "domain-1", Status: status}); err != nil {
+			t.Fatalf("domain status fixture %q is invalid: %v", status, err)
+		}
+		if err := maildb.ValidateUpdateUserStatusRequest(maildb.UpdateUserStatusRequest{ID: "user-1", Status: status}); err != nil {
+			t.Fatalf("user status fixture %q is invalid: %v", status, err)
+		}
+	}
+	statusBlock := extractOpenAPIComponentBlock(t, draft, "schemas", "StatusUpdateRequest")
+	if !strings.Contains(statusBlock, "enum: [active, suspended, disabled]") {
+		t.Fatalf("StatusUpdateRequest must document domain/user status enum, got:\n%s", statusBlock)
+	}
+
+	for _, status := range []string{"active", "disabled"} {
+		if err := maildb.ValidateUpdateDeliveryRouteStatusRequest(maildb.UpdateDeliveryRouteStatusRequest{ID: "route-1", Status: status}); err != nil {
+			t.Fatalf("delivery route status fixture %q is invalid: %v", status, err)
+		}
+	}
+	routeStatusBlock := extractOpenAPIComponentBlock(t, draft, "schemas", "DeliveryRouteStatusUpdateRequest")
+	if !strings.Contains(routeStatusBlock, "enum: [active, disabled]") {
+		t.Fatalf("DeliveryRouteStatusUpdateRequest must document delivery route status enum, got:\n%s", routeStatusBlock)
+	}
+}
+
 func TestOpenAPIDraftOperationsHaveStableOperationIDs(t *testing.T) {
 	t.Parallel()
 
