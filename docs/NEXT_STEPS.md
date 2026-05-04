@@ -268,6 +268,9 @@ Current state:
   status, expiry, storage adapter metadata, and cleanup-oriented indexes.
 - `maildb` can create a resumable upload session record and reserve the
   declared size in the shared quota ledger in one transaction.
+- `maildb` can cancel pending/uploading/failed upload sessions, marking them
+  `canceled` and releasing the declared size without allowing duplicate quota
+  release on repeated cancellation.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.

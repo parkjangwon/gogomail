@@ -47,3 +47,39 @@ func TestValidateCreateAttachmentUploadSessionRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCancelAttachmentUploadSessionRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := CancelAttachmentUploadSessionRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+	}
+	if err := ValidateCancelAttachmentUploadSessionRequest(valid); err != nil {
+		t.Fatalf("ValidateCancelAttachmentUploadSessionRequest returned error: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*CancelAttachmentUploadSessionRequest)
+	}{
+		{name: "missing user", mutate: func(req *CancelAttachmentUploadSessionRequest) { req.UserID = " " }},
+		{name: "missing session", mutate: func(req *CancelAttachmentUploadSessionRequest) { req.SessionID = " " }},
+		{name: "newline user", mutate: func(req *CancelAttachmentUploadSessionRequest) { req.UserID = "user\n1" }},
+		{name: "newline session", mutate: func(req *CancelAttachmentUploadSessionRequest) { req.SessionID = "session\n1" }},
+		{name: "oversized user", mutate: func(req *CancelAttachmentUploadSessionRequest) { req.UserID = strings.Repeat("u", 201) }},
+		{name: "oversized session", mutate: func(req *CancelAttachmentUploadSessionRequest) { req.SessionID = strings.Repeat("s", 201) }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := valid
+			tt.mutate(&req)
+			if err := ValidateCancelAttachmentUploadSessionRequest(req); err == nil {
+				t.Fatal("ValidateCancelAttachmentUploadSessionRequest accepted invalid request")
+			}
+		})
+	}
+}
