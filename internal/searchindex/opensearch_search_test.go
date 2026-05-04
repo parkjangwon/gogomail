@@ -41,9 +41,12 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	}
 
 	hits, err := searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{
-		UserID: "user-1",
-		Query:  "hello",
-		Limit:  2,
+		UserID:        "user-1",
+		Query:         "hello",
+		From:          "sender@example.com",
+		Subject:       "hello",
+		HasAttachment: boolSearchPtr(true),
+		Limit:         2,
 	})
 	if err != nil {
 		t.Fatalf("SearchMessageIDs returned error: %v", err)
@@ -53,6 +56,9 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	}
 	if request["size"].(float64) != 2 {
 		t.Fatalf("request size = %#v", request["size"])
+	}
+	if len(request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)) < 4 {
+		t.Fatalf("request query did not include filters: %#v", request["query"])
 	}
 }
 
@@ -69,4 +75,8 @@ func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
 	if _, err := searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{}); err == nil {
 		t.Fatal("SearchMessageIDs accepted missing user id")
 	}
+}
+
+func boolSearchPtr(value bool) *bool {
+	return &value
 }

@@ -166,9 +166,12 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 		return nil, fmt.Errorf("search hydration repository is required")
 	}
 	hits, err := s.searchIDSource.SearchMessageIDs(ctx, searchindex.OpenSearchSearchQuery{
-		UserID: query.UserID,
-		Query:  query.Query,
-		Limit:  query.Limit,
+		UserID:        query.UserID,
+		Query:         query.Query,
+		From:          query.From,
+		Subject:       query.Subject,
+		HasAttachment: query.HasAttachment,
+		Limit:         query.Limit,
 	})
 	if err != nil {
 		return nil, err
@@ -201,9 +204,6 @@ func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
 	return strings.TrimSpace(query.Query) != "" &&
 		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance &&
 		strings.TrimSpace(query.FolderID) == "" &&
-		strings.TrimSpace(query.From) == "" &&
-		strings.TrimSpace(query.Subject) == "" &&
-		query.HasAttachment == nil &&
 		!query.IncludeHighlights
 }
 

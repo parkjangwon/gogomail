@@ -80,11 +80,13 @@ Current state:
   `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`.
 - OpenSearch indexed documents include parsed sender and attachment presence
   fields for search-filter parity.
+- OpenSearch relevance search can apply from, subject, and attachment filters
+  before Postgres metadata hydration.
 
 Next:
 
-- Add OpenSearch query parity for from/subject/attachment filters and rank
-  preservation before broadening Mail API usage.
+- Add OpenSearch highlight parity and folder-aware filtering before making it
+  the general Mail API search backend.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning
