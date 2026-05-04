@@ -311,6 +311,18 @@ type APIUsageExportManifestSignatureView struct {
 	Metadata           json.RawMessage `json:"metadata"`
 }
 
+type APIUsageExportManifestSignatureVerificationView struct {
+	BatchID            string `json:"batch_id"`
+	DigestID           string `json:"digest_id"`
+	SignatureID        string `json:"signature_id"`
+	SignerBackend      string `json:"signer_backend"`
+	KeyID              string `json:"key_id"`
+	SignatureAlgorithm string `json:"signature_algorithm"`
+	SignedDigestHex    string `json:"signed_digest_hex"`
+	ExpectedDigestHex  string `json:"expected_digest_hex"`
+	Valid              bool   `json:"valid"`
+}
+
 type CreateAPIUsageExportManifestSignatureRequest struct {
 	BatchID       string                           `json:"-"`
 	DigestID      string                           `json:"-"`

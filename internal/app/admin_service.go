@@ -24,6 +24,7 @@ type adminService struct {
 	exportStore                 apimeter.ExportArtifactStore
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
+	exportManifestVerifySecret  []byte
 }
 
 func (s adminService) GetBackpressure(ctx context.Context) (backpressure.State, error) {
@@ -188,6 +189,41 @@ func (s adminService) CreateAPIUsageExportManifestSignature(ctx context.Context,
 		SignerBackend: backend,
 		Signature:     signature,
 	})
+}
+
+func (s adminService) VerifyAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string, signatureID string) (maildb.APIUsageExportManifestSignatureVerificationView, error) {
+	if len(s.exportManifestVerifySecret) == 0 {
+		return maildb.APIUsageExportManifestSignatureVerificationView{}, fmt.Errorf("api usage export manifest verification secret is not configured")
+	}
+	digest, err := s.GetAPIUsageExportManifestDigest(ctx, batchID, digestID)
+	if err != nil {
+		return maildb.APIUsageExportManifestSignatureVerificationView{}, err
+	}
+	signature, err := s.GetAPIUsageExportManifestSignature(ctx, batchID, digestID, signatureID)
+	if err != nil {
+		return maildb.APIUsageExportManifestSignatureVerificationView{}, err
+	}
+	valid, err := apimeter.VerifyExportManifestSignature(apimeter.ExportManifestSignature{
+		Algorithm:       signature.SignatureAlgorithm,
+		KeyID:           signature.KeyID,
+		SignedDigestHex: signature.SignedDigestHex,
+		SignatureHex:    signature.SignatureHex,
+	}, s.exportManifestVerifySecret)
+	if err != nil {
+		return maildb.APIUsageExportManifestSignatureVerificationView{}, err
+	}
+	valid = valid && signature.SignedDigestHex == digest.DigestHex
+	return maildb.APIUsageExportManifestSignatureVerificationView{
+		BatchID:            signature.BatchID,
+		DigestID:           signature.DigestID,
+		SignatureID:        signature.ID,
+		SignerBackend:      signature.SignerBackend,
+		KeyID:              signature.KeyID,
+		SignatureAlgorithm: signature.SignatureAlgorithm,
+		SignedDigestHex:    signature.SignedDigestHex,
+		ExpectedDigestHex:  digest.DigestHex,
+		Valid:              valid,
+	}, nil
 }
 
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
