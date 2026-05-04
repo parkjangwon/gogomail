@@ -460,6 +460,7 @@ Implementation order:
 401. Mail API search query, folder, sender, and subject filters are now trimmed before backend dispatch, keeping Postgres/OpenSearch search behavior aligned when clients send accidental whitespace.
 402. API usage ledger, export batch, and retention-readiness tenant/principal query filters are now trimmed before billing/export service dispatch.
 403. Admin API outbox event topic, partition key, and status filters are now trimmed before operational queue inspection.
+404. Admin API delivery-attempt status and recipient-domain filters are now trimmed before retry/bounce inspection.
 
 ## Deferred until backend contracts stabilize
 

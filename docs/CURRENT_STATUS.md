@@ -451,6 +451,8 @@ The platform hardening sprint completed the following:
   dispatch.
 - Admin API outbox event topic, partition key, and status filters are trimmed
   at the HTTP boundary before operational queue inspection.
+- Admin API delivery-attempt status and recipient-domain filters are trimmed at
+  the HTTP boundary before retry/bounce inspection.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
   error responses for size-cap failures.
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens
