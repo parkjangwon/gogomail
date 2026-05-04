@@ -10,6 +10,11 @@ import (
 type Config struct {
 	Environment                         string
 	HTTPAddr                            string
+	HTTPReadTimeout                     time.Duration
+	HTTPWriteTimeout                    time.Duration
+	HTTPIdleTimeout                     time.Duration
+	HTTPReadHeaderTimeout               time.Duration
+	HTTPMaxHeaderBytes                  int
 	SMTPAddr                            string
 	InboundSMTPAddr                     string
 	InboundTrustedRelays                []string
@@ -149,6 +154,11 @@ func Load() Config {
 	return Config{
 		Environment:                         envOrDefault("GOGOMAIL_ENV", "development"),
 		HTTPAddr:                            envOrDefault("GOGOMAIL_HTTP_ADDR", ":8080"),
+		HTTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_HTTP_READ_TIMEOUT", 5*time.Minute),
+		HTTPWriteTimeout:                    durationEnvOrDefault("GOGOMAIL_HTTP_WRITE_TIMEOUT", 10*time.Minute),
+		HTTPIdleTimeout:                     durationEnvOrDefault("GOGOMAIL_HTTP_IDLE_TIMEOUT", 2*time.Minute),
+		HTTPReadHeaderTimeout:               durationEnvOrDefault("GOGOMAIL_HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
+		HTTPMaxHeaderBytes:                  intEnvOrDefault("GOGOMAIL_HTTP_MAX_HEADER_BYTES", 64*1024),
 		SMTPAddr:                            envOrDefault("GOGOMAIL_SMTP_ADDR", ":2525"),
 		InboundSMTPAddr:                     envOrDefault("GOGOMAIL_INBOUND_SMTP_ADDR", ":2526"),
 		InboundTrustedRelays:                splitCSV(envOrDefault("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "127.0.0.1/32,::1/128")),

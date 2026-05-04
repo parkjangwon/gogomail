@@ -31,6 +31,14 @@ func TestValidateRejectsUnknownPushNotifyBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "minio"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want unknown storage backend rejection")
+	}
+}
+
 func TestValidateRejectsInvalidPushNotifyWebhookConfig(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -333,6 +341,10 @@ func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 		name   string
 		mutate func(*Config)
 	}{
+		{name: "http read", mutate: func(cfg *Config) { cfg.HTTPReadTimeout = 0 }},
+		{name: "http write", mutate: func(cfg *Config) { cfg.HTTPWriteTimeout = -time.Second }},
+		{name: "http idle", mutate: func(cfg *Config) { cfg.HTTPIdleTimeout = 0 }},
+		{name: "http read header", mutate: func(cfg *Config) { cfg.HTTPReadHeaderTimeout = 0 }},
 		{name: "smtp read", mutate: func(cfg *Config) { cfg.SMTPReadTimeout = 0 }},
 		{name: "smtp write", mutate: func(cfg *Config) { cfg.SMTPWriteTimeout = -time.Second }},
 		{name: "delivery", mutate: func(cfg *Config) { cfg.DeliveryTimeout = 0 }},
@@ -345,6 +357,26 @@ func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
 				t.Fatal("Validate() error = nil, want timeout rejection")
+			}
+		})
+	}
+}
+
+func TestValidateRejectsUnsafeHTTPMaxHeaderBytes(t *testing.T) {
+	tests := []struct {
+		name  string
+		value int
+	}{
+		{name: "too small", value: minHTTPMaxHeaderBytes - 1},
+		{name: "too large", value: maxHTTPMaxHeaderBytes + 1},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.HTTPMaxHeaderBytes = tt.value
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want max header bytes rejection")
 			}
 		})
 	}

@@ -674,6 +674,7 @@ Implementation order:
 614. Admin API-usage ledger retention runs now persist hash-chain audit rows in the same transaction as run records and destructive deletes, recording dry-run, blocked, no-op, and completed outcomes with bounded readiness evidence.
 615. Mail/Admin HTTP readiness now probes local storage with a write/read/delete cycle and rejects unsupported HTTP storage backends at startup instead of silently wiring local storage.
 616. SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment cleanup, and HTTP runtimes now share storage backend validation, preventing unsupported object-storage settings from silently using the local adapter.
+617. The shared HTTP server now has configurable and validated read, write, idle, read-header, and maximum-header guardrails for Mail/Admin/API-metered modes.
 
 ## Deferred until backend contracts stabilize
 

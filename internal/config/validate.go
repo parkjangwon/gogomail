@@ -14,6 +14,8 @@ const (
 	maxExportManifestSignerCredentialBytes = 4096
 	maxWebhookTokenBytes                   = 4096
 	maxAttachmentCleanupBatchSize          = 1000
+	minHTTPMaxHeaderBytes                  = 4 << 10
+	maxHTTPMaxHeaderBytes                  = 1 << 20
 )
 
 func (c Config) Validate() error {
@@ -23,6 +25,24 @@ func (c Config) Validate() error {
 	}
 	if (c.SMTPTLSCertFile == "") != (c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("both SMTP TLS certificate and key files are required")
+	}
+	if c.HTTPReadTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_HTTP_READ_TIMEOUT must be positive")
+	}
+	if c.HTTPWriteTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_HTTP_WRITE_TIMEOUT must be positive")
+	}
+	if c.HTTPIdleTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_HTTP_IDLE_TIMEOUT must be positive")
+	}
+	if c.HTTPReadHeaderTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_HTTP_READ_HEADER_TIMEOUT must be positive")
+	}
+	if c.HTTPMaxHeaderBytes < minHTTPMaxHeaderBytes || c.HTTPMaxHeaderBytes > maxHTTPMaxHeaderBytes {
+		return fmt.Errorf("GOGOMAIL_HTTP_MAX_HEADER_BYTES must be between %d and %d", minHTTPMaxHeaderBytes, maxHTTPMaxHeaderBytes)
+	}
+	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local"); err != nil {
+		return err
 	}
 	if strings.TrimSpace(c.SubmissionSMTPSAddr) != "" && (c.SMTPTLSCertFile == "" || c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_SMTPS_ADDR requires SMTP TLS certificate and key files")
