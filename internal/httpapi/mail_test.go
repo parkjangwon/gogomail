@@ -1418,6 +1418,52 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsContentRange(t *testing.T
 	}
 }
 
+func TestStoreAttachmentUploadSessionBodyHandlerRejectsDuplicateControlHeaders(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		build func(http.Header)
+	}{
+		{
+			name: "duplicate content range",
+			build: func(header http.Header) {
+				header.Add("Content-Range", "bytes 0-6/7")
+				header.Add("Content-Range", "bytes 7-13/14")
+			},
+		},
+		{
+			name: "duplicate checksum",
+			build: func(header http.Header) {
+				header.Add("X-Content-SHA256", strings.Repeat("0", 64))
+				header.Add("X-Content-SHA256", strings.Repeat("1", 64))
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+			tt.build(req.Header)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastStoreUploadSessionID != "" {
+				t.Fatalf("service should not be called for duplicate control header: session=%q", service.lastStoreUploadSessionID)
+			}
+		})
+	}
+}
+
 func TestFinalizeAttachmentUploadSessionHandler(t *testing.T) {
 	t.Parallel()
 

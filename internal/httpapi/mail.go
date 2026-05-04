@@ -818,15 +818,23 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if strings.TrimSpace(r.Header.Get("Content-Range")) != "" {
+		contentRange, ok := singleHTTPHeaderValue(w, r, "Content-Range", maxHTTPAuthHeaderBytes)
+		if !ok {
+			return
+		}
+		if contentRange != "" {
 			writeError(w, http.StatusBadRequest, "content-range is not supported for upload session body storage")
+			return
+		}
+		checksum, ok := singleHTTPHeaderValue(w, r, "X-Content-SHA256", maxHTTPAuthHeaderBytes)
+		if !ok {
 			return
 		}
 		body := http.MaxBytesReader(w, r.Body, mailservice.MaxAttachmentUploadBytes+1)
 		session, err := service.StoreAttachmentUploadSessionBody(r.Context(), mailservice.StoreAttachmentUploadSessionBodyRequest{
 			UserID:                 userID,
 			SessionID:              sessionID,
-			ExpectedChecksumSHA256: r.Header.Get("X-Content-SHA256"),
+			ExpectedChecksumSHA256: checksum,
 			Body:                   body,
 		})
 		if err != nil {

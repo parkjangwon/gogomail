@@ -682,6 +682,7 @@ Implementation order:
 622. Successful Mail/Admin JSON, health, and service-info responses now return `X-Content-Type-Options: nosniff`, aligning browser-facing API envelopes with error, NDJSON, and download response hardening.
 623. Successful Mail/Admin JSON envelopes now return `Cache-Control: no-store` through the shared writer, preventing sensitive message, audit, usage, and control responses from being cached.
 624. Mail JWT and Admin token authentication now reject repeated credential headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before dispatch.
+625. Upload session body storage now rejects repeated `Content-Range` or `X-Content-SHA256` control headers before reading or storing the request body.
 
 ## Deferred until backend contracts stabilize
 

@@ -827,6 +827,8 @@ The platform hardening sprint completed the following:
   edited rows.
 - Upload session body storage can verify an optional client-provided
   `X-Content-SHA256` digest before recording the staged body.
+- Upload session body storage now rejects repeated `Content-Range` or
+  `X-Content-SHA256` control headers before reading or storing the body.
 - Attachment upload capabilities now advertise upload session checksum
   precondition support separately from body storage and finalization support.
 - Upload session finalization now converts a ready stored session body into the
