@@ -55,6 +55,12 @@ func ComposeText(msg TextMessage) (ComposedMessage, error) {
 	if err := validateAddresses("bcc", msg.Bcc); err != nil {
 		return ComposedMessage{}, err
 	}
+	if err := validateHeaderValue("subject", msg.Subject); err != nil {
+		return ComposedMessage{}, err
+	}
+	if err := validateHeaderValue("message_id", msg.MessageID); err != nil {
+		return ComposedMessage{}, err
+	}
 	if msg.Date.IsZero() {
 		msg.Date = time.Now().UTC()
 	} else {
@@ -166,8 +172,21 @@ func validateAddress(addr Address) error {
 	if strings.TrimSpace(addr.Email) == "" {
 		return fmt.Errorf("email is required")
 	}
+	if err := validateHeaderValue("display name", addr.Name); err != nil {
+		return err
+	}
+	if err := validateHeaderValue("email", addr.Email); err != nil {
+		return err
+	}
 	if _, err := mail.ParseAddress(formatAddress(addr)); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateHeaderValue(field string, value string) error {
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s must not contain CR or LF", field)
 	}
 	return nil
 }

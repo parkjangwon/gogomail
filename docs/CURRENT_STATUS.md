@@ -50,6 +50,8 @@ guidance.
   source messages exist.
 - Reply composition writes RFC `In-Reply-To`/`References` headers into outgoing
   `.eml` messages.
+- Outbound text composition rejects CR/LF-bearing subject, display-name, email,
+  and explicit Message-ID inputs before writing RFC 5322 headers.
 - Mail API exposes a first Postgres-backed search endpoint for active message
   metadata, with an FTS index for small deployments.
 - Received-message body search now has an asynchronous indexing boundary:

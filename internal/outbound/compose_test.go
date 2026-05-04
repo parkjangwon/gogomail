@@ -66,3 +66,46 @@ func TestComposeTextRejectsInvalidRecipientAddress(t *testing.T) {
 		t.Fatal("ComposeText accepted invalid recipient address")
 	}
 }
+
+func TestComposeTextRejectsHeaderInjectionValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		msg  TextMessage
+	}{
+		{
+			name: "subject",
+			msg: TextMessage{
+				From:    Address{Email: "sender@example.com"},
+				To:      []Address{{Email: "user@example.com"}},
+				Subject: "hello\r\nBcc: victim@example.net",
+			},
+		},
+		{
+			name: "display name",
+			msg: TextMessage{
+				From: Address{Name: "Sender\nInjected: yes", Email: "sender@example.com"},
+				To:   []Address{{Email: "user@example.com"}},
+			},
+		},
+		{
+			name: "message id",
+			msg: TextMessage{
+				From:      Address{Email: "sender@example.com"},
+				To:        []Address{{Email: "user@example.com"}},
+				MessageID: "safe@example.com\r\nX-Injected: yes",
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ComposeText(tt.msg); err == nil {
+				t.Fatal("ComposeText accepted newline-bearing header value")
+			}
+		})
+	}
+}
