@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -57,6 +58,7 @@ type AdminService interface {
 	WriteAPIUsageExportArtifact(ctx context.Context, batchID string, req maildb.WriteAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
 	ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportArtifactView, error)
 	GetAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, error)
+	OpenAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, io.ReadCloser, error)
 	CreateAPIUsageExportManifestDigest(ctx context.Context, batchID string) (maildb.APIUsageExportManifestDigestView, error)
 	ListAPIUsageExportManifestDigests(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportManifestDigestView, error)
 	GetAPIUsageExportManifestDigest(ctx context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestDigestView, error)
@@ -624,6 +626,25 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifact": artifact})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		artifactID := strings.TrimSpace(r.PathValue("artifact_id"))
+		if id == "" || artifactID == "" {
+			writeError(w, http.StatusBadRequest, "id and artifact_id are required")
+			return
+		}
+		artifact, body, err := service.OpenAPIUsageExportArtifact(r.Context(), id, artifactID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		defer body.Close()
+		w.Header().Set("Content-Type", artifact.ContentType)
+		w.Header().Set("X-Gogomail-Artifact-SHA256", artifact.SHA256Hex)
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, body)
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

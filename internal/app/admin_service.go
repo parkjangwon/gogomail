@@ -112,6 +112,27 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 	return artifact, nil
 }
 
+func (s adminService) OpenAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, io.ReadCloser, error) {
+	if s.Repository == nil {
+		return maildb.APIUsageExportArtifactView{}, nil, fmt.Errorf("repository is required")
+	}
+	getter, ok := s.exportStore.(interface {
+		Get(context.Context, string) (io.ReadCloser, error)
+	})
+	if !ok {
+		return maildb.APIUsageExportArtifactView{}, nil, fmt.Errorf("api usage export artifact store does not support reads")
+	}
+	artifact, err := s.GetAPIUsageExportArtifact(ctx, batchID, artifactID)
+	if err != nil {
+		return maildb.APIUsageExportArtifactView{}, nil, err
+	}
+	body, err := getter.Get(ctx, artifact.ObjectKey)
+	if err != nil {
+		return maildb.APIUsageExportArtifactView{}, nil, err
+	}
+	return artifact, body, nil
+}
+
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
 	req := maildb.APIUsageLedgerListRequest{
 		Limit:       limit,

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -689,6 +690,42 @@ func TestAdminGetAPIUsageExportArtifactHandler(t *testing.T) {
 	}
 	if response.Artifact.ID != "api-usage-artifact-1" {
 		t.Fatalf("artifact = %+v", response.Artifact)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportArtifactID != "api-usage-artifact-1" {
+		t.Fatalf("last ids = %q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportArtifactID)
+	}
+}
+
+func TestAdminDownloadAPIUsageExportArtifactHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifact: maildb.APIUsageExportArtifactView{
+			ID:          "api-usage-artifact-1",
+			BatchID:     "api-usage-export-1",
+			ContentType: "application/x-ndjson",
+			SHA256Hex:   strings.Repeat("a", 64),
+		},
+		apiUsageExportArtifactBody: " {\"event_id\":\"usage-1\"}\n",
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1/download", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/x-ndjson" {
+		t.Fatalf("content type = %q", got)
+	}
+	if got := rr.Header().Get("X-Gogomail-Artifact-SHA256"); got != strings.Repeat("a", 64) {
+		t.Fatalf("sha header = %q", got)
+	}
+	if !strings.Contains(rr.Body.String(), `"event_id":"usage-1"`) {
+		t.Fatalf("body = %q", rr.Body.String())
 	}
 	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportArtifactID != "api-usage-artifact-1" {
 		t.Fatalf("last ids = %q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportArtifactID)
@@ -1866,6 +1903,7 @@ type fakeAdminService struct {
 	apiUsageExportBatches                    []maildb.APIUsageExportBatchView
 	apiUsageExportArtifact                   maildb.APIUsageExportArtifactView
 	apiUsageExportArtifacts                  []maildb.APIUsageExportArtifactView
+	apiUsageExportArtifactBody               string
 	apiUsageExportManifestDigest             maildb.APIUsageExportManifestDigestView
 	apiUsageExportManifestDigests            []maildb.APIUsageExportManifestDigestView
 	apiUsageExportManifestDigestVerification maildb.APIUsageExportManifestDigestVerificationView
@@ -2101,6 +2139,12 @@ func (f *fakeAdminService) GetAPIUsageExportArtifact(_ context.Context, batchID 
 	f.lastAPIUsageExportBatchID = batchID
 	f.lastAPIUsageExportArtifactID = artifactID
 	return f.apiUsageExportArtifact, nil
+}
+
+func (f *fakeAdminService) OpenAPIUsageExportArtifact(_ context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, io.ReadCloser, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportArtifactID = artifactID
+	return f.apiUsageExportArtifact, io.NopCloser(strings.NewReader(f.apiUsageExportArtifactBody)), nil
 }
 
 func (f *fakeAdminService) CreateAPIUsageExportManifestDigest(_ context.Context, batchID string) (maildb.APIUsageExportManifestDigestView, error) {
