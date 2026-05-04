@@ -296,6 +296,9 @@ guidance.
 - Domain policy mutations now write hash-chain audit rows in the same database
   transaction as the policy change, preserving inbound/outbound mode and size
   guardrail evidence for SMTP/Mail API enforcement forensics.
+- Domain/user provisioning and user password-hash rotation now write hash-chain
+  audit rows in the same database transaction as the persisted change, without
+  including password hash material in audit detail.
 - Admin API exposes a bounded audit-log integrity check that recomputes recent
   row hashes and reports hash or in-window prev-hash breaks without mutating the
   audit trail.
