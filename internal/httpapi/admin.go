@@ -1360,10 +1360,18 @@ func safeSHA256Header(value string) string {
 }
 
 func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerListRequest, bool) {
+	tenantID, ok := parseBoundedAdminQuery(w, r, "tenant_id")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	principalID, ok := parseBoundedAdminQuery(w, r, "principal_id")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
 	req := maildb.APIUsageLedgerListRequest{
 		Limit:       limit,
-		TenantID:    strings.TrimSpace(r.URL.Query().Get("tenant_id")),
-		PrincipalID: strings.TrimSpace(r.URL.Query().Get("principal_id")),
+		TenantID:    tenantID,
+		PrincipalID: principalID,
 	}
 	from, ok := parseOptionalRFC3339Query(w, r, "from")
 	if !ok {
@@ -1383,6 +1391,14 @@ func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limi
 }
 
 func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request) (maildb.APIUsageLedgerRetentionRequest, bool) {
+	tenantID, ok := parseBoundedAdminQuery(w, r, "tenant_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	principalID, ok := parseBoundedAdminQuery(w, r, "principal_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
 	cutoff, ok := parseOptionalRFC3339Query(w, r, "cutoff")
 	if !ok {
 		return maildb.APIUsageLedgerRetentionRequest{}, false
@@ -1397,8 +1413,8 @@ func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request)
 	}
 	return maildb.APIUsageLedgerRetentionRequest{
 		Cutoff:      cutoff,
-		TenantID:    strings.TrimSpace(r.URL.Query().Get("tenant_id")),
-		PrincipalID: strings.TrimSpace(r.URL.Query().Get("principal_id")),
+		TenantID:    tenantID,
+		PrincipalID: principalID,
 	}, true
 }
 

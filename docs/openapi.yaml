@@ -551,10 +551,12 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: principal_id
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: from
           in: query
           schema:
@@ -582,10 +584,12 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: principal_id
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: from
           in: query
           schema:
@@ -612,10 +616,12 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: principal_id
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: from
           in: query
           schema:
@@ -649,10 +655,12 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: principal_id
           in: query
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/APIUsageLedgerRetentionReadiness"
@@ -677,10 +685,12 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: principal_id
           in: query
           schema:
             type: string
+            maxLength: 1024
         - name: from
           in: query
           required: true

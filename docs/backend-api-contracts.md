@@ -471,7 +471,9 @@ API call metering can now emit durable usage events:
 - The worker also records immutable rows in `api_usage_ledger` before updating
   aggregate read models. `GET /admin/v1/api-usage/ledger` returns
   `{ "api_usage_ledger": [...] }` and supports bounded `tenant_id`,
-  `principal_id`, `from`, `to`, and `limit` queries for export preparation.
+  `principal_id`, `from`, `to`, and `limit` queries for export preparation;
+  tenant/principal filters reject CR/LF-bearing or oversized values before
+  service dispatch.
 - `GET /admin/v1/api-usage/ledger/export` streams the same bounded ledger query
   as `application/x-ndjson` for downstream billing or warehouse ingestion.
 - `GET /admin/v1/api-usage/ledger/stats` returns
