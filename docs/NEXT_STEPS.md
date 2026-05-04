@@ -182,9 +182,9 @@ Current state:
   sink without coupling SMTP or storage writes to vendor delivery.
 - The worker records per-device candidate attempts to
   `push_notification_attempts` before sink handoff, then marks those attempts
-  `queued` only after the sink succeeds. Failed sink handoffs remain
-  `candidate`, giving operators a clear retry/audit signal before vendor
-  adapters exist.
+  `queued` only after the sink succeeds. Failed sink handoffs are marked
+  `failed` with the sink error before the handler returns an error for stream
+  retry.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
   status/user/platform/device/provider-status/provider-message/since filters
   for inspecting candidate fan-out and vendor outcomes.

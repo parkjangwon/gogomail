@@ -174,7 +174,8 @@ guidance.
 - Push notification sinks receive the persisted candidate attempt id with each
   target, preparing clean vendor outcome updates later.
 - The push worker marks attempts `queued` after a successful sink handoff while
-  leaving failed sink handoffs as `candidate` for retry and operator analysis.
+  marking failed sink handoffs as `failed` with the sink error before returning
+  the handler error for Redis stream retry.
 - `internal/pushnotify` can update attempt outcomes to queued, delivered,
   failed, or invalid-token without exposing that mutation as a public API.
 - Invalid-token outcomes automatically soft-delete the affected push device in

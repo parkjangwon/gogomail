@@ -144,8 +144,9 @@ fan-out. Vendor delivery remains a future sink adapter, not a Mail API or SMTP
 side effect. The worker records one `push_notification_attempts` candidate row
 per resolved device before invoking the current sink. After a successful sink
 handoff, the worker records `queued` for each generated attempt id; if the sink
-fails, attempts remain `candidate` for operator inspection and retry analysis.
-The generated attempt id is attached to each sink target so future vendor
+fails, the worker records `failed` with the sink error while still returning the
+handler error so the event can be retried by the stream consumer. The generated
+attempt id is attached to each sink target so future vendor
 adapters can update that exact row with delivered, failed, or invalid-token
 outcomes without coupling notification delivery to the SMTP transaction. Outcome
 updates are available inside `internal/pushnotify` and are not exposed as a
