@@ -326,6 +326,21 @@ func TestOpenAPIDraftDocumentsUploadSessionChecksumHeader(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsCleanupSessionCounts(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for _, want := range []string{"session_candidate_count", "session_limited_count", "expired_session_count"} {
+		if !strings.Contains(draft, want) {
+			t.Fatalf("OpenAPI cleanup run schema must document %q", want)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	t.Parallel()
 

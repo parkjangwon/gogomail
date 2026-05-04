@@ -420,9 +420,18 @@ func TestAdminAttachmentCleanupRunHandler(t *testing.T) {
 	before := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
 	service := &fakeAdminService{
 		expiredAttachments: []maildb.Attachment{{ID: "att-1"}, {ID: "att-2"}},
+		expiredAttachmentSessions: []maildb.AttachmentUploadSession{
+			{ID: "session-1"},
+			{ID: "session-2"},
+			{ID: "session-3"},
+		},
 		staleAttachmentCount: maildb.StaleAttachmentUploadCount{
 			TotalCount:   5,
 			LimitedCount: 2,
+		},
+		staleAttachmentSessionCount: maildb.StaleAttachmentUploadSessionCount{
+			TotalCount:   8,
+			LimitedCount: 3,
 		},
 	}
 	mux := http.NewServeMux()
@@ -441,11 +450,19 @@ func TestAdminAttachmentCleanupRunHandler(t *testing.T) {
 	if !service.lastAttachmentCleanupBefore.Equal(before) || service.lastAttachmentCleanupLimit != 25 {
 		t.Fatalf("cleanup request = %s/%d", service.lastAttachmentCleanupBefore, service.lastAttachmentCleanupLimit)
 	}
+	if !service.lastAttachmentSessionCleanupBefore.Equal(before) || service.lastAttachmentSessionCleanupLimit != 25 {
+		t.Fatalf("session cleanup request = %s/%d", service.lastAttachmentSessionCleanupBefore, service.lastAttachmentSessionCleanupLimit)
+	}
 	if !strings.Contains(rec.Body.String(), `"attachment_cleanup_run"`) || !strings.Contains(rec.Body.String(), `"expired_count":2`) {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 	if !strings.Contains(rec.Body.String(), `"candidate_count":5`) || !strings.Contains(rec.Body.String(), `"limited_count":2`) {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+	for _, want := range []string{`"session_candidate_count":8`, `"session_limited_count":3`, `"expired_session_count":3`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body missing %s: %s", want, rec.Body.String())
+		}
 	}
 }
 
@@ -456,6 +473,10 @@ func TestAdminAttachmentCleanupRunHandlerSupportsDryRun(t *testing.T) {
 	service := &fakeAdminService{
 		staleAttachmentCount: maildb.StaleAttachmentUploadCount{
 			TotalCount:   7,
+			LimitedCount: 3,
+		},
+		staleAttachmentSessionCount: maildb.StaleAttachmentUploadSessionCount{
+			TotalCount:   11,
 			LimitedCount: 3,
 		},
 	}
@@ -476,10 +497,16 @@ func TestAdminAttachmentCleanupRunHandlerSupportsDryRun(t *testing.T) {
 	if !service.lastAttachmentCleanupBefore.IsZero() {
 		t.Fatalf("cleanup dispatched for dry run at %s", service.lastAttachmentCleanupBefore)
 	}
+	if !service.lastAttachmentSessionCleanupBefore.IsZero() {
+		t.Fatalf("session cleanup dispatched for dry run at %s", service.lastAttachmentSessionCleanupBefore)
+	}
 	if !service.lastAttachmentCleanupCountBefore.Equal(before) || service.lastAttachmentCleanupCountLimit != 3 {
 		t.Fatalf("count request = %s/%d", service.lastAttachmentCleanupCountBefore, service.lastAttachmentCleanupCountLimit)
 	}
-	for _, want := range []string{`"dry_run":true`, `"candidate_count":7`, `"limited_count":3`, `"expired_count":0`} {
+	if !service.lastAttachmentSessionCleanupCountBefore.Equal(before) || service.lastAttachmentSessionCleanupCountLimit != 3 {
+		t.Fatalf("session count request = %s/%d", service.lastAttachmentSessionCleanupCountBefore, service.lastAttachmentSessionCleanupCountLimit)
+	}
+	for _, want := range []string{`"dry_run":true`, `"candidate_count":7`, `"limited_count":3`, `"expired_count":0`, `"session_candidate_count":11`, `"session_limited_count":3`, `"expired_session_count":0`} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("body missing %s: %s", want, rec.Body.String())
 		}
@@ -4041,7 +4068,9 @@ type fakeAdminService struct {
 	quotaReconciliation                         []maildb.QuotaReconciliationView
 	quotaCorrection                             maildb.QuotaCorrectionResult
 	expiredAttachments                          []maildb.Attachment
+	expiredAttachmentSessions                   []maildb.AttachmentUploadSession
 	staleAttachmentCount                        maildb.StaleAttachmentUploadCount
+	staleAttachmentSessionCount                 maildb.StaleAttachmentUploadSessionCount
 	staleAttachmentCandidates                   []maildb.StaleAttachmentUploadCandidate
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
@@ -4074,8 +4103,12 @@ type fakeAdminService struct {
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAttachmentCleanupBefore                 time.Time
 	lastAttachmentCleanupLimit                  int
+	lastAttachmentSessionCleanupBefore          time.Time
+	lastAttachmentSessionCleanupLimit           int
 	lastAttachmentCleanupCountBefore            time.Time
 	lastAttachmentCleanupCountLimit             int
+	lastAttachmentSessionCleanupCountBefore     time.Time
+	lastAttachmentSessionCleanupCountLimit      int
 	lastAttachmentCleanupListBefore             time.Time
 	lastAttachmentCleanupListLimit              int
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
@@ -4261,10 +4294,22 @@ func (f *fakeAdminService) RunAttachmentCleanup(_ context.Context, before time.T
 	return f.expiredAttachments, nil
 }
 
+func (f *fakeAdminService) RunAttachmentUploadSessionCleanup(_ context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error) {
+	f.lastAttachmentSessionCleanupBefore = before
+	f.lastAttachmentSessionCleanupLimit = limit
+	return f.expiredAttachmentSessions, nil
+}
+
 func (f *fakeAdminService) CountStaleAttachmentUploads(_ context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error) {
 	f.lastAttachmentCleanupCountBefore = before
 	f.lastAttachmentCleanupCountLimit = limit
 	return f.staleAttachmentCount, nil
+}
+
+func (f *fakeAdminService) CountStaleAttachmentUploadSessions(_ context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error) {
+	f.lastAttachmentSessionCleanupCountBefore = before
+	f.lastAttachmentSessionCleanupCountLimit = limit
+	return f.staleAttachmentSessionCount, nil
 }
 
 func (f *fakeAdminService) ListStaleAttachmentUploads(_ context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error) {

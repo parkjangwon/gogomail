@@ -71,6 +71,10 @@ type AttachmentUploadSessionRepository interface {
 	ExpireAttachmentUploadSessions(ctx context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error)
 }
 
+type AttachmentUploadSessionCleanupRepository interface {
+	CountStaleAttachmentUploadSessions(ctx context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) (maildb.StaleAttachmentUploadSessionCount, error)
+}
+
 type AttachmentCleanupRepository interface {
 	ExpireStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) (maildb.StaleAttachmentUploadCount, error)
@@ -1107,6 +1111,21 @@ func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before tim
 		}
 	}
 	return expired, nil
+}
+
+func (s *Service) CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error) {
+	repo, ok := s.repository.(AttachmentUploadSessionCleanupRepository)
+	if !ok {
+		return maildb.StaleAttachmentUploadSessionCount{}, fmt.Errorf("attachment upload session repository is required")
+	}
+	req := maildb.ExpireAttachmentUploadSessionsRequest{
+		Before: before,
+		Limit:  limit,
+	}
+	if err := maildb.ValidateExpireAttachmentUploadSessionsRequest(req); err != nil {
+		return maildb.StaleAttachmentUploadSessionCount{}, err
+	}
+	return repo.CountStaleAttachmentUploadSessions(ctx, req)
 }
 
 func normalizeCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) CreateAttachmentUploadRequest {
