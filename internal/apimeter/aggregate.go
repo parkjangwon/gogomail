@@ -84,9 +84,24 @@ INSERT INTO api_usage_events (
   method,
   route,
   status,
-  user_id
-) VALUES ($1, $2, $3, $4, $5, $6)
+  user_id,
+  tenant_id,
+  company_id,
+  domain_id,
+  api_key_id,
+  principal_id,
+  auth_source
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (event_id) DO NOTHING`
+	identity := Identity{
+		TenantID:    event.TenantID,
+		CompanyID:   event.CompanyID,
+		DomainID:    event.DomainID,
+		UserID:      event.UserID,
+		APIKeyID:    event.APIKeyID,
+		PrincipalID: event.PrincipalID,
+		AuthSource:  event.AuthSource,
+	}.Normalize()
 	result, err := s.db.ExecContext(
 		ctx,
 		query,
@@ -95,7 +110,13 @@ ON CONFLICT (event_id) DO NOTHING`
 		event.Method,
 		event.Route,
 		event.Status,
-		event.UserID,
+		identity.UserID,
+		identity.TenantID,
+		identity.CompanyID,
+		identity.DomainID,
+		identity.APIKeyID,
+		identity.PrincipalID,
+		identity.AuthSource,
 	)
 	if err != nil {
 		return false, fmt.Errorf("claim api usage event: %w", err)
