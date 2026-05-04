@@ -36,6 +36,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   storage adapter metadata.
 - Repository support can create upload sessions and reserve declared bytes in
   the shared quota ledger transactionally.
+- Repository support can cancel resumable upload sessions and release the
+  declared quota reservation exactly once.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin

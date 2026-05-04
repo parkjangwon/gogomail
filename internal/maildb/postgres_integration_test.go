@@ -245,6 +245,60 @@ func TestPostgresCreateAttachmentUploadSessionReservesQuota(t *testing.T) {
 	}
 }
 
+func TestPostgresCancelAttachmentUploadSessionReleasesQuota(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	session, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "large.bin",
+		DeclaredSize: 512,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession returned error: %v", err)
+	}
+	var reserved int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&reserved); err != nil {
+		t.Fatalf("query reserved quota: %v", err)
+	}
+	canceled, err := repo.CancelAttachmentUploadSession(ctx, CancelAttachmentUploadSessionRequest{
+		UserID:    seed.userID,
+		SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("CancelAttachmentUploadSession returned error: %v", err)
+	}
+	if canceled.Status != "canceled" || canceled.CanceledAt.IsZero() {
+		t.Fatalf("canceled session = %+v", canceled)
+	}
+	var released int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&released); err != nil {
+		t.Fatalf("query released quota: %v", err)
+	}
+	if released != reserved-512 {
+		t.Fatalf("released quota = %d, want %d", released, reserved-512)
+	}
+	if _, err := repo.CancelAttachmentUploadSession(ctx, CancelAttachmentUploadSessionRequest{
+		UserID:    seed.userID,
+		SessionID: session.ID,
+	}); err == nil {
+		t.Fatal("CancelAttachmentUploadSession accepted already canceled session")
+	}
+	var afterSecondCancel int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&afterSecondCancel); err != nil {
+		t.Fatalf("query quota after second cancel: %v", err)
+	}
+	if afterSecondCancel != released {
+		t.Fatalf("quota changed after second cancel = %d, want %d", afterSecondCancel, released)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 

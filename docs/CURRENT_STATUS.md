@@ -632,6 +632,8 @@ The platform hardening sprint completed the following:
   indexes for user lookup and stale-session cleanup.
 - `maildb` can create upload session records and reserve declared session bytes
   in the shared quota ledger transactionally.
+- `maildb` can cancel resumable upload sessions in `pending`, `uploading`, or
+  `failed` state, releasing the declared byte reservation once.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment
