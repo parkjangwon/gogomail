@@ -1143,9 +1143,14 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+		if !ok {
+			return
+		}
 		stats, err := service.GetPushNotificationStats(r.Context(), maildb.PushNotificationStatsRequest{
-			UserID: userID,
-			Since:  since,
+			MessageID: messageID,
+			UserID:    userID,
+			Since:     since,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

@@ -327,7 +327,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /delivery-attempts/stats":                         {"status", "recipient_domain", "since"},
 		"GET /delivery-attempts/exhausted":                     {"limit", "recipient_domain", "since"},
 		"GET /push-notification-attempts":                      {"limit", "message_id", "status", "user_id", "platform", "device_id", "provider_status", "provider_message_id", "since"},
-		"GET /push-notification-stats":                         {"user_id", "since"},
+		"GET /push-notification-stats":                         {"message_id", "user_id", "since"},
 		"GET /push-devices":                                    {"limit"},
 		"GET /outbox-events":                                   {"limit", "topic", "partition_key", "status", "since"},
 		"GET /api-usage/ledger/retention-readiness":            {"cutoff", "tenant_id", "principal_id"},

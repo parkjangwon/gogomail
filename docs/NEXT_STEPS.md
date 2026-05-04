@@ -212,8 +212,9 @@ Current state:
   operators or external push gateways can record queued/delivered/failed/
   invalid-token outcomes with bounded provider diagnostics.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
-  and status-count summaries, with optional `user_id` and `since` scoping for
-  per-user and recent-window troubleshooting.
+  and status-count summaries, with optional `message_id`, `user_id`, and
+  `since` scoping for per-message, per-user, and recent-window
+  troubleshooting.
 - Candidate recording returns an attempt id to the worker sink, giving future
   vendor adapters a stable row to update with delivered/failed/invalid-token
   outcomes.

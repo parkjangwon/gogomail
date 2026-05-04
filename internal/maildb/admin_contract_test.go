@@ -150,19 +150,37 @@ func TestValidatePushNotificationAttemptIDRejectsUnsafeValues(t *testing.T) {
 	}
 }
 
-func TestNormalizePushNotificationStatsRequestRejectsUnsafeUserID(t *testing.T) {
+func TestNormalizePushNotificationStatsRequest(t *testing.T) {
 	t.Parallel()
 
-	for _, userID := range []string{
-		"user-1\nbad",
-		strings.Repeat("u", maxPushNotificationFilterBytes+1),
-		string([]byte{0xff}),
+	req, err := normalizePushNotificationStatsRequest(PushNotificationStatsRequest{
+		MessageID: " message-1 ",
+		UserID:    " user-1 ",
+	})
+	if err != nil {
+		t.Fatalf("normalizePushNotificationStatsRequest returned error: %v", err)
+	}
+	if req.MessageID != "message-1" || req.UserID != "user-1" {
+		t.Fatalf("normalized request = %+v", req)
+	}
+}
+
+func TestNormalizePushNotificationStatsRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	for _, req := range []PushNotificationStatsRequest{
+		{MessageID: "message-1\nbad"},
+		{MessageID: strings.Repeat("m", maxPushNotificationFilterBytes+1)},
+		{MessageID: string([]byte{0xff})},
+		{UserID: "user-1\nbad"},
+		{UserID: strings.Repeat("u", maxPushNotificationFilterBytes+1)},
+		{UserID: string([]byte{0xff})},
 	} {
-		userID := userID
-		t.Run(userID, func(t *testing.T) {
+		req := req
+		t.Run(req.MessageID+req.UserID, func(t *testing.T) {
 			t.Parallel()
-			if _, err := normalizePushNotificationStatsRequest(PushNotificationStatsRequest{UserID: userID}); err == nil {
-				t.Fatalf("normalizePushNotificationStatsRequest accepted %q", userID)
+			if _, err := normalizePushNotificationStatsRequest(req); err == nil {
+				t.Fatalf("normalizePushNotificationStatsRequest accepted %+v", req)
 			}
 		})
 	}

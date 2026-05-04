@@ -1245,6 +1245,12 @@ paths:
       operationId: getAdminPushNotificationStats
       summary: Admin push notification fan-out status summary
       parameters:
+        - name: message_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
         - name: user_id
           in: query
           required: false
