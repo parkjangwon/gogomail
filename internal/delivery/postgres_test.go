@@ -5,28 +5,30 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 func TestDeliveryAttemptEventPayload(t *testing.T) {
 	t.Parallel()
 
 	raw, err := deliveryAttemptEventPayload(Attempt{
-		MessageID:         "018f0000-0000-7000-8000-000000000001",
-		RFCMessageID:      "<msg@example.com>",
-		CompanyID:         "company-1",
-		DomainID:          "domain-1",
-		Farm:              "general",
-		Sender:            "sender@example.com",
-		Recipient:         "user@example.net",
-		RecipientDomain:   "example.net",
+		MessageID:         " 018f0000-0000-7000-8000-000000000001 ",
+		RFCMessageID:      " <msg@example.com> ",
+		CompanyID:         " company-1 ",
+		DomainID:          " domain-1 ",
+		Farm:              " general ",
+		Sender:            " sender@example.com ",
+		Recipient:         " user@example.net ",
+		RecipientDomain:   " example.net ",
 		Status:            AttemptBounced,
-		EnhancedStatus:    "5.1.1",
-		ErrorMessage:      "550 no such user",
+		EnhancedStatus:    " 5.1.1 ",
+		ErrorMessage:      " 550 no such user ",
 		AttemptedAt:       time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
-		DSNReturn:         "HDRS",
-		DSNEnvelopeID:     "env+2D1",
-		DSNNotify:         []string{"FAILURE", "DELAY"},
-		OriginalRecipient: "rfc822;alias+40example.net",
+		DSNReturn:         " HDRS ",
+		DSNEnvelopeID:     " env+2D1 ",
+		DSNNotify:         []string{" FAILURE ", "", " DELAY "},
+		OriginalRecipient: " rfc822;alias+40example.net ",
 	})
 	if err != nil {
 		t.Fatalf("deliveryAttemptEventPayload returned error: %v", err)
@@ -38,6 +40,9 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 	}
 	if got["event"] != "mail.bounced" {
 		t.Fatalf("event = %v, want mail.bounced", got["event"])
+	}
+	if got["message_id"] != "018f0000-0000-7000-8000-000000000001" || got["company_id"] != "company-1" || got["domain_id"] != "domain-1" {
+		t.Fatalf("ids = %#v", got)
 	}
 	if got["recipient"] != "user@example.net" {
 		t.Fatalf("recipient = %v", got["recipient"])
@@ -58,6 +63,35 @@ func TestDeliveryAttemptEventPayload(t *testing.T) {
 	notify, ok := dsn["notify"].([]any)
 	if !ok || len(notify) != 2 || notify[0] != "FAILURE" || notify[1] != "DELAY" {
 		t.Fatalf("dsn notify = %#v", dsn["notify"])
+	}
+}
+
+func TestExhaustedEventPayloadNormalizesMetadata(t *testing.T) {
+	t.Parallel()
+
+	raw, err := exhaustedEventPayload(QueuedMessage{
+		MessageID:    " msg-1 ",
+		RFCMessageID: " <msg@example.com> ",
+		CompanyID:    " company-1 ",
+		DomainID:     " domain-1 ",
+		Farm:         " general ",
+		From:         outbound.Address{Email: " sender@example.com "},
+		To:           []outbound.Address{{Email: " user@example.net "}},
+	}, " temporary failure ")
+	if err != nil {
+		t.Fatalf("exhaustedEventPayload returned error: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if got["message_id"] != "msg-1" || got["sender"] != "sender@example.com" || got["error_message"] != "temporary failure" {
+		t.Fatalf("payload = %#v", got)
+	}
+	recipients, ok := got["recipients"].([]any)
+	if !ok || len(recipients) != 1 || recipients[0] != "user@example.net" {
+		t.Fatalf("recipients = %#v", got["recipients"])
 	}
 }
 

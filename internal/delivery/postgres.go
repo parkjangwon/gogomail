@@ -187,18 +187,20 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 func exhaustedEventPayload(queued QueuedMessage, causeMsg string) ([]byte, error) {
 	recipients := make([]string, 0, len(queued.Recipients()))
 	for _, r := range queued.Recipients() {
-		recipients = append(recipients, r.Email)
+		if email := strings.TrimSpace(r.Email); email != "" {
+			recipients = append(recipients, email)
+		}
 	}
 	raw, err := json.Marshal(map[string]any{
 		"event":          "mail.delivery_exhausted",
-		"message_id":     queued.MessageID,
-		"rfc_message_id": queued.RFCMessageID,
-		"company_id":     queued.CompanyID,
-		"domain_id":      queued.DomainID,
-		"farm":           string(queued.Farm),
-		"sender":         queued.From.Email,
+		"message_id":     strings.TrimSpace(queued.MessageID),
+		"rfc_message_id": strings.TrimSpace(queued.RFCMessageID),
+		"company_id":     strings.TrimSpace(queued.CompanyID),
+		"domain_id":      strings.TrimSpace(queued.DomainID),
+		"farm":           strings.TrimSpace(string(queued.Farm)),
+		"sender":         strings.TrimSpace(queued.From.Email),
 		"recipients":     recipients,
-		"error_message":  causeMsg,
+		"error_message":  strings.TrimSpace(causeMsg),
 		"exhausted_at":   timeNow(),
 	})
 	if err != nil {
@@ -246,25 +248,25 @@ func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {
 
 	payload := map[string]any{
 		"event":            event,
-		"message_id":       attempt.MessageID,
-		"rfc_message_id":   attempt.RFCMessageID,
-		"company_id":       attempt.CompanyID,
-		"domain_id":        attempt.DomainID,
-		"farm":             attempt.Farm,
-		"sender":           attempt.Sender,
-		"recipient":        attempt.Recipient,
-		"recipient_domain": attempt.RecipientDomain,
+		"message_id":       strings.TrimSpace(attempt.MessageID),
+		"rfc_message_id":   strings.TrimSpace(attempt.RFCMessageID),
+		"company_id":       strings.TrimSpace(attempt.CompanyID),
+		"domain_id":        strings.TrimSpace(attempt.DomainID),
+		"farm":             strings.TrimSpace(attempt.Farm),
+		"sender":           strings.TrimSpace(attempt.Sender),
+		"recipient":        strings.TrimSpace(attempt.Recipient),
+		"recipient_domain": strings.TrimSpace(attempt.RecipientDomain),
 		"status":           attempt.Status,
-		"enhanced_status":  attempt.EnhancedStatus,
-		"error_message":    attempt.ErrorMessage,
+		"enhanced_status":  strings.TrimSpace(attempt.EnhancedStatus),
+		"error_message":    strings.TrimSpace(attempt.ErrorMessage),
 		"attempted_at":     attempt.AttemptedAt,
 	}
 	if attempt.DSNReturn != "" || attempt.DSNEnvelopeID != "" || len(attempt.DSNNotify) > 0 || attempt.OriginalRecipient != "" {
 		payload["dsn"] = map[string]any{
-			"return":             attempt.DSNReturn,
-			"envelope_id":        attempt.DSNEnvelopeID,
-			"notify":             append([]string(nil), attempt.DSNNotify...),
-			"original_recipient": attempt.OriginalRecipient,
+			"return":             strings.TrimSpace(attempt.DSNReturn),
+			"envelope_id":        strings.TrimSpace(attempt.DSNEnvelopeID),
+			"notify":             trimStringList(attempt.DSNNotify),
+			"original_recipient": strings.TrimSpace(attempt.OriginalRecipient),
 		}
 	}
 	raw, err := json.Marshal(payload)
@@ -272,6 +274,20 @@ func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {
 		return nil, fmt.Errorf("marshal delivery attempt event: %w", err)
 	}
 	return raw, nil
+}
+
+func trimStringList(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	if out == nil {
+		return []string{}
+	}
+	return out
 }
 
 func uuidOrNil(value string) any {

@@ -211,6 +211,8 @@ guidance.
 - Delivery-status audit consumers trim event, tenant, sender, recipient, farm,
   status, error, and timestamp fields and reject CR/LF-bearing message
   identifiers before audit-log persistence.
+- Delivery outcome and exhausted outbox event payloads trim message, tenant,
+  farm, sender, recipient, error, and DSN metadata before event persistence.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
