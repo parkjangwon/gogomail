@@ -212,6 +212,8 @@ func TestHMACExportManifestSignerRejectsInvalidInput(t *testing.T) {
 		digest string
 	}{
 		{name: "missing key", signer: HMACExportManifestSigner{Secret: []byte("secret")}, digest: strings.Repeat("a", 64)},
+		{name: "key line break", signer: HMACExportManifestSigner{KeyID: "key-1\nbad", Secret: []byte("secret")}, digest: strings.Repeat("a", 64)},
+		{name: "key too long", signer: HMACExportManifestSigner{KeyID: strings.Repeat("k", maxExportManifestSignatureKeyIDBytes+1), Secret: []byte("secret")}, digest: strings.Repeat("a", 64)},
 		{name: "missing secret", signer: HMACExportManifestSigner{KeyID: "key-1"}, digest: strings.Repeat("a", 64)},
 		{name: "bad digest", signer: HMACExportManifestSigner{KeyID: "key-1", Secret: []byte("secret")}, digest: "nope"},
 	}
@@ -223,5 +225,32 @@ func TestHMACExportManifestSignerRejectsInvalidInput(t *testing.T) {
 				t.Fatal("SignExportManifestDigest returned nil error")
 			}
 		})
+	}
+}
+
+func TestRemoteEd25519ExportManifestSignerRejectsInvalidKeyIDMetadata(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("a", 64)
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize)))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(ExportManifestSignature{
+			Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+			KeyID:           "remote-key-1\nbad",
+			SignedDigestHex: digest,
+			SignatureHex:    hex.EncodeToString(ed25519.Sign(privateKey, []byte(digest))),
+		})
+	}))
+	defer server.Close()
+
+	_, err := (RemoteEd25519ExportManifestSigner{
+		Endpoint:  server.URL,
+		KeyID:     "remote-key-1",
+		PublicKey: publicKey,
+		Client:    server.Client(),
+	}).SignExportManifestDigest(digest)
+	if err == nil || !strings.Contains(err.Error(), "key id") {
+		t.Fatalf("err = %v, want key id error", err)
 	}
 }

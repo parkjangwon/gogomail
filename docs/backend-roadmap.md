@@ -497,6 +497,7 @@ Implementation order:
 438. OpenSearch relevance response decoding is now capped before JSON parsing, preventing oversized backend responses from allocating unbounded highlight or hit payloads in the Mail API path.
 439. API usage export artifact writes now reject ambiguous object keys that would change during path cleaning, including duplicate separators, dot segments, backslashes, and parent traversal.
 440. API usage export manifest digesting now rejects unsupported explicit manifest schema versions before canonical digest evidence is generated.
+441. API usage export manifest signing now rejects blank, CR/LF-bearing, or oversized key IDs for local and remote signer metadata before signature evidence is returned.
 
 ## Deferred until backend contracts stabilize
 
