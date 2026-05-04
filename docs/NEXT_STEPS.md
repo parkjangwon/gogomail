@@ -131,6 +131,9 @@ Current state:
 - `event-worker` handles committed `mail.stored` events with an IMAP UID
   assignment handler, so newly received active messages become UID-visible
   asynchronously without adding IMAP work to the SMTP hot path.
+- The IMAP `mail.stored` notification handler can publish UID-bearing
+  `exists` mailbox events after UID assignment when a process-local mailbox
+  event publisher is wired.
 - Mail API move/delete paths remove stale IMAP UID rows transactionally so moved
   messages can receive fresh mailbox-local UIDs later.
 - Optional PostgreSQL integration tests cover IMAP UID backfill and move
@@ -156,8 +159,8 @@ Current state:
 
 Next:
 
-- Add actual IMAP EXISTS publication once a live protocol listener and
-  process-local event broker wiring exist.
+- Wire a process-local mailbox event broker into the future IMAP listener mode
+  so `mail.stored` UID assignment can wake connected IDLE sessions.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
@@ -183,7 +186,8 @@ Current state:
   `candidate`, giving operators a clear retry/audit signal before vendor
   adapters exist.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
-  status/user/since filters for inspecting candidate fan-out.
+  status/user/platform/device/provider-status/provider-message/since filters
+  for inspecting candidate fan-out and vendor outcomes.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
   and status-count summaries, with optional `user_id` and `since` scoping for
   per-user and recent-window troubleshooting.
@@ -204,8 +208,8 @@ Current state:
 Next:
 
 - Add FCM/APNs/Web Push sink adapters behind `internal/pushnotify`.
-- Extend candidate attempts with vendor delivery outcomes and invalid-token
-  cleanup.
+- Keep provider outcome updates private to the worker/adapter boundary unless a
+  future operator mutation API is explicitly required.
 - Wire attachment scanning only when a concrete scanner backend is configured.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 

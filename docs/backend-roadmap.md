@@ -414,6 +414,7 @@ Implementation order:
 355. Admin push notification attempt triage can now filter by platform, device id, provider status, and provider message id in addition to status/user/since, improving vendor-outcome troubleshooting readiness.
 356. Redis event consumers now acknowledge malformed stream entries after logging decode failures, preventing poison messages from pinning worker progress while preserving retry behavior for handler failures.
 357. OpenAPI drift tests now pin Admin domain/user and delivery-route status enums against backend validators, preventing generated clients from drifting on supported lifecycle states.
+358. Project continuity docs now reflect the autonomous release-readiness hardening sprint, including parser hygiene, outbound/DSN RFC tightening, IMAP notification readiness, push outcome filters, Redis poison-message handling, and expanded OpenAPI guardrails.
 
 ## Deferred until backend contracts stabilize
 

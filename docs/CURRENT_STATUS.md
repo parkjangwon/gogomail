@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-04 (updated after platform hardening sprint)
+Last updated: 2026-05-04 (updated after autonomous release-readiness hardening)
 
 ## Current phase
 
@@ -58,12 +58,19 @@ guidance.
   `.eml` messages.
 - Outbound text composition rejects CR/LF-bearing subject, display-name, email,
   and explicit Message-ID inputs before writing RFC 5322 headers.
+- Outbound RFC 5322 text composition folds long headers, rejects malformed
+  explicit Message-ID values, and drops malformed thread IDs before writing
+  `In-Reply-To`/`References`.
 - Mail API exposes a first Postgres-backed search endpoint for active message
   metadata, with an FTS index for small deployments.
 - Received-message body search now has an asynchronous indexing boundary:
   `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects,
   extracts bounded text through the shared parser, and upserts Postgres search
   documents used by the existing search endpoint.
+- Shared EML text extraction and attachment metadata are bounded with UTF-8
+  boundary preservation; attachment filenames are basename-normalized,
+  control-character cleaned, and capped before reaching storage/API/search
+  consumers.
 - Search responses can now opt into relevance sorting, rank scores, and bounded
   Postgres headline snippets while preserving date-sorted results by default.
 - Postgres and OpenSearch relevance search now share a metadata-first tuning
@@ -157,7 +164,8 @@ guidance.
   notification candidates with Postgres candidate-attempt audit rows without
   touching SMTP hot paths or committing to FCM/APNs SDKs.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
-  push notification candidate fan-out by status, user, or recent time window.
+  push notification candidate fan-out by status, user, platform, device,
+  provider status, provider message id, or recent time window.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for a compact
   active-device and attempt-status summary, with optional `user_id` and `since`
   scoping for user-level and recent-window troubleshooting.
@@ -182,6 +190,9 @@ guidance.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
   `delivery_attempts` row with status `exhausted` written when all retries fail.
+- The delivery worker wires retry exhaustion recording at runtime, so terminal
+  retry exhaustion diagnostics and `mail.delivery_exhausted` events are emitted
+  by the actual worker path.
 - Admin delivery attempt lists can be scoped by status, recipient domain, and
   recent time window for bounded retry/bounce triage.
 - Admin delivery attempt stats summarize total attempts, unique messages,
@@ -191,9 +202,12 @@ guidance.
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses (RFC 6531 compliance fix).
 - OpenAPI draft with route, request body, response envelope, operationId, and
-  component reference drift tests. API usage ledger filter parameters are
-  contract-tested for generated-client readiness. All schemas kept in sync with
-  Go types.
+  component reference drift tests. Path parameters, Admin query filters,
+  request schemas, response envelopes, and status enums are contract-tested for
+  generated-client readiness. All schemas are kept in sync with Go types.
+- Redis event consumers acknowledge malformed stream entries after logging
+  decode failures, preventing poison messages from pinning worker progress while
+  preserving retry behavior for handler failures.
 - Backend release verification script and SMTP release runbook.
 - API usage export runbook covering capability checks, artifact/digest/signature
   handoff evidence, deep readiness, and retention-readiness gates.
