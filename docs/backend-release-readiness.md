@@ -177,6 +177,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API usage export manifest signer configuration rejects CR/LF-bearing or
   oversized key IDs and remote signer tokens, and local HMAC signing rejects
   oversized secrets before MAC generation.
+- API usage export HMAC and Ed25519 signature verification rejects incorrectly
+  sized signature hex before decoding.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed

@@ -61,6 +61,20 @@ func TestHMACExportManifestSignerSignsAndVerifiesDigest(t *testing.T) {
 	}
 }
 
+func TestHMACExportManifestVerifierRejectsOversizedSignatureHexBeforeDecode(t *testing.T) {
+	t.Parallel()
+
+	signature := ExportManifestSignature{
+		Algorithm:       ExportManifestSignatureAlgorithmHMACSHA256,
+		KeyID:           "local-key-1",
+		SignedDigestHex: strings.Repeat("a", 64),
+		SignatureHex:    strings.Repeat("f", hmacSHA256SignatureHexBytes+1),
+	}
+	if _, err := VerifyExportManifestSignature(signature, []byte("secret")); err == nil || !strings.Contains(err.Error(), "hmac signature") {
+		t.Fatalf("VerifyExportManifestSignature error = %v, want hmac signature length error", err)
+	}
+}
+
 func TestEd25519ExportManifestSignerSignsAndVerifiesDigest(t *testing.T) {
 	t.Parallel()
 
@@ -105,6 +119,21 @@ func TestEd25519ExportManifestSignerSignsAndVerifiesDigest(t *testing.T) {
 	}
 	if valid {
 		t.Fatal("signature should not verify after tampering")
+	}
+}
+
+func TestEd25519ExportManifestVerifierRejectsOversizedSignatureHexBeforeDecode(t *testing.T) {
+	t.Parallel()
+
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	signature := ExportManifestSignature{
+		Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+		KeyID:           "local-ed25519-1",
+		SignedDigestHex: strings.Repeat("b", 64),
+		SignatureHex:    strings.Repeat("f", ed25519SignatureHexBytes+1),
+	}
+	if _, err := (Ed25519ExportManifestSignatureVerifier{PublicKey: publicKey}).VerifyExportManifestSignature(signature); err == nil || !strings.Contains(err.Error(), "ed25519 signature") {
+		t.Fatalf("VerifyExportManifestSignature error = %v, want ed25519 signature length error", err)
 	}
 }
 

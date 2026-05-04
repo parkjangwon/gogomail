@@ -188,6 +188,8 @@ guidance.
 - API usage export manifest signer configuration now rejects CR/LF-bearing or
   oversized key IDs and remote signer tokens, and local HMAC signing rejects
   oversized secrets before MAC generation.
+- API usage export HMAC and Ed25519 signature verification now rejects
+  incorrectly sized signature hex before decoding.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
