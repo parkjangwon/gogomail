@@ -127,6 +127,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   runtime-injected database/Redis probes for HTTP modes that depend on those
   services, returning a degraded 503 response when a required dependency probe
   fails.
+- Mail/Admin HTTP readiness now includes a real local storage write/read/delete
+  probe, and unsupported HTTP storage backends fail fast instead of silently
+  falling back to local storage wiring.
 - Admin API supports domain/user list, detail, create, and status updates plus queue, outbox-event metadata, delivery-attempt, suppression, DKIM, retry, and delete operations. Company lists support lifecycle status filters for tenant triage. Domain lists support company, status, and latest DNS-status filters for onboarding triage, and DNS-check history supports summary-status plus recent-window filters. Delivery-route lists support status, farm, and domain-pattern filters for route audits. Trusted-relay lists support CIDR and description filters for inbound relay-policy audits. Delivery-attempt lists and stats support status, recipient-domain, message-id, farm, sender, and recent-window filters for bounded retry/bounce triage; exhausted-attempt lists support the same incident filters for terminal retry triage. Suppression-list reads support domain, email, and reason filters for bounce triage. Attempt rows retain sender, enhanced-status, and RFC 3461 DSN metadata for operator diagnostics. Attempt list ordering uses a stable ID tie-breaker after timestamp ordering.
 - Admin user creation and password-hash rotation can persist validated
   `password_hash` values for SMTP Submission authentication, rejecting
@@ -259,6 +262,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Runtime database readiness now checks the applied goose migration version
   against the latest local SQL migration, causing stale schemas to return
   degraded `/health/ready` status instead of passing on ping alone.
+- Runtime storage readiness now probes the local mailstore through the storage
+  adapter before Mail/Admin HTTP modes report healthy.
 - Admin backpressure updates now write bounded hash-chain audit rows with
   previous/current SMTP pressure state after Redis updates, so receive-throttle
   overrides are durable operational evidence.

@@ -43,6 +43,36 @@ func TestSMTPTLSConfigAllowsNoTLSFiles(t *testing.T) {
 	}
 }
 
+type fakeStorageChecker struct {
+	err error
+}
+
+func (f fakeStorageChecker) Check(context.Context) error {
+	return f.err
+}
+
+func TestStorageReadinessCheckReportsProbeStatus(t *testing.T) {
+	t.Parallel()
+
+	ok := storageReadinessCheck("mail_storage", fakeStorageChecker{})(context.Background())
+	if ok.Name != "mail_storage" || ok.Status != "ok" || ok.Detail == "" {
+		t.Fatalf("ok check = %+v", ok)
+	}
+	failed := storageReadinessCheck("mail_storage", fakeStorageChecker{err: context.Canceled})(context.Background())
+	if failed.Name != "mail_storage" || failed.Status != "error" || !strings.Contains(failed.Detail, "context canceled") {
+		t.Fatalf("failed check = %+v", failed)
+	}
+}
+
+func TestLocalStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
+	t.Parallel()
+
+	store, err := localStoreForConfig(config.Config{StorageBackend: "minio", MailstoreRoot: t.TempDir()})
+	if err == nil || !strings.Contains(err.Error(), "unsupported storage backend") {
+		t.Fatalf("store = %+v err = %v", store, err)
+	}
+}
+
 func TestDKIMKeyProviderMapsRepositoryKey(t *testing.T) {
 	t.Parallel()
 

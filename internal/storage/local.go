@@ -6,7 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type LocalStore struct {
@@ -84,6 +86,37 @@ func (s *LocalStore) Delete(ctx context.Context, path string) error {
 
 	if err := os.Remove(fullPath); err != nil {
 		return fmt.Errorf("delete storage object: %w", err)
+	}
+	return nil
+}
+
+func (s *LocalStore) Check(ctx context.Context) error {
+	objectPath := "health/readiness-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".txt"
+	const body = "gogomail storage readiness\n"
+	if err := s.Put(ctx, objectPath, strings.NewReader(body)); err != nil {
+		return fmt.Errorf("write readiness probe: %w", err)
+	}
+	readCloser, err := s.Get(ctx, objectPath)
+	if err != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("read readiness probe: %w", err)
+	}
+	got, readErr := io.ReadAll(readCloser)
+	closeErr := readCloser.Close()
+	if readErr != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("read readiness probe body: %w", readErr)
+	}
+	if closeErr != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("close readiness probe body: %w", closeErr)
+	}
+	if string(got) != body {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("readiness probe body mismatch")
+	}
+	if err := s.Delete(ctx, objectPath); err != nil {
+		return fmt.Errorf("delete readiness probe: %w", err)
 	}
 	return nil
 }
