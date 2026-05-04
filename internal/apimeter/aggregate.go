@@ -11,6 +11,7 @@ import (
 )
 
 type UsageEvent struct {
+	EventID       string
 	Day           time.Time
 	Month         time.Time
 	Method        string
@@ -119,6 +120,8 @@ func (h UsageHandler) HandleEvent(ctx context.Context, msg eventstream.Message) 
 func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	var raw struct {
 		Event         string `json:"event"`
+		SchemaVersion string `json:"schema_version"`
+		EventID       string `json:"event_id"`
 		Method        string `json:"method"`
 		Route         string `json:"route"`
 		Status        int    `json:"status"`
@@ -134,6 +137,9 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	if strings.TrimSpace(raw.Event) != EventAPIUsage {
 		return UsageEvent{}, fmt.Errorf("unexpected api metering event %q", raw.Event)
 	}
+	if schemaVersion := strings.TrimSpace(raw.SchemaVersion); schemaVersion != "" && schemaVersion != APIUsageSchemaV1 {
+		return UsageEvent{}, fmt.Errorf("unsupported api usage schema_version %q", schemaVersion)
+	}
 	timestamp, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(raw.Timestamp))
 	if err != nil {
 		return UsageEvent{}, fmt.Errorf("parse api usage timestamp: %w", err)
@@ -141,6 +147,7 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	day := timestamp.UTC().Truncate(24 * time.Hour)
 	month := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
 	return UsageEvent{
+		EventID:       strings.TrimSpace(raw.EventID),
 		Day:           day,
 		Month:         month,
 		Method:        strings.TrimSpace(raw.Method),

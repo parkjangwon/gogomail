@@ -45,11 +45,26 @@ func TestPostgresOutboxSinkWritesAPIUsageEvent(t *testing.T) {
 	if payload["event"] != EventAPIUsage {
 		t.Fatalf("event = %v, want %q", payload["event"], EventAPIUsage)
 	}
+	if payload["schema_version"] != APIUsageSchemaV1 {
+		t.Fatalf("schema_version = %v, want %q", payload["schema_version"], APIUsageSchemaV1)
+	}
+	if payload["event_id"] == "" {
+		t.Fatal("event_id is empty")
+	}
 	if payload["route"] != "GET /api/v1/messages" {
 		t.Fatalf("route = %v", payload["route"])
 	}
 	if payload["latency_ms"].(float64) != 25 {
 		t.Fatalf("latency_ms = %v, want 25", payload["latency_ms"])
+	}
+}
+
+func TestAPIUsagePayloadUsesProvidedEventID(t *testing.T) {
+	t.Parallel()
+
+	payload := apiUsagePayload(Event{ID: "usage-1", Timestamp: time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC)})
+	if payload["event_id"] != "usage-1" {
+		t.Fatalf("event_id = %v, want usage-1", payload["event_id"])
 	}
 }
 
