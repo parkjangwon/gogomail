@@ -93,6 +93,23 @@ func TestAPIUsagePayloadFallsBackToLegacyEventIdentityFields(t *testing.T) {
 	}
 }
 
+func TestAPIUsagePayloadClampsNegativeMetrics(t *testing.T) {
+	t.Parallel()
+
+	payload := apiUsagePayload(Event{
+		Timestamp:     time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:        "GET",
+		RoutePattern:  "GET /api/v1/messages",
+		Status:        200,
+		RequestBytes:  -1,
+		ResponseBytes: -2,
+		Latency:       -time.Millisecond,
+	})
+	if payload["request_bytes"] != int64(0) || payload["response_bytes"] != int64(0) || payload["latency_ms"] != int64(0) {
+		t.Fatalf("payload metrics = %+v", payload)
+	}
+}
+
 func TestAPIUsageEventIDIncludesIdentityDimensions(t *testing.T) {
 	t.Parallel()
 

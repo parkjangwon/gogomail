@@ -122,6 +122,8 @@ guidance.
   to `unknown` before ledger/aggregate storage.
 - API metering durable event metrics clamp negative byte/latency values to zero
   and default nonpositive request counts to one before ledger/aggregate storage.
+- API metering outbox payloads clamp negative byte/latency values to zero before
+  deterministic event IDs are generated.
 - API metering durable events require nonblank method/route keys and HTTP-like
   status codes before ledger/aggregate storage.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
