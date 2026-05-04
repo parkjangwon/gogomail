@@ -149,8 +149,9 @@ The generated attempt id is attached to each sink target so future vendor
 adapters can update that exact row with delivered, failed, or invalid-token
 outcomes without coupling notification delivery to the SMTP transaction. Outcome
 updates are available inside `internal/pushnotify` and are not exposed as a
-public API. An `invalid_token` outcome soft-deletes the matching user device in
-the same database transaction as the attempt update.
+public API. Outcomes may also record provider-specific message IDs and status
+codes for adapter audit. An `invalid_token` outcome soft-deletes the matching
+user device in the same database transaction as the attempt update.
 
 The committed `mail.stored` event includes
 `schema_version: "2026-05-04.mail-stored.v1"` plus message, tenant, recipient,

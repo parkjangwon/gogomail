@@ -499,20 +499,22 @@ type ExhaustedAttemptListRequest struct {
 }
 
 type PushNotificationAttemptView struct {
-	ID           string    `json:"id"`
-	MessageID    string    `json:"message_id"`
-	RFCMessageID string    `json:"rfc_message_id"`
-	CompanyID    string    `json:"company_id,omitempty"`
-	DomainID     string    `json:"domain_id,omitempty"`
-	UserID       string    `json:"user_id"`
-	Recipient    string    `json:"recipient"`
-	Subject      string    `json:"subject"`
-	DeviceID     string    `json:"device_id,omitempty"`
-	Platform     string    `json:"platform"`
-	TokenSuffix  string    `json:"token_suffix,omitempty"`
-	Status       string    `json:"status"`
-	ErrorMessage string    `json:"error_message"`
-	AttemptedAt  time.Time `json:"attempted_at"`
+	ID                string    `json:"id"`
+	MessageID         string    `json:"message_id"`
+	RFCMessageID      string    `json:"rfc_message_id"`
+	CompanyID         string    `json:"company_id,omitempty"`
+	DomainID          string    `json:"domain_id,omitempty"`
+	UserID            string    `json:"user_id"`
+	Recipient         string    `json:"recipient"`
+	Subject           string    `json:"subject"`
+	DeviceID          string    `json:"device_id,omitempty"`
+	Platform          string    `json:"platform"`
+	TokenSuffix       string    `json:"token_suffix,omitempty"`
+	Status            string    `json:"status"`
+	ErrorMessage      string    `json:"error_message"`
+	ProviderMessageID string    `json:"provider_message_id,omitempty"`
+	ProviderStatus    string    `json:"provider_status,omitempty"`
+	AttemptedAt       time.Time `json:"attempted_at"`
 }
 
 type PushNotificationAttemptListRequest struct {
@@ -3918,6 +3920,8 @@ SELECT
   token_suffix,
   status,
   error_message,
+  provider_message_id,
+  provider_status,
   attempted_at
 FROM push_notification_attempts
 WHERE (NULLIF($2, '') IS NULL OR status = $2)
@@ -3949,6 +3953,8 @@ LIMIT $1`
 			&attempt.TokenSuffix,
 			&attempt.Status,
 			&attempt.ErrorMessage,
+			&attempt.ProviderMessageID,
+			&attempt.ProviderStatus,
 			&attempt.AttemptedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan push notification attempt: %w", err)

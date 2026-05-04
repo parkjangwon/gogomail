@@ -3760,6 +3760,12 @@ components:
           enum: [candidate, queued, delivered, failed, invalid_token]
         error_message:
           type: string
+        provider_message_id:
+          type: string
+          description: Vendor-assigned delivery id when a push adapter reports one.
+        provider_status:
+          type: string
+          description: Vendor-specific delivery status or reason code.
         attempted_at:
           type: string
           format: date-time

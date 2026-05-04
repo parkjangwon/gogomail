@@ -12,9 +12,11 @@ type PostgresRecorder struct {
 }
 
 type AttemptOutcome struct {
-	AttemptID    string
-	Status       string
-	ErrorMessage string
+	AttemptID         string
+	Status            string
+	ErrorMessage      string
+	ProviderMessageID string
+	ProviderStatus    string
 }
 
 func NewPostgresRecorder(db *sql.DB) *PostgresRecorder {
@@ -90,12 +92,18 @@ func (r *PostgresRecorder) RecordOutcome(ctx context.Context, outcome AttemptOut
 	if err := tx.QueryRowContext(
 		ctx,
 		`UPDATE push_notification_attempts
-SET status = $2, error_message = $3, attempted_at = now()
+SET status = $2,
+    error_message = $3,
+    provider_message_id = $4,
+    provider_status = $5,
+    attempted_at = now()
 WHERE id = $1::uuid
 RETURNING COALESCE(device_id::text, ''), user_id::text`,
 		normalized.AttemptID,
 		normalized.Status,
 		normalized.ErrorMessage,
+		normalized.ProviderMessageID,
+		normalized.ProviderStatus,
 	).Scan(&deviceID, &userID); err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("push notification attempt %q not found", normalized.AttemptID)
@@ -146,6 +154,8 @@ func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
 	outcome.AttemptID = strings.TrimSpace(outcome.AttemptID)
 	outcome.Status = strings.ToLower(strings.TrimSpace(outcome.Status))
 	outcome.ErrorMessage = strings.TrimSpace(outcome.ErrorMessage)
+	outcome.ProviderMessageID = strings.TrimSpace(outcome.ProviderMessageID)
+	outcome.ProviderStatus = strings.TrimSpace(outcome.ProviderStatus)
 	if outcome.AttemptID == "" {
 		return AttemptOutcome{}, fmt.Errorf("attempt_id is required")
 	}
@@ -154,6 +164,12 @@ func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
 	}
 	if len(outcome.ErrorMessage) > 2000 {
 		outcome.ErrorMessage = outcome.ErrorMessage[:2000]
+	}
+	if len(outcome.ProviderMessageID) > 500 {
+		outcome.ProviderMessageID = outcome.ProviderMessageID[:500]
+	}
+	if len(outcome.ProviderStatus) > 500 {
+		outcome.ProviderStatus = outcome.ProviderStatus[:500]
 	}
 	return outcome, nil
 }
