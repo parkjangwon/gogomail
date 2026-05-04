@@ -914,6 +914,9 @@ The platform hardening sprint completed the following:
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens and
   unknown object fields before service dispatch, and common JSON request
   decoding is capped at 1 MiB before parsing.
+- API error responses now use `Cache-Control: no-store` and
+  `X-Content-Type-Options: nosniff`, with the reusable OpenAPI error response
+  documenting both headers for generated clients.
 - Attachment download responses now emit both ASCII fallback and UTF-8
   `filename*` `Content-Disposition` parameters for internationalized filenames,
   with stored filenames bounded before response headers are written.

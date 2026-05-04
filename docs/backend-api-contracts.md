@@ -82,7 +82,9 @@ Errors use the stable envelope:
 }
 ```
 
-`error_message` remains temporarily for backward compatibility. New clients should read `error`.
+`error_message` remains temporarily for backward compatibility. New clients
+should read `error`. Error responses return `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff`.
 
 ## Authentication
 

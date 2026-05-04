@@ -676,6 +676,7 @@ Implementation order:
 616. SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment cleanup, and HTTP runtimes now share storage backend validation, preventing unsupported object-storage settings from silently using the local adapter.
 617. The shared HTTP server now has configurable and validated read, write, idle, read-header, and maximum-header guardrails for Mail/Admin/API-metered modes.
 618. Mail and Admin API JSON request decoding now rejects unknown object fields before service dispatch, making generated-client and OpenAPI drift visible as HTTP 400 errors.
+619. API error responses now return `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`, and the reusable OpenAPI error response documents both headers.
 
 ## Deferred until backend contracts stabilize
 
