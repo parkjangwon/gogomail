@@ -678,6 +678,7 @@ Implementation order:
 618. Mail and Admin API JSON request decoding now rejects unknown object fields before service dispatch, making generated-client and OpenAPI drift visible as HTTP 400 errors.
 619. API error responses now return `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`, and the reusable OpenAPI error response documents both headers.
 620. Mail and Admin API scalar query parameters now reject duplicate values before dispatch, preventing HTTP parameter pollution ambiguity for user IDs, limits, booleans, timestamps, and operational filters.
+621. Direct multipart attachment uploads now reject repeated `draft_id` or `file` parts and no longer accept `draft_id` from the URL query string, preventing ambiguous form metadata before storage writes.
 
 ## Deferred until backend contracts stabilize
 

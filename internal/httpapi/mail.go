@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -661,8 +662,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid multipart attachment upload")
 			return
 		}
-		file, header, err := r.FormFile("file")
-		if err != nil {
+		file, header, ok := singleHTTPMultipartFile(w, r, "file")
+		if !ok {
+			return
+		}
+		if file == nil {
 			writeError(w, http.StatusBadRequest, "file is required")
 			return
 		}
@@ -1096,8 +1100,47 @@ func parseBoundedHTTPQuery(w http.ResponseWriter, r *http.Request, key string, r
 }
 
 func parseBoundedHTTPFormValue(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {
-	value := strings.TrimSpace(r.FormValue(key))
+	value, ok := singleHTTPMultipartFormValue(w, r, key)
+	if !ok {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
 	return parseBoundedHTTPValue(w, key, value, required, maxBytes)
+}
+
+func singleHTTPMultipartFormValue(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	if r.MultipartForm == nil || r.MultipartForm.Value == nil {
+		return "", true
+	}
+	values := r.MultipartForm.Value[key]
+	if len(values) == 0 {
+		return "", true
+	}
+	if len(values) > 1 {
+		writeError(w, http.StatusBadRequest, key+" must not be repeated")
+		return "", false
+	}
+	return values[0], true
+}
+
+func singleHTTPMultipartFile(w http.ResponseWriter, r *http.Request, key string) (multipart.File, *multipart.FileHeader, bool) {
+	if r.MultipartForm == nil || r.MultipartForm.File == nil {
+		return nil, nil, true
+	}
+	files := r.MultipartForm.File[key]
+	if len(files) == 0 {
+		return nil, nil, true
+	}
+	if len(files) > 1 {
+		writeError(w, http.StatusBadRequest, key+" must not be repeated")
+		return nil, nil, false
+	}
+	file, err := files[0].Open()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid multipart attachment upload")
+		return nil, nil, false
+	}
+	return file, files[0], true
 }
 
 func parseBoundedHTTPValue(w http.ResponseWriter, key string, value string, required bool, maxBytes int) (string, bool) {
