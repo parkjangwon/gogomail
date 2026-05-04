@@ -722,6 +722,62 @@ WHERE action = 'quota.reconciliation_correction'
 	}
 }
 
+func TestPostgresAuditLogReads(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+	now := time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC)
+
+	var keptID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO audit_logs (
+  company_id, domain_id, user_id, category, action, target_type, target_id,
+  result, detail, prev_hash, hash, created_at
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, 'admin', 'quota.reconciliation_correction',
+  'user', $3::uuid, 'applied', '{"before_drift_count":1}'::jsonb, 'prev-a', 'hash-a', $4
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, now).Scan(&keptID); err != nil {
+		t.Fatalf("insert kept audit log: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO audit_logs (
+  company_id, domain_id, category, action, target_type, result, detail, prev_hash, hash, created_at
+) VALUES (
+  $1::uuid, $2::uuid, 'smtp', 'message.stored', 'message', 'ok', '{"stored":true}'::jsonb, 'prev-b', 'hash-b', $3
+)`, seed.companyID, seed.domainID, now.Add(-time.Hour)); err != nil {
+		t.Fatalf("insert filtered audit log: %v", err)
+	}
+
+	logs, err := repo.ListAuditLogs(ctx, AuditLogListRequest{
+		Limit:      10,
+		Category:   "admin",
+		Action:     "quota.reconciliation_correction",
+		Result:     "applied",
+		TargetType: "user",
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		UserID:     seed.userID,
+		Since:      now.Add(-time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("ListAuditLogs returned error: %v", err)
+	}
+	if len(logs) != 1 || logs[0].ID != keptID || !strings.Contains(string(logs[0].Detail), "before_drift_count") {
+		t.Fatalf("audit logs = %+v", logs)
+	}
+
+	got, err := repo.GetAuditLog(ctx, keptID)
+	if err != nil {
+		t.Fatalf("GetAuditLog returned error: %v", err)
+	}
+	if got.ID != keptID || got.CompanyID != seed.companyID || got.Hash != "hash-a" || got.PrevHash != "prev-a" {
+		t.Fatalf("audit log detail = %+v", got)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 

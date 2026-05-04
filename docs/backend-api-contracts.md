@@ -364,6 +364,14 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/outbox-events/{id}` returns `{"outbox_event":{...}}` with full
   event metadata and full stored `last_error`, still without returning the JSON
   payload body.
+- `GET /admin/v1/audit-logs` returns `{"audit_logs":[...]}` and supports
+  bounded `limit`, `category`, `action`, `result`, `target_type`, `company_id`,
+  `domain_id`, `user_id`, and RFC3339 `since` filters for operational
+  forensics over persisted audit records. Text filters reject CR/LF-bearing or
+  oversized values before service dispatch.
+- `GET /admin/v1/audit-logs/{id}` returns `{"audit_log":{...}}` with the stored
+  scope identifiers, target metadata, result, JSON detail, hash-chain fields,
+  and creation timestamp for one audit row.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`

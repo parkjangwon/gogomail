@@ -48,6 +48,8 @@ type AdminService interface {
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
+	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error)
+	GetAuditLog(ctx context.Context, id string) (maildb.AuditLogView, error)
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
@@ -537,6 +539,36 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"outbox_event": event})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/audit-logs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseAuditLogListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		logs, err := service.ListAuditLogs(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"audit_logs": logs})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/audit-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		log, err := service.GetAuditLog(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"audit_log": log})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -1644,6 +1676,52 @@ func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limi
 		return maildb.APIUsageLedgerListRequest{}, false
 	}
 	return req, true
+}
+
+func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.AuditLogListRequest, bool) {
+	category, ok := parseBoundedAdminQuery(w, r, "category")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	action, ok := parseBoundedAdminQuery(w, r, "action")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	result, ok := parseBoundedAdminQuery(w, r, "result")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	targetType, ok := parseBoundedAdminQuery(w, r, "target_type")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	return maildb.AuditLogListRequest{
+		Limit:      limit,
+		Category:   category,
+		Action:     action,
+		Result:     result,
+		TargetType: targetType,
+		CompanyID:  companyID,
+		DomainID:   domainID,
+		UserID:     userID,
+		Since:      since,
+	}, true
 }
 
 func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request) (maildb.APIUsageLedgerRetentionRequest, bool) {

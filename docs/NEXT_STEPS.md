@@ -33,6 +33,9 @@ Current state:
 - Admin API can apply operator-controlled quota reconciliation corrections with
   transaction-scoped advisory locking, affected quota-row locks, and bounded
   audit-log detail for dry-run/applied correction attempts.
+- Admin API exposes bounded audit-log list/detail reads so quota correction,
+  domain onboarding, mail receive, and delivery-status audit rows are
+  inspectable through the operator API.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.
@@ -375,6 +378,8 @@ Current state:
 - Optional PostgreSQL integration coverage verifies bounded retention runs
   preserve blocked candidates, keep dry-runs read-only, persist run audit rows,
   and delete only the requested ready batch.
+- Admin API can list and fetch persisted API usage ledger retention-run audit
+  rows after blocked, dry-run, or destructive attempts.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.
