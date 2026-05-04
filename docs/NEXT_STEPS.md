@@ -81,12 +81,16 @@ Current state:
   UIDVALIDITY, UIDNEXT, mailbox MODSEQ, message UID, and message MODSEQ storage.
 - `maildb` can ensure mailbox UID state and assign stable mailbox-local message
   UIDs transactionally.
-- `maildb` can list/get folders as `internal/imapgw.Mailbox` DTOs while
-  ensuring durable UID state.
+- `maildb` can list/get folders as `internal/imapgw.Mailbox` DTOs and list
+  mailbox messages as `internal/imapgw.MessageSummary` DTOs while ensuring
+  durable UID state.
 
 Next:
 
-- Extend the `maildb` IMAP adapter to list/fetch messages with assigned UIDs.
+- Extend the `maildb` IMAP adapter to fetch messages by UID with streaming raw
+  body access.
+- Add IMAP flag mutation over the existing JSON flag model while preserving
+  explicit `\Deleted`/EXPUNGE deferral.
 - Backfill/assign UIDs for existing mailbox messages before enabling a live
   IMAP listener.
 - Plan IMAP IDLE support for push-on-connect clients.

@@ -132,8 +132,8 @@ guidance.
 - Built-in spam scoring or pattern filtering.
 - IMAP/POP3 protocol servers. A dependency-light `internal/imapgw` boundary now
   records native IMAP gateway DTOs, mailbox helpers, and flag semantics; durable
-  UIDVALIDITY/UIDNEXT/MODSEQ storage exists, but no TCP protocol server is
-  enabled.
+  UIDVALIDITY/UIDNEXT/MODSEQ storage and first `maildb` mailbox/message adapters
+  exist, but no TCP protocol server is enabled.
 - OpenSearch indexing.
 - Kafka migration.
 - etcd/Vault production control plane.
@@ -181,8 +181,8 @@ The platform hardening sprint completed the following:
 - IMAP gateway planning: native backend interfaces, RFC-shaped flag/mailbox
   helpers, and durable UID/MODSEQ storage exist without starting a TCP protocol
   server.
-- The first `maildb` IMAP adapter methods can list/get mailboxes as
-  `internal/imapgw` DTOs while ensuring UID state.
+- The first `maildb` IMAP adapter methods can list/get mailboxes and list
+  mailbox messages as `internal/imapgw` DTOs while ensuring UID state.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
@@ -201,8 +201,8 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. Add a `maildb` adapter implementing `internal/imapgw` mailbox/message
-   interfaces over the new UID/MODSEQ storage.
+3. Extend the `maildb` IMAP adapter with fetch-by-UID and flag mutation over
+   the new UID/MODSEQ storage.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
