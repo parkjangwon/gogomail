@@ -10,6 +10,16 @@ import (
 	"strings"
 )
 
+const (
+	maxWebhookIdentityBytes  = 200
+	maxWebhookAddressBytes   = 320
+	maxWebhookMessageIDBytes = 500
+	maxWebhookSubjectBytes   = 500
+	maxWebhookTokenBytes     = 4096
+	maxWebhookLabelBytes     = 200
+	maxWebhookTimestampBytes = 100
+)
+
 type WebhookOptions struct {
 	Endpoint string
 	Token    string
@@ -90,24 +100,58 @@ type webhookTarget struct {
 func webhookPayloadFromNotification(notification Notification) webhookPayload {
 	targets := make([]webhookTarget, 0, len(notification.Targets))
 	for _, target := range notification.Targets {
-		targets = append(targets, webhookTarget{
-			AttemptID:   target.AttemptID,
-			DeviceID:    target.DeviceID,
-			Platform:    target.Platform,
-			Token:       target.Token,
-			TokenSuffix: target.TokenSuffix,
-			Label:       target.Label,
-		})
+		cleanTarget, ok := webhookTargetFromTarget(target)
+		if !ok {
+			continue
+		}
+		targets = append(targets, cleanTarget)
 	}
 	return webhookPayload{
-		MessageID:    notification.MessageID,
-		RFCMessageID: notification.RFCMessageID,
-		CompanyID:    notification.CompanyID,
-		DomainID:     notification.DomainID,
-		UserID:       notification.UserID,
-		Recipient:    notification.Recipient,
-		Subject:      notification.Subject,
-		ReceivedAt:   notification.ReceivedAt,
+		MessageID:    cleanWebhookText(notification.MessageID, maxWebhookIdentityBytes),
+		RFCMessageID: cleanWebhookText(notification.RFCMessageID, maxWebhookMessageIDBytes),
+		CompanyID:    cleanWebhookText(notification.CompanyID, maxWebhookIdentityBytes),
+		DomainID:     cleanWebhookText(notification.DomainID, maxWebhookIdentityBytes),
+		UserID:       cleanWebhookText(notification.UserID, maxWebhookIdentityBytes),
+		Recipient:    cleanWebhookText(notification.Recipient, maxWebhookAddressBytes),
+		Subject:      cleanWebhookText(notification.Subject, maxWebhookSubjectBytes),
+		ReceivedAt:   cleanWebhookText(notification.ReceivedAt, maxWebhookTimestampBytes),
 		Targets:      targets,
 	}
+}
+
+func webhookTargetFromTarget(target Target) (webhookTarget, bool) {
+	deviceID := cleanWebhookText(target.DeviceID, maxWebhookIdentityBytes)
+	platform := strings.ToLower(cleanWebhookText(target.Platform, maxWebhookIdentityBytes))
+	token := cleanWebhookText(target.Token, maxWebhookTokenBytes)
+	if deviceID == "" || platform == "" || token == "" || !maildbAllowedPushPlatform(platform) {
+		return webhookTarget{}, false
+	}
+	if strings.TrimSpace(target.Token) != token {
+		return webhookTarget{}, false
+	}
+	return webhookTarget{
+		AttemptID:   cleanWebhookText(target.AttemptID, maxWebhookIdentityBytes),
+		DeviceID:    deviceID,
+		Platform:    platform,
+		Token:       token,
+		TokenSuffix: cleanWebhookText(target.TokenSuffix, maxWebhookLabelBytes),
+		Label:       cleanWebhookText(target.Label, maxWebhookLabelBytes),
+	}, true
+}
+
+func cleanWebhookText(value string, maxBytes int) string {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+	value = strings.Join(strings.Fields(value), " ")
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	cut := 0
+	for i := range value {
+		if i > maxBytes {
+			return value[:cut]
+		}
+		cut = i
+	}
+	return value[:cut]
 }

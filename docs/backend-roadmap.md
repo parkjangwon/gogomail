@@ -555,6 +555,7 @@ Implementation order:
 496. Attachment scanner and push notification webhook URLs now must be HTTPS in production, while still allowing HTTP endpoints for local development and private test harnesses.
 497. README and example configuration now document attachment-scan and push-notification webhook backends, optional bearer tokens, timeouts, and production HTTPS requirements for operator rollout.
 498. Webhook integration contracts now document attachment scanner and push gateway JSON payloads, authentication, HTTPS requirements, bounded response behavior, and push attempt-state semantics for external adapter rollout.
+499. Push notification webhooks now bound and normalize message, recipient, subject, timestamp, and target metadata before JSON serialization, and drop malformed direct-call targets before external gateway handoff.
 
 ## Deferred until backend contracts stabilize
 

@@ -181,7 +181,8 @@ Current state:
   handing raw-token targets to an external push gateway with an optional
   bounded bearer token; webhook URLs must be HTTPS in production.
   `docs/webhook-integrations.md` records the push gateway payload and attempt
-  state semantics.
+  state semantics. The webhook sink bounds and normalizes direct-call payload
+  metadata before JSON serialization and drops malformed targets.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
   remain write-only.
