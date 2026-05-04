@@ -402,6 +402,7 @@ Implementation order:
 343. Nested OpenAPI path parameters for attachment downloads and API usage export digest/signature routes now use reusable components and drift tests, keeping generated clients consistent across deeply nested operational endpoints.
 344. The delivery worker now wires the Postgres recorder as the retry exhaustion hook, so exhausted retries persist terminal delivery-attempt diagnostics and emit the documented `mail.delivery_exhausted` outbox event at runtime.
 345. OpenAPI DKIM key creation now matches the Go/Admin API contract by documenting optional `public_key_dns` and rejecting the unsupported `active` request field in drift tests.
+346. OpenAPI quota update requests are now split by company, domain, and user scope, documenting domain `default_user_quota` and user `quota_source` while keeping generated Admin clients aligned with Go request types.
 
 ## Deferred until backend contracts stabilize
 

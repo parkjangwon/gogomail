@@ -346,6 +346,43 @@ func TestOpenAPIDraftDocumentsDKIMCreateInput(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for route, requestBodyRef := range map[string]string{
+		"PATCH /companies/{id}/quota": "#/components/requestBodies/CompanyQuotaUpdate",
+		"PATCH /domains/{id}/quota":   "#/components/requestBodies/DomainQuotaUpdate",
+		"PATCH /users/{id}/quota":     "#/components/requestBodies/UserQuotaUpdate",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if !strings.Contains(block, `$ref: "`+requestBodyRef+`"`) {
+			t.Fatalf("OpenAPI operation %s must use request body %s", route, requestBodyRef)
+		}
+	}
+
+	for schema, fields := range map[string][]string{
+		"CompanyQuotaUpdateRequest": {"quota_limit"},
+		"DomainQuotaUpdateRequest":  {"quota_limit", "default_user_quota"},
+		"UserQuotaUpdateRequest":    {"quota_limit", "quota_source"},
+	} {
+		block := extractOpenAPIComponentBlock(t, draft, "schemas", schema)
+		for _, field := range fields {
+			if !strings.Contains(block, "        "+field+":") {
+				t.Fatalf("%s schema must document field %q", schema, field)
+			}
+		}
+	}
+}
+
 func TestOpenAPIDraftOperationsHaveStableOperationIDs(t *testing.T) {
 	t.Parallel()
 
