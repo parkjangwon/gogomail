@@ -625,7 +625,9 @@ API call metering can now emit durable usage events:
   `{ "api_usage_export_capabilities": ... }`, describing the configured export
   format, artifact content type, manifest digest algorithm, signer backend,
   signer key ID, verifier availability, and whether production/billing-ready
-  signing is currently supported without exposing signing secrets.
+  signing is currently supported without exposing signing secrets. It also
+  advertises bounded retention-run support, retention-worker support, and the
+  remote-key requirement for destructive worker retention.
 - `GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness` returns
   `{ "api_usage_export_handoff_readiness": ... }`, a read-only operator report
   summarizing batch completion, artifact event coverage, latest manifest

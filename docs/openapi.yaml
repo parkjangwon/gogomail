@@ -3991,6 +3991,9 @@ components:
         - production_signature_ready
         - billing_ready_supported
         - verified_billing_ready_supported
+        - retention_runs_supported
+        - retention_worker_supported
+        - retention_worker_destructive_requires_remote_key
       properties:
         export_format:
           type: string
@@ -4014,6 +4017,12 @@ components:
         billing_ready_supported:
           type: boolean
         verified_billing_ready_supported:
+          type: boolean
+        retention_runs_supported:
+          type: boolean
+        retention_worker_supported:
+          type: boolean
+        retention_worker_destructive_requires_remote_key:
           type: boolean
         blocking_reasons:
           type: array

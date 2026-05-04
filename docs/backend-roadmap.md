@@ -623,6 +623,7 @@ Implementation order:
 563. Admin API now exposes a bounded audit-log integrity check that recomputes row hashes and reports hash-chain breaks for recent audit windows.
 564. `api-usage-retention-worker` now runs bounded API usage ledger retention on an interval or once-and-exit, dry-run by default and guarded by the existing readiness/confirm gates.
 565. Destructive `api-usage-retention-worker` configuration now requires a production-oriented `remote-ed25519` export manifest signer backend in addition to explicit `confirm_ready`.
+566. API usage export capabilities now advertise bounded retention-run support, retention-worker support, and the remote-key requirement for destructive worker purges.
 
 ## Deferred until backend contracts stabilize
 

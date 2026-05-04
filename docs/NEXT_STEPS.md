@@ -388,6 +388,9 @@ Current state:
   interval or once-and-exit. It is dry-run by default and requires explicit
   `confirm_ready` plus a `remote-ed25519` export manifest signer before
   destructive runs.
+- API usage export capabilities advertise retention-run and retention-worker
+  support plus the destructive worker remote-key requirement for generated
+  operator clients.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.

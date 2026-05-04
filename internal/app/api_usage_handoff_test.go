@@ -123,6 +123,9 @@ func TestAdminServiceAPIUsageExportCapabilities(t *testing.T) {
 	if !view.SignerConfigured || !view.VerifierConfigured || view.ProductionSignatureReady || view.BillingReadySupported || view.VerifiedBillingReadySupported {
 		t.Fatalf("capabilities = %+v", view)
 	}
+	if !view.RetentionRunsSupported || !view.RetentionWorkerSupported || !view.RetentionWorkerDestructiveRequiresRemoteKey {
+		t.Fatalf("retention capabilities = %+v", view)
+	}
 	if view.SignerKeyID != "key-1" || strings.Join(view.BlockingReasons, ",") != "production_manifest_signer_required" {
 		t.Fatalf("capabilities = %+v", view)
 	}
