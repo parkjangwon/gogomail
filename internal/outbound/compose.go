@@ -10,7 +10,10 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
+
+const maxHeaderLineBytes = 998
 
 type Address struct {
 	Name  string
@@ -158,10 +161,52 @@ func GenerateMessageID(domain string) string {
 }
 
 func writeHeader(buf *bytes.Buffer, key string, value string) {
-	buf.WriteString(key)
-	buf.WriteString(": ")
-	buf.WriteString(value)
+	prefix := key + ": "
+	buf.WriteString(prefix)
+	writeFoldedHeaderValue(buf, value, len(prefix))
 	buf.WriteString("\r\n")
+}
+
+func writeFoldedHeaderValue(buf *bytes.Buffer, value string, currentLineBytes int) {
+	for len(value) > 0 {
+		remaining := maxHeaderLineBytes - currentLineBytes
+		if remaining <= 0 {
+			buf.WriteString("\r\n\t")
+			currentLineBytes = 1
+			continue
+		}
+		if len(value) <= remaining {
+			buf.WriteString(value)
+			return
+		}
+		splitAt := headerFoldSplit(value, remaining)
+		chunk := strings.TrimRight(value[:splitAt], " ")
+		buf.WriteString(chunk)
+		buf.WriteString("\r\n\t")
+		value = strings.TrimLeft(value[splitAt:], " ")
+		currentLineBytes = 1
+	}
+}
+
+func headerFoldSplit(value string, limit int) int {
+	if limit >= len(value) {
+		return len(value)
+	}
+	window := value[:limit]
+	if idx := strings.LastIndex(window, ","); idx > 0 {
+		return idx + 1
+	}
+	if idx := strings.LastIndex(window, " "); idx > 0 {
+		return idx
+	}
+	for limit > 0 && !utf8.ValidString(value[:limit]) {
+		_, size := utf8.DecodeLastRuneInString(value[:limit])
+		limit -= size
+	}
+	if limit <= 0 {
+		return len([]byte(string([]rune(value)[0])))
+	}
+	return limit
 }
 
 func formatAddress(addr Address) string {
