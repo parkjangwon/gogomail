@@ -372,6 +372,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   base64 decode and JSON parsing.
 - IMAP service methods trim user/mailbox identifiers and normalize list/backfill
   limits before repository, storage, broker, or mailbox-event work.
+- Message and attachment body reads/deletes validate DB-returned storage object
+  paths before calling the storage adapter, failing closed on absolute,
+  traversal, newline, backslash-bearing, or empty stored keys where a body is
+  required.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
 - Draft search service queries normalize user, text, sender, subject, and list

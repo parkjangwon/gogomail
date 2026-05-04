@@ -849,6 +849,10 @@ The platform hardening sprint completed the following:
 - Attachment downloads, usage NDJSON exports, and stored export artifact
   downloads now return `X-Content-Type-Options: nosniff`, with OpenAPI drift
   coverage.
+- Mailservice now validates DB-returned message and attachment storage object
+  paths before body reads or deletes, preventing corrupted rows from reaching
+  the storage adapter with absolute, traversal, newline, or backslash-bearing
+  keys.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

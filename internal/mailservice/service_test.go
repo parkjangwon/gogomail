@@ -93,6 +93,27 @@ func TestGetMessageRejectsUnsafeMessageID(t *testing.T) {
 	}
 }
 
+func TestGetMessageRejectsUnsafeStoredBodyPath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	repo := &fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:          "msg-1",
+			StoragePath: "../secret.eml",
+			Flags:       []byte(`{"read":true}`),
+		},
+	}
+	service := New(repo, store)
+
+	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err == nil {
+		t.Fatal("GetMessage accepted unsafe stored body path")
+	}
+	if store.getPath != "" {
+		t.Fatalf("store.Get was called with %q", store.getPath)
+	}
+}
+
 func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
 	t.Parallel()
 
@@ -108,6 +129,26 @@ func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
 	}
 	if repo.lastFlag != "" {
 		t.Fatalf("unexpected flag write = %q", repo.lastFlag)
+	}
+}
+
+func TestFetchIMAPMessageRejectsUnsafeStoredBodyPath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	repo := &fakeRepository{
+		imapMessage: maildb.IMAPStoredMessage{
+			Summary:     imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12},
+			StoragePath: `messages\msg-1.eml`,
+		},
+	}
+	service := New(repo, store)
+
+	if _, err := service.FetchIMAPMessage(context.Background(), imapgw.FetchMessageRequest{UserID: "user-1", MailboxID: "inbox", UID: 12}); err == nil {
+		t.Fatal("FetchIMAPMessage accepted unsafe stored body path")
+	}
+	if store.getPath != "" {
+		t.Fatalf("store.Get was called with %q", store.getPath)
 	}
 }
 
@@ -377,6 +418,23 @@ func TestAttachmentReadMethodsNormalizeIDs(t *testing.T) {
 	_ = download.Body.Close()
 	if repo.lastAttachmentUserID != "user-1" || repo.lastAttachmentMessageID != "msg-1" || repo.lastAttachmentID != "att-1" {
 		t.Fatalf("open attachment ids = %q/%q/%q", repo.lastAttachmentUserID, repo.lastAttachmentMessageID, repo.lastAttachmentID)
+	}
+}
+
+func TestOpenAttachmentRejectsUnsafeStoredBodyPath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	repo := &fakeRepository{
+		attachment: maildb.Attachment{ID: "att-1", StoragePath: "/var/mail/att-1.bin"},
+	}
+	service := New(repo, store)
+
+	if _, err := service.OpenAttachment(context.Background(), "user-1", "msg-1", "att-1"); err == nil {
+		t.Fatal("OpenAttachment accepted unsafe stored body path")
+	}
+	if store.getPath != "" {
+		t.Fatalf("store.Get was called with %q", store.getPath)
 	}
 }
 
@@ -1562,6 +1620,25 @@ func (p *fakeIMAPEventPublisher) Publish(_ context.Context, event imapgw.Mailbox
 	return nil
 }
 
+type recordingStore struct {
+	getPath    string
+	deletePath string
+}
+
+func (s *recordingStore) Put(context.Context, string, io.Reader) error {
+	return nil
+}
+
+func (s *recordingStore) Get(_ context.Context, path string) (io.ReadCloser, error) {
+	s.getPath = path
+	return io.NopCloser(strings.NewReader("")), nil
+}
+
+func (s *recordingStore) Delete(_ context.Context, path string) error {
+	s.deletePath = path
+	return nil
+}
+
 func (f *fakeRepository) ExpireStaleAttachmentUploads(_ context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error) {
 	f.lastAttachmentCleanup = req
 	return f.expiredAttachments, nil
@@ -1634,6 +1711,30 @@ func TestExpireStaleAttachmentUploadsReportsStoredObjectDeleteFailures(t *testin
 	}
 	if len(expired) != 1 {
 		t.Fatalf("expired = %+v", expired)
+	}
+	if !strings.Contains(err.Error(), "delete expired attachment objects") || !strings.Contains(err.Error(), "att-1") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestExpireStaleAttachmentUploadsRejectsUnsafeStoredBodyPath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	repo := &fakeRepository{
+		expiredAttachments: []maildb.Attachment{{ID: "att-1", StoragePath: "uploads//user-1/report.pdf"}},
+	}
+	service := New(repo, store)
+
+	expired, err := service.ExpireStaleAttachmentUploads(context.Background(), time.Now(), 10)
+	if err == nil {
+		t.Fatal("ExpireStaleAttachmentUploads accepted unsafe stored body path")
+	}
+	if len(expired) != 1 {
+		t.Fatalf("expired = %+v", expired)
+	}
+	if store.deletePath != "" {
+		t.Fatalf("store.Delete was called with %q", store.deletePath)
 	}
 	if !strings.Contains(err.Error(), "delete expired attachment objects") || !strings.Contains(err.Error(), "att-1") {
 		t.Fatalf("error = %v", err)
@@ -2123,6 +2224,27 @@ func TestCancelAttachmentUploadDeletesStoredObject(t *testing.T) {
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Get returned %v, want os.ErrNotExist", err)
+	}
+}
+
+func TestCancelAttachmentUploadRejectsUnsafeStoredBodyPath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	repo := &fakeRepository{
+		canceledAttachment: maildb.Attachment{
+			ID:          "att-1",
+			StoragePath: "uploads/../report.pdf",
+			Status:      "deleted",
+		},
+	}
+	service := New(repo, store)
+
+	if _, err := service.CancelAttachmentUpload(context.Background(), "user-1", "att-1"); err == nil {
+		t.Fatal("CancelAttachmentUpload accepted unsafe stored body path")
+	}
+	if store.deletePath != "" {
+		t.Fatalf("store.Delete was called with %q", store.deletePath)
 	}
 }
 
