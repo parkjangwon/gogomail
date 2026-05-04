@@ -292,6 +292,7 @@ Implementation order:
 237. `internal/pushnotify` now includes a Postgres outcome updater for queued, delivered, failed, and invalid-token statuses, completing the internal write path future vendor sinks need.
 238. Invalid-token push notification outcomes now soft-delete the matching user device in the same transaction as the attempt update, preparing automatic token hygiene for future vendor sinks.
 239. Admin API exposes `GET /admin/v1/push-notification-stats`, summarizing active devices and push notification attempt statuses for release operations dashboards.
+240. `mail.stored` event payloads now include `schema_version=2026-05-04.mail-stored.v1`, making the audit/search/push worker event contract explicit and regression-tested.
 
 ## Deferred until backend contracts stabilize
 

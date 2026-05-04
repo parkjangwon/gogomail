@@ -247,6 +247,7 @@ func normalizeThreadCandidates(candidates []string) []string {
 func storedEventPayload(messageID string, msg smtpd.ReceivedMessage) ([]byte, error) {
 	payload := map[string]any{
 		"event":                  "mail.stored",
+		"schema_version":         "2026-05-04.mail-stored.v1",
 		"message_id":             messageID,
 		"rfc_message_id":         msg.Parsed.MessageID,
 		"in_reply_to":            msg.Parsed.InReplyTo,

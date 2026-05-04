@@ -104,6 +104,9 @@ guidance.
   failed, or invalid-token without exposing that mutation as a public API.
 - Invalid-token outcomes automatically soft-delete the affected push device in
   the same Postgres transaction.
+- `mail.stored` events now carry an explicit
+  `2026-05-04.mail-stored.v1` schema version for downstream audit, search, and
+  push workers.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.

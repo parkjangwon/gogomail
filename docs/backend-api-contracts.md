@@ -149,6 +149,12 @@ inside `internal/pushnotify` and are not exposed as a public API. An
 `invalid_token` outcome soft-deletes the matching user device in the same
 database transaction as the attempt update.
 
+The committed `mail.stored` event includes
+`schema_version: "2026-05-04.mail-stored.v1"` plus message, tenant, recipient,
+subject, storage, DSN, and authentication fields used by audit, search, and
+push workers. Downstream workers should treat the schema version as the
+compatibility boundary for future event changes.
+
 ## Admin operations
 
 Admin domain/user CRUD includes list, detail, create, status update, and quota update contracts:

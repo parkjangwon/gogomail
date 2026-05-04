@@ -52,8 +52,17 @@ func TestStoredEventPayload(t *testing.T) {
 	if got["event"] != "mail.stored" {
 		t.Fatalf("event = %v", got["event"])
 	}
+	if got["schema_version"] != "2026-05-04.mail-stored.v1" {
+		t.Fatalf("schema_version = %v", got["schema_version"])
+	}
 	if got["message_id"] != "msg-1" {
 		t.Fatalf("message_id = %v", got["message_id"])
+	}
+	if got["company_id"] != "company-1" || got["domain_id"] != "domain-1" || got["user_id"] != "user-1" {
+		t.Fatalf("tenant identity = company:%v domain:%v user:%v", got["company_id"], got["domain_id"], got["user_id"])
+	}
+	if got["recipient"] != "admin@example.com" || got["subject"] != "hello" || got["received_at"] == "" {
+		t.Fatalf("downstream fields = recipient:%v subject:%v received_at:%v", got["recipient"], got["subject"], got["received_at"])
 	}
 	if got["storage_path"] != "mailstore/example.eml" {
 		t.Fatalf("storage_path = %v", got["storage_path"])
