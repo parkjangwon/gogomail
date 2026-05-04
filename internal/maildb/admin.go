@@ -2408,6 +2408,14 @@ RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
 }
 
 func (r *Repository) ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]APIUsageExportArtifactView, error) {
+	return r.listAPIUsageExportArtifacts(ctx, batchID, limit, false)
+}
+
+func (r *Repository) listAllAPIUsageExportArtifacts(ctx context.Context, batchID string) ([]APIUsageExportArtifactView, error) {
+	return r.listAPIUsageExportArtifacts(ctx, batchID, 0, true)
+}
+
+func (r *Repository) listAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int, unbounded bool) ([]APIUsageExportArtifactView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -2415,15 +2423,22 @@ func (r *Repository) ListAPIUsageExportArtifacts(ctx context.Context, batchID st
 	if batchID == "" {
 		return nil, fmt.Errorf("batch_id is required")
 	}
-	limit = normalizeLimit(limit)
-	const query = `
+	query := `
 SELECT id, batch_id, created_at, storage_backend, object_key, content_type,
   byte_count, sha256_hex, event_count, metadata
 FROM api_usage_export_artifacts
 WHERE batch_id = $1
 ORDER BY created_at DESC, id DESC
-LIMIT $2`
-	rows, err := r.db.QueryContext(ctx, query, batchID, limit)
+`
+	var rows *sql.Rows
+	var err error
+	if unbounded {
+		rows, err = r.db.QueryContext(ctx, query, batchID)
+	} else {
+		limit = normalizeLimit(limit)
+		query += `LIMIT $2`
+		rows, err = r.db.QueryContext(ctx, query, batchID, limit)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list api usage export artifacts: %w", err)
 	}
@@ -2501,7 +2516,7 @@ func (r *Repository) CreateAPIUsageExportManifestDigest(ctx context.Context, bat
 	if err != nil {
 		return APIUsageExportManifestDigestView{}, err
 	}
-	artifacts, err := r.ListAPIUsageExportArtifacts(ctx, batch.ID, MessageListMaxLimit)
+	artifacts, err := r.listAllAPIUsageExportArtifacts(ctx, batch.ID)
 	if err != nil {
 		return APIUsageExportManifestDigestView{}, err
 	}
