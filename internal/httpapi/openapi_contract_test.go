@@ -418,7 +418,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 	for route, params := range map[string][]string{
 		"GET /search":                                          {"limit", "q", "folder_id", "from", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
 		"GET /drafts/search":                                   {"limit", "q", "from", "subject", "has_attachment"},
-		"GET /companies":                                       {"limit"},
+		"GET /companies":                                       {"limit", "status"},
 		"GET /domains":                                         {"limit", "company_id", "status", "dns_status"},
 		"GET /domains/{id}/dns-checks":                         {"id", "limit"},
 		"GET /users":                                           {"limit", "domain_id", "status", "password_configured"},

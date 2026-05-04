@@ -425,6 +425,8 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`; optional
   `domain_id` rejects CR/LF-bearing or oversized values before service
   dispatch, and optional `status=active|inactive` scopes key lifecycle triage.
+- `GET /admin/v1/companies` returns `{"companies":[...]}` with optional
+  `status=active|suspended|disabled` for tenant lifecycle triage.
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
 - `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}` with
   optional `status=active|disabled`, `farm`, and `domain_pattern` filters for

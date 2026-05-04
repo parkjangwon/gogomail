@@ -1778,6 +1778,12 @@ paths:
       summary: Admin company list with contracted storage pool usage
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          description: Filter companies by lifecycle status.
+          schema:
+            type: string
+            enum: [active, suspended, disabled]
       responses:
         "200":
           $ref: "#/components/responses/CompanyList"

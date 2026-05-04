@@ -669,6 +669,11 @@ type DomainStatsView struct {
 	SuppressionCount  int64  `json:"suppression_count"`
 }
 
+type CompanyListRequest struct {
+	Limit  int
+	Status string
+}
+
 type TrustedRelayView struct {
 	ID          string    `json:"id"`
 	CIDR        string    `json:"cidr"`
@@ -923,6 +928,23 @@ func ValidateUpdateCompanyQuotaRequest(req UpdateCompanyQuotaRequest) error {
 		return fmt.Errorf("quota_limit must not be negative")
 	}
 	return nil
+}
+
+func ValidateCompanyListRequest(req CompanyListRequest) error {
+	status := normalizeAdminStatus(req.Status)
+	if status != "" && !isCompanyStatus(status) {
+		return fmt.Errorf("unsupported company status %q", req.Status)
+	}
+	return nil
+}
+
+func isCompanyStatus(status string) bool {
+	switch status {
+	case "active", "suspended", "disabled":
+		return true
+	default:
+		return false
+	}
 }
 
 func ValidateUpdateDomainPolicyRequest(req UpdateDomainPolicyRequest) error {
@@ -1475,11 +1497,15 @@ WHERE domain_id = $1
 	return nil
 }
 
-func (r *Repository) ListCompanies(ctx context.Context, limit int) ([]CompanyView, error) {
+func (r *Repository) ListCompanies(ctx context.Context, req CompanyListRequest) ([]CompanyView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateCompanyListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	status := normalizeAdminStatus(req.Status)
 
 	rows, err := r.db.QueryContext(ctx, `
 SELECT
@@ -1497,8 +1523,9 @@ SELECT
   ), 0) AS allocated_domain_quota,
   created_at
 FROM companies
+WHERE ($1 = '' OR status = $1)
 ORDER BY created_at DESC
-LIMIT $1`, limit)
+LIMIT $2`, status, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list companies: %w", err)
 	}

@@ -72,6 +72,22 @@ func TestValidateUpdateCompanyQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	}
 }
 
+func TestValidateCompanyListRequestRejectsUnknownStatus(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateCompanyListRequest(CompanyListRequest{Status: "archived"}); err == nil {
+		t.Fatal("ValidateCompanyListRequest accepted unknown status")
+	}
+}
+
+func TestValidateCompanyListRequestAcceptsLifecycleStatus(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateCompanyListRequest(CompanyListRequest{Status: " suspended "}); err != nil {
+		t.Fatalf("ValidateCompanyListRequest returned error: %v", err)
+	}
+}
+
 func TestValidateCorrectQuotaReconciliationRequestDefaultsAll(t *testing.T) {
 	t.Parallel()
 

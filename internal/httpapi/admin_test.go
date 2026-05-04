@@ -2572,7 +2572,7 @@ func TestAdminCompaniesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies?limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies?limit=10&status=suspended", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2590,6 +2590,28 @@ func TestAdminCompaniesHandler(t *testing.T) {
 	}
 	if service.lastLimit != 10 {
 		t.Fatalf("lastLimit = %d, want 10", service.lastLimit)
+	}
+	if service.lastCompanyList.Status != "suspended" {
+		t.Fatalf("lastCompanyList = %+v, want status filter", service.lastCompanyList)
+	}
+}
+
+func TestAdminCompaniesHandlerRejectsUnsafeStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies?status=active%0Abad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if service.lastCompanyList.Status != "" {
+		t.Fatalf("lastCompanyList = %+v, want no dispatch", service.lastCompanyList)
 	}
 }
 
@@ -4738,10 +4760,12 @@ type fakeAdminService struct {
 	lastDeleteSuppressionID                     string
 	lastDeleteTrustedRelayID                    string
 	lastDeleteDeliveryRouteID                   string
+	lastCompanyList                             maildb.CompanyListRequest
 }
 
-func (f *fakeAdminService) ListCompanies(_ context.Context, limit int) ([]maildb.CompanyView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
+	f.lastLimit = req.Limit
+	f.lastCompanyList = req
 	return f.companies, nil
 }
 

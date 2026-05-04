@@ -28,7 +28,7 @@ func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
 }
 
 type AdminService interface {
-	ListCompanies(ctx context.Context, limit int) ([]maildb.CompanyView, error)
+	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error)
 	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
 	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error
 	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error)
@@ -179,7 +179,14 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		companies, err := service.ListCompanies(r.Context(), limit)
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		companies, err := service.ListCompanies(r.Context(), maildb.CompanyListRequest{
+			Limit:  limit,
+			Status: status,
+		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
