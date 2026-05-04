@@ -4339,7 +4339,7 @@ func TestAdminDeliveryRoutesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-routes?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-routes?status=active&farm=%20transactional%20&domain_pattern=%20*.example.net%20&limit=5", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4357,6 +4357,41 @@ func TestAdminDeliveryRoutesHandler(t *testing.T) {
 	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+	if service.lastDeliveryRouteList.Status != "active" || service.lastDeliveryRouteList.Farm != "transactional" || service.lastDeliveryRouteList.DomainPattern != "*.example.net" {
+		t.Fatalf("lastDeliveryRouteList = %+v", service.lastDeliveryRouteList)
+	}
+}
+
+func TestAdminDeliveryRoutesHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/delivery-routes?status=paused",
+		"/admin/v1/delivery-routes?farm=pool%0Abad",
+		"/admin/v1/delivery-routes?domain_pattern=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDeliveryRouteList.Limit != 0 {
+				t.Fatalf("lastDeliveryRouteList = %+v", service.lastDeliveryRouteList)
+			}
+		})
 	}
 }
 
@@ -4689,6 +4724,7 @@ type fakeAdminService struct {
 	lastDKIMKeyList                             maildb.DKIMKeyListRequest
 	lastCreateDKIMKey                           maildb.CreateDKIMKeyInput
 	lastCreateTrustedRelay                      maildb.CreateTrustedRelayRequest
+	lastDeliveryRouteList                       maildb.DeliveryRouteListRequest
 	lastCreateDeliveryRoute                     maildb.CreateDeliveryRouteRequest
 	lastResolveDeliveryRouteDomain              string
 	lastDeliveryRouteStatus                     maildb.UpdateDeliveryRouteStatusRequest
@@ -5145,8 +5181,9 @@ func (f *fakeAdminService) DeleteTrustedRelay(_ context.Context, id string) erro
 	return nil
 }
 
-func (f *fakeAdminService) ListDeliveryRoutes(_ context.Context, limit int) ([]maildb.DeliveryRouteView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListDeliveryRoutes(_ context.Context, req maildb.DeliveryRouteListRequest) ([]maildb.DeliveryRouteView, error) {
+	f.lastDeliveryRouteList = req
+	f.lastLimit = req.Limit
 	return f.deliveryRoutes, nil
 }
 

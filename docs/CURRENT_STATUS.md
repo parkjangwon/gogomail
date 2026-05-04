@@ -42,6 +42,8 @@ guidance.
   delivery attempts with recipient-domain and recent-window filters.
 - Domain listing can filter by company, lifecycle status, and latest DNS-check
   status for onboarding and tenant triage.
+- Delivery-route listing can filter by status, farm, and domain pattern for
+  targeted route audits.
 - Suppression-list reads can filter by domain, email, and reason for targeted
   bounce triage without direct database access.
 - Queue stats include ready, delayed, stale-processing, oldest-ready, and

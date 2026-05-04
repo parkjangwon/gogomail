@@ -426,7 +426,9 @@ Admin operational read models also keep explicit envelope keys:
   `domain_id` rejects CR/LF-bearing or oversized values before service
   dispatch, and optional `status=active|inactive` scopes key lifecycle triage.
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
-- `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}`
+- `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}` with
+  optional `status=active|disabled`, `farm`, and `domain_pattern` filters for
+  delivery control-plane audits.
 - `GET /admin/v1/domains/{id}/dns-checks` returns `{"dns_checks":[...]}`
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`

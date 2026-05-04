@@ -438,7 +438,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
 		"GET /suppression-list":                                {"limit", "domain_id", "email", "reason"},
 		"GET /trusted-relays":                                  {"limit"},
-		"GET /delivery-routes":                                 {"limit"},
+		"GET /delivery-routes":                                 {"limit", "status", "farm", "domain_pattern"},
 		"GET /delivery-routes/resolve":                         {"domain"},
 		"POST /imap/mailboxes/{id}/uid-backfill":               {"id", "user_id", "limit"},
 		"GET /dkim-keys":                                       {"limit", "domain_id", "status"},

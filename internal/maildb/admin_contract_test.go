@@ -519,3 +519,22 @@ func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 		t.Fatalf("status = %q, want suspended", got)
 	}
 }
+
+func TestValidateDeliveryRouteListRequestRejectsUnknownFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []DeliveryRouteListRequest{
+		{Status: "paused"},
+		{Farm: "pool\nbad"},
+		{DomainPattern: strings.Repeat("d", maxPushNotificationFilterBytes+1)},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.Status+req.Farm+req.DomainPattern, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateDeliveryRouteListRequest(req); err == nil {
+				t.Fatalf("ValidateDeliveryRouteListRequest accepted %+v", req)
+			}
+		})
+	}
+}
