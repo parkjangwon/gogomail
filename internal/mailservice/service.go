@@ -362,9 +362,7 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if err != nil {
 		return nil, err
 	}
-	if err := s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries); err != nil {
-		return nil, err
-	}
+	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries)
 	return summaries, nil
 }
 
@@ -454,7 +452,8 @@ func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID s
 	if err := s.repository.SetMessageFlag(ctx, userID, messageID, flag, value); err != nil {
 		return err
 	}
-	return s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, userID, []string{messageID})
+	_ = s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, userID, []string{messageID})
+	return nil
 }
 
 func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
@@ -465,9 +464,7 @@ func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessage
 	if err != nil {
 		return 0, err
 	}
-	if err := s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, req.UserID, req.MessageIDs); err != nil {
-		return 0, err
-	}
+	_ = s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, req.UserID, req.MessageIDs)
 	return updated, nil
 }
 
@@ -479,7 +476,8 @@ func (s *Service) MoveMessage(ctx context.Context, userID string, messageID stri
 	if err := s.repository.MoveMessage(ctx, userID, messageID, folderID); err != nil {
 		return err
 	}
-	return s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
+	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
+	return nil
 }
 
 func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error) {
@@ -494,9 +492,7 @@ func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMo
 	if err != nil {
 		return 0, err
 	}
-	if err := s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids); err != nil {
-		return 0, err
-	}
+	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids)
 	return updated, nil
 }
 
@@ -508,7 +504,8 @@ func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID st
 	if err := s.repository.DeleteMessage(ctx, userID, messageID); err != nil {
 		return err
 	}
-	return s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
+	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
+	return nil
 }
 
 func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
@@ -523,9 +520,7 @@ func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessage
 	if err != nil {
 		return 0, err
 	}
-	if err := s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids); err != nil {
-		return 0, err
-	}
+	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids)
 	return updated, nil
 }
 

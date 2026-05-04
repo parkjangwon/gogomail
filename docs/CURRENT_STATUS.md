@@ -244,6 +244,9 @@ The platform hardening sprint completed the following:
   service boundary instead of `maildb` internals.
 - `mailservice` exposes bounded IMAP UID backfill through the same service
   boundary for future operator/bootstrap modes.
+- IMAP mailbox event publication from service mutations is best-effort, so a
+  fan-out failure does not turn an already-committed mail mutation into a client
+  error.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a

@@ -3,6 +3,7 @@ package mailservice
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -263,6 +264,19 @@ func TestSetMessageFlagPublishesIMAPFlagEvent(t *testing.T) {
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventFlags || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
 		t.Fatalf("events = %#v, want flags event", events.events)
+	}
+}
+
+func TestSetMessageFlagIgnoresIMAPEventPublishError(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(&fakeIMAPEventPublisher{err: errors.New("subscriber closed")})
+
+	if err := service.SetMessageFlag(context.Background(), "user-1", "msg-1", "read", true); err != nil {
+		t.Fatalf("SetMessageFlag returned error: %v", err)
 	}
 }
 
@@ -820,9 +834,13 @@ func (s *fakeSearchIDSource) SearchMessageIDs(_ context.Context, query searchind
 
 type fakeIMAPEventPublisher struct {
 	events []imapgw.MailboxEvent
+	err    error
 }
 
 func (p *fakeIMAPEventPublisher) Publish(_ context.Context, event imapgw.MailboxEvent) error {
+	if p.err != nil {
+		return p.err
+	}
 	p.events = append(p.events, event)
 	return nil
 }

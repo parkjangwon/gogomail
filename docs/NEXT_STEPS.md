@@ -141,6 +141,8 @@ Current state:
   methods for a future protocol listener.
 - `mailservice` exposes bounded IMAP UID backfill for future operator/bootstrap
   modes.
+- IMAP mailbox event publication is best-effort after successful mutations, so
+  future IDLE fan-out cannot make committed mail writes appear failed.
 
 Next:
 
