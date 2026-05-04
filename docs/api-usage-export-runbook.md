@@ -6,6 +6,16 @@ running with `GOGOMAIL_ADMIN_TOKEN` configured.
 
 ## 1. Check export capability
 
+For invoice-grade handoff, configure a production signer such as:
+
+```bash
+GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=remote-ed25519
+GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID=api-usage-signing-key-1
+GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_URL=https://signer.example.com/v1/api-usage/manifest-signatures
+GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_TOKEN=<optional-bearer-token>
+GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY=<base64-raw-ed25519-public-key>
+```
+
 ```bash
 curl -sS -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
   "$GOGOMAIL_ADMIN_URL/admin/v1/api-usage/export-capabilities"
@@ -17,6 +27,9 @@ Expected release-safe interpretation:
   signed handoff evidence.
 - `production_signature_ready` remains false for `local-hmac` and
   `local-ed25519`; those signers are operational evidence only.
+- `remote-ed25519` can clear production signature readiness when it is backed by
+  an approved HTTPS signing service and the configured public key verifies the
+  returned signatures.
 - `blocking_reasons` containing `production_manifest_signer_required` means the
   batch must not be treated as invoice-grade.
 

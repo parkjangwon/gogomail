@@ -53,6 +53,31 @@ func TestValidateRequiresLocalEd25519ExportManifestSignerKeys(t *testing.T) {
 	}
 }
 
+func TestValidateRequiresRemoteEd25519ExportManifestSignerConfig(t *testing.T) {
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	cfg := Load()
+	cfg.APIUsageExportManifestSignerBackend = "remote-ed25519"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate returned nil error without remote-ed25519 key id")
+	}
+
+	cfg.APIUsageExportManifestSignerKeyID = "key-1"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate returned nil error without remote-ed25519 URL")
+	}
+
+	cfg.APIUsageExportSignerURL = "http://signer.example.test/sign"
+	cfg.APIUsageExportSignerPublicKey = base64.StdEncoding.EncodeToString(publicKey)
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate returned nil error with non-https remote-ed25519 URL")
+	}
+
+	cfg.APIUsageExportSignerURL = "https://signer.example.test/sign"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+}
+
 func TestValidateRequiresLocalHMACExportManifestSignerSecrets(t *testing.T) {
 	cfg := Load()
 	cfg.APIUsageExportManifestSignerBackend = "local-hmac"

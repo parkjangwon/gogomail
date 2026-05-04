@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"strings"
 )
 
@@ -78,7 +79,7 @@ func (c Config) Validate() error {
 	if c.APIMeteringConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_BLOCK must be positive")
 	}
-	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac", "local-ed25519"); err != nil {
+	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac", "local-ed25519", "remote-ed25519"); err != nil {
 		return err
 	}
 	switch strings.ToLower(strings.TrimSpace(c.APIUsageExportManifestSignerBackend)) {
@@ -103,6 +104,16 @@ func (c Config) Validate() error {
 		}
 		if !stringBytesEqual(ed25519.PrivateKey(privateKey).Public().(ed25519.PublicKey), publicKey) {
 			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY must match GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY")
+		}
+	case "remote-ed25519":
+		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for remote-ed25519 signer")
+		}
+		if err := validateHTTPSURL("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_URL", c.APIUsageExportSignerURL); err != nil {
+			return err
+		}
+		if _, err := decodeBase64Key("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY", c.APIUsageExportSignerPublicKey, ed25519.PublicKeySize); err != nil {
+			return err
 		}
 	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
@@ -173,6 +184,21 @@ func validateEnum(name string, value string, allowed ...string) error {
 		}
 	}
 	return fmt.Errorf("%s has unsupported value %q", name, value)
+}
+
+func validateHTTPSURL(name string, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return fmt.Errorf("%s must be a valid URL: %w", name, err)
+	}
+	if parsed.Scheme != "https" || parsed.Host == "" {
+		return fmt.Errorf("%s must be an https URL", name)
+	}
+	return nil
 }
 
 func decodeBase64Key(name string, value string, size int) ([]byte, error) {

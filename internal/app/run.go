@@ -839,6 +839,17 @@ func apiUsageExportManifestSigner(cfg config.Config) apimeter.ExportManifestSign
 			KeyID:      cfg.APIUsageExportManifestSignerKeyID,
 			PrivateKey: ed25519.PrivateKey(privateKey),
 		}
+	case "remote-ed25519":
+		publicKey, ok := decodeExportManifestKey(cfg.APIUsageExportSignerPublicKey, ed25519.PublicKeySize)
+		if !ok {
+			return nil
+		}
+		return apimeter.RemoteEd25519ExportManifestSigner{
+			Endpoint:  cfg.APIUsageExportSignerURL,
+			Token:     cfg.APIUsageExportSignerToken,
+			KeyID:     cfg.APIUsageExportManifestSignerKeyID,
+			PublicKey: ed25519.PublicKey(publicKey),
+		}
 	default:
 		return nil
 	}
@@ -852,6 +863,15 @@ func apiUsageExportManifestVerifier(cfg config.Config) apimeter.ExportManifestSi
 			Secret: []byte(cfg.APIUsageExportManifestSignerSecret),
 		}
 	case "local-ed25519":
+		publicKey, ok := decodeExportManifestKey(cfg.APIUsageExportSignerPublicKey, ed25519.PublicKeySize)
+		if !ok {
+			return nil
+		}
+		return apimeter.Ed25519ExportManifestSignatureVerifier{
+			KeyID:     cfg.APIUsageExportManifestSignerKeyID,
+			PublicKey: ed25519.PublicKey(publicKey),
+		}
+	case "remote-ed25519":
 		publicKey, ok := decodeExportManifestKey(cfg.APIUsageExportSignerPublicKey, ed25519.PublicKeySize)
 		if !ok {
 			return nil

@@ -362,6 +362,7 @@ Implementation order:
 304. API usage export manifest signing now supports a disabled-by-default local-Ed25519 backend with base64 keypair validation, persisted `ed25519` signatures, backend/algorithm compatibility checks, and local-only billing readiness semantics.
 305. Admin API now exposes API usage ledger retention readiness, a read-only cutoff report that blocks future archive/delete work unless candidate ledger rows are covered by a completed export batch with matching tenant/principal filters, no later-recorded candidate rows, and artifact/digest/signature evidence.
 306. API usage export now has an operator runbook covering capability checks, saved export batches, artifact/digest/signature verification, deep handoff readiness, and retention-readiness gates.
+307. API usage export manifest signing now supports a `remote-ed25519` backend that calls an HTTPS signer endpoint, verifies the returned Ed25519 signature locally with the configured public key, and can satisfy production signature readiness without coupling gogomail to a vendor KMS SDK.
 
 ## Deferred until backend contracts stabilize
 

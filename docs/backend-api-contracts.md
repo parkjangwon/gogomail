@@ -434,7 +434,10 @@ API call metering can now emit durable usage events:
   `{ "api_usage_export_manifest_signature": ... }`. Local signers sign the
   lowercase 64-character manifest digest hex string. `local-hmac` emits
   `hmac-sha256` with a 64-character hex signature; `local-ed25519` emits
-  `ed25519` with a 128-character hex signature. Local signer backends remain
+  `ed25519` with a 128-character hex signature. `remote-ed25519` POSTs the same
+  digest/key payload to a configured HTTPS signer endpoint, requires the remote
+  response to match the requested key and digest, and verifies the returned
+  Ed25519 signature locally before persisting it. Local signer backends remain
   operational evidence only, not invoice-grade billing evidence.
 - `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`
   returns `{ "api_usage_export_manifest_signatures": [...] }`, and

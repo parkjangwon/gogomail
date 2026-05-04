@@ -3319,7 +3319,7 @@ components:
           format: date-time
         signer_backend:
           type: string
-          enum: [local-hmac, local-ed25519]
+          enum: [local-hmac, local-ed25519, remote-ed25519]
         key_id:
           type: string
         signature_algorithm:
@@ -3360,7 +3360,7 @@ components:
           type: string
         signer_backend:
           type: string
-          enum: [local-hmac, local-ed25519]
+          enum: [local-hmac, local-ed25519, remote-ed25519]
         key_id:
           type: string
         signature_algorithm:

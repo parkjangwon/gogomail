@@ -95,6 +95,13 @@ func exportManifestSignerKeyID(signer apimeter.ExportManifestSigner) (string, bo
 			return "", false
 		}
 		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
+	case apimeter.RemoteEd25519ExportManifestSigner:
+		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
+	case *apimeter.RemoteEd25519ExportManifestSigner:
+		if signer == nil {
+			return "", false
+		}
+		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
 	default:
 		return "", false
 	}
