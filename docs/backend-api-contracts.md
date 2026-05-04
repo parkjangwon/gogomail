@@ -332,8 +332,9 @@ API call metering can now emit durable usage events:
 - Set `GOGOMAIL_API_METERING_BACKEND=outbox` to enqueue `api.usage` events into
   the generic outbox on topic `api.event`.
 - Usage event payloads include
-  `schema_version: "2026-05-04.api-usage.v1"` and a deterministic `event_id`
-  for future idempotent accounting.
+  `schema_version: "2026-05-04.api-usage.v2"`, a deterministic `event_id`, and
+  tenant/company/domain/user/API-key/principal/auth-source dimensions for
+  idempotent accounting and future billing enrichment.
 - The aggregate worker claims `event_id` values before daily/monthly upserts, so
   replayed durable events do not double-count operational totals.
 - The middleware remains async and fail-open; request handling does not wait on
@@ -342,8 +343,9 @@ API call metering can now emit durable usage events:
   `gogomail --mode=api-metering-worker` to consume `api.event` and upsert
   daily aggregates into `api_usage_daily`.
 - `GET /admin/v1/api-usage/daily` returns `{ "api_usage_daily": [...] }` with
-  day/method/route/status/user dimensions, request/byte counters, and latency
-  totals/maximum/average for operations dashboards.
+  day/method/route/status plus tenant/company/domain/user/API-key/principal/auth
+  dimensions, request/byte counters, and latency totals/maximum/average for
+  operations dashboards.
 - `GET /admin/v1/api-usage/monthly` returns `{ "api_usage_monthly": [...] }`
   with the same dimensions rolled up by UTC month for plan and billing analysis.
 
