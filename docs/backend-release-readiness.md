@@ -128,6 +128,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Successful Mail/Admin JSON, health, and service-info responses return
   `X-Content-Type-Options: nosniff`, keeping browser-visible envelopes aligned
   with error, NDJSON, and download hardening.
+- Successful Mail/Admin JSON envelopes return `Cache-Control: no-store` through
+  the shared writer so message, audit, usage, and admin-control responses are
+  not cached by browsers or intermediaries.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata and
   runtime-injected database/Redis probes for HTTP modes that depend on those
