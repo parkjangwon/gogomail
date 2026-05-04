@@ -334,7 +334,7 @@ func TestOpenAPIDraftDocumentsCleanupSessionCounts(t *testing.T) {
 		t.Fatalf("read OpenAPI draft: %v", err)
 	}
 	draft := string(raw)
-	for _, want := range []string{"session_candidate_count", "session_limited_count", "expired_session_count"} {
+	for _, want := range []string{"AttachmentCleanupSessionCandidate", "session_candidates", "session_candidate_count", "session_limited_count", "expired_session_count"} {
 		if !strings.Contains(draft, want) {
 			t.Fatalf("OpenAPI cleanup run schema must document %q", want)
 		}

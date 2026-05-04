@@ -70,6 +70,22 @@ type StaleAttachmentUploadSessionCount struct {
 	LimitedCount int64
 }
 
+type StaleAttachmentUploadSessionCandidate struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	DraftID        string    `json:"draft_id"`
+	UploadID       string    `json:"upload_id"`
+	Filename       string    `json:"filename"`
+	DeclaredSize   int64     `json:"declared_size"`
+	ReceivedSize   int64     `json:"received_size"`
+	MIMEType       string    `json:"mime_type"`
+	Status         string    `json:"status"`
+	StorageBackend string    `json:"storage_backend"`
+	StoragePath    string    `json:"storage_path"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSessionRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -653,6 +669,70 @@ WHERE status IN ('pending', 'uploading', 'failed')
 		limited = int64(limit)
 	}
 	return StaleAttachmentUploadSessionCount{TotalCount: total, LimitedCount: limited}, nil
+}
+
+func (r *Repository) ListStaleAttachmentUploadSessions(ctx context.Context, req ExpireAttachmentUploadSessionsRequest) ([]StaleAttachmentUploadSessionCandidate, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateExpireAttachmentUploadSessionsRequest(req); err != nil {
+		return nil, err
+	}
+	limit := NormalizeAttachmentCleanupLimit(req.Limit)
+
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  upload_id,
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  expires_at,
+  created_at
+FROM attachment_upload_sessions
+WHERE status IN ('pending', 'uploading', 'failed')
+  AND expires_at < $1
+ORDER BY expires_at ASC, created_at ASC
+LIMIT $2`
+
+	rows, err := r.db.QueryContext(ctx, query, req.Before.UTC(), limit)
+	if err != nil {
+		return nil, fmt.Errorf("list stale attachment upload sessions: %w", err)
+	}
+	defer rows.Close()
+
+	candidates := make([]StaleAttachmentUploadSessionCandidate, 0)
+	for rows.Next() {
+		var candidate StaleAttachmentUploadSessionCandidate
+		if err := rows.Scan(
+			&candidate.ID,
+			&candidate.UserID,
+			&candidate.DraftID,
+			&candidate.UploadID,
+			&candidate.Filename,
+			&candidate.DeclaredSize,
+			&candidate.ReceivedSize,
+			&candidate.MIMEType,
+			&candidate.Status,
+			&candidate.StorageBackend,
+			&candidate.StoragePath,
+			&candidate.ExpiresAt,
+			&candidate.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan stale attachment upload session candidate: %w", err)
+		}
+		candidates = append(candidates, candidate)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate stale attachment upload session candidates: %w", err)
+	}
+	return candidates, nil
 }
 
 type attachmentUploadSessionScanner interface {
