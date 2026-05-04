@@ -2400,6 +2400,25 @@ func TestAdminRetryOutboxHandler(t *testing.T) {
 	}
 }
 
+func TestAdminRetryOutboxHandlerRejectsBlankID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/outbox/%20/retry", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastRetryOutboxID != "" {
+		t.Fatalf("lastRetryOutboxID = %q", service.lastRetryOutboxID)
+	}
+}
+
 func TestAdminDeleteSuppressionHandler(t *testing.T) {
 	t.Parallel()
 

@@ -382,6 +382,7 @@ Implementation order:
 323. Admin outbox event metadata lists can now filter by partition key as well as topic, status, and RFC3339 creation lower bound, making message/batch-specific async troubleshooting possible without exposing payload bodies.
 324. Admin outbox event metadata lists now return UTF-8-safe bounded `last_error` previews, keeping operational list responses lightweight while preserving the full stored error for future detail views.
 325. Admin outbox event detail now returns full event metadata and full stored `last_error` by id without exposing the JSON payload body, giving operators a safe drill-down path from bounded list previews.
+326. Admin outbox retry now trims path IDs and rejects blank IDs at the HTTP boundary before reaching repository mutation logic.
 
 ## Deferred until backend contracts stabilize
 

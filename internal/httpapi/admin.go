@@ -1158,7 +1158,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		id := strings.TrimSpace(r.PathValue("id"))
 		if id == "" {
 			writeError(w, http.StatusBadRequest, "id is required")
 			return
