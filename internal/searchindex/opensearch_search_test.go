@@ -81,6 +81,29 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	}
 }
 
+func TestOpenSearchSearchPayloadEscapesWildcardFilters(t *testing.T) {
+	t.Parallel()
+
+	payload := openSearchSearchPayload(OpenSearchSearchQuery{
+		UserID:  "user-1",
+		From:    `sender*?\@example.com`,
+		Subject: `quarterly*?`,
+		Query:   strings.Repeat("한", 400),
+	}, "user-1", 50)
+	must := payload["query"].(map[string]any)["bool"].(map[string]any)["must"].([]map[string]any)
+
+	if got := wildcardValue(t, must, "from_addr_lc"); got != `*sender\*\?\\@example.com*` {
+		t.Fatalf("from wildcard = %q", got)
+	}
+	if got := wildcardValue(t, must, "subject_lc"); got != `*quarterly\*\?*` {
+		t.Fatalf("subject wildcard = %q", got)
+	}
+	multiMatch := must[1]["multi_match"].(map[string]any)
+	if len(multiMatch["query"].(string)) > maxOpenSearchSearchTextBytes || !utf8.ValidString(multiMatch["query"].(string)) {
+		t.Fatalf("query length/utf8 = %d/%v", len(multiMatch["query"].(string)), utf8.ValidString(multiMatch["query"].(string)))
+	}
+}
+
 func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
 	t.Parallel()
 
@@ -123,6 +146,21 @@ func TestOpenSearchHighlightsAreBounded(t *testing.T) {
 
 func boolSearchPtr(value bool) *bool {
 	return &value
+}
+
+func wildcardValue(t *testing.T, must []map[string]any, field string) string {
+	t.Helper()
+	for _, clause := range must {
+		wildcard, ok := clause["wildcard"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if value, ok := wildcard[field].(string); ok {
+			return value
+		}
+	}
+	t.Fatalf("wildcard field %q not found in %#v", field, must)
+	return ""
 }
 
 func queryMustContainsWildcard(request map[string]any, field string) bool {
