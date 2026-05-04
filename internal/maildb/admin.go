@@ -17,6 +17,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/mail"
 )
@@ -776,11 +777,12 @@ type CreateDomainRequest struct {
 }
 
 type CreateUserRequest struct {
-	DomainID    string `json:"domain_id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	Address     string `json:"address"`
-	QuotaLimit  int64  `json:"quota_limit,omitempty"`
+	DomainID     string `json:"domain_id"`
+	Username     string `json:"username"`
+	DisplayName  string `json:"display_name"`
+	Address      string `json:"address"`
+	PasswordHash string `json:"password_hash,omitempty"`
+	QuotaLimit   int64  `json:"quota_limit,omitempty"`
 }
 
 type UpdateUserStatusRequest struct {
@@ -950,6 +952,11 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
+	}
+	if strings.TrimSpace(req.PasswordHash) != "" {
+		if err := auth.ValidatePasswordHash(req.PasswordHash); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1160,22 +1167,23 @@ func (r *Repository) CreateUser(ctx context.Context, req CreateUserRequest) (Use
 	}
 
 	const insertUser = `
-INSERT INTO users (domain_id, username, display_name, quota_limit, quota_source)
+INSERT INTO users (domain_id, username, display_name, password_hash, quota_limit, quota_source)
 SELECT
   d.id,
   $2,
   $3,
+  NULLIF($4, ''),
   CASE
-    WHEN $4::bigint > 0 THEN $4::bigint
+    WHEN $5::bigint > 0 THEN $5::bigint
     ELSE NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
   END,
-  $5
+  $6
 FROM domains d
 WHERE d.id = $1
 RETURNING id::text, domain_id::text, username, display_name, role, status, quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
 
 	var user UserView
-	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), req.QuotaLimit, quotaSource).Scan(
+	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), strings.TrimSpace(req.PasswordHash), req.QuotaLimit, quotaSource).Scan(
 		&user.ID,
 		&user.DomainID,
 		&user.Username,

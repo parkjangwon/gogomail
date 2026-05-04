@@ -628,6 +628,7 @@ Implementation order:
 568. Draft search now has a separate compose-focused Mail API contract, keeping active-message search and OpenSearch relevance semantics separate from draft body/recipient lookup.
 569. `gogomail --mode=imap` now initializes a service-backed IMAP gateway scaffold with a process-local mailbox event broker while keeping the TCP IMAP protocol listener deferred.
 570. `gogomail --mode=all-in-one` now registers Mail API and Admin API routes in one HTTP process, making the documented single-node mode usable for local release smoke tests.
+571. Admin user creation now accepts an optional validated `password_hash`, giving operators a supported path to create SMTP Submission-capable local users without direct database writes.
 
 ## Deferred until backend contracts stabilize
 

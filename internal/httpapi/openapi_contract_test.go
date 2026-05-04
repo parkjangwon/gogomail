@@ -612,6 +612,22 @@ func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsUserPasswordHashInput(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	block := extractOpenAPIComponentBlock(t, draft, "schemas", "UserCreateRequest")
+	for _, want := range []string{"password_hash:", "maxLength: 4096", "pbkdf2-sha256"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("UserCreateRequest does not document %q:\n%s", want, block)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsAdminStatusEnums(t *testing.T) {
 	t.Parallel()
 
