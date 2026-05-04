@@ -891,7 +891,11 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 
 		repository := maildb.NewRepository(db)
-		httpapi.RegisterAdminRoutes(mux, adminService{Repository: repository, backpressure: pressure}, cfg.AdminToken)
+		httpapi.RegisterAdminRoutes(mux, adminService{
+			Repository:   repository,
+			backpressure: pressure,
+			exportStore:  storage.NewLocalStore(cfg.MailstoreRoot),
+		}, cfg.AdminToken)
 		logger.Info("admin api routes registered")
 	}
 
