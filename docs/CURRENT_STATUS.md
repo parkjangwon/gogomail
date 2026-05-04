@@ -133,6 +133,9 @@ guidance.
 - Admin suppression-list deletions now persist hash-chain audit rows in the
   same transaction as the delete, preserving suppression entry, domain, email,
   reason, and source-message evidence for deliverability forensics.
+- Admin outbox retry now persists a hash-chain audit row in the same transaction
+  as the retry reset, preserving previous topic, partition key, status,
+  attempts, and bounded error evidence for replay forensics.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

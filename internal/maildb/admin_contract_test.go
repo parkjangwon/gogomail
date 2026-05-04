@@ -724,6 +724,39 @@ func TestSuppressionEntryAuditDetail(t *testing.T) {
 	}
 }
 
+func TestOutboxRetryAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := outboxRetryAuditDetail(OutboxEventView{
+		ID:           "11111111-1111-1111-1111-111111111111",
+		Topic:        "mail.bounced",
+		PartitionKey: "message-1",
+		Status:       "failed",
+		Attempts:     3,
+		LastError:    strings.Repeat("x", outboxEventListErrorPreviewBytes+10),
+	})
+	if err != nil {
+		t.Fatalf("outboxRetryAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		ID                string `json:"outbox_event_id"`
+		Topic             string `json:"topic"`
+		PartitionKey      string `json:"partition_key"`
+		PreviousStatus    string `json:"previous_status"`
+		PreviousAttempts  int    `json:"previous_attempts"`
+		PreviousLastError string `json:"previous_last_error"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.ID == "" || got.Topic != "mail.bounced" || got.PreviousStatus != "failed" || got.PreviousAttempts != 3 {
+		t.Fatalf("audit detail = %+v", got)
+	}
+	if len(got.PreviousLastError) != outboxEventListErrorPreviewBytes {
+		t.Fatalf("previous_last_error length = %d, want %d", len(got.PreviousLastError), outboxEventListErrorPreviewBytes)
+	}
+}
+
 func TestDomainCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 

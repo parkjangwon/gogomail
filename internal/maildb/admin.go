@@ -6310,6 +6310,53 @@ func (r *Repository) RetryOutbox(ctx context.Context, id string) error {
 		return fmt.Errorf("outbox event id is required")
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin outbox retry transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var event OutboxEventView
+	var lockedAt sql.NullTime
+	var processedAt sql.NullTime
+	if err := tx.QueryRowContext(ctx, `
+SELECT
+  id::text,
+  topic,
+  partition_key,
+  status,
+  attempts,
+  COALESCE(last_error, ''),
+  created_at,
+  available_at,
+  locked_at,
+  processed_at
+FROM outbox
+WHERE id = $1
+FOR UPDATE`, id).Scan(
+		&event.ID,
+		&event.Topic,
+		&event.PartitionKey,
+		&event.Status,
+		&event.Attempts,
+		&event.LastError,
+		&event.CreatedAt,
+		&event.AvailableAt,
+		&lockedAt,
+		&processedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("outbox event %q not found", id)
+		}
+		return fmt.Errorf("read outbox event for retry: %w", err)
+	}
+	if lockedAt.Valid {
+		event.LockedAt = &lockedAt.Time
+	}
+	if processedAt.Valid {
+		event.ProcessedAt = &processedAt.Time
+	}
+
 	const query = `
 UPDATE outbox
 SET status = 'pending',
@@ -6320,7 +6367,7 @@ SET status = 'pending',
     processed_at = NULL
 WHERE id = $1`
 
-	result, err := r.db.ExecContext(ctx, query, id)
+	result, err := tx.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("retry outbox event: %w", err)
 	}
@@ -6328,7 +6375,42 @@ WHERE id = $1`
 	if err == nil && affected == 0 {
 		return fmt.Errorf("outbox event %q not found", id)
 	}
+	detail, err := outboxRetryAuditDetail(event)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "outbox.retry",
+		TargetType: "outbox_event",
+		TargetID:   event.ID,
+		Result:     "retried",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record outbox retry audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit outbox retry transaction: %w", err)
+	}
 	return nil
+}
+
+func outboxRetryAuditDetail(event OutboxEventView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"outbox_event_id":   event.ID,
+		"topic":             event.Topic,
+		"partition_key":     event.PartitionKey,
+		"previous_status":   event.Status,
+		"previous_attempts": event.Attempts,
+		"previous_last_error": truncateUTF8Bytes(
+			event.LastError,
+			outboxEventListErrorPreviewBytes,
+		),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal outbox retry audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) DeleteSuppressionEntry(ctx context.Context, id string) error {
