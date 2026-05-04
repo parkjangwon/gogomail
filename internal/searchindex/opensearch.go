@@ -90,6 +90,35 @@ func (i OpenSearchIndexer) IndexMessage(ctx context.Context, doc Document) error
 	return nil
 }
 
+func (i OpenSearchIndexer) EnsureIndex(ctx context.Context) error {
+	payload, err := json.Marshal(openSearchIndexDefinition())
+	if err != nil {
+		return fmt.Errorf("marshal opensearch index definition: %w", err)
+	}
+	target := *i.endpoint
+	target.Path = path.Join(target.Path, i.index)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, target.String(), bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create opensearch index request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if i.username != "" || i.password != "" {
+		req.SetBasicAuth(i.username, i.password)
+	}
+
+	resp, err := i.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("ensure opensearch index %q: %w", i.index, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("ensure opensearch index %q: status %d: %s", i.index, resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
 func normalizeOpenSearchIndex(index string) (string, error) {
 	index = strings.TrimSpace(index)
 	if index == "" {
@@ -99,6 +128,37 @@ func normalizeOpenSearchIndex(index string) (string, error) {
 		return "", fmt.Errorf("opensearch index %q is invalid", index)
 	}
 	return index, nil
+}
+
+func openSearchIndexDefinition() map[string]any {
+	return map[string]any{
+		"settings": map[string]any{
+			"index": map[string]any{
+				"number_of_shards":   1,
+				"number_of_replicas": 1,
+			},
+		},
+		"mappings": map[string]any{
+			"dynamic": "strict",
+			"properties": map[string]any{
+				"message_id":     map[string]any{"type": "keyword"},
+				"rfc_message_id": map[string]any{"type": "keyword"},
+				"in_reply_to":    map[string]any{"type": "keyword"},
+				"references":     map[string]any{"type": "keyword"},
+				"company_id":     map[string]any{"type": "keyword"},
+				"domain_id":      map[string]any{"type": "keyword"},
+				"user_id":        map[string]any{"type": "keyword"},
+				"recipient":      map[string]any{"type": "keyword"},
+				"subject":        map[string]any{"type": "text"},
+				"storage_path":   map[string]any{"type": "keyword", "index": false},
+				"received_at":    map[string]any{"type": "date"},
+				"size":           map[string]any{"type": "long"},
+				"body_text":      map[string]any{"type": "text"},
+				"body_truncated": map[string]any{"type": "boolean"},
+				"body_max_bytes": map[string]any{"type": "long"},
+			},
+		},
+	}
 }
 
 func openSearchDocument(doc Document) map[string]any {
