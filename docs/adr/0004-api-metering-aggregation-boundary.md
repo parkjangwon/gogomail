@@ -56,6 +56,11 @@ object key, SHA-256, byte count, event count, and JSON metadata. This keeps the
 core boundary vendor-neutral while still making completed export handoff
 auditable.
 
+The Admin API can also write a saved batch as an NDJSON artifact through the
+configured object store. The writer streams ledger rows, computes byte count and
+SHA-256 during the write, registers artifact metadata idempotently, and exposes
+stored artifact download for audit handoff.
+
 Export batches can also produce canonical SHA-256 manifest digest records over
 the saved batch metadata and registered artifacts. The Admin API exposes digest
 creation, listing, detail, and verification so operators can audit integrity
