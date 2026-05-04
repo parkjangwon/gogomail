@@ -553,6 +553,7 @@ Implementation order:
 494. Attachment scanner webhooks can now send an optional bounded bearer token, with CR/LF-bearing or oversized token configuration rejected before SMTP hook wiring.
 495. Push notification webhooks can now send an optional bounded bearer token, with CR/LF-bearing or oversized token configuration rejected before worker sink wiring.
 496. Attachment scanner and push notification webhook URLs now must be HTTPS in production, while still allowing HTTP endpoints for local development and private test harnesses.
+497. README and example configuration now document attachment-scan and push-notification webhook backends, optional bearer tokens, timeouts, and production HTTPS requirements for operator rollout.
 
 ## Deferred until backend contracts stabilize
 
