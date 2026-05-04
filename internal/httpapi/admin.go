@@ -56,6 +56,9 @@ type AdminService interface {
 	CreateAPIUsageExportArtifact(ctx context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
 	ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportArtifactView, error)
 	GetAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, error)
+	CreateAPIUsageExportManifestDigest(ctx context.Context, batchID string) (maildb.APIUsageExportManifestDigestView, error)
+	ListAPIUsageExportManifestDigests(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportManifestDigestView, error)
+	GetAPIUsageExportManifestDigest(ctx context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestDigestView, error)
 	ListQuotaReconciliation(ctx context.Context, limit int) ([]maildb.QuotaReconciliationView, error)
 	CorrectQuotaReconciliation(ctx context.Context, req maildb.CorrectQuotaReconciliationRequest) (maildb.QuotaCorrectionResult, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
@@ -597,6 +600,53 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifact": artifact})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		digest, err := service.CreateAPIUsageExportManifestDigest(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_manifest_digest": digest})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		digests, err := service.ListAPIUsageExportManifestDigests(r.Context(), id, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_digests": digests})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		digestID := strings.TrimSpace(r.PathValue("digest_id"))
+		if id == "" || digestID == "" {
+			writeError(w, http.StatusBadRequest, "id and digest_id are required")
+			return
+		}
+		digest, err := service.GetAPIUsageExportManifestDigest(r.Context(), id, digestID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_digest": digest})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
