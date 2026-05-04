@@ -31,7 +31,7 @@ type AdminService interface {
 	ListCompanies(ctx context.Context, limit int) ([]maildb.CompanyView, error)
 	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
 	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error
-	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
+	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error)
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
 	GetDomainStats(ctx context.Context, id string) (maildb.DomainStatsView, error)
 	VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error)
@@ -225,7 +225,29 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		domains, err := service.ListDomains(r.Context(), limit)
+		companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+		if !ok {
+			return
+		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		dnsStatus, ok := parseBoundedAdminQuery(w, r, "dns_status")
+		if !ok {
+			return
+		}
+		listReq := maildb.DomainListRequest{
+			Limit:     limit,
+			CompanyID: companyID,
+			Status:    status,
+			DNSStatus: dnsStatus,
+		}
+		if err := maildb.ValidateDomainListRequest(listReq); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		domains, err := service.ListDomains(r.Context(), listReq)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

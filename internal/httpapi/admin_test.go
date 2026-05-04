@@ -2789,7 +2789,7 @@ func TestAdminDomainsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains?limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains?company_id=%20company-1%20&status=active&dns_status=ok&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2807,6 +2807,9 @@ func TestAdminDomainsHandler(t *testing.T) {
 	}
 	if service.lastLimit != 10 {
 		t.Fatalf("lastLimit = %d", service.lastLimit)
+	}
+	if service.lastDomainList.CompanyID != "company-1" || service.lastDomainList.Status != "active" || service.lastDomainList.DNSStatus != "ok" {
+		t.Fatalf("lastDomainList = %+v", service.lastDomainList)
 	}
 }
 
@@ -2842,6 +2845,39 @@ func TestAdminListHandlerRejectsTooLargeLimit(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "limit must be at most 200") {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminDomainsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/domains?company_id=company%0Abad",
+		"/admin/v1/domains?status=archived",
+		"/admin/v1/domains?dns_status=stale",
+		"/admin/v1/domains?dns_status=ok%0Abad",
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDomainList.Limit != 0 {
+				t.Fatalf("lastDomainList = %+v", service.lastDomainList)
+			}
+		})
 	}
 }
 
@@ -4607,6 +4643,7 @@ type fakeAdminService struct {
 	lastAuditLogID                              string
 	lastAuditLogIntegrity                       maildb.AuditLogIntegrityRequest
 	lastSuppressionList                         maildb.SuppressionEntryListRequest
+	lastDomainList                              maildb.DomainListRequest
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
@@ -4687,8 +4724,9 @@ func (f *fakeAdminService) UpdateCompanyQuota(_ context.Context, req maildb.Upda
 	return nil
 }
 
-func (f *fakeAdminService) ListDomains(_ context.Context, limit int) ([]maildb.DomainView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error) {
+	f.lastDomainList = req
+	f.lastLimit = req.Limit
 	return f.domains, nil
 }
 

@@ -22,6 +22,25 @@ func TestValidateUpdateDomainStatusRequestAcceptsSuspended(t *testing.T) {
 	}
 }
 
+func TestValidateDomainListRequestRejectsUnknownFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []DomainListRequest{
+		{Status: "archived"},
+		{DNSStatus: "stale"},
+		{CompanyID: "company\nbad"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.Status+req.DNSStatus+req.CompanyID, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateDomainListRequest(req); err == nil {
+				t.Fatalf("ValidateDomainListRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
 func TestValidateUpdateDomainQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	t.Parallel()
 
