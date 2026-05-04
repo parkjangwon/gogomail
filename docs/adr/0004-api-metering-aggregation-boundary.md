@@ -56,6 +56,11 @@ object key, SHA-256, byte count, event count, and JSON metadata. This keeps the
 core boundary vendor-neutral while still making completed export handoff
 auditable.
 
+Export batches can also produce canonical SHA-256 manifest digest records over
+the saved batch metadata and registered artifacts. The Admin API exposes digest
+creation, listing, detail, and verification so operators can audit integrity
+before a future signing/KMS layer or object-store writer adapter is introduced.
+
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the
 Postgres backend when operators want persisted aggregates.

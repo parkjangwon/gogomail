@@ -373,6 +373,17 @@ API call metering can now emit durable usage events:
   `{ "api_usage_export_artifacts": [...] }`, and
   `GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}` returns
   one registered artifact.
+- `POST /admin/v1/api-usage/export-batches/{id}/manifest-digests` creates a
+  canonical SHA-256 digest over the saved export batch and registered artifact
+  metadata, returning `{ "api_usage_export_manifest_digest": ... }`.
+- `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests` returns
+  `{ "api_usage_export_manifest_digests": [...] }`, and
+  `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}`
+  returns one digest record with the stored manifest JSON.
+- `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification`
+  returns `{ "api_usage_export_manifest_digest_verification": ... }`, including
+  expected and actual SHA-256 hex values, a `valid` boolean, and the canonical
+  manifest JSON used for verification.
 
 Message search starts with a small-deployment Postgres implementation:
 
