@@ -293,7 +293,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Remote Ed25519 manifest signer responses reject oversized bodies and trailing
   JSON tokens before signature evidence is accepted.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
-  delivery-route resolution are trimmed before service dispatch.
+  delivery-route resolution are trimmed before service dispatch; DKIM key
+  listing can filter active and inactive key lifecycle states.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed
   before service dispatch and response envelopes.
 - Admin API suppression-list and trusted-relay delete path identifiers are

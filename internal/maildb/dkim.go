@@ -24,14 +24,20 @@ type DKIMKey struct {
 }
 
 type DKIMKeyView struct {
-	ID             string     `json:"id"`
-	DomainID       string     `json:"domain_id"`
-	Selector       string     `json:"selector"`
-	PublicKeyDNS   string     `json:"public_key_dns"`
-	Status         string     `json:"status"`
-	DNSVerifiedAt  *time.Time `json:"dns_verified_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID            string     `json:"id"`
+	DomainID      string     `json:"domain_id"`
+	Selector      string     `json:"selector"`
+	PublicKeyDNS  string     `json:"public_key_dns"`
+	Status        string     `json:"status"`
+	DNSVerifiedAt *time.Time `json:"dns_verified_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+type DKIMKeyListRequest struct {
+	DomainID string
+	Status   string
+	Limit    int
 }
 
 type CreateDKIMKeyInput struct {
@@ -84,11 +90,15 @@ LIMIT 1`
 	return key, nil
 }
 
-func (r *Repository) ListDKIMKeys(ctx context.Context, domainID string, limit int) ([]DKIMKeyView, error) {
+func (r *Repository) ListDKIMKeys(ctx context.Context, req DKIMKeyListRequest) ([]DKIMKeyView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateDKIMKeyListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	status := normalizeDKIMKeyStatus(req.Status)
 
 	const query = `
 SELECT
@@ -102,10 +112,11 @@ SELECT
   updated_at
 FROM dkim_keys
 WHERE ($1 = '' OR domain_id::text = $1)
+  AND ($2 = '' OR status = $2)
 ORDER BY updated_at DESC
-LIMIT $2`
+LIMIT $3`
 
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(domainID), limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), status, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list dkim keys: %w", err)
 	}
@@ -132,6 +143,18 @@ LIMIT $2`
 		return nil, fmt.Errorf("iterate dkim keys: %w", err)
 	}
 	return keys, nil
+}
+
+func ValidateDKIMKeyListRequest(req DKIMKeyListRequest) error {
+	status := normalizeDKIMKeyStatus(req.Status)
+	if status == "" || status == "active" || status == "inactive" {
+		return nil
+	}
+	return fmt.Errorf("unsupported dkim key status %q", req.Status)
+}
+
+func normalizeDKIMKeyStatus(status string) string {
+	return strings.ToLower(strings.TrimSpace(status))
 }
 
 func (r *Repository) CreateDKIMKey(ctx context.Context, input CreateDKIMKeyInput) (string, error) {
@@ -184,11 +207,11 @@ RETURNING id::text`
 // DKIMKeyDNSVerificationResult carries the outcome of a targeted DNS TXT
 // record check for a single DKIM key.
 type DKIMKeyDNSVerificationResult struct {
-	KeyID     string              `json:"key_id"`
-	DomainID  string              `json:"domain_id"`
-	Selector  string              `json:"selector"`
-	Check     dnscheck.RecordCheck `json:"check"`
-	VerifiedAt *time.Time         `json:"verified_at,omitempty"`
+	KeyID      string               `json:"key_id"`
+	DomainID   string               `json:"domain_id"`
+	Selector   string               `json:"selector"`
+	Check      dnscheck.RecordCheck `json:"check"`
+	VerifiedAt *time.Time           `json:"verified_at,omitempty"`
 }
 
 // VerifyDKIMKeyDNS looks up the DKIM key by id, queries DNS for its expected

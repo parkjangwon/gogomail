@@ -1689,6 +1689,11 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
       responses:
         "200":
           $ref: "#/components/responses/DKIMKeyList"
