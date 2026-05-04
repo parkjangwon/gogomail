@@ -1,6 +1,7 @@
 package apimeter
 
 import (
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,7 +9,10 @@ import (
 	"strings"
 )
 
-const ExportManifestSignatureAlgorithmHMACSHA256 = "hmac-sha256"
+const (
+	ExportManifestSignatureAlgorithmHMACSHA256 = "hmac-sha256"
+	ExportManifestSignatureAlgorithmEd25519    = "ed25519"
+)
 
 type ExportManifestSigner interface {
 	SignExportManifestDigest(digestHex string) (ExportManifestSignature, error)
@@ -53,10 +57,14 @@ func (s HMACExportManifestSigner) SignExportManifestDigest(digestHex string) (Ex
 }
 
 type HMACExportManifestSignatureVerifier struct {
+	KeyID  string
 	Secret []byte
 }
 
 func (v HMACExportManifestSignatureVerifier) VerifyExportManifestSignature(signature ExportManifestSignature) (bool, error) {
+	if keyID := strings.TrimSpace(v.KeyID); keyID != "" && strings.TrimSpace(signature.KeyID) != keyID {
+		return false, nil
+	}
 	return VerifyExportManifestSignature(signature, v.Secret)
 }
 
@@ -80,6 +88,60 @@ func VerifyExportManifestSignature(signature ExportManifestSignature, secret []b
 		return false, fmt.Errorf("expected signature must be hex: %w", err)
 	}
 	return hmac.Equal(got, want), nil
+}
+
+type Ed25519ExportManifestSigner struct {
+	KeyID      string
+	PrivateKey ed25519.PrivateKey
+}
+
+func (s Ed25519ExportManifestSigner) SignExportManifestDigest(digestHex string) (ExportManifestSignature, error) {
+	digestHex = strings.ToLower(strings.TrimSpace(digestHex))
+	if !isLowerHexSHA256(digestHex) {
+		return ExportManifestSignature{}, fmt.Errorf("digest_hex must be 64 lowercase hex characters")
+	}
+	keyID := strings.TrimSpace(s.KeyID)
+	if keyID == "" {
+		return ExportManifestSignature{}, fmt.Errorf("key id is required")
+	}
+	if len(s.PrivateKey) != ed25519.PrivateKeySize {
+		return ExportManifestSignature{}, fmt.Errorf("ed25519 private key must be %d bytes", ed25519.PrivateKeySize)
+	}
+	return ExportManifestSignature{
+		Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+		KeyID:           keyID,
+		SignedDigestHex: digestHex,
+		SignatureHex:    hex.EncodeToString(ed25519.Sign(s.PrivateKey, []byte(digestHex))),
+	}, nil
+}
+
+type Ed25519ExportManifestSignatureVerifier struct {
+	KeyID     string
+	PublicKey ed25519.PublicKey
+}
+
+func (v Ed25519ExportManifestSignatureVerifier) VerifyExportManifestSignature(signature ExportManifestSignature) (bool, error) {
+	if signature.Algorithm != ExportManifestSignatureAlgorithmEd25519 {
+		return false, fmt.Errorf("unsupported signature algorithm %q", signature.Algorithm)
+	}
+	if len(v.PublicKey) != ed25519.PublicKeySize {
+		return false, fmt.Errorf("ed25519 public key must be %d bytes", ed25519.PublicKeySize)
+	}
+	if keyID := strings.TrimSpace(v.KeyID); keyID != "" && strings.TrimSpace(signature.KeyID) != keyID {
+		return false, nil
+	}
+	digestHex := strings.ToLower(strings.TrimSpace(signature.SignedDigestHex))
+	if !isLowerHexSHA256(digestHex) {
+		return false, fmt.Errorf("signed_digest_hex must be 64 lowercase hex characters")
+	}
+	signatureBytes, err := hex.DecodeString(strings.TrimSpace(signature.SignatureHex))
+	if err != nil {
+		return false, fmt.Errorf("signature_hex must be hex: %w", err)
+	}
+	if len(signatureBytes) != ed25519.SignatureSize {
+		return false, fmt.Errorf("ed25519 signature must be %d bytes", ed25519.SignatureSize)
+	}
+	return ed25519.Verify(v.PublicKey, []byte(digestHex), signatureBytes), nil
 }
 
 func isLowerHexSHA256(value string) bool {

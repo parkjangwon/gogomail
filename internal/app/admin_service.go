@@ -28,6 +28,9 @@ type adminService struct {
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
 }
 
+const apiUsageExportLocalEd25519Backend = "local-ed25519"
+const apiUsageExportLocalHMACBackend = "local-hmac"
+
 func (s adminService) GetBackpressure(ctx context.Context) (backpressure.State, error) {
 	if s.backpressure == nil {
 		return backpressure.State{}, fmt.Errorf("backpressure backend is not configured")
@@ -47,6 +50,7 @@ func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.API
 	if backend == "" {
 		backend = "disabled"
 	}
+	productionReady := apiUsageExportManifestSignerProductionReady(backend)
 	view := maildb.APIUsageExportCapabilityView{
 		ExportFormat:                  "ndjson",
 		ArtifactContentType:           apimeter.ExportArtifactContentTypeNDJSON,
@@ -54,9 +58,9 @@ func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.API
 		SignerBackend:                 backend,
 		SignerConfigured:              s.exportManifestSigner != nil,
 		VerifierConfigured:            s.exportManifestVerifier != nil,
-		ProductionSignatureReady:      s.exportManifestSigner != nil && s.exportManifestVerifier != nil && backend != "local-hmac",
-		BillingReadySupported:         s.exportManifestSigner != nil && backend != "local-hmac",
-		VerifiedBillingReadySupported: s.exportManifestSigner != nil && s.exportManifestVerifier != nil && backend != "local-hmac",
+		ProductionSignatureReady:      s.exportManifestSigner != nil && s.exportManifestVerifier != nil && productionReady,
+		BillingReadySupported:         s.exportManifestSigner != nil && productionReady,
+		VerifiedBillingReadySupported: s.exportManifestSigner != nil && s.exportManifestVerifier != nil && productionReady,
 	}
 	if keyID, ok := exportManifestSignerKeyID(s.exportManifestSigner); ok {
 		view.SignerKeyID = keyID
@@ -68,7 +72,7 @@ func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.API
 	if s.exportManifestVerifier == nil {
 		blocking = append(blocking, "manifest_signature_verifier_not_configured")
 	}
-	if backend == "local-hmac" {
+	if apiUsageExportManifestSignerLocalOnly(backend) {
 		blocking = append(blocking, "production_manifest_signer_required")
 	}
 	view.BlockingReasons = uniqueStrings(blocking)
@@ -84,8 +88,29 @@ func exportManifestSignerKeyID(signer apimeter.ExportManifestSigner) (string, bo
 			return "", false
 		}
 		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
+	case apimeter.Ed25519ExportManifestSigner:
+		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
+	case *apimeter.Ed25519ExportManifestSigner:
+		if signer == nil {
+			return "", false
+		}
+		return strings.TrimSpace(signer.KeyID), strings.TrimSpace(signer.KeyID) != ""
 	default:
 		return "", false
+	}
+}
+
+func apiUsageExportManifestSignerProductionReady(backend string) bool {
+	backend = strings.ToLower(strings.TrimSpace(backend))
+	return backend != "" && backend != "disabled" && !apiUsageExportManifestSignerLocalOnly(backend)
+}
+
+func apiUsageExportManifestSignerLocalOnly(backend string) bool {
+	switch strings.ToLower(strings.TrimSpace(backend)) {
+	case apiUsageExportLocalHMACBackend, apiUsageExportLocalEd25519Backend:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -363,7 +388,7 @@ func (s adminService) CreateAPIUsageExportManifestSignature(ctx context.Context,
 	}
 	backend := strings.TrimSpace(s.exportManifestSignerBackend)
 	if backend == "" {
-		backend = "local-hmac"
+		backend = apiUsageExportLocalHMACBackend
 	}
 	return s.Repository.CreateAPIUsageExportManifestSignature(ctx, maildb.CreateAPIUsageExportManifestSignatureRequest{
 		BatchID:       batchID,

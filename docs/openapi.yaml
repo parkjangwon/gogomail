@@ -3195,18 +3195,18 @@ components:
           format: date-time
         signer_backend:
           type: string
-          enum: [local-hmac]
+          enum: [local-hmac, local-ed25519]
         key_id:
           type: string
         signature_algorithm:
           type: string
-          enum: [hmac-sha256]
+          enum: [hmac-sha256, ed25519]
         signed_digest_hex:
           type: string
           pattern: "^[0-9a-f]{64}$"
         signature_hex:
           type: string
-          pattern: "^[0-9a-f]{64}$"
+          pattern: "^([0-9a-f]{64}|[0-9a-f]{128})$"
         metadata:
           type: object
           additionalProperties: true
@@ -3236,12 +3236,12 @@ components:
           type: string
         signer_backend:
           type: string
-          enum: [local-hmac]
+          enum: [local-hmac, local-ed25519]
         key_id:
           type: string
         signature_algorithm:
           type: string
-          enum: [hmac-sha256]
+          enum: [hmac-sha256, ed25519]
         signed_digest_hex:
           type: string
           pattern: "^[0-9a-f]{64}$"
