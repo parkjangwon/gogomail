@@ -479,6 +479,17 @@ paths:
           $ref: "#/components/responses/Domain"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/dns-check:
+    get:
+      operationId: checkAdminDomainDns
+      summary: Admin verify domain DNS records
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/DomainDNSCheck"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/status:
     patch:
       operationId: updateAdminDomainStatus
@@ -722,6 +733,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainEnvelope"
+    DomainDNSCheck:
+      description: Domain DNS verification envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainDNSCheckEnvelope"
     UserList:
       description: User list envelope
       content:
@@ -1362,6 +1379,47 @@ components:
       properties:
         domain:
           $ref: "#/components/schemas/Domain"
+    DNSRecordCheck:
+      type: object
+      required: [name, host, status]
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+        status:
+          type: string
+          enum: [ok, missing, mismatch, error]
+        expected:
+          type: string
+        found:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
+    DomainDNSReport:
+      type: object
+      required: [domain, mx, spf, dmarc, dkim]
+      properties:
+        domain:
+          type: string
+        mx:
+          $ref: "#/components/schemas/DNSRecordCheck"
+        spf:
+          $ref: "#/components/schemas/DNSRecordCheck"
+        dmarc:
+          $ref: "#/components/schemas/DNSRecordCheck"
+        dkim:
+          type: array
+          items:
+            $ref: "#/components/schemas/DNSRecordCheck"
+    DomainDNSCheckEnvelope:
+      type: object
+      required: [dns_check]
+      properties:
+        dns_check:
+          $ref: "#/components/schemas/DomainDNSReport"
     User:
       type: object
       required: [id, domain_id, username, display_name, role, status, quota_used, created_at]

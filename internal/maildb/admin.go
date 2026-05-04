@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/mail"
 )
 
@@ -888,6 +889,35 @@ LIMIT 1`
 		return DomainView{}, fmt.Errorf("get domain: %w", err)
 	}
 	return domain, nil
+}
+
+func (r *Repository) VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error) {
+	if r.db == nil {
+		return dnscheck.DomainReport{}, fmt.Errorf("database handle is required")
+	}
+	domain, err := r.GetDomain(ctx, id)
+	if err != nil {
+		return dnscheck.DomainReport{}, err
+	}
+	keys, err := r.ListDKIMKeys(ctx, id, 200)
+	if err != nil {
+		return dnscheck.DomainReport{}, err
+	}
+	expectations := make([]dnscheck.DKIMExpectation, 0, len(keys))
+	for _, key := range keys {
+		if normalizeAdminStatus(key.Status) != "active" {
+			continue
+		}
+		expectations = append(expectations, dnscheck.DKIMExpectation{
+			Selector:     key.Selector,
+			PublicKeyDNS: key.PublicKeyDNS,
+		})
+	}
+	name := strings.TrimSpace(domain.NameACE)
+	if name == "" {
+		name = domain.Name
+	}
+	return dnscheck.Verifier{}.VerifyDomain(ctx, name, expectations), nil
 }
 
 func (r *Repository) ListQueueStats(ctx context.Context) ([]QueueStat, error) {

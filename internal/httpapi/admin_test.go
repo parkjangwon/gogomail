@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -165,6 +166,36 @@ func TestAdminGetDomainHandler(t *testing.T) {
 	}
 	if body.Domain.ID != "domain-1" || service.lastDomainID != "domain-1" {
 		t.Fatalf("domain = %+v lastDomainID=%q", body.Domain, service.lastDomainID)
+	}
+}
+
+func TestAdminDomainDNSCheckHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		dnsReport: dnscheck.DomainReport{
+			Domain: "example.com",
+			MX:     dnscheck.RecordCheck{Name: "mx", Host: "example.com", Status: dnscheck.StatusOK, Found: []string{"mx.example.com"}},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/dns-check", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		DNSCheck dnscheck.DomainReport `json:"dns_check"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.DNSCheck.Domain != "example.com" || service.lastDomainID != "domain-1" {
+		t.Fatalf("dns_check = %+v lastDomainID=%q", body.DNSCheck, service.lastDomainID)
 	}
 }
 
@@ -706,6 +737,7 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 
 type fakeAdminService struct {
 	domains                   []maildb.DomainView
+	dnsReport                 dnscheck.DomainReport
 	users                     []maildb.UserView
 	queueStats                []maildb.QueueStat
 	attempts                  []maildb.DeliveryAttemptView
@@ -752,6 +784,11 @@ func (f *fakeAdminService) GetDomain(_ context.Context, id string) (maildb.Domai
 		}
 	}
 	return maildb.DomainView{}, nil
+}
+
+func (f *fakeAdminService) VerifyDomainDNS(_ context.Context, id string) (dnscheck.DomainReport, error) {
+	f.lastDomainID = id
+	return f.dnsReport, nil
 }
 
 func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {
