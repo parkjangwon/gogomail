@@ -298,6 +298,11 @@ paths:
       responses:
         "200":
           description: Attachment bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         default:
           $ref: "#/components/responses/Error"
   /messages/send:
