@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -85,6 +86,53 @@ func TestValidateCorrectQuotaReconciliationRequestRejectsIDForAll(t *testing.T) 
 
 	if _, err := ValidateCorrectQuotaReconciliationRequest(CorrectQuotaReconciliationRequest{Scope: "all", ID: "domain-1"}); err == nil {
 		t.Fatal("ValidateCorrectQuotaReconciliationRequest accepted id with all scope")
+	}
+}
+
+func TestQuotaCorrectionAuditDetailIsBounded(t *testing.T) {
+	t.Parallel()
+
+	var before []QuotaReconciliationView
+	for i := 0; i < 25; i++ {
+		before = append(before, QuotaReconciliationView{
+			Scope:      "user",
+			ID:         "user-1",
+			DomainID:   "domain-1",
+			Name:       "user@example.com",
+			LedgerUsed: int64(100 + i),
+			ActualUsed: 50,
+			Delta:      int64(50 + i),
+		})
+	}
+	raw, err := quotaCorrectionAuditDetail(CorrectQuotaReconciliationRequest{
+		Scope:  "domain",
+		ID:     "domain-1",
+		DryRun: true,
+	}, before, nil)
+	if err != nil {
+		t.Fatalf("quotaCorrectionAuditDetail returned error: %v", err)
+	}
+	var detail struct {
+		Scope             string                     `json:"scope"`
+		ID                string                     `json:"id"`
+		DryRun            bool                       `json:"dry_run"`
+		BeforeDriftCount  int                        `json:"before_drift_count"`
+		AfterDriftCount   int                        `json:"after_drift_count"`
+		BeforeAbsDeltaSum int64                      `json:"before_abs_delta_sum"`
+		SampleLimit       int                        `json:"sample_limit"`
+		BeforeSample      []quotaCorrectionAuditView `json:"before_sample"`
+	}
+	if err := json.Unmarshal(raw, &detail); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if detail.Scope != "domain" || detail.ID != "domain-1" || !detail.DryRun {
+		t.Fatalf("audit detail identity = %+v", detail)
+	}
+	if detail.BeforeDriftCount != 25 || detail.AfterDriftCount != 0 || detail.SampleLimit != 20 || len(detail.BeforeSample) != 20 {
+		t.Fatalf("audit detail bounds = %+v", detail)
+	}
+	if detail.BeforeAbsDeltaSum == 0 {
+		t.Fatalf("before_abs_delta_sum = %d, want positive", detail.BeforeAbsDeltaSum)
 	}
 }
 

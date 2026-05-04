@@ -31,7 +31,8 @@ Current state:
 - Admin API exposes a read-only quota reconciliation report comparing ledger
   counters with active message rows and reserved/stored attachment rows.
 - Admin API can apply operator-controlled quota reconciliation corrections with
-  transaction-scoped advisory locking and affected quota-row locks.
+  transaction-scoped advisory locking, affected quota-row locks, and bounded
+  audit-log detail for dry-run/applied correction attempts.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.

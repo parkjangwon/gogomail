@@ -525,7 +525,9 @@ Quota reconciliation is exposed as a read-only admin report:
   `actual_used`, `delta`, and `in_sync`.
 - Corrections are explicit operator actions. They acquire a transaction-scoped
   advisory lock, lock the affected quota hierarchy rows, and set ledger counters
-  from current source rows rather than applying stored deltas.
+  from current source rows rather than applying stored deltas. Dry-run and
+  applied corrections both write bounded `audit_logs` detail with before/after
+  drift counts and samples so quota ledger changes remain traceable.
 
 API call metering can now emit durable usage events:
 

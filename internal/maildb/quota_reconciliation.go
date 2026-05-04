@@ -3,6 +3,7 @@ package maildb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -194,12 +195,16 @@ func (r *Repository) CorrectQuotaReconciliation(ctx context.Context, req Correct
 	if err != nil {
 		return QuotaCorrectionResult{}, err
 	}
+	beforeDrift := driftedQuotaViews(before)
 	result := QuotaCorrectionResult{
 		DryRun:    req.DryRun,
 		CheckedAt: time.Now().UTC(),
-		Corrected: driftedQuotaViews(before),
+		Corrected: beforeDrift,
 	}
 	if req.DryRun {
+		if err := recordQuotaCorrectionAudit(ctx, tx, req, beforeDrift, beforeDrift); err != nil {
+			return QuotaCorrectionResult{}, err
+		}
 		return result, tx.Commit()
 	}
 
@@ -210,11 +215,117 @@ func (r *Repository) CorrectQuotaReconciliation(ctx context.Context, req Correct
 	if err != nil {
 		return QuotaCorrectionResult{}, err
 	}
-	result.Corrected = driftedQuotaViews(after)
+	afterDrift := driftedQuotaViews(after)
+	result.Corrected = afterDrift
+	if err := recordQuotaCorrectionAudit(ctx, tx, req, beforeDrift, afterDrift); err != nil {
+		return QuotaCorrectionResult{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return QuotaCorrectionResult{}, fmt.Errorf("commit quota reconciliation correction: %w", err)
 	}
 	return result, nil
+}
+
+func recordQuotaCorrectionAudit(ctx context.Context, tx *sql.Tx, req CorrectQuotaReconciliationRequest, beforeDrift []QuotaReconciliationView, afterDrift []QuotaReconciliationView) error {
+	detail, err := quotaCorrectionAuditDetail(req, beforeDrift, afterDrift)
+	if err != nil {
+		return err
+	}
+	targetType := req.Scope
+	var targetID any
+	if req.Scope == "all" {
+		targetType = "quota_reconciliation"
+	} else {
+		targetID = req.ID
+	}
+	result := "applied"
+	if req.DryRun {
+		result = "dry_run"
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO audit_logs (category, action, target_type, target_id, result, detail)
+VALUES ('admin', 'quota.reconciliation_correction', $1, $2, $3, $4::jsonb)`,
+		targetType,
+		targetID,
+		result,
+		string(detail),
+	); err != nil {
+		return fmt.Errorf("record quota reconciliation correction audit: %w", err)
+	}
+	return nil
+}
+
+type quotaCorrectionAuditView struct {
+	Scope      string `json:"scope"`
+	ID         string `json:"id"`
+	DomainID   string `json:"domain_id,omitempty"`
+	Name       string `json:"name"`
+	LedgerUsed int64  `json:"ledger_used"`
+	ActualUsed int64  `json:"actual_used"`
+	Delta      int64  `json:"delta"`
+}
+
+func quotaCorrectionAuditDetail(req CorrectQuotaReconciliationRequest, beforeDrift []QuotaReconciliationView, afterDrift []QuotaReconciliationView) ([]byte, error) {
+	const sampleLimit = 20
+	detail := struct {
+		Scope             string                     `json:"scope"`
+		ID                string                     `json:"id,omitempty"`
+		DryRun            bool                       `json:"dry_run"`
+		BeforeDriftCount  int                        `json:"before_drift_count"`
+		AfterDriftCount   int                        `json:"after_drift_count"`
+		BeforeAbsDeltaSum int64                      `json:"before_abs_delta_sum"`
+		AfterAbsDeltaSum  int64                      `json:"after_abs_delta_sum"`
+		SampleLimit       int                        `json:"sample_limit"`
+		BeforeSample      []quotaCorrectionAuditView `json:"before_sample"`
+		AfterSample       []quotaCorrectionAuditView `json:"after_sample"`
+	}{
+		Scope:             req.Scope,
+		ID:                req.ID,
+		DryRun:            req.DryRun,
+		BeforeDriftCount:  len(beforeDrift),
+		AfterDriftCount:   len(afterDrift),
+		BeforeAbsDeltaSum: quotaDriftAbsDeltaSum(beforeDrift),
+		AfterAbsDeltaSum:  quotaDriftAbsDeltaSum(afterDrift),
+		SampleLimit:       sampleLimit,
+		BeforeSample:      quotaCorrectionAuditSample(beforeDrift, sampleLimit),
+		AfterSample:       quotaCorrectionAuditSample(afterDrift, sampleLimit),
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return nil, fmt.Errorf("marshal quota reconciliation correction audit detail: %w", err)
+	}
+	return raw, nil
+}
+
+func quotaCorrectionAuditSample(views []QuotaReconciliationView, limit int) []quotaCorrectionAuditView {
+	if limit > len(views) {
+		limit = len(views)
+	}
+	out := make([]quotaCorrectionAuditView, 0, limit)
+	for _, view := range views[:limit] {
+		out = append(out, quotaCorrectionAuditView{
+			Scope:      view.Scope,
+			ID:         view.ID,
+			DomainID:   view.DomainID,
+			Name:       view.Name,
+			LedgerUsed: view.LedgerUsed,
+			ActualUsed: view.ActualUsed,
+			Delta:      view.Delta,
+		})
+	}
+	return out
+}
+
+func quotaDriftAbsDeltaSum(views []QuotaReconciliationView) int64 {
+	var sum int64
+	for _, view := range views {
+		if view.Delta < 0 {
+			sum -= view.Delta
+		} else {
+			sum += view.Delta
+		}
+	}
+	return sum
 }
 
 func lockQuotaCorrectionScope(ctx context.Context, tx *sql.Tx, req CorrectQuotaReconciliationRequest) error {

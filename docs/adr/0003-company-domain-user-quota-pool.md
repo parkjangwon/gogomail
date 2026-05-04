@@ -54,6 +54,11 @@ Any exceeded level rejects the write. SMTP receive/submission should map mailbox
 quota failures to RFC-correct temporary/permanent enhanced status semantics as
 the relevant boundary requires.
 
+Quota reconciliation corrections are operator-controlled maintenance actions,
+not automatic background repair. Dry-run and applied correction attempts should
+be auditable with bounded before/after drift summaries so storage ledger
+changes can be reviewed after the fact without storing unbounded row snapshots.
+
 ## Consequences
 
 - Storage enforcement must move toward a shared quota ledger that can be used by

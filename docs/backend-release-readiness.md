@@ -123,7 +123,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API exposes a quota usage pressure read model for company, domain, and user limits so operators can spot backpressure risks before SMTP or Mail API writes start failing.
 - Admin quota read models expose remaining capacity, child allocation, allocatable capacity, and over-allocation flags.
 - Admin API exposes a read-only quota reconciliation report for detecting ledger drift against message and attachment source rows.
-- Admin API exposes operator-controlled quota reconciliation corrections guarded by transaction/advisory locking.
+- Admin API exposes operator-controlled quota reconciliation corrections guarded by transaction/advisory locking, with bounded audit-log detail for dry-run and applied correction attempts.
 - Quota product direction is captured in ADR 0003 and partially implemented: company contracted storage pool, domain allocations, user unified storage allowance, `default|custom` user quota source, domain default user quota propagation, and atomic company/domain/user ledger updates for mail storage writes/deletes plus attachment upload/cleanup.
 - API metering is recorded as a planned SaaS platform boundary: usage should be collected asynchronously for future billing/rate-limit/abuse analytics, while enforcement remains policy-driven and disabled by default in the MVP.
 - API metering has a disabled-by-default fail-open middleware boundary with `slog` and outbox sinks for early operational visibility and durable usage-event collection; configured admin-token identity classification uses fixed-length SHA-256 digest comparison for bearer and `X-Admin-Token` values.

@@ -617,6 +617,7 @@ Implementation order:
 557. Admin API usage ledger retention runs can now dry-run or delete a bounded batch of immutable ledger rows only after reusing the retention-readiness gate, with destructive runs requiring explicit `confirm_ready`.
 558. Optional PostgreSQL integration coverage now verifies API usage retention runs preserve blocked candidates, keep dry-runs read-only, delete only the requested ready batch, and leave newer ledger rows intact.
 559. Admin API now exposes list/detail reads for API usage ledger retention-run audit rows, making blocked, dry-run, and destructive ledger purge attempts inspectable after execution.
+560. Quota reconciliation corrections now record bounded audit-log detail for dry-run and applied attempts, including before/after drift counts and samples in the same correction transaction.
 
 ## Deferred until backend contracts stabilize
 
