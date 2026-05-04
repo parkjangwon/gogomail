@@ -911,8 +911,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/push-notification-stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		since, ok := parseOptionalRFC3339Query(w, r, "since")
+		if !ok {
+			return
+		}
 		stats, err := service.GetPushNotificationStats(r.Context(), maildb.PushNotificationStatsRequest{
 			UserID: r.URL.Query().Get("user_id"),
+			Since:  since,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

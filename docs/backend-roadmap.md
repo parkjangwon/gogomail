@@ -367,7 +367,7 @@ Implementation order:
 308. Postgres and OpenSearch relevance search now share metadata-first weighting, boosting subject and sender matches above indexed body text with regression coverage on both backend query shapes.
 309. The shared event worker now handles `mail.stored` events with an IMAP UID assignment handler, ensuring received active messages get mailbox-local UIDs asynchronously after SMTP storage commits.
 310. `GET /api/v1/search` now explicitly stays scoped to active messages; draft search is deferred to a future dedicated contract so Postgres and OpenSearch relevance behavior remain aligned.
-311. Admin push notification stats can now be scoped by `user_id`, letting operators compare active devices and fan-out attempt outcomes for one user's delivery troubleshooting without querying PostgreSQL directly.
+311. Admin push notification stats can now be scoped by `user_id` and RFC3339 `since`, letting operators compare active devices and recent fan-out attempt outcomes for one user's delivery troubleshooting without querying PostgreSQL directly.
 
 ## Deferred until backend contracts stabilize
 
