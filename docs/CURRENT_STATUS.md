@@ -737,6 +737,10 @@ The platform hardening sprint completed the following:
   before repository metadata updates, preserving the previously recorded body if
   the DB update fails and best-effort deleting the previous staged body after a
   successful replacement.
+- Upload-session staged object paths are validated as relative
+  `upload-sessions/` keys before repository persistence and again before
+  service-side storage reads/deletes, reducing risk from corrupted or manually
+  edited rows.
 - Upload session body storage can verify an optional client-provided
   `X-Content-SHA256` digest before recording the staged body.
 - Attachment upload capabilities now advertise upload session checksum

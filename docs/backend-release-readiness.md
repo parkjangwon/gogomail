@@ -66,6 +66,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Upload session body replacement records retries through distinct staged object
   paths, preserving the previously recorded body if repository metadata updates
   fail and best-effort cleaning old staged bodies after successful replacement.
+- Upload-session staged object paths must stay relative under the
+  `upload-sessions/` prefix before repository persistence and before service
+  storage reads/deletes, so corrupted rows cannot redirect cleanup or
+  finalization to ambiguous object keys.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Upload session finalization verifies the staged object still exists and
