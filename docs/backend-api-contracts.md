@@ -431,6 +431,10 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`; optional
   `domain_id` rejects CR/LF-bearing or oversized values before service
   dispatch, and optional `status=active|inactive` scopes key lifecycle triage.
+- DKIM key create/upsert, deactivate, and DNS-verification mutations persist
+  `dkim_key.create`, `dkim_key.deactivate`, and `dkim_key.verify_dns` admin
+  audit rows with bounded JSON detail in the same database transaction as the
+  persisted lifecycle change. Audit detail excludes private key material.
 - `GET /admin/v1/companies` returns `{"companies":[...]}` with optional
   `status=active|suspended|disabled` for tenant lifecycle triage.
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}` with
