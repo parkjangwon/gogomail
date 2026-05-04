@@ -1,5 +1,7 @@
 # gogomail
 
+<img width="1456" height="720" alt="1777874812592" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
+
 Go-first backend implementation for the gogomail webmail/mail-server platform.
 
 ## Current scope
