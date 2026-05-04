@@ -32,6 +32,20 @@ func TestValidateSaveDraftRequestRejectsBlankAttachmentID(t *testing.T) {
 	}
 }
 
+func TestValidateSaveDraftRequestRejectsUnsafeResourceIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []SaveDraftRequest{
+		{UserID: "user-1", DraftID: "draft-1\r\nbad"},
+		{UserID: "user-1", Intent: ComposeIntentReply, SourceMessageID: strings.Repeat("x", maxServiceResourceIDBytes+1)},
+	}
+	for _, req := range tests {
+		if err := ValidateSaveDraftRequest(req); err == nil {
+			t.Fatalf("ValidateSaveDraftRequest accepted unsafe ids %+v", req)
+		}
+	}
+}
+
 func TestValidateSaveDraftRequestRejectsTooManyAttachments(t *testing.T) {
 	t.Parallel()
 

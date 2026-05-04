@@ -122,6 +122,8 @@ attachment IDs, and CR/LF-free header-bearing compose fields. Drafts may omit
 recipients while a message is still being composed, but draft attachment ID
 lists are capped at the same 100-item limit as send requests so clients cannot
 persist oversized compose payloads for later send-time rejection.
+Draft IDs and reply/forward source message IDs are also bounded and reject
+CR/LF-bearing values before repository dispatch.
 
 ## Attachment lifecycle
 
