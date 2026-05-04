@@ -707,12 +707,13 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		})
 		logger.Info("delivery worker enabled DKIM signing transformer")
 	}
+	deliveryRecorder := delivery.NewPostgresRecorder(db)
 	handler := delivery.NewHandler(
 		storage.NewLocalStore(cfg.MailstoreRoot),
 		transport,
-		delivery.NewPostgresRecorder(db),
+		deliveryRecorder,
 		delivery.NewPostgresRetryScheduler(db, retryPolicy),
-	)
+	).WithExhaustionHook(deliveryRecorder)
 	if cfg.DeliveryThrottleEnabled {
 		handler.WithThrottler(delivery.NewInMemoryThrottler(delivery.ThrottlePolicy{
 			FarmMaxConcurrent:   deliveryFarmLimits(cfg.DeliveryFarmConcurrency),

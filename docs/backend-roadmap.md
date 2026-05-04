@@ -400,6 +400,7 @@ Implementation order:
 341. Domain statistics now use a reusable OpenAPI response component and envelope drift tests, keeping `GET /admin/v1/domains/{id}/stats` aligned with generated Admin clients.
 342. OpenAPI contract tests now derive path parameters from every documented route and require matching operation parameters, preventing generated clients from silently losing IDs on nested Mail/Admin API endpoints.
 343. Nested OpenAPI path parameters for attachment downloads and API usage export digest/signature routes now use reusable components and drift tests, keeping generated clients consistent across deeply nested operational endpoints.
+344. The delivery worker now wires the Postgres recorder as the retry exhaustion hook, so exhausted retries persist terminal delivery-attempt diagnostics and emit the documented `mail.delivery_exhausted` outbox event at runtime.
 
 ## Deferred until backend contracts stabilize
 
