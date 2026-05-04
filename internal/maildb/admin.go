@@ -2164,6 +2164,63 @@ RETURNING id, created_at, completed_at, status, export_format, tenant_id, princi
 	return batch, nil
 }
 
+func (r *Repository) ListAPIUsageExportBatches(ctx context.Context, limit int) ([]APIUsageExportBatchView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+	const query = `
+SELECT id, created_at, completed_at, status, export_format, tenant_id, principal_id,
+  window_start, window_end, event_count, request_count, request_bytes, response_bytes,
+  latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest
+FROM api_usage_export_batches
+ORDER BY created_at DESC, id DESC
+LIMIT $1`
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage export batches: %w", err)
+	}
+	defer rows.Close()
+
+	var batches []APIUsageExportBatchView
+	for rows.Next() {
+		var batch APIUsageExportBatchView
+		var completedAt sql.NullTime
+		var windowStart sql.NullTime
+		var windowEnd sql.NullTime
+		var firstEventAt sql.NullTime
+		var lastEventAt sql.NullTime
+		if err := rows.Scan(
+			&batch.ID,
+			&batch.CreatedAt,
+			&completedAt,
+			&batch.Status,
+			&batch.ExportFormat,
+			&batch.TenantID,
+			&batch.PrincipalID,
+			&windowStart,
+			&windowEnd,
+			&batch.EventCount,
+			&batch.RequestCount,
+			&batch.RequestBytes,
+			&batch.ResponseBytes,
+			&batch.LatencyMSTotal,
+			&batch.LatencyMSMax,
+			&firstEventAt,
+			&lastEventAt,
+			&batch.Manifest,
+		); err != nil {
+			return nil, fmt.Errorf("scan api usage export batch: %w", err)
+		}
+		applyExportBatchNullableTimes(&batch, completedAt, windowStart, windowEnd, firstEventAt, lastEventAt)
+		batches = append(batches, batch)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage export batches: %w", err)
+	}
+	return batches, nil
+}
+
 func newAPIUsageExportBatchID() (string, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
