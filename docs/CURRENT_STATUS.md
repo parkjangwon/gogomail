@@ -460,6 +460,8 @@ The platform hardening sprint completed the following:
 - The shared `event-worker` now consumes committed `mail.stored` events through
   an IMAP UID handler that ensures newly received active messages get
   mailbox-local UIDs asynchronously after SMTP storage commits.
+- IMAP UID assignment event decoding rejects CR/LF-bearing or oversized
+  message, user, and folder IDs before UID work or mailbox event fan-out.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and

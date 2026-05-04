@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	EventMailStored    = "mail.stored"
-	MailStoredSchemaV1 = "2026-05-04.mail-stored.v1"
+	EventMailStored           = "mail.stored"
+	MailStoredSchemaV1        = "2026-05-04.mail-stored.v1"
+	maxMailStoredEventIDBytes = 200
 )
 
 type UIDEnsurer interface {
@@ -104,6 +105,9 @@ func requiredEventValue(name string, value string) (string, error) {
 	}
 	if strings.ContainsAny(value, "\r\n") {
 		return "", fmt.Errorf("mail.stored imap payload has invalid %s", name)
+	}
+	if len(value) > maxMailStoredEventIDBytes {
+		return "", fmt.Errorf("mail.stored imap payload has oversized %s", name)
 	}
 	return value, nil
 }
