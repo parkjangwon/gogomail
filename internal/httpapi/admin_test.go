@@ -1616,7 +1616,7 @@ func TestAdminListAPIUsageExportBatchesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches?limit=5&tenant_id=%20tenant-1%20&principal_id=%20principal-1%20&status=completed&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -1632,8 +1632,41 @@ func TestAdminListAPIUsageExportBatchesHandler(t *testing.T) {
 	if len(body.Batches) != 1 || body.Batches[0].ID != "api-usage-export-1" {
 		t.Fatalf("batches = %+v", body.Batches)
 	}
-	if service.lastLimit != 5 {
-		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	if service.lastAPIUsageExportBatchList.Limit != 5 || service.lastAPIUsageExportBatchList.TenantID != "tenant-1" || service.lastAPIUsageExportBatchList.PrincipalID != "principal-1" || service.lastAPIUsageExportBatchList.Status != "completed" || service.lastAPIUsageExportBatchList.From.IsZero() || service.lastAPIUsageExportBatchList.To.IsZero() {
+		t.Fatalf("lastAPIUsageExportBatchList = %+v", service.lastAPIUsageExportBatchList)
+	}
+}
+
+func TestAdminListAPIUsageExportBatchesHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	tests := []string{
+		"/admin/v1/api-usage/export-batches?tenant_id=tenant%0Abad",
+		"/admin/v1/api-usage/export-batches?principal_id=" + strings.Repeat("p", maxAdminQueryFilterBytes+1),
+		"/admin/v1/api-usage/export-batches?status=ready",
+		"/admin/v1/api-usage/export-batches?from=bad-time",
+		"/admin/v1/api-usage/export-batches?from=2026-05-05T00:00:00Z&to=2026-05-04T00:00:00Z",
+	}
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if service.lastAPIUsageExportBatchList.Limit != 0 {
+				t.Fatalf("export batch list was called: %+v", service.lastAPIUsageExportBatchList)
+			}
+		})
 	}
 }
 
@@ -4918,6 +4951,7 @@ type fakeAdminService struct {
 	lastAPIUsageLedgerRetentionRunID            string
 	lastAPIUsageExportCapabilities              bool
 	lastAPIUsageExportBatchID                   string
+	lastAPIUsageExportBatchList                 maildb.APIUsageExportBatchListRequest
 	lastAPIUsageExportHandoffDeep               bool
 	lastAPIUsageExportArtifactID                string
 	lastAPIUsageExportManifestDigestID          string
@@ -5212,8 +5246,9 @@ func (f *fakeAdminService) CreateAPIUsageExportBatch(_ context.Context, req mail
 	return f.apiUsageExportBatch, nil
 }
 
-func (f *fakeAdminService) ListAPIUsageExportBatches(_ context.Context, limit int) ([]maildb.APIUsageExportBatchView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListAPIUsageExportBatches(_ context.Context, req maildb.APIUsageExportBatchListRequest) ([]maildb.APIUsageExportBatchView, error) {
+	f.lastLimit = req.Limit
+	f.lastAPIUsageExportBatchList = req
 	return f.apiUsageExportBatches, nil
 }
 

@@ -655,8 +655,10 @@ API call metering can now emit durable usage events:
   request requires explicit RFC3339 `from` and `to` query parameters so
   operators cannot accidentally checkpoint the entire ledger.
 - `GET /admin/v1/api-usage/export-batches` returns
-  `{ "api_usage_export_batches": [...] }`, and
-  `GET /admin/v1/api-usage/export-batches/{id}` returns one saved manifest.
+  `{ "api_usage_export_batches": [...] }` with optional `tenant_id`,
+  `principal_id`, `status=pending|completed|failed`, and export-window
+  `from`/`to` filters, and `GET /admin/v1/api-usage/export-batches/{id}`
+  returns one saved manifest.
 - `GET /admin/v1/api-usage/export-capabilities` returns
   `{ "api_usage_export_capabilities": ... }`, describing the configured export
   format, artifact content type, manifest digest algorithm, signer backend,

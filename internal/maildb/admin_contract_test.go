@@ -216,6 +216,26 @@ func TestNormalizeAPIUsageAggregateListRequestNormalizesFilters(t *testing.T) {
 	}
 }
 
+func TestValidateAPIUsageExportBatchListRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []APIUsageExportBatchListRequest{
+		{TenantID: "tenant\nbad"},
+		{PrincipalID: strings.Repeat("p", maxPushNotificationFilterBytes+1)},
+		{Status: "ready"},
+		{From: time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC), To: time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC)},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.TenantID+req.PrincipalID+req.Status, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateAPIUsageExportBatchListRequest(req); err == nil {
+				t.Fatalf("ValidateAPIUsageExportBatchListRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
 func TestNormalizeQuotaUsageListRequestRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 

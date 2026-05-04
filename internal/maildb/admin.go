@@ -378,6 +378,15 @@ type APIUsageExportBatchView struct {
 	Manifest       json.RawMessage `json:"manifest"`
 }
 
+type APIUsageExportBatchListRequest struct {
+	Limit       int
+	TenantID    string
+	PrincipalID string
+	Status      string
+	From        time.Time
+	To          time.Time
+}
+
 type APIUsageExportArtifactView struct {
 	ID             string          `json:"id"`
 	BatchID        string          `json:"batch_id"`
@@ -3570,19 +3579,58 @@ RETURNING id, created_at, completed_at, status, export_format, tenant_id, princi
 	return batch, nil
 }
 
-func (r *Repository) ListAPIUsageExportBatches(ctx context.Context, limit int) ([]APIUsageExportBatchView, error) {
+func ValidateAPIUsageExportBatchListRequest(req APIUsageExportBatchListRequest) error {
+	for field, value := range map[string]string{
+		"tenant_id":    strings.TrimSpace(req.TenantID),
+		"principal_id": strings.TrimSpace(req.PrincipalID),
+	} {
+		if err := validatePushNotificationFilter(field, value); err != nil {
+			return err
+		}
+	}
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status != "" && !isAPIUsageExportBatchStatus(status) {
+		return fmt.Errorf("unsupported api usage export batch status %q", req.Status)
+	}
+	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
+		return fmt.Errorf("from must be before to")
+	}
+	return nil
+}
+
+func isAPIUsageExportBatchStatus(status string) bool {
+	switch status {
+	case "pending", "completed", "failed":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *Repository) ListAPIUsageExportBatches(ctx context.Context, req APIUsageExportBatchListRequest) ([]APIUsageExportBatchView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateAPIUsageExportBatchListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	tenantID := strings.TrimSpace(req.TenantID)
+	principalID := strings.TrimSpace(req.PrincipalID)
+	status := strings.ToLower(strings.TrimSpace(req.Status))
 	const query = `
 SELECT id, created_at, completed_at, status, export_format, tenant_id, principal_id,
   window_start, window_end, event_count, request_count, request_bytes, response_bytes,
   latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest
 FROM api_usage_export_batches
+WHERE ($1 = '' OR tenant_id = $1)
+  AND ($2 = '' OR principal_id = $2)
+  AND ($3 = '' OR status = $3)
+  AND ($4::timestamptz IS NULL OR window_start >= $4)
+  AND ($5::timestamptz IS NULL OR window_end < $5)
 ORDER BY created_at DESC, id DESC
-LIMIT $1`
-	rows, err := r.db.QueryContext(ctx, query, limit)
+LIMIT $6`
+	rows, err := r.db.QueryContext(ctx, query, tenantID, principalID, status, nullableTime(req.From), nullableTime(req.To), limit)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage export batches: %w", err)
 	}

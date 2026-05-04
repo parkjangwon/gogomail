@@ -46,6 +46,14 @@ curl -sS -X POST -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
 
 Record the returned `id` as `BATCH_ID`.
 
+To find an existing covering batch before creating another one, list batches
+with the same scope and export window:
+
+```bash
+curl -sS -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
+  "$GOGOMAIL_ADMIN_URL/admin/v1/api-usage/export-batches?tenant_id=$TENANT_ID&principal_id=$PRINCIPAL_ID&status=completed&from=$WINDOW_START&to=$WINDOW_END"
+```
+
 ## 3. Write and verify the NDJSON artifact
 
 ```bash
