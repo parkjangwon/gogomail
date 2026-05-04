@@ -218,6 +218,8 @@ type APIUsageLedgerListRequest struct {
 	To          time.Time
 }
 
+const APIUsageLedgerNoLimit = -1
+
 type APIUsageLedgerStatsView struct {
 	EventCount       int64      `json:"event_count"`
 	RequestCount     int64      `json:"request_count"`
@@ -1981,7 +1983,10 @@ func (r *Repository) StreamAPIUsageLedger(ctx context.Context, req APIUsageLedge
 	if yield == nil {
 		return fmt.Errorf("api usage ledger yield function is required")
 	}
-	limit := normalizeLimit(req.Limit)
+	limit := 0
+	if req.Limit != APIUsageLedgerNoLimit {
+		limit = normalizeLimit(req.Limit)
+	}
 
 	query := `
 SELECT
@@ -2026,10 +2031,16 @@ FROM api_usage_ledger`
 	if len(conditions) > 0 {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
 	}
-	args = append(args, limit)
-	query += fmt.Sprintf(`
+	if req.Limit == APIUsageLedgerNoLimit {
+		query += `
+ORDER BY event_timestamp DESC, event_id DESC
+`
+	} else {
+		args = append(args, limit)
+		query += fmt.Sprintf(`
 ORDER BY event_timestamp DESC, event_id DESC
 LIMIT $%d`, len(args))
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
