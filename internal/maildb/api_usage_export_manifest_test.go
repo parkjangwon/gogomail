@@ -101,11 +101,12 @@ func TestApplyAPIUsageExportHandoffReadiness(t *testing.T) {
 		LatestManifestDigestAt:     &completedAt,
 		LatestDigestSignatureCount: 1,
 		LatestSignatureID:          "signature-1",
+		LatestSignatureSigner:      "local-hmac",
 		LatestSignatureAt:          &completedAt,
 	}
 	applyAPIUsageExportHandoffReadiness(&view)
 
-	if !view.Ready || !view.EventsCovered || len(view.MissingRequirements) != 0 {
+	if !view.Ready || view.BillingReady || view.ReadinessGrade != "operational" || len(view.BillingBlockingReasons) != 1 {
 		t.Fatalf("handoff readiness = %+v", view)
 	}
 }
@@ -127,5 +128,31 @@ func TestApplyAPIUsageExportHandoffReadinessReportsMissingRequirements(t *testin
 	want := []string{"batch_completed", "event_coverage", "manifest_signature"}
 	if view.Ready || view.EventsCovered || strings.Join(view.MissingRequirements, ",") != strings.Join(want, ",") {
 		t.Fatalf("handoff readiness = %+v, want missing %v", view, want)
+	}
+	if view.ReadinessGrade != "billing_blocked" || view.BillingReady || strings.Join(view.BillingBlockingReasons, ",") != "handoff_not_ready" {
+		t.Fatalf("billing readiness = %+v", view)
+	}
+}
+
+func TestApplyAPIUsageExportHandoffReadinessMarksProductionSignerBillingCandidate(t *testing.T) {
+	t.Parallel()
+
+	view := APIUsageExportHandoffView{
+		BatchID:                    "batch-1",
+		BatchStatus:                "completed",
+		BatchCompleted:             true,
+		EventCount:                 10,
+		ArtifactCount:              1,
+		ArtifactEventCount:         10,
+		ManifestDigestCount:        1,
+		LatestManifestDigestID:     "digest-1",
+		LatestDigestSignatureCount: 1,
+		LatestSignatureID:          "signature-1",
+		LatestSignatureSigner:      "kms-asymmetric",
+	}
+	applyAPIUsageExportHandoffReadiness(&view)
+
+	if !view.Ready || !view.BillingReady || view.ReadinessGrade != "billing_candidate" || len(view.BillingBlockingReasons) != 0 {
+		t.Fatalf("handoff readiness = %+v", view)
 	}
 }

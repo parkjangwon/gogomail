@@ -2810,6 +2810,8 @@ components:
         - manifest_digest_count
         - latest_digest_signature_count
         - ready
+        - readiness_grade
+        - billing_ready
       properties:
         batch_id:
           type: string
@@ -2863,11 +2865,21 @@ components:
           format: date-time
         ready:
           type: boolean
+        readiness_grade:
+          type: string
+          enum: [operational, billing_candidate, billing_blocked]
+        billing_ready:
+          type: boolean
         missing_requirements:
           type: array
           items:
             type: string
             enum: [batch_completed, export_artifact, event_coverage, manifest_digest, manifest_signature]
+        billing_blocking_reasons:
+          type: array
+          items:
+            type: string
+            enum: [handoff_not_ready, production_manifest_signer_required]
     APIUsageExportHandoffReadinessEnvelope:
       type: object
       required: [api_usage_export_handoff_readiness]

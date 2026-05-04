@@ -502,7 +502,11 @@ func TestAdminGetAPIUsageExportHandoffReadinessHandler(t *testing.T) {
 			LatestManifestDigestID:     "api-usage-manifest-1",
 			LatestDigestSignatureCount: 1,
 			LatestSignatureID:          "api-usage-signature-1",
+			LatestSignatureSigner:      "local-hmac",
 			Ready:                      true,
+			ReadinessGrade:             "operational",
+			BillingReady:               false,
+			BillingBlockingReasons:     []string{"production_manifest_signer_required"},
 		},
 	}
 	mux := http.NewServeMux()
@@ -521,7 +525,7 @@ func TestAdminGetAPIUsageExportHandoffReadinessHandler(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if !body.Handoff.Ready || body.Handoff.LatestSignatureID != "api-usage-signature-1" {
+	if !body.Handoff.Ready || body.Handoff.BillingReady || body.Handoff.ReadinessGrade != "operational" {
 		t.Fatalf("handoff = %+v", body.Handoff)
 	}
 	if service.lastAPIUsageExportBatchID != "api-usage-export-1" {
