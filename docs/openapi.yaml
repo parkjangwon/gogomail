@@ -631,6 +631,23 @@ paths:
           $ref: "#/components/responses/AuditLogList"
         default:
           $ref: "#/components/responses/Error"
+  /audit-logs/integrity:
+    get:
+      operationId: checkAdminAuditLogIntegrity
+      summary: Check recent audit log hash-chain integrity
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for audit log creation timestamps.
+      responses:
+        "200":
+          $ref: "#/components/responses/AuditLogIntegrity"
+        default:
+          $ref: "#/components/responses/Error"
   /audit-logs/{id}:
     get:
       operationId: getAdminAuditLog
@@ -2060,6 +2077,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AuditLogEnvelope"
+    AuditLogIntegrity:
+      description: Audit log integrity check envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuditLogIntegrityEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -3343,6 +3366,49 @@ components:
       properties:
         audit_log:
           $ref: "#/components/schemas/AuditLog"
+    AuditLogIntegrityBreak:
+      type: object
+      required: [id, created_at, reason]
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          enum: [hash_mismatch, prev_hash_mismatch]
+        expected_prev_hash:
+          type: string
+        actual_prev_hash:
+          type: string
+        expected_hash:
+          type: string
+        actual_hash:
+          type: string
+    AuditLogIntegrity:
+      type: object
+      required: [checked_count, valid, breaks]
+      properties:
+        checked_count:
+          type: integer
+          minimum: 0
+        valid:
+          type: boolean
+        first_id:
+          type: string
+        last_id:
+          type: string
+        breaks:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogIntegrityBreak"
+    AuditLogIntegrityEnvelope:
+      type: object
+      required: [audit_log_integrity]
+      properties:
+        audit_log_integrity:
+          $ref: "#/components/schemas/AuditLogIntegrity"
     BackpressureState:
       type: object
       required: [level]

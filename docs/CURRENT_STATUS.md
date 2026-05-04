@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after audit hash-chain writer reuse)
+Last updated: 2026-05-05 (updated after audit hash-chain integrity inspection)
 
 ## Current phase
 
@@ -226,6 +226,9 @@ guidance.
   operational audit records can be inspected through the release API surface.
 - Domain DNS check and quota reconciliation correction audit rows now reuse the
   shared audit writer hash-chain logic instead of inserting empty hash fields.
+- Admin API exposes a bounded audit-log integrity check that recomputes recent
+  row hashes and reports hash or in-window prev-hash breaks without mutating the
+  audit trail.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`

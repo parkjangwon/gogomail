@@ -38,6 +38,8 @@ Current state:
   inspectable through the operator API.
 - Domain DNS check and quota correction audit records now reuse the shared
   hash-chain writer, keeping operator-visible audit rows tamper-evident.
+- Admin API can run a bounded audit-log integrity check over recent rows,
+  reporting hash and in-window prev-hash breaks for operator triage.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.

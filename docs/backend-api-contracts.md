@@ -372,6 +372,11 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/audit-logs/{id}` returns `{"audit_log":{...}}` with the stored
   scope identifiers, target metadata, result, JSON detail, hash-chain fields,
   and creation timestamp for one audit row.
+- `GET /admin/v1/audit-logs/integrity` returns
+  `{"audit_log_integrity":{...}}` for a bounded recent audit-log window. It
+  supports `limit` and RFC3339 `since`, recomputes each row hash, checks
+  in-window `prev_hash` continuity, and returns typed break records without
+  mutating audit rows.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
