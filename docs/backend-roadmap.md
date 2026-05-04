@@ -593,6 +593,7 @@ Implementation order:
 534. `mailservice` exposes resumable upload session create/cancel/expire methods over the repository boundary while preserving metadata validation, max-size checks, and domain attachment policy enforcement.
 535. `attachment-cleanup-worker` now expires stale resumable attachment upload sessions during the normal bounded cleanup sweep so abandoned sessions release reserved quota without a separate worker.
 536. Mail API exposes resumable attachment upload session create/cancel endpoints with explicit quota reservation while keeping chunked upload capability disabled until receive/finalize contracts land.
+537. Attachment upload capabilities now advertise upload session create/cancel support separately from full resumable chunk support so clients can stage integration safely.
 
 ## Deferred until backend contracts stabilize
 

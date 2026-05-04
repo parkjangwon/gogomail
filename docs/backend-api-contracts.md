@@ -172,8 +172,9 @@ in the same transaction.
 Clients can discover the current upload limits and supported modes with
 `GET /api/v1/attachments/capabilities`. The response records max attachment
 bytes, filename bytes, metadata reservation, direct multipart upload, pending
-upload cancellation, declared-size requirements, quota reservation semantics,
-and the fact that resumable/chunked uploads are not yet supported.
+upload cancellation, upload session create/cancel support, declared-size
+requirements, quota reservation semantics, and the fact that full
+resumable/chunked uploads are not yet supported.
 OpenAPI documents the current maximum attachment and filename byte caps so
 generated clients can validate these limits without copying hidden constants.
 Resumable/chunked upload contracts follow ADR 0007 and remain disabled in
