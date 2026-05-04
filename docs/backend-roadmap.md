@@ -625,6 +625,7 @@ Implementation order:
 565. Destructive `api-usage-retention-worker` configuration now requires a production-oriented `remote-ed25519` export manifest signer backend in addition to explicit `confirm_ready`.
 566. API usage export capabilities now advertise bounded retention-run support, retention-worker support, and the remote-key requirement for destructive worker purges.
 567. API usage ledger retention now rejects future cutoffs inside the repository boundary, aligning worker/direct-call behavior with the Admin API future-cutoff guard.
+568. Draft search now has a separate compose-focused Mail API contract, keeping active-message search and OpenSearch relevance semantics separate from draft body/recipient lookup.
 
 ## Deferred until backend contracts stabilize
 

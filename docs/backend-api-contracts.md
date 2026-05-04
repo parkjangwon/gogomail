@@ -709,9 +709,12 @@ Message search starts with a small-deployment Postgres implementation:
 The current backend searches active-message metadata (`subject`, `from_addr`,
 `from_name`) and indexed received-message body text using a simple Postgres FTS
 expression and bounded list limits. Draft rows are intentionally excluded from
-`GET /api/v1/search` until an explicit draft search contract and indexing path
-are added. Search clients can opt into `sort=relevance`, `include_rank=true`,
-and `include_highlights=true` while newest-first ordering remains the default.
+`GET /api/v1/search`; compose UIs use the separate
+`GET /api/v1/drafts/search` contract, which searches active draft subject,
+sender, recipient JSON, draft body text, and attachment state with newest
+draft-updated ordering. Search clients can opt into `sort=relevance`,
+`include_rank=true`, and `include_highlights=true` while newest-first ordering
+remains the default for active messages.
 `search-index-worker` can also write received-message documents to OpenSearch with
 `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`, and

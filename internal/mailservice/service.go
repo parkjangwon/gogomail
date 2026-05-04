@@ -230,6 +230,20 @@ func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearch
 	return repo.SearchMessages(ctx, query)
 }
 
+func (s *Service) SearchDrafts(ctx context.Context, query maildb.DraftSearchQuery) ([]maildb.MessageDetail, error) {
+	query = normalizeDraftSearchQuery(query)
+	if err := validateDraftSearchQuery(query); err != nil {
+		return nil, err
+	}
+	repo, ok := s.repository.(interface {
+		SearchDrafts(context.Context, maildb.DraftSearchQuery) ([]maildb.MessageDetail, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("draft search repository is required")
+	}
+	return repo.SearchDrafts(ctx, query)
+}
+
 func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
 	hydrator, ok := s.repository.(interface {
 		ListMessagesByIDs(context.Context, string, []string) ([]maildb.MessageSummary, error)
@@ -330,6 +344,34 @@ func validateMessageSearchQuery(query maildb.MessageSearchQuery) error {
 		if err := validateServiceResourceID("folder_id", query.FolderID); err != nil {
 			return err
 		}
+	}
+	for field, value := range map[string]string{
+		"q":       query.Query,
+		"from":    query.From,
+		"subject": query.Subject,
+	} {
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("%s must not contain CR or LF", field)
+		}
+		if len(value) > maxSearchFilterBytes {
+			return fmt.Errorf("%s is too long", field)
+		}
+	}
+	return nil
+}
+
+func normalizeDraftSearchQuery(query maildb.DraftSearchQuery) maildb.DraftSearchQuery {
+	query.UserID = strings.TrimSpace(query.UserID)
+	query.Query = strings.TrimSpace(query.Query)
+	query.From = strings.TrimSpace(query.From)
+	query.Subject = strings.TrimSpace(query.Subject)
+	query.Limit = maildb.NormalizeMessageListLimit(query.Limit)
+	return query
+}
+
+func validateDraftSearchQuery(query maildb.DraftSearchQuery) error {
+	if query.UserID == "" {
+		return fmt.Errorf("user_id is required")
 	}
 	for field, value := range map[string]string{
 		"q":       query.Query,

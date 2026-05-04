@@ -38,6 +38,7 @@ type MessageService interface {
 	ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error)
 	ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error)
 	SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
+	SearchDrafts(ctx context.Context, query maildb.DraftSearchQuery) ([]maildb.MessageDetail, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
@@ -496,6 +497,46 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"draft": draft})
+	})
+
+	mux.HandleFunc("GET /api/v1/drafts/search", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		hasAttachment, ok := parseOptionalBoolQuery(w, r, "has_attachment")
+		if !ok {
+			return
+		}
+		queryText, ok := parseBoundedHTTPQuery(w, r, "q", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		from, ok := parseBoundedHTTPQuery(w, r, "from", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		subject, ok := parseBoundedHTTPQuery(w, r, "subject", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		drafts, err := service.SearchDrafts(r.Context(), maildb.DraftSearchQuery{
+			UserID:        userID,
+			Query:         queryText,
+			From:          from,
+			Subject:       subject,
+			HasAttachment: hasAttachment,
+			Limit:         limit,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drafts": drafts})
 	})
 
 	mux.HandleFunc("PATCH /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) {

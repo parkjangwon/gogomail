@@ -329,6 +329,36 @@ paths:
           $ref: "#/components/responses/Draft"
         default:
           $ref: "#/components/responses/Error"
+  /drafts/search:
+    get:
+      operationId: searchDrafts
+      summary: Search active drafts using the compose-focused draft store
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: from
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: subject
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: has_attachment
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          $ref: "#/components/responses/DraftList"
+        default:
+          $ref: "#/components/responses/Error"
   /drafts/{id}:
     patch:
       operationId: updateDraft
@@ -2011,6 +2041,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DraftEnvelope"
+    DraftList:
+      description: Draft list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DraftListEnvelope"
     SendQueued:
       description: Queued send result envelope
       content:
@@ -2959,6 +2995,14 @@ components:
       properties:
         draft:
           $ref: "#/components/schemas/MessageDetail"
+    DraftListEnvelope:
+      type: object
+      required: [drafts]
+      properties:
+        drafts:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageDetail"
     SendQueued:
       type: object
       required: [id, message_id, farm, send_status, delivery_status, bounce_status]

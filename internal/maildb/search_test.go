@@ -65,6 +65,38 @@ func TestMessageSearchSQLExcludesDraftRows(t *testing.T) {
 	}
 }
 
+func TestDraftSearchQueryNormalizesLimit(t *testing.T) {
+	t.Parallel()
+
+	if got := (DraftSearchQuery{}).normalizedLimit(); got != MessageListDefaultLimit {
+		t.Fatalf("default limit = %d", got)
+	}
+	if got := (DraftSearchQuery{Limit: 201}).normalizedLimit(); got != MessageListMaxLimit {
+		t.Fatalf("max limit = %d", got)
+	}
+}
+
+func TestDraftSearchSQLUsesComposeFocusedDraftFields(t *testing.T) {
+	t.Parallel()
+
+	query := draftSearchSQL()
+	for _, want := range []string{
+		"status = 'draft'",
+		"draft_text_body ILIKE",
+		"to_addrs::text ILIKE",
+		"cc_addrs::text ILIKE",
+		"bcc_addrs::text ILIKE",
+		"ORDER BY draft_at DESC, id DESC",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("draft search query does not include %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "message_search_documents") {
+		t.Fatalf("draft search query should not depend on active-message search index:\n%s", query)
+	}
+}
+
 func TestHighlightFragmentsDropsUnmarkedText(t *testing.T) {
 	t.Parallel()
 

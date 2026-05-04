@@ -105,14 +105,16 @@ Current state:
 - Postgres and OpenSearch relevance queries now share metadata-first tuning:
   subject and sender matches are weighted above indexed body text, with
   regression tests guarding both backend query shapes.
-- Draft rows remain out of `GET /api/v1/search` until an explicit draft search
-  API/indexing contract is introduced; this keeps Postgres and OpenSearch
-  relevance semantics aligned.
+- Draft rows remain out of `GET /api/v1/search`; draft lookup now has a
+  separate compose-focused `GET /api/v1/drafts/search` API over active draft
+  subject, sender, recipients, body text, and attachment state, ordered by
+  latest draft update. This keeps active-message Postgres/OpenSearch relevance
+  semantics aligned while giving compose UIs a bounded search path.
 
 Next:
 
-- Add an explicit draft search contract only after deciding whether drafts
-  should be indexed in Postgres, OpenSearch, or a separate compose-focused path.
+- Add optional draft-search pagination or cursoring only if compose UX needs
+  more than the existing bounded list limit.
 
 ### 3. IMAP gateway planning
 
