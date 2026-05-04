@@ -228,7 +228,8 @@ The platform hardening sprint completed the following:
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
   move invalidation when `GOGOMAIL_TEST_DATABASE_URL` is available.
 - `internal/imapgw` has a small in-memory mailbox event broker for future IDLE
-  fan-out without introducing a protocol listener yet.
+  fan-out without introducing a protocol listener yet; broker delivery is
+  scoped by both user and mailbox to preserve tenant isolation.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a

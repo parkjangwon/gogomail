@@ -87,6 +87,9 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 	if strings.TrimSpace(string(event.MailboxID)) == "" {
 		return fmt.Errorf("mailbox_id is required")
 	}
+	if strings.TrimSpace(string(event.UserID)) == "" {
+		return fmt.Errorf("user_id is required")
+	}
 	if event.Type == "" {
 		return fmt.Errorf("event type is required")
 	}
@@ -94,7 +97,7 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 	b.mu.Lock()
 	targets := make([]chan MailboxEvent, 0, len(b.subscribers))
 	for _, sub := range b.subscribers {
-		if sub.mailboxID == event.MailboxID {
+		if sub.userID == event.UserID && sub.mailboxID == event.MailboxID {
 			targets = append(targets, sub.events)
 		}
 	}
