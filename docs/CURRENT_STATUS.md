@@ -177,7 +177,9 @@ guidance.
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses (RFC 6531 compliance fix).
 - OpenAPI draft with route, request body, response envelope, operationId, and
-  component reference drift tests.  All schemas kept in sync with Go types.
+  component reference drift tests. API usage ledger filter parameters are
+  contract-tested for generated-client readiness. All schemas kept in sync with
+  Go types.
 - Backend release verification script and SMTP release runbook.
 - API usage export runbook covering capability checks, artifact/digest/signature
   handoff evidence, deep readiness, and retention-readiness gates.
