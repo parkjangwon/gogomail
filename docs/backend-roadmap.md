@@ -390,6 +390,7 @@ Implementation order:
 331. Delivery attempt rows now persist sender, RFC 3463 enhanced status, and RFC 3461 DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` metadata, and Admin/user delivery status reads expose those diagnostics for bounce and retry triage.
 332. Migration filenames now have test coverage for unique numeric versions, and the message search index migration has been moved to an idempotent latest-version file to avoid duplicate goose version ambiguity.
 333. OpenAPI contract tests now guard documented query parameters for operational triage APIs, including delivery attempts, exhausted attempts, push attempts/stats, outbox events, and API usage export handoff readiness.
+334. Delivery enhanced-status extraction now recognizes RFC 3463 codes embedded in multiline SMTP replies and bracketed diagnostics while still requiring the code class to match the SMTP reply class.
 
 ## Deferred until backend contracts stabilize
 
