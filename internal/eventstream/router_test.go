@@ -11,7 +11,7 @@ func TestRouterRoutesByPayloadEventName(t *testing.T) {
 
 	router := NewRouter()
 	var handled Message
-	if err := router.Register("mail.stored", HandlerFunc(func(_ context.Context, msg Message) error {
+	if err := router.Register(" mail.stored ", HandlerFunc(func(_ context.Context, msg Message) error {
 		handled = msg
 		return nil
 	})); err != nil {
@@ -20,7 +20,7 @@ func TestRouterRoutesByPayloadEventName(t *testing.T) {
 
 	err := router.HandleEvent(context.Background(), Message{
 		ID:      "redis-1",
-		Payload: []byte(`{"event":"mail.stored","message_id":"msg-1"}`),
+		Payload: []byte(`{"event":" mail.stored ","message_id":"msg-1"}`),
 	})
 	if err != nil {
 		t.Fatalf("HandleEvent returned error: %v", err)
@@ -49,6 +49,27 @@ func TestEventNameRejectsMissingEvent(t *testing.T) {
 	_, err := EventName([]byte(`{"message_id":"msg-1"}`))
 	if err == nil {
 		t.Fatal("EventName accepted payload without event")
+	}
+}
+
+func TestEventNameRejectsInvalidEvent(t *testing.T) {
+	t.Parallel()
+
+	_, err := EventName([]byte("{\"event\":\"mail.stored\\nmail.bounced\"}"))
+	if err == nil {
+		t.Fatal("EventName accepted invalid event name")
+	}
+}
+
+func TestRouterRejectsInvalidRegisteredEvent(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	err := router.Register("mail.stored\nmail.bounced", HandlerFunc(func(context.Context, Message) error {
+		return nil
+	}))
+	if err == nil {
+		t.Fatal("Register accepted invalid event name")
 	}
 }
 

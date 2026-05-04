@@ -260,6 +260,8 @@ guidance.
   recovery for at-least-once event processing. Startup validation now also
   rejects nonpositive event and delivery consumer count/block settings before
   workers run with unusable Redis Stream options.
+- Event routing trims registered and payload event names and rejects
+  CR/LF-bearing event names before worker dispatch.
 - Admin API exposes a bounded IMAP mailbox UID backfill endpoint for future
   IMAP bootstrap/operator runs without enabling an IMAP protocol listener.
 - Push notification workers no longer redeliver a Redis event solely because

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -49,8 +50,12 @@ func NewRouter() *Router {
 }
 
 func (r *Router) Register(event string, handler Handler) error {
+	event = strings.TrimSpace(event)
 	if event == "" {
 		return fmt.Errorf("event name is required")
+	}
+	if strings.ContainsAny(event, "\r\n") {
+		return fmt.Errorf("event name is invalid")
 	}
 	if handler == nil {
 		return fmt.Errorf("handler is required")
@@ -84,8 +89,12 @@ func EventName(payload json.RawMessage) (string, error) {
 	if err := json.Unmarshal(payload, &envelope); err != nil {
 		return "", fmt.Errorf("decode event payload: %w", err)
 	}
+	envelope.Event = strings.TrimSpace(envelope.Event)
 	if envelope.Event == "" {
 		return "", fmt.Errorf("event payload is missing event field")
+	}
+	if strings.ContainsAny(envelope.Event, "\r\n") {
+		return "", fmt.Errorf("event payload has invalid event field")
 	}
 	return envelope.Event, nil
 }
