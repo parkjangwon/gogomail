@@ -11,6 +11,12 @@ type PostgresRecorder struct {
 	db *sql.DB
 }
 
+type AttemptOutcome struct {
+	AttemptID    string
+	Status       string
+	ErrorMessage string
+}
+
 func NewPostgresRecorder(db *sql.DB) *PostgresRecorder {
 	return &PostgresRecorder{db: db}
 }
@@ -64,6 +70,31 @@ RETURNING id::text`
 	return result, nil
 }
 
+func (r *PostgresRecorder) RecordOutcome(ctx context.Context, outcome AttemptOutcome) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	normalized, err := normalizeAttemptOutcome(outcome)
+	if err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(
+		ctx,
+		`UPDATE push_notification_attempts SET status = $2, error_message = $3, attempted_at = now() WHERE id = $1::uuid`,
+		normalized.AttemptID,
+		normalized.Status,
+		normalized.ErrorMessage,
+	)
+	if err != nil {
+		return fmt.Errorf("record push notification outcome: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("push notification attempt %q not found", normalized.AttemptID)
+	}
+	return nil
+}
+
 func normalizeCandidateRecord(record CandidateRecord) CandidateRecord {
 	record.MessageID = strings.TrimSpace(record.MessageID)
 	record.RFCMessageID = strings.TrimSpace(record.RFCMessageID)
@@ -84,4 +115,29 @@ func normalizeCandidateRecord(record CandidateRecord) CandidateRecord {
 		record.ErrorMessage = record.ErrorMessage[:2000]
 	}
 	return record
+}
+
+func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
+	outcome.AttemptID = strings.TrimSpace(outcome.AttemptID)
+	outcome.Status = strings.ToLower(strings.TrimSpace(outcome.Status))
+	outcome.ErrorMessage = strings.TrimSpace(outcome.ErrorMessage)
+	if outcome.AttemptID == "" {
+		return AttemptOutcome{}, fmt.Errorf("attempt_id is required")
+	}
+	if !allowedOutcomeStatus(outcome.Status) {
+		return AttemptOutcome{}, fmt.Errorf("unsupported push notification outcome status")
+	}
+	if len(outcome.ErrorMessage) > 2000 {
+		outcome.ErrorMessage = outcome.ErrorMessage[:2000]
+	}
+	return outcome, nil
+}
+
+func allowedOutcomeStatus(status string) bool {
+	switch status {
+	case "queued", "delivered", "failed", "invalid_token":
+		return true
+	default:
+		return false
+	}
 }
