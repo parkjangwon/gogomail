@@ -41,6 +41,8 @@ func (m *TokenManager) Sign(claims Claims, ttl time.Duration) (string, error) {
 	if ttl <= 0 {
 		ttl = 15 * time.Minute
 	}
+	claims.UserID = strings.TrimSpace(claims.UserID)
+	claims.Subject = strings.TrimSpace(claims.Subject)
 	if claims.UserID == "" && claims.Subject != "" {
 		claims.UserID = claims.Subject
 	}
@@ -109,6 +111,8 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	if err := json.Unmarshal(payloadRaw, &claims); err != nil {
 		return Claims{}, fmt.Errorf("decode jwt claims: %w", err)
 	}
+	claims.UserID = strings.TrimSpace(claims.UserID)
+	claims.Subject = strings.TrimSpace(claims.Subject)
 	if claims.UserID == "" {
 		claims.UserID = claims.Subject
 	}

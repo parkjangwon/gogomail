@@ -235,7 +235,9 @@ guidance.
   fixed-length SHA-256 digests of trimmed token values for both bearer tokens
   and `X-Admin-Token`.
 - Mail API JWT verification rejects unsupported JWT `alg` values and non-JWT
-  `typ` headers before accepting signed bearer claims.
+  `typ` headers before accepting signed bearer claims. JWT `user_id`/`sub`
+  identities are whitespace-normalized and blank identities are rejected during
+  both signing and verification.
 - Redis event consumers acknowledge malformed stream entries after logging
   decode failures, preventing poison messages from pinning worker progress while
   preserving retry behavior for handler failures.

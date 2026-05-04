@@ -450,6 +450,7 @@ Implementation order:
 391. API usage export batch creation now requires explicit RFC3339 `from`/`to` ledger windows at the Admin API boundary, preventing accidental all-ledger checkpoints and keeping generated clients aligned through OpenAPI drift coverage.
 392. The OpenAPI thread-list operation no longer leaks API usage export filters into generated Mail API clients, with drift coverage pinning the route to its actual `limit` query contract.
 393. Mail API JWT verification now validates signed token headers, accepting only HS256 and optional JWT `typ` values before trusting bearer claims.
+394. JWT signing and verification now whitespace-normalize `user_id`/`sub` identities and reject blank identities, keeping Mail API bearer scoping from accepting formatting-only subjects.
 
 ## Deferred until backend contracts stabilize
 
