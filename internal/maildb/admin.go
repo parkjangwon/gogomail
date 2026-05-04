@@ -184,6 +184,28 @@ type APIUsageMonthlyView struct {
 	LastSeenAt       time.Time `json:"last_seen_at"`
 }
 
+type APIUsageLedgerView struct {
+	EventID       string          `json:"event_id"`
+	SchemaVersion string          `json:"schema_version"`
+	EventTime     time.Time       `json:"event_timestamp"`
+	RecordedAt    time.Time       `json:"recorded_at"`
+	Method        string          `json:"method"`
+	Route         string          `json:"route"`
+	Status        int             `json:"status"`
+	TenantID      string          `json:"tenant_id,omitempty"`
+	CompanyID     string          `json:"company_id,omitempty"`
+	DomainID      string          `json:"domain_id,omitempty"`
+	UserID        string          `json:"user_id,omitempty"`
+	APIKeyID      string          `json:"api_key_id,omitempty"`
+	PrincipalID   string          `json:"principal_id,omitempty"`
+	AuthSource    string          `json:"auth_source,omitempty"`
+	RequestCount  int64           `json:"request_count"`
+	RequestBytes  int64           `json:"request_bytes"`
+	ResponseBytes int64           `json:"response_bytes"`
+	LatencyMS     int64           `json:"latency_ms"`
+	Payload       json.RawMessage `json:"payload"`
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
@@ -1841,6 +1863,77 @@ LIMIT $1`
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate api usage monthly: %w", err)
+	}
+	return usages, nil
+}
+
+func (r *Repository) ListAPIUsageLedger(ctx context.Context, limit int) ([]APIUsageLedgerView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  event_id,
+  schema_version,
+  event_timestamp,
+  recorded_at,
+  method,
+  route,
+  status,
+  tenant_id,
+  company_id,
+  domain_id,
+  user_id,
+  api_key_id,
+  principal_id,
+  auth_source,
+  request_count,
+  request_bytes,
+  response_bytes,
+  latency_ms,
+  payload
+FROM api_usage_ledger
+ORDER BY event_timestamp DESC, event_id DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage ledger: %w", err)
+	}
+	defer rows.Close()
+
+	var usages []APIUsageLedgerView
+	for rows.Next() {
+		var usage APIUsageLedgerView
+		if err := rows.Scan(
+			&usage.EventID,
+			&usage.SchemaVersion,
+			&usage.EventTime,
+			&usage.RecordedAt,
+			&usage.Method,
+			&usage.Route,
+			&usage.Status,
+			&usage.TenantID,
+			&usage.CompanyID,
+			&usage.DomainID,
+			&usage.UserID,
+			&usage.APIKeyID,
+			&usage.PrincipalID,
+			&usage.AuthSource,
+			&usage.RequestCount,
+			&usage.RequestBytes,
+			&usage.ResponseBytes,
+			&usage.LatencyMS,
+			&usage.Payload,
+		); err != nil {
+			return nil, fmt.Errorf("scan api usage ledger: %w", err)
+		}
+		usages = append(usages, usage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage ledger: %w", err)
 	}
 	return usages, nil
 }
