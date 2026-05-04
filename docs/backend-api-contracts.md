@@ -365,6 +365,14 @@ API call metering can now emit durable usage events:
   `GET /admin/v1/api-usage/export-batches/{id}` returns one saved manifest.
 - `GET /admin/v1/api-usage/export-batches/{id}/export` streams the saved
   manifest window as NDJSON, making export replay idempotent by batch ID.
+- `POST /admin/v1/api-usage/export-batches/{id}/artifacts` registers an
+  external export artifact with `object_key`, `byte_count`, `sha256_hex`,
+  `event_count`, and optional metadata; artifact rows are deduplicated per batch
+  by object key and SHA-256.
+- `GET /admin/v1/api-usage/export-batches/{id}/artifacts` returns
+  `{ "api_usage_export_artifacts": [...] }`, and
+  `GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}` returns
+  one registered artifact.
 
 Message search starts with a small-deployment Postgres implementation:
 

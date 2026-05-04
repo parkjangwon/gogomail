@@ -101,6 +101,9 @@ guidance.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID.
+- API usage export batches can now carry external artifact metadata rows with
+  object key, content type, byte count, SHA-256, event count, and JSON metadata.
+  Artifacts are deduplicated per batch by object key and SHA-256.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -287,6 +290,9 @@ The platform hardening sprint completed the following:
 - API usage export batch manifests now capture fixed event/request/byte/latency
   totals for a bounded ledger window, preparing idempotent downstream export
   workflows.
+- API usage export artifact metadata is now persisted and inspectable through
+  Admin API endpoints, preparing object-store handoff without adding a vendor
+  dependency to the core service.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 
@@ -299,6 +305,6 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add signed export artifacts or external object-storage handoff before using
+5. Add signed artifact manifests or object-store writer adapters before using
    API usage batches for invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.
