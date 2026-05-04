@@ -1040,12 +1040,14 @@ paths:
           required: false
           schema:
             type: string
+            maxLength: 1024
             enum: [delivered, failed, bounced, exhausted]
         - name: recipient_domain
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
           description: Lower-cased recipient domain to inspect one destination domain.
         - name: since
           in: query
@@ -1069,12 +1071,14 @@ paths:
           required: false
           schema:
             type: string
+            maxLength: 1024
             enum: [delivered, failed, bounced, exhausted]
         - name: recipient_domain
           in: query
           required: false
           schema:
             type: string
+            maxLength: 1024
           description: Lower-cased recipient domain to inspect one destination domain.
         - name: since
           in: query
@@ -1099,6 +1103,7 @@ paths:
           required: false
           schema:
             type: string
+            maxLength: 1024
           description: Lower-cased recipient domain to inspect one destination domain.
         - name: since
           in: query

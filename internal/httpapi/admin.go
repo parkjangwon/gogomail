@@ -974,10 +974,18 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		recipientDomain, ok := parseBoundedAdminQuery(w, r, "recipient_domain")
+		if !ok {
+			return
+		}
 		attempts, err := service.ListDeliveryAttempts(r.Context(), maildb.DeliveryAttemptListRequest{
 			Limit:           limit,
-			Status:          strings.TrimSpace(r.URL.Query().Get("status")),
-			RecipientDomain: strings.TrimSpace(r.URL.Query().Get("recipient_domain")),
+			Status:          status,
+			RecipientDomain: recipientDomain,
 			Since:           since,
 		})
 		if err != nil {
@@ -992,9 +1000,17 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		recipientDomain, ok := parseBoundedAdminQuery(w, r, "recipient_domain")
+		if !ok {
+			return
+		}
 		stats, err := service.GetDeliveryAttemptStats(r.Context(), maildb.DeliveryAttemptStatsRequest{
-			Status:          strings.TrimSpace(r.URL.Query().Get("status")),
-			RecipientDomain: strings.TrimSpace(r.URL.Query().Get("recipient_domain")),
+			Status:          status,
+			RecipientDomain: recipientDomain,
 			Since:           since,
 		})
 		if err != nil {
@@ -1013,9 +1029,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		recipientDomain, ok := parseBoundedAdminQuery(w, r, "recipient_domain")
+		if !ok {
+			return
+		}
 		attempts, err := service.ListExhaustedAttempts(r.Context(), maildb.ExhaustedAttemptListRequest{
 			Limit:           limit,
-			RecipientDomain: strings.TrimSpace(r.URL.Query().Get("recipient_domain")),
+			RecipientDomain: recipientDomain,
 			Since:           since,
 		})
 		if err != nil {

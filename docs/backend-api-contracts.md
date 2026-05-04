@@ -282,14 +282,15 @@ Admin operational read models also keep explicit envelope keys:
   optional `status`, `recipient_domain`, and RFC3339 `since` filters keep
   delivery triage bounded. Attempt rows include sender, enhanced-status, and
   RFC 3461 DSN metadata (`RET`, `ENVID`, `NOTIFY`, and `ORCPT`) when captured
-  by the delivery worker.
+  by the delivery worker. Text filters reject CR/LF-bearing or oversized values
+  before service dispatch.
 - `GET /admin/v1/delivery-attempts/stats` returns `{"delivery_attempt_stats":{...}}`;
   optional `status`, `recipient_domain`, and RFC3339 `since` filters mirror the
   attempt list and summarize total, unique-message, unique-recipient, and
-  status-bucket counts.
+  status-bucket counts, using the same bounded text-filter validation.
 - `GET /admin/v1/delivery-attempts/exhausted` returns `{"exhausted_attempts":[...]}`;
   optional `recipient_domain` and RFC3339 `since` filters keep terminal retry
-  triage bounded.
+  triage bounded and use the same bounded text-filter validation.
 - `GET /admin/v1/push-notification-attempts` returns `{"push_notification_attempts":[...]}`;
   optional `status`, `user_id`, and RFC3339 `since` filters keep fan-out
   inspection bounded.
