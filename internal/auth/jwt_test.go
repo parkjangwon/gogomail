@@ -51,6 +51,51 @@ func TestTokenManagerRejectsExpiredToken(t *testing.T) {
 	}
 }
 
+func TestTokenManagerNormalizesJWTSubjectUserID(t *testing.T) {
+	t.Parallel()
+
+	manager, err := NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	now := time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)
+	manager.now = func() time.Time { return now }
+
+	token, err := manager.Sign(Claims{Subject: " user-1 "}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	claims, err := manager.Verify(token)
+	if err != nil {
+		t.Fatalf("Verify returned error: %v", err)
+	}
+	if claims.UserID != "user-1" || claims.Subject != "user-1" {
+		t.Fatalf("claims = %+v", claims)
+	}
+}
+
+func TestTokenManagerRejectsBlankJWTIdentity(t *testing.T) {
+	t.Parallel()
+
+	manager, err := NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	now := time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)
+	manager.now = func() time.Time { return now }
+
+	if _, err := manager.Sign(Claims{UserID: " \t "}, time.Minute); err == nil {
+		t.Fatal("Sign accepted blank user_id")
+	}
+	token := signedTestToken(t, manager, map[string]string{"alg": "HS256", "typ": "JWT"}, Claims{
+		UserID: " \t ",
+		Expiry: now.Add(time.Minute).Unix(),
+	})
+	if _, err := manager.Verify(token); err == nil || !strings.Contains(err.Error(), "jwt missing user_id") {
+		t.Fatalf("Verify error = %v, want missing user_id", err)
+	}
+}
+
 func TestTokenManagerRejectsUnsupportedJWTHeader(t *testing.T) {
 	t.Parallel()
 
