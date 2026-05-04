@@ -225,6 +225,8 @@ guidance.
   recovery for at-least-once event processing. Startup validation now also
   rejects nonpositive event and delivery consumer count/block settings before
   workers run with unusable Redis Stream options.
+- Admin API exposes a bounded IMAP mailbox UID backfill endpoint for future
+  IMAP bootstrap/operator runs without enabling an IMAP protocol listener.
 - Push notification workers no longer redeliver a Redis event solely because
   queued-outcome recording failed after the sink accepted the notification,
   reducing duplicate push risk while keeping the candidate attempt visible.

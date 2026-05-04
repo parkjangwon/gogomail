@@ -150,8 +150,8 @@ Current state:
   events for previously UID-visible messages.
 - `mailservice` exposes IMAP mailbox/message listing and event subscription
   methods for a future protocol listener.
-- `mailservice` exposes bounded IMAP UID backfill for future operator/bootstrap
-  modes.
+- Admin API exposes bounded IMAP UID backfill for future operator/bootstrap
+  modes without enabling an IMAP protocol listener.
 - IMAP mailbox event publication is best-effort after successful mutations, so
   future IDLE fan-out cannot make committed mail writes appear failed.
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for future protocol

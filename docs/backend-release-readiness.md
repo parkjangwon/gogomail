@@ -50,6 +50,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   UID backfill, and mailbox-event subscription through service methods plus an
   `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping future protocol wiring
   off direct `maildb` internals.
+- Admin API exposes bounded IMAP UID backfill by user/mailbox for future
+  operator/bootstrap runs without enabling an IMAP protocol listener.
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
   mailbox event broker for future session fan-out. The broker is scoped by
   user+mailbox, and service-side flag/move/delete mutations publish best-effort
@@ -85,7 +87,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment upload storage paths reject absolute, parent-traversal, backslash, and newline forms, and generated attachment object paths sanitize path segments before writing to storage.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
 - `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift, registered-route drift, dangling component references, request-body omissions, response envelope reference drift, message flag enum drift, and list limit contract drift.
-- OpenAPI response components now document the Mail/Admin JSON envelope keys used by generated clients, including admin queue, delivery attempt, exhausted-attempt, suppression, DKIM, domain, and user read models.
+- OpenAPI response components now document the Mail/Admin JSON envelope keys used by generated clients, including admin queue, IMAP UID backfill, delivery attempt, exhausted-attempt, suppression, DKIM, domain, and user read models.
 - OpenAPI operations now carry stable lower-camel `operationId` values and default reusable Error responses for protected/mutable operations, reducing generated-client naming and error-decoding drift.
 - OpenAPI now documents and tests the API usage ledger `tenant_id`, `principal_id`, `from`, and `to` filters that runtime handlers already accept, keeping generated billing/export clients aligned with Admin API behavior.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.
