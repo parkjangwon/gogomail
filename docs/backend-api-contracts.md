@@ -97,8 +97,9 @@ Errors use the stable envelope:
 - Admin API uses `Authorization: Bearer <token>` or `X-Admin-Token` when `GOGOMAIL_ADMIN_TOKEN` is configured.
 - Mail/Admin authentication headers are size-bounded before bearer parsing,
   JWT decoding, or admin-token comparison.
-- Admin user creation accepts an optional pre-hashed `password_hash` for local
-  SMTP Submission authentication. Supported formats are the existing
+- Admin user creation accepts an optional pre-hashed `password_hash`, and
+  `PATCH /admin/v1/users/{id}/password-hash` rotates an existing user's hash
+  for local SMTP Submission authentication. Supported formats are the existing
   `pbkdf2-sha256`, legacy/dev `sha256:`, and explicit `plain:` development
   fixture formats; unsupported, CR/LF-bearing, or oversized hash strings are
   rejected before storage.

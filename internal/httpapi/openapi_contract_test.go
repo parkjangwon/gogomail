@@ -70,6 +70,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /users",
 		"PATCH /users/{id}/status",
 		"PATCH /users/{id}/quota",
+		"PATCH /users/{id}/password-hash",
 		"POST /trusted-relays",
 		"POST /delivery-routes",
 		"PATCH /delivery-routes/{id}/status",
@@ -218,6 +219,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /users":                                                "#/components/responses/User",
 		"PATCH /users/{id}/status":                                   "#/components/responses/IDStatus",
 		"PATCH /users/{id}/quota":                                    "#/components/responses/IDStatus",
+		"PATCH /users/{id}/password-hash":                            "#/components/responses/IDStatus",
 		"GET /queue":                                                 "#/components/responses/QueueStats",
 		"GET /outbox-events":                                         "#/components/responses/OutboxEventList",
 		"GET /outbox-events/{id}":                                    "#/components/responses/OutboxEvent",
@@ -624,6 +626,12 @@ func TestOpenAPIDraftDocumentsUserPasswordHashInput(t *testing.T) {
 	for _, want := range []string{"password_hash:", "maxLength: 4096", "pbkdf2-sha256"} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("UserCreateRequest does not document %q:\n%s", want, block)
+		}
+	}
+	updateBlock := extractOpenAPIComponentBlock(t, draft, "schemas", "UserPasswordHashUpdateRequest")
+	for _, want := range []string{"required: [password_hash]", "password_hash:", "maxLength: 4096"} {
+		if !strings.Contains(updateBlock, want) {
+			t.Fatalf("UserPasswordHashUpdateRequest does not document %q:\n%s", want, updateBlock)
 		}
 	}
 }

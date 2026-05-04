@@ -796,6 +796,11 @@ type UpdateUserQuotaRequest struct {
 	QuotaSource string `json:"quota_source,omitempty"`
 }
 
+type UpdateUserPasswordHashRequest struct {
+	ID           string `json:"id"`
+	PasswordHash string `json:"password_hash"`
+}
+
 type CreateTrustedRelayRequest struct {
 	CIDR        string `json:"cidr"`
 	Description string `json:"description,omitempty"`
@@ -1273,6 +1278,16 @@ func ValidateUpdateUserQuotaRequest(req UpdateUserQuotaRequest) error {
 	return nil
 }
 
+func ValidateUpdateUserPasswordHashRequest(req UpdateUserPasswordHashRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("user id is required")
+	}
+	if err := auth.ValidatePasswordHash(req.PasswordHash); err != nil {
+		return err
+	}
+	return nil
+}
+
 func normalizeQuotaSource(value string, fallback string) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -1559,6 +1574,28 @@ WHERE u.domain_id = d.id
   AND u.id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit, quotaSource)
 	if err != nil {
 		return fmt.Errorf("update user quota: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("user %q not found", req.ID)
+	}
+	return nil
+}
+
+func (r *Repository) UpdateUserPasswordHash(ctx context.Context, req UpdateUserPasswordHashRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateUserPasswordHashRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE users
+SET password_hash = $2,
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.PasswordHash))
+	if err != nil {
+		return fmt.Errorf("update user password hash: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err == nil && affected == 0 {

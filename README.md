@@ -320,9 +320,9 @@ Local users authenticate against `users.password_hash`. Supported formats are:
 - `sha256:<hex>` for legacy/dev fixtures
 - `plain:<password>` only for explicit local development fixtures
 
-Admin user creation can set the optional `password_hash` field with one of
-those pre-hashed values; raw production passwords should be hashed before they
-reach the Admin API.
+Admin user creation and `PATCH /admin/v1/users/{id}/password-hash` can set a
+`password_hash` field with one of those pre-hashed values; raw production
+passwords should be hashed before they reach the Admin API.
 
 ### Delivery smart host relay
 

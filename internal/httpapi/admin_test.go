@@ -3249,6 +3249,25 @@ func TestAdminUpdateUserQuotaHandler(t *testing.T) {
 	}
 }
 
+func TestAdminUpdateUserPasswordHashHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/%20user-1%20/password-hash", bytes.NewReader([]byte(`{"password_hash":"plain:dev-password"}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserPasswordHash.ID != "user-1" || service.lastUserPasswordHash.PasswordHash != "plain:dev-password" {
+		t.Fatalf("lastUserPasswordHash = %+v", service.lastUserPasswordHash)
+	}
+}
+
 func TestAdminUserPathIDsRejectUnsafeValues(t *testing.T) {
 	t.Parallel()
 
@@ -3274,6 +3293,12 @@ func TestAdminUserPathIDsRejectUnsafeValues(t *testing.T) {
 			method: http.MethodPatch,
 			path:   "/admin/v1/users/user%0Dbad/quota",
 			body:   `{"quota_limit":4096}`,
+		},
+		{
+			name:   "password hash crlf",
+			method: http.MethodPatch,
+			path:   "/admin/v1/users/user%0Abad/password-hash",
+			body:   `{"password_hash":"plain:dev-password"}`,
 		},
 	}
 
@@ -4541,6 +4566,7 @@ type fakeAdminService struct {
 	lastCreateDomain                            maildb.CreateDomainRequest
 	lastUserStatus                              maildb.UpdateUserStatusRequest
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
+	lastUserPasswordHash                        maildb.UpdateUserPasswordHashRequest
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAttachmentCleanupBefore                 time.Time
 	lastAttachmentCleanupLimit                  int
@@ -4694,6 +4720,11 @@ func (f *fakeAdminService) UpdateUserStatus(_ context.Context, req maildb.Update
 
 func (f *fakeAdminService) UpdateUserQuota(_ context.Context, req maildb.UpdateUserQuotaRequest) error {
 	f.lastUserQuota = req
+	return nil
+}
+
+func (f *fakeAdminService) UpdateUserPasswordHash(_ context.Context, req maildb.UpdateUserPasswordHashRequest) error {
+	f.lastUserPasswordHash = req
 	return nil
 }
 
