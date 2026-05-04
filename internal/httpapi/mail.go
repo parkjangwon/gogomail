@@ -1206,6 +1206,8 @@ func writeNDJSON[T any](w http.ResponseWriter, status int, rows []T) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	code := "internal_error"
 	switch status {
 	case http.StatusBadRequest:

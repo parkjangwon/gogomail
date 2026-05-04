@@ -853,6 +853,11 @@ func TestOpenAPIDraftDocumentsReusableErrorEnvelopeResponse(t *testing.T) {
 	if !strings.Contains(response, `$ref: "#/components/schemas/ErrorEnvelope"`) {
 		t.Fatalf("OpenAPI Error response must point at ErrorEnvelope")
 	}
+	for _, want := range []string{"Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"} {
+		if !strings.Contains(response, want) {
+			t.Fatalf("OpenAPI Error response must document %q:\n%s", want, response)
+		}
+	}
 	schema := extractOpenAPIComponentBlock(t, draft, "schemas", "ErrorEnvelope")
 	for _, required := range []string{"error", "code", "message", "status", "status_text", "error_message"} {
 		if !strings.Contains(schema, required) {

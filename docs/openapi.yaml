@@ -2817,6 +2817,15 @@ components:
             $ref: "#/components/schemas/UserEnvelope"
     Error:
       description: Stable structured error envelope
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            enum: [no-store]
+        X-Content-Type-Options:
+          schema:
+            type: string
+            enum: [nosniff]
       content:
         application/json:
           schema:

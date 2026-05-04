@@ -34,6 +34,12 @@ func TestWriteErrorIncludesStableStatusText(t *testing.T) {
 	if body.ErrorMessage != body.Error.Message {
 		t.Fatalf("error_message = %q, want %q", body.ErrorMessage, body.Error.Message)
 	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
 }
 
 func TestConstantTimeTokenEqualUsesTrimmedTokenValues(t *testing.T) {

@@ -121,7 +121,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment downloads, usage NDJSON exports, and stored export artifact
   downloads return `X-Content-Type-Options: nosniff`, documented in OpenAPI for
   generated clients.
-- API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
+- API errors use a stable structured envelope with code, message, HTTP status,
+  and HTTP status text, and return `Cache-Control: no-store` plus
+  `X-Content-Type-Options: nosniff`.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata and
   runtime-injected database/Redis probes for HTTP modes that depend on those
