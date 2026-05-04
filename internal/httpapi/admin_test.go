@@ -1943,6 +1943,52 @@ func TestAdminDeliveryAttemptsHandlerRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestAdminExhaustedAttemptsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		attempts: []maildb.DeliveryAttemptView{{
+			ID:              "attempt-1",
+			MessageID:       "msg-1",
+			Recipient:       "user@example.net",
+			RecipientDomain: "example.net",
+			Status:          "exhausted",
+			AttemptedAt:     time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?limit=10&recipient_domain=example.net&since=2026-05-04T00:00:00Z", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastExhaustedAttemptList.Limit != 10 || service.lastExhaustedAttemptList.RecipientDomain != "example.net" || service.lastExhaustedAttemptList.Since.IsZero() {
+		t.Fatalf("lastExhaustedAttemptList = %+v", service.lastExhaustedAttemptList)
+	}
+}
+
+func TestAdminExhaustedAttemptsHandlerRejectsInvalidSince(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?since=not-a-time", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "since must be RFC3339 timestamp") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2438,6 +2484,7 @@ type fakeAdminService struct {
 	quotaCorrection                             maildb.QuotaCorrectionResult
 	attempts                                    []maildb.DeliveryAttemptView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
+	lastExhaustedAttemptList                    maildb.ExhaustedAttemptListRequest
 	pushNotificationAttempts                    []maildb.PushNotificationAttemptView
 	pushNotificationStats                       maildb.PushNotificationStatsView
 	suppression                                 []maildb.SuppressionEntry
@@ -2771,9 +2818,10 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, req maildb.De
 	return f.attempts, nil
 }
 
-func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {
-	f.lastLimit = limit
-	return nil, nil
+func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, req maildb.ExhaustedAttemptListRequest) ([]maildb.DeliveryAttemptView, error) {
+	f.lastLimit = req.Limit
+	f.lastExhaustedAttemptList = req
+	return f.attempts, nil
 }
 
 func (f *fakeAdminService) ListPushNotificationAttempts(_ context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error) {

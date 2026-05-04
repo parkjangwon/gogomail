@@ -447,6 +447,12 @@ type DeliveryAttemptListRequest struct {
 	Since           time.Time
 }
 
+type ExhaustedAttemptListRequest struct {
+	Limit           int
+	RecipientDomain string
+	Since           time.Time
+}
+
 type PushNotificationAttemptView struct {
 	ID           string    `json:"id"`
 	MessageID    string    `json:"message_id"`
@@ -3568,11 +3574,12 @@ func allowedDeliveryAttemptStatus(status string) bool {
 	}
 }
 
-func (r *Repository) ListExhaustedAttempts(ctx context.Context, limit int) ([]DeliveryAttemptView, error) {
+func (r *Repository) ListExhaustedAttempts(ctx context.Context, req ExhaustedAttemptListRequest) ([]DeliveryAttemptView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	req.Limit = normalizeLimit(req.Limit)
+	req.RecipientDomain = strings.ToLower(strings.Trim(strings.TrimSpace(req.RecipientDomain), "."))
 
 	const query = `
 SELECT
@@ -3587,10 +3594,12 @@ SELECT
   attempted_at
 FROM delivery_attempts
 WHERE status = 'exhausted'
+  AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
+  AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)
 ORDER BY attempted_at DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, nullableTime(req.Since), req.RecipientDomain)
 	if err != nil {
 		return nil, fmt.Errorf("list exhausted delivery attempts: %w", err)
 	}
