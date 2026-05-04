@@ -15,6 +15,8 @@ import (
 	gomail "github.com/emersion/go-message/mail"
 )
 
+const maxAttachmentFilenameBytes = 255
+
 type Address struct {
 	Name    string
 	Address string
@@ -133,10 +135,39 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 func recordAttachment(parsed *ParsedMessage, opts ParseOptions, filename string) {
 	parsed.HasAttachment = true
 	if len(parsed.Attachments) < opts.MaxAttachments {
-		parsed.Attachments = append(parsed.Attachments, Attachment{Filename: filename})
+		parsed.Attachments = append(parsed.Attachments, Attachment{Filename: sanitizeAttachmentFilename(filename)})
 	} else {
 		parsed.AttachmentsTruncated = true
 	}
+}
+
+func sanitizeAttachmentFilename(filename string) string {
+	filename = strings.TrimSpace(filename)
+	filename = strings.ReplaceAll(filename, "\\", "/")
+	if idx := strings.LastIndex(filename, "/"); idx >= 0 {
+		filename = filename[idx+1:]
+	}
+	filename = strings.Map(func(r rune) rune {
+		switch r {
+		case '\r', '\n', '\t':
+			return ' '
+		default:
+			if r < 0x20 || r == 0x7f {
+				return -1
+			}
+			return r
+		}
+	}, filename)
+	filename = strings.Join(strings.Fields(filename), " ")
+	if len(filename) <= maxAttachmentFilenameBytes {
+		return filename
+	}
+	body := []byte(filename[:maxAttachmentFilenameBytes])
+	for len(body) > 0 && !utf8.Valid(body) {
+		_, size := utf8.DecodeLastRune(body)
+		body = body[:len(body)-size]
+	}
+	return string(body)
 }
 
 func inlineAttachmentMetadata(header *gomail.InlineHeader) (string, bool) {
