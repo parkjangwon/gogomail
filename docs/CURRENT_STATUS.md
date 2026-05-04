@@ -147,7 +147,8 @@ guidance.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status or user.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for a compact
-  active-device and attempt-status summary.
+  active-device and attempt-status summary, with optional `user_id` scoping for
+  user-level troubleshooting.
 - Push notification sinks receive the persisted candidate attempt id with each
   target, preparing clean vendor outcome updates later.
 - The push worker marks attempts `queued` after a successful sink handoff while

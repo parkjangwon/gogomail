@@ -76,7 +76,7 @@ type AdminService interface {
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListExhaustedAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListPushNotificationAttempts(ctx context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error)
-	GetPushNotificationStats(ctx context.Context) (maildb.PushNotificationStatsView, error)
+	GetPushNotificationStats(ctx context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
 	ListTrustedRelays(ctx context.Context, limit int) ([]maildb.TrustedRelayView, error)
 	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
@@ -911,7 +911,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/push-notification-stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		stats, err := service.GetPushNotificationStats(r.Context())
+		stats, err := service.GetPushNotificationStats(r.Context(), maildb.PushNotificationStatsRequest{
+			UserID: r.URL.Query().Get("user_id"),
+		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
