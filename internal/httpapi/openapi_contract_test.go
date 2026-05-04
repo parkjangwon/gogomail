@@ -239,6 +239,32 @@ func TestOpenAPIDraftDocumentsAPIUsageLedgerFilters(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for route, params := range map[string][]string{
+		"GET /delivery-attempts":                               {"limit", "status", "recipient_domain", "since"},
+		"GET /delivery-attempts/stats":                         {"status", "recipient_domain", "since"},
+		"GET /delivery-attempts/exhausted":                     {"limit", "recipient_domain", "since"},
+		"GET /push-notification-attempts":                      {"limit", "status", "user_id", "since"},
+		"GET /push-notification-stats":                         {"user_id", "since"},
+		"GET /outbox-events":                                   {"limit", "topic", "partition_key", "status", "since"},
+		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},
+		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		for _, param := range params {
+			if !openAPIOperationDocumentsParameter(block, param) {
+				t.Fatalf("OpenAPI operation %s must document parameter %q", route, param)
+			}
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsDeliveryAttemptDiagnostics(t *testing.T) {
 	t.Parallel()
 
@@ -617,4 +643,11 @@ func normalizeOpenAPIPath(path string) string {
 	path = strings.TrimPrefix(path, "/api/v1")
 	path = strings.TrimPrefix(path, "/admin/v1")
 	return path
+}
+
+func openAPIOperationDocumentsParameter(block string, name string) bool {
+	if name == "limit" && strings.Contains(block, "#/components/parameters/Limit") {
+		return true
+	}
+	return strings.Contains(block, "name: "+name)
 }
