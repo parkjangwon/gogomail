@@ -10,6 +10,12 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"unicode/utf8"
+)
+
+const (
+	maxOpenSearchHighlightFragments     = 3
+	maxOpenSearchHighlightFragmentBytes = 512
 )
 
 type OpenSearchSearchQuery struct {
@@ -188,8 +194,34 @@ func openSearchHighlightsFromResponse(values map[string][]string) OpenSearchHigh
 	from := append([]string(nil), values["from_name"]...)
 	from = append(from, values["from_addr"]...)
 	return OpenSearchHighlights{
-		Subject: append([]string(nil), values["subject"]...),
-		From:    from,
-		Body:    append([]string(nil), values["body_text"]...),
+		Subject: cleanOpenSearchHighlightFragments(values["subject"]),
+		From:    cleanOpenSearchHighlightFragments(from),
+		Body:    cleanOpenSearchHighlightFragments(values["body_text"]),
 	}
+}
+
+func cleanOpenSearchHighlightFragments(values []string) []string {
+	out := make([]string, 0, min(len(values), maxOpenSearchHighlightFragments))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || !strings.Contains(value, "<mark>") {
+			continue
+		}
+		out = append(out, truncateUTF8Bytes(value, maxOpenSearchHighlightFragmentBytes))
+		if len(out) == maxOpenSearchHighlightFragments {
+			break
+		}
+	}
+	return out
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for !utf8.ValidString(value) && len(value) > 0 {
+		value = value[:len(value)-1]
+	}
+	return value
 }

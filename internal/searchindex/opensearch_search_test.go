@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
@@ -88,6 +90,31 @@ func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
 	}
 	if _, err := searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{}); err == nil {
 		t.Fatal("SearchMessageIDs accepted missing user id")
+	}
+}
+
+func TestOpenSearchHighlightsAreBounded(t *testing.T) {
+	t.Parallel()
+
+	long := "<mark>" + strings.Repeat("한", 300) + "</mark>"
+	highlights := openSearchHighlightsFromResponse(map[string][]string{
+		"subject": {
+			"plain",
+			"<mark>one</mark>",
+			"<mark>two</mark>",
+			"<mark>three</mark>",
+			"<mark>four</mark>",
+		},
+		"body_text": {long},
+	})
+	if len(highlights.Subject) != maxOpenSearchHighlightFragments {
+		t.Fatalf("subject highlights = %#v", highlights.Subject)
+	}
+	if len(highlights.Body) != 1 || len(highlights.Body[0]) > maxOpenSearchHighlightFragmentBytes {
+		t.Fatalf("body highlight = %#v", highlights.Body)
+	}
+	if !utf8.ValidString(highlights.Body[0]) {
+		t.Fatalf("body highlight is invalid UTF-8: %q", highlights.Body[0])
 	}
 }
 
