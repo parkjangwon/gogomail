@@ -172,7 +172,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before repository work.
 - Mail compose draft/save/send requests normalize user/source/from/address and
   attachment identifier fields before repository, storage, suppression, and
-  outbound composition work.
+  outbound composition work, and draft saves enforce the same attachment-count
+  cap as immediate sends.
 - Single-message flag, move, and delete service methods trim user/message/flag
   and folder identifiers before repository mutation and IMAP event fan-out.
 - Bulk flag, move, and delete service methods trim user/message/flag and folder

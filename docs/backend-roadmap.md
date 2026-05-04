@@ -501,6 +501,7 @@ Implementation order:
 442. Admin API DKIM key deactivate and DNS-verify path identifiers are now trimmed before service dispatch and response envelopes, aligning DKIM operations with other Admin route ID handling.
 443. Admin API suppression-list and trusted-relay delete path identifiers are now trimmed before service dispatch and response envelopes, aligning operator delete routes with other Admin ID handling.
 444. Admin API company, domain, and user quota/status/policy mutation path identifiers are now trimmed before service dispatch and response envelopes, keeping operator mutations tolerant of incidental URL whitespace.
+445. Draft save/update validation now enforces the same attachment-count cap as immediate send, preventing oversized compose payloads from reaching draft attachment binding.
 
 ## Deferred until backend contracts stabilize
 
