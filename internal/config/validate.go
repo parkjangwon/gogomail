@@ -76,6 +76,17 @@ func (c Config) Validate() error {
 	if c.APIMeteringConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_BLOCK must be positive")
 	}
+	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac"); err != nil {
+		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(c.APIUsageExportManifestSignerBackend), "local-hmac") {
+		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for local-hmac signer")
+		}
+		if c.APIUsageExportManifestSignerSecret == "" {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET is required for local-hmac signer")
+		}
+	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
 		return err
 	}
