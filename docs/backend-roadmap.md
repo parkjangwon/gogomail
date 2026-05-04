@@ -409,6 +409,7 @@ Implementation order:
 350. Shared EML attachment filename metadata is now basename-normalized, control-character cleaned, UTF-8-safe, and capped before storage/API/search consumers see it.
 351. Outbound RFC 5322 text composition now folds long headers, keeping generated `From`/`To`/`Subject`/thread metadata lines within mail line-length limits while preserving CR/LF injection rejection.
 352. Outbound RFC 5322 text composition now rejects malformed explicit `Message-ID` values and drops malformed thread IDs before writing `In-Reply-To`/`References` headers.
+353. DSN composition now validates typed `Original-Recipient`/`Final-Recipient` address-type fields at the package boundary while preserving normalized bare RFC822 recipients.
 
 ## Deferred until backend contracts stabilize
 

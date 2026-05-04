@@ -75,7 +75,7 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 		"Content-Type: message/delivery-status",
 		"Original-Envelope-Id: env-1",
 		"Final-Recipient: rfc822; bad@example.net",
-		"Original-Recipient: rfc822;alias+40example.net",
+		"Original-Recipient: rfc822; alias+40example.net",
 		"Status: 5.1.1",
 		"Diagnostic-Code: smtp; 550 5.1.1 no such user",
 		"Message-ID: <dsn-018f0000-0000-7000-8000-000000000001-bad-example@mx.example.com>",

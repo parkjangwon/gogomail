@@ -112,9 +112,17 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 		return fmt.Errorf("dsn status %q does not match action %q", dsnStatus, action)
 	}
 	if status.OriginalRecipient != "" {
-		writeDSNField(buf, "Original-Recipient", sanitizeRecipientAddressType(status.OriginalRecipient))
+		originalRecipient, err := sanitizeRecipientAddressType(status.OriginalRecipient)
+		if err != nil {
+			return fmt.Errorf("invalid original recipient: %w", err)
+		}
+		writeDSNField(buf, "Original-Recipient", originalRecipient)
 	}
-	writeDSNField(buf, "Final-Recipient", sanitizeRecipientAddressType(status.Recipient))
+	finalRecipient, err := sanitizeRecipientAddressType(status.Recipient)
+	if err != nil {
+		return fmt.Errorf("invalid final recipient: %w", err)
+	}
+	writeDSNField(buf, "Final-Recipient", finalRecipient)
 	writeDSNField(buf, "Action", action)
 	writeDSNField(buf, "Status", dsnStatus)
 	if status.RemoteMTA != "" {
@@ -233,12 +241,31 @@ func splitHeaderValue(value string, maxBytes int) (string, string) {
 	return value[:cut], value[cut:]
 }
 
-func sanitizeRecipientAddressType(value string) string {
+func sanitizeRecipientAddressType(value string) (string, error) {
 	value = sanitizeDSNValue(value)
 	if strings.Contains(value, ";") {
-		return value
+		addressType, address, _ := strings.Cut(value, ";")
+		addressType = strings.TrimSpace(addressType)
+		address = strings.TrimSpace(address)
+		if !validRecipientAddressType(addressType) || address == "" {
+			return "", fmt.Errorf("recipient address must use address-type; address")
+		}
+		return strings.ToLower(addressType) + "; " + address, nil
 	}
-	return "rfc822; " + strings.ToLower(strings.TrimSpace(value))
+	return "rfc822; " + strings.ToLower(strings.TrimSpace(value)), nil
+}
+
+func validRecipientAddressType(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func sanitizeBoundaryToken(value string) string {
