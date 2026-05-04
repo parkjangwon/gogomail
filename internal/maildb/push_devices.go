@@ -11,6 +11,10 @@ const (
 	PushPlatformAPNS    = "apns"
 	PushPlatformFCM     = "fcm"
 	PushPlatformWebPush = "webpush"
+
+	maxPushDeviceUserIDBytes = 200
+	maxPushDeviceTokenBytes  = 4096
+	maxPushDeviceLabelBytes  = 200
 )
 
 type PushDevice struct {
@@ -33,8 +37,12 @@ type UpsertPushDeviceRequest struct {
 }
 
 func ValidateUpsertPushDeviceRequest(req UpsertPushDeviceRequest) error {
-	if strings.TrimSpace(req.UserID) == "" {
+	userID := strings.TrimSpace(req.UserID)
+	if userID == "" {
 		return fmt.Errorf("user_id is required")
+	}
+	if strings.ContainsAny(userID, "\r\n") || len(userID) > maxPushDeviceUserIDBytes {
+		return fmt.Errorf("user_id is invalid")
 	}
 	if !allowedPushPlatform(req.Platform) {
 		return fmt.Errorf("platform must be apns, fcm, or webpush")
@@ -43,10 +51,10 @@ func ValidateUpsertPushDeviceRequest(req UpsertPushDeviceRequest) error {
 	if token == "" {
 		return fmt.Errorf("token is required")
 	}
-	if len(token) > 4096 {
+	if len(token) > maxPushDeviceTokenBytes {
 		return fmt.Errorf("token is too long")
 	}
-	if len(req.Label) > 200 {
+	if len(req.Label) > maxPushDeviceLabelBytes {
 		return fmt.Errorf("label is too long")
 	}
 	if strings.ContainsAny(token, "\r\n") || strings.ContainsAny(req.Label, "\r\n") {
