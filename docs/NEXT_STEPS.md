@@ -271,6 +271,8 @@ Current state:
 - `maildb` can cancel pending/uploading/failed upload sessions, marking them
   `canceled` and releasing the declared size without allowing duplicate quota
   release on repeated cancellation.
+- `maildb` can expire stale pending/uploading/failed upload sessions in bounded
+  batches, marking them `expired` and releasing declared quota reservations.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.
@@ -280,8 +282,8 @@ Current state:
 
 Next:
 
-- Add the Mail API session contract and service methods described by ADR 0007
-  on top of `attachment_upload_sessions`.
+- Add the Mail API session contract, service methods, and cleanup worker wiring
+  described by ADR 0007 on top of `attachment_upload_sessions`.
 
 ### 6. OpenAPI/client readiness
 

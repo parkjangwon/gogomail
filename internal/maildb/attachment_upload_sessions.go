@@ -42,6 +42,11 @@ type CancelAttachmentUploadSessionRequest struct {
 	SessionID string
 }
 
+type ExpireAttachmentUploadSessionsRequest struct {
+	Before time.Time
+	Limit  int
+}
+
 func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSessionRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -91,6 +96,16 @@ func ValidateCancelAttachmentUploadSessionRequest(req CancelAttachmentUploadSess
 	}
 	if len(strings.TrimSpace(req.SessionID)) > 200 {
 		return fmt.Errorf("session_id is too long")
+	}
+	return nil
+}
+
+func ValidateExpireAttachmentUploadSessionsRequest(req ExpireAttachmentUploadSessionsRequest) error {
+	if req.Before.IsZero() {
+		return fmt.Errorf("before is required")
+	}
+	if req.Limit < 0 {
+		return fmt.Errorf("limit must not be negative")
 	}
 	return nil
 }
@@ -259,6 +274,126 @@ RETURNING
 	}
 	if err := tx.Commit(); err != nil {
 		return AttachmentUploadSession{}, fmt.Errorf("commit attachment upload session cancel transaction: %w", err)
+	}
+	return session, nil
+}
+
+func (r *Repository) ExpireAttachmentUploadSessions(ctx context.Context, req ExpireAttachmentUploadSessionsRequest) ([]AttachmentUploadSession, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateExpireAttachmentUploadSessionsRequest(req); err != nil {
+		return nil, err
+	}
+	limit := NormalizeAttachmentCleanupLimit(req.Limit)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin attachment upload session expiry transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const selectQ = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  upload_id,
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM attachment_upload_sessions
+WHERE status IN ('pending', 'uploading', 'failed')
+  AND expires_at < $1
+ORDER BY expires_at ASC, created_at ASC
+LIMIT $2
+FOR UPDATE SKIP LOCKED`
+
+	rows, err := tx.QueryContext(ctx, selectQ, req.Before.UTC(), limit)
+	if err != nil {
+		return nil, fmt.Errorf("select expired attachment upload sessions: %w", err)
+	}
+	defer rows.Close()
+
+	expired := make([]AttachmentUploadSession, 0)
+	for rows.Next() {
+		session, err := scanAttachmentUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan expired attachment upload session: %w", err)
+		}
+		expired = append(expired, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate expired attachment upload sessions: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close expired attachment upload session rows: %w", err)
+	}
+
+	for i := range expired {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE attachment_upload_sessions
+SET status = 'expired',
+    updated_at = now()
+WHERE id = $1
+  AND status IN ('pending', 'uploading', 'failed')`, expired[i].ID); err != nil {
+			return nil, fmt.Errorf("expire attachment upload session: %w", err)
+		}
+		if err := decrementUserQuota(ctx, tx, expired[i].UserID, expired[i].DeclaredSize); err != nil {
+			return nil, err
+		}
+		expired[i].Status = "expired"
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit attachment upload session expiry transaction: %w", err)
+	}
+	return expired, nil
+}
+
+type attachmentUploadSessionScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanAttachmentUploadSession(scanner attachmentUploadSessionScanner) (AttachmentUploadSession, error) {
+	var session AttachmentUploadSession
+	var finalizedAt sql.NullTime
+	var canceledAt sql.NullTime
+	if err := scanner.Scan(
+		&session.ID,
+		&session.UserID,
+		&session.DraftID,
+		&session.UploadID,
+		&session.Filename,
+		&session.DeclaredSize,
+		&session.ReceivedSize,
+		&session.MIMEType,
+		&session.Status,
+		&session.StorageBackend,
+		&session.StoragePath,
+		&session.ChecksumSHA256,
+		&session.ExpiresAt,
+		&session.CreatedAt,
+		&session.UpdatedAt,
+		&finalizedAt,
+		&canceledAt,
+	); err != nil {
+		return AttachmentUploadSession{}, err
+	}
+	if finalizedAt.Valid {
+		session.FinalizedAt = finalizedAt.Time
+	}
+	if canceledAt.Valid {
+		session.CanceledAt = canceledAt.Time
 	}
 	return session, nil
 }
