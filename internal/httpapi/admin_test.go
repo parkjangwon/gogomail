@@ -335,6 +335,48 @@ func TestAdminAPIUsageLedgerExportHandler(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageLedgerStatsHandler(t *testing.T) {
+	t.Parallel()
+
+	first := time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC)
+	last := time.Date(2026, 5, 4, 2, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		apiUsageLedgerStats: maildb.APIUsageLedgerStatsView{
+			EventCount:       2,
+			RequestCount:     4,
+			RequestBytes:     40,
+			ResponseBytes:    400,
+			LatencyMSTotal:   100,
+			LatencyMSMax:     40,
+			LatencyMSAverage: 25,
+			FirstEventAt:     &first,
+			LastEventAt:      &last,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/stats?tenant_id=tenant-1&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Stats maildb.APIUsageLedgerStatsView `json:"api_usage_ledger_stats"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Stats.EventCount != 2 || body.Stats.LatencyMSAverage != 25 {
+		t.Fatalf("stats = %+v", body.Stats)
+	}
+	if service.lastAPIUsageLedgerList.TenantID != "tenant-1" || service.lastAPIUsageLedgerList.From.IsZero() {
+		t.Fatalf("lastAPIUsageLedgerList = %+v", service.lastAPIUsageLedgerList)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1354,6 +1396,7 @@ type fakeAdminService struct {
 	apiUsageDaily                  []maildb.APIUsageDailyView
 	apiUsageMonthly                []maildb.APIUsageMonthlyView
 	apiUsageLedger                 []maildb.APIUsageLedgerView
+	apiUsageLedgerStats            maildb.APIUsageLedgerStatsView
 	quotaReconciliation            []maildb.QuotaReconciliationView
 	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
@@ -1538,6 +1581,11 @@ func (f *fakeAdminService) ListAPIUsageLedger(_ context.Context, req maildb.APIU
 	f.lastLimit = req.Limit
 	f.lastAPIUsageLedgerList = req
 	return f.apiUsageLedger, nil
+}
+
+func (f *fakeAdminService) GetAPIUsageLedgerStats(_ context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error) {
+	f.lastAPIUsageLedgerList = req
+	return f.apiUsageLedgerStats, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
