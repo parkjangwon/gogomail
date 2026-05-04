@@ -377,6 +377,7 @@ Implementation order:
 318. Admin queue stats now distinguish ready pending work, delayed pending work, stale processing locks, oldest ready time, and next available retry time so operators can separate backlog from scheduled delay.
 319. Shared EML parsing now caps total MIME parts through `ParseOptions.MaxParts` and reports `PartsTruncated`, preventing pathological part counts from forcing unbounded parser iteration on SMTP, Mail API, search indexing, and future IMAP hot paths.
 320. Delivery attempt lists now order by `attempted_at DESC, id DESC`, making admin retry/bounce views and user-scoped sent-message delivery status deterministic when multiple attempts share the same timestamp.
+321. Shared EML parsing now treats inline parts with filenames and non-text inline parts as attachment metadata without reading their bodies, improving `has_attachment` accuracy for MIME messages that do not use `Content-Disposition: attachment`.
 
 ## Deferred until backend contracts stabilize
 
