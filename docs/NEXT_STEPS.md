@@ -205,6 +205,8 @@ Current state:
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
   status/user/platform/device/provider-status/provider-message/since filters
   for inspecting candidate fan-out and vendor outcomes.
+- Admin API exposes `GET /admin/v1/push-notification-attempts/{id}` for
+  single-attempt troubleshooting.
 - Admin API exposes
   `PATCH /admin/v1/push-notification-attempts/{id}/outcome` so authenticated
   operators or external push gateways can record queued/delivered/failed/

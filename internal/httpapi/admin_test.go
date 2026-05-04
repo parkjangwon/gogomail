@@ -3046,6 +3046,58 @@ func TestAdminPushNotificationAttemptsHandlerRejectsUnsafeFilters(t *testing.T) 
 	}
 }
 
+func TestAdminPushNotificationAttemptDetailHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		pushNotificationAttempts: []maildb.PushNotificationAttemptView{{
+			ID:                "attempt-1",
+			MessageID:         "msg-1",
+			UserID:            "user-1",
+			DeviceID:          "device-1",
+			Platform:          "fcm",
+			Status:            "delivered",
+			ProviderMessageID: "provider-message-1",
+			AttemptedAt:       time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts/attempt-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushOutcome.AttemptID != "attempt-1" {
+		t.Fatalf("attempt id = %q", service.lastPushOutcome.AttemptID)
+	}
+	if !strings.Contains(rec.Body.String(), "push_notification_attempt") || !strings.Contains(rec.Body.String(), "provider-message-1") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminPushNotificationAttemptDetailHandlerRejectsUnsafeID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts/bad%0Aid", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastPushOutcome.AttemptID != "" {
+		t.Fatalf("dispatched attempt id %q", service.lastPushOutcome.AttemptID)
+	}
+}
+
 func TestAdminPushNotificationOutcomeHandler(t *testing.T) {
 	t.Parallel()
 
@@ -4208,6 +4260,16 @@ func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, req maildb.E
 func (f *fakeAdminService) ListPushNotificationAttempts(_ context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error) {
 	f.lastPushAttemptList = req
 	return f.pushNotificationAttempts, nil
+}
+
+func (f *fakeAdminService) GetPushNotificationAttempt(_ context.Context, id string) (maildb.PushNotificationAttemptView, error) {
+	f.lastPushOutcome.AttemptID = id
+	for _, attempt := range f.pushNotificationAttempts {
+		if attempt.ID == id {
+			return attempt, nil
+		}
+	}
+	return maildb.PushNotificationAttemptView{}, fmt.Errorf("push notification attempt %q not found", id)
 }
 
 func (f *fakeAdminService) UpdatePushNotificationOutcome(_ context.Context, req maildb.UpdatePushNotificationOutcomeRequest) error {

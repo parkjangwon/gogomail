@@ -271,6 +271,8 @@ guidance.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status, user, platform, device,
   provider status, provider message id, or recent time window.
+- Admin API exposes `GET /admin/v1/push-notification-attempts/{id}` for
+  single-attempt troubleshooting.
 - Admin API exposes
   `PATCH /admin/v1/push-notification-attempts/{id}/outcome` for authenticated
   operator/provider handoff updates to queued, delivered, failed, or

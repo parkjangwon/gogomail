@@ -141,4 +141,9 @@ PATCH /admin/v1/push-notification-attempts/{attempt_id}/outcome
 The outcome body supports `status` (`queued`, `delivered`, `failed`, or
 `invalid_token`), plus bounded `error_message`, `provider_message_id`, and
 `provider_status` diagnostics. `invalid_token` soft-deletes the matching push
-device in the same database transaction.
+device in the same database transaction. Operators can inspect the resulting
+row with:
+
+```bash
+GET /admin/v1/push-notification-attempts/{attempt_id}
+```
