@@ -470,6 +470,7 @@ Implementation order:
 411. Bulk flag, move, and delete service methods now trim user/message/flag and folder identifiers before repository mutation, IMAP UID lookup, and mailbox event fan-out.
 412. Folder, message-list, thread-list, and message-detail service reads now trim user, folder, thread, message, and folder-name inputs before repository work.
 413. Mail search service queries now normalize user, text, folder, sender, subject, and sort inputs before Postgres or OpenSearch dispatch.
+414. Push-device list and delete service methods now trim user and device identifiers before repository work.
 
 ## Deferred until backend contracts stabilize
 

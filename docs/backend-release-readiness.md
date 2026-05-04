@@ -131,6 +131,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   device/provider troubleshooting queries.
 - Mail API push-device registration normalizes user, platform, token, and label
   fields before validation/storage while responses keep raw tokens write-only.
+- Push-device list and delete service methods trim user and device identifiers
+  before repository work.
 - Mail compose draft/save/send requests normalize user/source/from/address and
   attachment identifier fields before repository, storage, suppression, and
   outbound composition work.

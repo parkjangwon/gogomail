@@ -575,6 +575,7 @@ func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int)
 	if !ok {
 		return nil, fmt.Errorf("push device repository is required")
 	}
+	userID = strings.TrimSpace(userID)
 	return repo.ListPushDevices(ctx, userID, limit)
 }
 
@@ -602,6 +603,8 @@ func (s *Service) DeletePushDevice(ctx context.Context, userID string, id string
 	if !ok {
 		return fmt.Errorf("push device repository is required")
 	}
+	userID = strings.TrimSpace(userID)
+	id = strings.TrimSpace(id)
 	return repo.DeletePushDevice(ctx, userID, id)
 }
 
