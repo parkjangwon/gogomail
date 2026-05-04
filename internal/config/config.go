@@ -84,6 +84,7 @@ type Config struct {
 	SearchIndexOpenSearchUsername  string
 	SearchIndexOpenSearchPassword  string
 	SearchIndexOpenSearchBootstrap bool
+	SearchIndexOpenSearchTimeout   time.Duration
 	DeliveryStream                 string
 	DeliveryConsumerGroup          string
 	DeliveryConsumerName           string
@@ -191,6 +192,7 @@ func Load() Config {
 		SearchIndexOpenSearchUsername:  envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_USERNAME", ""),
 		SearchIndexOpenSearchPassword:  os.Getenv("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_PASSWORD"),
 		SearchIndexOpenSearchBootstrap: boolEnvOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP", false),
+		SearchIndexOpenSearchTimeout:   durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT", 10*time.Second),
 		DeliveryStream:                 envOrDefault("GOGOMAIL_DELIVERY_STREAM", "mail.outbound.general"),
 		DeliveryConsumerGroup:          envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "gogomail.delivery-worker"),
 		DeliveryConsumerName:           envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-worker-1"),

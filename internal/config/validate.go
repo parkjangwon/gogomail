@@ -102,6 +102,9 @@ func (c Config) Validate() error {
 	if c.SearchIndexConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK must be positive")
 	}
+	if c.SearchIndexOpenSearchTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT must be positive")
+	}
 	if strings.TrimSpace(c.DeliverySmartHostTLSMode) != "" {
 		if err := validateEnum("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", c.DeliverySmartHostTLSMode, "opportunistic", "require", "disable"); err != nil {
 			return err

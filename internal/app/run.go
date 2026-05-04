@@ -513,12 +513,7 @@ func searchIndexerForConfig(cfg config.Config, repository *maildb.Repository) (s
 	case "postgres":
 		return searchindex.NewPostgresIndexer(repository), nil
 	case "opensearch":
-		return searchindex.NewOpenSearchIndexer(searchindex.OpenSearchOptions{
-			Endpoint: cfg.SearchIndexOpenSearchEndpoint,
-			Index:    cfg.SearchIndexOpenSearchIndex,
-			Username: cfg.SearchIndexOpenSearchUsername,
-			Password: cfg.SearchIndexOpenSearchPassword,
-		})
+		return searchindex.NewOpenSearchIndexer(openSearchOptionsForConfig(cfg))
 	default:
 		return nil, fmt.Errorf("unsupported search index backend %q", cfg.SearchIndexBackend)
 	}
@@ -546,12 +541,21 @@ func searchIDSourceForConfig(cfg config.Config) (mailservice.SearchIDSource, err
 	if !strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
 		return nil, nil
 	}
-	return searchindex.NewOpenSearchSearcher(searchindex.OpenSearchOptions{
+	return searchindex.NewOpenSearchSearcher(openSearchOptionsForConfig(cfg))
+}
+
+func openSearchOptionsForConfig(cfg config.Config) searchindex.OpenSearchOptions {
+	timeout := cfg.SearchIndexOpenSearchTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	return searchindex.OpenSearchOptions{
 		Endpoint: cfg.SearchIndexOpenSearchEndpoint,
 		Index:    cfg.SearchIndexOpenSearchIndex,
+		Client:   &http.Client{Timeout: timeout},
 		Username: cfg.SearchIndexOpenSearchUsername,
 		Password: cfg.SearchIndexOpenSearchPassword,
-	})
+	}
 }
 
 func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
