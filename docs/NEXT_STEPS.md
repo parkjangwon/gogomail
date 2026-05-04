@@ -280,7 +280,7 @@ Current state:
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments, and now expires stale resumable upload sessions in the same
   bounded sweep.
-- Mail API exposes upload session create/cancel endpoints, reserving declared
+- Mail API exposes upload session create/read/cancel endpoints, reserving declared
   quota for future resumable workflows without yet advertising chunk support.
 - Attachment upload capabilities advertise session create/cancel support
   separately from `resumable_chunked_uploads`.
