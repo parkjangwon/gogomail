@@ -724,6 +724,26 @@ paths:
           $ref: "#/components/responses/APIUsageExportManifestDigest"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification:
+    get:
+      operationId: verifyAdminAPIUsageExportManifestDigest
+      summary: Verify a canonical API usage export manifest digest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: digest_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportManifestDigestVerification"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1434,6 +1454,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportManifestDigestListEnvelope"
+    APIUsageExportManifestDigestVerification:
+      description: Canonical API usage export manifest digest verification envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportManifestDigestVerificationEnvelope"
     APIUsageExportBatch:
       description: API usage export batch manifest envelope
       content:
@@ -2673,6 +2699,37 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportManifestDigest"
+    APIUsageExportManifestDigestVerification:
+      type: object
+      required: [batch_id, digest_id, schema_version, digest_algorithm, expected_digest_hex, actual_digest_hex, valid, canonical_manifest]
+      properties:
+        batch_id:
+          type: string
+        digest_id:
+          type: string
+        schema_version:
+          type: string
+          enum: [2026-05-04.api-usage-export-manifest.v1]
+        digest_algorithm:
+          type: string
+          enum: [sha256]
+        expected_digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        actual_digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        valid:
+          type: boolean
+        canonical_manifest:
+          type: object
+          additionalProperties: true
+    APIUsageExportManifestDigestVerificationEnvelope:
+      type: object
+      required: [api_usage_export_manifest_digest_verification]
+      properties:
+        api_usage_export_manifest_digest_verification:
+          $ref: "#/components/schemas/APIUsageExportManifestDigestVerification"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
