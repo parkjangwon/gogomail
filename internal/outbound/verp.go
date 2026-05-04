@@ -8,6 +8,13 @@ import (
 	"github.com/gogomail/gogomail/internal/mail"
 )
 
+const (
+	maxVERPAddressBytes          = 512
+	maxVERPLocalPartBytes        = 320
+	maxVERPEncodedRecipientBytes = 512
+	maxVERPTokenBytes            = 128
+)
+
 type VERPAddress struct {
 	BaseLocal string
 	Domain    string
@@ -38,12 +45,18 @@ func BuildVERPReturnPath(base string, recipient string, token string) (string, e
 
 func ParseVERPReturnPath(address string) (VERPAddress, bool) {
 	address = strings.Trim(strings.TrimSpace(address), "<>")
+	if address == "" || len(address) > maxVERPAddressBytes {
+		return VERPAddress{}, false
+	}
 	local, domain, ok := strings.Cut(address, "@")
 	if !ok {
 		return VERPAddress{}, false
 	}
 	local = strings.TrimSpace(local)
 	domain = strings.ToLower(strings.TrimSpace(domain))
+	if local == "" || domain == "" || len(local) > maxVERPLocalPartBytes {
+		return VERPAddress{}, false
+	}
 	baseLocal, encoded, ok := strings.Cut(local, "+")
 	if !ok || baseLocal == "" || encoded == "" {
 		return VERPAddress{}, false
@@ -53,6 +66,9 @@ func ParseVERPReturnPath(address string) (VERPAddress, bool) {
 	if before, after, ok := strings.Cut(encoded, "--"); ok {
 		token = before
 		encoded = after
+	}
+	if len(token) > maxVERPTokenBytes || len(encoded) > maxVERPEncodedRecipientBytes {
+		return VERPAddress{}, false
 	}
 	rawRecipient, err := base64.RawURLEncoding.DecodeString(encoded)
 	if err != nil {
@@ -76,6 +92,9 @@ func sanitizeVERPToken(token string) string {
 	for _, r := range token {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
 			builder.WriteRune(r)
+			if builder.Len() >= maxVERPTokenBytes {
+				break
+			}
 		}
 	}
 	return builder.String()
