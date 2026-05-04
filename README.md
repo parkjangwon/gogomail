@@ -98,6 +98,8 @@ GOGOMAIL_TEST_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomai
 
 See `docs/smtp-release-runbook.md` for the SMTP backend release soak,
 STARTTLS/SMTPS, trusted relay, and outbound DSN/bounce smoke checklist.
+See `docs/api-usage-export-runbook.md` for the API usage export, handoff, and
+retention-readiness operator flow.
 
 ## Local infrastructure
 
