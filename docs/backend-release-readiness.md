@@ -262,6 +262,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin backpressure updates now write bounded hash-chain audit rows with
   previous/current SMTP pressure state after Redis updates, so receive-throttle
   overrides are durable operational evidence.
+- Admin suppression-list deletes now write hash-chain audit rows in the same
+  transaction as the delete, keeping deliverability-control removals
+  forensically inspectable through audit APIs.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize

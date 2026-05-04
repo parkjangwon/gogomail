@@ -696,6 +696,34 @@ func TestValidateCreateDomainRequestRejectsInvalidACEName(t *testing.T) {
 	}
 }
 
+func TestSuppressionEntryAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := suppressionEntryAuditDetail(SuppressionEntry{
+		ID:              "11111111-1111-1111-1111-111111111111",
+		DomainID:        "22222222-2222-2222-2222-222222222222",
+		Email:           "user@example.net",
+		Reason:          "hard_bounce",
+		SourceMessageID: "33333333-3333-3333-3333-333333333333",
+	})
+	if err != nil {
+		t.Fatalf("suppressionEntryAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		ID              string `json:"suppression_entry_id"`
+		DomainID        string `json:"domain_id"`
+		Email           string `json:"email"`
+		Reason          string `json:"reason"`
+		SourceMessageID string `json:"source_message_id"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.ID == "" || got.DomainID == "" || got.Email != "user@example.net" || got.Reason != "hard_bounce" || got.SourceMessageID == "" {
+		t.Fatalf("audit detail = %+v", got)
+	}
+}
+
 func TestDomainCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
