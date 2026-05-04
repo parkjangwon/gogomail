@@ -242,6 +242,8 @@ The platform hardening sprint completed the following:
 - `mailservice` exposes IMAP mailbox/message listing and mailbox-event
   subscription methods, keeping the future protocol listener pointed at the
   service boundary instead of `maildb` internals.
+- `mailservice` exposes bounded IMAP UID backfill through the same service
+  boundary for future operator/bootstrap modes.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a

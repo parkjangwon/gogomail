@@ -333,6 +333,7 @@ Implementation order:
 278. Mail API single and bulk move mutations now publish optional mailbox `expunge` events for previously UID-visible source messages after database moves succeed and stale IMAP UID rows are invalidated.
 279. Mail API single and bulk delete mutations now publish optional mailbox `expunge` events for previously UID-visible messages after soft-delete succeeds and stale IMAP UID rows are invalidated.
 280. `mailservice` now exposes IMAP mailbox/message listing and mailbox-event subscription methods, keeping the future protocol listener on the service boundary instead of reaching into `maildb` internals.
+281. `mailservice` now exposes bounded IMAP UID backfill through the same service boundary, preparing future operator/bootstrap modes without coupling them directly to `maildb`.
 
 ## Deferred until backend contracts stabilize
 

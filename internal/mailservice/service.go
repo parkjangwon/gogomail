@@ -341,6 +341,16 @@ func (s *Service) SubscribeIMAPMailbox(ctx context.Context, userID imapgw.UserID
 	return broker.Subscribe(ctx, userID, mailboxID)
 }
 
+func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error) {
+	repo, ok := s.repository.(interface {
+		BackfillIMAPMailboxUIDs(context.Context, string, string, int) ([]maildb.IMAPMessageUID, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap uid backfill repository is required")
+	}
+	return repo.BackfillIMAPMailboxUIDs(ctx, userID, mailboxID, limit)
+}
+
 func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
 		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error)

@@ -199,6 +199,23 @@ func TestSubscribeIMAPMailboxUsesEventBroker(t *testing.T) {
 	}
 }
 
+func TestBackfillIMAPMailboxUIDsDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		backfilledIMAPUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.BackfillIMAPMailboxUIDs(context.Background(), "user-1", "inbox", 50)
+	if err != nil {
+		t.Fatalf("BackfillIMAPMailboxUIDs returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].UID != 12 || repo.lastBackfillLimit != 50 {
+		t.Fatalf("backfill = %#v, limit = %d", got, repo.lastBackfillLimit)
+	}
+}
+
 func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -564,6 +581,7 @@ type fakeRepository struct {
 	imapUIDs                    []maildb.IMAPMessageUID
 	imapMailboxes               []imapgw.Mailbox
 	imapMessages                []imapgw.MessageSummary
+	backfilledIMAPUIDs          []maildb.IMAPMessageUID
 	attachments                 []maildb.Attachment
 	list                        []maildb.MessageSummary
 	messagesByID                []maildb.MessageSummary
@@ -587,6 +605,7 @@ type fakeRepository struct {
 	lastIMAPUIDLookupMessageIDs []string
 	lastIMAPMailboxUserID       string
 	lastIMAPMessageAfterUID     imapgw.UID
+	lastBackfillLimit           int
 	recordErr                   error
 }
 
@@ -651,6 +670,11 @@ func (f *fakeRepository) GetIMAPMailbox(context.Context, string, string) (imapgw
 func (f *fakeRepository) ListIMAPMessages(_ context.Context, _ string, _ string, _ int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {
 	f.lastIMAPMessageAfterUID = afterUID
 	return f.imapMessages, nil
+}
+
+func (f *fakeRepository) BackfillIMAPMailboxUIDs(_ context.Context, _ string, _ string, limit int) ([]maildb.IMAPMessageUID, error) {
+	f.lastBackfillLimit = limit
+	return f.backfilledIMAPUIDs, nil
 }
 
 func (f *fakeRepository) StoreIMAPFlags(_ context.Context, _ string, _ string, _ []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error) {
