@@ -427,6 +427,8 @@ The platform hardening sprint completed the following:
   before service dispatch.
 - Attachment download responses now emit both ASCII fallback and UTF-8
   `filename*` `Content-Disposition` parameters for internationalized filenames.
+- Attachment downloads now fall back to `application/octet-stream` for blank or
+  unsafe stored MIME types before setting response headers.
 
 Next focus areas:
 
