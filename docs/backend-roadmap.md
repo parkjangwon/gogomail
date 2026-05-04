@@ -527,6 +527,7 @@ Implementation order:
 468. Mail API bearer JWT `user_id` and `sub` identities now reject CR/LF-bearing or oversized values during signing and verification before request scoping.
 469. Mail API bearer JWT verification now rejects oversized token, header, payload, and signature segments before base64 decoding.
 470. Mail and Admin API authentication headers now reject oversized `Authorization` and `X-Admin-Token` values before bearer parsing, JWT decoding, or token comparison.
+471. Password hash verification now rejects oversized stored hashes, excessive PBKDF2 iteration counts, and oversized PBKDF2 salt/key metadata before expensive derivation or decoded allocation.
 
 ## Deferred until backend contracts stabilize
 
