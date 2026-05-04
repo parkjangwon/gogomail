@@ -2349,6 +2349,53 @@ RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
 	return artifact, nil
 }
 
+func (r *Repository) ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]APIUsageExportArtifactView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	batchID = strings.TrimSpace(batchID)
+	if batchID == "" {
+		return nil, fmt.Errorf("batch_id is required")
+	}
+	limit = normalizeLimit(limit)
+	const query = `
+SELECT id, batch_id, created_at, storage_backend, object_key, content_type,
+  byte_count, sha256_hex, event_count, metadata
+FROM api_usage_export_artifacts
+WHERE batch_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, query, batchID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage export artifacts: %w", err)
+	}
+	defer rows.Close()
+
+	var artifacts []APIUsageExportArtifactView
+	for rows.Next() {
+		var artifact APIUsageExportArtifactView
+		if err := rows.Scan(
+			&artifact.ID,
+			&artifact.BatchID,
+			&artifact.CreatedAt,
+			&artifact.StorageBackend,
+			&artifact.ObjectKey,
+			&artifact.ContentType,
+			&artifact.ByteCount,
+			&artifact.SHA256Hex,
+			&artifact.EventCount,
+			&artifact.Metadata,
+		); err != nil {
+			return nil, fmt.Errorf("scan api usage export artifact: %w", err)
+		}
+		artifacts = append(artifacts, artifact)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage export artifacts: %w", err)
+	}
+	return artifacts, nil
+}
+
 func ValidateCreateAPIUsageExportArtifactRequest(req *CreateAPIUsageExportArtifactRequest) error {
 	req.BatchID = strings.TrimSpace(req.BatchID)
 	req.StorageBackend = strings.TrimSpace(req.StorageBackend)
