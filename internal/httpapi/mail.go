@@ -57,6 +57,7 @@ type MessageService interface {
 	CreateAttachmentUploadSession(ctx context.Context, req mailservice.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	CancelAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
 	GetAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
+	StoreAttachmentUploadSessionBody(ctx context.Context, req mailservice.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
@@ -695,6 +696,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 				"cancel_pending_uploads":     true,
 				"upload_sessions":            true,
 				"cancel_upload_sessions":     true,
+				"upload_session_body":        true,
 				"resumable_chunked_uploads":  false,
 				"requires_declared_size":     true,
 				"quota_reserved_on_metadata": true,
@@ -748,6 +750,30 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		session, err := service.GetAttachmentUploadSession(r.Context(), userID, sessionID)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_session": session})
+	})
+
+	mux.HandleFunc("PUT /api/v1/attachments/upload-sessions/{id}/body", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		sessionID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		body := http.MaxBytesReader(w, r.Body, mailservice.MaxAttachmentUploadBytes+1)
+		session, err := service.StoreAttachmentUploadSessionBody(r.Context(), mailservice.StoreAttachmentUploadSessionBodyRequest{
+			UserID:    userID,
+			SessionID: sessionID,
+			Body:      body,
+		})
+		if err != nil {
+			writeMailServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_session": session})

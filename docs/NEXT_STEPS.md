@@ -286,14 +286,17 @@ Current state:
   values before quota reservation.
 - Attachment upload capabilities advertise session create/cancel support
   separately from `resumable_chunked_uploads` and include the max session TTL.
+- Upload session body storage can persist a complete body and checksum without
+  finalizing it into an attachment row yet.
 - Admin API can preview counts, list bounded candidates, and run stale upload
   cleanup on demand with an explicit non-future cutoff for operator-controlled
   maintenance.
 
 Next:
 
-- Add chunk receive/finalize contracts described by ADR 0007 on top of
-  `attachment_upload_sessions`.
+- Add finalize contracts described by ADR 0007 on top of
+  `attachment_upload_sessions`, then decide whether to split body storage into
+  explicit range-aware chunk commits.
 
 ### 6. OpenAPI/client readiness
 

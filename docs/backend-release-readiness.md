@@ -47,6 +47,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   implemented; capabilities advertise session support separately, and session
   creation rejects already-expired or overlong expiries before quota
   reservation.
+- Upload session body storage can persist a complete session body, record
+  received bytes and SHA-256, and keep final attachment row creation deferred to
+  an explicit finalize contract.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   including stale resumable session expiry, optional run-once execution for

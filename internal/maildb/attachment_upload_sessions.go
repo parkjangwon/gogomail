@@ -47,6 +47,14 @@ type GetAttachmentUploadSessionRequest struct {
 	SessionID string
 }
 
+type StoreAttachmentUploadSessionBodyRequest struct {
+	UserID         string
+	SessionID      string
+	ReceivedSize   int64
+	StoragePath    string
+	ChecksumSHA256 string
+}
+
 type ExpireAttachmentUploadSessionsRequest struct {
 	Before time.Time
 	Limit  int
@@ -89,6 +97,34 @@ func ValidateCancelAttachmentUploadSessionRequest(req CancelAttachmentUploadSess
 
 func ValidateGetAttachmentUploadSessionRequest(req GetAttachmentUploadSessionRequest) error {
 	return validateAttachmentUploadSessionIdentity(req.UserID, req.SessionID)
+}
+
+func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSessionBodyRequest) error {
+	if err := validateAttachmentUploadSessionIdentity(req.UserID, req.SessionID); err != nil {
+		return err
+	}
+	if req.ReceivedSize < 0 {
+		return fmt.Errorf("received_size must not be negative")
+	}
+	if strings.TrimSpace(req.StoragePath) == "" {
+		return fmt.Errorf("storage_path is required")
+	}
+	if strings.ContainsAny(req.StoragePath, "\r\n") {
+		return fmt.Errorf("storage_path must not contain newlines")
+	}
+	if strings.TrimSpace(req.ChecksumSHA256) == "" {
+		return fmt.Errorf("checksum_sha256 is required")
+	}
+	checksum := strings.TrimSpace(req.ChecksumSHA256)
+	if len(checksum) != 64 {
+		return fmt.Errorf("checksum_sha256 must be a lowercase SHA-256 hex digest")
+	}
+	for _, r := range checksum {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return fmt.Errorf("checksum_sha256 must be a lowercase SHA-256 hex digest")
+		}
+	}
+	return nil
 }
 
 func validateAttachmentUploadSessionIdentity(userID string, sessionID string) error {
@@ -328,6 +364,63 @@ WHERE user_id = $1
 			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found", req.SessionID)
 		}
 		return AttachmentUploadSession{}, fmt.Errorf("get attachment upload session: %w", err)
+	}
+	return session, nil
+}
+
+func (r *Repository) StoreAttachmentUploadSessionBody(ctx context.Context, req StoreAttachmentUploadSessionBodyRequest) (AttachmentUploadSession, error) {
+	if r.db == nil {
+		return AttachmentUploadSession{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(req); err != nil {
+		return AttachmentUploadSession{}, err
+	}
+
+	const query = `
+UPDATE attachment_upload_sessions
+SET status = 'uploading',
+    received_size = $3,
+    storage_path = $4,
+    checksum_sha256 = $5,
+    updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status IN ('pending', 'uploading', 'failed')
+  AND expires_at > now()
+  AND declared_size = $3
+RETURNING
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  upload_id,
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at`
+
+	session, err := scanAttachmentUploadSession(r.db.QueryRowContext(
+		ctx,
+		query,
+		strings.TrimSpace(req.UserID),
+		strings.TrimSpace(req.SessionID),
+		req.ReceivedSize,
+		strings.TrimSpace(req.StoragePath),
+		strings.TrimSpace(req.ChecksumSHA256),
+	))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found for body storage", req.SessionID)
+		}
+		return AttachmentUploadSession{}, fmt.Errorf("store attachment upload session body: %w", err)
 	}
 	return session, nil
 }

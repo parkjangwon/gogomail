@@ -1103,6 +1103,28 @@ func TestGetAttachmentUploadSessionHandler(t *testing.T) {
 	}
 }
 
+func TestStoreAttachmentUploadSessionBodyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" || service.lastStoreUploadSessionID != "session-1" || service.lastUploadSessionBody != "content" {
+		t.Fatalf("store session request = user:%q session:%q body:%q", service.lastUserID, service.lastStoreUploadSessionID, service.lastUploadSessionBody)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment_upload_session"`) || !strings.Contains(rec.Body.String(), `"status":"uploading"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1143,6 +1165,7 @@ func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 		`"cancel_pending_uploads":true`,
 		`"upload_sessions":true`,
 		`"cancel_upload_sessions":true`,
+		`"upload_session_body":true`,
 		`"resumable_chunked_uploads":false`,
 		`"requires_declared_size":true`,
 	} {
@@ -1666,6 +1689,11 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			path:   "/api/v1/attachments/upload-sessions/session%0Abad?user_id=user-1",
 		},
 		{
+			name:   "upload session body crlf",
+			method: http.MethodPut,
+			path:   "/api/v1/attachments/upload-sessions/session%0Abad/body?user_id=user-1",
+		},
+		{
 			name:   "draft crlf",
 			method: http.MethodPatch,
 			path:   "/api/v1/drafts/draft%0Abad",
@@ -1694,8 +1722,8 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" || service.lastGetUploadSessionID != "" {
-				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q getUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID, service.lastGetUploadSessionID)
+			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" || service.lastGetUploadSessionID != "" || service.lastStoreUploadSessionID != "" {
+				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q getUploadSession=%q storeUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID, service.lastGetUploadSessionID, service.lastStoreUploadSessionID)
 			}
 		})
 	}
@@ -1739,8 +1767,10 @@ type fakeMessageService struct {
 	lastCancelAttachmentID    string
 	lastCancelUploadSessionID string
 	lastGetUploadSessionID    string
+	lastStoreUploadSessionID  string
 	lastPushDevice            maildb.UpsertPushDeviceRequest
 	lastAttachmentBody        string
+	lastUploadSessionBody     string
 	attachmentErr             error
 	lastUserID                string
 	lastFolderName            string
@@ -1944,6 +1974,14 @@ func (f *fakeMessageService) GetAttachmentUploadSession(_ context.Context, userI
 	f.lastUserID = userID
 	f.lastGetUploadSessionID = sessionID
 	return maildb.AttachmentUploadSession{ID: sessionID, UserID: userID, Status: "pending"}, nil
+}
+
+func (f *fakeMessageService) StoreAttachmentUploadSessionBody(_ context.Context, req mailservice.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
+	f.lastUserID = req.UserID
+	f.lastStoreUploadSessionID = req.SessionID
+	raw, _ := io.ReadAll(req.Body)
+	f.lastUploadSessionBody = string(raw)
+	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: int64(len(raw)), Status: "uploading"}, nil
 }
 
 func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
