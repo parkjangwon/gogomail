@@ -42,6 +42,8 @@ guidance.
 - Queue stats include ready, delayed, stale-processing, oldest-ready, and
   next-available metadata so operators can distinguish backlog from scheduled
   retry delay.
+- Outbox event metadata can be filtered by topic, partition key, status, and
+  recent time window without exposing payload bodies.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, thread lists/thread messages, plus user-scoped sent-message
   delivery/bounce status.

@@ -387,10 +387,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		events, err := service.ListOutboxEvents(r.Context(), maildb.OutboxEventListRequest{
-			Limit:  limit,
-			Topic:  r.URL.Query().Get("topic"),
-			Status: r.URL.Query().Get("status"),
-			Since:  since,
+			Limit:        limit,
+			Topic:        r.URL.Query().Get("topic"),
+			PartitionKey: r.URL.Query().Get("partition_key"),
+			Status:       r.URL.Query().Get("status"),
+			Since:        since,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
