@@ -51,6 +51,7 @@ type AdminService interface {
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
+	ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -118,6 +119,29 @@ type adminAttachmentCleanupRunRequest struct {
 	Before string `json:"before"`
 	Limit  int    `json:"limit,omitempty"`
 	DryRun bool   `json:"dry_run,omitempty"`
+}
+
+func parseAdminAttachmentCleanupRequest(w http.ResponseWriter, req adminAttachmentCleanupRunRequest) (time.Time, bool) {
+	beforeRaw := strings.TrimSpace(req.Before)
+	if beforeRaw == "" {
+		writeError(w, http.StatusBadRequest, "before is required")
+		return time.Time{}, false
+	}
+	before, err := time.Parse(time.RFC3339, beforeRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "before must be RFC3339 timestamp")
+		return time.Time{}, false
+	}
+	before = before.UTC()
+	if before.After(time.Now().UTC()) {
+		writeError(w, http.StatusBadRequest, "before must not be in the future")
+		return time.Time{}, false
+	}
+	if req.Limit < 0 {
+		writeError(w, http.StatusBadRequest, "limit must not be negative")
+		return time.Time{}, false
+	}
+	return before, true
 }
 
 func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string, opts ...AdminRouteOption) {
@@ -548,29 +572,38 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_usage": usages})
 	}))
 
+	mux.HandleFunc("POST /admin/v1/attachment-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		var req adminAttachmentCleanupRunRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		before, ok := parseAdminAttachmentCleanupRequest(w, req)
+		if !ok {
+			return
+		}
+		candidates, err := service.ListStaleAttachmentUploads(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"attachment_cleanup_candidates": map[string]any{
+				"candidates": candidates,
+				"before":     before.Format(time.RFC3339),
+				"limit":      maildb.NormalizeAttachmentCleanupLimit(req.Limit),
+			},
+		})
+	}))
+
 	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		var req adminAttachmentCleanupRunRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		beforeRaw := strings.TrimSpace(req.Before)
-		if beforeRaw == "" {
-			writeError(w, http.StatusBadRequest, "before is required")
-			return
-		}
-		before, err := time.Parse(time.RFC3339, beforeRaw)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "before must be RFC3339 timestamp")
-			return
-		}
-		before = before.UTC()
-		if before.After(time.Now().UTC()) {
-			writeError(w, http.StatusBadRequest, "before must not be in the future")
-			return
-		}
-		if req.Limit < 0 {
-			writeError(w, http.StatusBadRequest, "limit must not be negative")
+		before, ok := parseAdminAttachmentCleanupRequest(w, req)
+		if !ok {
 			return
 		}
 		counts, err := service.CountStaleAttachmentUploads(r.Context(), before, req.Limit)
