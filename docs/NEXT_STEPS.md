@@ -290,13 +290,16 @@ Current state:
 - Manifest signature verification now goes through an
   `ExportManifestSignatureVerifier` interface. The local-HMAC verifier is wired
   today; future KMS/asymmetric verification should implement the same boundary.
+- Admin API exposes API usage export capabilities, including signer backend,
+  signer key ID, verifier availability, production signature readiness, and
+  billing/verified-billing support flags.
 
 Next:
 
 - Add external KMS/asymmetric signing and verification before invoices or hard
   Open API limits depend on completed export batches.
-- Consider adding a signer/verifier capability endpoint before treating
-  `billing_candidate` as invoice-grade.
+- Consider adding operator runbook examples for export capability checks before
+  treating `billing_candidate` as invoice-grade.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 

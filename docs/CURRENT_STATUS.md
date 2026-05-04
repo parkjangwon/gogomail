@@ -127,6 +127,10 @@ guidance.
   `apimeter.ExportManifestSignatureVerifier` boundary parallel to signing. The
   current wired verifier is local-HMAC, leaving a clean replacement point for
   KMS/asymmetric verification.
+- Admin API exposes API usage export capabilities so operators can see the
+  configured signer backend, signer key ID, verifier availability, and whether
+  production/verified billing readiness is supported before creating handoff
+  batches.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
