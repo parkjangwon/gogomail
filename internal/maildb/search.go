@@ -25,7 +25,20 @@ type MessageSearchQuery struct {
 	IncludeHighlights bool
 }
 
+type DraftSearchQuery struct {
+	UserID        string
+	Query         string
+	From          string
+	Subject       string
+	HasAttachment *bool
+	Limit         int
+}
+
 func (q MessageSearchQuery) normalizedLimit() int {
+	return normalizeLimit(q.Limit)
+}
+
+func (q DraftSearchQuery) normalizedLimit() int {
 	return normalizeLimit(q.Limit)
 }
 
@@ -115,6 +128,68 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	return messages, nil
 }
 
+func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) ([]MessageDetail, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID := strings.TrimSpace(query.UserID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	limit := query.normalizedLimit()
+	hasAttachment := ""
+	if query.HasAttachment != nil {
+		if *query.HasAttachment {
+			hasAttachment = "true"
+		} else {
+			hasAttachment = "false"
+		}
+	}
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		draftSearchSQL(),
+		userID,
+		strings.TrimSpace(query.Query),
+		strings.TrimSpace(query.From),
+		strings.TrimSpace(query.Subject),
+		hasAttachment,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("search drafts: %w", err)
+	}
+	defer rows.Close()
+
+	drafts := make([]MessageDetail, 0, limit)
+	for rows.Next() {
+		var draft MessageDetail
+		if err := rows.Scan(
+			&draft.ID,
+			&draft.MessageID,
+			&draft.Subject,
+			&draft.FromAddr,
+			&draft.FromName,
+			&draft.ToAddrs,
+			&draft.CcAddrs,
+			&draft.BccAddrs,
+			&draft.ReceivedAt,
+			&draft.Size,
+			&draft.HasAttachment,
+			&draft.Flags,
+			&draft.StoragePath,
+			&draft.TextBody,
+		); err != nil {
+			return nil, fmt.Errorf("scan search draft: %w", err)
+		}
+		drafts = append(drafts, draft)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate search drafts: %w", err)
+	}
+	return drafts, nil
+}
+
 func messageSearchSQL(sortMode string) string {
 	orderBy := "message_at DESC, id DESC"
 	if sortMode == MessageSearchSortRelevance {
@@ -193,6 +268,45 @@ SELECT
 FROM ranked_messages
 ORDER BY ` + orderBy + `
 LIMIT $7`
+}
+
+func draftSearchSQL() string {
+	return `
+SELECT
+  id::text,
+  COALESCE(rfc_message_id, ''),
+  subject,
+  from_addr,
+  from_name,
+  to_addrs,
+  cc_addrs,
+  bcc_addrs,
+  COALESCE(draft_updated_at, updated_at, created_at) AS draft_at,
+  size,
+  has_attachment,
+  flags,
+  storage_path,
+  COALESCE(draft_text_body, '')
+FROM messages
+WHERE user_id = $1
+  AND status = 'draft'
+  AND ($2 = '' OR (
+    subject ILIKE '%' || $2 || '%'
+    OR from_addr ILIKE '%' || $2 || '%'
+    OR from_name ILIKE '%' || $2 || '%'
+    OR to_addrs::text ILIKE '%' || $2 || '%'
+    OR cc_addrs::text ILIKE '%' || $2 || '%'
+    OR bcc_addrs::text ILIKE '%' || $2 || '%'
+    OR draft_text_body ILIKE '%' || $2 || '%'
+  ))
+  AND ($3 = '' OR (
+    from_addr ILIKE '%' || $3 || '%'
+    OR from_name ILIKE '%' || $3 || '%'
+  ))
+  AND ($4 = '' OR subject ILIKE '%' || $4 || '%')
+  AND ($5 = '' OR has_attachment = $5::boolean)
+ORDER BY draft_at DESC, id DESC
+LIMIT $6`
 }
 
 func searchHighlightsFromSQL(subject sql.NullString, from sql.NullString, body sql.NullString) *MessageSearchHighlights {

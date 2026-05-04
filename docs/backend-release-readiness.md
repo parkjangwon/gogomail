@@ -8,7 +8,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API exposes thread list and thread-message read models for conversation-style webmail rendering.
 - Inbound and reply/forward outbound persistence assign thread IDs from RFC thread headers or source messages where possible.
 - Reply composition writes RFC thread headers into outgoing `.eml`, preserving conversation threading outside gogomail.
-- Mail API exposes a small-deployment Postgres-backed search endpoint for active-message metadata, with full received-body indexing handled by the indexing worker boundary; draft search remains an explicit future contract.
+- Mail API exposes a small-deployment Postgres-backed search endpoint for active-message metadata, with full received-body indexing handled by the indexing worker boundary. Draft rows stay out of active-message search and use the separate compose-focused `GET /api/v1/drafts/search` contract for subject, sender, recipient, body, and attachment-state lookup.
 - Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, rejects ambiguous storage object paths before opening `.eml` objects, caps event `References` metadata, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
 - OpenSearch has writer and query adapters behind `internal/searchindex`; the
   search index worker can select the writer with explicit endpoint/index
@@ -253,6 +253,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail search requests trim query/folder/sender/subject filters at the HTTP and
   service boundaries, then reject CR/LF-bearing or oversized query/filter fields
   before Postgres or OpenSearch dispatch.
+- Draft search requests trim query/sender/subject filters at the HTTP and
+  service boundaries, then reject CR/LF-bearing or oversized query/filter fields
+  before bounded compose-store lookup.
 - Mail API bearer JWT verification rejects unsupported `alg` values and
   non-JWT `typ` headers before accepting signed claims; token/header/payload/
   signature segments are size-bounded before base64 decoding; `user_id`/`sub`
@@ -313,6 +316,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   dispatch.
 - Mail API message-list `folder_id` and search text/filter query parameters
   reject CR/LF-bearing or oversized values before service dispatch.
+- Mail API draft-search text/filter query parameters reject CR/LF-bearing or
+  oversized values before service dispatch.
 - Mail API push-device registration normalizes user, platform, token, and label
   fields before validation/storage while responses keep raw tokens write-only.
 - Push-device list and delete service methods trim user and device identifiers
@@ -347,6 +352,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   limits before repository, storage, broker, or mailbox-event work.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
+- Draft search service queries normalize user, text, sender, subject, and list
+  limits before repository dispatch.
 - Message delivery-status and reply source-thread service lookups trim user,
   message, and source-message identifiers before repository work.
 - Push-device create/update validation rejects invalid-UTF-8, CR/LF-bearing,

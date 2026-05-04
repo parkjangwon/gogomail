@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after repository retention future-cutoff guard)
+Last updated: 2026-05-05 (updated after compose-focused draft search API)
 
 ## Current phase
 
@@ -95,6 +95,10 @@ guidance.
   Postgres headline snippets while preserving date-sorted results by default.
 - Postgres and OpenSearch relevance search now share a metadata-first tuning
   intent: subject and sender matches rank above indexed body text matches.
+- Draft rows remain excluded from `GET /api/v1/search`; drafts now have a
+  separate compose-focused `GET /api/v1/drafts/search` contract over active
+  draft subject, sender, recipient JSON, body text, attachment state, and
+  newest-updated ordering.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain

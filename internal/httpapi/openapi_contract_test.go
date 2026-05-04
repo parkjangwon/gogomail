@@ -184,6 +184,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /messages/{id}":                                      "#/components/responses/Status",
 		"POST /messages/send":                                        "#/components/responses/SendQueued",
 		"POST /drafts":                                               "#/components/responses/Draft",
+		"GET /drafts/search":                                         "#/components/responses/DraftList",
 		"PATCH /drafts/{id}":                                         "#/components/responses/Draft",
 		"DELETE /drafts/{id}":                                        "#/components/responses/Status",
 		"POST /drafts/{id}/send":                                     "#/components/responses/SendQueued",
@@ -414,6 +415,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, params := range map[string][]string{
 		"GET /search":                                          {"limit", "q", "folder_id", "from", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
+		"GET /drafts/search":                                   {"limit", "q", "from", "subject", "has_attachment"},
 		"GET /companies":                                       {"limit"},
 		"GET /domains":                                         {"limit"},
 		"GET /domains/{id}/dns-checks":                         {"id", "limit"},
@@ -712,6 +714,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"MessageDeliveryStatusEnvelope":                       "delivery_status",
 		"ThreadListEnvelope":                                  "threads",
 		"DraftEnvelope":                                       "draft",
+		"DraftListEnvelope":                                   "drafts",
 		"SendQueuedEnvelope":                                  "message",
 		"AttachmentListEnvelope":                              "attachments",
 		"AttachmentEnvelope":                                  "attachment",

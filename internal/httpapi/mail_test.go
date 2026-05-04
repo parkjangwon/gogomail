@@ -780,6 +780,71 @@ func TestSaveDraftHandler(t *testing.T) {
 	}
 }
 
+func TestSearchDraftsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		drafts: []maildb.MessageDetail{{ID: "draft-1", Subject: "hello draft", TextBody: "body"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drafts/search?user_id=user-1&q=%20hello%20&from=%20sender%20&subject=%20draft%20&has_attachment=false&limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Drafts []maildb.MessageDetail `json:"drafts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Drafts) != 1 || body.Drafts[0].ID != "draft-1" {
+		t.Fatalf("drafts = %+v", body.Drafts)
+	}
+	if service.lastDraftSearch.UserID != "user-1" || service.lastDraftSearch.Query != "hello" || service.lastDraftSearch.From != "sender" || service.lastDraftSearch.Subject != "draft" {
+		t.Fatalf("lastDraftSearch = %+v", service.lastDraftSearch)
+	}
+	if service.lastDraftSearch.HasAttachment == nil || *service.lastDraftSearch.HasAttachment {
+		t.Fatalf("HasAttachment = %+v", service.lastDraftSearch.HasAttachment)
+	}
+}
+
+func TestSearchDraftsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/drafts/search?user_id=user-1&q=hello%0Abad",
+		"/api/v1/drafts/search?user_id=user-1&from=" + strings.Repeat("s", maxHTTPQueryBytes+1),
+		"/api/v1/drafts/search?user_id=user-1&subject=receipt%0Dbad",
+		"/api/v1/drafts/search?user_id=user-1&has_attachment=maybe",
+	}
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDraftSearch.UserID != "" {
+				t.Fatalf("lastDraftSearch = %+v", service.lastDraftSearch)
+			}
+		})
+	}
+}
+
 func TestDeleteDraftHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1825,6 +1890,7 @@ type fakeMessageService struct {
 	folders                     []maildb.Folder
 	createdFolder               maildb.Folder
 	list                        []maildb.MessageSummary
+	drafts                      []maildb.MessageDetail
 	threads                     []maildb.ThreadSummary
 	attachments                 []maildb.Attachment
 	pushDevices                 []maildb.PushDevice
@@ -1862,6 +1928,7 @@ type fakeMessageService struct {
 	lastBulkMove                maildb.BulkMessageMoveRequest
 	lastBulkDelete              maildb.BulkMessageDeleteRequest
 	lastSearch                  maildb.MessageSearchQuery
+	lastDraftSearch             maildb.DraftSearchQuery
 	lastLimit                   int
 }
 
@@ -1928,6 +1995,11 @@ func (f *fakeMessageService) ListThreadMessages(_ context.Context, userID string
 func (f *fakeMessageService) SearchMessages(_ context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
 	f.lastSearch = query
 	return f.list, nil
+}
+
+func (f *fakeMessageService) SearchDrafts(_ context.Context, query maildb.DraftSearchQuery) ([]maildb.MessageDetail, error) {
+	f.lastDraftSearch = query
+	return f.drafts, nil
 }
 
 func (f *fakeMessageService) GetMessage(_ context.Context, userID string, messageID string) (maildb.MessageDetail, error) {

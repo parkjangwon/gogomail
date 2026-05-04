@@ -955,6 +955,58 @@ func TestSearchMessagesRejectsUnsafeQueryFields(t *testing.T) {
 	}
 }
 
+func TestSearchDraftsNormalizesAndDelegates(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{draftSearchResults: []maildb.MessageDetail{{ID: "draft-1", Subject: "invoice draft"}}}
+	service := New(repo, nil)
+
+	got, err := service.SearchDrafts(context.Background(), maildb.DraftSearchQuery{
+		UserID:  " user-1 ",
+		Query:   " invoice ",
+		From:    " sender@example.net ",
+		Subject: " receipt ",
+		Limit:   250,
+	})
+	if err != nil {
+		t.Fatalf("SearchDrafts returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "draft-1" {
+		t.Fatalf("drafts = %+v", got)
+	}
+	if repo.lastDraftSearchQuery.UserID != "user-1" || repo.lastDraftSearchQuery.Query != "invoice" || repo.lastDraftSearchQuery.From != "sender@example.net" || repo.lastDraftSearchQuery.Subject != "receipt" {
+		t.Fatalf("draft search query = %#v", repo.lastDraftSearchQuery)
+	}
+	if repo.lastDraftSearchQuery.Limit != maildb.MessageListMaxLimit {
+		t.Fatalf("draft search limit = %d", repo.lastDraftSearchQuery.Limit)
+	}
+}
+
+func TestSearchDraftsRejectsUnsafeQueryFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []maildb.DraftSearchQuery{
+		{UserID: "user-1", Query: "hello\nbad"},
+		{UserID: "user-1", From: "sender\rbad"},
+		{UserID: "user-1", Subject: strings.Repeat("s", maxSearchFilterBytes+1)},
+	}
+	for _, query := range tests {
+		query := query
+		t.Run(fmt.Sprintf("%#v", query), func(t *testing.T) {
+			t.Parallel()
+
+			repo := &fakeRepository{}
+			service := New(repo, nil)
+			if _, err := service.SearchDrafts(context.Background(), query); err == nil {
+				t.Fatalf("SearchDrafts accepted unsafe query %#v", query)
+			}
+			if repo.lastDraftSearchQuery.UserID != "" {
+				t.Fatalf("repository was called with query %#v", repo.lastDraftSearchQuery)
+			}
+		})
+	}
+}
+
 func TestCanUseSearchIDSourceContract(t *testing.T) {
 	t.Parallel()
 
@@ -1038,6 +1090,7 @@ type fakeRepository struct {
 	backfilledIMAPUIDs             []maildb.IMAPMessageUID
 	attachments                    []maildb.Attachment
 	list                           []maildb.MessageSummary
+	draftSearchResults             []maildb.MessageDetail
 	messagesByID                   []maildb.MessageSummary
 	suppressed                     []string
 	domainPolicy                   maildb.DomainPolicyView
@@ -1095,6 +1148,7 @@ type fakeRepository struct {
 	lastGetMessageUserID           string
 	lastGetMessageID               string
 	lastSearchQuery                maildb.MessageSearchQuery
+	lastDraftSearchQuery           maildb.DraftSearchQuery
 	lastFlagMessageID              string
 	lastFlag                       string
 	lastMutationUserID             string
@@ -1162,6 +1216,11 @@ func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, fold
 func (f *fakeRepository) SearchMessages(_ context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
 	f.lastSearchQuery = query
 	return f.list, nil
+}
+
+func (f *fakeRepository) SearchDrafts(_ context.Context, query maildb.DraftSearchQuery) ([]maildb.MessageDetail, error) {
+	f.lastDraftSearchQuery = query
+	return f.draftSearchResults, nil
 }
 
 func (f *fakeRepository) ListMessagesByIDs(_ context.Context, _ string, ids []string) ([]maildb.MessageSummary, error) {
