@@ -98,6 +98,21 @@ func TestWriteExportArtifactReturnsEncodeErrors(t *testing.T) {
 	}
 }
 
+func TestWriteExportArtifactReturnsStoreErrors(t *testing.T) {
+	t.Parallel()
+
+	_, err := WriteExportArtifact(context.Background(), failingExportArtifactStore{}, ExportArtifactWriteRequest{
+		ObjectKey: "exports/x.ndjson",
+		Encode: func(w io.Writer) error {
+			_, err := w.Write([]byte("x\n"))
+			return err
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "write export artifact object") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 type memoryExportArtifactStore struct {
 	path string
 	body []byte
@@ -111,4 +126,10 @@ func (s *memoryExportArtifactStore) Put(_ context.Context, path string, body io.
 	}
 	s.body = raw
 	return nil
+}
+
+type failingExportArtifactStore struct{}
+
+func (failingExportArtifactStore) Put(context.Context, string, io.Reader) error {
+	return fmt.Errorf("store failed")
 }
