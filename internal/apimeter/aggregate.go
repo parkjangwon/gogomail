@@ -12,6 +12,8 @@ import (
 
 type UsageEvent struct {
 	EventID       string
+	SchemaVersion string
+	RawPayload    json.RawMessage
 	Day           time.Time
 	Month         time.Time
 	Method        string
@@ -53,6 +55,9 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 	if !claimed {
 		return nil
 	}
+	if err := s.recordLedger(ctx, event); err != nil {
+		return err
+	}
 	if event.RequestCount <= 0 {
 		event.RequestCount = 1
 	}
@@ -64,6 +69,85 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 	}
 	if err := s.upsert(ctx, "api_usage_monthly", "month", event.Month, event); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s PostgresAggregateStore) recordLedger(ctx context.Context, event UsageEvent) error {
+	eventID := strings.TrimSpace(event.EventID)
+	if eventID == "" {
+		return nil
+	}
+	rawPayload := event.RawPayload
+	if len(rawPayload) == 0 {
+		rawPayload = json.RawMessage(`{}`)
+	}
+	schemaVersion := strings.TrimSpace(event.SchemaVersion)
+	if schemaVersion == "" {
+		schemaVersion = APIUsageSchemaV1
+	}
+	eventTime := event.Day
+	if eventTime.IsZero() {
+		eventTime = time.Now().UTC()
+	}
+	identity := Identity{
+		TenantID:    event.TenantID,
+		CompanyID:   event.CompanyID,
+		DomainID:    event.DomainID,
+		UserID:      event.UserID,
+		APIKeyID:    event.APIKeyID,
+		PrincipalID: event.PrincipalID,
+		AuthSource:  event.AuthSource,
+	}.Normalize()
+	requestCount := event.RequestCount
+	if requestCount <= 0 {
+		requestCount = 1
+	}
+	const query = `
+INSERT INTO api_usage_ledger (
+  event_id,
+  schema_version,
+  event_timestamp,
+  method,
+  route,
+  status,
+  tenant_id,
+  company_id,
+  domain_id,
+  user_id,
+  api_key_id,
+  principal_id,
+  auth_source,
+  request_count,
+  request_bytes,
+  response_bytes,
+  latency_ms,
+  payload
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+ON CONFLICT (event_id) DO NOTHING`
+	if _, err := s.db.ExecContext(
+		ctx,
+		query,
+		eventID,
+		schemaVersion,
+		eventTime,
+		event.Method,
+		event.Route,
+		event.Status,
+		identity.TenantID,
+		identity.CompanyID,
+		identity.DomainID,
+		identity.UserID,
+		identity.APIKeyID,
+		identity.PrincipalID,
+		identity.AuthSource,
+		requestCount,
+		event.RequestBytes,
+		event.ResponseBytes,
+		event.LatencyMS,
+		[]byte(rawPayload),
+	); err != nil {
+		return fmt.Errorf("record api usage ledger: %w", err)
 	}
 	return nil
 }
@@ -248,6 +332,8 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	month := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
 	return UsageEvent{
 		EventID:       strings.TrimSpace(raw.EventID),
+		SchemaVersion: strings.TrimSpace(raw.SchemaVersion),
+		RawPayload:    append(json.RawMessage(nil), payload...),
 		Day:           day,
 		Month:         month,
 		Method:        strings.TrimSpace(raw.Method),

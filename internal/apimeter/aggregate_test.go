@@ -52,6 +52,12 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 	if event.EventID != "usage-1" {
 		t.Fatalf("EventID = %q, want usage-1", event.EventID)
 	}
+	if event.SchemaVersion != APIUsageSchemaV1 {
+		t.Fatalf("SchemaVersion = %q, want %s", event.SchemaVersion, APIUsageSchemaV1)
+	}
+	if len(event.RawPayload) == 0 {
+		t.Fatal("RawPayload is empty")
+	}
 	if event.AuthSource != "bearer" {
 		t.Fatalf("AuthSource = %q, want bearer", event.AuthSource)
 	}
@@ -293,6 +299,46 @@ func TestPostgresAggregateStoreSkipsDuplicateEventID(t *testing.T) {
 	}
 	if len(db.queries) != 1 || !strings.Contains(db.queries[0], "INSERT INTO api_usage_events") {
 		t.Fatalf("queries = %+v, want only idempotency insert", db.queries)
+	}
+}
+
+func TestPostgresAggregateStoreRecordsUsageLedger(t *testing.T) {
+	t.Parallel()
+
+	db := &fakeUsageSQL{}
+	store := NewPostgresAggregateStore(db)
+	err := store.AddUsage(context.Background(), UsageEvent{
+		EventID:       "usage-1",
+		SchemaVersion: APIUsageSchemaV2,
+		RawPayload:    json.RawMessage(`{"event":"api.usage","event_id":"usage-1"}`),
+		Day:           time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:        "GET",
+		Route:         "GET /api/v1/messages",
+		Status:        200,
+		TenantID:      "tenant-1",
+		UserID:        "user-1",
+		PrincipalID:   "principal-1",
+		AuthSource:    "bearer",
+		RequestBytes:  12,
+		ResponseBytes: 34,
+		LatencyMS:     25,
+		RequestCount:  1,
+	})
+	if err != nil {
+		t.Fatalf("AddUsage returned error: %v", err)
+	}
+	if len(db.queries) < 2 || !strings.Contains(db.queries[1], "INSERT INTO api_usage_ledger") {
+		t.Fatalf("queries = %+v, want api_usage_ledger after claim", db.queries)
+	}
+	args := db.argSets[1]
+	if args[0] != "usage-1" || args[1] != APIUsageSchemaV2 {
+		t.Fatalf("ledger id/schema args = %+v", args)
+	}
+	if args[6] != "tenant-1" || args[10] != "" || args[11] != "principal-1" || args[12] != "bearer" {
+		t.Fatalf("ledger identity args = %+v", args)
+	}
+	if string(args[17].([]byte)) != `{"event":"api.usage","event_id":"usage-1"}` {
+		t.Fatalf("ledger payload arg = %s", args[17])
 	}
 }
 
