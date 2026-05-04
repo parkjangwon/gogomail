@@ -12,6 +12,7 @@ import (
 
 type UsageEvent struct {
 	Day           time.Time
+	Month         time.Time
 	Method        string
 	Route         string
 	Status        int
@@ -41,9 +42,22 @@ func (s PostgresAggregateStore) AddUsage(ctx context.Context, event UsageEvent) 
 	if event.RequestCount <= 0 {
 		event.RequestCount = 1
 	}
-	const query = `
-INSERT INTO api_usage_daily (
-  day,
+	if event.Month.IsZero() {
+		event.Month = time.Date(event.Day.Year(), event.Day.Month(), 1, 0, 0, 0, 0, time.UTC)
+	}
+	if err := s.upsert(ctx, "api_usage_daily", "day", event.Day, event); err != nil {
+		return err
+	}
+	if err := s.upsert(ctx, "api_usage_monthly", "month", event.Month, event); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s PostgresAggregateStore) upsert(ctx context.Context, table string, bucketColumn string, bucket time.Time, event UsageEvent) error {
+	query := fmt.Sprintf(`
+INSERT INTO %s (
+  %s,
   method,
   route,
   status,
@@ -56,18 +70,18 @@ INSERT INTO api_usage_daily (
   first_seen_at,
   last_seen_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
-ON CONFLICT (day, method, route, status, user_id)
+ON CONFLICT (%s, method, route, status, user_id)
 DO UPDATE SET
-  request_count = api_usage_daily.request_count + EXCLUDED.request_count,
-  request_bytes = api_usage_daily.request_bytes + EXCLUDED.request_bytes,
-  response_bytes = api_usage_daily.response_bytes + EXCLUDED.response_bytes,
-  latency_ms_total = api_usage_daily.latency_ms_total + EXCLUDED.latency_ms_total,
-  latency_ms_max = GREATEST(api_usage_daily.latency_ms_max, EXCLUDED.latency_ms_max),
-  last_seen_at = GREATEST(api_usage_daily.last_seen_at, EXCLUDED.last_seen_at)`
+  request_count = %[1]s.request_count + EXCLUDED.request_count,
+  request_bytes = %[1]s.request_bytes + EXCLUDED.request_bytes,
+  response_bytes = %[1]s.response_bytes + EXCLUDED.response_bytes,
+  latency_ms_total = %[1]s.latency_ms_total + EXCLUDED.latency_ms_total,
+  latency_ms_max = GREATEST(%[1]s.latency_ms_max, EXCLUDED.latency_ms_max),
+  last_seen_at = GREATEST(%[1]s.last_seen_at, EXCLUDED.last_seen_at)`, table, bucketColumn, bucketColumn)
 	if _, err := s.db.ExecContext(
 		ctx,
 		query,
-		event.Day,
+		bucket,
 		event.Method,
 		event.Route,
 		event.Status,
@@ -78,7 +92,7 @@ DO UPDATE SET
 		event.LatencyMS,
 		event.LatencyMS,
 	); err != nil {
-		return fmt.Errorf("upsert api usage aggregate: %w", err)
+		return fmt.Errorf("upsert api usage aggregate %s: %w", table, err)
 	}
 	return nil
 }
@@ -125,8 +139,10 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		return UsageEvent{}, fmt.Errorf("parse api usage timestamp: %w", err)
 	}
 	day := timestamp.UTC().Truncate(24 * time.Hour)
+	month := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
 	return UsageEvent{
 		Day:           day,
+		Month:         month,
 		Method:        strings.TrimSpace(raw.Method),
 		Route:         strings.TrimSpace(raw.Route),
 		Status:        raw.Status,

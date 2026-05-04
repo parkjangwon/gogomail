@@ -147,14 +147,14 @@ Current state:
 - A disabled-by-default API metering middleware boundary exists with async,
   fail-open event capture, a `slog` sink, and a durable outbox sink.
 - A disabled-by-default `api-metering-worker` can consume `api.usage` events
-  from `api.event`, write Postgres daily aggregates, and serve them through the
-  Admin API.
+  from `api.event`, write Postgres daily/monthly aggregates, and serve them
+  through the Admin API.
 
 Next:
 
 - Add async enrichment keyed by company/domain/user/api-key.
-- Add monthly rollups, idempotent event accounting, and billing-grade ledgers
-  before aggregates drive invoices or hard Open API limits.
+- Add idempotent event accounting and billing-grade ledgers before aggregates
+  drive invoices or hard Open API limits.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet

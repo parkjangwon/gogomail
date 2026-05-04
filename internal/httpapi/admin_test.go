@@ -183,6 +183,41 @@ func TestAdminAPIUsageDailyHandler(t *testing.T) {
 	}
 }
 
+func TestAdminAPIUsageMonthlyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageMonthly: []maildb.APIUsageMonthlyView{{
+			Month:            time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+			Method:           "GET",
+			Route:            "GET /api/v1/messages",
+			Status:           200,
+			RequestCount:     4,
+			LatencyMSTotal:   100,
+			LatencyMSAverage: 25,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/monthly?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		APIUsageMonthly []maildb.APIUsageMonthlyView `json:"api_usage_monthly"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.APIUsageMonthly) != 1 || body.APIUsageMonthly[0].LatencyMSAverage != 25 {
+		t.Fatalf("api_usage_monthly = %+v", body.APIUsageMonthly)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1139,6 +1174,7 @@ type fakeAdminService struct {
 	queueStats                     []maildb.QueueStat
 	quotaUsage                     []maildb.QuotaUsageView
 	apiUsageDaily                  []maildb.APIUsageDailyView
+	apiUsageMonthly                []maildb.APIUsageMonthlyView
 	quotaReconciliation            []maildb.QuotaReconciliationView
 	quotaCorrection                maildb.QuotaCorrectionResult
 	attempts                       []maildb.DeliveryAttemptView
@@ -1308,6 +1344,11 @@ func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maild
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, limit int) ([]maildb.APIUsageDailyView, error) {
 	f.lastLimit = limit
 	return f.apiUsageDaily, nil
+}
+
+func (f *fakeAdminService) ListAPIUsageMonthly(_ context.Context, limit int) ([]maildb.APIUsageMonthlyView, error) {
+	f.lastLimit = limit
+	return f.apiUsageMonthly, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {

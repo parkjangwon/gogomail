@@ -34,6 +34,10 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 	if !event.Day.Equal(wantDay) {
 		t.Fatalf("Day = %s, want %s", event.Day, wantDay)
 	}
+	wantMonth := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	if !event.Month.Equal(wantMonth) {
+		t.Fatalf("Month = %s, want %s", event.Month, wantMonth)
+	}
 	if event.Route != "GET /api/v1/messages" || event.UserID != "user-1" {
 		t.Fatalf("event = %+v", event)
 	}
@@ -84,11 +88,39 @@ func TestPostgresAggregateStoreUpsertsDailyUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddUsage returned error: %v", err)
 	}
-	if !strings.Contains(db.query, "INSERT INTO api_usage_daily") {
-		t.Fatalf("query = %q, want api_usage_daily upsert", db.query)
+	if len(db.queries) == 0 || !strings.Contains(db.queries[0], "INSERT INTO api_usage_daily") {
+		t.Fatalf("queries = %+v, want api_usage_daily upsert", db.queries)
 	}
-	if db.args[1] != "GET" || db.args[2] != "GET /api/v1/messages" {
-		t.Fatalf("args = %+v", db.args)
+	if db.argSets[0][1] != "GET" || db.argSets[0][2] != "GET /api/v1/messages" {
+		t.Fatalf("args = %+v", db.argSets[0])
+	}
+}
+
+func TestPostgresAggregateStoreUpsertsMonthlyUsage(t *testing.T) {
+	t.Parallel()
+
+	db := &fakeUsageSQL{}
+	store := NewPostgresAggregateStore(db)
+	err := store.AddUsage(context.Background(), UsageEvent{
+		Day:           time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Month:         time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+		Method:        "GET",
+		Route:         "GET /api/v1/messages",
+		Status:        200,
+		UserID:        "user-1",
+		RequestBytes:  12,
+		ResponseBytes: 34,
+		LatencyMS:     25,
+		RequestCount:  1,
+	})
+	if err != nil {
+		t.Fatalf("AddUsage returned error: %v", err)
+	}
+	if len(db.queries) != 2 || !strings.Contains(db.queries[1], "INSERT INTO api_usage_monthly") {
+		t.Fatalf("queries = %+v, want monthly upsert after daily", db.queries)
+	}
+	if db.argSets[1][0] != time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC) {
+		t.Fatalf("monthly args = %+v", db.argSets[1])
 	}
 }
 
@@ -102,12 +134,16 @@ func (s *fakeUsageAggregateStore) AddUsage(_ context.Context, event UsageEvent) 
 }
 
 type fakeUsageSQL struct {
-	query string
-	args  []any
+	query   string
+	args    []any
+	queries []string
+	argSets [][]any
 }
 
 func (f *fakeUsageSQL) ExecContext(_ context.Context, query string, args ...any) (sql.Result, error) {
 	f.query = query
 	f.args = args
+	f.queries = append(f.queries, query)
+	f.argSets = append(f.argSets, args)
 	return fakeSQLResult{}, nil
 }

@@ -20,8 +20,8 @@ also need a compact read model that can be queried without replaying events.
 ## Decision
 
 API usage aggregation is handled by a separate `api-metering-worker` component.
-It consumes `api.usage` events from the `api.event` stream and writes daily
-Postgres aggregates into `api_usage_daily`.
+It consumes `api.usage` events from the `api.event` stream and writes daily and
+monthly Postgres aggregates into `api_usage_daily` and `api_usage_monthly`.
 
 The first aggregate dimensions are:
 
@@ -33,7 +33,8 @@ The first aggregate dimensions are:
 
 The aggregate tracks request count, request bytes, response bytes, total
 latency, maximum latency, and first/last seen timestamps. Admin API exposes the
-read model through `GET /admin/v1/api-usage/daily`.
+read models through `GET /admin/v1/api-usage/daily` and
+`GET /admin/v1/api-usage/monthly`.
 
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the

@@ -87,7 +87,8 @@ guidance.
   `api.usage` event emission.
 - API metering now has an aggregation worker boundary: `api-metering-worker`
   consumes `api.usage` events from `api.event`, upserts Postgres daily
-  aggregates, and exposes `GET /admin/v1/api-usage/daily` for operations.
+  and monthly aggregates, and exposes `GET /admin/v1/api-usage/daily` plus
+  `GET /admin/v1/api-usage/monthly` for operations.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events and can emit
   disabled-by-default `slog` notification candidates without touching SMTP hot
@@ -161,7 +162,7 @@ The platform hardening sprint completed the following:
   dedicated notification worker with a replaceable sink.
 - API metering boundary: HTTP middleware can emit fail-open usage events to
   logs or the durable outbox, while the disabled-by-default aggregation worker
-  can build daily Postgres read models for operations.
+  can build daily/monthly Postgres read models for operations.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 

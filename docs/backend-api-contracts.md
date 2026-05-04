@@ -300,6 +300,8 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/daily` returns `{ "api_usage_daily": [...] }` with
   day/method/route/status/user dimensions, request/byte counters, and latency
   totals/maximum/average for operations dashboards.
+- `GET /admin/v1/api-usage/monthly` returns `{ "api_usage_monthly": [...] }`
+  with the same dimensions rolled up by UTC month for plan and billing analysis.
 
 Message search starts with a small-deployment Postgres implementation:
 

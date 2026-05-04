@@ -283,6 +283,7 @@ Implementation order:
 228. `internal/imapgw` establishes a dependency-light IMAP gateway boundary with native DTOs/interfaces, UID-oriented mailbox state, RFC 3501 system flag mapping, mailbox helpers, and explicit deferral of `\Deleted`/EXPUNGE semantics.
 229. ADR 0005 records that IMAP will be a separate gateway over stable mailbox/message interfaces rather than protocol code embedded into Mail API, SMTP, or `maildb` internals.
 230. Push notification enqueue has a first async worker boundary: `push-notification-worker` consumes committed `mail.stored` events, routes them through `internal/pushnotify`, and supports a disabled-by-default `slog` sink while FCM/APNs/device-token storage remain adapter work.
+231. API metering aggregation now writes both daily and monthly Postgres read models from the same `api.usage` event, with Admin API exposing `GET /admin/v1/api-usage/monthly` for plan/billing analysis groundwork.
 
 ## Deferred until backend contracts stabilize
 

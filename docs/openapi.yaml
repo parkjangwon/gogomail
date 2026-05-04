@@ -412,6 +412,17 @@ paths:
           $ref: "#/components/responses/APIUsageDailyList"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/monthly:
+    get:
+      operationId: listAdminAPIUsageMonthly
+      summary: Admin monthly API usage aggregates
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageMonthlyList"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1031,6 +1042,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageDailyListEnvelope"
+    APIUsageMonthlyList:
+      description: Monthly API usage aggregate envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageMonthlyListEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -1815,6 +1832,61 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageDaily"
+    APIUsageMonthly:
+      type: object
+      required: [month, method, route, status, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, latency_ms_average, first_seen_at, last_seen_at]
+      properties:
+        month:
+          type: string
+          format: date-time
+        method:
+          type: string
+        route:
+          type: string
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        user_id:
+          type: string
+        request_count:
+          type: integer
+          format: int64
+          minimum: 0
+        request_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        response_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_total:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_max:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_average:
+          type: number
+          format: double
+          minimum: 0
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+    APIUsageMonthlyListEnvelope:
+      type: object
+      required: [api_usage_monthly]
+      properties:
+        api_usage_monthly:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageMonthly"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
