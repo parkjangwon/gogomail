@@ -1,6 +1,9 @@
 package maildb
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestValidateCreateTrustedRelayRequestAcceptsCIDRAndPlainIP(t *testing.T) {
 	t.Parallel()
@@ -35,5 +38,25 @@ func TestValidateCreateTrustedRelayRequestRejectsUnsafeInput(t *testing.T) {
 		if err := ValidateCreateTrustedRelayRequest(req); err == nil {
 			t.Fatalf("ValidateCreateTrustedRelayRequest(%+v) returned nil", req)
 		}
+	}
+}
+
+func TestTrustedRelayAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := trustedRelayAuditDetail(TrustedRelayView{
+		ID:          "relay-1",
+		CIDR:        "192.0.2.0/24",
+		Description: "edge relay",
+	})
+	if err != nil {
+		t.Fatalf("trustedRelayAuditDetail returned error: %v", err)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(detail, &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body["trusted_relay_id"] != "relay-1" || body["cidr"] != "192.0.2.0/24" || body["description"] != "edge relay" {
+		t.Fatalf("detail = %+v", body)
 	}
 }

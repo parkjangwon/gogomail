@@ -5305,19 +5305,42 @@ func (r *Repository) CreateTrustedRelay(ctx context.Context, req CreateTrustedRe
 		return TrustedRelayView{}, err
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return TrustedRelayView{}, fmt.Errorf("begin trusted relay create transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	const query = `
 INSERT INTO trusted_relays (cidr, description)
 VALUES ($1, $2)
 RETURNING id::text, cidr::text, description, created_at`
 
 	var relay TrustedRelayView
-	if err := r.db.QueryRowContext(ctx, query, cidr, strings.TrimSpace(req.Description)).Scan(
+	if err := tx.QueryRowContext(ctx, query, cidr, strings.TrimSpace(req.Description)).Scan(
 		&relay.ID,
 		&relay.CIDR,
 		&relay.Description,
 		&relay.CreatedAt,
 	); err != nil {
 		return TrustedRelayView{}, fmt.Errorf("create trusted relay: %w", err)
+	}
+	detail, err := trustedRelayAuditDetail(relay)
+	if err != nil {
+		return TrustedRelayView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "trusted_relay.create",
+		TargetType: "trusted_relay",
+		TargetID:   relay.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return TrustedRelayView{}, fmt.Errorf("record trusted relay create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return TrustedRelayView{}, fmt.Errorf("commit trusted relay create transaction: %w", err)
 	}
 	return relay, nil
 }
@@ -5330,7 +5353,25 @@ func (r *Repository) DeleteTrustedRelay(ctx context.Context, id string) error {
 	if id == "" {
 		return fmt.Errorf("trusted relay id is required")
 	}
-	result, err := r.db.ExecContext(ctx, `DELETE FROM trusted_relays WHERE id = $1`, id)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin trusted relay delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var relay TrustedRelayView
+	if err := tx.QueryRowContext(ctx, `
+SELECT id::text, cidr::text, description, created_at
+FROM trusted_relays
+WHERE id = $1
+FOR UPDATE`, id).Scan(&relay.ID, &relay.CIDR, &relay.Description, &relay.CreatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("trusted relay %q not found", id)
+		}
+		return fmt.Errorf("read trusted relay for deletion: %w", err)
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM trusted_relays WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete trusted relay: %w", err)
 	}
@@ -5338,7 +5379,36 @@ func (r *Repository) DeleteTrustedRelay(ctx context.Context, id string) error {
 	if err == nil && affected == 0 {
 		return fmt.Errorf("trusted relay %q not found", id)
 	}
+	detail, err := trustedRelayAuditDetail(relay)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "trusted_relay.delete",
+		TargetType: "trusted_relay",
+		TargetID:   relay.ID,
+		Result:     "deleted",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record trusted relay delete audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit trusted relay delete transaction: %w", err)
+	}
 	return nil
+}
+
+func trustedRelayAuditDetail(relay TrustedRelayView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"trusted_relay_id": relay.ID,
+		"cidr":             relay.CIDR,
+		"description":      relay.Description,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal trusted relay audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListDeliveryRoutes(ctx context.Context, req DeliveryRouteListRequest) ([]DeliveryRouteView, error) {

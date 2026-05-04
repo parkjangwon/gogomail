@@ -143,7 +143,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API exposes a read-only quota reconciliation report for detecting ledger drift against message and attachment source rows.
 - Admin API exposes operator-controlled quota reconciliation corrections guarded by transaction/advisory locking, with bounded audit-log detail for dry-run and applied correction attempts.
 - Admin API exposes bounded audit-log list/detail reads with category, action, result, target-type, company/domain/user, and recent-window filters so operator-visible audit trails no longer require direct database access.
-- Domain DNS check and quota reconciliation correction audit writes reuse the shared hash-chain writer, so their newly visible audit rows carry non-empty tamper-evidence hashes.
+- Domain DNS check, quota reconciliation correction, and trusted relay create/delete audit writes reuse the shared hash-chain writer, so their newly visible audit rows carry non-empty tamper-evidence hashes.
 - Admin API exposes a bounded audit-log integrity check that recomputes recent row hashes and reports hash or in-window `prev_hash` breaks without mutating audit rows.
 - Quota product direction is captured in ADR 0003 and partially implemented: company contracted storage pool, domain allocations, user unified storage allowance, `default|custom` user quota source, domain default user quota propagation, and atomic company/domain/user ledger updates for mail storage writes/deletes plus attachment upload/cleanup.
 - API metering is recorded as a planned SaaS platform boundary: usage should be collected asynchronously for future billing/rate-limit/abuse analytics, while enforcement remains policy-driven and disabled by default in the MVP.

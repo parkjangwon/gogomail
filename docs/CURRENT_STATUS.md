@@ -278,6 +278,9 @@ guidance.
   operational audit records can be inspected through the release API surface.
 - Domain DNS check and quota reconciliation correction audit rows now reuse the
   shared audit writer hash-chain logic instead of inserting empty hash fields.
+- Trusted relay create/delete mutations now write hash-chain audit rows in the
+  same database transaction as the policy change, keeping inbound relay-policy
+  administration inspectable through the Admin audit API.
 - Admin API exposes a bounded audit-log integrity check that recomputes recent
   row hashes and reports hash or in-window prev-hash breaks without mutating the
   audit trail.
