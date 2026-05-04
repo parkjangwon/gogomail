@@ -16,12 +16,13 @@ func TestMailboxEventBrokerDeliversMatchingMailboxEvents(t *testing.T) {
 	}
 	defer cancel()
 
-	broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, MailboxID: "archive", Messages: 1})
-	broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, MailboxID: "inbox", Messages: 2})
+	broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "archive", Messages: 1})
+	broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-2", MailboxID: "inbox", Messages: 9})
+	broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 2})
 
 	select {
 	case got := <-events:
-		if got.MailboxID != "inbox" || got.Messages != 2 {
+		if got.UserID != "user-1" || got.MailboxID != "inbox" || got.Messages != 2 {
 			t.Fatalf("event = %#v, want inbox exists event", got)
 		}
 	case <-time.After(time.Second):

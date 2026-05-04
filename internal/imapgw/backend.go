@@ -48,6 +48,7 @@ const (
 
 type MailboxEvent struct {
 	Type      MailboxEventType
+	UserID    UserID
 	MailboxID MailboxID
 	UID       UID
 	Messages  uint32

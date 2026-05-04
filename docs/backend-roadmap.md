@@ -327,6 +327,7 @@ Implementation order:
 272. OpenSearch highlight fragments are now filtered to marked snippets and bounded by count and UTF-8-safe byte length before they enter the Mail API response shape.
 273. Mail API OpenSearch hydration now deduplicates repeated external hit IDs before Postgres summary loading while preserving the first rank/highlight result for deterministic search responses.
 274. Backend release readiness now documents an OpenSearch rollout smoke path covering backend selection, bootstrap, timeout, and non-secret worker startup diagnostics.
+275. The IMAP mailbox event broker now carries user IDs on events and delivers only to matching user+mailbox subscribers, preserving tenant isolation before future IDLE fan-out is wired to mutation paths.
 
 ## Deferred until backend contracts stabilize
 
