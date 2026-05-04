@@ -46,6 +46,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "")
@@ -193,6 +196,15 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AttachmentScanTimeout != 2*time.Second {
 		t.Fatalf("AttachmentScanTimeout = %s, want 2s", cfg.AttachmentScanTimeout)
 	}
+	if cfg.AttachmentCleanupInterval != time.Hour {
+		t.Fatalf("AttachmentCleanupInterval = %s, want 1h", cfg.AttachmentCleanupInterval)
+	}
+	if cfg.AttachmentCleanupStaleAge != 24*time.Hour {
+		t.Fatalf("AttachmentCleanupStaleAge = %s, want 24h", cfg.AttachmentCleanupStaleAge)
+	}
+	if cfg.AttachmentCleanupBatchSize != 100 {
+		t.Fatalf("AttachmentCleanupBatchSize = %d, want 100", cfg.AttachmentCleanupBatchSize)
+	}
 	if cfg.RcptRateLimitPerMinute != 60 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 60", cfg.RcptRateLimitPerMinute)
 	}
@@ -327,6 +339,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "http://scanner.internal/scan")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "scanner-token")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL", "15m")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "48h")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "250")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "https://push.internal/send")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "push-token")
@@ -464,6 +479,15 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AttachmentScanTimeout != 3*time.Second {
 		t.Fatalf("AttachmentScanTimeout = %s, want 3s", cfg.AttachmentScanTimeout)
+	}
+	if cfg.AttachmentCleanupInterval != 15*time.Minute {
+		t.Fatalf("AttachmentCleanupInterval = %s, want 15m", cfg.AttachmentCleanupInterval)
+	}
+	if cfg.AttachmentCleanupStaleAge != 48*time.Hour {
+		t.Fatalf("AttachmentCleanupStaleAge = %s, want 48h", cfg.AttachmentCleanupStaleAge)
+	}
+	if cfg.AttachmentCleanupBatchSize != 250 {
+		t.Fatalf("AttachmentCleanupBatchSize = %d, want 250", cfg.AttachmentCleanupBatchSize)
 	}
 	if cfg.RcptRateLimitPerMinute != 5 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 5", cfg.RcptRateLimitPerMinute)

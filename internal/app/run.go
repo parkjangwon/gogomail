@@ -86,6 +86,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runAPIMeteringWorker(ctx, cfg, logger)
 	case ModePushWorker:
 		return runPushNotificationWorker(ctx, cfg, logger)
+	case ModeAttachmentCleanup:
+		return runAttachmentCleanupWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
@@ -95,6 +97,70 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 	default:
 		return errors.New("unsupported mode")
 	}
+}
+
+type attachmentCleanupRunner interface {
+	ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
+}
+
+func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	service := mailservice.New(maildb.NewRepository(db), storage.NewLocalStore(cfg.MailstoreRoot))
+	return runAttachmentCleanupLoop(ctx, service, cfg.AttachmentCleanupInterval, cfg.AttachmentCleanupStaleAge, cfg.AttachmentCleanupBatchSize, logger)
+}
+
+func runAttachmentCleanupLoop(ctx context.Context, cleaner attachmentCleanupRunner, interval time.Duration, staleAge time.Duration, batchSize int, logger *slog.Logger) error {
+	if cleaner == nil {
+		return fmt.Errorf("attachment cleanup service is required")
+	}
+	if interval <= 0 {
+		return fmt.Errorf("attachment cleanup interval must be positive")
+	}
+	if staleAge <= 0 {
+		return fmt.Errorf("attachment cleanup stale age must be positive")
+	}
+	if batchSize <= 0 {
+		return fmt.Errorf("attachment cleanup batch size must be positive")
+	}
+
+	if _, err := cleanupStaleAttachmentUploadsOnce(ctx, cleaner, time.Now, staleAge, batchSize, logger); err != nil {
+		if logger != nil {
+			logger.Error("attachment cleanup failed", "error", err)
+		}
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if _, err := cleanupStaleAttachmentUploadsOnce(ctx, cleaner, time.Now, staleAge, batchSize, logger); err != nil && logger != nil {
+				logger.Error("attachment cleanup failed", "error", err)
+			}
+		}
+	}
+}
+
+func cleanupStaleAttachmentUploadsOnce(ctx context.Context, cleaner attachmentCleanupRunner, now func() time.Time, staleAge time.Duration, batchSize int, logger *slog.Logger) (int, error) {
+	if now == nil {
+		now = time.Now
+	}
+	before := now().UTC().Add(-staleAge)
+	expired, err := cleaner.ExpireStaleAttachmentUploads(ctx, before, batchSize)
+	if err != nil {
+		return 0, err
+	}
+	if logger != nil {
+		logger.Info("attachment cleanup completed", "expired", len(expired), "before", before.Format(time.RFC3339), "limit", batchSize)
+	}
+	return len(expired), nil
 }
 
 type receiveMTAOptions struct {

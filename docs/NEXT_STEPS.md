@@ -256,6 +256,8 @@ Current state:
 - Attachment endpoints exist in the Mail API.
 - Domain outbound policy can enforce `max_attachment_bytes` for attachment
   metadata reservation and direct multipart upload before storage writes.
+- Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
+  interval, stale age, and batch size.
 
 Next:
 

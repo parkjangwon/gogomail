@@ -152,6 +152,29 @@ func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidAttachmentCleanupConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "nonpositive interval", mutate: func(cfg *Config) { cfg.AttachmentCleanupInterval = 0 }},
+		{name: "nonpositive stale age", mutate: func(cfg *Config) { cfg.AttachmentCleanupStaleAge = 0 }},
+		{name: "nonpositive batch size", mutate: func(cfg *Config) { cfg.AttachmentCleanupBatchSize = 0 }},
+		{name: "oversized batch size", mutate: func(cfg *Config) { cfg.AttachmentCleanupBatchSize = 1001 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid attachment cleanup config rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T) {
 	tests := []struct {
 		name   string
