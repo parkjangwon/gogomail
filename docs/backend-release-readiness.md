@@ -170,6 +170,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API search control query values and direct multipart attachment
   `draft_id` fields reject CR/LF-bearing or oversized values at the HTTP
   boundary before service dispatch.
+- VERP return-path parsing rejects oversized addresses, local parts, tokens,
+  and encoded recipients before base64 decoding DSN recipient metadata.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed

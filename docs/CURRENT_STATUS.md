@@ -181,6 +181,8 @@ guidance.
 - Mail API search control query values and direct multipart attachment
   `draft_id` fields now reject CR/LF-bearing or oversized values at the HTTP
   boundary before service dispatch.
+- VERP return-path parsing now rejects oversized addresses, local parts, tokens,
+  and encoded recipients before base64 decoding DSN recipient metadata.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
