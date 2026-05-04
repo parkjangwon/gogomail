@@ -250,6 +250,11 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, params := range map[string][]string{
+		"GET /companies":                                       {"limit"},
+		"GET /domains":                                         {"limit"},
+		"GET /domains/{id}/dns-checks":                         {"id", "limit"},
+		"GET /users":                                           {"limit", "domain_id"},
+		"GET /quota-usage":                                     {"limit"},
 		"GET /delivery-attempts":                               {"limit", "status", "recipient_domain", "since"},
 		"GET /delivery-attempts/stats":                         {"status", "recipient_domain", "since"},
 		"GET /delivery-attempts/exhausted":                     {"limit", "recipient_domain", "since"},
@@ -258,6 +263,11 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /outbox-events":                                   {"limit", "topic", "partition_key", "status", "since"},
 		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},
 		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
+		"GET /suppression-list":                                {"limit"},
+		"GET /trusted-relays":                                  {"limit"},
+		"GET /delivery-routes":                                 {"limit"},
+		"GET /delivery-routes/resolve":                         {"domain"},
+		"GET /dkim-keys":                                       {"limit", "domain_id"},
 	} {
 		block, ok := operations[route]
 		if !ok {
