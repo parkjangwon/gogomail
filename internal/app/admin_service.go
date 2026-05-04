@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -133,6 +134,31 @@ func (s adminService) OpenAPIUsageExportArtifact(ctx context.Context, batchID st
 		return maildb.APIUsageExportArtifactView{}, nil, err
 	}
 	return artifact, body, nil
+}
+
+func (s adminService) VerifyAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactVerificationView, error) {
+	artifact, body, err := s.OpenAPIUsageExportArtifact(ctx, batchID, artifactID)
+	if err != nil {
+		return maildb.APIUsageExportArtifactVerificationView{}, err
+	}
+	defer body.Close()
+
+	hash := sha256.New()
+	byteCount, err := io.Copy(hash, body)
+	if err != nil {
+		return maildb.APIUsageExportArtifactVerificationView{}, fmt.Errorf("read api usage export artifact: %w", err)
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	return maildb.APIUsageExportArtifactVerificationView{
+		BatchID:           artifact.BatchID,
+		ArtifactID:        artifact.ID,
+		ObjectKey:         artifact.ObjectKey,
+		ExpectedByteCount: artifact.ByteCount,
+		ActualByteCount:   byteCount,
+		ExpectedSHA256Hex: artifact.SHA256Hex,
+		ActualSHA256Hex:   actual,
+		Valid:             artifact.ByteCount == byteCount && artifact.SHA256Hex == actual,
+	}, nil
 }
 
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
