@@ -100,6 +100,8 @@ guidance.
   target, preparing clean vendor outcome updates later.
 - `internal/pushnotify` can update attempt outcomes to queued, delivered,
   failed, or invalid-token without exposing that mutation as a public API.
+- Invalid-token outcomes automatically soft-delete the affected push device in
+  the same Postgres transaction.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
