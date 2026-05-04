@@ -44,8 +44,14 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API metering has a disabled-by-default aggregation worker and daily/monthly Postgres read models exposed through `GET /admin/v1/api-usage/daily` and `GET /admin/v1/api-usage/monthly`; events carry schema versions and deterministic IDs, replayed event IDs are not double-counted, but the aggregates are operational telemetry, not a billing ledger yet.
 - IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
 - IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows and message UID/MODSEQ rows, with transactional assignment helpers, first mailbox/message list adapters, raw body fetch groundwork, MODSEQ-aware flag mutation, bounded UID backfill, and move/delete UID invalidation; no protocol server is in release scope yet.
+- `mailservice` now exposes IMAP mailbox/message listing, raw fetch, flag store,
+  UID backfill, and mailbox-event subscription through service methods plus an
+  `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping future protocol wiring
+  off direct `maildb` internals.
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
-  mailbox event broker for future session fan-out.
+  mailbox event broker for future session fan-out. The broker is scoped by
+  user+mailbox, and service-side flag/move/delete mutations publish best-effort
+  `flags`/`expunge` events for UID-visible messages.
 - EML parser hot-path guardrails include bounded-read truncation coverage and a
   large-body benchmark.
 - Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver, per-device candidate-attempt persistence, Admin API inspection/stats, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
@@ -83,6 +89,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify generated clients preserve the documented top-level envelope keys rather than flattening Mail/Admin response bodies.
 - Run `GOGOMAIL_TEST_DATABASE_URL=... go test ./internal/maildb ./internal/outbox` against a disposable PostgreSQL database/schema.
 - Run `GOGOMAIL_TEST_OPENSEARCH_URL=... go test ./internal/searchindex` against a disposable OpenSearch backend before enabling the OpenSearch search path in production.
+- Run `go test ./internal/imapgw ./internal/mailservice ./internal/maildb` before
+  changing IMAP gateway boundaries, and enable `GOGOMAIL_TEST_DATABASE_URL` for
+  the optional UID backfill/move invalidation integration coverage.
 - For an OpenSearch rollout smoke, set
   `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
   `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`,
