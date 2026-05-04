@@ -142,6 +142,9 @@ guidance.
 - Admin attachment cleanup runs now persist bounded hash-chain audit rows after
   stale upload and upload-session expiry sweeps, recording cutoff, normalized
   limit, expired counts, and bounded ID samples without storage paths.
+- Admin IMAP UID backfill now persists a hash-chain audit row in the same
+  transaction as UID assignment, recording mailbox/user scope, normalized
+  limit, assigned count, and a bounded message/UID sample.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

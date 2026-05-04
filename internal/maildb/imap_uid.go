@@ -11,11 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/imapgw"
 )
 
 type IMAPUIDState = imapgw.UIDState
 type IMAPMessageUID = imapgw.MessageUID
+
+const maxIMAPUIDBackfillAuditSample = 10
 
 type IMAPStoredMessage struct {
 	Summary     imapgw.MessageSummary
@@ -561,10 +564,67 @@ WHERE mailbox_id = $1::uuid`
 			return nil, fmt.Errorf("update imap uid backfill state: %w", err)
 		}
 	}
+	detail, err := imapUIDBackfillAuditDetail(userID, mailboxID, limit, assigned)
+	if err != nil {
+		return nil, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		UserID:     userID,
+		Category:   "admin",
+		Action:     "imap.uid_backfill",
+		TargetType: "imap_mailbox",
+		TargetID:   mailboxID,
+		Result:     "completed",
+		Detail:     detail,
+	}); err != nil {
+		return nil, fmt.Errorf("record imap uid backfill audit: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit imap uid backfill transaction: %w", err)
 	}
 	return assigned, nil
+}
+
+func imapUIDBackfillAuditDetail(userID string, mailboxID string, limit int, assigned []IMAPMessageUID) (json.RawMessage, error) {
+	detail := struct {
+		UserID        string                         `json:"user_id"`
+		MailboxID     string                         `json:"mailbox_id"`
+		Limit         int                            `json:"limit"`
+		AssignedCount int                            `json:"assigned_count"`
+		Assigned      []imapUIDBackfillAuditSampleID `json:"assigned_sample"`
+	}{
+		UserID:        strings.TrimSpace(userID),
+		MailboxID:     strings.TrimSpace(mailboxID),
+		Limit:         normalizeIMAPUIDBackfillLimit(limit),
+		AssignedCount: len(assigned),
+		Assigned:      sampleIMAPUIDBackfillAuditIDs(assigned),
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return nil, fmt.Errorf("marshal imap uid backfill audit detail: %w", err)
+	}
+	return raw, nil
+}
+
+type imapUIDBackfillAuditSampleID struct {
+	MessageID string `json:"message_id"`
+	UID       uint32 `json:"uid"`
+	ModSeq    uint64 `json:"modseq"`
+}
+
+func sampleIMAPUIDBackfillAuditIDs(assigned []IMAPMessageUID) []imapUIDBackfillAuditSampleID {
+	if len(assigned) > maxIMAPUIDBackfillAuditSample {
+		assigned = assigned[:maxIMAPUIDBackfillAuditSample]
+	}
+	out := make([]imapUIDBackfillAuditSampleID, 0, len(assigned))
+	for _, item := range assigned {
+		out = append(out, imapUIDBackfillAuditSampleID{
+			MessageID: string(item.MessageID),
+			UID:       uint32(item.UID),
+			ModSeq:    item.ModSeq,
+		})
+	}
+	return out
 }
 
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {

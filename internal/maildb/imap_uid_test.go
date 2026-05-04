@@ -1,7 +1,9 @@
 package maildb
 
 import (
+	"encoding/json"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -137,6 +139,45 @@ func TestNormalizeIMAPUIDBackfillLimit(t *testing.T) {
 		if got := normalizeIMAPUIDBackfillLimit(input); got != want {
 			t.Fatalf("normalizeIMAPUIDBackfillLimit(%d) = %d, want %d", input, got, want)
 		}
+	}
+}
+
+func TestIMAPUIDBackfillAuditDetailSamplesAssignments(t *testing.T) {
+	t.Parallel()
+
+	assigned := make([]IMAPMessageUID, 0, maxIMAPUIDBackfillAuditSample+2)
+	for i := 0; i < maxIMAPUIDBackfillAuditSample+2; i++ {
+		assigned = append(assigned, IMAPMessageUID{
+			MessageID: imapgw.MessageID("msg-" + strconv.Itoa(i)),
+			MailboxID: "inbox",
+			UID:       imapgw.UID(100 + uint32(i)),
+			ModSeq:    uint64(200 + i),
+		})
+	}
+
+	detail, err := imapUIDBackfillAuditDetail(" user-1 ", " inbox ", 0, assigned)
+	if err != nil {
+		t.Fatalf("imapUIDBackfillAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		UserID        string `json:"user_id"`
+		MailboxID     string `json:"mailbox_id"`
+		Limit         int    `json:"limit"`
+		AssignedCount int    `json:"assigned_count"`
+		Assigned      []struct {
+			MessageID string `json:"message_id"`
+			UID       uint32 `json:"uid"`
+			ModSeq    uint64 `json:"modseq"`
+		} `json:"assigned_sample"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.UserID != "user-1" || got.MailboxID != "inbox" || got.Limit != imapUIDBackfillDefaultLimit || got.AssignedCount != maxIMAPUIDBackfillAuditSample+2 {
+		t.Fatalf("audit detail = %+v", got)
+	}
+	if len(got.Assigned) != maxIMAPUIDBackfillAuditSample || got.Assigned[0].MessageID != "msg-0" || got.Assigned[0].UID != 100 {
+		t.Fatalf("assigned sample = %+v", got.Assigned)
 	}
 }
 

@@ -667,6 +667,7 @@ Implementation order:
 607. Admin outbox retry now persists a hash-chain audit row in the same transaction as the retry reset, preserving previous event status, attempts, and bounded error evidence before operator replay.
 608. Admin push-notification outcome updates now persist hash-chain audit rows in the same transaction as provider-status changes and invalid-token device cleanup, without including raw push tokens or token suffixes.
 609. Admin attachment cleanup runs now persist bounded hash-chain audit rows after stale upload and upload-session expiry sweeps, recording cutoff, normalized limit, expired counts, and ID samples without storage paths.
+610. Admin IMAP UID backfill now persists a hash-chain audit row in the same transaction as UID assignment, recording mailbox/user scope, normalized limit, assigned count, and a bounded message/UID sample.
 
 ## Deferred until backend contracts stabilize
 

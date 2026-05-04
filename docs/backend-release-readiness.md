@@ -273,6 +273,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin attachment cleanup runs now write bounded hash-chain audit rows for
   stale upload and upload-session expiry sweeps, recording cutoff, normalized
   limit, expired counts, and ID samples without storage paths.
+- Admin IMAP UID backfill now writes a hash-chain audit row in the same
+  transaction as UID assignment, keeping mailbox bootstrap operations
+  inspectable before enabling a full IMAP listener.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize
