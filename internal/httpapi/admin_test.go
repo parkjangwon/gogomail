@@ -2192,14 +2192,16 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 
 	service := &fakeAdminService{
 		pushNotificationAttempts: []maildb.PushNotificationAttemptView{{
-			ID:          "push-attempt-1",
-			MessageID:   "msg-1",
-			UserID:      "user-1",
-			DeviceID:    "device-1",
-			Platform:    "fcm",
-			TokenSuffix: "token-1",
-			Status:      "candidate",
-			AttemptedAt: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
+			ID:                "push-attempt-1",
+			MessageID:         "msg-1",
+			UserID:            "user-1",
+			DeviceID:          "device-1",
+			Platform:          "fcm",
+			TokenSuffix:       "token-1",
+			Status:            "candidate",
+			ProviderMessageID: "provider-message-1",
+			ProviderStatus:    "accepted",
+			AttemptedAt:       time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
 		}},
 	}
 	mux := http.NewServeMux()
@@ -2215,7 +2217,7 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 	if service.lastPushAttemptList.Limit != 10 || service.lastPushAttemptList.Status != "candidate" || service.lastPushAttemptList.UserID != "user-1" || service.lastPushAttemptList.Since.IsZero() {
 		t.Fatalf("lastPushAttemptList = %+v", service.lastPushAttemptList)
 	}
-	if !strings.Contains(rec.Body.String(), "push_notification_attempts") {
+	if !strings.Contains(rec.Body.String(), "push_notification_attempts") || !strings.Contains(rec.Body.String(), "provider-message-1") {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 }

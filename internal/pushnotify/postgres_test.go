@@ -35,9 +35,11 @@ func TestNormalizeAttemptOutcome(t *testing.T) {
 	t.Parallel()
 
 	outcome, err := normalizeAttemptOutcome(AttemptOutcome{
-		AttemptID:    " attempt-1 ",
-		Status:       " INVALID_TOKEN ",
-		ErrorMessage: strings.Repeat("e", 2100),
+		AttemptID:         " attempt-1 ",
+		Status:            " INVALID_TOKEN ",
+		ErrorMessage:      strings.Repeat("e", 2100),
+		ProviderMessageID: strings.Repeat("m", 600),
+		ProviderStatus:    strings.Repeat("s", 600),
 	})
 	if err != nil {
 		t.Fatalf("normalizeAttemptOutcome returned error: %v", err)
@@ -47,6 +49,12 @@ func TestNormalizeAttemptOutcome(t *testing.T) {
 	}
 	if len(outcome.ErrorMessage) != 2000 {
 		t.Fatalf("ErrorMessage length = %d, want 2000", len(outcome.ErrorMessage))
+	}
+	if len(outcome.ProviderMessageID) != 500 {
+		t.Fatalf("ProviderMessageID length = %d, want 500", len(outcome.ProviderMessageID))
+	}
+	if len(outcome.ProviderStatus) != 500 {
+		t.Fatalf("ProviderStatus length = %d, want 500", len(outcome.ProviderStatus))
 	}
 }
 
