@@ -251,6 +251,16 @@ Implementation order:
 202. Admin API can inspect and update the shared Redis-backed SMTP backpressure state with structured level/reason/until metadata while preserving legacy string-state compatibility for existing receive nodes.
 203. Domain policy now has a runtime read helper and Mail API send/draft-send enforces outbound recipient-count and composed-message-size guardrails when a domain policy is set to `outbound_mode=enforce`.
 
+204. Mailbox quota is enforced atomically at SMTP receive, Submission MTA, and Mail API delete flows using a PostgreSQL row-level lock on the user row; the SMTP layer returns RFC-correct 452 4.2.2 when the mailbox is full.
+205. Per-domain inbound SMTP policy (max recipients per message, max message bytes, inbound mode) is enforced at the SMTP receive and Submission boundaries without leaking policy logic into protocol core; the `DomainPolicyLookup` interface keeps the SMTP engine decoupled from `maildb`.
+206. DKIM key DNS verification workflow: operators can trigger `POST /admin/v1/dkim-keys/{id}/verify-dns`, which runs a targeted DNS lookup, persists the result to `domain_dns_checks`, and sets `dns_verified_at` on the key when the record matches.
+207. Delivery route runtime counters (`RouteCounters`) track per-pool delivered/failed/retried/exhausted since process start and are exposed via `GET /admin/v1/delivery-routes/counters` when configured.
+208. Retry exhaustion hook: when all delivery retries for a message are exhausted, an `exhausted` status row is written to `delivery_attempts` and a `mail.delivery_exhausted` outbox event is emitted; `GET /admin/v1/delivery-attempts/exhausted` lists these for operator triage.
+209. SMTPUTF8 declared correctly on outbound MAIL FROM whenever the sender or any recipient contains non-ASCII bytes and the remote server advertises SMTPUTF8, complying with RFC 6531 Section 3.3; also fixes a typo where RCPT TO responses were checked against status 25 instead of 250.
+210. DMARC reject policy enforcement is opt-in via `ReceiverOptions.DMARCEnforce`; when enabled, messages failing DMARC with `p=reject` are refused with SMTP 550 5.7.1, while quarantine policy messages are delivered with the policy visible in the Authentication-Results header.
+211. Admin API now exposes per-domain aggregate statistics (`GET /admin/v1/domains/{id}/stats`): active/total user counts, inbound/outbound/active message counts, storage used/limit bytes, 24-hour delivery outcomes, and suppression list size.
+212. OpenAPI schemas expanded: DKIMKey now includes `dns_verified_at` and `status` enum; DeliveryAttempt includes `status` enum with `exhausted`; DKIM DNS verify response references typed `DKIMKeyDNSVerification` and `DNSRecordCheck` schemas; `ExhaustedAttemptsEnvelope` added.
+
 ## Deferred until backend contracts stabilize
 
 - Next.js shell/webmail/admin apps

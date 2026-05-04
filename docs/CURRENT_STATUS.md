@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-04
+Last updated: 2026-05-04 (updated after platform hardening sprint)
 
 ## Current phase
 
@@ -36,13 +36,25 @@ guidance.
 - Admin APIs for domains, users, quotas, DKIM keys, trusted relays, delivery
   routes, delivery route resolution, queue stats, delivery attempts,
   suppression list, quota usage, domain DNS checks/history, backpressure
-  inspection/update, and domain policy.
+  inspection/update, domain policy, per-domain stats, DKIM DNS verification,
+  delivery route runtime counters, and exhausted delivery attempts.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, plus user-scoped sent-message delivery/bounce status.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
+- Per-domain inbound policy enforced at SMTP receive and Submission MTA (max
+  recipients, max message size, inbound mode).
+- Mailbox quota enforced at SMTP receive, Submission, and delete flows.
+  Quota is decremented atomically on delete.
+- DKIM key DNS verification workflow with `dns_verified_at` persistence.
+- Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
+- Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
+  `delivery_attempts` row with status `exhausted` written when all retries fail.
+- DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).
+- SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
+  addresses (RFC 6531 compliance fix).
 - OpenAPI draft with route, request body, response envelope, operationId, and
-  component reference drift tests.
+  component reference drift tests.  All schemas kept in sync with Go types.
 - Backend release verification script and SMTP release runbook.
 - Public GitHub repository:
   <https://github.com/parkjangwon/gogomail>
@@ -70,14 +82,23 @@ guidance.
 
 ## Latest direction
 
-Focus on turning the backend into a releasable webmail service platform:
+The platform hardening sprint completed the following:
 
-1. Apply quota and policy enforcement at SMTP, Submission, Mail API, and
-   delivery boundaries.
-2. Continue runtime quota/policy enforcement at SMTP, Submission, attachment,
-   and delivery boundaries.
-3. Strengthen domain onboarding with DKIM verification workflows and admin
-   remediation UX contracts.
-4. Improve Admin API observability with route counters, richer queue pressure,
-   and release-grade operational dashboards.
-5. Keep OpenAPI and implementation synchronized for future generated clients.
+- Mailbox quota enforcement (receive, send, delete)
+- Per-domain SMTP inbound policy (max recipients, max message size)
+- DKIM DNS verification workflow
+- Delivery route runtime counters
+- Retry exhaustion events and Admin API exposure
+- SMTPUTF8 outbound RFC 6531 fix
+- DMARC reject policy enforcement hook
+- Domain aggregate stats endpoint
+- OpenAPI schema expansion (DKIMKey, DeliveryAttempt, DKIMKeyDNSVerification)
+
+Next focus areas:
+
+1. Message threading and search indexing readiness (OpenSearch or Postgres FTS).
+2. IMAP gateway design and implementation planning.
+3. Push notification hook for FCM/APNs (pluggable pipeline stage).
+4. Spam relay integration contract (pluggable, disabled by default).
+5. Attachment scanning hook (pluggable pipeline stage).
+6. Frontend planning and API contract review before webmail implementation.
