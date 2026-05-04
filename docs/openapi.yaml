@@ -1288,32 +1288,7 @@ paths:
       summary: Admin delivery route runtime counters
       responses:
         "200":
-          description: Per-farm delivery counters since process start
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [route_counters]
-                properties:
-                  route_counters:
-                    type: array
-                    items:
-                      type: object
-                      required: [pool, delivered, failed, retried, exhausted, since]
-                      properties:
-                        pool:
-                          type: string
-                        delivered:
-                          type: integer
-                        failed:
-                          type: integer
-                        retried:
-                          type: integer
-                        exhausted:
-                          type: integer
-                        since:
-                          type: string
-                          format: date-time
+          $ref: "#/components/responses/DeliveryRouteCounters"
         default:
           $ref: "#/components/responses/Error"
   /dkim-keys:
@@ -1360,15 +1335,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
       responses:
         "200":
-          description: DKIM key DNS verification result
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [dkim_verification]
-                properties:
-                  dkim_verification:
-                    $ref: "#/components/schemas/DKIMKeyDNSVerification"
+          $ref: "#/components/responses/DKIMKeyDNSVerification"
         default:
           $ref: "#/components/responses/Error"
   /outbox/{id}/retry:
@@ -1954,12 +1921,24 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DeliveryRouteResolutionEnvelope"
+    DeliveryRouteCounters:
+      description: Per-farm delivery counters since process start envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryRouteCountersEnvelope"
     DKIMKeyList:
       description: DKIM key list envelope
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/DKIMKeyListEnvelope"
+    DKIMKeyDNSVerification:
+      description: DKIM key DNS verification result envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DKIMKeyDNSVerificationEnvelope"
     CompanyList:
       description: Company list envelope
       content:
@@ -3959,6 +3938,39 @@ components:
       properties:
         delivery_route_resolution:
           $ref: "#/components/schemas/DeliveryRouteResolution"
+    DeliveryRouteCounter:
+      type: object
+      required: [pool, delivered, failed, retried, exhausted, since]
+      properties:
+        pool:
+          type: string
+        delivered:
+          type: integer
+          format: int64
+          minimum: 0
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        retried:
+          type: integer
+          format: int64
+          minimum: 0
+        exhausted:
+          type: integer
+          format: int64
+          minimum: 0
+        since:
+          type: string
+          format: date-time
+    DeliveryRouteCountersEnvelope:
+      type: object
+      required: [route_counters]
+      properties:
+        route_counters:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryRouteCounter"
     DKIMKey:
       type: object
       required: [id, domain_id, selector, public_key_dns, status, created_at, updated_at]
@@ -3999,6 +4011,12 @@ components:
         verified_at:
           type: string
           format: date-time
+    DKIMKeyDNSVerificationEnvelope:
+      type: object
+      required: [dkim_verification]
+      properties:
+        dkim_verification:
+          $ref: "#/components/schemas/DKIMKeyDNSVerification"
     DKIMKeyListEnvelope:
       type: object
       required: [dkim_keys]
