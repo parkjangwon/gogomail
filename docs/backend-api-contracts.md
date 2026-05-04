@@ -133,9 +133,9 @@ multipart `draft_id` field are trimmed at the HTTP boundary before service
 dispatch, keeping user-facing routes tolerant of incidental whitespace without
 storing whitespace-padded resource IDs.
 
-Mail API JSON request bodies must contain exactly one JSON value. Handlers
-reject trailing JSON tokens as HTTP 400 `bad_request` instead of silently
-dispatching the first decoded object.
+Mail and Admin API JSON request bodies must contain exactly one JSON value.
+Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of
+silently dispatching the first decoded object.
 
 ## Push devices
 

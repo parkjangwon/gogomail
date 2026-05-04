@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -153,7 +152,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateCompanyQuotaRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -242,7 +241,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.CreateDomainRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -258,7 +257,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateDomainStatusRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -274,7 +273,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateDomainQuotaRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -290,7 +289,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateDomainPolicyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -334,7 +333,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.CreateUserRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -350,7 +349,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateUserStatusRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -366,7 +365,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateUserQuotaRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -475,7 +474,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		var req backpressure.StateUpdate
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -685,7 +684,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		var req maildb.CreateAPIUsageExportArtifactRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -725,7 +724,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		var req maildb.WriteAPIUsageExportArtifactRequest
 		if r.ContentLength != 0 {
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := decodeJSONBody(r, &req); err != nil {
 				writeError(w, http.StatusBadRequest, "invalid JSON body")
 				return
 			}
@@ -932,7 +931,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.CorrectQuotaReconciliationRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -1076,7 +1075,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.CreateTrustedRelayRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -1105,7 +1104,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.CreateDeliveryRouteRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -1130,7 +1129,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var req maildb.UpdateDeliveryRouteStatusRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -1159,7 +1158,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		var input maildb.CreateDKIMKeyInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		if err := decodeJSONBody(r, &input); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}

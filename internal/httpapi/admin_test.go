@@ -1651,6 +1651,25 @@ func TestAdminUpdateCompanyQuotaHandler(t *testing.T) {
 	}
 }
 
+func TestAdminJSONHandlersRejectTrailingTokens(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192} {"quota_limit":1}`)))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCompanyQuota.ID != "" {
+		t.Fatalf("handler should not dispatch trailing-token body: %+v", service.lastCompanyQuota)
+	}
+}
+
 func TestAdminAuthAcceptsBearerToken(t *testing.T) {
 	t.Parallel()
 
