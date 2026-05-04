@@ -57,6 +57,9 @@ guidance.
   PostgreSQL transaction. User quota source is tracked as `default|custom`, and
   domain default user quota updates apply to default-following users while
   preserving custom overrides.
+- Attachment upload metadata creation reserves bytes from the same
+  company/domain/user quota ledger, stale upload cleanup releases them, and the
+  Mail API returns HTTP 507 `insufficient_storage` for quota exhaustion.
 - Product quota direction is company pool → domain allocation → user unified
   storage allowance. User quota should cover mailbox, attachments, future Drive,
   and other user-owned storage features.
@@ -113,11 +116,14 @@ The platform hardening sprint completed the following:
 - Hierarchical quota ledger first implementation: company/domain/user Admin
   quota APIs, user quota source, domain default user quota propagation, and
   aggregate quota enforcement for mail writes/deletes.
+- Attachment upload quota integration: upload metadata reserves quota, stale
+  upload cleanup releases quota, and API quota exhaustion maps to 507.
 
 Next focus areas:
 
 1. Search indexing boundary for received message bodies and future OpenSearch.
-2. Extend hierarchical quota ledger to attachments and add reconciliation jobs.
+2. Add quota reconciliation jobs for messages/attachments and extend the ledger
+   to future Drive writes.
 3. IMAP gateway design and implementation planning.
 4. Search result highlighting/ranking once indexing boundary exists.
 5. Push notification hook for FCM/APNs (pluggable pipeline stage).

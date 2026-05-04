@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -710,6 +712,32 @@ func TestCreateAttachmentUploadHandler(t *testing.T) {
 	}
 }
 
+func TestCreateAttachmentUploadHandlerMapsQuotaFull(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		attachmentErr: fmt.Errorf("%w: user used 900, limit 1000, write 200 bytes", mail.ErrMailboxFull),
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments", strings.NewReader(`{
+		"user_id":"user-1",
+		"filename":"report.pdf",
+		"size":200,
+		"mime_type":"application/pdf"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInsufficientStorage {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"code":"insufficient_storage"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestUploadAttachmentHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1009,6 +1037,7 @@ type fakeMessageService struct {
 	lastDraft            mailservice.SaveDraftRequest
 	lastAttachmentUpload mailservice.CreateAttachmentUploadRequest
 	lastAttachmentBody   string
+	attachmentErr        error
 	lastUserID           string
 	lastFolderName       string
 	lastDeletedFolderID  string
@@ -1153,6 +1182,9 @@ func (f *fakeMessageService) SendDraft(_ context.Context, userID string, draftID
 
 func (f *fakeMessageService) CreateAttachmentUpload(_ context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
 	f.lastAttachmentUpload = req
+	if f.attachmentErr != nil {
+		return maildb.Attachment{}, f.attachmentErr
+	}
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
 }
 

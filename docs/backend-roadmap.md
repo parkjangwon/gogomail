@@ -267,6 +267,7 @@ Implementation order:
 212. OpenAPI schemas expanded: DKIMKey now includes `dns_verified_at` and `status` enum; DeliveryAttempt includes `status` enum with `exhausted`; DKIM DNS verify response references typed `DKIMKeyDNSVerification` and `DNSRecordCheck` schemas; `ExhaustedAttemptsEnvelope` added.
 213. Hierarchical quota ledger first implementation: Admin API exposes company quota read/update, user records track `quota_source=default|custom`, domain quota updates can propagate `default_user_quota` to default-following users, and mail write/delete transactions atomically adjust company, domain, and user ledgers.
 214. API metering is a planned platform capability: collect company/domain/user/api-key, route, method, status, latency, response size, and timestamp asynchronously for SaaS billing, rate-limit policy, abuse detection, and operations dashboards without adding synchronous hot-path writes.
+215. Attachment uploads now participate in the hierarchical quota ledger: upload metadata creation reserves bytes from company/domain/user counters, stale upload cleanup releases those bytes, stored objects are deleted after DB cleanup, and Mail API quota exhaustion is surfaced as HTTP 507 `insufficient_storage`.
 
 ## Deferred until backend contracts stabilize
 

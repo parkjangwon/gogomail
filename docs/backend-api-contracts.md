@@ -111,7 +111,14 @@ Bulk endpoints reject missing, blank, duplicate, or over-limit message IDs inste
 
 ## Attachment lifecycle
 
-Attachment uploads start as `uploading`, become draft-bound or message-bound records when saved/sent, and stale `uploading` records can be expired by backend cleanup code. Cleanup marks rows `deleted` first and then asks the configured storage backend to remove the object, keeping database ownership checks separate from object-store lifecycle mechanics.
+Attachment uploads start as `uploading`, become draft-bound or message-bound
+records when saved/sent, and stale `uploading` records can be expired by
+backend cleanup code. Upload metadata creation reserves bytes in the shared
+company/domain/user quota ledger; stale upload cleanup marks rows `deleted`,
+returns those bytes to the quota ledger, and then asks the configured storage
+backend to remove the object. Mail API maps quota exhaustion to HTTP 507
+`insufficient_storage` while the SMTP layer continues to use SMTP-appropriate
+mailbox-full responses.
 
 ## Admin operations
 
@@ -132,8 +139,9 @@ features. Domain default user quota changes should apply to users that still
 follow the default while preserving explicit custom user quota overrides.
 Runtime quota writes now increment/decrement the company, domain, and user
 ledgers atomically inside the same PostgreSQL transaction for mail storage
-growth and delete flows. User quota responses expose `quota_source` as
-`default|custom`, and domain quota updates may carry `default_user_quota`.
+growth/delete flows and attachment upload/cleanup flows. User quota responses
+expose `quota_source` as `default|custom`, and domain quota updates may carry
+`default_user_quota`.
 Domain policy updates store a backend-only operational model under
 `domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
 and optional max-recipient/max-message-byte guardrail hints. SMTP core should

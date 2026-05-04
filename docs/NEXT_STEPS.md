@@ -24,6 +24,8 @@ Current state:
 - Company/domain/user quota read and update APIs exist.
 - Mail storage growth/delete paths atomically update company, domain, and user
   quota ledgers in one transaction.
+- Attachment upload metadata creation and stale upload cleanup also reserve and
+  release bytes through the same company/domain/user quota ledger.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.
@@ -31,7 +33,8 @@ Current state:
 
 Next:
 
-- Extend the same ledger service to attachment upload and future Drive writes.
+- Extend the same ledger service to future Drive writes and large-attachment
+  share-link objects.
 - Add operator views that show remaining allocatable company/domain capacity.
 - Add reconciliation jobs that compare ledger counters against message and
   attachment storage rows.

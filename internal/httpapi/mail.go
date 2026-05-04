@@ -3,12 +3,14 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/auth"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 )
@@ -483,7 +485,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		attachment, err := service.CreateAttachmentUpload(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeMailServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
@@ -523,7 +525,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			Body:     file,
 		})
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeMailServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
@@ -679,6 +681,8 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		code = "conflict"
 	case http.StatusRequestEntityTooLarge:
 		code = "payload_too_large"
+	case http.StatusInsufficientStorage:
+		code = "insufficient_storage"
 	}
 	writeJSON(w, status, map[string]any{
 		"error": map[string]any{
@@ -689,4 +693,12 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		},
 		"error_message": message,
 	})
+}
+
+func writeMailServiceError(w http.ResponseWriter, err error) {
+	if errors.Is(err, mail.ErrMailboxFull) {
+		writeError(w, http.StatusInsufficientStorage, err.Error())
+		return
+	}
+	writeError(w, http.StatusBadRequest, err.Error())
 }
