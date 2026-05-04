@@ -6,6 +6,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const MaxAttachmentFilenameBytes = 255
@@ -27,6 +28,15 @@ type UploadAttachmentRequest struct {
 	Size     int64
 	MIMEType string
 	Body     io.Reader
+}
+
+type CreateAttachmentUploadSessionRequest struct {
+	UserID       string
+	DraftID      string
+	Filename     string
+	DeclaredSize int64
+	MIMEType     string
+	ExpiresAt    time.Time
 }
 
 func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) error {
@@ -78,6 +88,22 @@ func ValidateUploadAttachmentRequest(req UploadAttachmentRequest) error {
 		DraftID:  req.DraftID,
 		Filename: req.Filename,
 		Size:     req.Size,
+		MIMEType: req.MIMEType,
+	})
+}
+
+func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSessionRequest) error {
+	if req.ExpiresAt.IsZero() {
+		return fmt.Errorf("expires_at is required")
+	}
+	if req.DeclaredSize > MaxAttachmentUploadBytes {
+		return fmt.Errorf("declared_size exceeds %d bytes", MaxAttachmentUploadBytes)
+	}
+	return ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
+		UserID:   req.UserID,
+		DraftID:  req.DraftID,
+		Filename: req.Filename,
+		Size:     req.DeclaredSize,
 		MIMEType: req.MIMEType,
 	})
 }

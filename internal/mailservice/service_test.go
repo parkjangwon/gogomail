@@ -1047,6 +1047,9 @@ type fakeRepository struct {
 	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
 	lastCancelAttachmentUserID     string
 	lastCancelAttachmentID         string
+	lastAttachmentUploadSession    maildb.CreateAttachmentUploadSessionRequest
+	lastCancelUploadSession        maildb.CancelAttachmentUploadSessionRequest
+	lastExpireUploadSessions       maildb.ExpireAttachmentUploadSessionsRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupList      maildb.ExpireStaleAttachmentUploadsRequest
@@ -1055,6 +1058,8 @@ type fakeRepository struct {
 	lastAttachmentID               string
 	attachment                     maildb.Attachment
 	canceledAttachment             maildb.Attachment
+	uploadSession                  maildb.AttachmentUploadSession
+	expiredUploadSessions          []maildb.AttachmentUploadSession
 	expiredAttachments             []maildb.Attachment
 	staleAttachmentCount           maildb.StaleAttachmentUploadCount
 	staleAttachmentCandidates      []maildb.StaleAttachmentUploadCandidate
@@ -1404,6 +1409,27 @@ func (f *fakeRepository) CancelAttachmentUpload(_ context.Context, userID string
 		return f.canceledAttachment, nil
 	}
 	return maildb.Attachment{ID: attachmentID, Status: "deleted"}, nil
+}
+
+func (f *fakeRepository) CreateAttachmentUploadSession(_ context.Context, req maildb.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error) {
+	f.lastAttachmentUploadSession = req
+	if f.uploadSession.ID != "" {
+		return f.uploadSession, nil
+	}
+	return maildb.AttachmentUploadSession{ID: "session-1", UserID: req.UserID, Filename: req.Filename, DeclaredSize: req.DeclaredSize, MIMEType: req.MIMEType, Status: "pending"}, nil
+}
+
+func (f *fakeRepository) CancelAttachmentUploadSession(_ context.Context, req maildb.CancelAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error) {
+	f.lastCancelUploadSession = req
+	if f.uploadSession.ID != "" {
+		return f.uploadSession, nil
+	}
+	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, Status: "canceled"}, nil
+}
+
+func (f *fakeRepository) ExpireAttachmentUploadSessions(_ context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error) {
+	f.lastExpireUploadSessions = req
+	return f.expiredUploadSessions, nil
 }
 
 type fakeSearchIDSource struct {
@@ -2021,6 +2047,93 @@ func TestCancelAttachmentUploadValidatesResourceIDs(t *testing.T) {
 				t.Fatalf("repository was called with attachment %q", repo.lastCancelAttachmentID)
 			}
 		})
+	}
+}
+
+func TestCreateAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	expiresAt := time.Now().Add(time.Hour)
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	session, err := service.CreateAttachmentUploadSession(context.Background(), CreateAttachmentUploadSessionRequest{
+		UserID:       " user-1 ",
+		DraftID:      " draft-1 ",
+		Filename:     " large.bin ",
+		DeclaredSize: 42,
+		MIMEType:     " application/octet-stream ",
+		ExpiresAt:    expiresAt,
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession returned error: %v", err)
+	}
+	if session.ID != "session-1" ||
+		repo.lastAttachmentUploadSession.UserID != "user-1" ||
+		repo.lastAttachmentUploadSession.DraftID != "draft-1" ||
+		repo.lastAttachmentUploadSession.Filename != "large.bin" ||
+		repo.lastAttachmentUploadSession.DeclaredSize != 42 ||
+		repo.lastAttachmentUploadSession.MIMEType != "application/octet-stream" ||
+		!repo.lastAttachmentUploadSession.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("session = %+v last = %+v", session, repo.lastAttachmentUploadSession)
+	}
+}
+
+func TestCreateAttachmentUploadSessionRejectsDomainAttachmentLimit(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{domainPolicy: maildb.DomainPolicyView{
+		DomainID:           "domain-1",
+		InboundMode:        "inherit",
+		OutboundMode:       "enforce",
+		MaxAttachmentBytes: 10,
+	}}
+	service := New(repo, nil)
+	_, err := service.CreateAttachmentUploadSession(context.Background(), CreateAttachmentUploadSessionRequest{
+		UserID:       "user-1",
+		Filename:     "large.bin",
+		DeclaredSize: 11,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err == nil {
+		t.Fatal("CreateAttachmentUploadSession accepted attachment over domain limit")
+	}
+	if repo.lastAttachmentUploadSession.Filename != "" {
+		t.Fatalf("session should not be recorded: %+v", repo.lastAttachmentUploadSession)
+	}
+}
+
+func TestCancelAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	session, err := service.CancelAttachmentUploadSession(context.Background(), " user-1 ", " session-1 ")
+	if err != nil {
+		t.Fatalf("CancelAttachmentUploadSession returned error: %v", err)
+	}
+	if session.ID != "session-1" || repo.lastCancelUploadSession.UserID != "user-1" || repo.lastCancelUploadSession.SessionID != "session-1" {
+		t.Fatalf("session = %+v last = %+v", session, repo.lastCancelUploadSession)
+	}
+}
+
+func TestExpireAttachmentUploadSessionsDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	before := time.Now()
+	repo := &fakeRepository{
+		expiredUploadSessions: []maildb.AttachmentUploadSession{{ID: "session-1", Status: "expired"}},
+	}
+	service := New(repo, nil)
+	sessions, err := service.ExpireAttachmentUploadSessions(context.Background(), before, 7)
+	if err != nil {
+		t.Fatalf("ExpireAttachmentUploadSessions returned error: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "session-1" {
+		t.Fatalf("sessions = %+v", sessions)
+	}
+	if !repo.lastExpireUploadSessions.Before.Equal(before) || repo.lastExpireUploadSessions.Limit != 7 {
+		t.Fatalf("expire request = %+v", repo.lastExpireUploadSessions)
 	}
 }
 

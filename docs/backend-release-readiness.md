@@ -40,6 +40,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   declared quota reservation exactly once.
 - Repository support can expire stale resumable upload sessions in bounded
   batches and release declared quota reservations.
+- `mailservice` wraps resumable upload session create/cancel/expire operations,
+  preserving validation and domain attachment policy enforcement before future
+  HTTP or worker wiring.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin

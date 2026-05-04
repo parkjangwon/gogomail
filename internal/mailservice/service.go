@@ -61,6 +61,12 @@ type AttachmentUploadRepository interface {
 	CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error)
 }
 
+type AttachmentUploadSessionRepository interface {
+	CreateAttachmentUploadSession(ctx context.Context, req maildb.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
+	CancelAttachmentUploadSession(ctx context.Context, req maildb.CancelAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
+	ExpireAttachmentUploadSessions(ctx context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error)
+}
+
 type AttachmentCleanupRepository interface {
 	ExpireStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) (maildb.StaleAttachmentUploadCount, error)
@@ -859,12 +865,76 @@ func (s *Service) CancelAttachmentUpload(ctx context.Context, userID string, att
 	return attachment, nil
 }
 
+func (s *Service) CreateAttachmentUploadSession(ctx context.Context, req CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error) {
+	req = normalizeCreateAttachmentUploadSessionRequest(req)
+	if err := ValidateCreateAttachmentUploadSessionRequest(req); err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	if err := s.enforceAttachmentPolicy(ctx, req.UserID, req.DeclaredSize); err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	repo, ok := s.repository.(AttachmentUploadSessionRepository)
+	if !ok {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session repository is required")
+	}
+	return repo.CreateAttachmentUploadSession(ctx, maildb.CreateAttachmentUploadSessionRequest{
+		UserID:       req.UserID,
+		DraftID:      req.DraftID,
+		Filename:     req.Filename,
+		DeclaredSize: req.DeclaredSize,
+		MIMEType:     req.MIMEType,
+		ExpiresAt:    req.ExpiresAt,
+	})
+}
+
+func (s *Service) CancelAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error) {
+	userID = strings.TrimSpace(userID)
+	sessionID = strings.TrimSpace(sessionID)
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	if err := validateServiceResourceID("session_id", sessionID); err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
+	repo, ok := s.repository.(AttachmentUploadSessionRepository)
+	if !ok {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session repository is required")
+	}
+	return repo.CancelAttachmentUploadSession(ctx, maildb.CancelAttachmentUploadSessionRequest{
+		UserID:    userID,
+		SessionID: sessionID,
+	})
+}
+
+func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error) {
+	repo, ok := s.repository.(AttachmentUploadSessionRepository)
+	if !ok {
+		return nil, fmt.Errorf("attachment upload session repository is required")
+	}
+	req := maildb.ExpireAttachmentUploadSessionsRequest{
+		Before: before,
+		Limit:  limit,
+	}
+	if err := maildb.ValidateExpireAttachmentUploadSessionsRequest(req); err != nil {
+		return nil, err
+	}
+	return repo.ExpireAttachmentUploadSessions(ctx, req)
+}
+
 func normalizeCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) CreateAttachmentUploadRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.DraftID = strings.TrimSpace(req.DraftID)
 	req.Filename = strings.TrimSpace(req.Filename)
 	req.MIMEType = strings.TrimSpace(req.MIMEType)
 	req.StoragePath = strings.TrimSpace(req.StoragePath)
+	return req
+}
+
+func normalizeCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSessionRequest) CreateAttachmentUploadSessionRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.DraftID = strings.TrimSpace(req.DraftID)
+	req.Filename = strings.TrimSpace(req.Filename)
+	req.MIMEType = strings.TrimSpace(req.MIMEType)
 	return req
 }
 
