@@ -64,6 +64,9 @@ func (c Config) Validate() error {
 	if c.PushNotifyConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_BLOCK must be positive")
 	}
+	if c.PushNotifyConsumerClaimIdle < 0 {
+		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_CLAIM_IDLE must not be negative")
+	}
 	if err := validateEnum("GOGOMAIL_API_METERING_BACKEND", c.APIMeteringBackend, "none", "slog", "outbox"); err != nil {
 		return err
 	}
@@ -78,6 +81,9 @@ func (c Config) Validate() error {
 	}
 	if c.APIMeteringConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_BLOCK must be positive")
+	}
+	if c.APIMeteringConsumerClaimIdle < 0 {
+		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE must not be negative")
 	}
 	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac", "local-ed25519", "remote-ed25519"); err != nil {
 		return err
@@ -142,6 +148,12 @@ func (c Config) Validate() error {
 	if c.SearchIndexConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK must be positive")
 	}
+	if c.EventConsumerClaimIdle < 0 {
+		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE must not be negative")
+	}
+	if c.SearchIndexConsumerClaimIdle < 0 {
+		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_CLAIM_IDLE must not be negative")
+	}
 	if c.SearchIndexOpenSearchTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT must be positive")
 	}
@@ -172,6 +184,9 @@ func (c Config) Validate() error {
 	}
 	if c.DeliveryThrottleEnabled && c.DeliveryDefaultConcurrency == 0 && len(c.DeliveryFarmConcurrency) == 0 && len(c.DeliveryDomainConcurrency) == 0 {
 		return fmt.Errorf("delivery throttling requires at least one default, farm, or domain concurrency limit")
+	}
+	if c.DeliveryConsumerClaimIdle < 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE must not be negative")
 	}
 	return nil
 }

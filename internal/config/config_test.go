@@ -51,11 +51,13 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", "")
 	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", "")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "")
@@ -198,6 +200,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.EventConsumerBlock != time.Second {
 		t.Fatalf("EventConsumerBlock = %s, want 1s", cfg.EventConsumerBlock)
 	}
+	if cfg.EventConsumerClaimIdle != 5*time.Minute {
+		t.Fatalf("EventConsumerClaimIdle = %s, want 5m", cfg.EventConsumerClaimIdle)
+	}
 	if cfg.DeliveryStream != "mail.outbound.general" {
 		t.Fatalf("DeliveryStream = %q, want mail.outbound.general", cfg.DeliveryStream)
 	}
@@ -212,6 +217,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.DeliveryConsumerBlock != time.Second {
 		t.Fatalf("DeliveryConsumerBlock = %s, want 1s", cfg.DeliveryConsumerBlock)
+	}
+	if cfg.DeliveryConsumerClaimIdle != 5*time.Minute {
+		t.Fatalf("DeliveryConsumerClaimIdle = %s, want 5m", cfg.DeliveryConsumerClaimIdle)
 	}
 	if cfg.DeliverySMTPHello != "localhost" {
 		t.Fatalf("DeliverySMTPHello = %q, want localhost", cfg.DeliverySMTPHello)
@@ -292,11 +300,13 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "worker-a")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "10")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "500ms")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", "90s")
 	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "custom.outbound")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "delivery-group")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-a")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "5")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", "2m")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
 	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "45s")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "require")
@@ -430,6 +440,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.EventConsumerBlock != 500*time.Millisecond {
 		t.Fatalf("EventConsumerBlock = %s, want 500ms", cfg.EventConsumerBlock)
 	}
+	if cfg.EventConsumerClaimIdle != 90*time.Second {
+		t.Fatalf("EventConsumerClaimIdle = %s, want 90s", cfg.EventConsumerClaimIdle)
+	}
 	if cfg.DeliveryStream != "custom.outbound" {
 		t.Fatalf("DeliveryStream = %q, want custom.outbound", cfg.DeliveryStream)
 	}
@@ -444,6 +457,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DeliveryConsumerBlock != 750*time.Millisecond {
 		t.Fatalf("DeliveryConsumerBlock = %s, want 750ms", cfg.DeliveryConsumerBlock)
+	}
+	if cfg.DeliveryConsumerClaimIdle != 2*time.Minute {
+		t.Fatalf("DeliveryConsumerClaimIdle = %s, want 2m", cfg.DeliveryConsumerClaimIdle)
 	}
 	if cfg.DeliverySMTPHello != "mx.example.com" {
 		t.Fatalf("DeliverySMTPHello = %q, want mx.example.com", cfg.DeliverySMTPHello)
@@ -488,6 +504,32 @@ func TestLoadDisablesSubmissionInsecureAuthByDefaultInProduction(t *testing.T) {
 
 	if cfg.SubmissionAllowInsecureAuth {
 		t.Fatal("SubmissionAllowInsecureAuth = true, want false in production defaults")
+	}
+}
+
+func TestLoadReadsConsumerClaimIdleSettings(t *testing.T) {
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", "1m")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_CLAIM_IDLE", "2m")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE", "3m")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_CLAIM_IDLE", "4m")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", "5m")
+
+	cfg := Load()
+
+	if cfg.EventConsumerClaimIdle != time.Minute {
+		t.Fatalf("EventConsumerClaimIdle = %s, want 1m", cfg.EventConsumerClaimIdle)
+	}
+	if cfg.SearchIndexConsumerClaimIdle != 2*time.Minute {
+		t.Fatalf("SearchIndexConsumerClaimIdle = %s, want 2m", cfg.SearchIndexConsumerClaimIdle)
+	}
+	if cfg.APIMeteringConsumerClaimIdle != 3*time.Minute {
+		t.Fatalf("APIMeteringConsumerClaimIdle = %s, want 3m", cfg.APIMeteringConsumerClaimIdle)
+	}
+	if cfg.PushNotifyConsumerClaimIdle != 4*time.Minute {
+		t.Fatalf("PushNotifyConsumerClaimIdle = %s, want 4m", cfg.PushNotifyConsumerClaimIdle)
+	}
+	if cfg.DeliveryConsumerClaimIdle != 5*time.Minute {
+		t.Fatalf("DeliveryConsumerClaimIdle = %s, want 5m", cfg.DeliveryConsumerClaimIdle)
 	}
 }
 

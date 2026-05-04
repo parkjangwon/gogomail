@@ -208,6 +208,9 @@ guidance.
 - Redis event consumers acknowledge malformed stream entries after logging
   decode failures, preventing poison messages from pinning worker progress while
   preserving retry behavior for handler failures.
+- Redis event/search/API-metering/push/delivery workers reclaim idle pending
+  Redis Stream messages via configurable claim-idle settings, improving crash
+  recovery for at-least-once event processing.
 - Backend release verification script and SMTP release runbook.
 - API usage export runbook covering capability checks, artifact/digest/signature
   handoff evidence, deep readiness, and retention-readiness gates.
