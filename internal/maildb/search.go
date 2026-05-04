@@ -140,7 +140,6 @@ SELECT
       setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(messages.from_name, '')), 'B') ||
-      setweight(to_tsvector('simple', coalesce(messages.draft_text_body, '')), 'C') ||
       setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D'),
       search_input.tsq
     )
@@ -152,7 +151,7 @@ SELECT
     ts_headline('simple', coalesce(messages.from_name, '') || ' ' || coalesce(messages.from_addr, ''), search_input.tsq, 'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MinWords=1, MaxWords=12')
   ELSE NULL END AS from_highlight,
   CASE WHEN $9::boolean AND $2 <> '' THEN
-    ts_headline('simple', left(coalesce(msd.body_text, '') || ' ' || coalesce(messages.draft_text_body, ''), 5000), search_input.tsq, 'StartSel=<mark>, StopSel=</mark>, MaxFragments=3, MinWords=3, MaxWords=18')
+    ts_headline('simple', left(coalesce(msd.body_text, ''), 5000), search_input.tsq, 'StartSel=<mark>, StopSel=</mark>, MaxFragments=3, MinWords=3, MaxWords=18')
   ELSE NULL END AS body_highlight
 FROM messages
 CROSS JOIN search_input
@@ -166,7 +165,6 @@ WHERE messages.user_id = $1
       setweight(to_tsvector('simple', coalesce(subject, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(from_addr, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(from_name, '')), 'B') ||
-      setweight(to_tsvector('simple', coalesce(draft_text_body, '')), 'C') ||
       setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D')
     ) @@ plainto_tsquery('simple', $2)
     OR subject ILIKE '%' || $2 || '%'

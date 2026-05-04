@@ -53,7 +53,7 @@ Current state:
   `References`/`In-Reply-To`/source messages.
 - Reply composition writes RFC thread headers into outgoing `.eml`.
 - Mail API exposes `GET /api/v1/search` backed by a small-deployment Postgres
-  FTS index over metadata and draft text.
+  FTS index over active-message metadata.
 - Received-message body indexing has an asynchronous boundary:
   `search-index-worker` consumes `mail.stored`, reads stored `.eml`, extracts
   bounded plain text through `internal/message`, and upserts
@@ -95,13 +95,16 @@ Current state:
 - Search index worker startup logs include non-secret backend diagnostics, and
   OpenSearch calls have an explicit configurable timeout.
 - Postgres and OpenSearch relevance queries now share metadata-first tuning:
-  subject and sender matches are weighted above draft and indexed body text, with
+  subject and sender matches are weighted above indexed body text, with
   regression tests guarding both backend query shapes.
+- Draft rows remain out of `GET /api/v1/search` until an explicit draft search
+  API/indexing contract is introduced; this keeps Postgres and OpenSearch
+  relevance semantics aligned.
 
 Next:
 
-- Decide whether draft search should be indexed before expanding OpenSearch
-  beyond relevance-sorted received-message searches.
+- Add an explicit draft search contract only after deciding whether drafts
+  should be indexed in Postgres, OpenSearch, or a separate compose-focused path.
 
 ### 3. IMAP gateway planning
 
