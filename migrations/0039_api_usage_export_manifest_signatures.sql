@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_export_manifest_signatures (
   id text PRIMARY KEY,
   digest_id text NOT NULL REFERENCES api_usage_export_manifest_digests(id) ON DELETE CASCADE,
@@ -16,3 +17,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_api_usage_export_manifest_signatures_diges
 
 CREATE INDEX IF NOT EXISTS idx_api_usage_export_manifest_signatures_batch_created
   ON api_usage_export_manifest_signatures (batch_id, created_at DESC);
+
+-- +goose Down

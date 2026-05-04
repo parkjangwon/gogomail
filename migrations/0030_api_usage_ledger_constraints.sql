@@ -1,3 +1,4 @@
+-- +goose Up
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -45,3 +46,5 @@ BEGIN
       CHECK (jsonb_typeof(payload) = 'object');
   END IF;
 END $$;
+
+-- +goose Down

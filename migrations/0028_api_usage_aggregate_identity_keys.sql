@@ -1,3 +1,4 @@
+-- +goose Up
 ALTER TABLE api_usage_daily
   DROP CONSTRAINT IF EXISTS api_usage_daily_pkey;
 
@@ -49,3 +50,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_daily_tenant_day
 CREATE INDEX IF NOT EXISTS idx_api_usage_monthly_tenant_month
   ON api_usage_monthly (tenant_id, month DESC)
   WHERE tenant_id <> '';
+
+-- +goose Down

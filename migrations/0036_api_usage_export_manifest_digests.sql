@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_export_manifest_digests (
   id text PRIMARY KEY,
   batch_id text NOT NULL REFERENCES api_usage_export_batches(id) ON DELETE CASCADE,
@@ -13,3 +14,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_api_usage_export_manifest_digests_batch_di
 
 CREATE INDEX IF NOT EXISTS idx_api_usage_export_manifest_digests_batch_created
   ON api_usage_export_manifest_digests (batch_id, created_at DESC);
+
+-- +goose Down

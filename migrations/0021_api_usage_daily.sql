@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_daily (
   day date NOT NULL,
   method text NOT NULL,
@@ -20,3 +21,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_daily_day
 CREATE INDEX IF NOT EXISTS idx_api_usage_daily_user_day
   ON api_usage_daily (user_id, day DESC)
   WHERE user_id <> '';
+
+-- +goose Down

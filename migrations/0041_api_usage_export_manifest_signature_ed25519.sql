@@ -1,3 +1,4 @@
+-- +goose Up
 DO $$
 BEGIN
   IF EXISTS (
@@ -49,3 +50,5 @@ BEGIN
       (signature_algorithm = 'ed25519' AND signature_hex ~ '^[0-9a-f]{128}$')
     );
 END $$;
+
+-- +goose Down

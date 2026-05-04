@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_events (
   event_id text PRIMARY KEY,
   event_timestamp timestamptz NOT NULL,
@@ -10,3 +11,5 @@ CREATE TABLE IF NOT EXISTS api_usage_events (
 
 CREATE INDEX IF NOT EXISTS idx_api_usage_events_timestamp
   ON api_usage_events (event_timestamp DESC);
+
+-- +goose Down

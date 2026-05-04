@@ -660,6 +660,7 @@ Implementation order:
 600. Domain policy mutations now persist hash-chain admin audit rows in the same database transaction as the policy change, preserving inbound/outbound mode and size guardrail evidence for enforcement forensics.
 601. Domain/user provisioning and user password-hash rotation now persist hash-chain admin audit rows in the same database transaction as the change, while exposing password readiness without leaking password hash material.
 602. Bounce DSN generation now honors RFC 3461 `RET=HDRS` by carrying safe original `.eml` storage paths through delivery events and attaching bounded sanitized original headers as `text/rfc822-headers` in generated RFC 3464 reports.
+603. Migration file guardrails now require every SQL migration to declare explicit goose Up/Down sections, and the legacy API-usage, push, IMAP, and audit-index migrations have been normalized to that structure without changing applied SQL.
 
 ## Deferred until backend contracts stabilize
 

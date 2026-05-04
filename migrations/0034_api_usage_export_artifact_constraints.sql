@@ -1,3 +1,4 @@
+-- +goose Up
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -44,3 +45,5 @@ BEGIN
       CHECK (jsonb_typeof(metadata) = 'object');
   END IF;
 END $$;
+
+-- +goose Down

@@ -65,16 +65,20 @@ func TestMigrationVersionsAreContiguous(t *testing.T) {
 	}
 }
 
-func TestRecentMigrationsDeclareGooseSections(t *testing.T) {
+func TestMigrationsDeclareGooseSections(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{
-		"0042_push_notification_provider_outcomes.sql",
-		"0043_delivery_attempt_diagnostics.sql",
-		"0044_message_search_index.sql",
-		"0045_attachment_upload_sessions.sql",
-	} {
-		raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
+	matches, err := filepath.Glob(filepath.Join("..", "..", "migrations", "*.sql"))
+	if err != nil {
+		t.Fatalf("glob migrations: %v", err)
+	}
+	if len(matches) == 0 {
+		t.Fatal("no migration files found")
+	}
+
+	for _, path := range matches {
+		name := filepath.Base(path)
+		raw, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read migration %s: %v", name, err)
 		}

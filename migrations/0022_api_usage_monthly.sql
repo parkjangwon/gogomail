@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_monthly (
   month date NOT NULL,
   method text NOT NULL,
@@ -20,3 +21,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_monthly_month
 CREATE INDEX IF NOT EXISTS idx_api_usage_monthly_user_month
   ON api_usage_monthly (user_id, month DESC)
   WHERE user_id <> '';
+
+-- +goose Down

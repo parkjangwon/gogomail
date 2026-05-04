@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_export_batches (
   id text PRIMARY KEY,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -25,3 +26,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_export_batches_created
 CREATE INDEX IF NOT EXISTS idx_api_usage_export_batches_tenant_created
   ON api_usage_export_batches (tenant_id, created_at DESC)
   WHERE tenant_id <> '';
+
+-- +goose Down
