@@ -461,6 +461,7 @@ Implementation order:
 402. API usage ledger, export batch, and retention-readiness tenant/principal query filters are now trimmed before billing/export service dispatch.
 403. Admin API outbox event topic, partition key, and status filters are now trimmed before operational queue inspection.
 404. Admin API delivery-attempt status and recipient-domain filters are now trimmed before retry/bounce inspection.
+405. Admin API push-notification attempt and stats filters are now trimmed before device/provider troubleshooting queries.
 
 ## Deferred until backend contracts stabilize
 

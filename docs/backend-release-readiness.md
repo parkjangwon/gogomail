@@ -122,6 +122,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before operational queue inspection.
 - Admin API delivery-attempt status and recipient-domain filters are trimmed
   before retry/bounce inspection.
+- Admin API push-notification attempt and stats filters are trimmed before
+  device/provider troubleshooting queries.
 - Mail API search query, folder, sender, and subject filters are trimmed before
   search backend dispatch, reducing accidental UI/client whitespace drift.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.
