@@ -139,6 +139,8 @@ Current state:
   events for previously UID-visible messages.
 - `mailservice` exposes IMAP mailbox/message listing and event subscription
   methods for a future protocol listener.
+- `mailservice` exposes bounded IMAP UID backfill for future operator/bootstrap
+  modes.
 
 Next:
 
