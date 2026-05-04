@@ -2,6 +2,7 @@ package maildb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,109 @@ import (
 
 type IMAPUIDState = imapgw.UIDState
 type IMAPMessageUID = imapgw.MessageUID
+
+func (r *Repository) ListIMAPMailboxes(ctx context.Context, userID string) ([]imapgw.Mailbox, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+
+	folders, err := r.ListFolders(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	mailboxes := make([]imapgw.Mailbox, 0, len(folders))
+	for _, folder := range folders {
+		state, err := r.EnsureIMAPMailboxState(ctx, userID, folder.ID)
+		if err != nil {
+			return nil, err
+		}
+		mailboxes = append(mailboxes, imapMailboxFromFolder(folder, state))
+	}
+	return mailboxes, nil
+}
+
+func (r *Repository) GetIMAPMailbox(ctx context.Context, userID string, mailboxID string) (imapgw.Mailbox, error) {
+	if r.db == nil {
+		return imapgw.Mailbox{}, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	if userID == "" {
+		return imapgw.Mailbox{}, fmt.Errorf("user_id is required")
+	}
+	if mailboxID == "" {
+		return imapgw.Mailbox{}, fmt.Errorf("mailbox_id is required")
+	}
+
+	const query = `
+SELECT
+  f.id::text,
+  COALESCE(f.parent_id::text, ''),
+  f.name,
+  f.full_path,
+  f.type,
+  COALESCE(f.system_type, ''),
+  f.order_index,
+  COALESCE(c.total, 0) AS total,
+  COALESCE(c.unread, 0) AS unread,
+  COALESCE(c.starred, 0) AS starred
+FROM folders f
+LEFT JOIN (
+  SELECT
+    folder_id,
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE COALESCE((flags->>'read')::boolean, false) = false) AS unread,
+    COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred
+  FROM messages
+  WHERE user_id = $1::uuid
+    AND status = 'active'
+  GROUP BY folder_id
+) c ON c.folder_id = f.id
+WHERE f.user_id = $1::uuid
+  AND f.id = $2::uuid`
+
+	var folder Folder
+	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID).Scan(
+		&folder.ID,
+		&folder.ParentID,
+		&folder.Name,
+		&folder.FullPath,
+		&folder.Type,
+		&folder.SystemType,
+		&folder.OrderIndex,
+		&folder.Total,
+		&folder.Unread,
+		&folder.Starred,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return imapgw.Mailbox{}, fmt.Errorf("imap mailbox %q not found", mailboxID)
+		}
+		return imapgw.Mailbox{}, fmt.Errorf("get imap mailbox: %w", err)
+	}
+	state, err := r.EnsureIMAPMailboxState(ctx, userID, folder.ID)
+	if err != nil {
+		return imapgw.Mailbox{}, err
+	}
+	return imapMailboxFromFolder(folder, state), nil
+}
+
+func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
+	return imapgw.Mailbox{
+		ID:          imapgw.MailboxID(folder.ID),
+		ParentID:    imapgw.MailboxID(folder.ParentID),
+		Name:        folder.Name,
+		FullPath:    folder.FullPath,
+		SystemType:  folder.SystemType,
+		UIDValidity: state.UIDValidity,
+		UIDNext:     state.UIDNext,
+		Messages:    uint32(folder.Total),
+		Unseen:      uint32(folder.Unread),
+	}
+}
 
 func (r *Repository) EnsureIMAPMailboxState(ctx context.Context, userID string, mailboxID string) (IMAPUIDState, error) {
 	if r.db == nil {

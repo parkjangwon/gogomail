@@ -181,6 +181,8 @@ The platform hardening sprint completed the following:
 - IMAP gateway planning: native backend interfaces, RFC-shaped flag/mailbox
   helpers, and durable UID/MODSEQ storage exist without starting a TCP protocol
   server.
+- The first `maildb` IMAP adapter methods can list/get mailboxes as
+  `internal/imapgw` DTOs while ensuring UID state.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
