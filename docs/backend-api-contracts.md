@@ -183,12 +183,15 @@ capabilities until adapter-owned staged chunks and finalization are implemented.
 The Mail API exposes the first session lifecycle endpoints,
 `POST /api/v1/attachments/upload-sessions` and
 `GET|DELETE /api/v1/attachments/upload-sessions/{id}`, for quota-reserving
-session creation, user-scoped status reads, and user-scoped cancellation; chunk
-upload/finalization routes are not yet exposed, so `resumable_chunked_uploads`
+session creation, user-scoped status reads, and user-scoped cancellation.
+Range-aware chunk routes are not yet exposed, so `resumable_chunked_uploads`
 remains `false`. `PUT /api/v1/attachments/upload-sessions/{id}/body` stores a
-complete session body, records received bytes and SHA-256, optionally verifies
-the lowercase `X-Content-SHA256` request header before recording, and leaves
-attachment-row creation to
+complete session body, records received bytes and SHA-256, and optionally
+verifies the lowercase `X-Content-SHA256` request header before recording.
+Body replacement writes each retry to a distinct staged object path before
+updating repository metadata, preserving the previously recorded body if that
+metadata update fails and best-effort deleting the previous staged body after a
+successful replacement. Attachment-row creation happens through
 `POST /api/v1/attachments/upload-sessions/{id}/finalize`, which converts a
 ready stored session body into the normal pending attachment row without
 double-reserving quota. Finalization reopens the staged object and verifies

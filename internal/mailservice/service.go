@@ -980,7 +980,8 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		"upload-sessions",
 		safeObjectPathSegment(req.UserID),
 		safeObjectPathSegment(req.SessionID),
-		"body",
+		"bodies",
+		randomObjectID(),
 	}, "/")
 	counter := &countingReader{reader: req.Body}
 	limitedBody := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
@@ -1011,6 +1012,9 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 	if err != nil {
 		_ = s.store.Delete(ctx, path)
 		return maildb.AttachmentUploadSession{}, err
+	}
+	if previousPath := strings.TrimSpace(session.StoragePath); previousPath != "" && previousPath != path {
+		_ = s.store.Delete(ctx, previousPath)
 	}
 	return stored, nil
 }

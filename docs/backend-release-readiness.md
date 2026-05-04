@@ -59,6 +59,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Upload session body storage explicitly rejects `Content-Range` requests while
   `resumable_chunked_uploads=false`, keeping complete-body storage distinct
   from future range-aware chunk commits.
+- Upload session body replacement records retries through distinct staged object
+  paths, preserving the previously recorded body if repository metadata updates
+  fail and best-effort cleaning old staged bodies after successful replacement.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Upload session finalization verifies the staged object still exists and
