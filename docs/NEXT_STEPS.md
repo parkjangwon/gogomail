@@ -420,9 +420,8 @@ Next:
 
 - Add a concrete cloud KMS adapter, or deploy the remote-Ed25519 signer service,
   before invoices or hard Open API limits depend on completed export batches.
-- Add the actual archive/delete worker for immutable API usage ledger rows after
-  retention readiness is wired into an operator runbook and production storage
-  target.
+- Extend bounded API usage ledger retention runs into a scheduled worker only
+  after production export storage and signer policy are settled.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet

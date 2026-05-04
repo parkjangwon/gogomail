@@ -778,6 +778,17 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerRetentionReadiness"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/ledger/retention-runs:
+    post:
+      operationId: runAdminAPIUsageLedgerRetention
+      summary: Run bounded immutable API usage ledger retention after readiness checks
+      requestBody:
+        $ref: "#/components/requestBodies/APIUsageLedgerRetentionRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerRetentionRun"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches:
     get:
       operationId: listAdminAPIUsageExportBatches
@@ -1990,6 +2001,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerRetentionReadinessEnvelope"
+    APIUsageLedgerRetentionRun:
+      description: Immutable API usage ledger retention run envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageLedgerRetentionRunEnvelope"
     ExhaustedAttempts:
       description: Exhausted delivery attempts envelope
       content:
@@ -2345,6 +2362,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/MessageFlagUpdateRequest"
+    APIUsageLedgerRetentionRun:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageLedgerRetentionRunRequest"
     MessageMove:
       required: true
       content:
@@ -3553,12 +3576,79 @@ components:
               - covering_export_artifact_required
               - covering_manifest_digest_required
               - covering_manifest_signature_required
+    APIUsageLedgerRetentionRunRequest:
+      type: object
+      required: [cutoff]
+      properties:
+        cutoff:
+          type: string
+          format: date-time
+          description: Exclusive RFC3339 event timestamp upper bound; future cutoffs are rejected.
+        tenant_id:
+          type: string
+          maxLength: 1024
+        principal_id:
+          type: string
+          maxLength: 1024
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1000
+        dry_run:
+          type: boolean
+          default: false
+        confirm_ready:
+          type: boolean
+          default: false
+          description: Required when dry_run is false.
+    APIUsageLedgerRetentionRun:
+      type: object
+      required: [cutoff, limit, dry_run, confirm_ready, ready, candidate_count, limited_count, deleted_count, readiness]
+      properties:
+        cutoff:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+        principal_id:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        dry_run:
+          type: boolean
+        confirm_ready:
+          type: boolean
+        ready:
+          type: boolean
+        candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        limited_count:
+          type: integer
+          format: int64
+          minimum: 0
+        deleted_count:
+          type: integer
+          format: int64
+          minimum: 0
+        readiness:
+          $ref: "#/components/schemas/APIUsageLedgerRetentionReadiness"
     APIUsageLedgerRetentionReadinessEnvelope:
       type: object
       required: [api_usage_ledger_retention_readiness]
       properties:
         api_usage_ledger_retention_readiness:
           $ref: "#/components/schemas/APIUsageLedgerRetentionReadiness"
+    APIUsageLedgerRetentionRunEnvelope:
+      type: object
+      required: [api_usage_ledger_retention_run]
+      properties:
+        api_usage_ledger_retention_run:
+          $ref: "#/components/schemas/APIUsageLedgerRetentionRun"
     APIUsageExportBatch:
       type: object
       required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]

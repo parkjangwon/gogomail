@@ -255,6 +255,15 @@ type APIUsageLedgerRetentionRequest struct {
 	PrincipalID string
 }
 
+type APIUsageLedgerRetentionRunRequest struct {
+	Cutoff       time.Time
+	TenantID     string
+	PrincipalID  string
+	Limit        int
+	DryRun       bool
+	ConfirmReady bool
+}
+
 type APIUsageLedgerStatsView struct {
 	EventCount       int64      `json:"event_count"`
 	RequestCount     int64      `json:"request_count"`
@@ -292,6 +301,25 @@ type APIUsageLedgerRetentionReadinessView struct {
 	Ready                          bool       `json:"ready"`
 	BlockingReasons                []string   `json:"blocking_reasons"`
 }
+
+type APIUsageLedgerRetentionRunView struct {
+	Cutoff         time.Time                            `json:"cutoff"`
+	TenantID       string                               `json:"tenant_id,omitempty"`
+	PrincipalID    string                               `json:"principal_id,omitempty"`
+	Limit          int                                  `json:"limit"`
+	DryRun         bool                                 `json:"dry_run"`
+	ConfirmReady   bool                                 `json:"confirm_ready"`
+	Ready          bool                                 `json:"ready"`
+	CandidateCount int64                                `json:"candidate_count"`
+	LimitedCount   int64                                `json:"limited_count"`
+	DeletedCount   int64                                `json:"deleted_count"`
+	Readiness      APIUsageLedgerRetentionReadinessView `json:"readiness"`
+}
+
+const (
+	APIUsageLedgerRetentionDefaultLimit = 1000
+	APIUsageLedgerRetentionMaxLimit     = 10000
+)
 
 type APIUsageExportBatchView struct {
 	ID             string          `json:"id"`
@@ -2639,6 +2667,97 @@ FROM api_usage_ledger`
 		}
 	}
 	applyAPIUsageLedgerRetentionReadiness(&view)
+	return view, nil
+}
+
+func NormalizeAPIUsageLedgerRetentionLimit(limit int) int {
+	if limit <= 0 {
+		return APIUsageLedgerRetentionDefaultLimit
+	}
+	if limit > APIUsageLedgerRetentionMaxLimit {
+		return APIUsageLedgerRetentionMaxLimit
+	}
+	return limit
+}
+
+func (r *Repository) RunAPIUsageLedgerRetention(ctx context.Context, req APIUsageLedgerRetentionRunRequest) (APIUsageLedgerRetentionRunView, error) {
+	if r.db == nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("database handle is required")
+	}
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	req.PrincipalID = strings.TrimSpace(req.PrincipalID)
+	if req.Cutoff.IsZero() {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("cutoff is required")
+	}
+	if req.Limit < 0 {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("limit must not be negative")
+	}
+	if !req.DryRun && !req.ConfirmReady {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("confirm_ready is required for destructive retention runs")
+	}
+	req.Cutoff = req.Cutoff.UTC()
+	limit := NormalizeAPIUsageLedgerRetentionLimit(req.Limit)
+
+	readiness, err := r.GetAPIUsageLedgerRetentionReadiness(ctx, APIUsageLedgerRetentionRequest{
+		Cutoff:      req.Cutoff,
+		TenantID:    req.TenantID,
+		PrincipalID: req.PrincipalID,
+	})
+	if err != nil {
+		return APIUsageLedgerRetentionRunView{}, err
+	}
+	limited := readiness.CandidateEventCount
+	if limited > int64(limit) {
+		limited = int64(limit)
+	}
+	view := APIUsageLedgerRetentionRunView{
+		Cutoff:         req.Cutoff,
+		TenantID:       req.TenantID,
+		PrincipalID:    req.PrincipalID,
+		Limit:          limit,
+		DryRun:         req.DryRun,
+		ConfirmReady:   req.ConfirmReady,
+		Ready:          readiness.Ready,
+		CandidateCount: readiness.CandidateEventCount,
+		LimitedCount:   limited,
+		Readiness:      readiness,
+	}
+	if req.DryRun || !readiness.Ready || limited == 0 {
+		return view, nil
+	}
+
+	var conditions []string
+	var args []any
+	args = append(args, req.Cutoff)
+	conditions = append(conditions, fmt.Sprintf("event_timestamp < $%d", len(args)))
+	if req.TenantID != "" {
+		args = append(args, req.TenantID)
+		conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", len(args)))
+	}
+	if req.PrincipalID != "" {
+		args = append(args, req.PrincipalID)
+		conditions = append(conditions, fmt.Sprintf("principal_id = $%d", len(args)))
+	}
+	if readiness.CoveringExportBatchCompletedAt != nil {
+		args = append(args, readiness.CoveringExportBatchCompletedAt.UTC())
+		conditions = append(conditions, fmt.Sprintf("recorded_at <= $%d", len(args)))
+	}
+	args = append(args, limit)
+	limitPlaceholder := fmt.Sprintf("$%d", len(args))
+	query := fmt.Sprintf(`
+DELETE FROM api_usage_ledger
+WHERE event_id IN (
+  SELECT event_id
+  FROM api_usage_ledger
+  WHERE %s
+  ORDER BY event_timestamp ASC, event_id ASC
+  LIMIT %s
+)`, strings.Join(conditions, "\n    AND "), limitPlaceholder)
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("run api usage ledger retention: %w", err)
+	}
+	view.DeletedCount, _ = result.RowsAffected()
 	return view, nil
 }
 

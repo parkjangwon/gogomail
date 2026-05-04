@@ -207,8 +207,12 @@ guidance.
   fail-open.
 - Admin API exposes API usage ledger retention readiness so operators can check
   whether non-future cutoff-bound ledger rows are covered by a completed export
-  batch with artifact, manifest digest, and signature evidence before any future
-  archive or purge job is allowed.
+  batch with artifact, manifest digest, and signature evidence before retention
+  is allowed.
+- Admin API exposes bounded API usage ledger retention runs. Destructive runs
+  require `confirm_ready=true`, reuse the readiness gate, and delete only a
+  normalized batch of ready ledger rows, while dry-runs return the same envelope
+  without mutation.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`
