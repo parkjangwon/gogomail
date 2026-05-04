@@ -540,6 +540,7 @@ Implementation order:
 481. Eventstream routing and Redis stream decoding now reject CR/LF-bearing or oversized event names, stream metadata, and payloads before worker fan-out.
 482. IMAP UID assignment event decoding now rejects CR/LF-bearing or oversized message, user, and folder IDs before UID work or mailbox event fan-out.
 483. Push notification `mail.stored` event decoding now rejects CR/LF-bearing or oversized message/user IDs before target resolution or candidate fan-out.
+484. Search indexing `mail.stored` event decoding now rejects oversized message/user IDs and storage paths before stored EML objects are opened.
 
 ## Deferred until backend contracts stabilize
 

@@ -145,6 +145,62 @@ func TestHandlerRejectsUnsupportedSchemaVersion(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsOversizedRequiredFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload Event
+		want    string
+	}{
+		{
+			name: "message id",
+			payload: Event{
+				Event:       "mail.stored",
+				MessageID:   strings.Repeat("m", maxEventIdentityBytes+1),
+				UserID:      "user-1",
+				StoragePath: "messages/msg-1.eml",
+			},
+			want: "message_id",
+		},
+		{
+			name: "user id",
+			payload: Event{
+				Event:       "mail.stored",
+				MessageID:   "msg-1",
+				UserID:      strings.Repeat("u", maxEventIdentityBytes+1),
+				StoragePath: "messages/msg-1.eml",
+			},
+			want: "user_id",
+		},
+		{
+			name: "storage path",
+			payload: Event{
+				Event:       "mail.stored",
+				MessageID:   "msg-1",
+				UserID:      "user-1",
+				StoragePath: strings.Repeat("a", maxEventStoragePathBytes) + ".eml",
+			},
+			want: "storage_path",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewHandler(fakeStore{}, &fakeIndexer{}, HandlerOptions{})
+			err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: mustJSON(t, tt.payload)})
+			if err == nil {
+				t.Fatal("HandleEvent returned nil, want oversized field validation error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %q, want %q", err.Error(), tt.want)
+			}
+		})
+	}
+}
+
 func TestHandlerRejectsAmbiguousStoragePath(t *testing.T) {
 	t.Parallel()
 
