@@ -261,9 +261,10 @@ guidance.
   FCM/APNs SDKs. `docs/webhook-integrations.md` documents the push gateway
   payload, authentication, HTTPS requirement, and queued/failed attempt
   semantics. Malformed resolved targets with blank or CR/LF-bearing device IDs
-  or tokens, or unsupported platforms, are dropped before sink handoff; the
-  webhook sink also bounds and normalizes direct-call payload metadata before
-  JSON serialization.
+  or tokens, oversized device IDs or tokens, or unsupported platforms, are
+  dropped before candidate recording and sink handoff; optional target labels
+  and token suffixes are UTF-8 safely bounded. The webhook sink also bounds and
+  normalizes direct-call payload metadata before JSON serialization.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status, user, platform, device,
   provider status, provider message id, or recent time window.

@@ -2,7 +2,9 @@ package pushnotify
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gogomail/gogomail/internal/maildb"
 )
@@ -60,6 +62,8 @@ func TestDeviceResolverSkipsInvalidTargets(t *testing.T) {
 			{ID: "device-3", Platform: "apns", Token: " "},
 			{ID: "device-4\nbad", Platform: "fcm", Token: "token-4"},
 			{ID: "device-5", Platform: "webpush", Token: "token-5\r\nbad"},
+			{ID: "device-6", Platform: "fcm", Token: strings.Repeat("t", maxPushTargetTokenBytes+1)},
+			{ID: strings.Repeat("d", maxPushTargetIDBytes+1), Platform: "fcm", Token: "token-7"},
 			{ID: "device-4", Platform: "webpush", Token: "token-4"},
 		},
 	}
@@ -74,6 +78,39 @@ func TestDeviceResolverSkipsInvalidTargets(t *testing.T) {
 	}
 	if targets[0].DeviceID != "device-4" || targets[0].Platform != "webpush" || targets[0].Token != "token-4" {
 		t.Fatalf("target = %+v", targets[0])
+	}
+}
+
+func TestDeviceResolverBoundsOptionalTargetMetadata(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeDeviceRepository{
+		devices: []maildb.PushDevice{{
+			ID:          "device-1",
+			Platform:    "fcm",
+			Token:       "token-1",
+			TokenSuffix: strings.Repeat("s", maxPushTargetLabelBytes) + "\nextra",
+			Label:       strings.Repeat("\u20ac", maxPushTargetLabelBytes),
+		}},
+	}
+	resolver := NewDeviceResolver(repository, 20)
+
+	targets, err := resolver.ResolvePushTargets(context.Background(), Event{UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("ResolvePushTargets returned error: %v", err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("targets = %+v", targets)
+	}
+	target := targets[0]
+	if strings.ContainsAny(target.TokenSuffix+target.Label, "\r\n") {
+		t.Fatalf("target contains line break: %+v", target)
+	}
+	if len(target.TokenSuffix) > maxPushTargetLabelBytes || len(target.Label) > maxPushTargetLabelBytes {
+		t.Fatalf("target suffix/label lengths = %d/%d", len(target.TokenSuffix), len(target.Label))
+	}
+	if !utf8.ValidString(target.Label) {
+		t.Fatalf("label is not valid UTF-8: %q", target.Label)
 	}
 }
 
