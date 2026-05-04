@@ -474,6 +474,8 @@ The platform hardening sprint completed the following:
   storage paths before SMTP transport or message storage access.
 - Delivery `mail.queued` DSN option decoding rejects oversized
   `original_recipient` values before retry/delivery attempt recording.
+- Delivery `mail.queued` decoding rejects oversized recipient and DSN-recipient
+  arrays before normalization, routing, or retry bookkeeping.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
