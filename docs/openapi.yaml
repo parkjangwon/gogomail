@@ -674,6 +674,27 @@ paths:
           $ref: "#/components/responses/APIUsageExportArtifact"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/artifacts/write:
+    post:
+      operationId: writeAdminAPIUsageExportArtifact
+      summary: Write an API usage export artifact object for a batch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/APIUsageExportArtifactWrite"
+      responses:
+        "201":
+          $ref: "#/components/responses/APIUsageExportArtifact"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches/{id}/manifest-digests:
     get:
       operationId: listAdminAPIUsageExportManifestDigests
@@ -2645,6 +2666,18 @@ components:
           type: integer
           format: int64
           minimum: 0
+        metadata:
+          type: object
+          additionalProperties: true
+    APIUsageExportArtifactWrite:
+      type: object
+      properties:
+        object_key:
+          type: string
+          description: Optional relative object key. Defaults to exports/api-usage/{batch_id}.ndjson.
+        storage_backend:
+          type: string
+          default: local
         metadata:
           type: object
           additionalProperties: true
