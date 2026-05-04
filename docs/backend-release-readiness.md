@@ -144,7 +144,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside
   SMTP core and a configured HTTP webhook backend that can be wired into Edge,
-  Inbound, and Submission MTA app boundaries.
+  Inbound, and Submission MTA app boundaries with an optional bounded bearer
+  token.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.
 - DKIM key creation derives the public DNS TXT record from the private key when omitted, reducing operator DNS setup errors while preserving private-key omission from admin list responses.
 - Admin API exposes domain DNS verification for MX, SPF, DMARC, and active DKIM TXT records, and each check is persisted with an audit log entry for domain onboarding traceability before frontend implementation.

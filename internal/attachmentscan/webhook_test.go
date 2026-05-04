@@ -20,6 +20,9 @@ func TestWebhookScannerPostsAttachmentRequest(t *testing.T) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Fatalf("Content-Type = %q, want application/json", r.Header.Get("Content-Type"))
 		}
+		if r.Header.Get("Authorization") != "Bearer secret-token" {
+			t.Fatalf("Authorization = %q, want bearer token", r.Header.Get("Authorization"))
+		}
 		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
@@ -27,7 +30,7 @@ func TestWebhookScannerPostsAttachmentRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Token: " secret-token ", Client: server.Client()})
 	if err != nil {
 		t.Fatalf("NewWebhookScanner returned error: %v", err)
 	}

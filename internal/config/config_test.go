@@ -44,6 +44,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "")
@@ -185,6 +186,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AttachmentScanWebhookURL != "" {
 		t.Fatalf("AttachmentScanWebhookURL = %q, want empty", cfg.AttachmentScanWebhookURL)
 	}
+	if cfg.AttachmentScanWebhookToken != "" {
+		t.Fatalf("AttachmentScanWebhookToken = %q, want empty", cfg.AttachmentScanWebhookToken)
+	}
 	if cfg.AttachmentScanTimeout != 2*time.Second {
 		t.Fatalf("AttachmentScanTimeout = %s, want 2s", cfg.AttachmentScanTimeout)
 	}
@@ -317,6 +321,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "http://scanner.internal/scan")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "scanner-token")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "https://push.internal/send")
@@ -448,6 +453,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AttachmentScanWebhookURL != "http://scanner.internal/scan" {
 		t.Fatalf("AttachmentScanWebhookURL = %q, want scanner URL", cfg.AttachmentScanWebhookURL)
+	}
+	if cfg.AttachmentScanWebhookToken != "scanner-token" {
+		t.Fatalf("AttachmentScanWebhookToken = %q, want scanner-token", cfg.AttachmentScanWebhookToken)
 	}
 	if cfg.AttachmentScanTimeout != 3*time.Second {
 		t.Fatalf("AttachmentScanTimeout = %s, want 3s", cfg.AttachmentScanTimeout)
