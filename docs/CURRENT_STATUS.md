@@ -173,6 +173,8 @@ guidance.
   or oversized claims during signing and verification before request scoping.
 - Mail API bearer JWT verification now rejects oversized token, header,
   payload, and signature segments before base64 decoding claim data.
+- Mail and Admin API authentication headers now reject oversized `Authorization`
+  and `X-Admin-Token` values before bearer/JWT parsing or token comparison.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

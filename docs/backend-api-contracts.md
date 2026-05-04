@@ -95,6 +95,8 @@ Errors use the stable envelope:
 - Development `user_id` query fallback values are trimmed and reject CR/LF-bearing
   or oversized identifiers before Mail API service dispatch.
 - Admin API uses `Authorization: Bearer <token>` or `X-Admin-Token` when `GOGOMAIL_ADMIN_TOKEN` is configured.
+- Mail/Admin authentication headers are size-bounded before bearer parsing,
+  JWT decoding, or admin-token comparison.
 
 ## Pagination
 

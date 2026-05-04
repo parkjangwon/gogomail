@@ -20,6 +20,7 @@ import (
 
 const (
 	maxJSONBodyBytes       = 1 << 20
+	maxHTTPAuthHeaderBytes = 16 << 10
 	maxHTTPResourceIDBytes = 200
 	maxHTTPQueryBytes      = 1024
 )
@@ -869,7 +870,10 @@ func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 }
 
 func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (auth.Claims, bool) {
-	token := bearerToken(r)
+	token, ok := bearerToken(w, r)
+	if !ok {
+		return auth.Claims{}, false
+	}
 	if token == "" {
 		writeError(w, http.StatusUnauthorized, "bearer token is required")
 		return auth.Claims{}, false
@@ -882,12 +886,16 @@ func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 	return claims, true
 }
 
-func bearerToken(r *http.Request) string {
+func bearerToken(w http.ResponseWriter, r *http.Request) (string, bool) {
 	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
-		return strings.TrimSpace(authHeader[len("bearer "):])
+	if len(authHeader) > maxHTTPAuthHeaderBytes {
+		writeError(w, http.StatusBadRequest, "Authorization is too long")
+		return "", false
 	}
-	return ""
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		return strings.TrimSpace(authHeader[len("bearer "):]), true
+	}
+	return "", true
 }
 
 func contentDispositionAttachment(filename string) string {

@@ -1315,6 +1315,30 @@ func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
 	}
 }
 
+func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	req.Header.Set("Authorization", strings.Repeat("a", maxHTTPAuthHeaderBytes+1))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "" {
+		t.Fatalf("handler should not dispatch oversized auth header, lastUserID = %q", service.lastUserID)
+	}
+}
+
 func TestMailRoutesTrimQueryUserID(t *testing.T) {
 	t.Parallel()
 
