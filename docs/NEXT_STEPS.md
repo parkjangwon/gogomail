@@ -74,11 +74,12 @@ Current state:
   user.
 - `maildb` can hydrate ordered message ID search hits into active
   `MessageSummary` rows.
+- `mailservice` can compose OpenSearch relevance ID hits with Postgres summary
+  hydration when filters/highlights do not require fallback.
 
 Next:
 
-- Compose OpenSearch ID search with Postgres metadata hydration inside
-  `mailservice`.
+- Wire the OpenSearch search source into app configuration for the Mail API.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning
