@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE INDEX idx_messages_search_simple
+CREATE INDEX IF NOT EXISTS idx_messages_search_simple
   ON messages USING GIN (
     to_tsvector(
       'simple',
