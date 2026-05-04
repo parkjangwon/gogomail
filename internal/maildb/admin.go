@@ -303,6 +303,8 @@ type APIUsageLedgerRetentionReadinessView struct {
 }
 
 type APIUsageLedgerRetentionRunView struct {
+	ID             string                               `json:"id"`
+	CreatedAt      time.Time                            `json:"created_at"`
 	Cutoff         time.Time                            `json:"cutoff"`
 	TenantID       string                               `json:"tenant_id,omitempty"`
 	PrincipalID    string                               `json:"principal_id,omitempty"`
@@ -2697,6 +2699,10 @@ func (r *Repository) RunAPIUsageLedgerRetention(ctx context.Context, req APIUsag
 	}
 	req.Cutoff = req.Cutoff.UTC()
 	limit := NormalizeAPIUsageLedgerRetentionLimit(req.Limit)
+	id, err := newAPIUsageLedgerRetentionRunID()
+	if err != nil {
+		return APIUsageLedgerRetentionRunView{}, err
+	}
 
 	readiness, err := r.GetAPIUsageLedgerRetentionReadiness(ctx, APIUsageLedgerRetentionRequest{
 		Cutoff:      req.Cutoff,
@@ -2711,6 +2717,7 @@ func (r *Repository) RunAPIUsageLedgerRetention(ctx context.Context, req APIUsag
 		limited = int64(limit)
 	}
 	view := APIUsageLedgerRetentionRunView{
+		ID:             id,
 		Cutoff:         req.Cutoff,
 		TenantID:       req.TenantID,
 		PrincipalID:    req.PrincipalID,
@@ -2723,6 +2730,9 @@ func (r *Repository) RunAPIUsageLedgerRetention(ctx context.Context, req APIUsag
 		Readiness:      readiness,
 	}
 	if req.DryRun || !readiness.Ready || limited == 0 {
+		if err := r.insertAPIUsageLedgerRetentionRun(ctx, r.db, &view); err != nil {
+			return APIUsageLedgerRetentionRunView{}, err
+		}
 		return view, nil
 	}
 
@@ -2753,12 +2763,70 @@ WHERE event_id IN (
   ORDER BY event_timestamp ASC, event_id ASC
   LIMIT %s
 )`, strings.Join(conditions, "\n    AND "), limitPlaceholder)
-	result, err := r.db.ExecContext(ctx, query, args...)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("begin api usage ledger retention transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("run api usage ledger retention: %w", err)
 	}
 	view.DeletedCount, _ = result.RowsAffected()
+	if err := r.insertAPIUsageLedgerRetentionRun(ctx, tx, &view); err != nil {
+		return APIUsageLedgerRetentionRunView{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("commit api usage ledger retention transaction: %w", err)
+	}
 	return view, nil
+}
+
+func (r *Repository) insertAPIUsageLedgerRetentionRun(ctx context.Context, execer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, view *APIUsageLedgerRetentionRunView) error {
+	readiness, err := json.Marshal(view.Readiness)
+	if err != nil {
+		return fmt.Errorf("marshal api usage ledger retention readiness: %w", err)
+	}
+	const query = `
+INSERT INTO api_usage_ledger_retention_runs (
+  id,
+  cutoff,
+  tenant_id,
+  principal_id,
+  limit_count,
+  dry_run,
+  confirm_ready,
+  ready,
+  candidate_count,
+  limited_count,
+  deleted_count,
+  readiness
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+RETURNING created_at`
+	if err := execer.QueryRowContext(
+		ctx,
+		query,
+		view.ID,
+		view.Cutoff,
+		view.TenantID,
+		view.PrincipalID,
+		view.Limit,
+		view.DryRun,
+		view.ConfirmReady,
+		view.Ready,
+		view.CandidateCount,
+		view.LimitedCount,
+		view.DeletedCount,
+		string(readiness),
+	).Scan(&view.CreatedAt); err != nil {
+		return fmt.Errorf("record api usage ledger retention run: %w", err)
+	}
+	view.CreatedAt = view.CreatedAt.UTC()
+	return nil
 }
 
 func (r *Repository) findAPIUsageLedgerRetentionCoveringBatch(ctx context.Context, req APIUsageLedgerRetentionRequest, firstCandidateAt *time.Time, view *APIUsageLedgerRetentionReadinessView) error {
@@ -3808,6 +3876,14 @@ func newAPIUsageExportBatchID() (string, error) {
 		return "", fmt.Errorf("generate api usage export batch id: %w", err)
 	}
 	return "api-usage-export-" + hex.EncodeToString(random[:]), nil
+}
+
+func newAPIUsageLedgerRetentionRunID() (string, error) {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate api usage ledger retention run id: %w", err)
+	}
+	return "api-usage-retention-" + hex.EncodeToString(random[:]), nil
 }
 
 func newAPIUsageExportArtifactID() (string, error) {

@@ -573,6 +573,9 @@ func TestPostgresRunAPIUsageLedgerRetentionRequiresReadinessAndDeletesBoundedRow
 	if blocked.Ready || blocked.DeletedCount != 0 || blocked.CandidateCount != 3 || blocked.LimitedCount != 2 {
 		t.Fatalf("blocked retention run = %+v", blocked)
 	}
+	if blocked.ID == "" || blocked.CreatedAt.IsZero() {
+		t.Fatalf("blocked retention run audit identity = %+v", blocked)
+	}
 
 	insertPostgresAPIUsageExportEvidence(t, db, now, windowStart, cutoff, 3)
 	dryRun, err := repo.RunAPIUsageLedgerRetention(ctx, APIUsageLedgerRetentionRunRequest{
@@ -589,6 +592,9 @@ func TestPostgresRunAPIUsageLedgerRetentionRequiresReadinessAndDeletesBoundedRow
 	if !dryRun.Ready || dryRun.DeletedCount != 0 || dryRun.CandidateCount != 3 || dryRun.LimitedCount != 2 {
 		t.Fatalf("dry retention run = %+v", dryRun)
 	}
+	if dryRun.ID == "" || dryRun.CreatedAt.IsZero() {
+		t.Fatalf("dry retention run audit identity = %+v", dryRun)
+	}
 
 	run, err := repo.RunAPIUsageLedgerRetention(ctx, APIUsageLedgerRetentionRunRequest{
 		Cutoff:       cutoff,
@@ -604,6 +610,9 @@ func TestPostgresRunAPIUsageLedgerRetentionRequiresReadinessAndDeletesBoundedRow
 	if !run.Ready || run.DeletedCount != 2 || run.CandidateCount != 3 || run.LimitedCount != 2 {
 		t.Fatalf("retention run = %+v", run)
 	}
+	if run.ID == "" || run.CreatedAt.IsZero() {
+		t.Fatalf("retention run audit identity = %+v", run)
+	}
 
 	var oldRemaining, freshRemaining int
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM api_usage_ledger WHERE event_timestamp < $1`, cutoff).Scan(&oldRemaining); err != nil {
@@ -614,6 +623,30 @@ func TestPostgresRunAPIUsageLedgerRetentionRequiresReadinessAndDeletesBoundedRow
 	}
 	if oldRemaining != 1 || freshRemaining != 1 {
 		t.Fatalf("remaining old/fresh = %d/%d, want 1/1", oldRemaining, freshRemaining)
+	}
+
+	var auditRows int
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM api_usage_ledger_retention_runs
+WHERE tenant_id = 'tenant-1' AND principal_id = 'principal-1'`).Scan(&auditRows); err != nil {
+		t.Fatalf("query retention audit row count: %v", err)
+	}
+	if auditRows != 3 {
+		t.Fatalf("retention audit row count = %d, want 3", auditRows)
+	}
+	var deletedCount int64
+	var ready bool
+	var dry bool
+	var readinessCandidateCount int64
+	if err := db.QueryRowContext(ctx, `
+SELECT deleted_count, ready, dry_run, (readiness->>'candidate_event_count')::bigint
+FROM api_usage_ledger_retention_runs
+WHERE id = $1`, run.ID).Scan(&deletedCount, &ready, &dry, &readinessCandidateCount); err != nil {
+		t.Fatalf("query destructive retention audit row: %v", err)
+	}
+	if deletedCount != 2 || !ready || dry || readinessCandidateCount != 3 {
+		t.Fatalf("destructive retention audit row = deleted:%d ready:%v dry:%v candidates:%d", deletedCount, ready, dry, readinessCandidateCount)
 	}
 }
 

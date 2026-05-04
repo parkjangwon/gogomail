@@ -215,7 +215,8 @@ guidance.
   without mutation.
 - Optional PostgreSQL integration coverage verifies retention runs do not delete
   blocked candidates, dry-runs do not mutate ready candidates, and destructive
-  ready runs delete only the requested bounded batch while preserving newer
+  ready runs persist retention-run audit rows, delete only the requested bounded
+  batch, and preserve newer ledger rows.
   ledger rows.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON

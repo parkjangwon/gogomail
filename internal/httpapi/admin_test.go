@@ -1034,6 +1034,8 @@ func TestAdminAPIUsageLedgerRetentionRunHandler(t *testing.T) {
 	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
 	service := &fakeAdminService{
 		apiUsageLedgerRetentionRun: maildb.APIUsageLedgerRetentionRunView{
+			ID:             "api-usage-retention-test",
+			CreatedAt:      cutoff.Add(time.Minute),
 			Cutoff:         cutoff,
 			TenantID:       "tenant-1",
 			PrincipalID:    "principal-1",
@@ -1069,7 +1071,7 @@ func TestAdminAPIUsageLedgerRetentionRunHandler(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if body.Run.DeletedCount != 25 || !body.Run.Ready {
+	if body.Run.ID != "api-usage-retention-test" || body.Run.CreatedAt.IsZero() || body.Run.DeletedCount != 25 || !body.Run.Ready {
 		t.Fatalf("run = %+v", body.Run)
 	}
 	if service.lastAPIUsageLedgerRetentionRun.TenantID != "tenant-1" ||
