@@ -45,6 +45,11 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 	if (intent == ComposeIntentReply || intent == ComposeIntentForward) && strings.TrimSpace(req.SourceMessageID) == "" {
 		return fmt.Errorf("source_message_id is required for %s", intent)
 	}
+	if strings.TrimSpace(req.SourceMessageID) != "" {
+		if err := validateServiceResourceID("source_message_id", req.SourceMessageID); err != nil {
+			return err
+		}
+	}
 	if strings.ContainsAny(req.From, "\r\n") {
 		return fmt.Errorf("from must not contain CR or LF")
 	}

@@ -331,6 +331,23 @@ func TestDeleteDraftNormalizesIDs(t *testing.T) {
 	}
 }
 
+func TestDraftLifecycleRejectsUnsafeDraftID(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if err := service.DeleteDraft(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1)); err == nil {
+		t.Fatal("DeleteDraft accepted oversized draft ID")
+	}
+	if _, err := service.SendDraft(context.Background(), "user-1", "draft-1\r\nbad"); err == nil {
+		t.Fatal("SendDraft accepted newline-bearing draft ID")
+	}
+	if repo.lastSentDraftID != "" {
+		t.Fatalf("repository was called with draft ID %q", repo.lastSentDraftID)
+	}
+}
+
 func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 	t.Parallel()
 

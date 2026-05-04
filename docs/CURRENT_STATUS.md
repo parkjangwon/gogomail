@@ -511,6 +511,9 @@ The platform hardening sprint completed the following:
   send-time attachment-count cap so oversized compose payloads cannot drift
   into draft storage, and from/subject plus recipient display names/emails
   reject CR/LF before draft persistence or outbound header composition.
+- Draft save/delete/send and reply/forward compose validation reject blank,
+  CR/LF-bearing, or oversized draft/source-message identifiers before
+  repository dispatch.
 - Single-message flag, move, and delete service methods trim user/message/flag
   and folder identifiers before repository mutation and IMAP event fan-out, and
   reject blank, CR/LF-bearing, or oversized message/folder identifiers before

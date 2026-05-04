@@ -25,12 +25,22 @@ func ValidateSaveDraftRequest(req SaveDraftRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
+	if strings.TrimSpace(req.DraftID) != "" {
+		if err := validateServiceResourceID("draft_id", req.DraftID); err != nil {
+			return err
+		}
+	}
 	intent, err := NormalizeComposeIntent(string(req.Intent))
 	if err != nil {
 		return err
 	}
 	if (intent == ComposeIntentReply || intent == ComposeIntentForward) && strings.TrimSpace(req.SourceMessageID) == "" {
 		return fmt.Errorf("source_message_id is required for %s", intent)
+	}
+	if strings.TrimSpace(req.SourceMessageID) != "" {
+		if err := validateServiceResourceID("source_message_id", req.SourceMessageID); err != nil {
+			return err
+		}
 	}
 	if strings.ContainsAny(req.From, "\r\n") {
 		return fmt.Errorf("from must not contain CR or LF")
@@ -71,8 +81,5 @@ func ValidateDeleteDraftRequest(userID string, draftID string) error {
 	if strings.TrimSpace(userID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
-	if strings.TrimSpace(draftID) == "" {
-		return fmt.Errorf("draft_id is required")
-	}
-	return nil
+	return validateServiceResourceID("draft_id", draftID)
 }

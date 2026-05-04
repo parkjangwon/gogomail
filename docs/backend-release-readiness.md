@@ -178,6 +178,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   recipient display names/emails before draft persistence or header
   composition, and draft saves enforce the same attachment-count cap as
   immediate sends.
+- Draft save/delete/send and reply/forward compose validation reject blank,
+  CR/LF-bearing, or oversized draft/source-message identifiers before
+  repository dispatch.
 - Single-message flag, move, and delete service methods trim user/message/flag
   and folder identifiers before repository mutation and IMAP event fan-out, and
   reject blank, CR/LF-bearing, or oversized message/folder identifiers before

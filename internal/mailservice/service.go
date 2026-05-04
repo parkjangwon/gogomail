@@ -939,8 +939,8 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 	if userID == "" {
 		return SendTextResult{}, fmt.Errorf("user_id is required")
 	}
-	if draftID == "" {
-		return SendTextResult{}, fmt.Errorf("draft_id is required")
+	if err := validateServiceResourceID("draft_id", draftID); err != nil {
+		return SendTextResult{}, err
 	}
 	repo, ok := s.repository.(DraftSendRepository)
 	if !ok {

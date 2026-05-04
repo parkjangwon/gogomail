@@ -143,6 +143,20 @@ func TestValidateSendTextRequestRequiresReplySourceMessage(t *testing.T) {
 	}
 }
 
+func TestValidateSendTextRequestRejectsUnsafeSourceMessageID(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateSendTextRequest(SendTextRequest{
+		UserID:          "user-1",
+		Intent:          ComposeIntentReply,
+		SourceMessageID: "msg-1\nbad",
+		To:              []outbound.Address{{Email: "user@example.net"}},
+	})
+	if err == nil {
+		t.Fatal("ValidateSendTextRequest accepted unsafe source message ID")
+	}
+}
+
 func TestValidateSendTextRequestAcceptsCcOnlyDraftLikeSend(t *testing.T) {
 	t.Parallel()
 
