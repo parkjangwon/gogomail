@@ -3924,7 +3924,7 @@ func TestAdminDKIMKeysHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/dkim-keys?domain_id=%20domain-1%20&limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/dkim-keys?domain_id=%20domain-1%20&status=active&limit=5", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3937,14 +3937,19 @@ func TestAdminDKIMKeysHandler(t *testing.T) {
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
 	}
+	if service.lastDKIMKeyList.Status != "active" {
+		t.Fatalf("lastDKIMKeyList.Status = %q, want active", service.lastDKIMKeyList.Status)
+	}
 }
 
-func TestAdminDKIMKeysHandlerRejectsUnsafeDomainID(t *testing.T) {
+func TestAdminDKIMKeysHandlerRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 
 	tests := []string{
 		"/admin/v1/dkim-keys?domain_id=domain%0Abad",
 		"/admin/v1/dkim-keys?domain_id=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+		"/admin/v1/dkim-keys?status=revoked",
+		"/admin/v1/dkim-keys?status=active%0Abad",
 	}
 
 	for _, path := range tests {
@@ -3963,8 +3968,8 @@ func TestAdminDKIMKeysHandlerRejectsUnsafeDomainID(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastDomainID != "" {
-				t.Fatalf("lastDomainID = %q", service.lastDomainID)
+			if service.lastDomainID != "" || service.lastDKIMKeyList.Status != "" {
+				t.Fatalf("lastDKIMKeyList = %+v", service.lastDKIMKeyList)
 			}
 		})
 	}
@@ -4608,6 +4613,7 @@ type fakeAdminService struct {
 	lastPushOutcome                             maildb.UpdatePushNotificationOutcomeRequest
 	lastPushNotificationStats                   maildb.PushNotificationStatsRequest
 	lastCreateUser                              maildb.CreateUserRequest
+	lastDKIMKeyList                             maildb.DKIMKeyListRequest
 	lastCreateDKIMKey                           maildb.CreateDKIMKeyInput
 	lastCreateTrustedRelay                      maildb.CreateTrustedRelayRequest
 	lastCreateDeliveryRoute                     maildb.CreateDeliveryRouteRequest
@@ -5104,9 +5110,10 @@ func (f *fakeAdminService) BackfillIMAPMailboxUIDs(_ context.Context, userID str
 	return f.imapUIDBackfill, nil
 }
 
-func (f *fakeAdminService) ListDKIMKeys(_ context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error) {
-	f.lastDomainID = domainID
-	f.lastLimit = limit
+func (f *fakeAdminService) ListDKIMKeys(_ context.Context, req maildb.DKIMKeyListRequest) ([]maildb.DKIMKeyView, error) {
+	f.lastDKIMKeyList = req
+	f.lastDomainID = req.DomainID
+	f.lastLimit = req.Limit
 	return f.dkimKeys, nil
 }
 

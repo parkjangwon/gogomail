@@ -632,6 +632,7 @@ Implementation order:
 572. Admin user read models now expose `password_configured`, giving operators safe visibility into Submission login readiness without returning password hashes.
 573. Admin user listing now supports a bounded `password_configured=true|false` filter, letting operators find Submission-ready or not-yet-configured local users without direct database queries.
 574. Admin user listing now also supports a status filter over `active`, `suspended`, and `disabled`, aligning list triage with the existing user status lifecycle.
+575. Admin DKIM key listing now supports `status=active|inactive`, letting operators inspect current signing keys or retired keys without direct database queries.
 
 ## Deferred until backend contracts stabilize
 

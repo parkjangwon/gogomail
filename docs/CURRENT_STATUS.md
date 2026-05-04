@@ -171,7 +171,8 @@ guidance.
   retention-readiness tenant/principal filters now reject CR/LF-bearing or
   oversized values before service dispatch.
 - Admin user listing, IMAP UID backfill, DKIM key listing, and delivery-route
-  resolution query filters now share the same CR/LF and size boundary checks.
+  resolution query filters now share the same CR/LF and size boundary checks;
+  DKIM key listing can also filter by `active|inactive` status.
 - API usage export batch, artifact, manifest-digest, and signature path
   identifiers now reject blank, CR/LF-bearing, or oversized values before
   service dispatch.

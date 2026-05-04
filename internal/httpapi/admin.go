@@ -104,7 +104,7 @@ type AdminService interface {
 	ResolveDeliveryRoute(ctx context.Context, domain string) (maildb.DeliveryRouteResolveView, error)
 	UpdateDeliveryRouteStatus(ctx context.Context, req maildb.UpdateDeliveryRouteStatusRequest) error
 	DeleteDeliveryRoute(ctx context.Context, id string) error
-	ListDKIMKeys(ctx context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error)
+	ListDKIMKeys(ctx context.Context, req maildb.DKIMKeyListRequest) ([]maildb.DKIMKeyView, error)
 	CreateDKIMKey(ctx context.Context, input maildb.CreateDKIMKeyInput) (string, error)
 	DeactivateDKIMKey(ctx context.Context, id string) error
 	VerifyDKIMKeyDNS(ctx context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error)
@@ -1566,7 +1566,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		keys, err := service.ListDKIMKeys(r.Context(), domainID, limit)
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		listReq := maildb.DKIMKeyListRequest{
+			DomainID: domainID,
+			Status:   status,
+			Limit:    limit,
+		}
+		if err := maildb.ValidateDKIMKeyListRequest(listReq); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		keys, err := service.ListDKIMKeys(r.Context(), listReq)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

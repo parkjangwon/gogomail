@@ -2005,7 +2005,7 @@ func (r *Repository) VerifyDomainDNS(ctx context.Context, id string) (dnscheck.D
 	if err != nil {
 		return dnscheck.DomainReport{}, err
 	}
-	keys, err := r.ListDKIMKeys(ctx, id, 200)
+	keys, err := r.ListDKIMKeys(ctx, DKIMKeyListRequest{DomainID: id, Limit: 200})
 	if err != nil {
 		return dnscheck.DomainReport{}, err
 	}
