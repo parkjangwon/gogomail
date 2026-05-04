@@ -311,6 +311,21 @@ func TestOpenAPIDraftDocumentsAttachmentUploadSizeErrors(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsUploadSessionChecksumHeader(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["PUT /attachments/upload-sessions/{id}/body"]
+	if !ok {
+		t.Fatal("OpenAPI operation PUT /attachments/upload-sessions/{id}/body is missing")
+	}
+	for _, want := range []string{"X-Content-SHA256", "in: header", "^[0-9a-f]{64}$"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("upload session body operation must document checksum header detail %q", want)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	t.Parallel()
 

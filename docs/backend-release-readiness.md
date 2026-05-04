@@ -54,6 +54,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   digests before recording staged bodies.
 - Attachment upload capabilities expose checksum precondition support for
   generated clients.
+- OpenAPI contract tests now lock the upload session body checksum header so
+  generated clients do not lose the integrity precondition.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
 - Optional PostgreSQL integration coverage verifies upload session finalization
