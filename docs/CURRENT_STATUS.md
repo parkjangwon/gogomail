@@ -79,6 +79,9 @@ guidance.
 - OpenSearch relevance queries bound UTF-8 search/filter text and escape
   wildcard metacharacters in sender/subject filters so client-supplied `*` or
   `?` remain literal substring filters.
+- OpenSearch relevance hits now clean bounded message IDs from `_source`/`_id`
+  before Postgres hydration, dropping CR/LF-bearing IDs from external search
+  responses.
 - Shared EML text extraction and attachment metadata are bounded with UTF-8
   boundary preservation; attachment filenames are basename-normalized,
   control-character cleaned, and capped before reaching storage/API/search

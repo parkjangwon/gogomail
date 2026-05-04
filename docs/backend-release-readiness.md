@@ -18,6 +18,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   existing response shape from Postgres summaries. OpenSearch document
   metadata and search/filter text are bounded at UTF-8 boundaries, and wildcard
   metacharacters in sender/subject filters are escaped before submission.
+  Returned hit IDs are cleaned and CR/LF-bearing IDs are dropped before
+  Postgres hydration.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
