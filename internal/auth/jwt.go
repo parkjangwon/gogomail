@@ -119,6 +119,9 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	if claims.UserID == "" {
 		return Claims{}, fmt.Errorf("jwt missing user_id")
 	}
+	if claims.IssuedAt > 0 && claims.IssuedAt > m.now().UTC().Add(time.Minute).Unix() {
+		return Claims{}, fmt.Errorf("jwt issued_at is in the future")
+	}
 	if claims.Expiry <= m.now().UTC().Unix() {
 		return Claims{}, fmt.Errorf("jwt expired")
 	}

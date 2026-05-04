@@ -96,6 +96,26 @@ func TestTokenManagerRejectsBlankJWTIdentity(t *testing.T) {
 	}
 }
 
+func TestTokenManagerRejectsFutureIssuedAt(t *testing.T) {
+	t.Parallel()
+
+	manager, err := NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	now := time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)
+	manager.now = func() time.Time { return now }
+
+	token := signedTestToken(t, manager, map[string]string{"alg": "HS256", "typ": "JWT"}, Claims{
+		UserID:   "user-1",
+		IssuedAt: now.Add(2 * time.Minute).Unix(),
+		Expiry:   now.Add(10 * time.Minute).Unix(),
+	})
+	if _, err := manager.Verify(token); err == nil || !strings.Contains(err.Error(), "jwt issued_at is in the future") {
+		t.Fatalf("Verify error = %v, want future issued_at", err)
+	}
+}
+
 func TestTokenManagerRejectsUnsupportedJWTHeader(t *testing.T) {
 	t.Parallel()
 
