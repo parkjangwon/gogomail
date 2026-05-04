@@ -474,6 +474,7 @@ Implementation order:
 415. Message delivery-status and reply source-thread service lookups now trim user, message, and source-message identifiers before repository work.
 416. Stale attachment-upload cleanup now validates its time window and limit at the service boundary before repository cleanup/object deletion work.
 417. Message, thread, and push-device list service methods now normalize list limits to the documented message-list bounds before repository work.
+418. OpenAPI contract tests now pin the push-device list `limit` query parameter so generated clients keep pagination controls for device management.
 
 ## Deferred until backend contracts stabilize
 
