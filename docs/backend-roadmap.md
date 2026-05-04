@@ -351,6 +351,8 @@ Implementation order:
 293. Admin API now exposes manifest digest create/list/detail and verification endpoints so operators can confirm expected versus actual canonical digest values before handoff.
 294. API usage export batches can now be written as NDJSON artifacts through a vendor-neutral streaming writer that computes byte count and SHA-256 while writing to object storage.
 295. Admin API now exposes server-side export artifact write and download endpoints, with retry-friendly artifact registration and best-effort object cleanup when metadata registration fails.
+296. API usage export artifact writing now streams full saved batch windows without the Admin API list cap, while export ordering indexes support stable `(event_timestamp, event_id)` scans.
+297. Admin API now exposes stored API usage artifact verification, recomputing byte count and SHA-256 from object storage before billing or warehouse handoff.
 
 ## Deferred until backend contracts stabilize
 

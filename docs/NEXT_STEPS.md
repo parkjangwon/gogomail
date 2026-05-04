@@ -264,10 +264,9 @@ Current state:
 - Admin API can register and list external export artifacts for each batch,
   including object key, SHA-256, byte count, event count, and metadata. Artifact
   rows are deduplicated per batch by object key and SHA-256.
-- Admin API can write a bounded API usage export batch to local object storage,
-  register the resulting artifact metadata idempotently, clean up failed
-  registration attempts when the store supports delete, and download stored
-  NDJSON artifacts.
+- Admin API can write a full API usage export batch to local object storage,
+  register the resulting artifact metadata idempotently, clean up failed writes
+  when the store supports delete, and download or verify stored NDJSON artifacts.
 - Admin API can create/list/get canonical export manifest digests and verify a
   stored manifest digest. This gives operators a vendor-neutral integrity check
   over the saved batch plus registered artifact metadata before external
@@ -275,8 +274,8 @@ Current state:
 
 Next:
 
-- Add signing/KMS integration and paginated or partitioned export writing before
-  invoices or hard Open API limits depend on completed export batches.
+- Add signing/KMS integration before invoices or hard Open API limits depend on
+  completed export batches.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 
