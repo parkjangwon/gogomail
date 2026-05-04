@@ -3,10 +3,13 @@ package maildb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/dkim"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 )
@@ -179,6 +182,12 @@ func (r *Repository) CreateDKIMKey(ctx context.Context, input CreateDKIMKeyInput
 		publicKeyDNS = derived
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin dkim key create transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	const query = `
 INSERT INTO dkim_keys (domain_id, selector, private_key_pem, public_key_dns, status)
 VALUES ($1, $2, $3, $4, 'active')
@@ -191,7 +200,7 @@ DO UPDATE SET
 RETURNING id::text`
 
 	var id string
-	if err := r.db.QueryRowContext(
+	if err := tx.QueryRowContext(
 		ctx,
 		query,
 		strings.TrimSpace(input.DomainID),
@@ -200,6 +209,30 @@ RETURNING id::text`
 		publicKeyDNS,
 	).Scan(&id); err != nil {
 		return "", fmt.Errorf("create dkim key: %w", err)
+	}
+	detail, err := dkimKeyAuditDetail(dkimKeyAuditView{
+		ID:                     id,
+		DomainID:               strings.TrimSpace(input.DomainID),
+		Selector:               strings.TrimSpace(input.Selector),
+		Status:                 "active",
+		PublicKeyDNSConfigured: publicKeyDNS != "",
+	})
+	if err != nil {
+		return "", err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		DomainID:   strings.TrimSpace(input.DomainID),
+		Category:   "admin",
+		Action:     "dkim_key.create",
+		TargetType: "dkim_key",
+		TargetID:   id,
+		Result:     "active",
+		Detail:     detail,
+	}); err != nil {
+		return "", fmt.Errorf("record dkim key create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit dkim key create transaction: %w", err)
 	}
 	return id, nil
 }
@@ -269,27 +302,62 @@ WHERE dk.id = $1`
 
 	// Persist a targeted dns check for this key.
 	summaryStatus := string(check.Status)
-	if err := r.db.QueryRowContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("begin dkim dns verification transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var dnsCheckID string
+	if err := tx.QueryRowContext(ctx, `
 INSERT INTO domain_dns_checks (domain_id, status, report)
 VALUES ($1, $2, $3::jsonb)
 RETURNING id::text`,
 		domainDBID, summaryStatus,
 		fmt.Sprintf(`{"domain":%q,"dkim_key_id":%q,"selector":%q,"check":%q}`,
 			domainName, id, selector, summaryStatus),
-	).Scan(new(string)); err != nil {
+	).Scan(&dnsCheckID); err != nil {
 		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("record dkim dns check: %w", err)
 	}
 
 	// On success mark the key as DNS-verified.
 	if check.Status == dnscheck.StatusOK {
 		now := time.Now().UTC()
-		if _, err := r.db.ExecContext(ctx, `
+		if _, err := tx.ExecContext(ctx, `
 UPDATE dkim_keys
 SET dns_verified_at = $2, updated_at = now()
 WHERE id = $1`, id, now); err != nil {
 			return DKIMKeyDNSVerificationResult{}, fmt.Errorf("mark dkim key dns verified: %w", err)
 		}
 		result.VerifiedAt = &now
+	}
+	detail, err := dkimKeyAuditDetail(dkimKeyAuditView{
+		ID:                     id,
+		DomainID:               domainID,
+		Selector:               selector,
+		Status:                 "active",
+		PublicKeyDNSConfigured: publicKeyDNS != "",
+		DNSCheckID:             dnsCheckID,
+		DNSStatus:              summaryStatus,
+		DNSVerified:            result.VerifiedAt != nil,
+	})
+	if err != nil {
+		return DKIMKeyDNSVerificationResult{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  companyID,
+		DomainID:   domainID,
+		Category:   "admin",
+		Action:     "dkim_key.verify_dns",
+		TargetType: "dkim_key",
+		TargetID:   id,
+		Result:     summaryStatus,
+		Detail:     detail,
+	}); err != nil {
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("record dkim dns verification audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("commit dkim dns verification transaction: %w", err)
 	}
 	return result, nil
 }
@@ -298,20 +366,82 @@ func (r *Repository) DeactivateDKIMKey(ctx context.Context, id string) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("dkim key id is required")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin dkim key deactivate transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	const query = `
 UPDATE dkim_keys
 SET status = 'inactive',
     updated_at = now()
-WHERE id = $1`
+WHERE id = $1
+RETURNING id::text, domain_id::text, selector, status, dns_verified_at IS NOT NULL`
 
-	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(id))
-	if err != nil {
+	var view dkimKeyAuditView
+	if err := tx.QueryRowContext(ctx, query, id).Scan(
+		&view.ID,
+		&view.DomainID,
+		&view.Selector,
+		&view.Status,
+		&view.DNSVerified,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("dkim key %q not found", id)
+		}
 		return fmt.Errorf("deactivate dkim key: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("dkim key %q not found", id)
+	detail, err := dkimKeyAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		DomainID:   view.DomainID,
+		Category:   "admin",
+		Action:     "dkim_key.deactivate",
+		TargetType: "dkim_key",
+		TargetID:   view.ID,
+		Result:     view.Status,
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record dkim key deactivate audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit dkim key deactivate transaction: %w", err)
 	}
 	return nil
+}
+
+type dkimKeyAuditView struct {
+	ID                     string
+	DomainID               string
+	Selector               string
+	Status                 string
+	PublicKeyDNSConfigured bool
+	DNSCheckID             string
+	DNSStatus              string
+	DNSVerified            bool
+}
+
+func dkimKeyAuditDetail(view dkimKeyAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"dkim_key_id":               view.ID,
+		"domain_id":                 view.DomainID,
+		"selector":                  view.Selector,
+		"status":                    view.Status,
+		"public_key_dns_configured": view.PublicKeyDNSConfigured,
+		"dns_check_id":              view.DNSCheckID,
+		"dns_status":                view.DNSStatus,
+		"dns_verified":              view.DNSVerified,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal dkim key audit detail: %w", err)
+	}
+	return detail, nil
 }

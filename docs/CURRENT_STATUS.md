@@ -284,6 +284,9 @@ guidance.
 - Delivery route create/status/delete mutations now write hash-chain audit rows
   in the same database transaction as the gateway policy change, excluding
   relay auth secrets from audit detail.
+- DKIM key create/upsert, deactivate, and DNS-verification mutations now write
+  hash-chain audit rows in the same database transaction as the persisted key
+  lifecycle change, without including private key material in audit detail.
 - Admin API exposes a bounded audit-log integrity check that recomputes recent
   row hashes and reports hash or in-window prev-hash breaks without mutating the
   audit trail.
