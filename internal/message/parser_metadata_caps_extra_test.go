@@ -76,6 +76,29 @@ func TestParseEMLWithOptionsPreboundsStructuredHeaderParsing(t *testing.T) {
 	}
 }
 
+func TestParseEMLWithOptionsPreboundsSubjectBeforeDecoding(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: Sender <sender@example.net>",
+		"To: Recipient <recipient@example.com>",
+		"Subject: " + strings.Repeat("s", 256),
+		"",
+		"body",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxMetadataBytes: 32})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if parsed.Subject != "" {
+		t.Fatalf("Subject = %q, want oversized subject skipped before decoding", parsed.Subject)
+	}
+	if !parsed.MetadataTruncated {
+		t.Fatal("MetadataTruncated = false, want true")
+	}
+}
+
 func TestSanitizeHeaderMetadataRemovesControlCharacters(t *testing.T) {
 	t.Parallel()
 
