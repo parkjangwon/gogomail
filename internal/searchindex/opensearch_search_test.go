@@ -62,6 +62,9 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	if len(request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)) < 5 {
 		t.Fatalf("request query did not include filters: %#v", request["query"])
 	}
+	if !queryMustContainsWildcard(request, "from_addr_lc") {
+		t.Fatalf("request query did not include lowercase sender wildcard: %#v", request["query"])
+	}
 	if len(hits[0].Highlights.Subject) != 1 || len(hits[0].Highlights.Body) != 1 {
 		t.Fatalf("highlights = %#v", hits[0].Highlights)
 	}
@@ -87,4 +90,22 @@ func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
 
 func boolSearchPtr(value bool) *bool {
 	return &value
+}
+
+func queryMustContainsWildcard(request map[string]any, field string) bool {
+	must := request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)
+	for _, clause := range must {
+		item, ok := clause.(map[string]any)
+		if !ok {
+			continue
+		}
+		wildcard, ok := item["wildcard"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, ok := wildcard[field]; ok {
+			return true
+		}
+	}
+	return false
 }

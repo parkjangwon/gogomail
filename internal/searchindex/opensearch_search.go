@@ -142,7 +142,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	}
 	if from := strings.TrimSpace(query.From); from != "" {
 		must = append(must, map[string]any{
-			"wildcard": map[string]any{"from_addr": "*" + strings.ToLower(from) + "*"},
+			"wildcard": map[string]any{"from_addr_lc": "*" + strings.ToLower(from) + "*"},
 		})
 	}
 	if subject := strings.TrimSpace(query.Subject); subject != "" {
