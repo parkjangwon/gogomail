@@ -68,10 +68,12 @@ Current state:
   `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`.
 - The OpenSearch writer can bootstrap a strict message index mapping for future
   query adapter work.
+- `search-index-worker` can bootstrap that mapping on startup with
+  `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
 
 Next:
 
-- Expose an operational index-bootstrap path for OpenSearch deployments.
+- Add an OpenSearch query adapter behind the Mail API search contract.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning

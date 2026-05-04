@@ -310,6 +310,7 @@ Implementation order:
 255. `internal/searchindex` now has an OpenSearch writer adapter behind the existing indexing interface, using idempotent document IDs based on gogomail message IDs.
 256. `search-index-worker` can select the OpenSearch writer with explicit endpoint/index configuration while preserving the existing Postgres read-side search contract.
 257. The OpenSearch writer can bootstrap a strict message index mapping for identity fields, tenant/user filters, subject/body text, timestamps, and bounded body metadata.
+258. `search-index-worker` can optionally bootstrap the OpenSearch index mapping on startup through `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
 
 ## Deferred until backend contracts stabilize
 

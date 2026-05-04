@@ -362,7 +362,9 @@ received-message documents to OpenSearch with
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; API read-side search still uses the
 current backend contract until an OpenSearch query adapter is added. The
 OpenSearch writer includes a strict bootstrap mapping for the indexed document
-shape so deployments can create the index before enabling the worker.
+shape so deployments can create the index before enabling the worker, or set
+`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true` to have the worker ensure it
+at startup.
 
 ## Deferred from this contract
 

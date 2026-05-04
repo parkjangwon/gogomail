@@ -65,3 +65,12 @@ func TestValidateRejectsNonpositiveSearchIndexLimits(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadSearchIndexOpenSearchBootstrapSetting(t *testing.T) {
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP", "true")
+
+	cfg := Load()
+	if !cfg.SearchIndexOpenSearchBootstrap {
+		t.Fatal("SearchIndexOpenSearchBootstrap = false, want true")
+	}
+}
