@@ -124,6 +124,9 @@ guidance.
 - `/health/ready` can now include runtime database and Redis dependency probes
   for HTTP modes that use those services, returning `degraded` with HTTP 503
   when a required probe fails.
+- Database readiness now also compares the applied `goose_db_version` against
+  the latest local SQL migration, so stale schemas degrade `/health/ready`
+  instead of passing on connectivity alone.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

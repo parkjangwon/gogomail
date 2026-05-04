@@ -256,6 +256,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Migration file guardrails now require every SQL migration to declare explicit
   goose Up/Down sections, including the legacy API-usage, push, IMAP, and
   audit-index migration range.
+- Runtime database readiness now checks the applied goose migration version
+  against the latest local SQL migration, causing stale schemas to return
+  degraded `/health/ready` status instead of passing on ping alone.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize
