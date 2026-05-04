@@ -77,12 +77,17 @@ Current state:
 - Message, folder, and flag models are IMAP-compatible by design.
 - `internal/imapgw` defines native gateway DTOs, backend interfaces, mailbox
   helpers, and RFC-shaped flag mapping without a TCP listener or DB adapter.
+- `imap_mailbox_state` and `imap_message_uid` migrations define durable
+  UIDVALIDITY, UIDNEXT, mailbox MODSEQ, message UID, and message MODSEQ storage.
+- `maildb` can ensure mailbox UID state and assign stable mailbox-local message
+  UIDs transactionally.
 
 Next:
 
-- Design UID/UIDVALIDITY/UIDNEXT/MODSEQ storage and migrations.
 - Add an adapter from `maildb` read/write models to the `internal/imapgw`
   interfaces.
+- Backfill/assign UIDs for existing mailbox messages before enabling a live
+  IMAP listener.
 - Plan IMAP IDLE support for push-on-connect clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 

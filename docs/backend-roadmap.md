@@ -294,6 +294,8 @@ Implementation order:
 239. Admin API exposes `GET /admin/v1/push-notification-stats`, summarizing active devices and push notification attempt statuses for release operations dashboards.
 240. `mail.stored` event payloads now include `schema_version=2026-05-04.mail-stored.v1`, making the audit/search/push worker event contract explicit and regression-tested.
 241. Audit, search indexing, and push notification consumers now reject unsupported explicit `mail.stored` schema versions while accepting legacy versionless events, reducing silent downstream drift.
+242. IMAP UID storage is now explicit: `imap_mailbox_state` persists UIDVALIDITY, UIDNEXT, and highest MODSEQ, while `imap_message_uid` persists mailbox-local message UID and MODSEQ.
+243. `maildb` can ensure mailbox IMAP UID state and assign stable message UIDs transactionally, preparing an adapter for `internal/imapgw` without starting an IMAP TCP server.
 
 ## Deferred until backend contracts stabilize
 
