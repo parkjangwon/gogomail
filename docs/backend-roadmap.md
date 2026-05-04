@@ -576,6 +576,7 @@ Implementation order:
 517. Admin API now exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff and bounded batch size.
 518. Admin attachment cleanup runs now support `dry_run` previews that return total and batch-limited stale upload candidate counts before destructive cleanup.
 519. Admin API now exposes `POST /admin/v1/attachment-cleanup/candidates` so operators can inspect the bounded stale upload candidate set before running cleanup.
+520. Attachment cleanup candidate previews now include total and batch-limited candidate counts alongside the bounded candidate list.
 
 ## Deferred until backend contracts stabilize
 

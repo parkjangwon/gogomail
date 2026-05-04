@@ -183,7 +183,7 @@ Negative limits are rejected at the HTTP boundary as `bad_request`.
 Operators can also inspect the bounded candidate set with
 `POST /admin/v1/attachment-cleanup/candidates`, which accepts the same cutoff
 and limit body and returns
-`{"attachment_cleanup_candidates":{"candidates":[...],"before":"...","limit":...}}`.
+`{"attachment_cleanup_candidates":{"candidates":[...],"candidate_count":...,"limited_count":...,"before":"...","limit":...}}`.
 
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of

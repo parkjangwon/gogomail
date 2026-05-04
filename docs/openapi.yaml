@@ -3967,12 +3967,20 @@ components:
           format: date-time
     AttachmentCleanupCandidates:
       type: object
-      required: [candidates, before, limit]
+      required: [candidates, candidate_count, limited_count, before, limit]
       properties:
         candidates:
           type: array
           items:
             $ref: "#/components/schemas/AttachmentCleanupCandidate"
+        candidate_count:
+          type: integer
+          minimum: 0
+          description: Total stale uploading attachments matching the cutoff before the preview.
+        limited_count:
+          type: integer
+          minimum: 0
+          description: Number of matching attachments eligible under the normalized batch limit.
         before:
           type: string
           format: date-time
