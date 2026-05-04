@@ -4,10 +4,12 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailservice"
 )
 
 func TestOpenAPIDraftUsesBackendContractVersion(t *testing.T) {
@@ -127,6 +129,25 @@ func TestOpenAPIDraftDocumentsAttachmentStatuses(t *testing.T) {
 	}
 	if strings.Contains(block, "active") {
 		t.Fatal("Attachment schema must not document obsolete status active")
+	}
+}
+
+func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	block := extractOpenAPIComponentBlock(t, string(raw), "schemas", "AttachmentUploadCapabilities")
+	for _, want := range []string{
+		"maximum: " + strconv.FormatInt(mailservice.MaxAttachmentUploadBytes, 10),
+		"maximum: " + strconv.Itoa(mailservice.MaxAttachmentFilenameBytes),
+		"resumable_chunked_uploads",
+	} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("AttachmentUploadCapabilities schema must document %q", want)
+		}
 	}
 }
 

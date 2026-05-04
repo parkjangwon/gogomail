@@ -584,6 +584,7 @@ Implementation order:
 525. Pending attachment upload cancellation now validates user and attachment identifiers at the service boundary, with HTTP regression coverage for unsafe cancel path IDs.
 526. Pending attachment cancellation now clears any draft binding while marking the upload deleted, avoiding stale draft links in deleted attachment rows.
 527. OpenAPI attachment status documentation now matches persisted API values (`uploading`, `stored`, `deleted`) and rejects the obsolete `active` enum in contract tests.
+528. Attachment upload capabilities now lock the runtime byte-limit constants to the HTTP response and OpenAPI schema through regression tests for generated clients.
 
 ## Deferred until backend contracts stabilize
 
