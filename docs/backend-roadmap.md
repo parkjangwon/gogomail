@@ -441,6 +441,7 @@ Implementation order:
 382. OpenAPI now documents attachment download `Content-Disposition` and `Cache-Control: no-store` headers and drift-tests them alongside the binary response media type.
 383. API usage artifact downloads now sanitize stored content type and SHA-256 response headers before streaming export objects, preserving billing handoff integrity without trusting persisted header values blindly.
 384. API usage ledger NDJSON exports, batch replay exports, and stored artifact downloads now return `Cache-Control: no-store`, with OpenAPI drift coverage for generated billing/export clients.
+385. Attachment downloads, API usage NDJSON exports, and stored usage artifact downloads now return `X-Content-Type-Options: nosniff`, with OpenAPI drift coverage to keep browser-facing stream responses from being MIME-sniffed.
 
 ## Deferred until backend contracts stabilize
 

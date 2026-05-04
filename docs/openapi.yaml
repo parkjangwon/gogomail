@@ -308,6 +308,11 @@ paths:
               schema:
                 type: string
                 enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for attachment bytes.
+              schema:
+                type: string
+                enum: [nosniff]
           content:
             application/octet-stream:
               schema:
@@ -1763,6 +1768,11 @@ components:
           schema:
             type: string
             enum: [no-store]
+        X-Content-Type-Options:
+          description: Prevent browser MIME sniffing for NDJSON exports.
+          schema:
+            type: string
+            enum: [nosniff]
       content:
         application/x-ndjson:
           schema:
@@ -1805,6 +1815,11 @@ components:
           schema:
             type: string
             enum: [no-store]
+        X-Content-Type-Options:
+          description: Prevent browser MIME sniffing for NDJSON artifacts.
+          schema:
+            type: string
+            enum: [nosniff]
         X-Gogomail-Artifact-SHA256:
           schema:
             type: string

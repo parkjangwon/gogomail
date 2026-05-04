@@ -574,6 +574,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		w.Header().Set("Content-Type", attachmentContentType(download.Attachment.MIMEType))
 		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Attachment.Filename))
 		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if download.Attachment.Size > 0 {
 			w.Header().Set("Content-Length", strconv.FormatInt(download.Attachment.Size, 10))
 		}
@@ -805,6 +806,7 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 
 func writeNDJSON[T any](w http.ResponseWriter, status int, rows []T) {
 	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	encoder := json.NewEncoder(w)
 	for _, row := range rows {

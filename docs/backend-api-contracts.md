@@ -151,7 +151,9 @@ the `X-Gogomail-Artifact-SHA256` header is emitted only when the stored digest
 is a valid 64-character lowercase/uppercase hexadecimal SHA-256 value. API
 usage ledger NDJSON exports, batch replay exports, and stored artifact
 downloads all return `Cache-Control: no-store` because usage exports are
-sensitive operational/billing data.
+sensitive operational/billing data. Attachment downloads, usage NDJSON exports,
+and stored usage artifact downloads also return `X-Content-Type-Options:
+nosniff` so browsers do not reinterpret streamed bytes as another content type.
 
 ## Push devices
 
