@@ -599,6 +599,7 @@ Implementation order:
 540. Mail API can store a complete upload session body, persist it under session-scoped storage, and record received bytes plus SHA-256 digest without creating the final attachment row.
 541. Upload session finalization converts a ready stored session body into the normal pending attachment row without double-reserving quota and marks the session finalized.
 542. Upload session cancellation now deletes staged session bodies when present, keeping storage cleanup aligned with quota release.
+543. Upload session expiry now deletes staged session bodies when present, keeping worker-driven cleanup aligned with quota release.
 
 ## Deferred until backend contracts stabilize
 

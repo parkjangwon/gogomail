@@ -53,6 +53,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   a ready stored session body without double-reserving quota.
 - Upload session cancellation deletes staged session bodies when present,
   aligning storage cleanup with quota release.
+- Upload session expiry deletes staged session bodies when present, so cleanup
+  workers do not leave abandoned session objects behind.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   including stale resumable session expiry, optional run-once execution for

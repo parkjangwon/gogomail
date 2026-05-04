@@ -660,6 +660,8 @@ The platform hardening sprint completed the following:
 - Upload session cancellation now deletes a staged session body when the
   canceled session has already written one, preventing storage leaks alongside
   quota release.
+- Upload session expiry now also deletes staged session bodies after the
+  repository marks sessions expired and releases quota.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

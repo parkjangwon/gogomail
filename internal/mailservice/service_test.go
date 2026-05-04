@@ -2332,6 +2332,31 @@ func TestExpireAttachmentUploadSessionsDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestExpireAttachmentUploadSessionsDeletesStoredBodies(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	path := "upload-sessions/user-1/session-1/body"
+	if err := store.Put(context.Background(), path, strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	before := time.Now()
+	repo := &fakeRepository{
+		expiredUploadSessions: []maildb.AttachmentUploadSession{{ID: "session-1", UserID: "user-1", StoragePath: path, Status: "expired"}},
+	}
+	service := New(repo, store)
+	sessions, err := service.ExpireAttachmentUploadSessions(context.Background(), before, 7)
+	if err != nil {
+		t.Fatalf("ExpireAttachmentUploadSessions returned error: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "session-1" {
+		t.Fatalf("sessions = %+v", sessions)
+	}
+	if _, err := store.Get(context.Background(), path); err == nil {
+		t.Fatal("stored upload session body still exists after expiry")
+	}
+}
+
 func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	t.Parallel()
 
