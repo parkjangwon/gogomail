@@ -47,6 +47,10 @@ The immutable ledger is exposed through bounded Admin API list, NDJSON export,
 and stats endpoints so billing or warehouse jobs can consume event-level data
 instead of operational aggregates.
 
+Operators can also create persisted export batch manifests over a bounded
+ledger window. A saved batch fixes the filter window and totals, and can be
+replayed as NDJSON by batch ID.
+
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the
 Postgres backend when operators want persisted aggregates.
@@ -59,7 +63,8 @@ Postgres backend when operators want persisted aggregates.
   upserting daily/monthly totals.
 - Aggregates remain operational read models, not a financial ledger. Future
   money movement should use the immutable ledger plus explicit billing batch
-  manifests/checkpoints rather than daily/monthly aggregates alone.
+  manifests/checkpoints and signed/exported artifacts rather than daily/monthly
+  aggregates alone.
 - Route cardinality must stay bounded by stable HTTP route patterns rather than
   raw URLs.
 - Additional plan or product-policy dimensions can be added without changing the

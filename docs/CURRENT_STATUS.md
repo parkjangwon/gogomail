@@ -98,6 +98,9 @@ guidance.
   upserts. Admin API exposes bounded ledger list, NDJSON export, and stats
   endpoints for billing/export preparation while keeping HTTP request handling
   fail-open.
+- API usage exports now have persisted batch manifests/checkpoints. Admin API
+  can create/list/get manifest rows and replay a saved manifest window as NDJSON
+  by batch ID.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -281,6 +284,9 @@ The platform hardening sprint completed the following:
 - API metering Admin API now exposes immutable ledger list/export/stats endpoints
   so future billing and warehouse jobs can consume event-level usage instead of
   operational aggregates.
+- API usage export batch manifests now capture fixed event/request/byte/latency
+  totals for a bounded ledger window, preparing idempotent downstream export
+  workflows.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 
@@ -293,6 +299,6 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add API usage billing batch manifests/checkpoints before using ledger exports
-   for invoices or hard limits.
+5. Add signed export artifacts or external object-storage handoff before using
+   API usage batches for invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.

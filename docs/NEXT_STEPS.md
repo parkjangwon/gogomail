@@ -258,11 +258,14 @@ Current state:
   aggregate read models. Admin API exposes bounded ledger list, NDJSON export,
   and stats endpoints for export sanity checks without making request handling
   synchronous.
+- Admin API can create and list API usage export batch manifests, fetch a saved
+  manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
+  the filtered ledger totals used for downstream billing/warehouse jobs.
 
 Next:
 
-- Add billing batch manifests/checkpoints before ledger exports drive invoices
-  or hard Open API limits.
+- Add signed export artifacts or external object-storage handoff for completed
+  billing batches before invoices or hard Open API limits depend on them.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 

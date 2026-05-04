@@ -357,6 +357,14 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/ledger/stats` returns
   `{ "api_usage_ledger_stats": ... }` with count, byte, latency, and first/last
   event timestamps for export sanity checks.
+- `POST /admin/v1/api-usage/export-batches` creates
+  `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
+  ledger filter window with fixed event/request/byte/latency totals.
+- `GET /admin/v1/api-usage/export-batches` returns
+  `{ "api_usage_export_batches": [...] }`, and
+  `GET /admin/v1/api-usage/export-batches/{id}` returns one saved manifest.
+- `GET /admin/v1/api-usage/export-batches/{id}/export` streams the saved
+  manifest window as NDJSON, making export replay idempotent by batch ID.
 
 Message search starts with a small-deployment Postgres implementation:
 
