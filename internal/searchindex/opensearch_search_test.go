@@ -65,6 +65,9 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	if !queryMustContainsWildcard(request, "from_addr_lc") {
 		t.Fatalf("request query did not include lowercase sender wildcard: %#v", request["query"])
 	}
+	if !queryMustContainsWildcard(request, "subject_lc") {
+		t.Fatalf("request query did not include lowercase subject wildcard: %#v", request["query"])
+	}
 	if len(hits[0].Highlights.Subject) != 1 || len(hits[0].Highlights.Body) != 1 {
 		t.Fatalf("highlights = %#v", hits[0].Highlights)
 	}

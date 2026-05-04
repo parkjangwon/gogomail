@@ -323,6 +323,7 @@ Implementation order:
 268. Search index worker startup logs now include non-secret backend diagnostics, including OpenSearch index name and bootstrap state, so operators can confirm search backend selection from logs without exposing endpoint credentials.
 269. OpenSearch writer/searcher calls now use `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`, giving operators an explicit external backend timeout instead of relying on a hidden adapter default.
 270. OpenSearch documents now include a lower-cased `from_addr_lc` keyword field and sender filters query that field, preserving Postgres-like case-insensitive `from` filtering for relevance searches.
+271. OpenSearch documents now include a lower-cased `subject_lc` keyword field and subject filters query that field, preserving Postgres-like case-insensitive substring filtering while keeping the analyzed subject field for ranking/highlighting.
 
 ## Deferred until backend contracts stabilize
 

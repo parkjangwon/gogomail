@@ -147,7 +147,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	}
 	if subject := strings.TrimSpace(query.Subject); subject != "" {
 		must = append(must, map[string]any{
-			"match": map[string]any{"subject": subject},
+			"wildcard": map[string]any{"subject_lc": "*" + strings.ToLower(subject) + "*"},
 		})
 	}
 	if query.HasAttachment != nil {
