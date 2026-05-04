@@ -3650,9 +3650,21 @@ func (r *Repository) RunAPIUsageLedgerRetention(ctx context.Context, req APIUsag
 		LimitedCount:   limited,
 		Readiness:      readiness,
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("begin api usage ledger retention transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	if req.DryRun || !readiness.Ready || limited == 0 {
-		if err := r.insertAPIUsageLedgerRetentionRun(ctx, r.db, &view); err != nil {
+		if err := r.insertAPIUsageLedgerRetentionRun(ctx, tx, &view); err != nil {
 			return APIUsageLedgerRetentionRunView{}, err
+		}
+		if err := recordAPIUsageLedgerRetentionRunAudit(ctx, tx, view); err != nil {
+			return APIUsageLedgerRetentionRunView{}, err
+		}
+		if err := tx.Commit(); err != nil {
+			return APIUsageLedgerRetentionRunView{}, fmt.Errorf("commit api usage ledger retention transaction: %w", err)
 		}
 		return view, nil
 	}
@@ -3685,12 +3697,6 @@ WHERE event_id IN (
   LIMIT %s
 )`, strings.Join(conditions, "\n    AND "), limitPlaceholder)
 
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("begin api usage ledger retention transaction: %w", err)
-	}
-	defer tx.Rollback()
-
 	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("run api usage ledger retention: %w", err)
@@ -3699,10 +3705,70 @@ WHERE event_id IN (
 	if err := r.insertAPIUsageLedgerRetentionRun(ctx, tx, &view); err != nil {
 		return APIUsageLedgerRetentionRunView{}, err
 	}
+	if err := recordAPIUsageLedgerRetentionRunAudit(ctx, tx, view); err != nil {
+		return APIUsageLedgerRetentionRunView{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("commit api usage ledger retention transaction: %w", err)
 	}
 	return view, nil
+}
+
+func recordAPIUsageLedgerRetentionRunAudit(ctx context.Context, tx *sql.Tx, view APIUsageLedgerRetentionRunView) error {
+	detail, err := apiUsageLedgerRetentionRunAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "api_usage.retention_run",
+		TargetType: "api_usage_ledger_retention_run",
+		TargetID:   view.ID,
+		Result:     apiUsageLedgerRetentionRunAuditResult(view),
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record api usage ledger retention run audit: %w", err)
+	}
+	return nil
+}
+
+func apiUsageLedgerRetentionRunAuditResult(view APIUsageLedgerRetentionRunView) string {
+	switch {
+	case view.DryRun:
+		return "dry_run"
+	case !view.Ready:
+		return "blocked"
+	case view.DeletedCount == 0:
+		return "no_op"
+	default:
+		return "completed"
+	}
+}
+
+func apiUsageLedgerRetentionRunAuditDetail(view APIUsageLedgerRetentionRunView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"run_id":                             view.ID,
+		"cutoff":                             view.Cutoff.UTC().Format(time.RFC3339),
+		"tenant_id":                          view.TenantID,
+		"principal_id":                       view.PrincipalID,
+		"limit":                              view.Limit,
+		"dry_run":                            view.DryRun,
+		"confirm_ready":                      view.ConfirmReady,
+		"ready":                              view.Ready,
+		"candidate_count":                    view.CandidateCount,
+		"limited_count":                      view.LimitedCount,
+		"deleted_count":                      view.DeletedCount,
+		"blocking_reasons":                   view.Readiness.BlockingReasons,
+		"covering_export_batch_id":           view.Readiness.CoveringExportBatchID,
+		"covering_artifact_count":            view.Readiness.CoveringArtifactCount,
+		"covering_manifest_digest_count":     view.Readiness.CoveringManifestDigestCount,
+		"covering_manifest_signature_count":  view.Readiness.CoveringManifestSignatureCount,
+		"covering_export_batch_completed_at": optionalTimeStringPtr(view.Readiness.CoveringExportBatchCompletedAt),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal api usage ledger retention run audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListAPIUsageLedgerRetentionRuns(ctx context.Context, req APIUsageLedgerRetentionRunListRequest) ([]APIUsageLedgerRetentionRunView, error) {

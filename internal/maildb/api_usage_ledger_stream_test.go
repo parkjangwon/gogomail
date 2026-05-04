@@ -3,6 +3,7 @@ package maildb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -69,6 +70,99 @@ func TestAPIUsageLedgerRetentionRunReadsRejectNilDatabase(t *testing.T) {
 	view, err := (&Repository{}).GetAPIUsageLedgerRetentionRun(context.Background(), "api-usage-retention-1")
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("view = %+v err = %v", view, err)
+	}
+}
+
+func TestAPIUsageLedgerRetentionRunAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	detail, err := apiUsageLedgerRetentionRunAuditDetail(APIUsageLedgerRetentionRunView{
+		ID:             "api-usage-retention-1",
+		Cutoff:         time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+		TenantID:       "tenant-1",
+		PrincipalID:    "principal-1",
+		Limit:          100,
+		DryRun:         false,
+		ConfirmReady:   true,
+		Ready:          true,
+		CandidateCount: 200,
+		LimitedCount:   100,
+		DeletedCount:   100,
+		Readiness: APIUsageLedgerRetentionReadinessView{
+			BlockingReasons:                []string{},
+			CoveringExportBatchID:          "batch-1",
+			CoveringExportBatchCompletedAt: &completedAt,
+			CoveringArtifactCount:          1,
+			CoveringManifestDigestCount:    1,
+			CoveringManifestSignatureCount: 1,
+			CandidateRequestCount:          123,
+			CandidateRequestBytes:          456,
+			CandidateResponseBytes:         789,
+			CandidateLatencyMSTotal:        321,
+			CandidateLatencyMSMax:          10,
+			CoveringExportBatchEventCount:  200,
+			CoveringArtifactEventCount:     200,
+		},
+	})
+	if err != nil {
+		t.Fatalf("apiUsageLedgerRetentionRunAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		RunID                          string   `json:"run_id"`
+		Cutoff                         string   `json:"cutoff"`
+		TenantID                       string   `json:"tenant_id"`
+		PrincipalID                    string   `json:"principal_id"`
+		Limit                          int      `json:"limit"`
+		DryRun                         bool     `json:"dry_run"`
+		ConfirmReady                   bool     `json:"confirm_ready"`
+		Ready                          bool     `json:"ready"`
+		CandidateCount                 int64    `json:"candidate_count"`
+		LimitedCount                   int64    `json:"limited_count"`
+		DeletedCount                   int64    `json:"deleted_count"`
+		BlockingReasons                []string `json:"blocking_reasons"`
+		CoveringExportBatchID          string   `json:"covering_export_batch_id"`
+		CoveringManifestSignatureCount int64    `json:"covering_manifest_signature_count"`
+		CoveringExportBatchCompletedAt string   `json:"covering_export_batch_completed_at"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.RunID != "api-usage-retention-1" || got.Cutoff != "2026-05-01T00:00:00Z" || got.TenantID != "tenant-1" || got.PrincipalID != "principal-1" {
+		t.Fatalf("audit detail identity = %+v", got)
+	}
+	if got.Limit != 100 || got.DryRun || !got.ConfirmReady || !got.Ready || got.CandidateCount != 200 || got.LimitedCount != 100 || got.DeletedCount != 100 {
+		t.Fatalf("audit detail run fields = %+v", got)
+	}
+	if got.CoveringExportBatchID != "batch-1" || got.CoveringManifestSignatureCount != 1 || got.CoveringExportBatchCompletedAt != "2026-05-04T12:00:00Z" {
+		t.Fatalf("audit detail evidence = %+v", got)
+	}
+	if strings.Contains(string(detail), "candidate_request_bytes") || strings.Contains(string(detail), "readiness") {
+		t.Fatalf("audit detail leaked full readiness payload: %s", detail)
+	}
+}
+
+func TestAPIUsageLedgerRetentionRunAuditResult(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		view APIUsageLedgerRetentionRunView
+		want string
+	}{
+		{name: "dry run", view: APIUsageLedgerRetentionRunView{DryRun: true}, want: "dry_run"},
+		{name: "blocked", view: APIUsageLedgerRetentionRunView{Ready: false}, want: "blocked"},
+		{name: "no op", view: APIUsageLedgerRetentionRunView{Ready: true}, want: "no_op"},
+		{name: "completed", view: APIUsageLedgerRetentionRunView{Ready: true, DeletedCount: 1}, want: "completed"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := apiUsageLedgerRetentionRunAuditResult(tc.view); got != tc.want {
+				t.Fatalf("result = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

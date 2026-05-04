@@ -156,6 +156,9 @@ guidance.
   hash-chain audit rows in the same transaction as the evidence rows, recording
   bounded digest/signature evidence without copying raw manifests, metadata, or
   full signature material into audit detail.
+- Admin API-usage ledger retention runs now persist hash-chain audit rows in the
+  same transaction as run records and destructive deletes, recording dry-run,
+  blocked, no-op, and completed outcomes with bounded readiness evidence.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

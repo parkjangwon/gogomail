@@ -286,6 +286,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   hash-chain audit rows in the same transaction as the evidence rows, keeping
   canonical digest and signer evidence inspectable without copying raw
   manifests, metadata, or full signature material into audit detail.
+- Admin API-usage ledger retention runs now write hash-chain audit rows in the
+  same transaction as run records and destructive deletes, keeping dry-run,
+  blocked, no-op, and completed retention outcomes inspectable with bounded
+  readiness evidence.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize
