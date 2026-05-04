@@ -27,6 +27,8 @@ type OutgoingMessage struct {
 	ComposeIntent   string
 	SourceMessageID string
 	RFCMessageID    string
+	InReplyTo       string
+	ThreadID        string
 	Subject         string
 	From            outbound.Address
 	To              []outbound.Address
@@ -102,6 +104,12 @@ func (r *Repository) RecordOutgoing(ctx context.Context, msg OutgoingMessage) (s
 	if err := ensureOutgoingSource(ctx, tx, msg.UserID, msg.SourceMessageID); err != nil {
 		return "", err
 	}
+	threadID, inReplyTo, err := outgoingThread(ctx, tx, msg.UserID, msg.SourceMessageID)
+	if err != nil {
+		return "", err
+	}
+	msg.InReplyTo = inReplyTo
+	msg.ThreadID = threadID
 
 	toJSON, err := outboundAddressesJSON(msg.To)
 	if err != nil {
@@ -120,15 +128,15 @@ func (r *Repository) RecordOutgoing(ctx context.Context, msg OutgoingMessage) (s
 INSERT INTO messages (
   tenant_id, domain_id, user_id, folder_id,
   compose_intent, source_message_id,
-  rfc_message_id, subject, from_addr, from_name,
+  rfc_message_id, in_reply_to, thread_id, subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs,
   sent_at, size, has_attachment, storage_path, flags, status
 ) VALUES (
   $1, $2, $3, $4,
   $5, NULLIF($6, '')::uuid,
-  $7, $8, $9, $10,
-  $11::jsonb, $12::jsonb, $13::jsonb,
-  $14, $15, $16, $17, '{"read":true}'::jsonb, 'active'
+  $7, NULLIF($8, ''), NULLIF($9, '')::uuid, $10, $11, $12,
+  $13::jsonb, $14::jsonb, $15::jsonb,
+  $16, $17, $18, $19, '{"read":true}'::jsonb, 'active'
 ) RETURNING id::text`
 
 	var messageID string
@@ -142,6 +150,8 @@ INSERT INTO messages (
 		normalizeOutgoingIntent(msg.ComposeIntent),
 		strings.TrimSpace(msg.SourceMessageID),
 		msg.RFCMessageID,
+		inReplyTo,
+		threadID,
 		msg.Subject,
 		msg.From.Email,
 		msg.From.Name,
@@ -198,6 +208,27 @@ RETURNING id::text`
 	return folderID, nil
 }
 
+func outgoingThread(ctx context.Context, tx *sql.Tx, userID string, sourceMessageID string) (threadID string, inReplyTo string, err error) {
+	sourceMessageID = strings.TrimSpace(sourceMessageID)
+	if sourceMessageID == "" {
+		return "", "", nil
+	}
+	const query = `
+SELECT COALESCE(thread_id, id)::text, COALESCE(rfc_message_id, '')
+FROM messages
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'active'
+LIMIT 1`
+	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(userID), sourceMessageID).Scan(&threadID, &inReplyTo); err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", fmt.Errorf("source message %q not found", sourceMessageID)
+		}
+		return "", "", fmt.Errorf("resolve outgoing thread: %w", err)
+	}
+	return threadID, inReplyTo, nil
+}
+
 func insertOutgoingOutbox(ctx context.Context, tx *sql.Tx, messageID string, msg OutgoingMessage) error {
 	payload, err := outgoingEventPayload(messageID, msg)
 	if err != nil {
@@ -222,6 +253,8 @@ func outgoingEventPayload(messageID string, msg OutgoingMessage) ([]byte, error)
 		"compose_intent":    normalizeOutgoingIntent(msg.ComposeIntent),
 		"source_message_id": strings.TrimSpace(msg.SourceMessageID),
 		"rfc_message_id":    msg.RFCMessageID,
+		"in_reply_to":       msg.InReplyTo,
+		"thread_id":         msg.ThreadID,
 		"company_id":        msg.CompanyID,
 		"domain_id":         msg.DomainID,
 		"user_id":           msg.UserID,

@@ -30,6 +30,8 @@ type ParseOptions struct {
 
 type ParsedMessage struct {
 	MessageID            string
+	InReplyTo            string
+	References           []string
 	Subject              string
 	From                 Address
 	To                   []Address
@@ -63,6 +65,8 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	} else {
 		parsed.MessageID = normalizeMessageID(parsed.MessageID)
 	}
+	parsed.InReplyTo = firstMessageID(reader.Header, "In-Reply-To")
+	parsed.References = messageIDList(reader.Header, "References")
 	if parsed.Subject, err = reader.Header.Subject(); err != nil {
 		parsed.Subject = ""
 	}
@@ -110,6 +114,29 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	}
 
 	return parsed, nil
+}
+
+func firstMessageID(header gomail.Header, key string) string {
+	ids := messageIDList(header, key)
+	if len(ids) == 0 {
+		return ""
+	}
+	return ids[len(ids)-1]
+}
+
+func messageIDList(header gomail.Header, key string) []string {
+	ids, err := header.MsgIDList(key)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = normalizeMessageID(id)
+		if id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func normalizeParseOptions(opts ParseOptions) ParseOptions {

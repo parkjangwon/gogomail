@@ -23,11 +23,13 @@ Current state:
 - Messages store `thread_id`, `in_reply_to`, `rfc_message_id`.
 - Thread aggregation APIs exist for `GET /api/v1/threads` and
   `GET /api/v1/threads/{id}/messages`.
+- New inbound and reply/forward outbound rows inherit thread IDs from local
+  `References`/`In-Reply-To`/source messages.
 - No full-text search API exists yet.
 
 Next:
 
-- Assign `thread_id` on receive/send using RFC `References` and `In-Reply-To`.
+- Add outbound RFC `In-Reply-To`/`References` headers to composed reply mail.
 - Evaluate Postgres full-text search vs OpenSearch for subject/body search.
 - Add search endpoints and an indexing boundary.
 

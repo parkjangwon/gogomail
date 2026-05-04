@@ -223,6 +223,10 @@ Thread summaries use `COALESCE(thread_id, id)` so legacy/unthreaded messages
 still appear as single-message threads. Thread message lists are scoped by the
 authenticated/fallback user id and returned in chronological order for webmail
 conversation rendering.
+Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
+attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
+outbound messages inherit the source message thread when `source_message_id` is
+present, preserving conversation grouping without exposing cross-user messages.
 
 ## Deferred from this contract
 

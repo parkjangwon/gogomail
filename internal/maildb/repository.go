@@ -86,6 +86,10 @@ func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) erro
 	if err != nil {
 		return err
 	}
+	threadID, err := r.resolveThreadID(ctx, tx, msg.Mailbox.UserID, threadCandidates(msg.Parsed.InReplyTo, msg.Parsed.References))
+	if err != nil {
+		return err
+	}
 
 	const insert = `
 INSERT INTO messages (
@@ -94,6 +98,8 @@ INSERT INTO messages (
   user_id,
   folder_id,
   rfc_message_id,
+  in_reply_to,
+  thread_id,
   subject,
   from_addr,
   from_name,
@@ -106,9 +112,9 @@ INSERT INTO messages (
   storage_path,
   status
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8,
-  $9::jsonb, $10::jsonb, $11::jsonb,
-  $12, $13, $14, $15, 'active'
+  $1, $2, $3, $4, $5, $6, NULLIF($7, '')::uuid, $8, $9, $10,
+  $11::jsonb, $12::jsonb, $13::jsonb,
+  $14, $15, $16, $17, 'active'
 ) RETURNING id::text`
 
 	var insertedMessageID string
@@ -120,6 +126,8 @@ INSERT INTO messages (
 		msg.Mailbox.UserID,
 		folderID,
 		emptyToNull(msg.Parsed.MessageID),
+		emptyToNull(msg.Parsed.InReplyTo),
+		threadID,
 		msg.Parsed.Subject,
 		msg.Parsed.From.Address,
 		msg.Parsed.From.Name,
@@ -180,11 +188,69 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 	return nil
 }
 
+func (r *Repository) resolveThreadID(ctx context.Context, tx *sql.Tx, userID string, candidates []string) (string, error) {
+	candidates = normalizeThreadCandidates(candidates)
+	if len(candidates) == 0 {
+		return "", nil
+	}
+	const query = `
+SELECT COALESCE(thread_id, id)::text
+FROM messages
+WHERE user_id = $1
+  AND rfc_message_id = ANY($2)
+ORDER BY array_position($2, rfc_message_id)
+LIMIT 1`
+
+	var threadID string
+	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(userID), stringArray(candidates)).Scan(&threadID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", fmt.Errorf("resolve message thread: %w", err)
+	}
+	return threadID, nil
+}
+
+func threadCandidates(inReplyTo string, references []string) []string {
+	candidates := make([]string, 0, len(references)+1)
+	candidates = append(candidates, references...)
+	if strings.TrimSpace(inReplyTo) != "" {
+		candidates = append(candidates, inReplyTo)
+	}
+	return candidates
+}
+
+func normalizeThreadCandidates(candidates []string) []string {
+	seen := make(map[string]struct{}, len(candidates))
+	out := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if !strings.HasPrefix(candidate, "<") {
+			candidate = "<" + candidate
+		}
+		if !strings.HasSuffix(candidate, ">") {
+			candidate += ">"
+		}
+		key := strings.ToLower(candidate)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, candidate)
+	}
+	return out
+}
+
 func storedEventPayload(messageID string, msg smtpd.ReceivedMessage) ([]byte, error) {
 	payload := map[string]any{
 		"event":                  "mail.stored",
 		"message_id":             messageID,
 		"rfc_message_id":         msg.Parsed.MessageID,
+		"in_reply_to":            msg.Parsed.InReplyTo,
+		"references":             append([]string(nil), msg.Parsed.References...),
 		"company_id":             msg.Mailbox.CompanyID,
 		"domain_id":              msg.Mailbox.DomainID,
 		"user_id":                msg.Mailbox.UserID,

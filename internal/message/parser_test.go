@@ -49,6 +49,32 @@ func TestParseEMLExtractsRFC5322MetadataAndTextBody(t *testing.T) {
 	}
 }
 
+func TestParseEMLReadsThreadHeaders(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"Message-ID: <reply@example.com>",
+		"In-Reply-To: <parent@example.com>",
+		"References: <root@example.com> <parent@example.com>",
+		"From: sender@example.net",
+		"To: rcpt@example.com",
+		"Subject: Re: hello",
+		"",
+		"body",
+	}, "\r\n")
+
+	parsed, err := ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if parsed.InReplyTo != "<parent@example.com>" {
+		t.Fatalf("InReplyTo = %q", parsed.InReplyTo)
+	}
+	if got := strings.Join(parsed.References, ","); got != "<root@example.com>,<parent@example.com>" {
+		t.Fatalf("References = %q", got)
+	}
+}
+
 func TestParseEMLDetectsAttachments(t *testing.T) {
 	t.Parallel()
 
