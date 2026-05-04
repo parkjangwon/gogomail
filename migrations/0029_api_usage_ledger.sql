@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_ledger (
   event_id text PRIMARY KEY,
   schema_version text NOT NULL,
@@ -30,3 +31,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_tenant_timestamp
 CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_principal_timestamp
   ON api_usage_ledger (principal_id, event_timestamp DESC)
   WHERE principal_id <> '';
+
+-- +goose Down

@@ -444,6 +444,10 @@ guidance.
 - Bounce DSN generation now honors `RET=HDRS` when the delivery event carries a
   safe original message storage path, reading bounded original EML headers and
   attaching them as sanitized `text/rfc822-headers` content.
+- Migration guardrails now require every SQL migration to declare explicit
+  goose Up/Down sections, and legacy API-usage, push, IMAP, and audit-index
+  migrations have been normalized to that structure without changing their
+  applied SQL.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests. Path parameters, Mail search/Admin query filters,
   request schemas, response envelopes, and status enums are contract-tested for

@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS api_usage_ledger_retention_runs (
   id text PRIMARY KEY,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -30,3 +31,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_retention_runs_tenant_created_at
 CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_retention_runs_principal_created_at
   ON api_usage_ledger_retention_runs (principal_id, created_at DESC)
   WHERE principal_id <> '';
+
+-- +goose Down

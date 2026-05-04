@@ -1,3 +1,4 @@
+-- +goose Up
 ALTER TABLE api_usage_events
   ADD COLUMN IF NOT EXISTS tenant_id text NOT NULL DEFAULT '',
   ADD COLUMN IF NOT EXISTS company_id text NOT NULL DEFAULT '',
@@ -29,3 +30,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_events_principal_timestamp
 CREATE INDEX IF NOT EXISTS idx_api_usage_events_tenant_timestamp
   ON api_usage_events (tenant_id, event_timestamp DESC)
   WHERE tenant_id <> '';
+
+-- +goose Down

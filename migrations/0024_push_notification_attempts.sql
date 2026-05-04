@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS push_notification_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id uuid NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
@@ -27,3 +28,5 @@ CREATE INDEX IF NOT EXISTS idx_push_notification_attempts_message_time
 
 CREATE INDEX IF NOT EXISTS idx_push_notification_attempts_device_time
   ON push_notification_attempts (device_id, attempted_at DESC);
+
+-- +goose Down

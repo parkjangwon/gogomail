@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS imap_mailbox_state (
   mailbox_id uuid PRIMARY KEY REFERENCES folders(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -32,3 +33,5 @@ CREATE INDEX IF NOT EXISTS idx_imap_message_uid_mailbox_uid
 
 CREATE INDEX IF NOT EXISTS idx_imap_message_uid_user_mailbox_modseq
   ON imap_message_uid (user_id, mailbox_id, modseq);
+
+-- +goose Down

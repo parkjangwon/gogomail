@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS push_devices (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -15,3 +16,5 @@ CREATE TABLE IF NOT EXISTS push_devices (
 
 CREATE INDEX IF NOT EXISTS idx_push_devices_user_status
   ON push_devices (user_id, status, updated_at DESC);
+
+-- +goose Down

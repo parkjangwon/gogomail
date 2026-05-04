@@ -1,3 +1,4 @@
+-- +goose Up
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -63,3 +64,5 @@ BEGIN
       CHECK (jsonb_typeof(manifest) = 'object');
   END IF;
 END $$;
+
+-- +goose Down

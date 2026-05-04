@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_export_order
   ON api_usage_ledger (event_timestamp DESC, event_id DESC);
 
@@ -8,3 +9,5 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_tenant_export_order
 CREATE INDEX IF NOT EXISTS idx_api_usage_ledger_principal_export_order
   ON api_usage_ledger (principal_id, event_timestamp DESC, event_id DESC)
   WHERE principal_id <> '';
+
+-- +goose Down

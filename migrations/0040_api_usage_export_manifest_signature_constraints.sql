@@ -1,3 +1,4 @@
+-- +goose Up
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -63,3 +64,5 @@ BEGIN
       CHECK (signature_hex ~ '^[0-9a-f]{64}$');
   END IF;
 END $$;
+
+-- +goose Down
