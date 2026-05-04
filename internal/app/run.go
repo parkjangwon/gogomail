@@ -1205,8 +1205,13 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		defer db.Close()
 		readinessChecks = append(readinessChecks, databaseReadinessCheck("mail_database", db, cfg.MigrationDir))
 
+		store, err := localStoreForConfig(cfg)
+		if err != nil {
+			return err
+		}
+		readinessChecks = append(readinessChecks, storageReadinessCheck("mail_storage", store))
 		repository := maildb.NewRepository(db)
-		service := mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot))
+		service := mailservice.New(repository, store)
 		searchIDSource, err := searchIDSourceForConfig(cfg)
 		if err != nil {
 			return err
@@ -1244,16 +1249,21 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			pressure = backpressure.NewRedisBackpressure(redisClient, backpressure.DefaultStateKey)
 		}
 
+		store, err := localStoreForConfig(cfg)
+		if err != nil {
+			return err
+		}
+		readinessChecks = append(readinessChecks, storageReadinessCheck("admin_storage", store))
 		repository := maildb.NewRepository(db)
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,
 			backpressure:                pressure,
 			audit:                       audit.NewPostgresRepository(db),
-			exportStore:                 storage.NewLocalStore(cfg.MailstoreRoot),
+			exportStore:                 store,
 			exportManifestSigner:        apiUsageExportManifestSigner(cfg),
 			exportManifestSignerBackend: cfg.APIUsageExportManifestSignerBackend,
 			exportManifestVerifier:      apiUsageExportManifestVerifier(cfg),
-			attachmentCleanup:           mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot)),
+			attachmentCleanup:           mailservice.New(repository, store),
 		}, cfg.AdminToken)
 		logger.Info("admin api routes registered")
 	}
@@ -1302,6 +1312,31 @@ func modeIncludesMailAPI(mode Mode) bool {
 
 func modeIncludesAdminAPI(mode Mode) bool {
 	return mode == ModeAdminAPI || mode == ModeAllInOne
+}
+
+func localStoreForConfig(cfg config.Config) (*storage.LocalStore, error) {
+	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
+	if backend == "" {
+		backend = "local"
+	}
+	if backend != "local" {
+		return nil, fmt.Errorf("unsupported storage backend %q", cfg.StorageBackend)
+	}
+	return storage.NewLocalStore(cfg.MailstoreRoot), nil
+}
+
+func storageReadinessCheck(name string, store interface {
+	Check(context.Context) error
+}) httpapi.ReadinessCheckFunc {
+	return func(ctx context.Context) httpapi.ReadinessCheck {
+		if store == nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: "storage is not configured"}
+		}
+		if err := store.Check(ctx); err != nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
+		}
+		return httpapi.ReadinessCheck{Name: name, Status: "ok", Detail: "probe ok"}
+	}
 }
 
 func databaseReadinessCheck(name string, db *sql.DB, migrationDir string) httpapi.ReadinessCheckFunc {

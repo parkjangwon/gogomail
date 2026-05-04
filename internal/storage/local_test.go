@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -37,6 +39,29 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	}
 	if _, err := store.Get(ctx, path); err == nil {
 		t.Fatal("Get succeeded after Delete")
+	}
+}
+
+func TestLocalStoreCheckProbesWritableStorage(t *testing.T) {
+	t.Parallel()
+
+	store := NewLocalStore(t.TempDir())
+	if err := store.Check(context.Background()); err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+}
+
+func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	blockingFile := filepath.Join(root, "mailstore-file")
+	if err := os.WriteFile(blockingFile, []byte("not a directory"), 0o644); err != nil {
+		t.Fatalf("write blocking file: %v", err)
+	}
+	store := NewLocalStore(blockingFile)
+	if err := store.Check(context.Background()); err == nil || !strings.Contains(err.Error(), "write readiness probe") {
+		t.Fatalf("Check err = %v", err)
 	}
 }
 

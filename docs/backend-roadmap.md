@@ -672,6 +672,7 @@ Implementation order:
 612. Admin API-usage export artifact creation/upsert now persists a hash-chain audit row in the same transaction as artifact persistence, recording object key, storage backend, content type, byte/event counts, and SHA-256 digest evidence.
 613. Admin API-usage export manifest digest and signature creation now persist hash-chain audit rows in the same transaction as the evidence rows, recording bounded digest/signature evidence without copying raw manifests, metadata, or full signature material.
 614. Admin API-usage ledger retention runs now persist hash-chain audit rows in the same transaction as run records and destructive deletes, recording dry-run, blocked, no-op, and completed outcomes with bounded readiness evidence.
+615. Mail/Admin HTTP readiness now probes local storage with a write/read/delete cycle and rejects unsupported HTTP storage backends at startup instead of silently wiring local storage.
 
 ## Deferred until backend contracts stabilize
 

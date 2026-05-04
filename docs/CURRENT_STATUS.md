@@ -127,6 +127,9 @@ guidance.
 - Database readiness now also compares the applied `goose_db_version` against
   the latest local SQL migration, so stale schemas degrade `/health/ready`
   instead of passing on connectivity alone.
+- Mail/Admin HTTP readiness now probes local storage with a write/read/delete
+  cycle, and unsupported HTTP storage backends fail fast instead of silently
+  using local storage wiring.
 - Admin backpressure overrides now persist bounded hash-chain audit rows after
   Redis state changes, recording previous/current SMTP pressure levels without
   silently accepting unaudited operational receive throttles.
