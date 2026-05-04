@@ -201,6 +201,8 @@ guidance.
 - DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses (RFC 6531 compliance fix).
+- DSN composition supports an optional sanitized `text/rfc822-headers` returned
+  header part, preparing RFC 3464 `RET=HDRS` wiring without header injection.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests. Path parameters, Admin query filters,
   request schemas, response envelopes, and status enums are contract-tested for
