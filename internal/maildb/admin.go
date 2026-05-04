@@ -110,6 +110,18 @@ type QueueStat struct {
 	Count  int64  `json:"count"`
 }
 
+type QuotaUsageView struct {
+	Scope      string    `json:"scope"`
+	ID         string    `json:"id"`
+	DomainID   string    `json:"domain_id,omitempty"`
+	Name       string    `json:"name"`
+	QuotaUsed  int64     `json:"quota_used"`
+	QuotaLimit int64     `json:"quota_limit"`
+	UsageRatio float64   `json:"usage_ratio"`
+	OverLimit  bool      `json:"over_limit"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
@@ -992,6 +1004,81 @@ ORDER BY topic, status`
 		return nil, fmt.Errorf("iterate queue stats: %w", err)
 	}
 	return stats, nil
+}
+
+func (r *Repository) ListQuotaUsage(ctx context.Context, limit int) ([]QuotaUsageView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT scope, id, domain_id, name, quota_used, quota_limit, updated_at
+FROM (
+  SELECT
+    'domain' AS scope,
+    id::text AS id,
+    id::text AS domain_id,
+    name AS name,
+    quota_used,
+    quota_limit,
+    updated_at
+  FROM domains
+  WHERE quota_limit IS NOT NULL AND quota_limit > 0
+  UNION ALL
+  SELECT
+    'user' AS scope,
+    users.id::text AS id,
+    users.domain_id::text AS domain_id,
+    users.username || '@' || domains.name_ace AS name,
+    users.quota_used,
+    users.quota_limit,
+    users.updated_at
+  FROM users
+  JOIN domains ON domains.id = users.domain_id
+  WHERE users.quota_limit IS NOT NULL AND users.quota_limit > 0
+) usage
+ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list quota usage: %w", err)
+	}
+	defer rows.Close()
+
+	var usages []QuotaUsageView
+	for rows.Next() {
+		var usage QuotaUsageView
+		if err := rows.Scan(
+			&usage.Scope,
+			&usage.ID,
+			&usage.DomainID,
+			&usage.Name,
+			&usage.QuotaUsed,
+			&usage.QuotaLimit,
+			&usage.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan quota usage: %w", err)
+		}
+		usage.UsageRatio = quotaUsageRatio(usage.QuotaUsed, usage.QuotaLimit)
+		usage.OverLimit = usage.QuotaLimit > 0 && usage.QuotaUsed >= usage.QuotaLimit
+		usages = append(usages, usage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate quota usage: %w", err)
+	}
+	return usages, nil
+}
+
+func quotaUsageRatio(used int64, limit int64) float64 {
+	if limit <= 0 {
+		return 0
+	}
+	if used <= 0 {
+		return 0
+	}
+	return float64(used) / float64(limit)
 }
 
 func (r *Repository) ListDeliveryAttempts(ctx context.Context, limit int) ([]DeliveryAttemptView, error) {

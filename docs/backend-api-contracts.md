@@ -117,6 +117,7 @@ Admin domain/user CRUD includes list, detail, create, status update, and quota u
 Admin operational read models also keep explicit envelope keys:
 
 - `GET /admin/v1/queue` returns `{"queues":[...]}`
+- `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
@@ -158,6 +159,8 @@ Domain onboarding and deliverability checks include DNS verification:
 
 The response is wrapped as `{"dns_check":{...}}` and reports MX, SPF, DMARC,
 and active DKIM TXT status values as `ok`, `missing`, `mismatch`, or `error`.
+Each run persists the report for operational audit and records an admin audit
+log entry with the summarized status.
 
 ## Deferred from this contract
 

@@ -290,6 +290,17 @@ paths:
           $ref: "#/components/responses/QueueStats"
         default:
           $ref: "#/components/responses/Error"
+  /quota-usage:
+    get:
+      operationId: listAdminQuotaUsage
+      summary: Admin domain and user quota usage pressure list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaUsageList"
+        default:
+          $ref: "#/components/responses/Error"
   /delivery-attempts:
     get:
       operationId: listAdminDeliveryAttempts
@@ -679,6 +690,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QueueStatsEnvelope"
+    QuotaUsageList:
+      description: Quota usage pressure list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaUsageListEnvelope"
     DeliveryAttempts:
       description: Delivery attempts envelope
       content:
@@ -1166,6 +1183,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QueueStat"
+    QuotaUsage:
+      type: object
+      required: [scope, id, name, quota_used, quota_limit, usage_ratio, over_limit, updated_at]
+      properties:
+        scope:
+          type: string
+          enum: [domain, user]
+        id:
+          type: string
+        domain_id:
+          type: string
+        name:
+          type: string
+        quota_used:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 1
+        usage_ratio:
+          type: number
+          format: double
+          minimum: 0
+        over_limit:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+    QuotaUsageListEnvelope:
+      type: object
+      required: [quota_usage]
+      properties:
+        quota_usage:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaUsage"
     DeliveryAttempt:
       type: object
       required: [id, message_id, rfc_message_id, farm, recipient, recipient_domain, status, error_message, attempted_at]

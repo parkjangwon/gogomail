@@ -24,6 +24,7 @@ type AdminService interface {
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
+	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	ListDeliveryAttempts(ctx context.Context, limit int) ([]maildb.DeliveryAttemptView, error)
 	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
 	ListTrustedRelays(ctx context.Context, limit int) ([]maildb.TrustedRelayView, error)
@@ -212,6 +213,19 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/quota-usage", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		usages, err := service.ListQuotaUsage(r.Context(), limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"quota_usage": usages})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

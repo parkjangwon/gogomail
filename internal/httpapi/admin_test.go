@@ -41,6 +41,44 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 }
 
+func TestAdminQuotaUsageHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		quotaUsage: []maildb.QuotaUsageView{{
+			Scope:      "domain",
+			ID:         "domain-1",
+			DomainID:   "domain-1",
+			Name:       "example.com",
+			QuotaUsed:  900,
+			QuotaLimit: 1000,
+			UsageRatio: 0.9,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/quota-usage?limit=5", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		QuotaUsage []maildb.QuotaUsageView `json:"quota_usage"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.QuotaUsage) != 1 || body.QuotaUsage[0].Name != "example.com" {
+		t.Fatalf("quota_usage = %+v", body.QuotaUsage)
+	}
+	if service.lastLimit != 5 {
+		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+}
+
 func TestAdminAuthAcceptsBearerToken(t *testing.T) {
 	t.Parallel()
 
@@ -740,6 +778,7 @@ type fakeAdminService struct {
 	dnsReport                 dnscheck.DomainReport
 	users                     []maildb.UserView
 	queueStats                []maildb.QueueStat
+	quotaUsage                []maildb.QuotaUsageView
 	attempts                  []maildb.DeliveryAttemptView
 	suppression               []maildb.SuppressionEntry
 	trustedRelays             []maildb.TrustedRelayView
@@ -834,6 +873,11 @@ func (f *fakeAdminService) UpdateUserQuota(_ context.Context, req maildb.UpdateU
 
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {
 	return f.queueStats, nil
+}
+
+func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maildb.QuotaUsageView, error) {
+	f.lastLimit = limit
+	return f.quotaUsage, nil
 }
 
 func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {
