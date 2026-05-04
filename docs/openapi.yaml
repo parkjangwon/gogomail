@@ -563,20 +563,7 @@ paths:
                 required: [dkim_verification]
                 properties:
                   dkim_verification:
-                    type: object
-                    required: [key_id, domain_id, selector, check]
-                    properties:
-                      key_id:
-                        type: string
-                      domain_id:
-                        type: string
-                      selector:
-                        type: string
-                      check:
-                        type: object
-                      verified_at:
-                        type: string
-                        format: date-time
+                    $ref: "#/components/schemas/DKIMKeyDNSVerification"
         default:
           $ref: "#/components/responses/Error"
   /outbox/{id}/retry:
@@ -1521,6 +1508,7 @@ components:
           type: string
         status:
           type: string
+          enum: [delivered, failed, bounced, exhausted]
         error_message:
           type: string
         attempted_at:
@@ -1531,6 +1519,14 @@ components:
       required: [delivery_attempts]
       properties:
         delivery_attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryAttempt"
+    ExhaustedAttemptsEnvelope:
+      type: object
+      required: [exhausted_attempts]
+      properties:
+        exhausted_attempts:
           type: array
           items:
             $ref: "#/components/schemas/DeliveryAttempt"
@@ -1677,10 +1673,30 @@ components:
           type: string
         status:
           type: string
+          enum: [active, inactive]
+        dns_verified_at:
+          type: string
+          format: date-time
+          description: Set when the DKIM public key has been confirmed in DNS.
         created_at:
           type: string
           format: date-time
         updated_at:
+          type: string
+          format: date-time
+    DKIMKeyDNSVerification:
+      type: object
+      required: [key_id, domain_id, selector, check]
+      properties:
+        key_id:
+          type: string
+        domain_id:
+          type: string
+        selector:
+          type: string
+        check:
+          $ref: "#/components/schemas/DNSRecordCheck"
+        verified_at:
           type: string
           format: date-time
     DKIMKeyListEnvelope:
