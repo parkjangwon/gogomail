@@ -270,13 +270,21 @@ func (r *Repository) CancelAttachmentUpload(ctx context.Context, userID string, 
 	defer tx.Rollback()
 
 	const query = `
-UPDATE attachments
-SET status = 'deleted'
-WHERE user_id = $1
-  AND id = $2
-  AND status = 'uploading'
-  AND message_id IS NULL
-RETURNING id::text, COALESCE(message_id::text, ''), COALESCE(draft_id::text, ''), upload_id, storage_path, filename, size, mime_type, status, created_at`
+WITH target AS (
+  SELECT id, draft_id
+  FROM attachments
+  WHERE user_id = $1
+    AND id = $2
+    AND status = 'uploading'
+    AND message_id IS NULL
+  FOR UPDATE
+)
+UPDATE attachments a
+SET status = 'deleted',
+    draft_id = NULL
+FROM target
+WHERE a.id = target.id
+RETURNING a.id::text, COALESCE(a.message_id::text, ''), COALESCE(target.draft_id::text, ''), a.upload_id, a.storage_path, a.filename, a.size, a.mime_type, a.status, a.created_at`
 
 	var attachment Attachment
 	var draftID string

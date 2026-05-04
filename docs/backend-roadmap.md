@@ -582,6 +582,7 @@ Implementation order:
 523. Draft attachment binding and send handoff now require `uploading` attachments, preventing canceled or deleted uploads from being rebound to drafts or moved onto sent messages.
 524. Canceling a draft-bound attachment upload now refreshes the draft `has_attachment` cache in the same transaction as quota release.
 525. Pending attachment upload cancellation now validates user and attachment identifiers at the service boundary, with HTTP regression coverage for unsafe cancel path IDs.
+526. Pending attachment cancellation now clears any draft binding while marking the upload deleted, avoiding stale draft links in deleted attachment rows.
 
 ## Deferred until backend contracts stabilize
 
