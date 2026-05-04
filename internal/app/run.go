@@ -19,6 +19,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/gogomail/gogomail/internal/apimeter"
+	"github.com/gogomail/gogomail/internal/attachmentscan"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
@@ -200,6 +201,11 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		}))
 		logger.Info(opts.Component+" DMARC enforcement configured", "mode", cfg.SMTPDMARCEnforcement)
 	}
+	attachmentHooks, err := attachmentScanHooksForConfig(cfg, logger, opts.Component)
+	if err != nil {
+		return err
+	}
+	hooks = append(hooks, attachmentHooks...)
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
 		Store:              storage.NewLocalStore(cfg.MailstoreRoot),
@@ -250,11 +256,16 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 	defer db.Close()
 
 	repository := maildb.NewRepository(db)
+	hooks, err := attachmentScanHooksForConfig(cfg, logger, "outbound submission mta")
+	if err != nil {
+		return err
+	}
 	receiver := smtpd.NewSubmissionReceiver(smtpd.SubmissionOptions{
 		Store:              storage.NewLocalStore(cfg.MailstoreRoot),
 		Authenticator:      repository,
 		Recorder:           repository,
 		DomainPolicyLookup: repository,
+		Hooks:              hooks,
 		AddReceivedHeader:  cfg.SubmissionAddReceivedHeader,
 		ReceivedDomain:     cfg.SMTPDomain,
 		SupportSMTPUTF8:    cfg.SubmissionSupportSMTPUTF8,
@@ -343,6 +354,27 @@ func smtpTLSConfig(cfg config.Config) (*tls.Config, error) {
 		MinVersion:   tls.VersionTLS12,
 		ServerName:   cfg.SMTPDomain,
 	}, nil
+}
+
+func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, component string) ([]smtpd.Hook, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.AttachmentScanBackend)) {
+	case "", "none":
+		return nil, nil
+	case "webhook":
+		scanner, err := attachmentscan.NewWebhookScanner(attachmentscan.WebhookOptions{
+			Endpoint: strings.TrimSpace(cfg.AttachmentScanWebhookURL),
+			Client:   &http.Client{Timeout: cfg.AttachmentScanTimeout},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if logger != nil {
+			logger.Info(component+" attachment scanner configured", "backend", "webhook", "timeout", cfg.AttachmentScanTimeout.String())
+		}
+		return []smtpd.Hook{attachmentscan.Hook(attachmentscan.HookOptions{Scanner: scanner})}, nil
+	default:
+		return nil, fmt.Errorf("unsupported attachment scanner backend %q", cfg.AttachmentScanBackend)
+	}
 }
 
 func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

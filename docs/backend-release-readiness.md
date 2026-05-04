@@ -142,7 +142,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   farm, sender, recipient, error, and DSN metadata before event persistence.
 - Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver that drops malformed targets, including CR/LF-bearing device IDs or tokens, before sink handoff, per-device candidate-attempt persistence with UTF-8-safe diagnostic caps, queued outcome updates after successful sink handoff, failed outcome updates after sink errors, Admin API inspection/stats including user- and recent-window-scoped views, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, and delete rejects blank, CR/LF-bearing, or oversized device identifiers before repository dispatch, while vendor push delivery is still out of scope.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
-- Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.
+- Attachment scanner integration has a disabled-by-default hook adapter outside
+  SMTP core and a configured HTTP webhook backend that can be wired into Edge,
+  Inbound, and Submission MTA app boundaries.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.
 - DKIM key creation derives the public DNS TXT record from the private key when omitted, reducing operator DNS setup errors while preserving private-key omission from admin list responses.
 - Admin API exposes domain DNS verification for MX, SPF, DMARC, and active DKIM TXT records, and each check is persisted with an audit log entry for domain onboarding traceability before frontend implementation.

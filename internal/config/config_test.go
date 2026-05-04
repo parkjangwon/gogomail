@@ -42,6 +42,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "")
@@ -173,6 +176,15 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.RateLimitBackend != "none" {
 		t.Fatalf("RateLimitBackend = %q, want none", cfg.RateLimitBackend)
 	}
+	if cfg.AttachmentScanBackend != "none" {
+		t.Fatalf("AttachmentScanBackend = %q, want none", cfg.AttachmentScanBackend)
+	}
+	if cfg.AttachmentScanWebhookURL != "" {
+		t.Fatalf("AttachmentScanWebhookURL = %q, want empty", cfg.AttachmentScanWebhookURL)
+	}
+	if cfg.AttachmentScanTimeout != 2*time.Second {
+		t.Fatalf("AttachmentScanTimeout = %s, want 2s", cfg.AttachmentScanTimeout)
+	}
 	if cfg.RcptRateLimitPerMinute != 60 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 60", cfg.RcptRateLimitPerMinute)
 	}
@@ -291,6 +303,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "Admin@Example.COM, user@example.com ")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "redis")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "webhook")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "http://scanner.internal/scan")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "5")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "25")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "250ms")
@@ -412,6 +427,15 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.RateLimitBackend != "redis" {
 		t.Fatalf("RateLimitBackend = %q, want redis", cfg.RateLimitBackend)
+	}
+	if cfg.AttachmentScanBackend != "webhook" {
+		t.Fatalf("AttachmentScanBackend = %q, want webhook", cfg.AttachmentScanBackend)
+	}
+	if cfg.AttachmentScanWebhookURL != "http://scanner.internal/scan" {
+		t.Fatalf("AttachmentScanWebhookURL = %q, want scanner URL", cfg.AttachmentScanWebhookURL)
+	}
+	if cfg.AttachmentScanTimeout != 3*time.Second {
+		t.Fatalf("AttachmentScanTimeout = %s, want 3s", cfg.AttachmentScanTimeout)
 	}
 	if cfg.RcptRateLimitPerMinute != 5 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 5", cfg.RcptRateLimitPerMinute)

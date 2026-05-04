@@ -30,6 +30,35 @@ func TestValidateRejectsUnknownPushNotifyBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "unknown backend", mutate: func(cfg *Config) { cfg.AttachmentScanBackend = "clamd" }},
+		{name: "missing webhook url", mutate: func(cfg *Config) {
+			cfg.AttachmentScanBackend = "webhook"
+			cfg.AttachmentScanWebhookURL = ""
+		}},
+		{name: "bad webhook url", mutate: func(cfg *Config) {
+			cfg.AttachmentScanBackend = "webhook"
+			cfg.AttachmentScanWebhookURL = "ftp://scanner.example/scan"
+		}},
+		{name: "nonpositive timeout", mutate: func(cfg *Config) { cfg.AttachmentScanTimeout = 0 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid attachment scan config rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T) {
 	tests := []struct {
 		name   string

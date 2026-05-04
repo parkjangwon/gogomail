@@ -50,6 +50,9 @@ type Config struct {
 	RateLimitBackend                    string
 	BackpressureBackend                 string
 	MetricsBackend                      string
+	AttachmentScanBackend               string
+	AttachmentScanWebhookURL            string
+	AttachmentScanTimeout               time.Duration
 	PushNotifyBackend                   string
 	PushNotifyDeviceLimit               int
 	PushNotifyConsumerGroup             string
@@ -170,6 +173,9 @@ func Load() Config {
 		RateLimitBackend:                    envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:                 envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:                      envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
+		AttachmentScanBackend:               envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "none"),
+		AttachmentScanWebhookURL:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", ""),
+		AttachmentScanTimeout:               durationEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", 2*time.Second),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
 		PushNotifyDeviceLimit:               intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", 200),
 		PushNotifyConsumerGroup:             envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_GROUP", "gogomail.push-notification-worker"),
