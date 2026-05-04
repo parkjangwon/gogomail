@@ -231,6 +231,40 @@ func TestPostgresAggregateStoreSkipsDuplicateEventID(t *testing.T) {
 	}
 }
 
+func TestPostgresAggregateStoreClaimsEventDimensions(t *testing.T) {
+	t.Parallel()
+
+	db := &fakeUsageSQL{rowsAffected: []int64{0}}
+	store := NewPostgresAggregateStore(db)
+	err := store.AddUsage(context.Background(), UsageEvent{
+		EventID:     "usage-1",
+		Day:         time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC),
+		Method:      "GET",
+		Route:       "GET /api/v1/messages",
+		Status:      200,
+		TenantID:    "tenant-1",
+		CompanyID:   "company-1",
+		DomainID:    "domain-1",
+		UserID:      "user-1",
+		APIKeyID:    "api-key-1",
+		PrincipalID: "principal-1",
+		AuthSource:  "bearer",
+	})
+	if err != nil {
+		t.Fatalf("AddUsage returned error: %v", err)
+	}
+	if len(db.argSets) != 1 {
+		t.Fatalf("argSets = %+v", db.argSets)
+	}
+	args := db.argSets[0]
+	if args[6] != "tenant-1" || args[7] != "company-1" || args[8] != "domain-1" {
+		t.Fatalf("claim dimension args = %+v", args)
+	}
+	if args[9] != "api-key-1" || args[10] != "principal-1" || args[11] != "bearer" {
+		t.Fatalf("claim principal args = %+v", args)
+	}
+}
+
 type fakeUsageAggregateStore struct {
 	event UsageEvent
 }
