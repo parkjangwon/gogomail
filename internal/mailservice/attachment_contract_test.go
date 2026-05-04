@@ -3,6 +3,7 @@ package mailservice
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateCreateAttachmentUploadRequestRejectsPathFilename(t *testing.T) {
@@ -119,5 +120,43 @@ func TestValidateCreateAttachmentUploadRequestAcceptsRelativeStoragePath(t *test
 	})
 	if err != nil {
 		t.Fatalf("ValidateCreateAttachmentUploadRequest returned error: %v", err)
+	}
+}
+
+func TestValidateCreateAttachmentUploadSessionRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := CreateAttachmentUploadSessionRequest{
+		UserID:       "user-1",
+		DraftID:      "draft-1",
+		Filename:     "large.bin",
+		DeclaredSize: 42,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}
+	if err := ValidateCreateAttachmentUploadSessionRequest(valid); err != nil {
+		t.Fatalf("ValidateCreateAttachmentUploadSessionRequest returned error: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*CreateAttachmentUploadSessionRequest)
+	}{
+		{name: "missing expiry", mutate: func(req *CreateAttachmentUploadSessionRequest) { req.ExpiresAt = time.Time{} }},
+		{name: "oversized declared size", mutate: func(req *CreateAttachmentUploadSessionRequest) { req.DeclaredSize = MaxAttachmentUploadBytes + 1 }},
+		{name: "unsafe draft", mutate: func(req *CreateAttachmentUploadSessionRequest) { req.DraftID = "draft\nbad" }},
+		{name: "unsafe filename", mutate: func(req *CreateAttachmentUploadSessionRequest) { req.Filename = "../large.bin" }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := valid
+			tt.mutate(&req)
+			if err := ValidateCreateAttachmentUploadSessionRequest(req); err == nil {
+				t.Fatal("ValidateCreateAttachmentUploadSessionRequest accepted invalid request")
+			}
+		})
 	}
 }
