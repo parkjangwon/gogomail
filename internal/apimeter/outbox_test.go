@@ -23,6 +23,7 @@ func TestPostgresOutboxSinkWritesAPIUsageEvent(t *testing.T) {
 		Latency:       25 * time.Millisecond,
 		Timestamp:     time.Date(2026, 5, 4, 1, 2, 3, 4, time.UTC),
 		UserID:        "user-1",
+		AuthSource:    "bearer",
 	})
 	if err != nil {
 		t.Fatalf("Record returned error: %v", err)
@@ -56,6 +57,9 @@ func TestPostgresOutboxSinkWritesAPIUsageEvent(t *testing.T) {
 	}
 	if payload["latency_ms"].(float64) != 25 {
 		t.Fatalf("latency_ms = %v, want 25", payload["latency_ms"])
+	}
+	if payload["auth_source"] != "bearer" {
+		t.Fatalf("auth_source = %v, want bearer", payload["auth_source"])
 	}
 }
 

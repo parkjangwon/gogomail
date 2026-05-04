@@ -18,6 +18,7 @@ type UsageEvent struct {
 	Route         string
 	Status        int
 	UserID        string
+	AuthSource    string
 	RequestBytes  int64
 	ResponseBytes int64
 	LatencyMS     int64
@@ -176,6 +177,7 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		LatencyMS     int64  `json:"latency_ms"`
 		Timestamp     string `json:"timestamp"`
 		UserID        string `json:"user_id"`
+		AuthSource    string `json:"auth_source"`
 	}
 	if err := json.Unmarshal(payload, &raw); err != nil {
 		return UsageEvent{}, fmt.Errorf("decode api usage event: %w", err)
@@ -200,9 +202,18 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		Route:         strings.TrimSpace(raw.Route),
 		Status:        raw.Status,
 		UserID:        strings.TrimSpace(raw.UserID),
+		AuthSource:    normalizeAuthSource(raw.AuthSource),
 		RequestBytes:  raw.RequestBytes,
 		ResponseBytes: raw.ResponseBytes,
 		LatencyMS:     raw.LatencyMS,
 		RequestCount:  1,
 	}, nil
+}
+
+func normalizeAuthSource(source string) string {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return "unknown"
+	}
+	return source
 }

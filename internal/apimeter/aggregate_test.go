@@ -25,7 +25,8 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 		"response_bytes":34,
 		"latency_ms":25,
 		"timestamp":"2026-05-04T15:30:00+09:00",
-		"user_id":"user-1"
+		"user_id":"user-1",
+		"auth_source":"bearer"
 	}`)
 	event, err := DecodeUsageEvent(payload)
 	if err != nil {
@@ -45,6 +46,28 @@ func TestDecodeUsageEventNormalizesDailyBucket(t *testing.T) {
 	}
 	if event.EventID != "usage-1" {
 		t.Fatalf("EventID = %q, want usage-1", event.EventID)
+	}
+	if event.AuthSource != "bearer" {
+		t.Fatalf("AuthSource = %q, want bearer", event.AuthSource)
+	}
+}
+
+func TestDecodeUsageEventDefaultsMissingAuthSource(t *testing.T) {
+	t.Parallel()
+
+	payload := json.RawMessage(`{
+		"event":"api.usage",
+		"method":"GET",
+		"route":"GET /api/v1/messages",
+		"status":200,
+		"timestamp":"2026-05-04T00:00:00Z"
+	}`)
+	event, err := DecodeUsageEvent(payload)
+	if err != nil {
+		t.Fatalf("DecodeUsageEvent returned error: %v", err)
+	}
+	if event.AuthSource != "unknown" {
+		t.Fatalf("AuthSource = %q, want unknown", event.AuthSource)
 	}
 }
 
@@ -78,7 +101,8 @@ func TestUsageHandlerAggregatesAPIUsageEvent(t *testing.T) {
 		"response_bytes":50,
 		"latency_ms":75,
 		"timestamp":"2026-05-04T00:00:00Z",
-		"user_id":"user-1"
+		"user_id":"user-1",
+		"auth_source":"query_user_id"
 	}`)
 
 	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: payload})
@@ -87,6 +111,9 @@ func TestUsageHandlerAggregatesAPIUsageEvent(t *testing.T) {
 	}
 	if store.event.Route != "POST /api/v1/messages/send" || store.event.RequestCount != 1 {
 		t.Fatalf("stored event = %+v", store.event)
+	}
+	if store.event.AuthSource != "query_user_id" {
+		t.Fatalf("stored auth source = %q, want query_user_id", store.event.AuthSource)
 	}
 }
 
