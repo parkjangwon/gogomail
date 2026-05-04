@@ -148,7 +148,13 @@ func TestAdminAPIUsageDailyHandler(t *testing.T) {
 			Method:           "GET",
 			Route:            "GET /api/v1/messages",
 			Status:           200,
+			TenantID:         "tenant-1",
+			CompanyID:        "company-1",
+			DomainID:         "domain-1",
 			UserID:           "user-1",
+			APIKeyID:         "api-key-1",
+			PrincipalID:      "principal-1",
+			AuthSource:       "bearer",
 			RequestCount:     4,
 			RequestBytes:     40,
 			ResponseBytes:    400,
@@ -178,6 +184,9 @@ func TestAdminAPIUsageDailyHandler(t *testing.T) {
 	if len(body.APIUsageDaily) != 1 || body.APIUsageDaily[0].LatencyMSAverage != 25 {
 		t.Fatalf("api_usage_daily = %+v", body.APIUsageDaily)
 	}
+	if body.APIUsageDaily[0].TenantID != "tenant-1" || body.APIUsageDaily[0].PrincipalID != "principal-1" {
+		t.Fatalf("api_usage_daily identity = %+v", body.APIUsageDaily[0])
+	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
 	}
@@ -192,6 +201,9 @@ func TestAdminAPIUsageMonthlyHandler(t *testing.T) {
 			Method:           "GET",
 			Route:            "GET /api/v1/messages",
 			Status:           200,
+			TenantID:         "tenant-1",
+			PrincipalID:      "principal-1",
+			AuthSource:       "bearer",
 			RequestCount:     4,
 			LatencyMSTotal:   100,
 			LatencyMSAverage: 25,
@@ -215,6 +227,9 @@ func TestAdminAPIUsageMonthlyHandler(t *testing.T) {
 	}
 	if len(body.APIUsageMonthly) != 1 || body.APIUsageMonthly[0].LatencyMSAverage != 25 {
 		t.Fatalf("api_usage_monthly = %+v", body.APIUsageMonthly)
+	}
+	if body.APIUsageMonthly[0].TenantID != "tenant-1" || body.APIUsageMonthly[0].PrincipalID != "principal-1" {
+		t.Fatalf("api_usage_monthly identity = %+v", body.APIUsageMonthly[0])
 	}
 }
 
