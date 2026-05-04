@@ -1296,10 +1296,25 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+		if !ok {
+			return
+		}
+		farm, ok := parseBoundedAdminQuery(w, r, "farm")
+		if !ok {
+			return
+		}
+		sender, ok := parseBoundedAdminQuery(w, r, "sender")
+		if !ok {
+			return
+		}
 		attempts, err := service.ListDeliveryAttempts(r.Context(), maildb.DeliveryAttemptListRequest{
 			Limit:           limit,
 			Status:          status,
 			RecipientDomain: recipientDomain,
+			MessageID:       messageID,
+			Farm:            farm,
+			Sender:          sender,
 			Since:           since,
 		})
 		if err != nil {
@@ -1322,9 +1337,24 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+		if !ok {
+			return
+		}
+		farm, ok := parseBoundedAdminQuery(w, r, "farm")
+		if !ok {
+			return
+		}
+		sender, ok := parseBoundedAdminQuery(w, r, "sender")
+		if !ok {
+			return
+		}
 		stats, err := service.GetDeliveryAttemptStats(r.Context(), maildb.DeliveryAttemptStatsRequest{
 			Status:          status,
 			RecipientDomain: recipientDomain,
+			MessageID:       messageID,
+			Farm:            farm,
+			Sender:          sender,
 			Since:           since,
 		})
 		if err != nil {
@@ -1347,9 +1377,24 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+		if !ok {
+			return
+		}
+		farm, ok := parseBoundedAdminQuery(w, r, "farm")
+		if !ok {
+			return
+		}
+		sender, ok := parseBoundedAdminQuery(w, r, "sender")
+		if !ok {
+			return
+		}
 		attempts, err := service.ListExhaustedAttempts(r.Context(), maildb.ExhaustedAttemptListRequest{
 			Limit:           limit,
 			RecipientDomain: recipientDomain,
+			MessageID:       messageID,
+			Farm:            farm,
+			Sender:          sender,
 			Since:           since,
 		})
 		if err != nil {

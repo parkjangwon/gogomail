@@ -3414,14 +3414,20 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=%20bounced%20&recipient_domain=%20example.net%20&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts?limit=10&status=%20bounced%20&recipient_domain=%20example.net%20&message_id=%20msg-1%20&farm=%20general%20&sender=%20Sender@Example.COM%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastDeliveryAttemptList.Limit != 10 || service.lastDeliveryAttemptList.Status != "bounced" || service.lastDeliveryAttemptList.RecipientDomain != "example.net" || service.lastDeliveryAttemptList.Since.IsZero() {
+	if service.lastDeliveryAttemptList.Limit != 10 ||
+		service.lastDeliveryAttemptList.Status != "bounced" ||
+		service.lastDeliveryAttemptList.RecipientDomain != "example.net" ||
+		service.lastDeliveryAttemptList.MessageID != "msg-1" ||
+		service.lastDeliveryAttemptList.Farm != "general" ||
+		service.lastDeliveryAttemptList.Sender != "Sender@Example.COM" ||
+		service.lastDeliveryAttemptList.Since.IsZero() {
 		t.Fatalf("lastDeliveryAttemptList = %+v", service.lastDeliveryAttemptList)
 	}
 	if !strings.Contains(rec.Body.String(), `"enhanced_status":"5.1.1"`) || !strings.Contains(rec.Body.String(), `"dsn_notify":["FAILURE"]`) {
@@ -3471,6 +3477,9 @@ func TestAdminDeliveryAttemptsHandlerRejectsUnsafeFilters(t *testing.T) {
 	tests := []string{
 		"/admin/v1/delivery-attempts?status=failed%0Abad",
 		"/admin/v1/delivery-attempts?recipient_domain=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+		"/admin/v1/delivery-attempts?message_id=msg%0Abad",
+		"/admin/v1/delivery-attempts?farm=" + strings.Repeat("f", maxAdminQueryFilterBytes+1),
+		"/admin/v1/delivery-attempts?sender=sender%0Dbad",
 	}
 	for _, path := range tests {
 		service := &fakeAdminService{}
@@ -3507,7 +3516,7 @@ func TestAdminDeliveryAttemptStatsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?status=%20failed%20&recipient_domain=%20example.net%20&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?status=%20failed%20&recipient_domain=%20example.net%20&message_id=%20msg-1%20&farm=%20general%20&sender=%20sender@example.com%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3523,7 +3532,12 @@ func TestAdminDeliveryAttemptStatsHandler(t *testing.T) {
 	if body.Stats.TotalAttempts != 4 || body.Stats.UniqueRecipients != 3 || body.Stats.Exhausted != 1 {
 		t.Fatalf("delivery_attempt_stats = %+v", body.Stats)
 	}
-	if service.lastDeliveryAttemptStats.Status != "failed" || service.lastDeliveryAttemptStats.RecipientDomain != "example.net" || service.lastDeliveryAttemptStats.Since.IsZero() {
+	if service.lastDeliveryAttemptStats.Status != "failed" ||
+		service.lastDeliveryAttemptStats.RecipientDomain != "example.net" ||
+		service.lastDeliveryAttemptStats.MessageID != "msg-1" ||
+		service.lastDeliveryAttemptStats.Farm != "general" ||
+		service.lastDeliveryAttemptStats.Sender != "sender@example.com" ||
+		service.lastDeliveryAttemptStats.Since.IsZero() {
 		t.Fatalf("lastDeliveryAttemptStats = %+v", service.lastDeliveryAttemptStats)
 	}
 }
@@ -3570,6 +3584,9 @@ func TestAdminDeliveryAttemptStatsHandlerRejectsUnsafeFilters(t *testing.T) {
 	tests := []string{
 		"/admin/v1/delivery-attempts/stats?status=failed%0Dbad",
 		"/admin/v1/delivery-attempts/stats?recipient_domain=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+		"/admin/v1/delivery-attempts/stats?message_id=msg%0Abad",
+		"/admin/v1/delivery-attempts/stats?farm=" + strings.Repeat("f", maxAdminQueryFilterBytes+1),
+		"/admin/v1/delivery-attempts/stats?sender=sender%0Dbad",
 	}
 	for _, path := range tests {
 		service := &fakeAdminService{}
@@ -3607,14 +3624,19 @@ func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?limit=10&recipient_domain=%20example.net%20&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?limit=10&recipient_domain=%20example.net%20&message_id=%20msg-1%20&farm=%20general%20&sender=%20sender@example.com%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastExhaustedAttemptList.Limit != 10 || service.lastExhaustedAttemptList.RecipientDomain != "example.net" || service.lastExhaustedAttemptList.Since.IsZero() {
+	if service.lastExhaustedAttemptList.Limit != 10 ||
+		service.lastExhaustedAttemptList.RecipientDomain != "example.net" ||
+		service.lastExhaustedAttemptList.MessageID != "msg-1" ||
+		service.lastExhaustedAttemptList.Farm != "general" ||
+		service.lastExhaustedAttemptList.Sender != "sender@example.com" ||
+		service.lastExhaustedAttemptList.Since.IsZero() {
 		t.Fatalf("lastExhaustedAttemptList = %+v", service.lastExhaustedAttemptList)
 	}
 	if !strings.Contains(rec.Body.String(), `"enhanced_status":"4.0.0"`) {
@@ -3625,19 +3647,30 @@ func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 func TestAdminExhaustedAttemptsHandlerRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 
-	service := &fakeAdminService{}
-	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, service, "")
-
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?recipient_domain=example.net%0Abad", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	tests := []string{
+		"/admin/v1/delivery-attempts/exhausted?recipient_domain=example.net%0Abad",
+		"/admin/v1/delivery-attempts/exhausted?message_id=msg%0Abad",
+		"/admin/v1/delivery-attempts/exhausted?farm=" + strings.Repeat("f", maxAdminQueryFilterBytes+1),
+		"/admin/v1/delivery-attempts/exhausted?sender=sender%0Dbad",
 	}
-	if service.lastExhaustedAttemptList.RecipientDomain != "" {
-		t.Fatalf("dispatched request %+v", service.lastExhaustedAttemptList)
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastExhaustedAttemptList.RecipientDomain != "" ||
+			service.lastExhaustedAttemptList.MessageID != "" ||
+			service.lastExhaustedAttemptList.Farm != "" ||
+			service.lastExhaustedAttemptList.Sender != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastExhaustedAttemptList)
+		}
 	}
 }
 

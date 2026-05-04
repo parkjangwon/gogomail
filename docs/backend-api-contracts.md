@@ -431,6 +431,11 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}` with
   optional `status=active|disabled`, `farm`, and `domain_pattern` filters for
   delivery control-plane audits.
+- `GET /admin/v1/delivery-attempts`,
+  `GET /admin/v1/delivery-attempts/stats`, and
+  `GET /admin/v1/delivery-attempts/exhausted` support bounded `message_id`,
+  `farm`, and `sender` filters in addition to status, recipient-domain, and
+  recent-window filters for incident triage.
 - `GET /admin/v1/domains/{id}/dns-checks` returns `{"dns_checks":[...]}`
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`

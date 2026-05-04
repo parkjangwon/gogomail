@@ -124,6 +124,49 @@ func TestValidateCorrectQuotaReconciliationRequestRejectsIDForAll(t *testing.T) 
 	}
 }
 
+func TestNormalizeDeliveryAttemptFiltersRejectsUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []deliveryAttemptFilters{
+		{Status: "retrying"},
+		{RecipientDomain: "example.net\nbad"},
+		{MessageID: strings.Repeat("m", maxPushNotificationFilterBytes+1)},
+		{Farm: "general\rbad"},
+		{Sender: "sender@example.com\nbad"},
+	}
+	for _, filters := range tests {
+		filters := filters
+		t.Run(filters.Status+filters.RecipientDomain+filters.MessageID+filters.Farm+filters.Sender, func(t *testing.T) {
+			t.Parallel()
+			if _, err := normalizeDeliveryAttemptFilters(filters); err == nil {
+				t.Fatalf("normalizeDeliveryAttemptFilters accepted %+v", filters)
+			}
+		})
+	}
+}
+
+func TestNormalizeDeliveryAttemptFiltersTrimsOperationalFilters(t *testing.T) {
+	t.Parallel()
+
+	got, err := normalizeDeliveryAttemptFilters(deliveryAttemptFilters{
+		Status:          " BOUNCED ",
+		RecipientDomain: " Example.NET. ",
+		MessageID:       " msg-1 ",
+		Farm:            " General ",
+		Sender:          " Sender@Example.COM ",
+	})
+	if err != nil {
+		t.Fatalf("normalizeDeliveryAttemptFilters returned error: %v", err)
+	}
+	if got.Status != "bounced" ||
+		got.RecipientDomain != "example.net" ||
+		got.MessageID != "msg-1" ||
+		got.Farm != "general" ||
+		got.Sender != "sender@example.com" {
+		t.Fatalf("filters = %+v, want normalized filters", got)
+	}
+}
+
 func TestQuotaCorrectionAuditDetailIsBounded(t *testing.T) {
 	t.Parallel()
 
