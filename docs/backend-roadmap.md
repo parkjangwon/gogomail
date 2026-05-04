@@ -242,6 +242,7 @@ Implementation order:
 195. OpenAPI operations now expose stable lower-camel `operationId` values and reusable default Error responses, improving generated-client naming and error-envelope handling.
 196. Backend release verification now has a single script entrypoint for Go tests, module tidy diff checks, optional PostgreSQL integration tests, and final git status inspection.
 197. Admin backend now persists and exposes trusted relay CIDR management, moving inbound SMTP relay policy from environment-only operation toward auditable platform control.
+198. DKIM key creation can now derive the DNS TXT public-key record from the private key when operators omit `public_key_dns`, reducing domain setup mistakes while keeping private keys out of list responses.
 198. Admin backend now persists and exposes delivery gateway/smart-host route management, letting operators define exact, wildcard, and default outbound routes with TLS, pool, and SMTP AUTH settings while keeping SMTP core focused on protocol boundaries.
 199. Delivery workers can opt into PostgreSQL-backed route lookup with `GOGOMAIL_DELIVERY_ROUTE_BACKEND=postgres`; exact, wildcard, and default routes map into the existing delivery router boundary and fall back to direct MX delivery when no active route matches.
 

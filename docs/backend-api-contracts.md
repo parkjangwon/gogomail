@@ -135,6 +135,10 @@ SMTP operational administration includes trusted relay CIDR management:
 Trusted relay entries accept IPv4/IPv6 CIDR prefixes or plain IP addresses.
 Plain IPs are canonicalized to `/32` or `/128` before persistence.
 
+When creating a DKIM key, `public_key_dns` is optional. If omitted, the backend
+derives the `v=DKIM1; k=rsa; p=...` TXT record from `private_key_pem` and stores
+that public DNS value for administrator display and DNS setup checks.
+
 Outbound gateway and smart-host administration includes delivery route
 management:
 
