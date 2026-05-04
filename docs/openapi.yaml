@@ -4461,12 +4461,14 @@ components:
       properties:
         name:
           type: string
+          maxLength: 200
     FolderRenameRequest:
       type: object
       required: [name]
       properties:
         name:
           type: string
+          maxLength: 200
     MessageFlagUpdateRequest:
       type: object
       required: [flag, value]

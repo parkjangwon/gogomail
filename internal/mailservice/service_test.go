@@ -182,6 +182,23 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 }
 
+func TestFolderMutationsRejectUnsafeFolderID(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if _, err := service.RenameFolder(context.Background(), "user-1", "folder-1\r\nbad", "Projects"); err == nil {
+		t.Fatal("RenameFolder accepted newline-bearing folder ID")
+	}
+	if err := service.DeleteFolder(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1)); err == nil {
+		t.Fatal("DeleteFolder accepted oversized folder ID")
+	}
+	if repo.lastRenameFolderID != "" || repo.lastDeleteFolderID != "" {
+		t.Fatalf("repository was called with folder IDs %q/%q", repo.lastRenameFolderID, repo.lastDeleteFolderID)
+	}
+}
+
 func TestListMethodsNormalizeLimits(t *testing.T) {
 	t.Parallel()
 
