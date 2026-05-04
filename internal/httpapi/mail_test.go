@@ -179,6 +179,7 @@ func TestMailJSONHandlersRejectTrailingTokens(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects"} {"name":"Ignored"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -198,6 +199,7 @@ func TestMailJSONHandlersRejectUnknownFields(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects","unexpected":true}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -206,6 +208,42 @@ func TestMailJSONHandlersRejectUnknownFields(t *testing.T) {
 	}
 	if service.lastFolderName != "" {
 		t.Fatalf("handler should not dispatch unknown-field body, created folder %q", service.lastFolderName)
+	}
+}
+
+func TestMailJSONHandlersRejectMissingOrNonJSONContentType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		contentType string
+	}{
+		{name: "missing"},
+		{name: "text plain", contentType: "text/plain"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects"}`))
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastFolderName != "" {
+				t.Fatalf("handler should not dispatch non-json content type, created folder %q", service.lastFolderName)
+			}
+		})
 	}
 }
 
@@ -449,6 +487,7 @@ func TestCreateFolderHandler(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -475,6 +514,7 @@ func TestCreateFolderHandlerRejectsOversizedJSONBody(t *testing.T) {
 
 	body := `{"name":"` + strings.Repeat("a", maxJSONBodyBytes) + `"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -494,6 +534,7 @@ func TestRenameFolderHandler(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/folders/folder-1?user_id=user-1", strings.NewReader(`{"name":"Renamed"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -517,6 +558,7 @@ func TestBulkSetMessageFlagsHandler(t *testing.T) {
 		"flag":"read",
 		"value":true
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -542,6 +584,7 @@ func TestBulkMoveMessagesHandler(t *testing.T) {
 		"message_ids":["msg-1","msg-2"],
 		"folder_id":"folder-archive"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -566,6 +609,7 @@ func TestBulkDeleteMessagesHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/bulk/delete?user_id=user-1", strings.NewReader(`{
 		"message_ids":["msg-1","msg-2"]
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -787,6 +831,7 @@ func TestSetMessageFlagHandler(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/messages/msg-1/flags?user_id=user-1", strings.NewReader(`{"flag":"read","value":true}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -806,6 +851,7 @@ func TestMoveMessageHandler(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/messages/msg-1/folder?user_id=user-1", strings.NewReader(`{"folder_id":"folder-2"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -848,6 +894,7 @@ func TestSaveDraftHandler(t *testing.T) {
 		"subject":"draft",
 		"text_body":"body"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -976,6 +1023,7 @@ func TestUpdateDraftHandlerUsesPathID(t *testing.T) {
 		"draft_id":"ignored",
 		"subject":"updated"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1033,6 +1081,7 @@ func TestCreateAttachmentUploadHandler(t *testing.T) {
 		"size":42,
 		"mime_type":"application/pdf"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1054,6 +1103,7 @@ func TestPushDeviceHandlers(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/push-devices?user_id=user-1", strings.NewReader(`{"platform":"fcm","token":"token-1","label":"phone"}`))
+	createReq.Header.Set("Content-Type", "application/json")
 	createRec := httptest.NewRecorder()
 	mux.ServeHTTP(createRec, createReq)
 	if createRec.Code != http.StatusCreated {
@@ -1102,6 +1152,7 @@ func TestCreateAttachmentUploadHandlerMapsQuotaFull(t *testing.T) {
 		"size":200,
 		"mime_type":"application/pdf"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1270,6 +1321,7 @@ func TestCreateAttachmentUploadSessionHandler(t *testing.T) {
 		"mime_type":"application/octet-stream",
 		"expires_at":"`+expiresAt.Format(time.RFC3339)+`"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1363,6 +1415,7 @@ func TestStoreAttachmentUploadSessionBodyHandler(t *testing.T) {
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+	req.Header.Set("Content-Type", "application/json")
 	checksum := sha256.Sum256([]byte("content"))
 	req.Header.Set("X-Content-SHA256", hex.EncodeToString(checksum[:]))
 	rec := httptest.NewRecorder()
@@ -1387,6 +1440,7 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsOversizedBody(t *testing.
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", bytes.NewReader(bytes.Repeat([]byte("x"), int(mailservice.MaxAttachmentUploadBytes+2))))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1406,6 +1460,7 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsContentRange(t *testing.T
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Range", "bytes 0-6/7")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -1450,6 +1505,7 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsDuplicateControlHeaders(t
 			RegisterMailRoutes(mux, service, nil)
 
 			req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
+			req.Header.Set("Content-Type", "application/json")
 			tt.build(req.Header)
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
@@ -1811,6 +1867,7 @@ func TestSendMessageHandler(t *testing.T) {
 		"subject":"hello",
 		"text_body":"body"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1887,6 +1944,7 @@ func TestSendReplyHandlerPassesSourceMessageID(t *testing.T) {
 		"subject":"Re: hello",
 		"text_body":"body"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2109,6 +2167,7 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			RegisterMailRoutes(mux, service, nil)
 
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 

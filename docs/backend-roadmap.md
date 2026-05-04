@@ -683,6 +683,7 @@ Implementation order:
 623. Successful Mail/Admin JSON envelopes now return `Cache-Control: no-store` through the shared writer, preventing sensitive message, audit, usage, and control responses from being cached.
 624. Mail JWT and Admin token authentication now reject repeated credential headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before dispatch.
 625. Upload session body storage now rejects repeated `Content-Range` or `X-Content-SHA256` control headers before reading or storing the request body.
+626. Mail and Admin API JSON mutation bodies now require `Content-Type: application/json`, accepting normal media-type parameters but rejecting missing or non-JSON content types before dispatch.
 
 ## Deferred until backend contracts stabilize
 

@@ -539,6 +539,7 @@ func TestAdminUpdateBackpressureHandler(t *testing.T) {
 		"level": "danger",
 		"reason": "queue lag above threshold"
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -734,6 +735,7 @@ func TestAdminAttachmentCleanupRunHandler(t *testing.T) {
 		"before": "`+before.Format(time.RFC3339)+`",
 		"limit": 25
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -781,6 +783,7 @@ func TestAdminAttachmentCleanupRunHandlerSupportsDryRun(t *testing.T) {
 		"limit": 3,
 		"dry_run": true
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -851,6 +854,7 @@ func TestAdminAttachmentCleanupCandidatesHandler(t *testing.T) {
 		"before": "`+before.Format(time.RFC3339)+`",
 		"limit": 25
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -895,6 +899,7 @@ func TestAdminAttachmentCleanupRunHandlerRejectsUnsafeRequests(t *testing.T) {
 			RegisterAdminRoutes(mux, service, "")
 
 			req := httptest.NewRequest(http.MethodPost, "/admin/v1/attachment-cleanup/runs", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
@@ -1404,6 +1409,7 @@ func TestAdminAPIUsageLedgerRetentionRunHandler(t *testing.T) {
 		"dry_run": false,
 		"confirm_ready": true
 	}`))
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -1437,6 +1443,7 @@ func TestAdminAPIUsageLedgerRetentionRunRequiresConfirmForDestructiveRun(t *test
 
 	cutoff := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/ledger/retention-runs", strings.NewReader(`{"cutoff":"`+cutoff+`","dry_run":false}`))
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -1470,6 +1477,7 @@ func TestAdminAPIUsageLedgerRetentionRunRejectsUnsafeRequests(t *testing.T) {
 			RegisterAdminRoutes(mux, service, "")
 
 			req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/ledger/retention-runs", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
 			mux.ServeHTTP(rr, req)
 
@@ -2098,6 +2106,7 @@ func TestAdminCreateAPIUsageExportArtifactHandler(t *testing.T) {
 
 	body := strings.NewReader(`{"storage_backend":"s3","object_key":"exports/api-usage-export-1.ndjson","byte_count":12,"sha256_hex":"` + hash + `","event_count":2,"metadata":{"bucket":"billing"}}`)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts", body)
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -2136,6 +2145,7 @@ func TestAdminWriteAPIUsageExportArtifactHandler(t *testing.T) {
 
 	body := strings.NewReader(`{"object_key":"exports/api-usage/api-usage-export-1.ndjson","metadata":{"purpose":"billing"}}`)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/write", body)
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -2737,6 +2747,7 @@ func TestAdminQuotaCorrectionHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/quota-reconciliation/corrections", strings.NewReader(`{"scope":"domain","id":"domain-1","dry_run":true}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2844,6 +2855,7 @@ func TestAdminUpdateCompanyQuotaHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/%20company-1%20/quota", bytes.NewReader([]byte(`{"quota_limit":8192}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2887,6 +2899,7 @@ func TestAdminCompanyPathIDsRejectUnsafeValues(t *testing.T) {
 			RegisterAdminRoutes(mux, service, "")
 
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
@@ -2908,6 +2921,7 @@ func TestAdminJSONHandlersRejectTrailingTokens(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192} {"quota_limit":1}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2927,6 +2941,7 @@ func TestAdminJSONHandlersRejectUnknownFields(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192,"unexpected":true}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2935,6 +2950,42 @@ func TestAdminJSONHandlersRejectUnknownFields(t *testing.T) {
 	}
 	if service.lastCompanyQuota.ID != "" {
 		t.Fatalf("handler should not dispatch unknown-field body: %+v", service.lastCompanyQuota)
+	}
+}
+
+func TestAdminJSONHandlersRejectMissingOrNonJSONContentType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		contentType string
+	}{
+		{name: "missing"},
+		{name: "text plain", contentType: "text/plain"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192}`)))
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastCompanyQuota.ID != "" {
+				t.Fatalf("handler should not dispatch non-json content type: %+v", service.lastCompanyQuota)
+			}
+		})
 	}
 }
 
@@ -3355,6 +3406,7 @@ func TestAdminDomainPathIDsRejectUnsafeValues(t *testing.T) {
 			RegisterAdminRoutes(mux, service, "")
 
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
@@ -3377,6 +3429,7 @@ func TestAdminCreateDomainHandler(t *testing.T) {
 
 	body := []byte(`{"company_id":"company-1","name":"Example.COM","quota_limit":1024}`)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/domains", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3396,6 +3449,7 @@ func TestAdminUpdateDomainStatusHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/%20domain-1%20/status", bytes.NewReader([]byte(`{"status":"suspended"}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3415,6 +3469,7 @@ func TestAdminUpdateDomainQuotaHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/%20domain-1%20/quota", bytes.NewReader([]byte(`{"quota_limit":2048}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3440,6 +3495,7 @@ func TestAdminUpdateDomainPolicyHandler(t *testing.T) {
 		"max_message_bytes": 1048576,
 		"max_attachment_bytes": 524288
 	}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3624,6 +3680,7 @@ func TestAdminCreateUserHandler(t *testing.T) {
 
 	body := []byte(`{"domain_id":"domain-1","username":"admin","display_name":"Admin","address":"admin@example.com","password_hash":"plain:dev-password"}`)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/users", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3643,6 +3700,7 @@ func TestAdminUpdateUserStatusHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/%20user-1%20/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3662,6 +3720,7 @@ func TestAdminUpdateUserQuotaHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/%20user-1%20/quota", bytes.NewReader([]byte(`{"quota_limit":4096}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3681,6 +3740,7 @@ func TestAdminUpdateUserPasswordHashHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/%20user-1%20/password-hash", bytes.NewReader([]byte(`{"password_hash":"plain:dev-password"}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3736,6 +3796,7 @@ func TestAdminUserPathIDsRejectUnsafeValues(t *testing.T) {
 			RegisterAdminRoutes(mux, service, "")
 
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
@@ -4200,6 +4261,7 @@ func TestAdminPushNotificationOutcomeHandler(t *testing.T) {
 
 	body := strings.NewReader(`{"status":"delivered","provider_message_id":"provider-message-1","provider_status":"accepted","error_message":"ok"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/push-notification-attempts/attempt-1/outcome", body)
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4226,6 +4288,7 @@ func TestAdminPushNotificationOutcomeHandlerRejectsUnsafeID(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/push-notification-attempts/bad%0Aid/outcome", strings.NewReader(`{"status":"failed"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4245,6 +4308,7 @@ func TestAdminPushNotificationOutcomeHandlerRejectsInvalidBody(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/push-notification-attempts/attempt-1/outcome", strings.NewReader(`{"status":"candidate"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4466,6 +4530,7 @@ func TestAdminCreateDKIMKeyHandler(t *testing.T) {
 
 	body := []byte(`{"domain_id":"domain-1","selector":"s1","private_key_pem":"private","public_key_dns":"v=DKIM1; p=public"}`)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/dkim-keys", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4754,6 +4819,7 @@ func TestAdminCreateTrustedRelayHandler(t *testing.T) {
 		"cidr": "192.0.2.1",
 		"description": "edge relay"
 	}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4853,6 +4919,7 @@ func TestAdminCreateDeliveryRouteHandler(t *testing.T) {
 		"auth_username": "relay-user",
 		"auth_password": "secret"
 	}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -4934,6 +5001,7 @@ func TestAdminUpdateDeliveryRouteStatusHandler(t *testing.T) {
 	RegisterAdminRoutes(mux, service, "")
 
 	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/delivery-routes/%20route-1%20/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -5020,6 +5088,7 @@ func TestAdminDeliveryRouteAndTrustedRelayPathIDsRejectUnsafeValues(t *testing.T
 			RegisterAdminRoutes(mux, service, "")
 
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
