@@ -276,6 +276,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin IMAP UID backfill now writes a hash-chain audit row in the same
   transaction as UID assignment, keeping mailbox bootstrap operations
   inspectable before enabling a full IMAP listener.
+- Admin API-usage export batch creation now writes a hash-chain audit row in the
+  same transaction as the batch, keeping invoice/retention export boundaries
+  inspectable before artifact handoff.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize

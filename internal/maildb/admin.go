@@ -3981,6 +3981,12 @@ func (r *Repository) CreateAPIUsageExportBatch(ctx context.Context, req APIUsage
 		return APIUsageExportBatchView{}, fmt.Errorf("marshal api usage export manifest: %w", err)
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("begin api usage export batch transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	var batch APIUsageExportBatchView
 	var completedAt sql.NullTime
 	var windowStart sql.NullTime
@@ -4010,7 +4016,7 @@ INSERT INTO api_usage_export_batches (
 RETURNING id, created_at, completed_at, status, export_format, tenant_id, principal_id,
   window_start, window_end, event_count, request_count, request_bytes, response_bytes,
   latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest`
-	if err := r.db.QueryRowContext(
+	if err := tx.QueryRowContext(
 		ctx,
 		query,
 		id,
@@ -4050,7 +4056,55 @@ RETURNING id, created_at, completed_at, status, export_format, tenant_id, princi
 		return APIUsageExportBatchView{}, fmt.Errorf("create api usage export batch: %w", err)
 	}
 	applyExportBatchNullableTimes(&batch, completedAt, windowStart, windowEnd, firstEventAt, lastEventAt)
+	detail, err := apiUsageExportBatchAuditDetail(batch)
+	if err != nil {
+		return APIUsageExportBatchView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "api_usage_export.batch_create",
+		TargetType: "api_usage_export_batch",
+		TargetID:   batch.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("record api usage export batch audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("commit api usage export batch transaction: %w", err)
+	}
 	return batch, nil
+}
+
+func apiUsageExportBatchAuditDetail(batch APIUsageExportBatchView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"batch_id":         batch.ID,
+		"tenant_id":        batch.TenantID,
+		"principal_id":     batch.PrincipalID,
+		"status":           batch.Status,
+		"export_format":    batch.ExportFormat,
+		"window_start":     optionalTimeStringPtr(batch.WindowStart),
+		"window_end":       optionalTimeStringPtr(batch.WindowEnd),
+		"event_count":      batch.EventCount,
+		"request_count":    batch.RequestCount,
+		"request_bytes":    batch.RequestBytes,
+		"response_bytes":   batch.ResponseBytes,
+		"latency_ms_total": batch.LatencyMSTotal,
+		"latency_ms_max":   batch.LatencyMSMax,
+		"first_event_at":   optionalTimeStringPtr(batch.FirstEventAt),
+		"last_event_at":    optionalTimeStringPtr(batch.LastEventAt),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal api usage export batch audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+func optionalTimeStringPtr(value *time.Time) string {
+	if value == nil || value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
 }
 
 func ValidateAPIUsageExportBatchListRequest(req APIUsageExportBatchListRequest) error {

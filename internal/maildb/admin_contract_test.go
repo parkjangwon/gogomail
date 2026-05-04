@@ -799,6 +799,51 @@ func TestPushNotificationOutcomeAuditDetail(t *testing.T) {
 	}
 }
 
+func TestAPIUsageExportBatchAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	windowStart := time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC)
+	windowEnd := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	detail, err := apiUsageExportBatchAuditDetail(APIUsageExportBatchView{
+		ID:            "11111111-1111-1111-1111-111111111111",
+		Status:        "completed",
+		ExportFormat:  "ndjson",
+		TenantID:      "tenant-1",
+		PrincipalID:   "principal-1",
+		WindowStart:   &windowStart,
+		WindowEnd:     &windowEnd,
+		EventCount:    100,
+		RequestCount:  90,
+		RequestBytes:  1024,
+		ResponseBytes: 2048,
+	})
+	if err != nil {
+		t.Fatalf("apiUsageExportBatchAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		BatchID       string `json:"batch_id"`
+		TenantID      string `json:"tenant_id"`
+		PrincipalID   string `json:"principal_id"`
+		Status        string `json:"status"`
+		ExportFormat  string `json:"export_format"`
+		WindowStart   string `json:"window_start"`
+		WindowEnd     string `json:"window_end"`
+		EventCount    int64  `json:"event_count"`
+		RequestCount  int64  `json:"request_count"`
+		RequestBytes  int64  `json:"request_bytes"`
+		ResponseBytes int64  `json:"response_bytes"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.BatchID == "" || got.TenantID != "tenant-1" || got.PrincipalID != "principal-1" || got.Status != "completed" || got.ExportFormat != "ndjson" {
+		t.Fatalf("audit detail identity = %+v", got)
+	}
+	if got.WindowStart != "2026-05-04T00:00:00Z" || got.WindowEnd != "2026-05-05T00:00:00Z" || got.EventCount != 100 || got.RequestBytes != 1024 || got.ResponseBytes != 2048 {
+		t.Fatalf("audit detail metrics = %+v", got)
+	}
+}
+
 func TestDomainCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
