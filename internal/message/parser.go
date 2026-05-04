@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	gomessage "github.com/emersion/go-message"
 	gomail "github.com/emersion/go-message/mail"
@@ -205,6 +206,10 @@ func readLimitedText(r io.Reader, maxBytes int64) (string, bool, error) {
 	truncated := int64(len(body)) > maxBytes
 	if truncated {
 		body = body[:maxBytes]
+		for len(body) > 0 && !utf8.Valid(body) {
+			_, size := utf8.DecodeLastRune(body)
+			body = body[:len(body)-size]
+		}
 	}
 	return string(body), truncated, nil
 }
