@@ -493,6 +493,7 @@ func TestAdminAttachmentCleanupRunHandlerRejectsUnsafeRequests(t *testing.T) {
 		`{"limit":25}`,
 		`{"before":"not-a-time"}`,
 		`{"before":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `"}`,
+		`{"before":"2026-05-04T12:00:00Z","limit":-1}`,
 	}
 	for _, body := range tests {
 		body := body
