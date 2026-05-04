@@ -69,6 +69,9 @@ type MessageService interface {
 
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
 	mux.HandleFunc("GET /api/v1/folders", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -156,6 +159,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -199,6 +205,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -218,6 +227,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "subject") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -286,6 +298,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/threads", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -303,6 +318,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/threads/{id}/messages", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -324,6 +342,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/delivery-status", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
@@ -1033,6 +1054,23 @@ func singleQueryValue(w http.ResponseWriter, r *http.Request, key string) (strin
 		return "", false
 	}
 	return values[0], true
+}
+
+func rejectUnknownQueryKeys(w http.ResponseWriter, r *http.Request, allowed ...string) bool {
+	if len(r.URL.Query()) == 0 {
+		return true
+	}
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		allowedSet[key] = struct{}{}
+	}
+	for key := range r.URL.Query() {
+		if _, ok := allowedSet[key]; !ok {
+			writeError(w, http.StatusBadRequest, key+" is not supported")
+			return false
+		}
+	}
+	return true
 }
 
 func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key string) (bool, bool) {

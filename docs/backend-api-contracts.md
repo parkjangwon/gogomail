@@ -246,6 +246,9 @@ multipart body, not the URL query string, and reject repeated `draft_id` or
 `user_id`, `limit`, search filters, boolean flags, timestamps, and Admin API
 filters must appear at most once; duplicate scalar query controls return HTTP
 400 `bad_request`.
+Mail API read/search/list routes reject query parameter names outside their
+documented allowlists before service dispatch, so generated-client typos fail
+fast instead of being silently ignored.
 Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
 when the raw body exceeds the attachment upload size cap. Upload session body
 control headers such as `Content-Range` and `X-Content-SHA256` must appear at
