@@ -13,6 +13,7 @@ import (
 const (
 	EventMailStored           = "mail.stored"
 	MailStoredSchemaVersionV1 = "2026-05-04.mail-stored.v1"
+	maxMailStoredEventIDBytes = 200
 )
 
 type Event struct {
@@ -251,6 +252,9 @@ func requiredValue(name string, value string) (string, error) {
 	}
 	if strings.ContainsAny(value, "\r\n") {
 		return "", fmt.Errorf("mail.stored push payload has invalid %s", name)
+	}
+	if len(value) > maxMailStoredEventIDBytes {
+		return "", fmt.Errorf("mail.stored push payload has oversized %s", name)
 	}
 	return value, nil
 }
