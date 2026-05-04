@@ -1073,7 +1073,14 @@ func decodeJSONBody(r *http.Request, dst any) error {
 }
 
 func requireJSONContentType(r *http.Request) error {
-	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	values := r.Header.Values("Content-Type")
+	if len(values) > 1 {
+		return errors.New("content-type must not be repeated")
+	}
+	contentType := ""
+	if len(values) == 1 {
+		contentType = strings.TrimSpace(values[0])
+	}
 	if contentType == "" {
 		return errors.New("content-type must be application/json")
 	}

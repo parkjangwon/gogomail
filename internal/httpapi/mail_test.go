@@ -217,9 +217,11 @@ func TestMailJSONHandlersRejectMissingOrNonJSONContentType(t *testing.T) {
 	tests := []struct {
 		name        string
 		contentType string
+		extra       string
 	}{
 		{name: "missing"},
 		{name: "text plain", contentType: "text/plain"},
+		{name: "duplicate", contentType: "application/json", extra: "application/json"},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -233,6 +235,9 @@ func TestMailJSONHandlersRejectMissingOrNonJSONContentType(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects"}`))
 			if tt.contentType != "" {
 				req.Header.Set("Content-Type", tt.contentType)
+			}
+			if tt.extra != "" {
+				req.Header.Add("Content-Type", tt.extra)
 			}
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
