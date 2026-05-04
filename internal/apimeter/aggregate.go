@@ -341,13 +341,13 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	if schemaVersion := strings.TrimSpace(raw.SchemaVersion); schemaVersion != "" && schemaVersion != APIUsageSchemaV1 && schemaVersion != APIUsageSchemaV2 {
 		return UsageEvent{}, fmt.Errorf("unsupported api usage schema_version %q", schemaVersion)
 	}
-	method := strings.TrimSpace(raw.Method)
-	if method == "" {
-		return UsageEvent{}, fmt.Errorf("api usage method is required")
+	method, err := requiredUsageEventValue("method", raw.Method)
+	if err != nil {
+		return UsageEvent{}, err
 	}
-	route := strings.TrimSpace(raw.Route)
-	if route == "" {
-		return UsageEvent{}, fmt.Errorf("api usage route is required")
+	route, err := requiredUsageEventValue("route", raw.Route)
+	if err != nil {
+		return UsageEvent{}, err
 	}
 	if raw.Status < 100 || raw.Status > 999 {
 		return UsageEvent{}, fmt.Errorf("api usage status must be between 100 and 999")
@@ -358,8 +358,36 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	}
 	day := timestamp.UTC().Truncate(24 * time.Hour)
 	month := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
+	eventID, err := optionalUsageEventValue("event_id", raw.EventID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	tenantID, err := optionalUsageEventValue("tenant_id", raw.TenantID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	companyID, err := optionalUsageEventValue("company_id", raw.CompanyID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	domainID, err := optionalUsageEventValue("domain_id", raw.DomainID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	userID, err := optionalUsageEventValue("user_id", raw.UserID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	apiKeyID, err := optionalUsageEventValue("api_key_id", raw.APIKeyID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
+	principalID, err := optionalUsageEventValue("principal_id", raw.PrincipalID)
+	if err != nil {
+		return UsageEvent{}, err
+	}
 	return normalizeUsageEventMetrics(UsageEvent{
-		EventID:       strings.TrimSpace(raw.EventID),
+		EventID:       eventID,
 		SchemaVersion: strings.TrimSpace(raw.SchemaVersion),
 		RawPayload:    append(json.RawMessage(nil), payload...),
 		Day:           day,
@@ -367,16 +395,35 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		Method:        method,
 		Route:         route,
 		Status:        raw.Status,
-		TenantID:      strings.TrimSpace(raw.TenantID),
-		CompanyID:     strings.TrimSpace(raw.CompanyID),
-		DomainID:      strings.TrimSpace(raw.DomainID),
-		UserID:        strings.TrimSpace(raw.UserID),
-		APIKeyID:      strings.TrimSpace(raw.APIKeyID),
-		PrincipalID:   strings.TrimSpace(raw.PrincipalID),
+		TenantID:      tenantID,
+		CompanyID:     companyID,
+		DomainID:      domainID,
+		UserID:        userID,
+		APIKeyID:      apiKeyID,
+		PrincipalID:   principalID,
 		AuthSource:    normalizeAuthSource(raw.AuthSource),
 		RequestBytes:  raw.RequestBytes,
 		ResponseBytes: raw.ResponseBytes,
 		LatencyMS:     raw.LatencyMS,
 		RequestCount:  1,
 	}), nil
+}
+
+func requiredUsageEventValue(name string, value string) (string, error) {
+	value, err := optionalUsageEventValue(name, value)
+	if err != nil {
+		return "", err
+	}
+	if value == "" {
+		return "", fmt.Errorf("api usage %s is required", name)
+	}
+	return value, nil
+}
+
+func optionalUsageEventValue(name string, value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("api usage %s is invalid", name)
+	}
+	return value, nil
 }
