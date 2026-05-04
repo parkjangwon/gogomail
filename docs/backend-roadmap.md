@@ -424,6 +424,7 @@ Implementation order:
 365. Admin token checks now compare SHA-256 digests of trimmed token values, keeping the authorization comparison fixed-length while preserving existing bearer and `X-Admin-Token` behavior.
 366. Admin delivery-route creation now rejects impossible TLS/auth combinations, including implicit TLS with disabled TLS mode and password-only authentication, before invalid relay routes can be stored.
 367. Event and delivery Redis worker configuration now rejects nonpositive consumer count/block settings at startup, matching the existing push, API-metering, and search-index guardrails before unusable stream consumers can run.
+368. OpenAPI drift tests now pin Mail API search query parameters, including relevance sorting, rank/highlight toggles, attachment filtering, and metadata filters, protecting generated client search controls from contract regression.
 
 ## Deferred until backend contracts stabilize
 

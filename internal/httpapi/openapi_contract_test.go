@@ -289,6 +289,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, params := range map[string][]string{
+		"GET /search":                                          {"limit", "q", "folder_id", "from", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
 		"GET /companies":                                       {"limit"},
 		"GET /domains":                                         {"limit"},
 		"GET /domains/{id}/dns-checks":                         {"id", "limit"},
