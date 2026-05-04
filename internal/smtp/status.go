@@ -41,3 +41,7 @@ func smtpRateLimited(recipient string) *gosmtp.SMTPError {
 func smtpBackpressure() *gosmtp.SMTPError {
 	return smtpTemporary(421, gosmtp.EnhancedCode{4, 3, 2}, "service temporarily unavailable")
 }
+
+func smtpMailboxFull(address string) *gosmtp.SMTPError {
+	return smtpTemporary(452, gosmtp.EnhancedCode{4, 2, 2}, "insufficient system storage for %q", address)
+}

@@ -91,6 +91,10 @@ func (r *Repository) RecordOutgoing(ctx context.Context, msg OutgoingMessage) (s
 	}
 	defer tx.Rollback()
 
+	if err := checkAndIncrementUserQuota(ctx, tx, msg.UserID, msg.Size); err != nil {
+		return "", err
+	}
+
 	folderID, err := sentFolderID(ctx, tx, msg.UserID)
 	if err != nil {
 		return "", err

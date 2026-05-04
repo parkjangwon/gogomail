@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -492,6 +493,9 @@ func (s *session) Data(r io.Reader) (err error) {
 			ReceivedAt:     receivedAt,
 			Size:           size,
 		}); err != nil {
+			if errors.Is(err, mail.ErrMailboxFull) {
+				return smtpMailboxFull(recipient.Address)
+			}
 			return fmt.Errorf("record message for %s: %w", recipient.Address, err)
 		}
 		if err := s.emit(context.Background(), Event{

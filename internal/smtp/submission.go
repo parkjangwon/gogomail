@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -375,6 +376,9 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		Size:         size,
 	})
 	if err != nil {
+		if errors.Is(err, mail.ErrMailboxFull) {
+			return smtpMailboxFull(s.user.Address)
+		}
 		return fmt.Errorf("record submitted message: %w", err)
 	}
 	if err := s.emit(context.Background(), Event{

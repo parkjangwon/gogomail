@@ -672,25 +672,39 @@ func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID
 		return fmt.Errorf("database handle is required")
 	}
 
-	const query = `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete message transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var size int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(size, 0) FROM messages WHERE user_id = $1 AND id = $2 AND status = 'active'`,
+		userID, messageID,
+	).Scan(&size); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("message %q not found", messageID)
+		}
+		return fmt.Errorf("read message size for delete: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET status = 'deleted',
     deleted_at = now(),
     updated_at = now()
 WHERE user_id = $1
   AND id = $2
-  AND status = 'active'`
-
-	result, err := r.db.ExecContext(ctx, query, userID, messageID)
-	if err != nil {
+  AND status = 'active'`, userID, messageID); err != nil {
 		return fmt.Errorf("delete message: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("inspect message delete: %w", err)
+
+	if err := decrementUserQuota(ctx, tx, userID, size); err != nil {
+		return err
 	}
-	if affected == 0 {
-		return fmt.Errorf("message %q not found", messageID)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete message transaction: %w", err)
 	}
 	return nil
 }
@@ -707,22 +721,44 @@ func (r *Repository) BulkDeleteMessages(ctx context.Context, req BulkMessageDele
 		return 0, fmt.Errorf("encode message ids: %w", err)
 	}
 
-	const query = `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin bulk delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var totalSize int64
+	if err := tx.QueryRowContext(ctx, `
+SELECT COALESCE(SUM(size), 0)
+FROM messages
+WHERE user_id = $1
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'active'`, strings.TrimSpace(req.UserID), string(rawIDs),
+	).Scan(&totalSize); err != nil {
+		return 0, fmt.Errorf("sum message sizes for bulk delete: %w", err)
+	}
+
+	result, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET status = 'deleted',
     deleted_at = now(),
     updated_at = now()
 WHERE user_id = $1
   AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'active'`
-
-	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), string(rawIDs))
+  AND status = 'active'`, strings.TrimSpace(req.UserID), string(rawIDs))
 	if err != nil {
 		return 0, fmt.Errorf("bulk delete messages: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
 		return 0, fmt.Errorf("inspect bulk message delete: %w", err)
+	}
+
+	if err := decrementUserQuota(ctx, tx, strings.TrimSpace(req.UserID), totalSize); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit bulk delete transaction: %w", err)
 	}
 	return affected, nil
 }

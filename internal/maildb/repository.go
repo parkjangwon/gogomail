@@ -65,6 +65,10 @@ func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) erro
 	}
 	defer tx.Rollback()
 
+	if err := checkAndIncrementUserQuota(ctx, tx, msg.Mailbox.UserID, msg.Size); err != nil {
+		return err
+	}
+
 	folderID, err := r.inboxFolderID(ctx, msg.Mailbox.UserID)
 	if err != nil {
 		return err
