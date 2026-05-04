@@ -18,6 +18,7 @@ import (
 )
 
 const maxBackpressureAuditReasonBytes = 512
+const maxAttachmentCleanupAuditSample = 10
 
 type backpressureStore interface {
 	State(ctx context.Context) (backpressure.State, error)
@@ -145,7 +146,26 @@ func (s adminService) RunAttachmentCleanup(ctx context.Context, before time.Time
 	if s.attachmentCleanup == nil {
 		return nil, fmt.Errorf("attachment cleanup service is not configured")
 	}
-	return s.attachmentCleanup.ExpireStaleAttachmentUploads(ctx, before, limit)
+	expired, err := s.attachmentCleanup.ExpireStaleAttachmentUploads(ctx, before, limit)
+	if err != nil {
+		return nil, err
+	}
+	if s.audit != nil {
+		detail, err := attachmentCleanupAuditDetail("uploads", before, limit, attachmentAuditIDs(expired))
+		if err != nil {
+			return nil, err
+		}
+		if err := s.audit.Insert(ctx, audit.Log{
+			Category:   "admin",
+			Action:     "attachment_cleanup.uploads_run",
+			TargetType: "attachment_cleanup",
+			Result:     "completed",
+			Detail:     detail,
+		}); err != nil {
+			return nil, fmt.Errorf("record attachment cleanup audit: %w", err)
+		}
+	}
+	return expired, nil
 }
 
 func (s adminService) CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error) {
@@ -166,7 +186,77 @@ func (s adminService) RunAttachmentUploadSessionCleanup(ctx context.Context, bef
 	if s.attachmentCleanup == nil {
 		return nil, fmt.Errorf("attachment cleanup service is not configured")
 	}
-	return s.attachmentCleanup.ExpireAttachmentUploadSessions(ctx, before, limit)
+	expired, err := s.attachmentCleanup.ExpireAttachmentUploadSessions(ctx, before, limit)
+	if err != nil {
+		return nil, err
+	}
+	if s.audit != nil {
+		detail, err := attachmentCleanupAuditDetail("upload_sessions", before, limit, attachmentSessionAuditIDs(expired))
+		if err != nil {
+			return nil, err
+		}
+		if err := s.audit.Insert(ctx, audit.Log{
+			Category:   "admin",
+			Action:     "attachment_cleanup.sessions_run",
+			TargetType: "attachment_cleanup",
+			Result:     "completed",
+			Detail:     detail,
+		}); err != nil {
+			return nil, fmt.Errorf("record attachment session cleanup audit: %w", err)
+		}
+	}
+	return expired, nil
+}
+
+func attachmentCleanupAuditDetail(scope string, before time.Time, limit int, expiredIDs []string) (json.RawMessage, error) {
+	normalizedBefore := before.UTC()
+	detail := struct {
+		Scope        string   `json:"scope"`
+		Before       string   `json:"before"`
+		Limit        int      `json:"limit"`
+		ExpiredCount int      `json:"expired_count"`
+		ExpiredIDs   []string `json:"expired_ids_sample"`
+	}{
+		Scope:        scope,
+		Before:       normalizedBefore.Format(time.RFC3339),
+		Limit:        maildb.NormalizeAttachmentCleanupLimit(limit),
+		ExpiredCount: len(expiredIDs),
+		ExpiredIDs:   sampleAttachmentCleanupIDs(expiredIDs),
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return nil, fmt.Errorf("marshal attachment cleanup audit detail: %w", err)
+	}
+	return raw, nil
+}
+
+func attachmentAuditIDs(attachments []maildb.Attachment) []string {
+	ids := make([]string, 0, len(attachments))
+	for _, attachment := range attachments {
+		if id := strings.TrimSpace(attachment.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func attachmentSessionAuditIDs(sessions []maildb.AttachmentUploadSession) []string {
+	ids := make([]string, 0, len(sessions))
+	for _, session := range sessions {
+		if id := strings.TrimSpace(session.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func sampleAttachmentCleanupIDs(ids []string) []string {
+	if len(ids) > maxAttachmentCleanupAuditSample {
+		ids = ids[:maxAttachmentCleanupAuditSample]
+	}
+	out := make([]string, len(ids))
+	copy(out, ids)
+	return out
 }
 
 func (s adminService) CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error) {
