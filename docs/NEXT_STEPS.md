@@ -75,20 +75,20 @@ Current state:
 - `maildb` can hydrate ordered message ID search hits into active
   `MessageSummary` rows.
 - `mailservice` can compose OpenSearch relevance ID hits with Postgres summary
-  hydration when filters/highlights do not require fallback.
+  hydration when relevance sorting is requested.
 - Mail API app wiring can inject the OpenSearch search source when
   `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`.
 - OpenSearch indexed documents include parsed sender and attachment presence
   fields for search-filter parity.
-- OpenSearch relevance search can apply from, subject, and attachment filters
-  before Postgres metadata hydration.
+- OpenSearch relevance search can apply folder, from, subject, and attachment
+  filters before Postgres metadata hydration.
 - OpenSearch relevance search can return subject/from/body highlights in the
   existing Mail API `search_highlights` shape.
 
 Next:
 
-- Add folder-aware filtering before making OpenSearch the general Mail API
-  search backend.
+- Audit the remaining fallback contract before making OpenSearch the general
+  Mail API search backend.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning

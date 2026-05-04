@@ -14,6 +14,7 @@ import (
 
 type OpenSearchSearchQuery struct {
 	UserID            string
+	FolderID          string
 	Query             string
 	From              string
 	Subject           string
@@ -132,6 +133,11 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 				"query":  searchText,
 				"fields": []string{"subject^2", "from_name", "from_addr", "body_text"},
 			},
+		})
+	}
+	if folderID := strings.TrimSpace(query.FolderID); folderID != "" {
+		must = append(must, map[string]any{
+			"term": map[string]any{"folder_id": folderID},
 		})
 	}
 	if from := strings.TrimSpace(query.From); from != "" {

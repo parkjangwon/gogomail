@@ -38,6 +38,7 @@ func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
 		RFCMessageID:  "<msg-1@example.com>",
 		UserID:        "user-1",
 		DomainID:      "domain-1",
+		FolderID:      "folder-1",
 		Subject:       "Hello",
 		FromAddr:      "sender@example.com",
 		FromName:      "Sender",
@@ -62,6 +63,9 @@ func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
 	}
 	if payload["from_addr"] != "sender@example.com" || payload["has_attachment"] != true {
 		t.Fatalf("payload sender/attachment = %#v", payload)
+	}
+	if payload["folder_id"] != "folder-1" {
+		t.Fatalf("payload folder_id = %#v", payload)
 	}
 	if payload["body_truncated"] != true || payload["body_max_bytes"].(float64) != 1024 {
 		t.Fatalf("payload truncation fields = %#v", payload)
@@ -128,6 +132,9 @@ func TestOpenSearchIndexerEnsuresIndexMapping(t *testing.T) {
 	}
 	if properties["message_id"].(map[string]any)["type"] != "keyword" {
 		t.Fatalf("message_id mapping = %#v", properties["message_id"])
+	}
+	if properties["folder_id"].(map[string]any)["type"] != "keyword" {
+		t.Fatalf("folder_id mapping = %#v", properties["folder_id"])
 	}
 }
 

@@ -167,6 +167,7 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 	}
 	hits, err := s.searchIDSource.SearchMessageIDs(ctx, searchindex.OpenSearchSearchQuery{
 		UserID:            query.UserID,
+		FolderID:          query.FolderID,
 		Query:             query.Query,
 		From:              query.From,
 		Subject:           query.Subject,
@@ -216,8 +217,7 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 
 func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
 	return strings.TrimSpace(query.Query) != "" &&
-		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance &&
-		strings.TrimSpace(query.FolderID) == ""
+		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance
 }
 
 func normalizedSearchSort(sort string) string {

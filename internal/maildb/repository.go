@@ -143,7 +143,7 @@ INSERT INTO messages (
 		return fmt.Errorf("insert message metadata: %w", err)
 	}
 
-	if err := r.insertStoredOutbox(ctx, tx, insertedMessageID, msg); err != nil {
+	if err := r.insertStoredOutbox(ctx, tx, insertedMessageID, folderID, msg); err != nil {
 		return err
 	}
 
@@ -172,8 +172,8 @@ LIMIT 1`
 	return folderID, nil
 }
 
-func (r *Repository) insertStoredOutbox(ctx context.Context, tx *sql.Tx, messageID string, msg smtpd.ReceivedMessage) error {
-	payload, err := storedEventPayload(messageID, msg)
+func (r *Repository) insertStoredOutbox(ctx context.Context, tx *sql.Tx, messageID string, folderID string, msg smtpd.ReceivedMessage) error {
+	payload, err := storedEventPayload(messageID, folderID, msg)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func normalizeThreadCandidates(candidates []string) []string {
 	return out
 }
 
-func storedEventPayload(messageID string, msg smtpd.ReceivedMessage) ([]byte, error) {
+func storedEventPayload(messageID string, folderID string, msg smtpd.ReceivedMessage) ([]byte, error) {
 	payload := map[string]any{
 		"event":                  "mail.stored",
 		"schema_version":         "2026-05-04.mail-stored.v1",
@@ -255,6 +255,7 @@ func storedEventPayload(messageID string, msg smtpd.ReceivedMessage) ([]byte, er
 		"company_id":             msg.Mailbox.CompanyID,
 		"domain_id":              msg.Mailbox.DomainID,
 		"user_id":                msg.Mailbox.UserID,
+		"folder_id":              strings.TrimSpace(folderID),
 		"recipient":              msg.Mailbox.Address,
 		"subject":                msg.Parsed.Subject,
 		"storage_path":           msg.StoragePath,
