@@ -218,15 +218,15 @@ func (c *RedisConsumer) processRedisMessage(ctx context.Context, stream string, 
 }
 
 func decodeRedisMessage(stream string, msg redis.XMessage) (Message, error) {
-	outboxID, err := stringValue(msg.Values, "outbox_id")
+	outboxID, err := stringValue(msg.Values, "outbox_id", maxRedisMetadataBytes)
 	if err != nil {
 		return Message{}, err
 	}
-	partitionKey, err := stringValue(msg.Values, "partition_key")
+	partitionKey, err := stringValue(msg.Values, "partition_key", maxRedisMetadataBytes)
 	if err != nil {
 		return Message{}, err
 	}
-	payloadRaw, err := stringValue(msg.Values, "payload")
+	payloadRaw, err := stringValue(msg.Values, "payload", maxRedisPayloadBytes)
 	if err != nil {
 		return Message{}, err
 	}
@@ -243,7 +243,12 @@ func decodeRedisMessage(stream string, msg redis.XMessage) (Message, error) {
 	}, nil
 }
 
-func stringValue(values map[string]any, key string) (string, error) {
+const (
+	maxRedisMetadataBytes = 1024
+	maxRedisPayloadBytes  = 1 << 20
+)
+
+func stringValue(values map[string]any, key string, maxBytes int) (string, error) {
 	value, ok := values[key]
 	if !ok {
 		return "", fmt.Errorf("redis stream message is missing %q", key)
@@ -254,11 +259,23 @@ func stringValue(values map[string]any, key string) (string, error) {
 		if typed == "" {
 			return "", fmt.Errorf("redis stream message has empty %q", key)
 		}
+		if strings.ContainsAny(typed, "\r\n") && key != "payload" {
+			return "", fmt.Errorf("redis stream message has invalid %q", key)
+		}
+		if len(typed) > maxBytes {
+			return "", fmt.Errorf("redis stream message %q is too long", key)
+		}
 		return typed, nil
 	case []byte:
 		typed = []byte(strings.TrimSpace(string(typed)))
 		if len(typed) == 0 {
 			return "", fmt.Errorf("redis stream message has empty %q", key)
+		}
+		if strings.ContainsAny(string(typed), "\r\n") && key != "payload" {
+			return "", fmt.Errorf("redis stream message has invalid %q", key)
+		}
+		if len(typed) > maxBytes {
+			return "", fmt.Errorf("redis stream message %q is too long", key)
 		}
 		return string(typed), nil
 	default:
