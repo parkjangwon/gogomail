@@ -171,9 +171,9 @@ guidance.
 - Mail API folder, thread, message, draft, attachment, and push-device path
   identifiers now reject blank, CR/LF-bearing, or oversized values before
   service dispatch.
-- Push-device create/update validation now rejects CR/LF-bearing or oversized
-  user and token metadata before repository upsert, keeping raw provider tokens
-  bounded at the storage boundary.
+- Push-device create/update validation now rejects invalid-UTF-8,
+  CR/LF-bearing, or oversized user and token metadata before repository upsert,
+  keeping raw provider tokens bounded at the storage boundary.
 - Mail API message-list `folder_id` and search text/filter query parameters now
   reject CR/LF-bearing or oversized values before service dispatch.
 - Mail API bearer JWT `user_id` and `sub` identities now reject CR/LF-bearing

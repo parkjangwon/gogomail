@@ -206,10 +206,10 @@ Push notification device tokens are user-scoped Mail API resources:
 Supported platforms are `apns`, `fcm`, and `webpush`. Create/update accepts the
 raw token, but API responses do not return the raw token; clients receive only
 `token_suffix` for diagnostics and display. Push-device create/update rejects
-blank, CR/LF-bearing, or oversized user/token metadata before repository
-upsert. Delete is a soft delete scoped to the authenticated user; delete device
-IDs are whitespace-normalized and reject blank, CR/LF-bearing, or oversized
-values before repository dispatch.
+blank, invalid-UTF-8, CR/LF-bearing, or oversized user/token metadata before
+repository upsert. Delete is a soft delete scoped to the authenticated user;
+delete device IDs are whitespace-normalized and reject blank, CR/LF-bearing,
+or oversized values before repository dispatch.
 
 When `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog`, `push-notification-worker`
 resolves active devices for the `mail.stored.user_id` after commit and before
