@@ -141,7 +141,9 @@ Attachment downloads set private `no-store` responses and include both a safe
 ASCII `filename` fallback and a UTF-8 `filename*` parameter in
 `Content-Disposition` so internationalized filenames survive browser downloads
 without permitting header injection. Unsafe or blank stored attachment MIME
-types fall back to `application/octet-stream` at the download boundary.
+types fall back to `application/octet-stream` at the download boundary. The
+OpenAPI contract documents the binary media type plus `Content-Disposition` and
+`Cache-Control` response headers for generated clients.
 
 ## Push devices
 

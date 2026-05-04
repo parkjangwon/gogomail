@@ -281,7 +281,7 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	if strings.Contains(block, "application/json:") {
 		t.Fatal("attachment download must not declare application/json")
 	}
-	for _, want := range []string{"application/octet-stream:", "type: string", "format: binary"} {
+	for _, want := range []string{"application/octet-stream:", "type: string", "format: binary", "Content-Disposition:", "Cache-Control:", "enum: [no-store]"} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("attachment download must document %q", want)
 		}
