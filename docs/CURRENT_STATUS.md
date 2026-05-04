@@ -428,6 +428,9 @@ The platform hardening sprint completed the following:
   aggregate quota enforcement for mail writes/deletes.
 - Attachment upload quota integration: upload metadata reserves quota, stale
   upload cleanup releases quota, and API quota exhaustion maps to 507.
+- `attachment-cleanup-worker` can now run the stale upload cleanup loop
+  periodically with configurable interval, stale age, and batch size, turning
+  the repository/service cleanup path into an operational mode.
 - Search indexing boundary: bounded received body extraction runs in
   `search-index-worker` and stores Postgres search documents outside SMTP hot
   paths.
@@ -600,7 +603,9 @@ The platform hardening sprint completed the following:
   storage, and repository work, and reject CR/LF-bearing or oversized draft
   identifiers before quota reservation or object writes.
 - Stale attachment-upload cleanup validates its time window and limit at the
-  service boundary before repository cleanup/object deletion work.
+  service boundary before repository cleanup/object deletion work, and app
+  configuration validates the worker interval, stale age, and batch size before
+  runtime.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

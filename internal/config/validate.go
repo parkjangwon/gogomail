@@ -73,6 +73,15 @@ func (c Config) Validate() error {
 	if c.AttachmentScanTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT must be positive")
 	}
+	if c.AttachmentCleanupInterval <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL must be positive")
+	}
+	if c.AttachmentCleanupStaleAge <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE must be positive")
+	}
+	if c.AttachmentCleanupBatchSize <= 0 || c.AttachmentCleanupBatchSize > 1000 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE must be between 1 and 1000")
+	}
 	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook"); err != nil {
 		return err
 	}

@@ -61,6 +61,7 @@ go run ./cmd/gogomail --mode=edge-mta
 go run ./cmd/gogomail --mode=inbound-mta
 go run ./cmd/gogomail --mode=outbound-mta
 go run ./cmd/gogomail --mode=delivery-worker
+go run ./cmd/gogomail --mode=attachment-cleanup-worker
 go run ./cmd/gogomail --mode=search-index-worker
 go run ./cmd/gogomail --mode=api-metering-worker
 go run ./cmd/gogomail --mode=push-notification-worker
@@ -77,6 +78,16 @@ candidate attempt rows before sink handoff. The `slog` backend logs bounded
 notification candidates. The `webhook` backend POSTs raw-token targets and
 attempt IDs to an external push gateway. First-party FCM/APNs/Web Push delivery
 adapters are intentionally not enabled by default.
+
+`attachment-cleanup-worker` periodically expires stale `uploading` attachment
+rows and deletes the corresponding stored objects through the configured local
+mailstore. Configure it with:
+
+```bash
+GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL=1h
+GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE=24h
+GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE=100
+```
 
 Webhook push handoff:
 

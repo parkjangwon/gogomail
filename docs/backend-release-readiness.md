@@ -24,7 +24,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
-- Stale attachment uploads have a repository/service cleanup path and a partial index for efficient lifecycle sweeps.
+- Stale attachment uploads have a repository/service cleanup path, partial
+  index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps.
 - Direct multipart uploads write through the configured storage backend and only record metadata after the object write succeeds.
 - Attachment upload size is guarded in HTTP and service layers, including
   multipart request caps that return 413 for over-limit direct upload envelopes
@@ -170,7 +171,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   storage, and repository work, and reject CR/LF-bearing or oversized draft
   identifiers before quota reservation or object writes.
 - Stale attachment-upload cleanup validates its time window and limit at the
-  service boundary before repository cleanup/object deletion work.
+  service boundary before repository cleanup/object deletion work, and the
+  worker's interval, stale age, and batch size are configuration-validated.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

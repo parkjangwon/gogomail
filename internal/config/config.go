@@ -54,6 +54,9 @@ type Config struct {
 	AttachmentScanWebhookURL            string
 	AttachmentScanWebhookToken          string
 	AttachmentScanTimeout               time.Duration
+	AttachmentCleanupInterval           time.Duration
+	AttachmentCleanupStaleAge           time.Duration
+	AttachmentCleanupBatchSize          int
 	PushNotifyBackend                   string
 	PushNotifyWebhookURL                string
 	PushNotifyWebhookToken              string
@@ -181,6 +184,9 @@ func Load() Config {
 		AttachmentScanWebhookURL:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", ""),
 		AttachmentScanWebhookToken:          os.Getenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN"),
 		AttachmentScanTimeout:               durationEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", 2*time.Second),
+		AttachmentCleanupInterval:           durationEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL", time.Hour),
+		AttachmentCleanupStaleAge:           durationEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", 24*time.Hour),
+		AttachmentCleanupBatchSize:          intEnvOrDefault("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", 100),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
 		PushNotifyWebhookURL:                envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", ""),
 		PushNotifyWebhookToken:              os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN"),
