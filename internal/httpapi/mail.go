@@ -105,6 +105,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		folderID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
 
 		var req struct {
 			Name string `json:"name"`
@@ -113,7 +117,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		folder, err := service.RenameFolder(r.Context(), userID, pathValue(r, "id"), req.Name)
+		folder, err := service.RenameFolder(r.Context(), userID, folderID, req.Name)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -127,7 +131,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if err := service.DeleteFolder(r.Context(), userID, pathValue(r, "id")); err != nil {
+		folderID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteFolder(r.Context(), userID, folderID); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -177,7 +185,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 
-		messageID := pathValue(r, "id")
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
 		message, err := service.GetMessage(r.Context(), userID, messageID)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
@@ -261,7 +272,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		messages, err := service.ListThreadMessages(r.Context(), userID, pathValue(r, "id"), limit)
+		threadID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		messages, err := service.ListThreadMessages(r.Context(), userID, threadID, limit)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -274,7 +289,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		status, err := service.MessageDeliveryStatus(r.Context(), userID, pathValue(r, "id"))
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		status, err := service.MessageDeliveryStatus(r.Context(), userID, messageID)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -298,7 +317,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if err := service.SetMessageFlag(r.Context(), userID, pathValue(r, "id"), req.Flag, req.Value); err != nil {
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.SetMessageFlag(r.Context(), userID, messageID, req.Flag, req.Value); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -344,7 +367,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if err := service.MoveMessage(r.Context(), userID, pathValue(r, "id"), req.FolderID); err != nil {
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.MoveMessage(r.Context(), userID, messageID, req.FolderID); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -380,7 +407,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if err := service.DeleteMessage(r.Context(), userID, pathValue(r, "id")); err != nil {
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteMessage(r.Context(), userID, messageID); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -442,7 +473,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.DraftID = pathValue(r, "id")
+		draftID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.DraftID = draftID
 		if tokenManager != nil {
 			claims, ok := claimsFromRequest(w, r, tokenManager)
 			if !ok {
@@ -463,7 +498,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if err := service.DeleteDraft(r.Context(), userID, pathValue(r, "id")); err != nil {
+		draftID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteDraft(r.Context(), userID, draftID); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -475,7 +514,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		result, err := service.SendDraft(r.Context(), userID, pathValue(r, "id"))
+		draftID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		result, err := service.SendDraft(r.Context(), userID, draftID)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -489,7 +532,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		attachments, err := service.ListAttachments(r.Context(), userID, pathValue(r, "id"))
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		attachments, err := service.ListAttachments(r.Context(), userID, messageID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -571,7 +618,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		download, err := service.OpenAttachment(r.Context(), userID, pathValue(r, "id"), pathValue(r, "attachment_id"))
+		messageID, attachmentID, ok := parseBoundedHTTPPathPair(w, r, "id", "attachment_id")
+		if !ok {
+			return
+		}
+		download, err := service.OpenAttachment(r.Context(), userID, messageID, attachmentID)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -632,7 +683,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		id := pathValue(r, "id")
+		id, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
 		if err := service.DeletePushDevice(r.Context(), userID, id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -734,8 +788,33 @@ func decodeJSONBody(r *http.Request, dst any) error {
 	return nil
 }
 
-func pathValue(r *http.Request, key string) string {
-	return strings.TrimSpace(r.PathValue(key))
+func parseBoundedHTTPPathValue(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	value := strings.TrimSpace(r.PathValue(key))
+	if value == "" {
+		writeError(w, http.StatusBadRequest, key+" is required")
+		return "", false
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > maxHTTPResourceIDBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
+}
+
+func parseBoundedHTTPPathPair(w http.ResponseWriter, r *http.Request, firstKey string, secondKey string) (string, string, bool) {
+	first, ok := parseBoundedHTTPPathValue(w, r, firstKey)
+	if !ok {
+		return "", "", false
+	}
+	second, ok := parseBoundedHTTPPathValue(w, r, secondKey)
+	if !ok {
+		return "", "", false
+	}
+	return first, second, true
 }
 
 func parseBoundedHTTPQuery(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {

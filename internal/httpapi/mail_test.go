@@ -1302,6 +1302,78 @@ func TestMailRoutesRejectUnsafeQueryUserID(t *testing.T) {
 	}
 }
 
+func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
+	t.Parallel()
+
+	oversized := strings.Repeat("x", maxHTTPResourceIDBytes+1)
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{
+			name:   "folder crlf",
+			method: http.MethodPatch,
+			path:   "/api/v1/folders/folder%0Abad?user_id=user-1",
+			body:   `{"name":"Renamed"}`,
+		},
+		{
+			name:   "thread oversized",
+			method: http.MethodGet,
+			path:   "/api/v1/threads/" + oversized + "/messages?user_id=user-1",
+		},
+		{
+			name:   "message crlf",
+			method: http.MethodGet,
+			path:   "/api/v1/messages/msg%0Abad?user_id=user-1",
+		},
+		{
+			name:   "message attachment oversized",
+			method: http.MethodGet,
+			path:   "/api/v1/messages/" + oversized + "/attachments/att-1/download?user_id=user-1",
+		},
+		{
+			name:   "attachment crlf",
+			method: http.MethodGet,
+			path:   "/api/v1/messages/msg-1/attachments/att%0Abad/download?user_id=user-1",
+		},
+		{
+			name:   "draft crlf",
+			method: http.MethodPatch,
+			path:   "/api/v1/drafts/draft%0Abad",
+			body:   `{"user_id":"user-1","to":[{"email":"user@example.net"}],"subject":"draft"}`,
+		},
+		{
+			name:   "push device oversized",
+			method: http.MethodDelete,
+			path:   "/api/v1/push-devices/" + oversized + "?user_id=user-1",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" {
+				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID)
+			}
+		})
+	}
+}
+
 func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 	t.Parallel()
 

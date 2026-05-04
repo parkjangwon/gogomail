@@ -164,6 +164,9 @@ guidance.
   path boundary validation before service dispatch.
 - Mail API development `user_id` query fallback values now reject CR/LF-bearing
   or oversized identifiers before service dispatch.
+- Mail API folder, thread, message, draft, attachment, and push-device path
+  identifiers now reject blank, CR/LF-bearing, or oversized values before
+  service dispatch.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
