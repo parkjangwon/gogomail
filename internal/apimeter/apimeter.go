@@ -16,6 +16,7 @@ const defaultTimeout = 100 * time.Millisecond
 // Event is the API usage record emitted by the metering middleware.
 type Event struct {
 	ID            string
+	Identity      Identity
 	Method        string
 	RoutePattern  string
 	Status        int
@@ -64,11 +65,16 @@ func (s SlogSink) Record(_ context.Context, event Event) error {
 }
 
 type config struct {
-	timeout time.Duration
+	timeout          time.Duration
+	identityResolver IdentityResolver
 }
 
 // Option configures the metering middleware.
 type Option func(*config)
+
+// IdentityResolver extracts request identity dimensions without coupling the
+// metering package to a specific authentication implementation.
+type IdentityResolver func(*http.Request) Identity
 
 // WithTimeout sets the maximum time allowed for a sink call.
 func WithTimeout(timeout time.Duration) Option {
@@ -79,12 +85,21 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithIdentityResolver overrides the default request identity extraction.
+func WithIdentityResolver(resolver IdentityResolver) Option {
+	return func(cfg *config) {
+		if resolver != nil {
+			cfg.identityResolver = resolver
+		}
+	}
+}
+
 // Handler wraps next with asynchronous fail-open API metering.
 func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 	if sink == nil {
 		sink = NoopSink{}
 	}
-	cfg := config{timeout: defaultTimeout}
+	cfg := config{timeout: defaultTimeout, identityResolver: defaultIdentityFromRequest}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -102,7 +117,9 @@ func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 		if r.ContentLength > requestBytes {
 			requestBytes = r.ContentLength
 		}
+		identity := cfg.identityResolver(r).Normalize()
 		event := Event{
+			Identity:      identity,
 			Method:        r.Method,
 			RoutePattern:  r.Pattern,
 			Status:        mw.status,
@@ -110,11 +127,26 @@ func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 			ResponseBytes: mw.bytes,
 			Latency:       time.Since(start),
 			Timestamp:     start,
-			UserID:        r.URL.Query().Get("user_id"),
-			AuthSource:    authSourceFromRequest(r),
+			UserID:        identity.UserID,
+			AuthSource:    identity.AuthSource,
 		}
 		go recordFailOpen(sink, cfg.timeout, event)
 	})
+}
+
+func defaultIdentityFromRequest(r *http.Request) Identity {
+	if r == nil {
+		return Identity{AuthSource: AuthSourceAnonymous}
+	}
+	return Identity{
+		TenantID:    r.Header.Get("X-Gogomail-Tenant-ID"),
+		CompanyID:   r.Header.Get("X-Gogomail-Company-ID"),
+		DomainID:    r.Header.Get("X-Gogomail-Domain-ID"),
+		UserID:      r.URL.Query().Get("user_id"),
+		APIKeyID:    r.Header.Get("X-Gogomail-API-Key-ID"),
+		PrincipalID: r.Header.Get("X-Gogomail-Principal-ID"),
+		AuthSource:  authSourceFromRequest(r),
+	}
 }
 
 func authSourceFromRequest(r *http.Request) string {
