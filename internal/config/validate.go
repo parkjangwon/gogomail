@@ -68,8 +68,16 @@ func (c Config) Validate() error {
 	if c.AttachmentScanTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT must be positive")
 	}
-	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog"); err != nil {
+	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook"); err != nil {
 		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(c.PushNotifyBackend), "webhook") {
+		if err := validateHTTPURL("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", c.PushNotifyWebhookURL); err != nil {
+			return err
+		}
+	}
+	if c.PushNotifyWebhookTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT must be positive")
 	}
 	if c.PushNotifyDeviceLimit <= 0 || c.PushNotifyDeviceLimit > 200 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT must be between 1 and 200")

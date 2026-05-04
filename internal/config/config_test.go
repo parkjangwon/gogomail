@@ -45,6 +45,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "")
@@ -269,6 +272,15 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.PushNotifyDeviceLimit != 200 {
 		t.Fatalf("PushNotifyDeviceLimit = %d, want 200", cfg.PushNotifyDeviceLimit)
 	}
+	if cfg.PushNotifyBackend != "none" {
+		t.Fatalf("PushNotifyBackend = %q, want none", cfg.PushNotifyBackend)
+	}
+	if cfg.PushNotifyWebhookURL != "" {
+		t.Fatalf("PushNotifyWebhookURL = %q, want empty", cfg.PushNotifyWebhookURL)
+	}
+	if cfg.PushNotifyWebhookTimeout != 2*time.Second {
+		t.Fatalf("PushNotifyWebhookTimeout = %s, want 2s", cfg.PushNotifyWebhookTimeout)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -306,6 +318,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "http://scanner.internal/scan")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "webhook")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "https://push.internal/send")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT", "4s")
 	t.Setenv("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", "5")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", "25")
 	t.Setenv("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", "250ms")
@@ -517,6 +532,15 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.PushNotifyDeviceLimit != 25 {
 		t.Fatalf("PushNotifyDeviceLimit = %d, want 25", cfg.PushNotifyDeviceLimit)
+	}
+	if cfg.PushNotifyBackend != "webhook" {
+		t.Fatalf("PushNotifyBackend = %q, want webhook", cfg.PushNotifyBackend)
+	}
+	if cfg.PushNotifyWebhookURL != "https://push.internal/send" {
+		t.Fatalf("PushNotifyWebhookURL = %q, want webhook URL", cfg.PushNotifyWebhookURL)
+	}
+	if cfg.PushNotifyWebhookTimeout != 4*time.Second {
+		t.Fatalf("PushNotifyWebhookTimeout = %s, want 4s", cfg.PushNotifyWebhookTimeout)
 	}
 }
 

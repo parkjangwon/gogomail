@@ -175,7 +175,8 @@ Current state:
   scanner into Edge, Inbound, and Submission MTA app boundaries.
 - Push notification enqueue now has a disabled-by-default async
   `push-notification-worker` over `mail.stored` with a replaceable sink and
-  `slog` first adapter.
+  `slog` first adapter plus `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` for
+  handing raw-token targets to an external push gateway.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
   remain write-only.
@@ -214,7 +215,8 @@ Current state:
 
 Next:
 
-- Add FCM/APNs/Web Push sink adapters behind `internal/pushnotify`.
+- Add first-party FCM/APNs/Web Push sink adapters behind `internal/pushnotify`
+  when provider credentials and deployment expectations are decided.
 - Keep provider outcome updates private to the worker/adapter boundary unless a
   future operator mutation API is explicitly required.
 - Keep hooks disabled by default and wired only in `app/run.go`.

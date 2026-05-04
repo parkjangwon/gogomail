@@ -653,8 +653,9 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	if backend == "" || backend == "none" {
 		return waitForShutdown(ctx, logger, ModePushWorker)
 	}
-	if backend != "slog" {
-		return errors.New("unsupported push notification backend")
+	sink, err := pushNotificationSinkForConfig(cfg, logger)
+	if err != nil {
+		return err
 	}
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -674,7 +675,7 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	pushRecorder := pushnotify.NewPostgresRecorder(db)
 	router := eventstream.NewRouter()
 	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(
-		pushnotify.SlogSink{Logger: logger},
+		sink,
 		pushnotify.WithTargetResolver(pushnotify.NewDeviceResolver(repository, cfg.PushNotifyDeviceLimit)),
 		pushnotify.WithCandidateRecorder(pushRecorder),
 		pushnotify.WithOutcomeRecorder(pushRecorder),
@@ -706,6 +707,20 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 		"device_limit", cfg.PushNotifyDeviceLimit,
 	)
 	return consumer.Run(ctx)
+}
+
+func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger) (pushnotify.Sink, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.PushNotifyBackend)) {
+	case "slog":
+		return pushnotify.SlogSink{Logger: logger}, nil
+	case "webhook":
+		return pushnotify.NewWebhookSink(pushnotify.WebhookOptions{
+			Endpoint: strings.TrimSpace(cfg.PushNotifyWebhookURL),
+			Client:   &http.Client{Timeout: cfg.PushNotifyWebhookTimeout},
+		})
+	default:
+		return nil, errors.New("unsupported push notification backend")
+	}
 }
 
 func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

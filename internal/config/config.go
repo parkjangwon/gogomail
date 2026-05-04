@@ -54,6 +54,8 @@ type Config struct {
 	AttachmentScanWebhookURL            string
 	AttachmentScanTimeout               time.Duration
 	PushNotifyBackend                   string
+	PushNotifyWebhookURL                string
+	PushNotifyWebhookTimeout            time.Duration
 	PushNotifyDeviceLimit               int
 	PushNotifyConsumerGroup             string
 	PushNotifyConsumerName              string
@@ -177,6 +179,8 @@ func Load() Config {
 		AttachmentScanWebhookURL:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", ""),
 		AttachmentScanTimeout:               durationEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", 2*time.Second),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
+		PushNotifyWebhookURL:                envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", ""),
+		PushNotifyWebhookTimeout:            durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT", 2*time.Second),
 		PushNotifyDeviceLimit:               intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", 200),
 		PushNotifyConsumerGroup:             envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_GROUP", "gogomail.push-notification-worker"),
 		PushNotifyConsumerName:              envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", "push-notification-worker-1"),

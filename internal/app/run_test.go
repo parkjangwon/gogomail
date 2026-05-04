@@ -127,6 +127,30 @@ func TestAttachmentScanHooksForConfigWebhook(t *testing.T) {
 	}
 }
 
+func TestPushNotificationSinkForConfigWebhook(t *testing.T) {
+	t.Parallel()
+
+	sink, err := pushNotificationSinkForConfig(config.Config{
+		PushNotifyBackend:        "webhook",
+		PushNotifyWebhookURL:     "http://push.example.test/send",
+		PushNotifyWebhookTimeout: time.Second,
+	}, nil)
+	if err != nil {
+		t.Fatalf("pushNotificationSinkForConfig returned error: %v", err)
+	}
+	if sink == nil {
+		t.Fatal("sink is nil")
+	}
+}
+
+func TestPushNotificationSinkForConfigRejectsUnknownBackend(t *testing.T) {
+	t.Parallel()
+
+	if _, err := pushNotificationSinkForConfig(config.Config{PushNotifyBackend: "direct"}, nil); err == nil {
+		t.Fatal("pushNotificationSinkForConfig accepted unknown backend")
+	}
+}
+
 func TestAPIMeteringHandlerDefaultsToOriginalHandler(t *testing.T) {
 	t.Parallel()
 
