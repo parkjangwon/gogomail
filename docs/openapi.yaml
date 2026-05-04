@@ -1098,6 +1098,27 @@ paths:
           required: false
           schema:
             type: string
+        - name: platform
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [apns, fcm, webpush]
+        - name: device_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: provider_status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: provider_message_id
+          in: query
+          required: false
+          schema:
+            type: string
         - name: since
           in: query
           required: false

@@ -2221,14 +2221,21 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&status=candidate&user_id=user-1&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&status=candidate&user_id=user-1&platform=fcm&device_id=device-1&provider_status=accepted&provider_message_id=provider-message-1&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastPushAttemptList.Limit != 10 || service.lastPushAttemptList.Status != "candidate" || service.lastPushAttemptList.UserID != "user-1" || service.lastPushAttemptList.Since.IsZero() {
+	if service.lastPushAttemptList.Limit != 10 ||
+		service.lastPushAttemptList.Status != "candidate" ||
+		service.lastPushAttemptList.UserID != "user-1" ||
+		service.lastPushAttemptList.Platform != "fcm" ||
+		service.lastPushAttemptList.DeviceID != "device-1" ||
+		service.lastPushAttemptList.ProviderStatus != "accepted" ||
+		service.lastPushAttemptList.ProviderMessageID != "provider-message-1" ||
+		service.lastPushAttemptList.Since.IsZero() {
 		t.Fatalf("lastPushAttemptList = %+v", service.lastPushAttemptList)
 	}
 	if !strings.Contains(rec.Body.String(), "push_notification_attempts") || !strings.Contains(rec.Body.String(), "provider-message-1") {
