@@ -66,10 +66,15 @@ go run ./cmd/gogomail --mode=search-index-worker
 go run ./cmd/gogomail --mode=api-metering-worker
 go run ./cmd/gogomail --mode=api-usage-retention-worker
 go run ./cmd/gogomail --mode=push-notification-worker
+go run ./cmd/gogomail --mode=imap
 go run ./cmd/gogomail --mode=auth-server
 go run ./cmd/gogomail --mode=mail-api
 go run ./cmd/gogomail --mode=admin-api
 ```
+
+`imap` is a gateway scaffold today: it initializes the service-backed IMAP
+store adapter and process-local mailbox event broker, while the TCP protocol
+listener remains deferred.
 
 `push-notification-worker` stays disabled until
 `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` or

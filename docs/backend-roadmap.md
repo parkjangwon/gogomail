@@ -626,6 +626,7 @@ Implementation order:
 566. API usage export capabilities now advertise bounded retention-run support, retention-worker support, and the remote-key requirement for destructive worker purges.
 567. API usage ledger retention now rejects future cutoffs inside the repository boundary, aligning worker/direct-call behavior with the Admin API future-cutoff guard.
 568. Draft search now has a separate compose-focused Mail API contract, keeping active-message search and OpenSearch relevance semantics separate from draft body/recipient lookup.
+569. `gogomail --mode=imap` now initializes a service-backed IMAP gateway scaffold with a process-local mailbox event broker while keeping the TCP IMAP protocol listener deferred.
 
 ## Deferred until backend contracts stabilize
 

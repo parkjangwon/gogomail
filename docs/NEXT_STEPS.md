@@ -166,14 +166,17 @@ Current state:
   future IDLE fan-out cannot make committed mail writes appear failed.
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for future protocol
   listener wiring through the service boundary.
+- `gogomail --mode=imap` is now a separate gateway scaffold that opens the
+  service-backed IMAP store adapter and wires a process-local mailbox event
+  broker for future IDLE sessions, while still deferring the TCP protocol
+  listener.
 
 Next:
 
-- Wire a process-local mailbox event broker into the future IMAP listener mode
-  so `mail.stored` UID assignment can wake connected IDLE sessions.
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
-- Keep IMAP as a separate binary mode (`--mode=imap`).
+- Add the TCP IMAP listener only after authentication/session semantics are
+  explicitly reviewed against RFC 3501 and successors.
 
 ### 4. Pipeline extension hooks
 
