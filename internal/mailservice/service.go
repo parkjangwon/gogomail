@@ -837,8 +837,8 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 func (s *Service) CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error) {
 	userID = strings.TrimSpace(userID)
 	attachmentID = strings.TrimSpace(attachmentID)
-	if strings.TrimSpace(userID) == "" {
-		return maildb.Attachment{}, fmt.Errorf("user_id is required")
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return maildb.Attachment{}, err
 	}
 	if err := validateServiceResourceID("attachment_id", attachmentID); err != nil {
 		return maildb.Attachment{}, err
