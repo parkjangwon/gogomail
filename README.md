@@ -323,7 +323,8 @@ Local users authenticate against `users.password_hash`. Supported formats are:
 Admin user creation and `PATCH /admin/v1/users/{id}/password-hash` can set a
 `password_hash` field with one of those pre-hashed values; raw production
 passwords should be hashed before they reach the Admin API. User list/detail
-responses expose `password_configured` instead of returning stored hashes.
+responses expose `password_configured` instead of returning stored hashes, and
+`GET /admin/v1/users` can filter by `password_configured=true|false`.
 
 ### Delivery smart host relay
 

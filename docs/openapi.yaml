@@ -1892,6 +1892,10 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: password_configured
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
           $ref: "#/components/responses/UserList"

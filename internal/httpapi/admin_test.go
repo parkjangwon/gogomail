@@ -3112,7 +3112,7 @@ func TestAdminUsersHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users?domain_id=%20domain-1%20&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/users?domain_id=%20domain-1%20&password_configured=true&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3131,14 +3131,19 @@ func TestAdminUsersHandler(t *testing.T) {
 	if service.lastDomainID != "domain-1" || service.lastLimit != 10 {
 		t.Fatalf("domain/limit = %q/%d", service.lastDomainID, service.lastLimit)
 	}
+	if service.lastUserList.PasswordConfigured == nil || !*service.lastUserList.PasswordConfigured {
+		t.Fatalf("password_configured filter = %v, want true", service.lastUserList.PasswordConfigured)
+	}
 }
 
-func TestAdminUsersHandlerRejectsUnsafeDomainID(t *testing.T) {
+func TestAdminUsersHandlerRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 
 	tests := []string{
 		"/admin/v1/users?domain_id=domain%0Abad",
 		"/admin/v1/users?domain_id=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+		"/admin/v1/users?password_configured=maybe",
+		"/admin/v1/users?password_configured=true%0Abad",
 	}
 
 	for _, path := range tests {
@@ -3157,8 +3162,8 @@ func TestAdminUsersHandlerRejectsUnsafeDomainID(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastDomainID != "" {
-				t.Fatalf("lastDomainID = %q", service.lastDomainID)
+			if service.lastDomainID != "" || service.lastUserList.PasswordConfigured != nil {
+				t.Fatalf("last user list = %+v", service.lastUserList)
 			}
 		})
 	}
@@ -4559,6 +4564,7 @@ type fakeAdminService struct {
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
+	lastUserList                                maildb.UserListRequest
 	lastDomainStatus                            maildb.UpdateDomainStatusRequest
 	lastCompanyQuota                            maildb.UpdateCompanyQuotaRequest
 	lastDomainQuota                             maildb.UpdateDomainQuotaRequest
@@ -4692,9 +4698,10 @@ func (f *fakeAdminService) UpdateDomainPolicy(_ context.Context, req maildb.Upda
 	}, nil
 }
 
-func (f *fakeAdminService) ListUsers(_ context.Context, domainID string, limit int) ([]maildb.UserView, error) {
-	f.lastDomainID = domainID
-	f.lastLimit = limit
+func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListRequest) ([]maildb.UserView, error) {
+	f.lastUserList = req
+	f.lastDomainID = req.DomainID
+	f.lastLimit = req.Limit
 	return f.users, nil
 }
 

@@ -104,7 +104,9 @@ Errors use the stable envelope:
   fixture formats; unsupported, CR/LF-bearing, or oversized hash strings are
   rejected before storage. User list/detail/create responses expose
   `password_configured` for operator visibility without returning stored
-  password hashes.
+  password hashes. `GET /admin/v1/users` accepts an optional
+  `password_configured=true|false` query filter for Submission-readiness
+  triage.
 
 ## Pagination
 
