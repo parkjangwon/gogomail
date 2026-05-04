@@ -1023,6 +1023,35 @@ paths:
           $ref: "#/components/responses/DeliveryAttempts"
         default:
           $ref: "#/components/responses/Error"
+  /delivery-attempts/stats:
+    get:
+      operationId: getAdminDeliveryAttemptStats
+      summary: Admin delivery attempt status totals
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [delivered, failed, bounced, exhausted]
+        - name: recipient_domain
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Lower-cased recipient domain to inspect one destination domain.
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for delivery attempt timestamps.
+      responses:
+        "200":
+          $ref: "#/components/responses/DeliveryAttemptStats"
+        default:
+          $ref: "#/components/responses/Error"
   /delivery-attempts/exhausted:
     get:
       operationId: listAdminExhaustedAttempts
@@ -1818,6 +1847,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DeliveryAttemptsEnvelope"
+    DeliveryAttemptStats:
+      description: Delivery attempt status totals envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryAttemptStatsEnvelope"
     PushNotificationAttempts:
       description: Push notification attempts envelope
       content:
@@ -3551,6 +3586,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeliveryAttempt"
+    DeliveryAttemptStats:
+      type: object
+      required: [total_attempts, unique_messages, unique_recipients, delivered, failed, bounced, exhausted]
+      properties:
+        total_attempts:
+          type: integer
+          format: int64
+          minimum: 0
+        unique_messages:
+          type: integer
+          format: int64
+          minimum: 0
+        unique_recipients:
+          type: integer
+          format: int64
+          minimum: 0
+        delivered:
+          type: integer
+          format: int64
+          minimum: 0
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        bounced:
+          type: integer
+          format: int64
+          minimum: 0
+        exhausted:
+          type: integer
+          format: int64
+          minimum: 0
+    DeliveryAttemptStatsEnvelope:
+      type: object
+      required: [delivery_attempt_stats]
+      properties:
+        delivery_attempt_stats:
+          $ref: "#/components/schemas/DeliveryAttemptStats"
     ExhaustedAttemptsEnvelope:
       type: object
       required: [exhausted_attempts]

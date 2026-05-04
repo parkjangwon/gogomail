@@ -447,6 +447,22 @@ type DeliveryAttemptListRequest struct {
 	Since           time.Time
 }
 
+type DeliveryAttemptStatsRequest struct {
+	Status          string
+	RecipientDomain string
+	Since           time.Time
+}
+
+type DeliveryAttemptStatsView struct {
+	TotalAttempts    int64 `json:"total_attempts"`
+	UniqueMessages   int64 `json:"unique_messages"`
+	UniqueRecipients int64 `json:"unique_recipients"`
+	Delivered        int64 `json:"delivered"`
+	Failed           int64 `json:"failed"`
+	Bounced          int64 `json:"bounced"`
+	Exhausted        int64 `json:"exhausted"`
+}
+
 type ExhaustedAttemptListRequest struct {
 	Limit           int
 	RecipientDomain string
@@ -3572,6 +3588,48 @@ func allowedDeliveryAttemptStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func (r *Repository) GetDeliveryAttemptStats(ctx context.Context, req DeliveryAttemptStatsRequest) (DeliveryAttemptStatsView, error) {
+	if r.db == nil {
+		return DeliveryAttemptStatsView{}, fmt.Errorf("database handle is required")
+	}
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	req.RecipientDomain = strings.ToLower(strings.Trim(strings.TrimSpace(req.RecipientDomain), "."))
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
+	if req.Status != "" && !allowedDeliveryAttemptStatus(req.Status) {
+		return DeliveryAttemptStatsView{}, fmt.Errorf("unsupported delivery attempt status")
+	}
+
+	const query = `
+SELECT
+  count(*)::bigint,
+  count(DISTINCT message_id)::bigint,
+  count(DISTINCT recipient)::bigint,
+  count(*) FILTER (WHERE status = 'delivered')::bigint,
+  count(*) FILTER (WHERE status = 'failed')::bigint,
+  count(*) FILTER (WHERE status = 'bounced')::bigint,
+  count(*) FILTER (WHERE status = 'exhausted')::bigint
+FROM delivery_attempts
+WHERE (NULLIF($1, '') IS NULL OR status = $1)
+  AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
+  AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)`
+
+	var stats DeliveryAttemptStatsView
+	if err := r.db.QueryRowContext(ctx, query, req.Status, nullableTime(req.Since), req.RecipientDomain).Scan(
+		&stats.TotalAttempts,
+		&stats.UniqueMessages,
+		&stats.UniqueRecipients,
+		&stats.Delivered,
+		&stats.Failed,
+		&stats.Bounced,
+		&stats.Exhausted,
+	); err != nil {
+		return DeliveryAttemptStatsView{}, fmt.Errorf("get delivery attempt stats: %w", err)
+	}
+	return stats, nil
 }
 
 func (r *Repository) ListExhaustedAttempts(ctx context.Context, req ExhaustedAttemptListRequest) ([]DeliveryAttemptView, error) {

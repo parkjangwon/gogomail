@@ -1943,6 +1943,80 @@ func TestAdminDeliveryAttemptsHandlerRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestAdminDeliveryAttemptStatsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		deliveryAttemptStats: maildb.DeliveryAttemptStatsView{
+			TotalAttempts:    4,
+			UniqueMessages:   2,
+			UniqueRecipients: 3,
+			Delivered:        1,
+			Failed:           1,
+			Bounced:          1,
+			Exhausted:        1,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?status=failed&recipient_domain=example.net&since=2026-05-04T00:00:00Z", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Stats maildb.DeliveryAttemptStatsView `json:"delivery_attempt_stats"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Stats.TotalAttempts != 4 || body.Stats.UniqueRecipients != 3 || body.Stats.Exhausted != 1 {
+		t.Fatalf("delivery_attempt_stats = %+v", body.Stats)
+	}
+	if service.lastDeliveryAttemptStats.Status != "failed" || service.lastDeliveryAttemptStats.RecipientDomain != "example.net" || service.lastDeliveryAttemptStats.Since.IsZero() {
+		t.Fatalf("lastDeliveryAttemptStats = %+v", service.lastDeliveryAttemptStats)
+	}
+}
+
+func TestAdminDeliveryAttemptStatsHandlerRejectsInvalidSince(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?since=not-a-time", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "since must be RFC3339 timestamp") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminDeliveryAttemptStatsHandlerRejectsInvalidStatus(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/stats?status=retrying", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "unsupported delivery attempt status") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2483,7 +2557,9 @@ type fakeAdminService struct {
 	quotaReconciliation                         []maildb.QuotaReconciliationView
 	quotaCorrection                             maildb.QuotaCorrectionResult
 	attempts                                    []maildb.DeliveryAttemptView
+	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
+	lastDeliveryAttemptStats                    maildb.DeliveryAttemptStatsRequest
 	lastExhaustedAttemptList                    maildb.ExhaustedAttemptListRequest
 	pushNotificationAttempts                    []maildb.PushNotificationAttemptView
 	pushNotificationStats                       maildb.PushNotificationStatsView
@@ -2816,6 +2892,14 @@ func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, req maildb.De
 		return nil, fmt.Errorf("unsupported delivery attempt status")
 	}
 	return f.attempts, nil
+}
+
+func (f *fakeAdminService) GetDeliveryAttemptStats(_ context.Context, req maildb.DeliveryAttemptStatsRequest) (maildb.DeliveryAttemptStatsView, error) {
+	f.lastDeliveryAttemptStats = req
+	if req.Status != "" && req.Status != "delivered" && req.Status != "failed" && req.Status != "bounced" && req.Status != "exhausted" {
+		return maildb.DeliveryAttemptStatsView{}, fmt.Errorf("unsupported delivery attempt status")
+	}
+	return f.deliveryAttemptStats, nil
 }
 
 func (f *fakeAdminService) ListExhaustedAttempts(_ context.Context, req maildb.ExhaustedAttemptListRequest) ([]maildb.DeliveryAttemptView, error) {
