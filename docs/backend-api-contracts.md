@@ -210,6 +210,10 @@ expiring an upload session releases the quota reservation and deletes any staged
 session body when one exists. Session creation rejects non-future `expires_at`
 values at the service boundary and rejects expiries beyond the advertised max
 session TTL.
+The Admin API exposes `GET /admin/v1/attachment-upload-sessions` with bounded
+`user_id`, `draft_id`, and lifecycle `status` filters so operators can inspect
+active, finalized, canceled, or expired upload sessions without relying only on
+stale-cleanup previews.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

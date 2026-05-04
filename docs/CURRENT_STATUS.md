@@ -724,6 +724,9 @@ The platform hardening sprint completed the following:
   cleanup batch cap used by expiry, supporting non-destructive Admin previews.
 - `maildb` can list bounded stale resumable upload-session candidates for
   operator cleanup previews without mutating quota reservations.
+- Admin API can list bounded attachment upload sessions by user, draft, and
+  lifecycle status, giving operators a direct inspection surface before cleanup
+  or user-support actions.
 - `mailservice` now owns resumable upload session create/cancel/expire methods,
   preserving attachment validation, max-size checks, and domain attachment
   policy enforcement above the repository boundary.
