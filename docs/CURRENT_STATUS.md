@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after audit hash-chain integrity inspection)
+Last updated: 2026-05-05 (updated after API usage retention worker mode)
 
 ## Current phase
 
@@ -221,6 +221,9 @@ guidance.
 - Admin API exposes list/detail reads for persisted API usage ledger retention
   runs so operators can inspect blocked, dry-run, and destructive retention
   attempts after the fact.
+- `api-usage-retention-worker` can run bounded API usage ledger retention on an
+  interval or once-and-exit, dry-run by default, reusing the same readiness gate
+  and persisted retention-run audit rows as the Admin API.
 - Admin API exposes bounded audit-log list/detail reads with category, action,
   result, target-type, company/domain/user, and recent-window filters so stored
   operational audit records can be inspected through the release API surface.

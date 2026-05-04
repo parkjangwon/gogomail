@@ -384,6 +384,9 @@ Current state:
   and delete only the requested ready batch.
 - Admin API can list and fetch persisted API usage ledger retention-run audit
   rows after blocked, dry-run, or destructive attempts.
+- `api-usage-retention-worker` can run the same bounded retention path on an
+  interval or once-and-exit. It is dry-run by default and requires explicit
+  `confirm_ready` configuration before destructive runs.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.
@@ -433,8 +436,8 @@ Next:
 
 - Add a concrete cloud KMS adapter, or deploy the remote-Ed25519 signer service,
   before invoices or hard Open API limits depend on completed export batches.
-- Extend bounded API usage ledger retention runs into a scheduled worker only
-  after production export storage and signer policy are settled.
+- Keep scheduled API usage retention dry-run in pre-production until production
+  export storage and signer policy are settled.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet

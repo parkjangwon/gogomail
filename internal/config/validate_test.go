@@ -227,6 +227,35 @@ func TestValidateRejectsNonpositiveAPIMeteringConsumerSettings(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidAPIUsageRetentionSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "interval", mutate: func(cfg *Config) { cfg.APIUsageRetentionInterval = 0 }},
+		{name: "cutoff age", mutate: func(cfg *Config) { cfg.APIUsageRetentionCutoffAge = 0 }},
+		{name: "batch size zero", mutate: func(cfg *Config) { cfg.APIUsageRetentionBatchSize = 0 }},
+		{name: "batch size too large", mutate: func(cfg *Config) { cfg.APIUsageRetentionBatchSize = 10001 }},
+		{name: "destructive without confirm", mutate: func(cfg *Config) {
+			cfg.APIUsageRetentionDryRun = false
+			cfg.APIUsageRetentionConfirmReady = false
+		}},
+		{name: "tenant newline", mutate: func(cfg *Config) { cfg.APIUsageRetentionTenantID = "tenant\nbad" }},
+		{name: "principal too large", mutate: func(cfg *Config) { cfg.APIUsageRetentionPrincipalID = strings.Repeat("p", 1025) }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want api usage retention setting rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositiveEventAndDeliveryConsumerSettings(t *testing.T) {
 	tests := []struct {
 		name   string

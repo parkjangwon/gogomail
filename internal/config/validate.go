@@ -127,6 +127,24 @@ func (c Config) Validate() error {
 	if c.APIMeteringConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE must not be negative")
 	}
+	if c.APIUsageRetentionInterval <= 0 {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_RETENTION_INTERVAL must be positive")
+	}
+	if c.APIUsageRetentionCutoffAge <= 0 {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE must be positive")
+	}
+	if c.APIUsageRetentionBatchSize <= 0 || c.APIUsageRetentionBatchSize > 10000 {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE must be between 1 and 10000")
+	}
+	if !c.APIUsageRetentionDryRun && !c.APIUsageRetentionConfirmReady {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY is required when GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_API_USAGE_RETENTION_TENANT_ID", c.APIUsageRetentionTenantID, 1024); err != nil {
+		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_API_USAGE_RETENTION_PRINCIPAL_ID", c.APIUsageRetentionPrincipalID, 1024); err != nil {
+		return err
+	}
 	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac", "local-ed25519", "remote-ed25519"); err != nil {
 		return err
 	}
@@ -307,6 +325,17 @@ func validateOptionalSecret(name string, value string) error {
 		return fmt.Errorf("%s cannot contain line breaks", name)
 	}
 	if len(value) > maxWebhookTokenBytes {
+		return fmt.Errorf("%s is too long", name)
+	}
+	return nil
+}
+
+func validateBoundedNoCRLF(name string, value string, maxBytes int) error {
+	value = strings.TrimSpace(value)
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s cannot contain line breaks", name)
+	}
+	if len(value) > maxBytes {
 		return fmt.Errorf("%s is too long", name)
 	}
 	return nil

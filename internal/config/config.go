@@ -77,6 +77,14 @@ type Config struct {
 	APIMeteringConsumerCount            int
 	APIMeteringConsumerBlock            time.Duration
 	APIMeteringConsumerClaimIdle        time.Duration
+	APIUsageRetentionInterval           time.Duration
+	APIUsageRetentionCutoffAge          time.Duration
+	APIUsageRetentionBatchSize          int
+	APIUsageRetentionRunOnce            bool
+	APIUsageRetentionDryRun             bool
+	APIUsageRetentionConfirmReady       bool
+	APIUsageRetentionTenantID           string
+	APIUsageRetentionPrincipalID        string
 	APIUsageExportManifestSignerBackend string
 	APIUsageExportManifestSignerKeyID   string
 	APIUsageExportManifestSignerSecret  string
@@ -208,6 +216,14 @@ func Load() Config {
 		APIMeteringConsumerCount:            intEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_COUNT", 100),
 		APIMeteringConsumerBlock:            durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_BLOCK", time.Second),
 		APIMeteringConsumerClaimIdle:        durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		APIUsageRetentionInterval:           durationEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_INTERVAL", 24*time.Hour),
+		APIUsageRetentionCutoffAge:          durationEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE", 90*24*time.Hour),
+		APIUsageRetentionBatchSize:          intEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE", 1000),
+		APIUsageRetentionRunOnce:            boolEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_RUN_ONCE", false),
+		APIUsageRetentionDryRun:             boolEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_DRY_RUN", true),
+		APIUsageRetentionConfirmReady:       boolEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY", false),
+		APIUsageRetentionTenantID:           envOrDefault("GOGOMAIL_API_USAGE_RETENTION_TENANT_ID", ""),
+		APIUsageRetentionPrincipalID:        envOrDefault("GOGOMAIL_API_USAGE_RETENTION_PRINCIPAL_ID", ""),
 		APIUsageExportManifestSignerBackend: envOrDefault("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", "disabled"),
 		APIUsageExportManifestSignerKeyID:   envOrDefault("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID", ""),
 		APIUsageExportManifestSignerSecret:  os.Getenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET"),

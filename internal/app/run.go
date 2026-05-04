@@ -84,6 +84,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:
 		return runAPIMeteringWorker(ctx, cfg, logger)
+	case ModeAPIUsageRetention:
+		return runAPIUsageRetentionWorker(ctx, cfg, logger)
 	case ModePushWorker:
 		return runPushNotificationWorker(ctx, cfg, logger)
 	case ModeAttachmentCleanup:
@@ -109,6 +111,19 @@ type attachmentCleanupResult struct {
 	ExpiredSessions int
 }
 
+type apiUsageRetentionRunner interface {
+	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
+}
+
+type apiUsageRetentionResult struct {
+	RunID          string
+	CandidateCount int64
+	LimitedCount   int64
+	DeletedCount   int64
+	Ready          bool
+	DryRun         bool
+}
+
 func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -122,6 +137,83 @@ func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *
 		return err
 	}
 	return runAttachmentCleanupLoop(ctx, service, cfg.AttachmentCleanupInterval, cfg.AttachmentCleanupStaleAge, cfg.AttachmentCleanupBatchSize, logger)
+}
+
+func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	repository := maildb.NewRepository(db)
+	if cfg.APIUsageRetentionRunOnce {
+		_, err := runAPIUsageRetentionOnce(ctx, repository, time.Now, cfg, logger)
+		return err
+	}
+	if _, err := runAPIUsageRetentionOnce(ctx, repository, time.Now, cfg, logger); err != nil && logger != nil {
+		logger.Error("api usage retention failed", "error", err)
+	}
+	ticker := time.NewTicker(cfg.APIUsageRetentionInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if _, err := runAPIUsageRetentionOnce(ctx, repository, time.Now, cfg, logger); err != nil && logger != nil {
+				logger.Error("api usage retention failed", "error", err)
+			}
+		}
+	}
+}
+
+func runAPIUsageRetentionOnce(ctx context.Context, runner apiUsageRetentionRunner, now func() time.Time, cfg config.Config, logger *slog.Logger) (apiUsageRetentionResult, error) {
+	if runner == nil {
+		return apiUsageRetentionResult{}, fmt.Errorf("api usage retention runner is required")
+	}
+	if now == nil {
+		now = time.Now
+	}
+	if cfg.APIUsageRetentionCutoffAge <= 0 {
+		return apiUsageRetentionResult{}, fmt.Errorf("api usage retention cutoff age must be positive")
+	}
+	cutoff := now().UTC().Add(-cfg.APIUsageRetentionCutoffAge)
+	run, err := runner.RunAPIUsageLedgerRetention(ctx, maildb.APIUsageLedgerRetentionRunRequest{
+		Cutoff:       cutoff,
+		TenantID:     cfg.APIUsageRetentionTenantID,
+		PrincipalID:  cfg.APIUsageRetentionPrincipalID,
+		Limit:        cfg.APIUsageRetentionBatchSize,
+		DryRun:       cfg.APIUsageRetentionDryRun,
+		ConfirmReady: cfg.APIUsageRetentionConfirmReady,
+	})
+	if err != nil {
+		return apiUsageRetentionResult{}, err
+	}
+	result := apiUsageRetentionResult{
+		RunID:          run.ID,
+		CandidateCount: run.CandidateCount,
+		LimitedCount:   run.LimitedCount,
+		DeletedCount:   run.DeletedCount,
+		Ready:          run.Ready,
+		DryRun:         run.DryRun,
+	}
+	if logger != nil {
+		logger.Info(
+			"api usage retention completed",
+			"run_id", result.RunID,
+			"cutoff", cutoff.Format(time.RFC3339),
+			"tenant_id", strings.TrimSpace(cfg.APIUsageRetentionTenantID),
+			"principal_id", strings.TrimSpace(cfg.APIUsageRetentionPrincipalID),
+			"limit", cfg.APIUsageRetentionBatchSize,
+			"dry_run", result.DryRun,
+			"ready", result.Ready,
+			"candidates", result.CandidateCount,
+			"limited", result.LimitedCount,
+			"deleted", result.DeletedCount,
+		)
+	}
+	return result, nil
 }
 
 func runAttachmentCleanupLoop(ctx context.Context, cleaner attachmentCleanupRunner, interval time.Duration, staleAge time.Duration, batchSize int, logger *slog.Logger) error {

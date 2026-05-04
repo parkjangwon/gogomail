@@ -153,3 +153,26 @@ curl -sS -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
 
 Fetch the returned run `id` for the exact readiness snapshot used by that
 blocked, dry-run, or destructive attempt.
+
+## 9. Optional scheduled retention worker
+
+The `api-usage-retention-worker` mode runs the same bounded retention operation
+on an interval, using `now - GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE` as the
+cutoff. It is dry-run by default.
+
+```bash
+GOGOMAIL_API_USAGE_RETENTION_INTERVAL=24h
+GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE=2160h
+GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE=1000
+GOGOMAIL_API_USAGE_RETENTION_RUN_ONCE=false
+GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=true
+GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=false
+gogomail --mode=api-usage-retention-worker
+```
+
+For a one-shot CronJob-style deployment, set
+`GOGOMAIL_API_USAGE_RETENTION_RUN_ONCE=true`. For destructive retention, set
+`GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false` and
+`GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true`; the worker still rechecks
+readiness and persists every blocked, dry-run, or destructive attempt in
+`api_usage_ledger_retention_runs`.
