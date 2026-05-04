@@ -104,8 +104,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch.
-- Mail and Admin API JSON request bodies reject trailing JSON tokens instead of
-  accepting the first object and ignoring the rest of the body, and shared JSON
+- Mail and Admin API JSON request bodies reject trailing JSON tokens and
+  unknown object fields instead of accepting drifted payloads, and shared JSON
   decoding is capped at 1 MiB before parsing.
 - Attachment downloads expose a safe ASCII `filename` fallback plus UTF-8
   `filename*` in `Content-Disposition`, bound stored filename length before

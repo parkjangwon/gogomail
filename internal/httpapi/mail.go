@@ -1019,6 +1019,7 @@ func decodeJSONBody(r *http.Request, dst any) error {
 		return errors.New("json body too large")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
 		return err
 	}

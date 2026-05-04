@@ -130,6 +130,25 @@ func TestMailJSONHandlersRejectTrailingTokens(t *testing.T) {
 	}
 }
 
+func TestMailJSONHandlersRejectUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/folders?user_id=user-1", strings.NewReader(`{"name":"Projects","unexpected":true}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastFolderName != "" {
+		t.Fatalf("handler should not dispatch unknown-field body, created folder %q", service.lastFolderName)
+	}
+}
+
 func TestListThreadsHandler(t *testing.T) {
 	t.Parallel()
 

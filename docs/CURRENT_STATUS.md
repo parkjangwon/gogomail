@@ -911,9 +911,9 @@ The platform hardening sprint completed the following:
   generated clients keep pagination controls for device management.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
   error responses for size-cap failures.
-- Mail and Admin API JSON request handlers now reject trailing JSON tokens
-  before service dispatch, and common JSON request decoding is capped at 1 MiB
-  before parsing.
+- Mail and Admin API JSON request handlers now reject trailing JSON tokens and
+  unknown object fields before service dispatch, and common JSON request
+  decoding is capped at 1 MiB before parsing.
 - Attachment download responses now emit both ASCII fallback and UTF-8
   `filename*` `Content-Disposition` parameters for internationalized filenames,
   with stored filenames bounded before response headers are written.
