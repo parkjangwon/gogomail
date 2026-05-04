@@ -487,6 +487,7 @@ Implementation order:
 428. API metering outbox production now rejects CR/LF-bearing method, route, event-id, tenant, company, domain, user, API-key, and principal dimensions before durable usage-event insertion.
 429. API usage aggregate storage now validates method, route, event-id, schema-version, identity dimensions, and HTTP-like status before direct store writes.
 430. Backend release verification now fails on a dirty worktree after standard tests and ignores local OpenChrome session artifacts, turning final status inspection into an enforceable release gate.
+431. Push notification target resolution now drops CR/LF-bearing device IDs or tokens before sink handoff, preparing vendor adapters to receive cleaner target metadata.
 
 ## Deferred until backend contracts stabilize
 

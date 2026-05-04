@@ -171,8 +171,8 @@ the authenticated user.
 When `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog`, `push-notification-worker`
 resolves active devices for the `mail.stored.user_id` after commit and before
 invoking its sink. `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT` bounds per-message
-fan-out. The resolver drops malformed targets with blank device IDs, blank
-tokens, or unsupported platforms before invoking the sink. Vendor delivery
+fan-out. The resolver drops malformed targets with blank or CR/LF-bearing
+device IDs/tokens, or unsupported platforms before invoking the sink. Vendor delivery
 remains a future sink adapter, not a Mail API or SMTP side effect. The worker
 records one `push_notification_attempts` candidate row
 per resolved device before invoking the current sink. After a successful sink

@@ -58,6 +58,8 @@ func TestDeviceResolverSkipsInvalidTargets(t *testing.T) {
 			{ID: "", Platform: "fcm", Token: "token-1"},
 			{ID: "device-2", Platform: "pager", Token: "token-2"},
 			{ID: "device-3", Platform: "apns", Token: " "},
+			{ID: "device-4\nbad", Platform: "fcm", Token: "token-4"},
+			{ID: "device-5", Platform: "webpush", Token: "token-5\r\nbad"},
 			{ID: "device-4", Platform: "webpush", Token: "token-4"},
 		},
 	}
