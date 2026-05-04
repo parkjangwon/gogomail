@@ -276,11 +276,19 @@ Current state:
   through `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=local-hmac`,
   `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID`, and
   `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET`.
+- Admin API can report API usage export handoff readiness for a saved batch,
+  summarizing artifact event coverage, latest manifest digest, latest digest
+  signature, operational readiness, and separate billing readiness. Local-HMAC
+  signed batches remain `billing_ready=false` with
+  `production_manifest_signer_required`.
 
 Next:
 
 - Add external KMS/asymmetric signing before invoices or hard Open API limits
   depend on completed export batches.
+- Add a deep handoff verification mode that streams artifacts and verifies the
+  latest digest/signature in one report when operators explicitly request the
+  more expensive check.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 
