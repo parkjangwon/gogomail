@@ -398,6 +398,7 @@ Implementation order:
 339. Shared EML parsing now tolerates unknown charsets on multipart text parts when go-message can still return a usable part body, preserving bounded raw body extraction instead of failing the whole parse.
 340. Migration file tests now also require contiguous numeric versions, preventing release builds from silently skipping a migration number after renames or parallel agent work.
 341. Domain statistics now use a reusable OpenAPI response component and envelope drift tests, keeping `GET /admin/v1/domains/{id}/stats` aligned with generated Admin clients.
+342. OpenAPI contract tests now derive path parameters from every documented route and require matching operation parameters, preventing generated clients from silently losing IDs on nested Mail/Admin API endpoints.
 
 ## Deferred until backend contracts stabilize
 

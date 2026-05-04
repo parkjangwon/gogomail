@@ -269,6 +269,24 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsPathParameters(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	var missing []string
+	for route, block := range operations {
+		for _, param := range extractOpenAPIPathParameters(route) {
+			if !openAPIOperationDocumentsParameter(block, param) {
+				missing = append(missing, route+" -> "+param)
+			}
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		t.Fatalf("OpenAPI operations missing path parameters:\n%s", strings.Join(missing, "\n"))
+	}
+}
+
 func TestOpenAPIDraftDocumentsDeliveryAttemptDiagnostics(t *testing.T) {
 	t.Parallel()
 
@@ -654,5 +672,17 @@ func openAPIOperationDocumentsParameter(block string, name string) bool {
 	if name == "limit" && strings.Contains(block, "#/components/parameters/Limit") {
 		return true
 	}
+	if name == "id" && strings.Contains(block, "#/components/parameters/PathID") {
+		return true
+	}
 	return strings.Contains(block, "name: "+name)
+}
+
+func extractOpenAPIPathParameters(route string) []string {
+	matches := regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)\}`).FindAllStringSubmatch(route, -1)
+	params := make([]string, 0, len(matches))
+	for _, match := range matches {
+		params = append(params, match[1])
+	}
+	return params
 }
