@@ -173,6 +173,12 @@ incidental whitespace without storing whitespace-padded resource IDs. Attachment
 reservation and direct-upload `draft_id` values reject CR/LF-bearing or
 oversized identifiers before quota reservation or object writes.
 
+Authenticated operators can run stale attachment cleanup on demand with
+`POST /admin/v1/attachment-cleanup/runs`. The JSON body requires an explicit
+RFC3339 `before` cutoff and accepts an optional `limit` capped at 1000. Future
+cutoffs are rejected. Successful responses return
+`{"attachment_cleanup_run":{"expired_count":...,"before":"...","limit":...}}`.
+
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of
 silently dispatching the first decoded object.

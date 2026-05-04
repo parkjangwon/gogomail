@@ -259,10 +259,11 @@ Current state:
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.
+- Admin API can run stale upload cleanup on demand with an explicit non-future
+  cutoff for operator-controlled maintenance.
 
 Next:
 
-- Add multipart upload support for large attachments.
 - Add resumable/chunked upload contracts for large attachment workflows.
 
 ### 6. OpenAPI/client readiness

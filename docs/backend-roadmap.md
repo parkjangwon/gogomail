@@ -573,6 +573,7 @@ Implementation order:
 514. Attachment cleanup can run once and exit via `GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE=true`, supporting CronJob or timer-driven deployments without requiring a long-running worker.
 515. Stale attachment cleanup now reports stored-object delete failures instead of silently swallowing them, while treating missing objects as idempotently cleaned so operators can see real storage cleanup drift.
 516. Stale attachment cleanup now uses an attachment-specific 1000-row batch cap instead of the shared message-list pagination limit, keeping `GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE` meaningful for operational sweeps.
+517. Admin API now exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff and bounded batch size.
 
 ## Deferred until backend contracts stabilize
 

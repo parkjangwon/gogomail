@@ -177,6 +177,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Stored-object delete failures are reported to the worker/operator, while
   missing objects are treated as idempotently cleaned. Cleanup batch sizes use
   an attachment-specific 1000-row cap rather than message-list pagination caps.
+  Admin API can also run stale upload cleanup on demand with an explicit
+  non-future cutoff.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

@@ -522,6 +522,17 @@ paths:
           $ref: "#/components/responses/QuotaUsageList"
         default:
           $ref: "#/components/responses/Error"
+  /attachment-cleanup/runs:
+    post:
+      operationId: runAdminAttachmentCleanup
+      summary: Run stale attachment upload cleanup once
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentCleanupRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/AttachmentCleanupRun"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/daily:
     get:
       operationId: listAdminAPIUsageDaily
@@ -1986,6 +1997,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportHandoffReadinessEnvelope"
+    AttachmentCleanupRun:
+      description: Attachment cleanup run result envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentCleanupRunEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -2338,6 +2355,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/BackpressureUpdateRequest"
+    AttachmentCleanupRun:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentCleanupRunRequest"
     QuotaCorrection:
       required: true
       content:
@@ -3856,6 +3879,39 @@ components:
       properties:
         quota_correction:
           $ref: "#/components/schemas/QuotaCorrection"
+    AttachmentCleanupRunRequest:
+      type: object
+      required: [before]
+      properties:
+        before:
+          type: string
+          format: date-time
+          description: Required RFC3339 cutoff; future timestamps are rejected.
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+    AttachmentCleanupRun:
+      type: object
+      required: [expired_count, before, limit]
+      properties:
+        expired_count:
+          type: integer
+          minimum: 0
+        before:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    AttachmentCleanupRunEnvelope:
+      type: object
+      required: [attachment_cleanup_run]
+      properties:
+        attachment_cleanup_run:
+          $ref: "#/components/schemas/AttachmentCleanupRun"
     DeliveryAttempt:
       type: object
       required: [id, message_id, rfc_message_id, farm, recipient, recipient_domain, status, error_message, attempted_at]

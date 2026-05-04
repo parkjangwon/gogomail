@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/backpressure"
@@ -26,6 +27,9 @@ type adminService struct {
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
+	attachmentCleanup           interface {
+		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
+	}
 }
 
 const apiUsageExportLocalEd25519Backend = "local-ed25519"
@@ -43,6 +47,13 @@ func (s adminService) UpdateBackpressure(ctx context.Context, req backpressure.S
 		return backpressure.State{}, fmt.Errorf("backpressure backend is not configured")
 	}
 	return s.backpressure.SetState(ctx, req)
+}
+
+func (s adminService) RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error) {
+	if s.attachmentCleanup == nil {
+		return nil, fmt.Errorf("attachment cleanup service is not configured")
+	}
+	return s.attachmentCleanup.ExpireStaleAttachmentUploads(ctx, before, limit)
 }
 
 func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {
