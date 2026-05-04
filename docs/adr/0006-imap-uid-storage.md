@@ -31,6 +31,12 @@ assigning a message UID. Message UID assignment locks the mailbox state row,
 uses current `uidnext`, increments `uidnext`, and advances `highest_modseq` in
 one transaction.
 
+When an existing Mail API move/delete operation removes a message from its
+active mailbox view, the repository deletes that message's `imap_message_uid`
+row in the same transaction. A later append/move into another mailbox must get
+a fresh mailbox-local UID instead of reusing a UID that belonged to the previous
+mailbox.
+
 ## Consequences
 
 - Existing Mail API and SMTP persistence remain unchanged.
@@ -38,5 +44,8 @@ one transaction.
   message timestamps, or message UUIDs.
 - Future IMAP adapters can map `maildb` rows into `internal/imapgw` DTOs through
   an explicit persistence boundary.
+- HTTP move/delete behavior does not attempt to emulate IMAP `\Deleted` or
+  EXPUNGE yet; it only prevents stale mailbox-local UID rows from crossing
+  mailbox boundaries.
 - `MODSEQ` storage exists, but full CONDSTORE/QRESYNC semantics remain future
   protocol work.

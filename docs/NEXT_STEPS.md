@@ -91,11 +91,13 @@ Current state:
   advances only for actual changes.
 - `maildb` can backfill missing mailbox-local UIDs for active messages in
   bounded, stable-order batches.
+- Mail API move/delete paths remove stale IMAP UID rows transactionally so moved
+  messages can receive fresh mailbox-local UIDs later.
 
 Next:
 
-- Harden move/delete mailbox-local UID semantics before exposing IMAP MOVE or
-  EXPUNGE.
+- Add optional PostgreSQL integration coverage for IMAP UID assignment,
+  backfill, and move/delete invalidation.
 - Plan IMAP IDLE support for push-on-connect clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 

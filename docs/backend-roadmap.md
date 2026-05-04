@@ -301,6 +301,7 @@ Implementation order:
 246. IMAP fetch groundwork can resolve active messages by mailbox UID and stream the raw stored `.eml` body through `mailservice` without parsing or copying it into memory.
 247. IMAP STORE groundwork can mutate `\Seen`, `\Flagged`, and `\Answered` through the existing message flag JSON while advancing message/mailbox MODSEQ only for actual flag changes.
 248. IMAP UID backfill can assign missing mailbox-local UIDs to existing active messages in bounded stable-order batches, preparing mailboxes before a live protocol listener is enabled.
+249. Mail API move/delete paths now remove stale IMAP message UID rows in the same transaction, preventing mailbox-local UIDs from leaking across folders before IMAP MOVE/EXPUNGE semantics exist.
 
 ## Deferred until backend contracts stabilize
 
