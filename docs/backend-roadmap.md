@@ -606,6 +606,7 @@ Implementation order:
 547. Upload session body storage now has regression coverage that terminal sessions are rejected before storage writes or repository body-recording.
 548. Upload session body storage now accepts an optional `X-Content-SHA256` precondition and rejects checksum mismatches before recording staged body metadata.
 549. Attachment upload capabilities now advertise upload session checksum precondition support separately from body storage and finalization support.
+550. Optional PostgreSQL integration coverage now verifies upload session finalization rejects unstored bodies without changing quota or creating empty attachment rows.
 
 ## Deferred until backend contracts stabilize
 
