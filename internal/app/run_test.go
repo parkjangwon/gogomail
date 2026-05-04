@@ -99,6 +99,34 @@ func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
 	}
 }
 
+func TestAttachmentScanHooksForConfigDisabledByDefault(t *testing.T) {
+	t.Parallel()
+
+	hooks, err := attachmentScanHooksForConfig(config.Config{AttachmentScanBackend: "none"}, nil, "test")
+	if err != nil {
+		t.Fatalf("attachmentScanHooksForConfig returned error: %v", err)
+	}
+	if len(hooks) != 0 {
+		t.Fatalf("hooks = %d, want none", len(hooks))
+	}
+}
+
+func TestAttachmentScanHooksForConfigWebhook(t *testing.T) {
+	t.Parallel()
+
+	hooks, err := attachmentScanHooksForConfig(config.Config{
+		AttachmentScanBackend:    "webhook",
+		AttachmentScanWebhookURL: "http://scanner.example.test/scan",
+		AttachmentScanTimeout:    time.Second,
+	}, nil, "test")
+	if err != nil {
+		t.Fatalf("attachmentScanHooksForConfig returned error: %v", err)
+	}
+	if len(hooks) != 1 {
+		t.Fatalf("hooks = %d, want one webhook scanner hook", len(hooks))
+	}
+}
+
 func TestAPIMeteringHandlerDefaultsToOriginalHandler(t *testing.T) {
 	t.Parallel()
 

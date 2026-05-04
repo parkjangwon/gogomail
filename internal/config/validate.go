@@ -57,6 +57,17 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_METRICS_BACKEND", c.MetricsBackend, "none", "slog"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", c.AttachmentScanBackend, "none", "webhook"); err != nil {
+		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(c.AttachmentScanBackend), "webhook") {
+		if err := validateHTTPURL("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", c.AttachmentScanWebhookURL); err != nil {
+			return err
+		}
+	}
+	if c.AttachmentScanTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT must be positive")
+	}
 	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog"); err != nil {
 		return err
 	}
@@ -239,6 +250,24 @@ func validateHTTPSURL(name string, value string) error {
 	}
 	if parsed.Scheme != "https" || parsed.Host == "" {
 		return fmt.Errorf("%s must be an https URL", name)
+	}
+	return nil
+}
+
+func validateHTTPURL(name string, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s cannot contain line breaks", name)
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return fmt.Errorf("%s must be a valid URL: %w", name, err)
+	}
+	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("%s must be an http or https URL", name)
 	}
 	return nil
 }

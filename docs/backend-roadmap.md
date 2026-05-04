@@ -548,6 +548,7 @@ Implementation order:
 489. Delivery `mail.queued` decoding now rejects oversized recipient and DSN-recipient arrays before normalization, routing, or retry bookkeeping.
 490. Attachment scanner hook rejection/tempfail reasons are now CR/LF-stripped and UTF-8 safely bounded before they are surfaced as SMTP hook errors.
 491. Redis duplicate-message detection now uses fixed-length hashed dedup keys so raw message IDs or recipient addresses cannot create oversized Redis keys.
+492. Attachment scanning can now be enabled with `GOGOMAIL_ATTACHMENT_SCAN_BACKEND=webhook`, wiring a bounded HTTP scanner into Edge, Inbound, and Submission MTA app boundaries while remaining disabled by default.
 
 ## Deferred until backend contracts stabilize
 

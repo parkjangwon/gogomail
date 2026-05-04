@@ -170,7 +170,9 @@ Next:
 Current state:
 
 - SMTP pipeline defines stages/hooks but they are not fully pluggable.
-- Attachment scan hook exists as a disabled synchronous SMTP-stage adapter.
+- Attachment scan hook exists as a disabled-by-default synchronous SMTP-stage
+  adapter, and `GOGOMAIL_ATTACHMENT_SCAN_BACKEND=webhook` wires a bounded HTTP
+  scanner into Edge, Inbound, and Submission MTA app boundaries.
 - Push notification enqueue now has a disabled-by-default async
   `push-notification-worker` over `mail.stored` with a replaceable sink and
   `slog` first adapter.
@@ -215,7 +217,6 @@ Next:
 - Add FCM/APNs/Web Push sink adapters behind `internal/pushnotify`.
 - Keep provider outcome updates private to the worker/adapter boundary unless a
   future operator mutation API is explicitly required.
-- Wire attachment scanning only when a concrete scanner backend is configured.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 
 ### 5. Attachment upload API
