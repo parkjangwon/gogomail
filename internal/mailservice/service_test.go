@@ -1208,15 +1208,22 @@ func TestCreateAttachmentUploadDelegatesToRepository(t *testing.T) {
 	repo := &fakeRepository{}
 	service := New(repo, nil)
 	attachment, err := service.CreateAttachmentUpload(context.Background(), CreateAttachmentUploadRequest{
-		UserID:   "user-1",
-		Filename: "report.pdf",
-		Size:     42,
-		MIMEType: "application/pdf",
+		UserID:      " user-1 ",
+		DraftID:     " draft-1 ",
+		Filename:    " report.pdf ",
+		Size:        42,
+		MIMEType:    " application/pdf ",
+		StoragePath: " uploads/user-1/report.pdf ",
 	})
 	if err != nil {
 		t.Fatalf("CreateAttachmentUpload returned error: %v", err)
 	}
-	if attachment.ID != "att-1" || repo.lastAttachmentUpload.Filename != "report.pdf" {
+	if attachment.ID != "att-1" ||
+		repo.lastAttachmentUpload.UserID != "user-1" ||
+		repo.lastAttachmentUpload.DraftID != "draft-1" ||
+		repo.lastAttachmentUpload.Filename != "report.pdf" ||
+		repo.lastAttachmentUpload.MIMEType != "application/pdf" ||
+		repo.lastAttachmentUpload.StoragePath != "uploads/user-1/report.pdf" {
 		t.Fatalf("attachment = %+v last = %+v", attachment, repo.lastAttachmentUpload)
 	}
 }
@@ -1253,11 +1260,11 @@ func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	service := New(repo, store)
 
 	attachment, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
-		UserID:   "user-1",
-		DraftID:  "draft-1",
-		Filename: "report.pdf",
+		UserID:   " user-1 ",
+		DraftID:  " draft-1 ",
+		Filename: " report.pdf ",
 		Size:     7,
-		MIMEType: "application/pdf",
+		MIMEType: " application/pdf ",
 		Body:     strings.NewReader("content"),
 	})
 	if err != nil {
@@ -1268,6 +1275,12 @@ func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	}
 	if repo.lastAttachmentUpload.StoragePath == "" {
 		t.Fatal("StoragePath was not recorded")
+	}
+	if repo.lastAttachmentUpload.UserID != "user-1" ||
+		repo.lastAttachmentUpload.DraftID != "draft-1" ||
+		repo.lastAttachmentUpload.Filename != "report.pdf" ||
+		repo.lastAttachmentUpload.MIMEType != "application/pdf" {
+		t.Fatalf("lastAttachmentUpload = %+v", repo.lastAttachmentUpload)
 	}
 	body, err := store.Get(context.Background(), repo.lastAttachmentUpload.StoragePath)
 	if err != nil {

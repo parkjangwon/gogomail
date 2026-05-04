@@ -106,6 +106,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext identity metadata before it can reach outbound SMTP command generation or RFC 3464 report composition.
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - Attachment upload storage paths reject absolute, parent-traversal, backslash, and newline forms, and generated attachment object paths sanitize path segments before writing to storage.
+- Attachment upload reservation and direct-upload service requests normalize
+  user, draft, filename, MIME type, and storage-path metadata before quota,
+  storage, and repository work.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
 - `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift, registered-route drift, dangling component references, request-body omissions, response envelope reference drift, message flag enum drift, list limit contract drift, and thread-list parameter leakage.
 - OpenAPI response components now document the Mail/Admin JSON envelope keys used by generated clients, including admin queue, IMAP UID backfill, delivery attempt, exhausted-attempt, suppression, DKIM, domain, and user read models.

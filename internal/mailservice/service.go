@@ -617,6 +617,7 @@ func (s *Service) ListAttachments(ctx context.Context, userID string, messageID 
 }
 
 func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachmentUploadRequest) (maildb.Attachment, error) {
+	req = normalizeCreateAttachmentUploadRequest(req)
 	if err := ValidateCreateAttachmentUploadRequest(req); err != nil {
 		return maildb.Attachment{}, err
 	}
@@ -638,6 +639,7 @@ func (s *Service) CreateAttachmentUpload(ctx context.Context, req CreateAttachme
 }
 
 func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequest) (maildb.Attachment, error) {
+	req = normalizeUploadAttachmentRequest(req)
 	if err := ValidateUploadAttachmentRequest(req); err != nil {
 		return maildb.Attachment{}, err
 	}
@@ -685,6 +687,23 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		return maildb.Attachment{}, err
 	}
 	return attachment, nil
+}
+
+func normalizeCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) CreateAttachmentUploadRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.DraftID = strings.TrimSpace(req.DraftID)
+	req.Filename = strings.TrimSpace(req.Filename)
+	req.MIMEType = strings.TrimSpace(req.MIMEType)
+	req.StoragePath = strings.TrimSpace(req.StoragePath)
+	return req
+}
+
+func normalizeUploadAttachmentRequest(req UploadAttachmentRequest) UploadAttachmentRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.DraftID = strings.TrimSpace(req.DraftID)
+	req.Filename = strings.TrimSpace(req.Filename)
+	req.MIMEType = strings.TrimSpace(req.MIMEType)
+	return req
 }
 
 type countingReader struct {
