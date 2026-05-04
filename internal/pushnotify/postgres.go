@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 type PostgresRecorder struct {
@@ -18,6 +19,8 @@ type AttemptOutcome struct {
 	ProviderMessageID string
 	ProviderStatus    string
 }
+
+const maxPushAttemptIDBytes = 200
 
 func NewPostgresRecorder(db *sql.DB) *PostgresRecorder {
 	return &PostgresRecorder{db: db}
@@ -153,6 +156,9 @@ func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
 	outcome.ProviderStatus = cleanBoundedText(outcome.ProviderStatus, 500)
 	if outcome.AttemptID == "" {
 		return AttemptOutcome{}, fmt.Errorf("attempt_id is required")
+	}
+	if strings.ContainsAny(outcome.AttemptID, "\r\n") || len(outcome.AttemptID) > maxPushAttemptIDBytes || !utf8.ValidString(outcome.AttemptID) {
+		return AttemptOutcome{}, fmt.Errorf("attempt_id is invalid")
 	}
 	if !allowedOutcomeStatus(outcome.Status) {
 		return AttemptOutcome{}, fmt.Errorf("unsupported push notification outcome status")

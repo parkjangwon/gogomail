@@ -110,3 +110,22 @@ func TestNormalizeAttemptOutcomeRejectsInvalidStatus(t *testing.T) {
 		t.Fatal("normalizeAttemptOutcome accepted candidate status")
 	}
 }
+
+func TestNormalizeAttemptOutcomeRejectsUnsafeAttemptID(t *testing.T) {
+	t.Parallel()
+
+	for _, attemptID := range []string{
+		"attempt-1\nbad",
+		strings.Repeat("a", maxPushAttemptIDBytes+1),
+		string([]byte{0xff}),
+	} {
+		attemptID := attemptID
+		t.Run(attemptID, func(t *testing.T) {
+			t.Parallel()
+			_, err := normalizeAttemptOutcome(AttemptOutcome{AttemptID: attemptID, Status: "failed"})
+			if err == nil {
+				t.Fatalf("normalizeAttemptOutcome accepted attempt id %q", attemptID)
+			}
+		})
+	}
+}
