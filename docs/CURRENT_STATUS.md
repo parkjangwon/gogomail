@@ -630,6 +630,8 @@ The platform hardening sprint completed the following:
 - A migration now creates `attachment_upload_sessions` with lifecycle status,
   declared/received byte counts, expiry, checksum, storage adapter metadata, and
   indexes for user lookup and stale-session cleanup.
+- `maildb` can create upload session records and reserve declared session bytes
+  in the shared quota ledger transactionally.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

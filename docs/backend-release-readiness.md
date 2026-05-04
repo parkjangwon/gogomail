@@ -34,6 +34,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `attachment_upload_sessions` migration prepares resumable upload state with
   lifecycle status, expiry, declared/received byte counters, checksum, and
   storage adapter metadata.
+- Repository support can create upload sessions and reserve declared bytes in
+  the shared quota ledger transactionally.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin
