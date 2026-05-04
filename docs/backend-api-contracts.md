@@ -130,6 +130,7 @@ added.
 Admin operational read models also keep explicit envelope keys:
 
 - `GET /admin/v1/queue` returns `{"queues":[...]}`
+- `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
@@ -140,6 +141,18 @@ Admin operational read models also keep explicit envelope keys:
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`
 so consoles can reconcile optimistic updates against the affected backend id.
+
+SMTP backpressure administration exposes the shared receive-pressure state used
+by Edge/Inbound SMTP receive boundaries when `GOGOMAIL_BACKPRESSURE_BACKEND=redis`:
+
+- `GET /admin/v1/backpressure`
+- `PATCH /admin/v1/backpressure`
+
+The state levels are `normal`, `warning`, `danger`, and `critical`. SMTP receive
+continues accepting at `normal|warning` and temporarily rejects at
+`danger|critical`. The patch endpoint accepts an optional `reason` and `until`
+timestamp, keeping human/operator overrides visible without coupling Admin API
+to a specific monitoring vendor.
 
 SMTP operational administration includes trusted relay CIDR management:
 

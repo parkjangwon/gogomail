@@ -301,6 +301,25 @@ paths:
           $ref: "#/components/responses/QueueStats"
         default:
           $ref: "#/components/responses/Error"
+  /backpressure:
+    get:
+      operationId: getAdminBackpressure
+      summary: Admin inspect SMTP backpressure state
+      responses:
+        "200":
+          $ref: "#/components/responses/Backpressure"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateAdminBackpressure
+      summary: Admin update SMTP backpressure state
+      requestBody:
+        $ref: "#/components/requestBodies/BackpressureUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/Backpressure"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-usage:
     get:
       operationId: listAdminQuotaUsage
@@ -747,6 +766,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QueueStatsEnvelope"
+    Backpressure:
+      description: SMTP backpressure state envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BackpressureEnvelope"
     QuotaUsageList:
       description: Quota usage pressure list envelope
       content:
@@ -992,6 +1017,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DeliveryRouteStatusUpdateRequest"
+    BackpressureUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BackpressureUpdateRequest"
   schemas:
     HealthResponse:
       type: object
@@ -1301,6 +1332,28 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QueueStat"
+    BackpressureState:
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: string
+          enum: [normal, warning, danger, critical]
+        reason:
+          type: string
+          maxLength: 512
+        updated_at:
+          type: string
+          format: date-time
+        until:
+          type: string
+          format: date-time
+    BackpressureEnvelope:
+      type: object
+      required: [backpressure]
+      properties:
+        backpressure:
+          $ref: "#/components/schemas/BackpressureState"
     QuotaUsage:
       type: object
       required: [scope, id, name, quota_used, quota_limit, usage_ratio, over_limit, updated_at]
@@ -1979,6 +2032,19 @@ components:
         status:
           type: string
           enum: [active, disabled]
+    BackpressureUpdateRequest:
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: string
+          enum: [normal, warning, danger, critical]
+        reason:
+          type: string
+          maxLength: 512
+        until:
+          type: string
+          format: date-time
     ErrorEnvelope:
       type: object
       required: [error, error_message]

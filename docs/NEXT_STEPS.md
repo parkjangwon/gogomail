@@ -79,10 +79,11 @@ Current state:
 
 - SMTP backpressure primitives exist.
 - Delivery route resolution dry-run API exists.
+- Admin API exposes backpressure state inspection/update when Redis
+  backpressure is configured.
 
 Next:
 
-- Add Admin API for backpressure state inspection/update.
 - Add delivery route runtime counters if available.
 - Expose queue pressure in a stable envelope.
 

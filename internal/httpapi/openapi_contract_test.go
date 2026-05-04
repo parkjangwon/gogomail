@@ -67,6 +67,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /trusted-relays",
 		"POST /delivery-routes",
 		"PATCH /delivery-routes/{id}/status",
+		"PATCH /backpressure",
 		"POST /dkim-keys",
 	} {
 		block, ok := operations[route]
@@ -143,6 +144,8 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"PATCH /users/{id}/status":           "#/components/responses/IDStatus",
 		"PATCH /users/{id}/quota":            "#/components/responses/IDStatus",
 		"GET /queue":                         "#/components/responses/QueueStats",
+		"GET /backpressure":                  "#/components/responses/Backpressure",
+		"PATCH /backpressure":                "#/components/responses/Backpressure",
 		"GET /quota-usage":                   "#/components/responses/QuotaUsageList",
 		"GET /delivery-attempts":             "#/components/responses/DeliveryAttempts",
 		"GET /suppression-list":              "#/components/responses/SuppressionList",
@@ -249,6 +252,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"AttachmentListEnvelope":          "attachments",
 		"AttachmentEnvelope":              "attachment",
 		"QueueStatsEnvelope":              "queues",
+		"BackpressureEnvelope":            "backpressure",
 		"QuotaUsageListEnvelope":          "quota_usage",
 		"DeliveryAttemptsEnvelope":        "delivery_attempts",
 		"SuppressionListEnvelope":         "suppression_list",

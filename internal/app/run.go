@@ -632,8 +632,20 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		defer db.Close()
 
+		var redisClient *redis.Client
+		var pressure backpressureStore
+		if cfg.BackpressureBackend == "redis" {
+			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				_ = redisClient.Close()
+				return err
+			}
+			defer redisClient.Close()
+			pressure = backpressure.NewRedisBackpressure(redisClient, backpressure.DefaultStateKey)
+		}
+
 		repository := maildb.NewRepository(db)
-		httpapi.RegisterAdminRoutes(mux, repository, cfg.AdminToken)
+		httpapi.RegisterAdminRoutes(mux, adminService{Repository: repository, backpressure: pressure}, cfg.AdminToken)
 		logger.Info("admin api routes registered")
 	}
 

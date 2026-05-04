@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
@@ -42,6 +43,11 @@ type AdminService interface {
 	DeactivateDKIMKey(ctx context.Context, id string) error
 	RetryOutbox(ctx context.Context, id string) error
 	DeleteSuppressionEntry(ctx context.Context, id string) error
+}
+
+type AdminBackpressureService interface {
+	GetBackpressure(ctx context.Context) (backpressure.State, error)
+	UpdateBackpressure(ctx context.Context, req backpressure.StateUpdate) (backpressure.State, error)
 }
 
 func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string) {
@@ -251,6 +257,41 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		backpressureService, ok := service.(AdminBackpressureService)
+		if !ok {
+			writeError(w, http.StatusNotFound, "backpressure backend is not configured")
+			return
+		}
+		state, err := backpressureService.GetBackpressure(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"backpressure": state})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		backpressureService, ok := service.(AdminBackpressureService)
+		if !ok {
+			writeError(w, http.StatusNotFound, "backpressure backend is not configured")
+			return
+		}
+		var req backpressure.StateUpdate
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		state, err := backpressureService.UpdateBackpressure(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"backpressure": state})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/quota-usage", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
@@ -38,6 +39,58 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 	if len(body.Queues) != 1 || body.Queues[0].Count != 2 {
 		t.Fatalf("queues = %+v", body.Queues)
+	}
+}
+
+func TestAdminBackpressureHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		backpressureState: backpressure.State{Level: "warning", Reason: "queue lag"},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/backpressure", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Backpressure backpressure.State `json:"backpressure"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Backpressure.Level != "warning" || body.Backpressure.Reason != "queue lag" {
+		t.Fatalf("backpressure = %+v", body.Backpressure)
+	}
+}
+
+func TestAdminUpdateBackpressureHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/backpressure", strings.NewReader(`{
+		"level": "danger",
+		"reason": "queue lag above threshold"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastBackpressureUpdate.Level != "danger" || service.lastBackpressureUpdate.Reason != "queue lag above threshold" {
+		t.Fatalf("lastBackpressureUpdate = %+v", service.lastBackpressureUpdate)
+	}
+	if !strings.Contains(rec.Body.String(), `"backpressure"`) {
+		t.Fatalf("response missing backpressure envelope: %s", rec.Body.String())
 	}
 }
 
@@ -881,6 +934,7 @@ type fakeAdminService struct {
 	deliveryRoutes                 []maildb.DeliveryRouteView
 	deliveryRouteResolution        maildb.DeliveryRouteResolveView
 	dkimKeys                       []maildb.DKIMKeyView
+	backpressureState              backpressure.State
 	createdDKIMKeyID               string
 	lastLimit                      int
 	lastDomainID                   string
@@ -897,6 +951,7 @@ type fakeAdminService struct {
 	lastCreateDeliveryRoute        maildb.CreateDeliveryRouteRequest
 	lastResolveDeliveryRouteDomain string
 	lastDeliveryRouteStatus        maildb.UpdateDeliveryRouteStatusRequest
+	lastBackpressureUpdate         backpressure.StateUpdate
 	lastDeactivateDKIMKeyID        string
 	lastRetryOutboxID              string
 	lastDeleteSuppressionID        string
@@ -989,6 +1044,18 @@ func (f *fakeAdminService) UpdateUserQuota(_ context.Context, req maildb.UpdateU
 
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {
 	return f.queueStats, nil
+}
+
+func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {
+	if f.backpressureState.Level == "" {
+		return backpressure.State{Level: "normal"}, nil
+	}
+	return f.backpressureState, nil
+}
+
+func (f *fakeAdminService) UpdateBackpressure(_ context.Context, req backpressure.StateUpdate) (backpressure.State, error) {
+	f.lastBackpressureUpdate = req
+	return backpressure.State{Level: req.Level, Reason: req.Reason}, nil
 }
 
 func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maildb.QuotaUsageView, error) {

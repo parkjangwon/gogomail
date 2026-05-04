@@ -35,7 +35,8 @@ guidance.
   domain DNS checks, and policy-bearing domain settings.
 - Admin APIs for domains, users, quotas, DKIM keys, trusted relays, delivery
   routes, delivery route resolution, queue stats, delivery attempts,
-  suppression list, quota usage, domain DNS checks/history, and domain policy.
+  suppression list, quota usage, domain DNS checks/history, backpressure
+  inspection/update, and domain policy.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, plus user-scoped sent-message delivery/bounce status.
 - OpenAPI draft with route, request body, response envelope, operationId, and
@@ -75,5 +76,6 @@ Focus on turning the backend into a releasable webmail service platform:
    delivery boundaries.
 3. Strengthen domain onboarding with DKIM verification workflows and admin
    remediation UX contracts.
-4. Improve Admin API observability for queue, delivery routes, and backpressure.
+4. Improve Admin API observability with route counters, richer queue pressure,
+   and release-grade operational dashboards.
 5. Keep OpenAPI and implementation synchronized for future generated clients.
