@@ -41,6 +41,7 @@ type AdminService interface {
 	ListDKIMKeys(ctx context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error)
 	CreateDKIMKey(ctx context.Context, input maildb.CreateDKIMKeyInput) (string, error)
 	DeactivateDKIMKey(ctx context.Context, id string) error
+	VerifyDKIMKeyDNS(ctx context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error)
 	RetryOutbox(ctx context.Context, id string) error
 	DeleteSuppressionEntry(ctx context.Context, id string) error
 }
@@ -456,6 +457,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		result, err := service.VerifyDKIMKeyDNS(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dkim_verification": result})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

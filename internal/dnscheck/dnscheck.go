@@ -114,6 +114,29 @@ func (v Verifier) VerifyDomain(ctx context.Context, domain string, dkim []DKIMEx
 	return report
 }
 
+// VerifyDKIMRecord checks the DNS TXT record for a single DKIM key without
+// performing the full domain report.
+func (v Verifier) VerifyDKIMRecord(ctx context.Context, domain string, expectation DKIMExpectation) RecordCheck {
+	dns := v.DNS
+	if dns == nil {
+		dns = NetResolver{}
+	}
+	domain = normalizeDomain(domain)
+	selector := strings.TrimSpace(expectation.Selector)
+	host := selector + "._domainkey." + domain
+	check := RecordCheck{
+		Name:     "dkim",
+		Host:     host,
+		Expected: strings.TrimSpace(expectation.PublicKeyDNS),
+	}
+	if selector == "" {
+		check.Status = StatusError
+		check.Error = "selector is required"
+		return check
+	}
+	return v.checkExpectedTXT(ctx, dns, check)
+}
+
 func (v Verifier) checkMX(ctx context.Context, dns DNSResolver, domain string) RecordCheck {
 	check := RecordCheck{Name: "mx", Host: domain}
 	mxs, err := dns.LookupMX(ctx, domain)

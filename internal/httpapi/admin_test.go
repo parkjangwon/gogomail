@@ -1140,6 +1140,10 @@ func (f *fakeAdminService) DeactivateDKIMKey(_ context.Context, id string) error
 	return nil
 }
 
+func (f *fakeAdminService) VerifyDKIMKeyDNS(_ context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error) {
+	return maildb.DKIMKeyDNSVerificationResult{KeyID: keyID, Selector: "default"}, nil
+}
+
 func (f *fakeAdminService) RetryOutbox(_ context.Context, id string) error {
 	f.lastRetryOutboxID = id
 	return nil

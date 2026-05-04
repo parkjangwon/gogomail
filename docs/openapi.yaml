@@ -492,6 +492,38 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /dkim-keys/{id}/verify-dns:
+    post:
+      operationId: verifyAdminDkimKeyDns
+      summary: Admin verify DKIM key DNS record
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: DKIM key DNS verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dkim_verification]
+                properties:
+                  dkim_verification:
+                    type: object
+                    required: [key_id, domain_id, selector, check]
+                    properties:
+                      key_id:
+                        type: string
+                      domain_id:
+                        type: string
+                      selector:
+                        type: string
+                      check:
+                        type: object
+                      verified_at:
+                        type: string
+                        format: date-time
+        default:
+          $ref: "#/components/responses/Error"
   /outbox/{id}/retry:
     post:
       operationId: retryAdminOutboxEvent

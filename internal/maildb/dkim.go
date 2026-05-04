@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/dkim"
+	"github.com/gogomail/gogomail/internal/dnscheck"
 )
 
 type DKIMKey struct {
@@ -23,13 +24,14 @@ type DKIMKey struct {
 }
 
 type DKIMKeyView struct {
-	ID           string    `json:"id"`
-	DomainID     string    `json:"domain_id"`
-	Selector     string    `json:"selector"`
-	PublicKeyDNS string    `json:"public_key_dns"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             string     `json:"id"`
+	DomainID       string     `json:"domain_id"`
+	Selector       string     `json:"selector"`
+	PublicKeyDNS   string     `json:"public_key_dns"`
+	Status         string     `json:"status"`
+	DNSVerifiedAt  *time.Time `json:"dns_verified_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type CreateDKIMKeyInput struct {
@@ -95,6 +97,7 @@ SELECT
   selector,
   public_key_dns,
   status,
+  dns_verified_at,
   created_at,
   updated_at
 FROM dkim_keys
@@ -117,6 +120,7 @@ LIMIT $2`
 			&key.Selector,
 			&key.PublicKeyDNS,
 			&key.Status,
+			&key.DNSVerifiedAt,
 			&key.CreatedAt,
 			&key.UpdatedAt,
 		); err != nil {
@@ -175,6 +179,96 @@ RETURNING id::text`
 		return "", fmt.Errorf("create dkim key: %w", err)
 	}
 	return id, nil
+}
+
+// DKIMKeyDNSVerificationResult carries the outcome of a targeted DNS TXT
+// record check for a single DKIM key.
+type DKIMKeyDNSVerificationResult struct {
+	KeyID     string              `json:"key_id"`
+	DomainID  string              `json:"domain_id"`
+	Selector  string              `json:"selector"`
+	Check     dnscheck.RecordCheck `json:"check"`
+	VerifiedAt *time.Time         `json:"verified_at,omitempty"`
+}
+
+// VerifyDKIMKeyDNS looks up the DKIM key by id, queries DNS for its expected
+// TXT record, persists the result to domain_dns_checks, and when the record
+// matches marks the key with dns_verified_at.
+func (r *Repository) VerifyDKIMKeyDNS(ctx context.Context, keyID string) (DKIMKeyDNSVerificationResult, error) {
+	if r.db == nil {
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("database handle is required")
+	}
+	keyID = strings.TrimSpace(keyID)
+	if keyID == "" {
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("key id is required")
+	}
+
+	// Load the key with its domain info.
+	const keyQuery = `
+SELECT
+  dk.id::text,
+  dk.domain_id::text,
+  dk.selector,
+  dk.public_key_dns,
+  d.company_id::text,
+  COALESCE(NULLIF(d.name_ace, ''), d.name),
+  d.id::text
+FROM dkim_keys dk
+JOIN domains d ON d.id = dk.domain_id
+WHERE dk.id = $1`
+
+	var (
+		id, domainID, selector, publicKeyDNS string
+		companyID, domainName, domainDBID    string
+	)
+	if err := r.db.QueryRowContext(ctx, keyQuery, keyID).Scan(
+		&id, &domainID, &selector, &publicKeyDNS,
+		&companyID, &domainName, &domainDBID,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return DKIMKeyDNSVerificationResult{}, fmt.Errorf("dkim key %q not found", keyID)
+		}
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("lookup dkim key: %w", err)
+	}
+
+	// Run the DNS check for just this key.
+	check := dnscheck.Verifier{}.VerifyDKIMRecord(ctx, domainName, dnscheck.DKIMExpectation{
+		Selector:     selector,
+		PublicKeyDNS: publicKeyDNS,
+	})
+
+	result := DKIMKeyDNSVerificationResult{
+		KeyID:    id,
+		DomainID: domainID,
+		Selector: selector,
+		Check:    check,
+	}
+
+	// Persist a targeted dns check for this key.
+	summaryStatus := string(check.Status)
+	if err := r.db.QueryRowContext(ctx, `
+INSERT INTO domain_dns_checks (domain_id, status, report)
+VALUES ($1, $2, $3::jsonb)
+RETURNING id::text`,
+		domainDBID, summaryStatus,
+		fmt.Sprintf(`{"domain":%q,"dkim_key_id":%q,"selector":%q,"check":%q}`,
+			domainName, id, selector, summaryStatus),
+	).Scan(new(string)); err != nil {
+		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("record dkim dns check: %w", err)
+	}
+
+	// On success mark the key as DNS-verified.
+	if check.Status == dnscheck.StatusOK {
+		now := time.Now().UTC()
+		if _, err := r.db.ExecContext(ctx, `
+UPDATE dkim_keys
+SET dns_verified_at = $2, updated_at = now()
+WHERE id = $1`, id, now); err != nil {
+			return DKIMKeyDNSVerificationResult{}, fmt.Errorf("mark dkim key dns verified: %w", err)
+		}
+		result.VerifiedAt = &now
+	}
+	return result, nil
 }
 
 func (r *Repository) DeactivateDKIMKey(ctx context.Context, id string) error {
