@@ -2129,6 +2129,7 @@ components:
       description: Development fallback required only when JWT auth is disabled.
       schema:
         type: string
+        maxLength: 200
   requestBodies:
     FolderCreate:
       required: true

@@ -521,6 +521,7 @@ Implementation order:
 462. API usage export batch, artifact, manifest-digest, and manifest-signature path identifiers now reject blank, CR/LF-bearing, or oversized values before service dispatch.
 463. Admin company, domain, and user detail/mutation path identifiers now reject blank, CR/LF-bearing, or oversized values before service dispatch.
 464. Admin IMAP UID backfill mailbox IDs, outbox event/retry IDs, DKIM key IDs, suppression IDs, trusted-relay IDs, and delivery-route IDs now reject blank, CR/LF-bearing, or oversized values before service dispatch.
+465. Mail API development `user_id` query fallback values now reject CR/LF-bearing or oversized identifiers before service dispatch.
 
 ## Deferred until backend contracts stabilize
 

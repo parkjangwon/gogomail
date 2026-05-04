@@ -1271,6 +1271,37 @@ func TestMailRoutesTrimQueryUserID(t *testing.T) {
 	}
 }
 
+func TestMailRoutesRejectUnsafeQueryUserID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/messages?user_id=user%0Abad",
+		"/api/v1/messages?user_id=" + strings.Repeat("u", maxHTTPResourceIDBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastUserID != "" {
+				t.Fatalf("lastUserID = %q", service.lastUserID)
+			}
+		})
+	}
+}
+
 func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 	t.Parallel()
 
