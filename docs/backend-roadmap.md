@@ -466,6 +466,7 @@ Implementation order:
 407. Mail compose draft/save/send requests now normalize user/source/from/address and attachment identifier fields before repository, storage, suppression, and outbound composition work.
 408. Attachment upload reservation and direct-upload service requests now normalize user, draft, filename, MIME type, and storage-path metadata before quota, storage, and repository work.
 409. Attachment list/download and draft-delete service methods now trim user, message, attachment, and draft identifiers before repository/storage work.
+410. Single-message flag, move, and delete service methods now trim user/message/flag and folder identifiers before repository mutation and IMAP event fan-out.
 
 ## Deferred until backend contracts stabilize
 
