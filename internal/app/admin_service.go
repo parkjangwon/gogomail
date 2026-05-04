@@ -82,6 +82,7 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 		return maildb.APIUsageExportArtifactView{}, err
 	}
 	if batch.EventCount != eventCount {
+		s.cleanupAPIUsageExportArtifactObject(ctx, result.ObjectKey)
 		return maildb.APIUsageExportArtifactView{}, fmt.Errorf("api usage export batch expected %d events but wrote %d", batch.EventCount, eventCount)
 	}
 	storageBackend := strings.TrimSpace(req.StorageBackend)
@@ -99,14 +100,18 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 		Metadata:       result.Metadata,
 	})
 	if err != nil {
-		if deleter, ok := s.exportStore.(interface {
-			Delete(context.Context, string) error
-		}); ok {
-			_ = deleter.Delete(ctx, result.ObjectKey)
-		}
+		s.cleanupAPIUsageExportArtifactObject(ctx, result.ObjectKey)
 		return maildb.APIUsageExportArtifactView{}, err
 	}
 	return artifact, nil
+}
+
+func (s adminService) cleanupAPIUsageExportArtifactObject(ctx context.Context, objectKey string) {
+	if deleter, ok := s.exportStore.(interface {
+		Delete(context.Context, string) error
+	}); ok {
+		_ = deleter.Delete(ctx, objectKey)
+	}
 }
 
 func (s adminService) OpenAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, io.ReadCloser, error) {
