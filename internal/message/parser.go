@@ -16,6 +16,7 @@ import (
 )
 
 const maxAttachmentFilenameBytes = 255
+const defaultMaxMetadataBytes = 2048
 
 type Address struct {
 	Name    string
@@ -34,6 +35,7 @@ type ParseOptions struct {
 	MaxParts         int
 	MaxAddresses     int
 	MaxReferences    int
+	MaxMetadataBytes int
 }
 
 type ParsedMessage struct {
@@ -53,6 +55,7 @@ type ParsedMessage struct {
 	PartsTruncated       bool
 	AddressesTruncated   bool
 	ReferencesTruncated  bool
+	MetadataTruncated    bool
 	Attachments          []Attachment
 }
 
@@ -75,17 +78,19 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 	if parsed.MessageID, err = reader.Header.MessageID(); err != nil {
 		parsed.MessageID = ""
 	} else {
-		parsed.MessageID = normalizeMessageID(parsed.MessageID)
+		parsed.MessageID, parsed.MetadataTruncated = normalizeMessageIDBounded(parsed.MessageID, opts.MaxMetadataBytes)
 	}
-	parsed.InReplyTo = firstMessageID(reader.Header, "In-Reply-To", opts.MaxReferences)
-	parsed.References, parsed.ReferencesTruncated = messageIDList(reader.Header, "References", opts.MaxReferences)
+	parsed.InReplyTo = firstMessageID(&parsed, reader.Header, "In-Reply-To", opts)
+	parsed.References, parsed.ReferencesTruncated = messageIDList(&parsed, reader.Header, "References", opts)
 	if parsed.Subject, err = reader.Header.Subject(); err != nil {
 		parsed.Subject = ""
+	} else {
+		parsed.Subject, parsed.MetadataTruncated = sanitizeHeaderMetadata(parsed.Subject, opts.MaxMetadataBytes, parsed.MetadataTruncated)
 	}
 	if parsed.Date, err = reader.Header.Date(); err != nil {
 		parsed.Date = time.Time{}
 	}
-	if parsed.From, err = firstAddress(reader.Header, "From"); err != nil {
+	if parsed.From, err = firstAddress(&parsed, opts, reader.Header, "From"); err != nil {
 		parsed.From = Address{}
 	}
 	parsed.To = addressList(&parsed, opts, reader.Header, "To")
@@ -191,19 +196,20 @@ func inlineAttachmentMetadata(header *gomail.InlineHeader) (string, bool) {
 	return "", !strings.HasPrefix(strings.ToLower(contentType), "text/")
 }
 
-func firstMessageID(header gomail.Header, key string, maxIDs int) string {
-	ids, _ := messageIDList(header, key, maxIDs)
+func firstMessageID(parsed *ParsedMessage, header gomail.Header, key string, opts ParseOptions) string {
+	ids, _ := messageIDList(parsed, header, key, opts)
 	if len(ids) == 0 {
 		return ""
 	}
 	return ids[len(ids)-1]
 }
 
-func messageIDList(header gomail.Header, key string, maxIDs int) ([]string, bool) {
+func messageIDList(parsed *ParsedMessage, header gomail.Header, key string, opts ParseOptions) ([]string, bool) {
 	ids, err := header.MsgIDList(key)
 	if err != nil {
 		return nil, false
 	}
+	maxIDs := opts.MaxReferences
 	if maxIDs <= 0 {
 		maxIDs = 1000
 	}
@@ -214,7 +220,9 @@ func messageIDList(header gomail.Header, key string, maxIDs int) ([]string, bool
 			truncated = true
 			break
 		}
-		id = normalizeMessageID(id)
+		var metadataTruncated bool
+		id, metadataTruncated = normalizeMessageIDBounded(id, opts.MaxMetadataBytes)
+		parsed.MetadataTruncated = parsed.MetadataTruncated || metadataTruncated
 		if id != "" {
 			out = append(out, id)
 		}
@@ -241,6 +249,9 @@ func normalizeParseOptions(opts ParseOptions) ParseOptions {
 	if opts.MaxReferences <= 0 {
 		opts.MaxReferences = 1000
 	}
+	if opts.MaxMetadataBytes <= 0 {
+		opts.MaxMetadataBytes = defaultMaxMetadataBytes
+	}
 	return opts
 }
 
@@ -263,12 +274,12 @@ func readLimitedText(r io.Reader, maxBytes int64) (string, bool, error) {
 	return string(body), truncated, nil
 }
 
-func firstAddress(header gomail.Header, key string) (Address, error) {
+func firstAddress(parsed *ParsedMessage, opts ParseOptions, header gomail.Header, key string) (Address, error) {
 	addrs, err := header.AddressList(key)
 	if err != nil || len(addrs) == 0 {
 		return Address{}, err
 	}
-	return convertAddress(addrs[0]), nil
+	return convertAddress(parsed, opts, addrs[0]), nil
 }
 
 func addressList(parsed *ParsedMessage, opts ParseOptions, header gomail.Header, key string) []Address {
@@ -286,16 +297,19 @@ func addressList(parsed *ParsedMessage, opts ParseOptions, header gomail.Header,
 			parsed.AddressesTruncated = true
 			break
 		}
-		result = append(result, convertAddress(addr))
+		result = append(result, convertAddress(parsed, opts, addr))
 	}
 	return result
 }
 
-func convertAddress(addr *gomail.Address) Address {
+func convertAddress(parsed *ParsedMessage, opts ParseOptions, addr *gomail.Address) Address {
 	if addr == nil {
 		return Address{}
 	}
-	return Address{Name: addr.Name, Address: strings.ToLower(addr.Address)}
+	name, nameTruncated := sanitizeHeaderMetadata(addr.Name, opts.MaxMetadataBytes, false)
+	address, addressTruncated := sanitizeHeaderMetadata(strings.ToLower(addr.Address), opts.MaxMetadataBytes, false)
+	parsed.MetadataTruncated = parsed.MetadataTruncated || nameTruncated || addressTruncated
+	return Address{Name: name, Address: address}
 }
 
 func isTextPlain(header *gomail.InlineHeader) bool {
@@ -307,14 +321,90 @@ func isTextPlain(header *gomail.InlineHeader) bool {
 }
 
 func normalizeMessageID(messageID string) string {
+	normalized, _ := normalizeMessageIDBounded(messageID, defaultMaxMetadataBytes)
+	return normalized
+}
+
+func normalizeMessageIDBounded(messageID string, maxBytes int) (string, bool) {
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxMetadataBytes
+	}
+	messageID, truncated := cleanHeaderMetadataValue(messageID, false)
 	messageID = strings.TrimSpace(messageID)
 	if messageID == "" {
-		return ""
+		return "", truncated
 	}
 	if strings.HasPrefix(messageID, "<") && strings.HasSuffix(messageID, ">") {
-		return messageID
+		if len(messageID) > maxBytes {
+			return "", true
+		}
+		return messageID, truncated
 	}
-	return "<" + messageID + ">"
+	messageID = "<" + messageID + ">"
+	if len(messageID) > maxBytes {
+		return "", true
+	}
+	return messageID, truncated
+}
+
+func sanitizeHeaderMetadata(value string, maxBytes int, alreadyTruncated bool) (string, bool) {
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxMetadataBytes
+	}
+	value, truncated := cleanHeaderMetadataValue(value, alreadyTruncated)
+	if len(value) <= maxBytes {
+		return value, truncated
+	}
+	return truncateUTF8(value, maxBytes), true
+}
+
+func cleanHeaderMetadataValue(value string, alreadyTruncated bool) (string, bool) {
+	value = strings.TrimSpace(value)
+	truncated := alreadyTruncated
+	if value == "" {
+		return "", truncated
+	}
+	if !utf8.ValidString(value) {
+		value = strings.ToValidUTF8(value, "")
+		truncated = true
+	}
+	if containsHeaderMetadataControl(value) {
+		value = strings.Map(func(r rune) rune {
+			switch r {
+			case '\r', '\n', '\t':
+				return ' '
+			default:
+				if r < 0x20 || r == 0x7f {
+					return -1
+				}
+				return r
+			}
+		}, value)
+		value = strings.Join(strings.Fields(value), " ")
+		truncated = true
+	}
+	return value, truncated
+}
+
+func containsHeaderMetadataControl(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f {
+			return true
+		}
+	}
+	return false
+}
+
+func truncateUTF8(value string, maxBytes int) string {
+	if len(value) <= maxBytes {
+		return value
+	}
+	body := []byte(value[:maxBytes])
+	for len(body) > 0 && !utf8.Valid(body) {
+		_, size := utf8.DecodeLastRune(body)
+		body = body[:len(body)-size]
+	}
+	return string(body)
 }
 
 func FallbackMessageID(envelopeFrom string, recipients []string, date time.Time, subject string) string {
