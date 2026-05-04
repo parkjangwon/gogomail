@@ -12,6 +12,7 @@ import (
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/gogomail/gogomail/internal/searchindex"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -161,11 +162,68 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
+	t.Parallel()
+
+	rank := 1.25
+	repo := &fakeRepository{
+		messagesByID: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	service := New(repo, nil).WithSearchIDSource(fakeSearchIDSource{
+		hits: []searchindex.OpenSearchHit{{MessageID: "msg-1", Score: rank}},
+	})
+
+	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
+		UserID:      "user-1",
+		Query:       "hello",
+		Limit:       10,
+		Sort:        maildb.MessageSearchSortRelevance,
+		IncludeRank: true,
+	})
+	if err != nil {
+		t.Fatalf("SearchMessages returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "msg-1" {
+		t.Fatalf("messages = %#v", got)
+	}
+	if got[0].SearchRank == nil || *got[0].SearchRank != rank {
+		t.Fatalf("SearchRank = %#v, want %v", got[0].SearchRank, rank)
+	}
+	if len(repo.lastHydrateIDs) != 1 || repo.lastHydrateIDs[0] != "msg-1" {
+		t.Fatalf("hydrated ids = %#v", repo.lastHydrateIDs)
+	}
+}
+
+func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{list: []maildb.MessageSummary{{ID: "pg-1"}}}
+	service := New(repo, nil).WithSearchIDSource(fakeSearchIDSource{
+		hits: []searchindex.OpenSearchHit{{MessageID: "os-1", Score: 1}},
+	})
+
+	hasAttachment := true
+	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
+		UserID:        "user-1",
+		Query:         "hello",
+		HasAttachment: &hasAttachment,
+		Sort:          maildb.MessageSearchSortRelevance,
+	})
+	if err != nil {
+		t.Fatalf("SearchMessages returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "pg-1" {
+		t.Fatalf("messages = %#v, want postgres fallback", got)
+	}
+}
+
 type fakeRepository struct {
 	detail                    maildb.MessageDetail
 	imapMessage               maildb.IMAPStoredMessage
 	imapFlagSummaries         []imapgw.MessageSummary
 	attachments               []maildb.Attachment
+	list                      []maildb.MessageSummary
+	messagesByID              []maildb.MessageSummary
 	suppressed                []string
 	domainPolicy              maildb.DomainPolicyView
 	sourceThread              maildb.SourceThreadView
@@ -176,6 +234,7 @@ type fakeRepository struct {
 	lastFlagMessageID         string
 	lastFlag                  string
 	lastPageCursor            maildb.MessageListCursor
+	lastHydrateIDs            []string
 	lastSentDraftID           string
 	lastSentDraftMessageID    string
 	lastOutgoing              maildb.OutgoingMessage
@@ -195,6 +254,15 @@ func (f *fakeRepository) ListMessagesInFolder(context.Context, string, string, i
 func (f *fakeRepository) ListMessagesPage(_ context.Context, _ string, _ string, _ int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	f.lastPageCursor = cursor
 	return []maildb.MessageSummary{{ID: "msg-page"}}, nil
+}
+
+func (f *fakeRepository) SearchMessages(context.Context, maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	return f.list, nil
+}
+
+func (f *fakeRepository) ListMessagesByIDs(_ context.Context, _ string, ids []string) ([]maildb.MessageSummary, error) {
+	f.lastHydrateIDs = append([]string(nil), ids...)
+	return f.messagesByID, nil
 }
 
 func (f *fakeRepository) ListFolders(context.Context, string) ([]maildb.Folder, error) {
@@ -344,6 +412,14 @@ func (f *fakeRepository) MarkDraftSent(_ context.Context, _ string, draftID stri
 func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error) {
 	f.lastAttachmentUpload = req
 	return maildb.Attachment{ID: "att-1", Filename: req.Filename, MIMEType: req.MIMEType, Size: req.Size}, nil
+}
+
+type fakeSearchIDSource struct {
+	hits []searchindex.OpenSearchHit
+}
+
+func (s fakeSearchIDSource) SearchMessageIDs(context.Context, searchindex.OpenSearchSearchQuery) ([]searchindex.OpenSearchHit, error) {
+	return s.hits, nil
 }
 
 func (f *fakeRepository) ExpireStaleAttachmentUploads(context.Context, maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error) {

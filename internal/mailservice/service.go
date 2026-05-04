@@ -15,6 +15,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/gogomail/gogomail/internal/searchindex"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -78,12 +79,22 @@ type SourceThreadRepository interface {
 }
 
 type Service struct {
-	repository Repository
-	store      storage.Store
+	repository     Repository
+	store          storage.Store
+	searchIDSource SearchIDSource
 }
 
 func New(repository Repository, store storage.Store) *Service {
 	return &Service{repository: repository, store: store}
+}
+
+type SearchIDSource interface {
+	SearchMessageIDs(ctx context.Context, query searchindex.OpenSearchSearchQuery) ([]searchindex.OpenSearchHit, error)
+}
+
+func (s *Service) WithSearchIDSource(source SearchIDSource) *Service {
+	s.searchIDSource = source
+	return s
 }
 
 func (s *Service) ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error) {
@@ -135,6 +146,9 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 }
 
 func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	if s.searchIDSource != nil && canUseSearchIDSource(query) {
+		return s.searchMessagesByExternalIDs(ctx, query)
+	}
 	repo, ok := s.repository.(interface {
 		SearchMessages(context.Context, maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
 	})
@@ -142,6 +156,66 @@ func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearch
 		return nil, fmt.Errorf("search repository is required")
 	}
 	return repo.SearchMessages(ctx, query)
+}
+
+func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	hydrator, ok := s.repository.(interface {
+		ListMessagesByIDs(context.Context, string, []string) ([]maildb.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("search hydration repository is required")
+	}
+	hits, err := s.searchIDSource.SearchMessageIDs(ctx, searchindex.OpenSearchSearchQuery{
+		UserID: query.UserID,
+		Query:  query.Query,
+		Limit:  query.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	messageIDs := make([]string, 0, len(hits))
+	ranks := make(map[string]float64, len(hits))
+	for _, hit := range hits {
+		id := strings.TrimSpace(hit.MessageID)
+		if id == "" {
+			continue
+		}
+		messageIDs = append(messageIDs, id)
+		ranks[id] = hit.Score
+	}
+	messages, err := hydrator.ListMessagesByIDs(ctx, query.UserID, messageIDs)
+	if err != nil {
+		return nil, err
+	}
+	if query.IncludeRank {
+		for i := range messages {
+			if rank, ok := ranks[messages[i].ID]; ok {
+				messages[i].SearchRank = &rank
+			}
+		}
+	}
+	return messages, nil
+}
+
+func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
+	return strings.TrimSpace(query.Query) != "" &&
+		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance &&
+		strings.TrimSpace(query.FolderID) == "" &&
+		strings.TrimSpace(query.From) == "" &&
+		strings.TrimSpace(query.Subject) == "" &&
+		query.HasAttachment == nil &&
+		!query.IncludeHighlights
+}
+
+func normalizedSearchSort(sort string) string {
+	switch strings.ToLower(strings.TrimSpace(sort)) {
+	case "", maildb.MessageSearchSortDate:
+		return maildb.MessageSearchSortDate
+	case maildb.MessageSearchSortRelevance:
+		return maildb.MessageSearchSortRelevance
+	default:
+		return ""
+	}
 }
 
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
