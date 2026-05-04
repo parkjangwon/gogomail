@@ -108,30 +108,43 @@ func (s *Service) WithIMAPMailboxEvents(publisher IMAPMailboxEventPublisher) *Se
 }
 
 func (s *Service) ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error) {
+	userID = strings.TrimSpace(userID)
 	return s.repository.ListFolders(ctx, userID)
 }
 
 func (s *Service) CreateFolder(ctx context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error) {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.Name = strings.TrimSpace(req.Name)
 	return s.repository.CreateFolder(ctx, req)
 }
 
 func (s *Service) RenameFolder(ctx context.Context, userID string, folderID string, name string) (maildb.Folder, error) {
+	userID = strings.TrimSpace(userID)
+	folderID = strings.TrimSpace(folderID)
+	name = strings.TrimSpace(name)
 	return s.repository.RenameFolder(ctx, userID, folderID, name)
 }
 
 func (s *Service) DeleteFolder(ctx context.Context, userID string, folderID string) error {
+	userID = strings.TrimSpace(userID)
+	folderID = strings.TrimSpace(folderID)
 	return s.repository.DeleteFolder(ctx, userID, folderID)
 }
 
 func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
+	userID = strings.TrimSpace(userID)
 	return s.repository.ListMessages(ctx, userID, limit)
 }
 
 func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
+	userID = strings.TrimSpace(userID)
+	folderID = strings.TrimSpace(folderID)
 	return s.repository.ListMessagesInFolder(ctx, userID, folderID, limit)
 }
 
 func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	userID = strings.TrimSpace(userID)
+	folderID = strings.TrimSpace(folderID)
 	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor)
 }
 
@@ -142,6 +155,7 @@ func (s *Service) ListThreads(ctx context.Context, userID string, limit int) ([]
 	if !ok {
 		return nil, fmt.Errorf("thread repository is required")
 	}
+	userID = strings.TrimSpace(userID)
 	return repo.ListThreads(ctx, userID, limit)
 }
 
@@ -152,6 +166,8 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 	if !ok {
 		return nil, fmt.Errorf("thread repository is required")
 	}
+	userID = strings.TrimSpace(userID)
+	threadID = strings.TrimSpace(threadID)
 	return repo.ListThreadMessages(ctx, userID, threadID, limit)
 }
 
@@ -245,6 +261,8 @@ func normalizedSearchSort(sort string) string {
 }
 
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
 	detail, err := s.repository.GetMessage(ctx, userID, messageID)
 	if err != nil {
 		return maildb.MessageDetail{}, err

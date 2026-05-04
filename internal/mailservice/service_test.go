@@ -94,6 +94,80 @@ func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
 	}
 }
 
+func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:    "msg-1",
+			Flags: []byte(`{"read":true}`),
+		},
+	}
+	service := New(repo, nil)
+
+	if _, err := service.ListFolders(context.Background(), " user-1 "); err != nil {
+		t.Fatalf("ListFolders returned error: %v", err)
+	}
+	if _, err := service.CreateFolder(context.Background(), maildb.CreateFolderRequest{UserID: " user-1 ", Name: " Archive "}); err != nil {
+		t.Fatalf("CreateFolder returned error: %v", err)
+	}
+	if _, err := service.RenameFolder(context.Background(), " user-1 ", " folder-1 ", " Projects "); err != nil {
+		t.Fatalf("RenameFolder returned error: %v", err)
+	}
+	if err := service.DeleteFolder(context.Background(), " user-1 ", " folder-1 "); err != nil {
+		t.Fatalf("DeleteFolder returned error: %v", err)
+	}
+	if _, err := service.ListMessages(context.Background(), " user-1 ", 10); err != nil {
+		t.Fatalf("ListMessages returned error: %v", err)
+	}
+	if _, err := service.ListMessagesInFolder(context.Background(), " user-1 ", " inbox ", 10); err != nil {
+		t.Fatalf("ListMessagesInFolder returned error: %v", err)
+	}
+	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}); err != nil {
+		t.Fatalf("ListMessagesPage returned error: %v", err)
+	}
+	if _, err := service.ListThreads(context.Background(), " user-1 ", 10); err != nil {
+		t.Fatalf("ListThreads returned error: %v", err)
+	}
+	if _, err := service.ListThreadMessages(context.Background(), " user-1 ", " thread-1 ", 10); err != nil {
+		t.Fatalf("ListThreadMessages returned error: %v", err)
+	}
+	if _, err := service.GetMessage(context.Background(), " user-1 ", " msg-1 "); err != nil {
+		t.Fatalf("GetMessage returned error: %v", err)
+	}
+
+	if repo.lastListFoldersUserID != "user-1" {
+		t.Fatalf("list folders user = %q", repo.lastListFoldersUserID)
+	}
+	if repo.lastCreateFolder.UserID != "user-1" || repo.lastCreateFolder.Name != "Archive" {
+		t.Fatalf("create folder = %#v", repo.lastCreateFolder)
+	}
+	if repo.lastRenameFolderUserID != "user-1" || repo.lastRenameFolderID != "folder-1" || repo.lastRenameFolderName != "Projects" {
+		t.Fatalf("rename folder = %q/%q/%q", repo.lastRenameFolderUserID, repo.lastRenameFolderID, repo.lastRenameFolderName)
+	}
+	if repo.lastDeleteFolderUserID != "user-1" || repo.lastDeleteFolderID != "folder-1" {
+		t.Fatalf("delete folder = %q/%q", repo.lastDeleteFolderUserID, repo.lastDeleteFolderID)
+	}
+	if repo.lastListMessagesUserID != "user-1" {
+		t.Fatalf("list messages user = %q", repo.lastListMessagesUserID)
+	}
+	if repo.lastListMessagesInFolderUserID != "user-1" || repo.lastListMessagesFolderID != "inbox" {
+		t.Fatalf("list messages in folder = %q/%q", repo.lastListMessagesInFolderUserID, repo.lastListMessagesFolderID)
+	}
+	if repo.lastPageUserID != "user-1" || repo.lastPageFolderID != "inbox" {
+		t.Fatalf("page ids = %q/%q", repo.lastPageUserID, repo.lastPageFolderID)
+	}
+	if repo.lastListThreadsUserID != "user-1" {
+		t.Fatalf("list threads user = %q", repo.lastListThreadsUserID)
+	}
+	if repo.lastThreadMessagesUserID != "user-1" || repo.lastThreadID != "thread-1" {
+		t.Fatalf("thread messages = %q/%q", repo.lastThreadMessagesUserID, repo.lastThreadID)
+	}
+	if repo.lastGetMessageUserID != "user-1" || repo.lastGetMessageID != "msg-1" {
+		t.Fatalf("get message = %q/%q", repo.lastGetMessageUserID, repo.lastGetMessageID)
+	}
+}
+
 func TestUpsertPushDeviceNormalizesRequest(t *testing.T) {
 	t.Parallel()
 
@@ -680,63 +754,85 @@ func TestCanUseSearchIDSourceContract(t *testing.T) {
 }
 
 type fakeRepository struct {
-	detail                      maildb.MessageDetail
-	imapMessage                 maildb.IMAPStoredMessage
-	imapFlagSummaries           []imapgw.MessageSummary
-	imapUIDs                    []maildb.IMAPMessageUID
-	imapMailboxes               []imapgw.Mailbox
-	imapMessages                []imapgw.MessageSummary
-	backfilledIMAPUIDs          []maildb.IMAPMessageUID
-	attachments                 []maildb.Attachment
-	list                        []maildb.MessageSummary
-	messagesByID                []maildb.MessageSummary
-	suppressed                  []string
-	domainPolicy                maildb.DomainPolicyView
-	sourceThread                maildb.SourceThreadView
-	seenSuppressionRecipients   []string
-	lastDraft                   maildb.SaveDraftRequest
-	lastAttachmentUpload        maildb.CreateAttachmentUploadRequest
-	lastAttachmentUserID        string
-	lastAttachmentMessageID     string
-	lastAttachmentID            string
-	attachment                  maildb.Attachment
-	expiredAttachments          []maildb.Attachment
-	lastFlagMessageID           string
-	lastFlag                    string
-	lastMutationUserID          string
-	lastMoveMessageID           string
-	lastMoveFolderID            string
-	lastDeleteMessageID         string
-	lastBulkFlag                maildb.BulkMessageFlagRequest
-	lastBulkMove                maildb.BulkMessageMoveRequest
-	lastBulkDelete              maildb.BulkMessageDeleteRequest
-	lastPageCursor              maildb.MessageListCursor
-	lastHydrateIDs              []string
-	lastSentDraftID             string
-	lastSentDraftMessageID      string
-	lastSenderUserID            string
-	lastSenderFrom              string
-	lastOutgoing                maildb.OutgoingMessage
-	lastPushDevice              maildb.UpsertPushDeviceRequest
-	lastIMAPFlags               imapgw.MessageFlags
-	lastIMAPFlagMode            imapgw.StoreFlagsMode
-	lastIMAPUIDLookupUserID     string
-	lastIMAPUIDLookupMessageIDs []string
-	lastIMAPMailboxUserID       string
-	lastIMAPMessageAfterUID     imapgw.UID
-	lastBackfillLimit           int
-	recordErr                   error
+	detail                         maildb.MessageDetail
+	imapMessage                    maildb.IMAPStoredMessage
+	imapFlagSummaries              []imapgw.MessageSummary
+	imapUIDs                       []maildb.IMAPMessageUID
+	imapMailboxes                  []imapgw.Mailbox
+	imapMessages                   []imapgw.MessageSummary
+	backfilledIMAPUIDs             []maildb.IMAPMessageUID
+	attachments                    []maildb.Attachment
+	list                           []maildb.MessageSummary
+	messagesByID                   []maildb.MessageSummary
+	suppressed                     []string
+	domainPolicy                   maildb.DomainPolicyView
+	sourceThread                   maildb.SourceThreadView
+	seenSuppressionRecipients      []string
+	lastDraft                      maildb.SaveDraftRequest
+	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
+	lastAttachmentUserID           string
+	lastAttachmentMessageID        string
+	lastAttachmentID               string
+	attachment                     maildb.Attachment
+	expiredAttachments             []maildb.Attachment
+	lastListFoldersUserID          string
+	lastCreateFolder               maildb.CreateFolderRequest
+	lastRenameFolderUserID         string
+	lastRenameFolderID             string
+	lastRenameFolderName           string
+	lastDeleteFolderUserID         string
+	lastDeleteFolderID             string
+	lastListMessagesUserID         string
+	lastListMessagesInFolderUserID string
+	lastListMessagesFolderID       string
+	lastPageUserID                 string
+	lastPageFolderID               string
+	lastListThreadsUserID          string
+	lastThreadMessagesUserID       string
+	lastThreadID                   string
+	lastGetMessageUserID           string
+	lastGetMessageID               string
+	lastFlagMessageID              string
+	lastFlag                       string
+	lastMutationUserID             string
+	lastMoveMessageID              string
+	lastMoveFolderID               string
+	lastDeleteMessageID            string
+	lastBulkFlag                   maildb.BulkMessageFlagRequest
+	lastBulkMove                   maildb.BulkMessageMoveRequest
+	lastBulkDelete                 maildb.BulkMessageDeleteRequest
+	lastPageCursor                 maildb.MessageListCursor
+	lastHydrateIDs                 []string
+	lastSentDraftID                string
+	lastSentDraftMessageID         string
+	lastSenderUserID               string
+	lastSenderFrom                 string
+	lastOutgoing                   maildb.OutgoingMessage
+	lastPushDevice                 maildb.UpsertPushDeviceRequest
+	lastIMAPFlags                  imapgw.MessageFlags
+	lastIMAPFlagMode               imapgw.StoreFlagsMode
+	lastIMAPUIDLookupUserID        string
+	lastIMAPUIDLookupMessageIDs    []string
+	lastIMAPMailboxUserID          string
+	lastIMAPMessageAfterUID        imapgw.UID
+	lastBackfillLimit              int
+	recordErr                      error
 }
 
-func (f *fakeRepository) ListMessages(context.Context, string, int) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessages(_ context.Context, userID string, _ int) ([]maildb.MessageSummary, error) {
+	f.lastListMessagesUserID = userID
 	return nil, nil
 }
 
-func (f *fakeRepository) ListMessagesInFolder(context.Context, string, string, int) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessagesInFolder(_ context.Context, userID string, folderID string, _ int) ([]maildb.MessageSummary, error) {
+	f.lastListMessagesInFolderUserID = userID
+	f.lastListMessagesFolderID = folderID
 	return nil, nil
 }
 
-func (f *fakeRepository) ListMessagesPage(_ context.Context, _ string, _ string, _ int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, folderID string, _ int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	f.lastPageUserID = userID
+	f.lastPageFolderID = folderID
 	f.lastPageCursor = cursor
 	return []maildb.MessageSummary{{ID: "msg-page"}}, nil
 }
@@ -750,23 +846,43 @@ func (f *fakeRepository) ListMessagesByIDs(_ context.Context, _ string, ids []st
 	return f.messagesByID, nil
 }
 
-func (f *fakeRepository) ListFolders(context.Context, string) ([]maildb.Folder, error) {
+func (f *fakeRepository) ListThreads(_ context.Context, userID string, _ int) ([]maildb.ThreadSummary, error) {
+	f.lastListThreadsUserID = userID
 	return nil, nil
 }
 
-func (f *fakeRepository) CreateFolder(context.Context, maildb.CreateFolderRequest) (maildb.Folder, error) {
+func (f *fakeRepository) ListThreadMessages(_ context.Context, userID string, threadID string, _ int) ([]maildb.MessageSummary, error) {
+	f.lastThreadMessagesUserID = userID
+	f.lastThreadID = threadID
+	return nil, nil
+}
+
+func (f *fakeRepository) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
+	f.lastListFoldersUserID = userID
+	return nil, nil
+}
+
+func (f *fakeRepository) CreateFolder(_ context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error) {
+	f.lastCreateFolder = req
 	return maildb.Folder{}, nil
 }
 
-func (f *fakeRepository) RenameFolder(context.Context, string, string, string) (maildb.Folder, error) {
+func (f *fakeRepository) RenameFolder(_ context.Context, userID string, folderID string, name string) (maildb.Folder, error) {
+	f.lastRenameFolderUserID = userID
+	f.lastRenameFolderID = folderID
+	f.lastRenameFolderName = name
 	return maildb.Folder{}, nil
 }
 
-func (f *fakeRepository) DeleteFolder(context.Context, string, string) error {
+func (f *fakeRepository) DeleteFolder(_ context.Context, userID string, folderID string) error {
+	f.lastDeleteFolderUserID = userID
+	f.lastDeleteFolderID = folderID
 	return nil
 }
 
-func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.MessageDetail, error) {
+func (f *fakeRepository) GetMessage(_ context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
+	f.lastGetMessageUserID = userID
+	f.lastGetMessageID = messageID
 	return f.detail, nil
 }
 

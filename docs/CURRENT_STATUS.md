@@ -460,6 +460,8 @@ The platform hardening sprint completed the following:
 - Bulk flag, move, and delete service methods also trim user/message/flag and
   folder identifiers before repository mutation, IMAP UID lookup, and mailbox
   event fan-out.
+- Folder, message-list, thread-list, and message-detail service reads trim
+  user, folder, thread, message, and folder-name inputs before repository work.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.
