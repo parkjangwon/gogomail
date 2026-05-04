@@ -347,6 +347,8 @@ Implementation order:
 289. Admin API now exposes API usage export batch create/list/detail endpoints plus saved-batch NDJSON replay, keeping export checkpointing explicit and bounded.
 290. API usage export batches can now register external artifact metadata with object key, SHA-256, byte count, event count, and JSON metadata while staying vendor-neutral.
 291. Admin API now exposes API usage export artifact create/list/detail endpoints, and artifact rows are deduplicated per batch by object key and SHA-256 for idempotent handoff.
+292. API usage export batches now support canonical SHA-256 manifest digests over saved batch metadata plus registered artifacts, giving downstream billing/export jobs a stable integrity primitive before external signing is wired.
+293. Admin API now exposes manifest digest create/list/detail and verification endpoints so operators can confirm expected versus actual canonical digest values before handoff.
 
 ## Deferred until backend contracts stabilize
 

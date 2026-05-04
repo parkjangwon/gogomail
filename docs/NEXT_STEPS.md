@@ -264,11 +264,15 @@ Current state:
 - Admin API can register and list external export artifacts for each batch,
   including object key, SHA-256, byte count, event count, and metadata. Artifact
   rows are deduplicated per batch by object key and SHA-256.
+- Admin API can create/list/get canonical export manifest digests and verify a
+  stored manifest digest. This gives operators a vendor-neutral integrity check
+  over the saved batch plus registered artifact metadata before external
+  signing, billing, or warehouse handoff.
 
 Next:
 
-- Add signed artifact manifests or object-store writer adapters before invoices
-  or hard Open API limits depend on completed export batches.
+- Add signing/KMS integration or object-store writer adapters before invoices or
+  hard Open API limits depend on completed export batches.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 
