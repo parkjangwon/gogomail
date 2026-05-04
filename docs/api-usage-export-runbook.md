@@ -36,7 +36,8 @@ Expected release-safe interpretation:
 ## 2. Create the saved export batch
 
 Use the same `tenant_id`, `principal_id`, and time window that the downstream
-consumer expects. `to` is exclusive.
+consumer expects. `from` and `to` are required RFC3339 timestamps, and `to` is
+exclusive.
 
 ```bash
 curl -sS -X POST -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \

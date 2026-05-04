@@ -650,6 +650,51 @@ func TestAdminCreateAPIUsageExportBatchHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCreateAPIUsageExportBatchHandlerRejectsMissingWindow(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{
+			name: "missing from",
+			path: "/admin/v1/api-usage/export-batches?tenant_id=tenant-1&to=2026-05-05T00:00:00Z",
+		},
+		{
+			name: "missing to",
+			path: "/admin/v1/api-usage/export-batches?tenant_id=tenant-1&from=2026-05-04T00:00:00Z",
+		},
+		{
+			name: "missing both",
+			path: "/admin/v1/api-usage/export-batches?tenant_id=tenant-1",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if !strings.Contains(rr.Body.String(), "from and to are required") {
+				t.Fatalf("body = %s", rr.Body.String())
+			}
+			if !service.lastAPIUsageLedgerList.From.IsZero() || !service.lastAPIUsageLedgerList.To.IsZero() {
+				t.Fatalf("lastAPIUsageLedgerList = %+v", service.lastAPIUsageLedgerList)
+			}
+		})
+	}
+}
+
 func TestAdminListAPIUsageExportBatchesHandler(t *testing.T) {
 	t.Parallel()
 

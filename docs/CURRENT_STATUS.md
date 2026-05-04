@@ -138,7 +138,8 @@ guidance.
   archive or purge job is allowed.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
-  by batch ID.
+  by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`
+  bounds, preventing accidental all-ledger checkpoints.
 - API usage export batches can now carry external artifact metadata rows with
   object key, content type, byte count, SHA-256, event count, and JSON metadata.
   Artifacts are deduplicated per batch by object key and SHA-256.
@@ -406,8 +407,8 @@ The platform hardening sprint completed the following:
   so future billing and warehouse jobs can consume event-level usage instead of
   operational aggregates.
 - API usage export batch manifests now capture fixed event/request/byte/latency
-  totals for a bounded ledger window, preparing idempotent downstream export
-  workflows.
+  totals for an explicitly bounded ledger window, preparing idempotent
+  downstream export workflows.
 - API usage export artifact metadata is now persisted and inspectable through
   Admin API endpoints, preparing object-store handoff without adding a vendor
   dependency to the core service.

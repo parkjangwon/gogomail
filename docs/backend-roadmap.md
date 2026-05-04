@@ -447,6 +447,7 @@ Implementation order:
 388. API metering durable events now require nonblank method/route keys and HTTP-like status codes before ledger and aggregate storage, preventing malformed usage payloads from polluting billing/export dimensions.
 389. API metering outbox payload generation now clamps negative byte and latency values before deterministic event IDs are generated, aligning source emission with worker-side ledger/aggregate normalization.
 390. API metering middleware now falls back to `METHOD /path` when no `http.ServeMux` route pattern is available, keeping durable usage event route keys nonblank even around custom handlers or unmatched routes.
+391. API usage export batch creation now requires explicit RFC3339 `from`/`to` ledger windows at the Admin API boundary, preventing accidental all-ledger checkpoints and keeping generated clients aligned through OpenAPI drift coverage.
 
 ## Deferred until backend contracts stabilize
 

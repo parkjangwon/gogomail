@@ -361,6 +361,21 @@ func TestOpenAPIDraftDocumentsRetentionCutoffGuardrail(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsAPIUsageExportBatchRequiredWindow(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["POST /api-usage/export-batches"]
+	if !ok {
+		t.Fatal("OpenAPI operation POST /api-usage/export-batches is missing")
+	}
+	for _, param := range []string{"from", "to"} {
+		if !openAPIOperationDocumentsRequiredQueryParameter(block, param) {
+			t.Fatalf("POST /api-usage/export-batches must document required query parameter %q", param)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsPathParameters(t *testing.T) {
 	t.Parallel()
 
@@ -897,6 +912,18 @@ func openAPIOperationDocumentsParameter(block string, name string) bool {
 		}
 	}
 	return strings.Contains(block, "name: "+name)
+}
+
+func openAPIOperationDocumentsRequiredQueryParameter(block string, name string) bool {
+	start := strings.Index(block, "- name: "+name)
+	if start < 0 {
+		return false
+	}
+	segment := block[start:]
+	if next := strings.Index(segment[len("- name: ")+len(name):], "\n        - name: "); next >= 0 {
+		segment = segment[:len("- name: ")+len(name)+next]
+	}
+	return strings.Contains(segment, "in: query") && strings.Contains(segment, "required: true")
 }
 
 func extractOpenAPIPathParameters(route string) []string {
