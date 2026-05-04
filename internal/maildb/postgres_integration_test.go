@@ -176,11 +176,19 @@ func TestPostgresCanceledDraftAttachmentCannotBeRebound(t *testing.T) {
 		t.Fatalf("CancelAttachmentUpload returned error: %v", err)
 	}
 	var hasAttachment bool
-	if err := db.QueryRowContext(ctx, `SELECT has_attachment FROM messages WHERE id = $1`, draft.ID).Scan(&hasAttachment); err != nil {
+	var canceledDraftID sql.NullString
+	if err := db.QueryRowContext(ctx, `
+SELECT m.has_attachment, a.draft_id::text
+FROM messages m
+JOIN attachments a ON a.id = $2
+WHERE m.id = $1`, draft.ID, attachment.ID).Scan(&hasAttachment, &canceledDraftID); err != nil {
 		t.Fatalf("query draft has_attachment: %v", err)
 	}
 	if hasAttachment {
 		t.Fatal("draft has_attachment = true after canceling its only upload")
+	}
+	if canceledDraftID.Valid {
+		t.Fatalf("canceled attachment draft_id = %q, want NULL", canceledDraftID.String)
 	}
 
 	if _, err := repo.SaveDraft(ctx, SaveDraftRequest{
