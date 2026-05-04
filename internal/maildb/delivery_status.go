@@ -52,10 +52,16 @@ SELECT
   message_id::text,
   rfc_message_id,
   farm,
+  sender,
   recipient,
   recipient_domain,
   status,
+  enhanced_status,
   error_message,
+  dsn_return,
+  dsn_envelope_id,
+  dsn_notify,
+  original_recipient,
   attempted_at
 FROM delivery_attempts
 WHERE message_id = $1
@@ -70,17 +76,7 @@ LIMIT 200`
 
 	for rows.Next() {
 		var attempt DeliveryAttemptView
-		if err := rows.Scan(
-			&attempt.ID,
-			&attempt.MessageID,
-			&attempt.RFCMessageID,
-			&attempt.Farm,
-			&attempt.Recipient,
-			&attempt.RecipientDomain,
-			&attempt.Status,
-			&attempt.ErrorMessage,
-			&attempt.AttemptedAt,
-		); err != nil {
+		if err := scanDeliveryAttempt(rows, &attempt); err != nil {
 			return MessageDeliveryStatusView{}, fmt.Errorf("scan message delivery attempt: %w", err)
 		}
 		view.Attempts = append(view.Attempts, attempt)

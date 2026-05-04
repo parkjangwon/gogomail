@@ -239,6 +239,22 @@ func TestOpenAPIDraftDocumentsAPIUsageLedgerFilters(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsDeliveryAttemptDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	block := extractOpenAPIComponentBlock(t, draft, "schemas", "DeliveryAttempt")
+	for _, field := range []string{"sender", "enhanced_status", "dsn_return", "dsn_envelope_id", "dsn_notify", "original_recipient"} {
+		if !strings.Contains(block, "        "+field+":") {
+			t.Fatalf("DeliveryAttempt schema must document diagnostic field %q", field)
+		}
+	}
+}
+
 func TestOpenAPIDraftOperationsHaveStableOperationIDs(t *testing.T) {
 	t.Parallel()
 

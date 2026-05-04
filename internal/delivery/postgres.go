@@ -20,6 +20,10 @@ func (r *PostgresRecorder) RecordAttempt(ctx context.Context, attempt Attempt) e
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	diagnostics, err := deliveryAttemptDiagnostics(attempt)
+	if err != nil {
+		return err
+	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -31,11 +35,15 @@ func (r *PostgresRecorder) RecordAttempt(ctx context.Context, attempt Attempt) e
 INSERT INTO delivery_attempts (
   message_id, rfc_message_id, farm,
   recipient, recipient_domain,
-  status, error_message, attempted_at
+  status, error_message,
+  sender, enhanced_status, dsn_return, dsn_envelope_id, dsn_notify, original_recipient,
+  attempted_at
 ) VALUES (
   $1, $2, $3,
   $4, $5,
-  $6, $7, $8
+  $6, $7,
+  $8, $9, $10, $11, $12::jsonb, $13,
+  $14
 )`
 
 	if _, err := tx.ExecContext(
@@ -48,6 +56,12 @@ INSERT INTO delivery_attempts (
 		attempt.RecipientDomain,
 		string(attempt.Status),
 		attempt.ErrorMessage,
+		diagnostics.Sender,
+		diagnostics.EnhancedStatus,
+		diagnostics.DSNReturn,
+		diagnostics.DSNEnvelopeID,
+		string(diagnostics.DSNNotify),
+		diagnostics.OriginalRecipient,
 		attempt.AttemptedAt,
 	); err != nil {
 		return fmt.Errorf("insert delivery attempt: %w", err)
@@ -117,19 +131,38 @@ func (r *PostgresRecorder) RecordExhausted(ctx context.Context, queued QueuedMes
 INSERT INTO delivery_attempts (
   message_id, rfc_message_id, farm,
   recipient, recipient_domain,
-  status, error_message, attempted_at
+  status, error_message,
+  sender, enhanced_status, dsn_return, dsn_envelope_id, dsn_notify, original_recipient,
+  attempted_at
 ) VALUES (
   $1, $2, $3,
   $4, $5,
-  'exhausted', $6, now()
+  'exhausted', $6,
+  $7, $8, $9, $10, $11::jsonb, $12,
+  now()
 )`
 
 	for _, recipient := range queued.Recipients() {
 		_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
 		domain = strings.ToLower(strings.TrimSuffix(domain, "."))
+		dsnRecipient := dsnRecipientOptionsForAttempt(queued.DSN.Recipients, recipient.Email)
+		notify := append([]string(nil), dsnRecipient.Notify...)
+		if notify == nil {
+			notify = []string{}
+		}
+		dsnNotify, err := json.Marshal(notify)
+		if err != nil {
+			return fmt.Errorf("marshal exhausted delivery attempt dsn notify: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, attemptQuery,
 			queued.MessageID, queued.RFCMessageID, string(queued.Farm),
 			recipient.Email, domain, causeMsg,
+			truncateUTF8Bytes(strings.TrimSpace(queued.From.Email), 320),
+			enhancedStatusForAttempt(AttemptExhausted, cause),
+			truncateUTF8Bytes(strings.TrimSpace(queued.DSN.Return), 16),
+			truncateUTF8Bytes(strings.TrimSpace(queued.DSN.EnvelopeID), 100),
+			string(dsnNotify),
+			truncateUTF8Bytes(strings.TrimSpace(dsnRecipient.OriginalRecipient), 500),
 		); err != nil {
 			return fmt.Errorf("insert exhausted delivery attempt: %w", err)
 		}
@@ -172,6 +205,34 @@ func exhaustedEventPayload(queued QueuedMessage, causeMsg string) ([]byte, error
 		return nil, fmt.Errorf("marshal delivery_exhausted event: %w", err)
 	}
 	return raw, nil
+}
+
+type attemptDiagnostics struct {
+	Sender            string
+	EnhancedStatus    string
+	DSNReturn         string
+	DSNEnvelopeID     string
+	DSNNotify         []byte
+	OriginalRecipient string
+}
+
+func deliveryAttemptDiagnostics(attempt Attempt) (attemptDiagnostics, error) {
+	notify := append([]string(nil), attempt.DSNNotify...)
+	if notify == nil {
+		notify = []string{}
+	}
+	dsnNotify, err := json.Marshal(notify)
+	if err != nil {
+		return attemptDiagnostics{}, fmt.Errorf("marshal delivery attempt dsn notify: %w", err)
+	}
+	return attemptDiagnostics{
+		Sender:            truncateUTF8Bytes(strings.TrimSpace(attempt.Sender), 320),
+		EnhancedStatus:    truncateUTF8Bytes(strings.TrimSpace(attempt.EnhancedStatus), 64),
+		DSNReturn:         truncateUTF8Bytes(strings.TrimSpace(attempt.DSNReturn), 16),
+		DSNEnvelopeID:     truncateUTF8Bytes(strings.TrimSpace(attempt.DSNEnvelopeID), 100),
+		DSNNotify:         dsnNotify,
+		OriginalRecipient: truncateUTF8Bytes(strings.TrimSpace(attempt.OriginalRecipient), 500),
+	}, nil
 }
 
 func deliveryAttemptEventPayload(attempt Attempt) ([]byte, error) {

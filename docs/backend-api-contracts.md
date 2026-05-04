@@ -214,7 +214,9 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`;
   optional `status`, `recipient_domain`, and RFC3339 `since` filters keep
-  delivery triage bounded.
+  delivery triage bounded. Attempt rows include sender, enhanced-status, and
+  RFC 3461 DSN metadata (`RET`, `ENVID`, `NOTIFY`, and `ORCPT`) when captured
+  by the delivery worker.
 - `GET /admin/v1/delivery-attempts/stats` returns `{"delivery_attempt_stats":{...}}`;
   optional `status`, `recipient_domain`, and RFC3339 `since` filters mirror the
   attempt list and summarize total, unique-message, unique-recipient, and

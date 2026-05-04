@@ -2009,11 +2009,17 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 
 	service := &fakeAdminService{
 		attempts: []maildb.DeliveryAttemptView{{
-			ID:          "attempt-1",
-			MessageID:   "msg-1",
-			Recipient:   "user@example.net",
-			Status:      "bounced",
-			AttemptedAt: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
+			ID:                "attempt-1",
+			MessageID:         "msg-1",
+			Sender:            "sender@example.com",
+			Recipient:         "user@example.net",
+			Status:            "bounced",
+			EnhancedStatus:    "5.1.1",
+			DSNReturn:         "HDRS",
+			DSNEnvelopeID:     "env+2D1",
+			DSNNotify:         []string{"FAILURE"},
+			OriginalRecipient: "rfc822;alias+40example.net",
+			AttemptedAt:       time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
 		}},
 	}
 	mux := http.NewServeMux()
@@ -2028,6 +2034,9 @@ func TestAdminDeliveryAttemptsHandler(t *testing.T) {
 	}
 	if service.lastDeliveryAttemptList.Limit != 10 || service.lastDeliveryAttemptList.Status != "bounced" || service.lastDeliveryAttemptList.RecipientDomain != "example.net" || service.lastDeliveryAttemptList.Since.IsZero() {
 		t.Fatalf("lastDeliveryAttemptList = %+v", service.lastDeliveryAttemptList)
+	}
+	if !strings.Contains(rec.Body.String(), `"enhanced_status":"5.1.1"`) || !strings.Contains(rec.Body.String(), `"dsn_notify":["FAILURE"]`) {
+		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
 
@@ -2148,9 +2157,11 @@ func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 		attempts: []maildb.DeliveryAttemptView{{
 			ID:              "attempt-1",
 			MessageID:       "msg-1",
+			Sender:          "sender@example.com",
 			Recipient:       "user@example.net",
 			RecipientDomain: "example.net",
 			Status:          "exhausted",
+			EnhancedStatus:  "4.0.0",
 			AttemptedAt:     time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
 		}},
 	}
@@ -2166,6 +2177,9 @@ func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 	}
 	if service.lastExhaustedAttemptList.Limit != 10 || service.lastExhaustedAttemptList.RecipientDomain != "example.net" || service.lastExhaustedAttemptList.Since.IsZero() {
 		t.Fatalf("lastExhaustedAttemptList = %+v", service.lastExhaustedAttemptList)
+	}
+	if !strings.Contains(rec.Body.String(), `"enhanced_status":"4.0.0"`) {
+		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
 
