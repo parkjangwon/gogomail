@@ -29,6 +29,8 @@ type OpenSearchIndexer struct {
 	password string
 }
 
+const maxOpenSearchMetadataBytes = 1000
+
 func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
 	endpoint, err := url.Parse(strings.TrimSpace(opts.Endpoint))
 	if err != nil {
@@ -168,27 +170,72 @@ func openSearchIndexDefinition() map[string]any {
 }
 
 func openSearchDocument(doc Document) map[string]any {
+	messageID := cleanOpenSearchMetadata(doc.MessageID)
+	rfcMessageID := cleanOpenSearchMetadata(doc.RFCMessageID)
+	inReplyTo := cleanOpenSearchMetadata(doc.InReplyTo)
+	companyID := cleanOpenSearchMetadata(doc.CompanyID)
+	domainID := cleanOpenSearchMetadata(doc.DomainID)
+	userID := cleanOpenSearchMetadata(doc.UserID)
+	folderID := cleanOpenSearchMetadata(doc.FolderID)
+	recipient := cleanOpenSearchMetadata(doc.Recipient)
+	subject := cleanOpenSearchMetadata(doc.Subject)
+	fromAddr := cleanOpenSearchMetadata(doc.FromAddr)
+	fromName := cleanOpenSearchMetadata(doc.FromName)
+	storagePath := cleanOpenSearchMetadata(doc.StoragePath)
+	receivedAt := cleanOpenSearchMetadata(doc.ReceivedAt)
 	return map[string]any{
-		"message_id":     strings.TrimSpace(doc.MessageID),
-		"rfc_message_id": strings.TrimSpace(doc.RFCMessageID),
-		"in_reply_to":    strings.TrimSpace(doc.InReplyTo),
-		"references":     append([]string(nil), doc.References...),
-		"company_id":     strings.TrimSpace(doc.CompanyID),
-		"domain_id":      strings.TrimSpace(doc.DomainID),
-		"user_id":        strings.TrimSpace(doc.UserID),
-		"folder_id":      strings.TrimSpace(doc.FolderID),
-		"recipient":      strings.TrimSpace(doc.Recipient),
-		"subject":        strings.TrimSpace(doc.Subject),
-		"subject_lc":     strings.ToLower(strings.TrimSpace(doc.Subject)),
-		"from_addr":      strings.TrimSpace(doc.FromAddr),
-		"from_addr_lc":   strings.ToLower(strings.TrimSpace(doc.FromAddr)),
-		"from_name":      strings.TrimSpace(doc.FromName),
-		"storage_path":   strings.TrimSpace(doc.StoragePath),
-		"received_at":    strings.TrimSpace(doc.ReceivedAt),
+		"message_id":     messageID,
+		"rfc_message_id": rfcMessageID,
+		"in_reply_to":    inReplyTo,
+		"references":     cleanOpenSearchReferences(doc.References),
+		"company_id":     companyID,
+		"domain_id":      domainID,
+		"user_id":        userID,
+		"folder_id":      folderID,
+		"recipient":      recipient,
+		"subject":        subject,
+		"subject_lc":     strings.ToLower(subject),
+		"from_addr":      fromAddr,
+		"from_addr_lc":   strings.ToLower(fromAddr),
+		"from_name":      fromName,
+		"storage_path":   storagePath,
+		"received_at":    receivedAt,
 		"size":           doc.Size,
 		"has_attachment": doc.HasAttachment,
 		"body_text":      doc.BodyText,
 		"body_truncated": doc.BodyTruncated,
 		"body_max_bytes": doc.BodyMaxBytes,
 	}
+}
+
+func cleanOpenSearchReferences(values []string) []string {
+	out := make([]string, 0, min(len(values), maxEventReferences))
+	for _, value := range values {
+		if len(out) >= maxEventReferences {
+			break
+		}
+		if strings.ContainsAny(value, "\r\n") {
+			continue
+		}
+		value = cleanOpenSearchMetadata(value)
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func cleanOpenSearchMetadata(value string) string {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	if len(value) <= maxOpenSearchMetadataBytes {
+		return value
+	}
+	cut := 0
+	for i := range value {
+		if i > maxOpenSearchMetadataBytes {
+			return value[:cut]
+		}
+		cut = i
+	}
+	return value[:cut]
 }

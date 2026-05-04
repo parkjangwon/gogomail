@@ -15,7 +15,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   configuration, configurable HTTP timeout, and optional index bootstrap on
   startup. Mail API relevance search can use OpenSearch for ranked IDs,
   folder/from/subject/attachment filters, and highlights, then hydrate the
-  existing response shape from Postgres summaries.
+  existing response shape from Postgres summaries. OpenSearch document
+  metadata is bounded at UTF-8 boundaries before submission.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
