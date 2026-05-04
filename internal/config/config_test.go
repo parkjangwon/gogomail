@@ -65,6 +65,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DKIM_ENABLED", "")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "")
 
 	cfg := Load()
 
@@ -245,6 +246,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AuthJWTSecret != "" {
 		t.Fatalf("AuthJWTSecret = %q, want empty", cfg.AuthJWTSecret)
 	}
+	if cfg.PushNotifyDeviceLimit != 200 {
+		t.Fatalf("PushNotifyDeviceLimit = %d, want 200", cfg.PushNotifyDeviceLimit)
+	}
 }
 
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
@@ -302,6 +306,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DKIM_ENABLED", "true")
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "secret")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "jwt-secret")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "25")
 
 	cfg := Load()
 
@@ -469,6 +474,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AuthJWTSecret != "jwt-secret" {
 		t.Fatalf("AuthJWTSecret = %q, want jwt-secret", cfg.AuthJWTSecret)
+	}
+	if cfg.PushNotifyDeviceLimit != 25 {
+		t.Fatalf("PushNotifyDeviceLimit = %d, want 25", cfg.PushNotifyDeviceLimit)
 	}
 }
 

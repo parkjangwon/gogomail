@@ -33,18 +33,44 @@ type Notification struct {
 	Recipient    string
 	Subject      string
 	ReceivedAt   string
+	Targets      []Target
 }
 
 type Sink interface {
 	EnqueuePush(ctx context.Context, notification Notification) error
 }
 
-type Handler struct {
-	sink Sink
+type Target struct {
+	DeviceID    string
+	Platform    string
+	Token       string
+	TokenSuffix string
+	Label       string
 }
 
-func NewHandler(sink Sink) *Handler {
-	return &Handler{sink: sink}
+type TargetResolver interface {
+	ResolvePushTargets(ctx context.Context, event Event) ([]Target, error)
+}
+
+type Handler struct {
+	sink           Sink
+	targetResolver TargetResolver
+}
+
+type HandlerOption func(*Handler)
+
+func WithTargetResolver(resolver TargetResolver) HandlerOption {
+	return func(h *Handler) {
+		h.targetResolver = resolver
+	}
+}
+
+func NewHandler(sink Sink, opts ...HandlerOption) *Handler {
+	handler := &Handler{sink: sink}
+	for _, opt := range opts {
+		opt(handler)
+	}
+	return handler
 }
 
 func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
@@ -55,7 +81,18 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	if err != nil {
 		return err
 	}
-	if err := h.sink.EnqueuePush(ctx, notificationFromEvent(event)); err != nil {
+	notification := notificationFromEvent(event)
+	if h.targetResolver != nil {
+		targets, err := h.targetResolver.ResolvePushTargets(ctx, event)
+		if err != nil {
+			return fmt.Errorf("resolve push notification targets: %w", err)
+		}
+		if len(targets) == 0 {
+			return nil
+		}
+		notification.Targets = targets
+	}
+	if err := h.sink.EnqueuePush(ctx, notification); err != nil {
 		return fmt.Errorf("enqueue push notification candidate: %w", err)
 	}
 	return nil
@@ -136,6 +173,7 @@ func (s SlogSink) EnqueuePush(_ context.Context, notification Notification) erro
 		"recipient", notification.Recipient,
 		"subject", notification.Subject,
 		"received_at", notification.ReceivedAt,
+		"targets", len(notification.Targets),
 	)
 	return nil
 }

@@ -37,6 +37,8 @@ func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T
 	}{
 		{name: "count", mutate: func(cfg *Config) { cfg.PushNotifyConsumerCount = 0 }},
 		{name: "block", mutate: func(cfg *Config) { cfg.PushNotifyConsumerBlock = 0 }},
+		{name: "device limit zero", mutate: func(cfg *Config) { cfg.PushNotifyDeviceLimit = 0 }},
+		{name: "device limit too large", mutate: func(cfg *Config) { cfg.PushNotifyDeviceLimit = 201 }},
 	}
 
 	for _, tt := range tests {

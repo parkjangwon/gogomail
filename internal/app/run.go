@@ -546,6 +546,12 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 		return errors.New("unsupported push notification backend")
 	}
 
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		_ = redisClient.Close()
@@ -553,8 +559,12 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	}
 	defer redisClient.Close()
 
+	repository := maildb.NewRepository(db)
 	router := eventstream.NewRouter()
-	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(pushnotify.SlogSink{Logger: logger})); err != nil {
+	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(
+		pushnotify.SlogSink{Logger: logger},
+		pushnotify.WithTargetResolver(pushnotify.NewDeviceResolver(repository, cfg.PushNotifyDeviceLimit)),
+	)); err != nil {
 		return err
 	}
 
@@ -578,6 +588,7 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 		"group", cfg.PushNotifyConsumerGroup,
 		"consumer", cfg.PushNotifyConsumerName,
 		"backend", backend,
+		"device_limit", cfg.PushNotifyDeviceLimit,
 	)
 	return consumer.Run(ctx)
 }

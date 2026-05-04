@@ -135,6 +135,12 @@ raw token, but API responses do not return the raw token; clients receive only
 `token_suffix` for diagnostics and display. Delete is a soft delete scoped to
 the authenticated user.
 
+When `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog`, `push-notification-worker`
+resolves active devices for the `mail.stored.user_id` after commit and before
+invoking its sink. `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT` bounds per-message
+fan-out. Vendor delivery remains a future sink adapter, not a Mail API or SMTP
+side effect.
+
 ## Admin operations
 
 Admin domain/user CRUD includes list, detail, create, status update, and quota update contracts:

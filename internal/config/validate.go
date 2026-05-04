@@ -52,6 +52,9 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog"); err != nil {
 		return err
 	}
+	if c.PushNotifyDeviceLimit <= 0 || c.PushNotifyDeviceLimit > 200 {
+		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT must be between 1 and 200")
+	}
 	if c.PushNotifyConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT must be positive")
 	}

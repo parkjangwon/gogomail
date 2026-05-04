@@ -69,6 +69,12 @@ go run ./cmd/gogomail --mode=mail-api
 go run ./cmd/gogomail --mode=admin-api
 ```
 
+`push-notification-worker` stays disabled until
+`GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` is set. In that mode it consumes
+`mail.stored`, resolves active user devices from PostgreSQL, and logs bounded
+notification candidates; vendor push delivery adapters are intentionally not
+enabled by default.
+
 ## Verify
 
 ```bash
