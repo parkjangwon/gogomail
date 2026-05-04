@@ -64,6 +64,8 @@ func TestValidateCreateDeliveryRouteRequestRejectsUnsafeInput(t *testing.T) {
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, Port: 70000},
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, TLSMode: "cleartext"},
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, Description: "bad\nline"},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, TLSMode: "disable", ImplicitTLS: true},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, AuthPassword: "secret"},
 	} {
 		if err := ValidateCreateDeliveryRouteRequest(req); err == nil {
 			t.Fatalf("ValidateCreateDeliveryRouteRequest(%+v) returned nil", req)

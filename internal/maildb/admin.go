@@ -935,6 +935,12 @@ func ValidateCreateDeliveryRouteRequest(req CreateDeliveryRouteRequest) error {
 	if _, err := normalizeDeliveryRouteTLSMode(req.TLSMode); err != nil {
 		return err
 	}
+	if req.ImplicitTLS && strings.EqualFold(strings.TrimSpace(req.TLSMode), "disable") {
+		return fmt.Errorf("implicit_tls cannot be used with disabled tls_mode")
+	}
+	if strings.TrimSpace(req.AuthPassword) != "" && strings.TrimSpace(req.AuthUsername) == "" {
+		return fmt.Errorf("auth_username is required when auth_password is set")
+	}
 	for field, value := range map[string]string{
 		"farm":          req.Farm,
 		"smtp_hello":    req.SMTPHello,
