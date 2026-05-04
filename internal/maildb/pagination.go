@@ -10,6 +10,7 @@ import (
 
 const MessageListDefaultLimit = 50
 const MessageListMaxLimit = 200
+const MessageListCursorMaxBytes = 1024
 
 type MessageListCursor struct {
 	At time.Time `json:"at"`
@@ -77,6 +78,9 @@ func DecodeMessageListCursor(value string) (MessageListCursor, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return MessageListCursor{}, nil
+	}
+	if len(value) > MessageListCursorMaxBytes {
+		return MessageListCursor{}, fmt.Errorf("message list cursor is too long")
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {

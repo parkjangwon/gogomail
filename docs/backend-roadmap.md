@@ -512,6 +512,7 @@ Implementation order:
 453. User folder create/rename validation now rejects blank, path-bearing, CR/LF-bearing, or oversized names, and folder rename/delete reject unsafe folder identifiers before repository dispatch.
 454. Push-device delete validation now rejects blank, CR/LF-bearing, or oversized device identifiers before repository dispatch.
 455. Folder-scoped message lists and thread-message reads now reject unsafe folder/thread identifiers before repository work.
+456. Message-list cursor decoding now rejects oversized opaque cursor strings before base64 decode and JSON parsing.
 
 ## Deferred until backend contracts stabilize
 

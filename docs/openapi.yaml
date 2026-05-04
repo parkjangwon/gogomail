@@ -91,6 +91,7 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/MessageListPage"

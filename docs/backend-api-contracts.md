@@ -95,7 +95,8 @@ Errors use the stable envelope:
 List endpoints that accept `limit` reject non-integer, nonpositive, and over-200 values.
 The documented client contract is `1 <= limit <= 200`, defaulting to `50`.
 Message listing returns opaque `next_cursor`; clients must not parse or
-manufacture cursors.
+manufacture cursors. Incoming cursor strings are bounded before decode so
+malformed or oversized tokens fail before allocating decoded payloads.
 
 Search query, folder, sender, and subject filters are whitespace-normalized and
 reject CR/LF-bearing or oversized values before either Postgres or OpenSearch
