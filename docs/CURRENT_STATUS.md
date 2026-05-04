@@ -169,6 +169,8 @@ guidance.
   service dispatch.
 - Mail API message-list `folder_id` and search text/filter query parameters now
   reject CR/LF-bearing or oversized values before service dispatch.
+- Mail API bearer JWT `user_id` and `sub` identities now reject CR/LF-bearing
+  or oversized claims during signing and verification before request scoping.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

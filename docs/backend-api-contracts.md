@@ -87,6 +87,8 @@ Errors use the stable envelope:
 ## Authentication
 
 - Mail API uses HS256 bearer JWT when `GOGOMAIL_AUTH_JWT_SECRET` is configured.
+- Bearer JWT `user_id` and `sub` identities are trimmed and reject CR/LF-bearing
+  or oversized values during signing and verification before request scoping.
 - Without JWT configuration, development requests must pass `user_id` as a query parameter.
 - Development `user_id` query fallback values are trimmed and reject CR/LF-bearing
   or oversized identifiers before Mail API service dispatch.
