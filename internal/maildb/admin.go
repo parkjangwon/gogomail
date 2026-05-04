@@ -347,9 +347,11 @@ type APIUsageExportHandoffView struct {
 	MissingRequirements           []string                                         `json:"missing_requirements,omitempty"`
 	BillingBlockingReasons        []string                                         `json:"billing_blocking_reasons,omitempty"`
 	DeepVerification              bool                                             `json:"deep_verification"`
-	DeepReady                     bool                                             `json:"deep_ready,omitempty"`
+	DeepReady                     bool                                             `json:"deep_ready"`
+	VerifiedBillingReady          bool                                             `json:"verified_billing_ready"`
 	DeepBlockingReasons           []string                                         `json:"deep_blocking_reasons,omitempty"`
 	DeepVerificationErrors        []string                                         `json:"deep_verification_errors,omitempty"`
+	ManifestArtifactCoverageValid *bool                                            `json:"manifest_artifact_coverage_valid,omitempty"`
 	ArtifactVerifications         []APIUsageExportArtifactVerificationView         `json:"artifact_verifications,omitempty"`
 	ManifestDigestVerification    *APIUsageExportManifestDigestVerificationView    `json:"manifest_digest_verification,omitempty"`
 	ManifestSignatureVerification *APIUsageExportManifestSignatureVerificationView `json:"manifest_signature_verification,omitempty"`

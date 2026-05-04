@@ -2820,6 +2820,8 @@ components:
         - readiness_grade
         - billing_ready
         - deep_verification
+        - deep_ready
+        - verified_billing_ready
       properties:
         batch_id:
           type: string
@@ -2887,10 +2889,12 @@ components:
           type: array
           items:
             type: string
-            enum: [handoff_not_ready, production_manifest_signer_required, deep_verification_required]
+            enum: [handoff_not_ready, production_manifest_signer_required]
         deep_verification:
           type: boolean
         deep_ready:
+          type: boolean
+        verified_billing_ready:
           type: boolean
         deep_blocking_reasons:
           type: array
@@ -2899,14 +2903,19 @@ components:
             enum:
               - artifact_verification_error
               - artifact_verification_failed
+              - manifest_artifact_coverage_error
+              - manifest_artifact_mismatch
               - manifest_digest_verification_error
               - manifest_digest_verification_failed
               - manifest_signature_verification_error
               - manifest_signature_verification_failed
+              - manifest_signature_verifier_unavailable
         deep_verification_errors:
           type: array
           items:
             type: string
+        manifest_artifact_coverage_valid:
+          type: boolean
         artifact_verifications:
           type: array
           items:
