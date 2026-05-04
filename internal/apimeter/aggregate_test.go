@@ -105,6 +105,34 @@ func TestDecodeUsageEventDefaultsMissingAuthSource(t *testing.T) {
 	}
 }
 
+func TestDecodeUsageEventKeepsV1Compatibility(t *testing.T) {
+	t.Parallel()
+
+	payload := json.RawMessage(`{
+		"event":"api.usage",
+		"schema_version":"2026-05-04.api-usage.v1",
+		"event_id":"usage-v1",
+		"method":"GET",
+		"route":"GET /api/v1/messages",
+		"status":200,
+		"timestamp":"2026-05-04T00:00:00Z",
+		"user_id":"user-1"
+	}`)
+	event, err := DecodeUsageEvent(payload)
+	if err != nil {
+		t.Fatalf("DecodeUsageEvent returned error: %v", err)
+	}
+	if event.EventID != "usage-v1" || event.UserID != "user-1" {
+		t.Fatalf("event = %+v", event)
+	}
+	if event.TenantID != "" || event.PrincipalID != "" {
+		t.Fatalf("v1 event should not invent tenant/principal dimensions: %+v", event)
+	}
+	if event.AuthSource != AuthSourceUnknown {
+		t.Fatalf("AuthSource = %q, want unknown", event.AuthSource)
+	}
+}
+
 func TestDecodeUsageEventRejectsUnsupportedSchemaVersion(t *testing.T) {
 	t.Parallel()
 
