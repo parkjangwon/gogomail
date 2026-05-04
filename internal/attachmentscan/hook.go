@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
@@ -14,6 +15,8 @@ const (
 	VerdictAccept   Verdict = "accept"
 	VerdictReject   Verdict = "reject"
 	VerdictTempfail Verdict = "tempfail"
+
+	maxScannerReasonBytes = 500
 )
 
 type Request struct {
@@ -98,7 +101,7 @@ func cleanReason(reason string) string {
 	if reason == "" {
 		return "no reason supplied"
 	}
-	return strings.Map(func(r rune) rune {
+	reason = strings.Map(func(r rune) rune {
 		switch r {
 		case '\r', '\n':
 			return -1
@@ -106,6 +109,18 @@ func cleanReason(reason string) string {
 			return r
 		}
 	}, reason)
+	return truncateUTF8Bytes(reason, maxScannerReasonBytes)
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for len(value) > 0 && !utf8.ValidString(value) {
+		value = value[:len(value)-1]
+	}
+	return value
 }
 
 func firstNonEmpty(values ...string) string {
