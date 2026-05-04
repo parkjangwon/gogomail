@@ -32,6 +32,7 @@ Key architecture decisions:
 - `docs/adr/0002-smtp-core-is-not-spam-engine.md`
 - `docs/adr/0003-company-domain-user-quota-pool.md`
 - `docs/adr/0004-api-metering-aggregation-boundary.md`
+- `docs/adr/0005-imap-gateway-boundary.md`
 
 Guardrails:
 

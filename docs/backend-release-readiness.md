@@ -10,6 +10,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Reply composition writes RFC thread headers into outgoing `.eml`, preserving conversation threading outside gogomail.
 - Mail API exposes a small-deployment Postgres-backed search endpoint for metadata and draft text, with full body indexing deferred to the indexing worker boundary.
 - Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
+- Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
 - Stale attachment uploads have a repository/service cleanup path and a partial index for efficient lifecycle sweeps.
@@ -35,6 +36,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API metering is recorded as a planned SaaS platform boundary: usage should be collected asynchronously for future billing/rate-limit/abuse analytics, while enforcement remains policy-driven and disabled by default in the MVP.
 - API metering has a disabled-by-default fail-open middleware boundary with `slog` and outbox sinks for early operational visibility and durable usage-event collection.
 - API metering has a disabled-by-default aggregation worker and daily Postgres read model exposed through `GET /admin/v1/api-usage/daily`; the aggregates are operational telemetry, not a billing ledger yet.
+- IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.

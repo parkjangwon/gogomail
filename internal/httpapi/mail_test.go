@@ -179,6 +179,37 @@ func TestSearchMessagesHandler(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesHandlerPassesRankingOptions(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{
+			ID:         "msg-1",
+			Subject:    "hello search",
+			SearchRank: ptrFloat64(0.42),
+			SearchHighlights: &maildb.MessageSearchHighlights{
+				Subject: []string{"<mark>hello</mark> search"},
+			},
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&sort=relevance&include_rank=true&include_highlights=true", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastSearch.Sort != maildb.MessageSearchSortRelevance || !service.lastSearch.IncludeRank || !service.lastSearch.IncludeHighlights {
+		t.Fatalf("lastSearch = %+v", service.lastSearch)
+	}
+	if !strings.Contains(rec.Body.String(), "search_rank") || !strings.Contains(rec.Body.String(), "search_highlights") {
+		t.Fatalf("response did not include search metadata: %s", rec.Body.String())
+	}
+}
+
 func TestSearchMessagesHandlerRejectsInvalidHasAttachment(t *testing.T) {
 	t.Parallel()
 
@@ -193,6 +224,38 @@ func TestSearchMessagesHandlerRejectsInvalidHasAttachment(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
+}
+
+func TestSearchMessagesHandlerRejectsInvalidRankingOptions(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/search?user_id=user-1&sort=popular",
+		"/api/v1/search?user_id=user-1&include_rank=maybe",
+		"/api/v1/search?user_id=user-1&include_highlights=maybe",
+	}
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func ptrFloat64(v float64) *float64 {
+	return &v
 }
 
 func TestListThreadMessagesHandler(t *testing.T) {

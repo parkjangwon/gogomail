@@ -10,15 +10,23 @@ import (
 )
 
 type MessageSummary struct {
-	ID            string    `json:"id"`
-	Subject       string    `json:"subject"`
-	FromAddr      string    `json:"from_addr"`
-	FromName      string    `json:"from_name"`
-	ReceivedAt    time.Time `json:"received_at"`
-	Size          int64     `json:"size"`
-	HasAttachment bool      `json:"has_attachment"`
-	Read          bool      `json:"read"`
-	Starred       bool      `json:"starred"`
+	ID               string                   `json:"id"`
+	Subject          string                   `json:"subject"`
+	FromAddr         string                   `json:"from_addr"`
+	FromName         string                   `json:"from_name"`
+	ReceivedAt       time.Time                `json:"received_at"`
+	Size             int64                    `json:"size"`
+	HasAttachment    bool                     `json:"has_attachment"`
+	Read             bool                     `json:"read"`
+	Starred          bool                     `json:"starred"`
+	SearchRank       *float64                 `json:"search_rank,omitempty"`
+	SearchHighlights *MessageSearchHighlights `json:"search_highlights,omitempty"`
+}
+
+type MessageSearchHighlights struct {
+	Subject []string `json:"subject,omitempty"`
+	From    []string `json:"from,omitempty"`
+	Body    []string `json:"body,omitempty"`
 }
 
 type MessageDetail struct {

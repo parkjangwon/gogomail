@@ -269,8 +269,13 @@ Search indexing now has a backend boundary for received-message body text:
 - The worker reads the already-stored raw `.eml`, extracts bounded plain text
   through the shared parser, and upserts `message_search_documents`.
 - `GET /api/v1/search` includes indexed received body text in the existing
-  response shape. Highlighting/ranking fields remain deferred until the
-  generated-client contract is intentionally expanded.
+  response shape.
+- `sort=relevance` orders by Postgres FTS rank before the existing date/id
+  tiebreakers. The default `sort=date` preserves newest-first behavior.
+- `include_rank=true` adds optional `search_rank` fields to search results.
+- `include_highlights=true` adds optional `search_highlights` snippets for
+  subject/from/body matches. Unmarked snippets are omitted so clients do not
+  render irrelevant preview text as a match.
 
 Quota reconciliation is exposed as a read-only admin report:
 

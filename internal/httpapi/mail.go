@@ -189,14 +189,33 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		includeRank, ok := parseBoolQueryDefaultFalse(w, r, "include_rank")
+		if !ok {
+			return
+		}
+		includeHighlights, ok := parseBoolQueryDefaultFalse(w, r, "include_highlights")
+		if !ok {
+			return
+		}
+		sortMode := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("sort")))
+		if sortMode == "" {
+			sortMode = maildb.MessageSearchSortDate
+		}
+		if sortMode != maildb.MessageSearchSortDate && sortMode != maildb.MessageSearchSortRelevance {
+			writeError(w, http.StatusBadRequest, "sort must be date or relevance")
+			return
+		}
 		messages, err := service.SearchMessages(r.Context(), maildb.MessageSearchQuery{
-			UserID:        userID,
-			Query:         r.URL.Query().Get("q"),
-			FolderID:      r.URL.Query().Get("folder_id"),
-			From:          r.URL.Query().Get("from"),
-			Subject:       r.URL.Query().Get("subject"),
-			HasAttachment: hasAttachment,
-			Limit:         limit,
+			UserID:            userID,
+			Query:             r.URL.Query().Get("q"),
+			FolderID:          r.URL.Query().Get("folder_id"),
+			From:              r.URL.Query().Get("from"),
+			Subject:           r.URL.Query().Get("subject"),
+			HasAttachment:     hasAttachment,
+			Limit:             limit,
+			Sort:              sortMode,
+			IncludeRank:       includeRank,
+			IncludeHighlights: includeHighlights,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -612,6 +631,17 @@ func parseOptionalBoolQuery(w http.ResponseWriter, r *http.Request, key string) 
 		return nil, false
 	}
 	return &value, true
+}
+
+func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key string) (bool, bool) {
+	value, ok := parseOptionalBoolQuery(w, r, key)
+	if !ok {
+		return false, false
+	}
+	if value == nil {
+		return false, true
+	}
+	return *value, true
 }
 
 func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {

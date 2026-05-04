@@ -62,22 +62,29 @@ Current state:
   `message_search_documents`.
 - Postgres search includes indexed received body text without changing the
   existing search response envelope.
+- Search clients can opt into relevance ordering, rank scores, and bounded
+  headline snippets with `sort=relevance`, `include_rank=true`, and
+  `include_highlights=true`; date ordering remains the default.
 
 Next:
 
 - Add OpenSearch adapter behind the same search contract.
-- Add highlighting/ranking fields when index-worker exists.
+- Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning
 
 Current state:
 
-- No IMAP implementation exists.
+- No IMAP protocol server exists.
 - Message, folder, and flag models are IMAP-compatible by design.
+- `internal/imapgw` defines native gateway DTOs, backend interfaces, mailbox
+  helpers, and RFC-shaped flag mapping without a TCP listener or DB adapter.
 
 Next:
 
-- Design IMAP backend interface over the existing `maildb` read/write models.
+- Design UID/UIDVALIDITY/UIDNEXT/MODSEQ storage and migrations.
+- Add an adapter from `maildb` read/write models to the `internal/imapgw`
+  interfaces.
 - Plan IMAP IDLE support for push-on-connect clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 

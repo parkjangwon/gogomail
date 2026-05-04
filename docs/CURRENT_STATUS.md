@@ -52,6 +52,8 @@ guidance.
   `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects,
   extracts bounded text through the shared parser, and upserts Postgres search
   documents used by the existing search endpoint.
+- Search responses can now opt into relevance sorting, rank scores, and bounded
+  Postgres headline snippets while preserving date-sorted results by default.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain
@@ -103,7 +105,8 @@ guidance.
 
 - Next.js shell/webmail/admin frontend implementation.
 - Built-in spam scoring or pattern filtering.
-- IMAP/POP3.
+- IMAP/POP3 protocol servers. A dependency-light `internal/imapgw` boundary now
+  records native IMAP gateway DTOs, mailbox helpers, and flag semantics.
 - OpenSearch indexing.
 - Kafka migration.
 - etcd/Vault production control plane.
@@ -141,10 +144,15 @@ The platform hardening sprint completed the following:
 - Search indexing boundary: bounded received body extraction runs in
   `search-index-worker` and stores Postgres search documents outside SMTP hot
   paths.
+- Search contract expansion: clients can request `sort=relevance`,
+  `include_rank=true`, and `include_highlights=true` without changing the
+  default message list shape.
 - Quota operations read models: capacity fields and reconciliation reporting
   show ledger pressure and drift without mutating counters.
 - Quota correction actions: operators can explicitly apply reconciliation
   results to company/domain/user ledgers after reviewing drift.
+- IMAP gateway planning: native backend interfaces and RFC-shaped flag/mailbox
+  helpers exist without starting a TCP protocol server.
 - API metering boundary: HTTP middleware can emit fail-open usage events to
   logs or the durable outbox, while the disabled-by-default aggregation worker
   can build daily Postgres read models for operations.
@@ -155,9 +163,8 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. IMAP gateway design and implementation planning.
-4. Search result highlighting/ranking once indexing boundary exists.
-5. Push notification hook for FCM/APNs (pluggable pipeline stage).
-6. Add billing-grade API metering dimensions/idempotency before using
+3. IMAP UID/UIDVALIDITY/MODSEQ storage design and migrations.
+4. Push notification hook for FCM/APNs (pluggable pipeline stage).
+5. Add billing-grade API metering dimensions/idempotency before using
    aggregates for invoices or hard limits.
-7. Frontend planning and API contract review before webmail implementation.
+6. Frontend planning and API contract review before webmail implementation.

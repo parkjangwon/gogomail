@@ -122,6 +122,22 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [date, relevance]
+            default: date
+        - name: include_rank
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: include_highlights
+          in: query
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           $ref: "#/components/responses/MessageList"
@@ -1428,6 +1444,28 @@ components:
           type: boolean
         starred:
           type: boolean
+        search_rank:
+          type: number
+          format: double
+          minimum: 0
+          description: Present only on search responses when include_rank=true.
+        search_highlights:
+          $ref: "#/components/schemas/MessageSearchHighlights"
+    MessageSearchHighlights:
+      type: object
+      properties:
+        subject:
+          type: array
+          items:
+            type: string
+        from:
+          type: array
+          items:
+            type: string
+        body:
+          type: array
+          items:
+            type: string
     MessageListPageEnvelope:
       type: object
       required: [messages, limit, has_more, next_cursor]
