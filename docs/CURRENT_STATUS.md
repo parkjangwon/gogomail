@@ -520,6 +520,9 @@ The platform hardening sprint completed the following:
 - API usage artifact downloads now sanitize stored content type and SHA-256
   response headers before streaming export objects, including media-type
   validation before the response `Content-Type` is written.
+- API usage outbox production now rejects CR/LF-bearing method, route,
+  event-id, tenant, company, domain, user, API-key, and principal dimensions
+  before inserting durable usage events.
 - API usage NDJSON exports and stored export artifact downloads now return
   `Cache-Control: no-store`, with OpenAPI drift coverage.
 - Attachment downloads, usage NDJSON exports, and stored export artifact
