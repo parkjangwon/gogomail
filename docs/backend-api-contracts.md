@@ -363,6 +363,11 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/export-batches` returns
   `{ "api_usage_export_batches": [...] }`, and
   `GET /admin/v1/api-usage/export-batches/{id}` returns one saved manifest.
+- `GET /admin/v1/api-usage/export-capabilities` returns
+  `{ "api_usage_export_capabilities": ... }`, describing the configured export
+  format, artifact content type, manifest digest algorithm, signer backend,
+  signer key ID, verifier availability, and whether production/billing-ready
+  signing is currently supported without exposing signing secrets.
 - `GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness` returns
   `{ "api_usage_export_handoff_readiness": ... }`, a read-only operator report
   summarizing batch completion, artifact event coverage, latest manifest
