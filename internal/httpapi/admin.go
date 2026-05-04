@@ -582,6 +582,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		counts, err := service.CountStaleAttachmentUploads(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		candidates, err := service.ListStaleAttachmentUploads(r.Context(), before, req.Limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -589,9 +594,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"attachment_cleanup_candidates": map[string]any{
-				"candidates": candidates,
-				"before":     before.Format(time.RFC3339),
-				"limit":      maildb.NormalizeAttachmentCleanupLimit(req.Limit),
+				"candidates":      candidates,
+				"candidate_count": counts.TotalCount,
+				"limited_count":   counts.LimitedCount,
+				"before":          before.Format(time.RFC3339),
+				"limit":           maildb.NormalizeAttachmentCleanupLimit(req.Limit),
 			},
 		})
 	}))

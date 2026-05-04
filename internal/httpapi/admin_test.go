@@ -491,6 +491,10 @@ func TestAdminAttachmentCleanupCandidatesHandler(t *testing.T) {
 
 	before := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
 	service := &fakeAdminService{
+		staleAttachmentCount: maildb.StaleAttachmentUploadCount{
+			TotalCount:   9,
+			LimitedCount: 1,
+		},
 		staleAttachmentCandidates: []maildb.StaleAttachmentUploadCandidate{{
 			ID:        "att-1",
 			UserID:    "user-1",
@@ -518,7 +522,10 @@ func TestAdminAttachmentCleanupCandidatesHandler(t *testing.T) {
 	if !service.lastAttachmentCleanupListBefore.Equal(before) || service.lastAttachmentCleanupListLimit != 25 {
 		t.Fatalf("list request = %s/%d", service.lastAttachmentCleanupListBefore, service.lastAttachmentCleanupListLimit)
 	}
-	for _, want := range []string{`"attachment_cleanup_candidates"`, `"candidates"`, `"id":"att-1"`, `"user_id":"user-1"`, `"limit":25`} {
+	if !service.lastAttachmentCleanupCountBefore.Equal(before) || service.lastAttachmentCleanupCountLimit != 25 {
+		t.Fatalf("count request = %s/%d", service.lastAttachmentCleanupCountBefore, service.lastAttachmentCleanupCountLimit)
+	}
+	for _, want := range []string{`"attachment_cleanup_candidates"`, `"candidates"`, `"id":"att-1"`, `"user_id":"user-1"`, `"candidate_count":9`, `"limited_count":1`, `"limit":25`} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("body missing %s: %s", want, rec.Body.String())
 		}
