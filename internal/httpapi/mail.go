@@ -21,6 +21,7 @@ import (
 const (
 	maxJSONBodyBytes       = 1 << 20
 	maxHTTPResourceIDBytes = 200
+	maxHTTPQueryBytes      = 1024
 )
 
 type MessageService interface {
@@ -158,7 +159,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		folderID := strings.TrimSpace(r.URL.Query().Get("folder_id"))
+		folderID, ok := parseBoundedHTTPQuery(w, r, "folder_id", false, maxHTTPResourceIDBytes)
+		if !ok {
+			return
+		}
 		messages, err := service.ListMessagesPage(r.Context(), userID, folderID, limit, cursor)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -227,12 +231,28 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "sort must be date or relevance")
 			return
 		}
+		queryText, ok := parseBoundedHTTPQuery(w, r, "q", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		folderID, ok := parseBoundedHTTPQuery(w, r, "folder_id", false, maxHTTPResourceIDBytes)
+		if !ok {
+			return
+		}
+		from, ok := parseBoundedHTTPQuery(w, r, "from", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		subject, ok := parseBoundedHTTPQuery(w, r, "subject", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
 		messages, err := service.SearchMessages(r.Context(), maildb.MessageSearchQuery{
 			UserID:            userID,
-			Query:             strings.TrimSpace(r.URL.Query().Get("q")),
-			FolderID:          strings.TrimSpace(r.URL.Query().Get("folder_id")),
-			From:              strings.TrimSpace(r.URL.Query().Get("from")),
-			Subject:           strings.TrimSpace(r.URL.Query().Get("subject")),
+			Query:             queryText,
+			FolderID:          folderID,
+			From:              from,
+			Subject:           subject,
 			HasAttachment:     hasAttachment,
 			Limit:             limit,
 			Sort:              sortMode,

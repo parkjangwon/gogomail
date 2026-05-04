@@ -191,6 +191,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API folder, thread, message, draft, attachment, and push-device path
   identifiers reject blank, CR/LF-bearing, or oversized values before service
   dispatch.
+- Mail API message-list `folder_id` and search text/filter query parameters
+  reject CR/LF-bearing or oversized values before service dispatch.
 - Mail API push-device registration normalizes user, platform, token, and label
   fields before validation/storage while responses keep raw tokens write-only.
 - Push-device list and delete service methods trim user and device identifiers

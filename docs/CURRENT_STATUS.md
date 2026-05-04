@@ -167,6 +167,8 @@ guidance.
 - Mail API folder, thread, message, draft, attachment, and push-device path
   identifiers now reject blank, CR/LF-bearing, or oversized values before
   service dispatch.
+- Mail API message-list `folder_id` and search text/filter query parameters now
+  reject CR/LF-bearing or oversized values before service dispatch.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

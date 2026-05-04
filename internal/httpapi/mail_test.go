@@ -245,6 +245,38 @@ func TestSearchMessagesHandlerRejectsInvalidHasAttachment(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/search?user_id=user-1&q=hello%0Abad",
+		"/api/v1/search?user_id=user-1&folder_id=" + strings.Repeat("f", maxHTTPResourceIDBytes+1),
+		"/api/v1/search?user_id=user-1&from=" + strings.Repeat("s", maxHTTPQueryBytes+1),
+		"/api/v1/search?user_id=user-1&subject=receipt%0Dbad",
+	}
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastSearch.UserID != "" {
+				t.Fatalf("lastSearch = %+v", service.lastSearch)
+			}
+		})
+	}
+}
+
 func TestSearchMessagesHandlerRejectsInvalidRankingOptions(t *testing.T) {
 	t.Parallel()
 
@@ -481,6 +513,37 @@ func TestListMessagesHandlerFiltersByFolder(t *testing.T) {
 	}
 	if service.lastLimit != 25 {
 		t.Fatalf("lastLimit = %d", service.lastLimit)
+	}
+}
+
+func TestListMessagesHandlerRejectsUnsafeFolderID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/messages?user_id=user-1&folder_id=folder%0Abad",
+		"/api/v1/messages?user_id=user-1&folder_id=" + strings.Repeat("f", maxHTTPResourceIDBytes+1),
+	}
+
+	for _, target := range tests {
+		target := target
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastFolderID != "" {
+				t.Fatalf("lastFolderID = %q", service.lastFolderID)
+			}
+		})
 	}
 }
 
