@@ -174,6 +174,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work, and the
   worker's interval, stale age, and batch size are configuration-validated.
+  Stored-object delete failures are reported to the worker/operator, while
+  missing objects are treated as idempotently cleaned.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

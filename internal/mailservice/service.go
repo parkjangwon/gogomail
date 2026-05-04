@@ -6,8 +6,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -937,10 +939,16 @@ func (s *Service) ExpireStaleAttachmentUploads(ctx context.Context, before time.
 	if s.store == nil {
 		return expired, nil
 	}
+	var deleteErrors []error
 	for _, attachment := range expired {
 		if strings.TrimSpace(attachment.StoragePath) != "" {
-			_ = s.store.Delete(ctx, attachment.StoragePath)
+			if err := s.store.Delete(ctx, attachment.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				deleteErrors = append(deleteErrors, fmt.Errorf("%s: %w", attachment.ID, err))
+			}
 		}
+	}
+	if len(deleteErrors) > 0 {
+		return expired, fmt.Errorf("delete expired attachment objects: %w", errors.Join(deleteErrors...))
 	}
 	return expired, nil
 }
