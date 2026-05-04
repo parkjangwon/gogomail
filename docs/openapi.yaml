@@ -1944,6 +1944,19 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /users/{id}/password-hash:
+    patch:
+      operationId: updateAdminUserPasswordHash
+      summary: Admin update user password hash
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/UserPasswordHashUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -2654,6 +2667,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/UserQuotaUpdateRequest"
+    UserPasswordHashUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UserPasswordHashUpdateRequest"
     DomainPolicyUpdate:
       required: true
       content:
@@ -5656,6 +5675,14 @@ components:
           type: integer
           format: int64
           minimum: 0
+    UserPasswordHashUpdateRequest:
+      type: object
+      required: [password_hash]
+      properties:
+        password_hash:
+          type: string
+          maxLength: 4096
+          description: Pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures.
     StatusUpdateRequest:
       type: object
       required: [status]

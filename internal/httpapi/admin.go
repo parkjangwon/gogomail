@@ -45,6 +45,7 @@ type AdminService interface {
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
+	UpdateUserPasswordHash(ctx context.Context, req maildb.UpdateUserPasswordHashRequest) error
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
@@ -445,6 +446,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		req.ID = id
 		if err := service.UpdateUserQuota(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/password-hash", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var req maildb.UpdateUserPasswordHashRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
+		if err := service.UpdateUserPasswordHash(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}

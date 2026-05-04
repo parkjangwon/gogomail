@@ -458,6 +458,33 @@ func TestValidateCreateUserRequestRejectsUnsafePasswordHash(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateUserPasswordHashRequest(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateUpdateUserPasswordHashRequest(UpdateUserPasswordHashRequest{
+		ID:           "user-1",
+		PasswordHash: "plain:dev-password",
+	}); err != nil {
+		t.Fatalf("ValidateUpdateUserPasswordHashRequest returned error: %v", err)
+	}
+
+	tests := []UpdateUserPasswordHashRequest{
+		{ID: "", PasswordHash: "plain:dev-password"},
+		{ID: "user-1", PasswordHash: ""},
+		{ID: "user-1", PasswordHash: "plain:dev\nbad"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.ID+"/"+req.PasswordHash, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateUpdateUserPasswordHashRequest(req); err == nil {
+				t.Fatalf("ValidateUpdateUserPasswordHashRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
 func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 	t.Parallel()
 
