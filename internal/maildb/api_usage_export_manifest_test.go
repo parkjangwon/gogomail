@@ -84,3 +84,48 @@ func TestAPIUsageExportManifestDigestVerification(t *testing.T) {
 		t.Fatalf("verification = %+v", verification)
 	}
 }
+
+func TestApplyAPIUsageExportHandoffReadiness(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)
+	view := APIUsageExportHandoffView{
+		BatchID:                    "batch-1",
+		BatchStatus:                "completed",
+		BatchCompleted:             true,
+		EventCount:                 10,
+		ArtifactCount:              1,
+		ArtifactEventCount:         10,
+		ManifestDigestCount:        1,
+		LatestManifestDigestID:     "digest-1",
+		LatestManifestDigestAt:     &completedAt,
+		LatestDigestSignatureCount: 1,
+		LatestSignatureID:          "signature-1",
+		LatestSignatureAt:          &completedAt,
+	}
+	applyAPIUsageExportHandoffReadiness(&view)
+
+	if !view.Ready || !view.EventsCovered || len(view.MissingRequirements) != 0 {
+		t.Fatalf("handoff readiness = %+v", view)
+	}
+}
+
+func TestApplyAPIUsageExportHandoffReadinessReportsMissingRequirements(t *testing.T) {
+	t.Parallel()
+
+	view := APIUsageExportHandoffView{
+		BatchID:                "batch-1",
+		BatchStatus:            "completed",
+		EventCount:             10,
+		ArtifactCount:          1,
+		ArtifactEventCount:     9,
+		ManifestDigestCount:    1,
+		LatestManifestDigestID: "digest-1",
+	}
+	applyAPIUsageExportHandoffReadiness(&view)
+
+	want := []string{"batch_completed", "event_coverage", "manifest_signature"}
+	if view.Ready || view.EventsCovered || strings.Join(view.MissingRequirements, ",") != strings.Join(want, ",") {
+		t.Fatalf("handoff readiness = %+v, want missing %v", view, want)
+	}
+}
