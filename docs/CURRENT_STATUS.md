@@ -131,7 +131,9 @@ guidance.
 - Next.js shell/webmail/admin frontend implementation.
 - Built-in spam scoring or pattern filtering.
 - IMAP/POP3 protocol servers. A dependency-light `internal/imapgw` boundary now
-  records native IMAP gateway DTOs, mailbox helpers, and flag semantics.
+  records native IMAP gateway DTOs, mailbox helpers, and flag semantics; durable
+  UIDVALIDITY/UIDNEXT/MODSEQ storage exists, but no TCP protocol server is
+  enabled.
 - OpenSearch indexing.
 - Kafka migration.
 - etcd/Vault production control plane.
@@ -176,8 +178,9 @@ The platform hardening sprint completed the following:
   show ledger pressure and drift without mutating counters.
 - Quota correction actions: operators can explicitly apply reconciliation
   results to company/domain/user ledgers after reviewing drift.
-- IMAP gateway planning: native backend interfaces and RFC-shaped flag/mailbox
-  helpers exist without starting a TCP protocol server.
+- IMAP gateway planning: native backend interfaces, RFC-shaped flag/mailbox
+  helpers, and durable UID/MODSEQ storage exist without starting a TCP protocol
+  server.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
@@ -196,7 +199,8 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. IMAP UID/UIDVALIDITY/MODSEQ storage design and migrations.
+3. Add a `maildb` adapter implementing `internal/imapgw` mailbox/message
+   interfaces over the new UID/MODSEQ storage.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
