@@ -1125,6 +1125,28 @@ func TestStoreAttachmentUploadSessionBodyHandler(t *testing.T) {
 	}
 }
 
+func TestFinalizeAttachmentUploadSessionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments/upload-sessions/session-1/finalize?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" || service.lastFinalizeUploadSessionID != "session-1" {
+		t.Fatalf("finalize session request = user:%q session:%q", service.lastUserID, service.lastFinalizeUploadSessionID)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment"`) || !strings.Contains(rec.Body.String(), `"status":"uploading"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1166,6 +1188,7 @@ func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 		`"upload_sessions":true`,
 		`"cancel_upload_sessions":true`,
 		`"upload_session_body":true`,
+		`"finalize_upload_sessions":true`,
 		`"resumable_chunked_uploads":false`,
 		`"requires_declared_size":true`,
 	} {
@@ -1694,6 +1717,11 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			path:   "/api/v1/attachments/upload-sessions/session%0Abad/body?user_id=user-1",
 		},
 		{
+			name:   "upload session finalize crlf",
+			method: http.MethodPost,
+			path:   "/api/v1/attachments/upload-sessions/session%0Abad/finalize?user_id=user-1",
+		},
+		{
 			name:   "draft crlf",
 			method: http.MethodPatch,
 			path:   "/api/v1/drafts/draft%0Abad",
@@ -1722,8 +1750,8 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" || service.lastGetUploadSessionID != "" || service.lastStoreUploadSessionID != "" {
-				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q getUploadSession=%q storeUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID, service.lastGetUploadSessionID, service.lastStoreUploadSessionID)
+			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" || service.lastGetUploadSessionID != "" || service.lastStoreUploadSessionID != "" || service.lastFinalizeUploadSessionID != "" {
+				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q getUploadSession=%q storeUploadSession=%q finalizeUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID, service.lastGetUploadSessionID, service.lastStoreUploadSessionID, service.lastFinalizeUploadSessionID)
 			}
 		})
 	}
@@ -1750,45 +1778,46 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
-	folders                   []maildb.Folder
-	createdFolder             maildb.Folder
-	list                      []maildb.MessageSummary
-	threads                   []maildb.ThreadSummary
-	attachments               []maildb.Attachment
-	pushDevices               []maildb.PushDevice
-	download                  mailservice.AttachmentDownload
-	detail                    maildb.MessageDetail
-	sendResult                mailservice.SendTextResult
-	deliveryStatus            maildb.MessageDeliveryStatusView
-	lastSend                  mailservice.SendTextRequest
-	lastDraft                 mailservice.SaveDraftRequest
-	lastAttachmentUpload      mailservice.CreateAttachmentUploadRequest
-	lastUploadSession         mailservice.CreateAttachmentUploadSessionRequest
-	lastCancelAttachmentID    string
-	lastCancelUploadSessionID string
-	lastGetUploadSessionID    string
-	lastStoreUploadSessionID  string
-	lastPushDevice            maildb.UpsertPushDeviceRequest
-	lastAttachmentBody        string
-	lastUploadSessionBody     string
-	attachmentErr             error
-	lastUserID                string
-	lastFolderName            string
-	lastDeletedFolderID       string
-	lastMessageID             string
-	lastFolderID              string
-	lastThreadID              string
-	lastMoveFolderID          string
-	lastDeletedID             string
-	lastDeletedDraftID        string
-	lastDeletePushDeviceID    string
-	lastFlag                  string
-	lastFlagValue             bool
-	lastBulkFlag              maildb.BulkMessageFlagRequest
-	lastBulkMove              maildb.BulkMessageMoveRequest
-	lastBulkDelete            maildb.BulkMessageDeleteRequest
-	lastSearch                maildb.MessageSearchQuery
-	lastLimit                 int
+	folders                     []maildb.Folder
+	createdFolder               maildb.Folder
+	list                        []maildb.MessageSummary
+	threads                     []maildb.ThreadSummary
+	attachments                 []maildb.Attachment
+	pushDevices                 []maildb.PushDevice
+	download                    mailservice.AttachmentDownload
+	detail                      maildb.MessageDetail
+	sendResult                  mailservice.SendTextResult
+	deliveryStatus              maildb.MessageDeliveryStatusView
+	lastSend                    mailservice.SendTextRequest
+	lastDraft                   mailservice.SaveDraftRequest
+	lastAttachmentUpload        mailservice.CreateAttachmentUploadRequest
+	lastUploadSession           mailservice.CreateAttachmentUploadSessionRequest
+	lastCancelAttachmentID      string
+	lastCancelUploadSessionID   string
+	lastGetUploadSessionID      string
+	lastStoreUploadSessionID    string
+	lastFinalizeUploadSessionID string
+	lastPushDevice              maildb.UpsertPushDeviceRequest
+	lastAttachmentBody          string
+	lastUploadSessionBody       string
+	attachmentErr               error
+	lastUserID                  string
+	lastFolderName              string
+	lastDeletedFolderID         string
+	lastMessageID               string
+	lastFolderID                string
+	lastThreadID                string
+	lastMoveFolderID            string
+	lastDeletedID               string
+	lastDeletedDraftID          string
+	lastDeletePushDeviceID      string
+	lastFlag                    string
+	lastFlagValue               bool
+	lastBulkFlag                maildb.BulkMessageFlagRequest
+	lastBulkMove                maildb.BulkMessageMoveRequest
+	lastBulkDelete              maildb.BulkMessageDeleteRequest
+	lastSearch                  maildb.MessageSearchQuery
+	lastLimit                   int
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -1982,6 +2011,12 @@ func (f *fakeMessageService) StoreAttachmentUploadSessionBody(_ context.Context,
 	raw, _ := io.ReadAll(req.Body)
 	f.lastUploadSessionBody = string(raw)
 	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: int64(len(raw)), Status: "uploading"}, nil
+}
+
+func (f *fakeMessageService) FinalizeAttachmentUploadSession(_ context.Context, userID string, sessionID string) (maildb.Attachment, error) {
+	f.lastUserID = userID
+	f.lastFinalizeUploadSessionID = sessionID
+	return maildb.Attachment{ID: "att-1", UploadID: "upload-1", StoragePath: "upload-sessions/user-1/session-1/body", Filename: "large.bin", Size: 7, MIMEType: "application/octet-stream", Status: "uploading"}, nil
 }
 
 func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {

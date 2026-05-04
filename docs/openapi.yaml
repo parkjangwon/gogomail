@@ -458,6 +458,17 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /attachments/upload-sessions/{id}/finalize:
+    post:
+      operationId: finalizeAttachmentUploadSession
+      summary: Finalize a stored attachment upload session body
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "201":
+          $ref: "#/components/responses/Attachment"
+        default:
+          $ref: "#/components/responses/Error"
   /push-devices:
     get:
       operationId: listPushDevices
@@ -2916,6 +2927,7 @@ components:
         - upload_sessions
         - cancel_upload_sessions
         - upload_session_body
+        - finalize_upload_sessions
         - resumable_chunked_uploads
         - requires_declared_size
         - quota_reserved_on_metadata
@@ -2948,6 +2960,9 @@ components:
         upload_session_body:
           type: boolean
           description: True when clients can store a complete body against an upload session before finalization.
+        finalize_upload_sessions:
+          type: boolean
+          description: True when clients can finalize a stored upload session body into an attachment row.
         resumable_chunked_uploads:
           type: boolean
           description: False until resumable/chunked upload contracts are implemented.

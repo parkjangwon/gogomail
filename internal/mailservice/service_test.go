@@ -1053,6 +1053,7 @@ type fakeRepository struct {
 	lastCancelUploadSession        maildb.CancelAttachmentUploadSessionRequest
 	lastGetUploadSession           maildb.GetAttachmentUploadSessionRequest
 	lastStoreUploadSessionBody     maildb.StoreAttachmentUploadSessionBodyRequest
+	lastFinalizeUploadSession      maildb.FinalizeAttachmentUploadSessionRequest
 	lastExpireUploadSessions       maildb.ExpireAttachmentUploadSessionsRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
@@ -1449,6 +1450,11 @@ func (f *fakeRepository) StoreAttachmentUploadSessionBody(_ context.Context, req
 		return f.uploadSession, nil
 	}
 	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: req.ReceivedSize, StoragePath: req.StoragePath, ChecksumSHA256: req.ChecksumSHA256, Status: "uploading"}, nil
+}
+
+func (f *fakeRepository) FinalizeAttachmentUploadSession(_ context.Context, req maildb.FinalizeAttachmentUploadSessionRequest) (maildb.Attachment, error) {
+	f.lastFinalizeUploadSession = req
+	return maildb.Attachment{ID: "att-1", UploadID: "upload-1", StoragePath: "upload-sessions/user-1/session-1/body", Filename: "large.bin", Size: 7, MIMEType: "application/octet-stream", Status: "uploading"}, nil
 }
 
 func (f *fakeRepository) ExpireAttachmentUploadSessions(_ context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error) {
@@ -2260,6 +2266,20 @@ func TestStoreAttachmentUploadSessionBodyRejectsSizeMismatch(t *testing.T) {
 	}
 	if repo.lastStoreUploadSessionBody.StoragePath != "" {
 		t.Fatalf("body should not be recorded: %+v", repo.lastStoreUploadSessionBody)
+	}
+}
+
+func TestFinalizeAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	attachment, err := service.FinalizeAttachmentUploadSession(context.Background(), " user-1 ", " session-1 ")
+	if err != nil {
+		t.Fatalf("FinalizeAttachmentUploadSession returned error: %v", err)
+	}
+	if attachment.ID != "att-1" || repo.lastFinalizeUploadSession.UserID != "user-1" || repo.lastFinalizeUploadSession.SessionID != "session-1" {
+		t.Fatalf("attachment = %+v finalize request = %+v", attachment, repo.lastFinalizeUploadSession)
 	}
 }
 

@@ -150,6 +150,7 @@ func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
 		"upload_sessions",
 		"cancel_upload_sessions",
 		"upload_session_body",
+		"finalize_upload_sessions",
 		"resumable_chunked_uploads",
 	} {
 		if !strings.Contains(block, want) {
@@ -192,6 +193,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /attachments/upload-sessions/{id}":                      "#/components/responses/AttachmentUploadSession",
 		"DELETE /attachments/upload-sessions/{id}":                   "#/components/responses/AttachmentUploadSession",
 		"PUT /attachments/upload-sessions/{id}/body":                 "#/components/responses/AttachmentUploadSession",
+		"POST /attachments/upload-sessions/{id}/finalize":            "#/components/responses/Attachment",
 		"GET /messages/{id}/attachments":                             "#/components/responses/AttachmentList",
 		"GET /push-devices":                                          "#/components/responses/PushDeviceList",
 		"POST /push-devices":                                         "#/components/responses/PushDevice",

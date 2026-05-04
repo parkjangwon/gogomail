@@ -58,6 +58,7 @@ type MessageService interface {
 	CancelAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
 	GetAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
 	StoreAttachmentUploadSessionBody(ctx context.Context, req mailservice.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error)
+	FinalizeAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.Attachment, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
@@ -697,6 +698,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 				"upload_sessions":            true,
 				"cancel_upload_sessions":     true,
 				"upload_session_body":        true,
+				"finalize_upload_sessions":   true,
 				"resumable_chunked_uploads":  false,
 				"requires_declared_size":     true,
 				"quota_reserved_on_metadata": true,
@@ -777,6 +779,23 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_session": session})
+	})
+
+	mux.HandleFunc("POST /api/v1/attachments/upload-sessions/{id}/finalize", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		sessionID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		attachment, err := service.FinalizeAttachmentUploadSession(r.Context(), userID, sessionID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {

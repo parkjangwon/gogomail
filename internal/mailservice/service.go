@@ -67,6 +67,7 @@ type AttachmentUploadSessionRepository interface {
 	CancelAttachmentUploadSession(ctx context.Context, req maildb.CancelAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	GetAttachmentUploadSession(ctx context.Context, req maildb.GetAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	StoreAttachmentUploadSessionBody(ctx context.Context, req maildb.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error)
+	FinalizeAttachmentUploadSession(ctx context.Context, req maildb.FinalizeAttachmentUploadSessionRequest) (maildb.Attachment, error)
 	ExpireAttachmentUploadSessions(ctx context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error)
 }
 
@@ -993,6 +994,25 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		return maildb.AttachmentUploadSession{}, err
 	}
 	return stored, nil
+}
+
+func (s *Service) FinalizeAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.Attachment, error) {
+	userID = strings.TrimSpace(userID)
+	sessionID = strings.TrimSpace(sessionID)
+	if err := maildb.ValidateFinalizeAttachmentUploadSessionRequest(maildb.FinalizeAttachmentUploadSessionRequest{
+		UserID:    userID,
+		SessionID: sessionID,
+	}); err != nil {
+		return maildb.Attachment{}, err
+	}
+	repo, ok := s.repository.(AttachmentUploadSessionRepository)
+	if !ok {
+		return maildb.Attachment{}, fmt.Errorf("attachment upload session repository is required")
+	}
+	return repo.FinalizeAttachmentUploadSession(ctx, maildb.FinalizeAttachmentUploadSessionRequest{
+		UserID:    userID,
+		SessionID: sessionID,
+	})
 }
 
 func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error) {

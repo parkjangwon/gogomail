@@ -186,9 +186,12 @@ session creation, user-scoped status reads, and user-scoped cancellation; chunk
 upload/finalization routes are not yet exposed, so `resumable_chunked_uploads`
 remains `false`. `PUT /api/v1/attachments/upload-sessions/{id}/body` stores a
 complete session body, records received bytes and SHA-256, and leaves
-attachment-row finalization for the next contract. Session creation rejects
-non-future `expires_at` values at the service boundary and rejects expiries
-beyond the advertised max session TTL.
+attachment-row creation to
+`POST /api/v1/attachments/upload-sessions/{id}/finalize`, which converts a
+ready stored session body into the normal pending attachment row without
+double-reserving quota. Session creation rejects non-future `expires_at` values
+at the service boundary and rejects expiries beyond the advertised max session
+TTL.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

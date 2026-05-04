@@ -153,6 +153,21 @@ func TestValidateStoreAttachmentUploadSessionBodyRequest(t *testing.T) {
 	}
 }
 
+func TestValidateFinalizeAttachmentUploadSessionRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := FinalizeAttachmentUploadSessionRequest{UserID: "user-1", SessionID: "session-1"}
+	if err := ValidateFinalizeAttachmentUploadSessionRequest(valid); err != nil {
+		t.Fatalf("ValidateFinalizeAttachmentUploadSessionRequest returned error: %v", err)
+	}
+	if err := ValidateFinalizeAttachmentUploadSessionRequest(FinalizeAttachmentUploadSessionRequest{UserID: "user-1"}); err == nil {
+		t.Fatal("ValidateFinalizeAttachmentUploadSessionRequest accepted missing session")
+	}
+	if err := ValidateFinalizeAttachmentUploadSessionRequest(FinalizeAttachmentUploadSessionRequest{UserID: "user\n1", SessionID: "session-1"}); err == nil {
+		t.Fatal("ValidateFinalizeAttachmentUploadSessionRequest accepted newline user")
+	}
+}
+
 func TestValidateExpireAttachmentUploadSessionsRequest(t *testing.T) {
 	t.Parallel()
 
