@@ -579,6 +579,69 @@ paths:
           $ref: "#/components/responses/OutboxEvent"
         default:
           $ref: "#/components/responses/Error"
+  /audit-logs:
+    get:
+      operationId: listAdminAuditLogs
+      summary: Admin audit log list for operational forensics
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: category
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: action
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: result
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: target_type
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for audit log creation timestamps.
+      responses:
+        "200":
+          $ref: "#/components/responses/AuditLogList"
+        default:
+          $ref: "#/components/responses/Error"
+  /audit-logs/{id}:
+    get:
+      operationId: getAdminAuditLog
+      summary: Admin audit log detail
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/AuditLog"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -1985,6 +2048,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/OutboxEventEnvelope"
+    AuditLogList:
+      description: Audit log list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuditLogListEnvelope"
+    AuditLog:
+      description: Audit log detail envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuditLogEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -3216,6 +3291,58 @@ components:
       properties:
         outbox_event:
           $ref: "#/components/schemas/OutboxEvent"
+    AuditLog:
+      type: object
+      required: [id, category, action, result, detail, prev_hash, hash, created_at]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        user_id:
+          type: string
+        actor_id:
+          type: string
+        category:
+          type: string
+        action:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        result:
+          type: string
+        detail:
+          type: object
+          additionalProperties: true
+        prev_hash:
+          type: string
+        hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    AuditLogListEnvelope:
+      type: object
+      required: [audit_logs]
+      properties:
+        audit_logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+    AuditLogEnvelope:
+      type: object
+      required: [audit_log]
+      properties:
+        audit_log:
+          $ref: "#/components/schemas/AuditLog"
     BackpressureState:
       type: object
       required: [level]

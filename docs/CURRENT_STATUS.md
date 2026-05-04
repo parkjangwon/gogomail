@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after API usage retention audit visibility)
+Last updated: 2026-05-05 (updated after Admin audit-log read visibility)
 
 ## Current phase
 
@@ -221,6 +221,9 @@ guidance.
 - Admin API exposes list/detail reads for persisted API usage ledger retention
   runs so operators can inspect blocked, dry-run, and destructive retention
   attempts after the fact.
+- Admin API exposes bounded audit-log list/detail reads with category, action,
+  result, target-type, company/domain/user, and recent-window filters so stored
+  operational audit records can be inspected through the release API surface.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`

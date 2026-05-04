@@ -317,6 +317,132 @@ func TestAdminOutboxEventDetailHandlerRejectsUnsafeID(t *testing.T) {
 	}
 }
 
+func TestAdminAuditLogsHandler(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		auditLogs: []maildb.AuditLogView{{
+			ID:         "audit-1",
+			Category:   "admin",
+			Action:     "quota.reconciliation_correction",
+			TargetType: "user",
+			Result:     "applied",
+			Detail:     json.RawMessage(`{"before_drift_count":1}`),
+			CreatedAt:  now,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs?limit=10&category=%20admin%20&action=%20quota.reconciliation_correction%20&result=%20applied%20&target_type=%20user%20&company_id=%20company-1%20&domain_id=%20domain-1%20&user_id=%20user-1%20&since=2026-05-04T00:00:00Z", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Logs []maildb.AuditLogView `json:"audit_logs"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Logs) != 1 || body.Logs[0].ID != "audit-1" {
+		t.Fatalf("audit_logs = %+v", body.Logs)
+	}
+	if service.lastAuditLogList.Limit != 10 ||
+		service.lastAuditLogList.Category != "admin" ||
+		service.lastAuditLogList.Action != "quota.reconciliation_correction" ||
+		service.lastAuditLogList.Result != "applied" ||
+		service.lastAuditLogList.TargetType != "user" ||
+		service.lastAuditLogList.CompanyID != "company-1" ||
+		service.lastAuditLogList.DomainID != "domain-1" ||
+		service.lastAuditLogList.UserID != "user-1" ||
+		service.lastAuditLogList.Since.IsZero() {
+		t.Fatalf("lastAuditLogList = %+v", service.lastAuditLogList)
+	}
+}
+
+func TestAdminAuditLogsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/audit-logs?category=admin%0Abad",
+		"/admin/v1/audit-logs?action=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+		"/admin/v1/audit-logs?since=not-a-time",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastAuditLogList.Limit != 0 {
+			t.Fatalf("%s dispatched request %+v", path, service.lastAuditLogList)
+		}
+	}
+}
+
+func TestAdminAuditLogDetailHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		auditLog: maildb.AuditLogView{
+			ID:        "audit-1",
+			Category:  "mail",
+			Action:    "mail.received",
+			Result:    "success",
+			Detail:    json.RawMessage(`{"message_id":"msg-1"}`),
+			CreatedAt: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs/audit-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Log maildb.AuditLogView `json:"audit_log"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Log.ID != "audit-1" || service.lastAuditLogID != "audit-1" {
+		t.Fatalf("audit_log = %+v lastID=%q", body.Log, service.lastAuditLogID)
+	}
+}
+
+func TestAdminAuditLogDetailHandlerRejectsUnsafeID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs/audit%0Abad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastAuditLogID != "" {
+		t.Fatalf("lastAuditLogID = %q", service.lastAuditLogID)
+	}
+}
+
 func TestAdminBackpressureHandler(t *testing.T) {
 	t.Parallel()
 
@@ -4290,6 +4416,8 @@ type fakeAdminService struct {
 	queueStats                                  []maildb.QueueStat
 	outboxEvents                                []maildb.OutboxEventView
 	outboxEvent                                 maildb.OutboxEventView
+	auditLogs                                   []maildb.AuditLogView
+	auditLog                                    maildb.AuditLogView
 	quotaUsage                                  []maildb.QuotaUsageView
 	apiUsageDaily                               []maildb.APIUsageDailyView
 	apiUsageMonthly                             []maildb.APIUsageMonthlyView
@@ -4338,6 +4466,8 @@ type fakeAdminService struct {
 	lastLimit                                   int
 	lastOutboxEventList                         maildb.OutboxEventListRequest
 	lastOutboxEventID                           string
+	lastAuditLogList                            maildb.AuditLogListRequest
+	lastAuditLogID                              string
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
@@ -4522,6 +4652,19 @@ func (f *fakeAdminService) GetOutboxEvent(_ context.Context, id string) (maildb.
 		return maildb.OutboxEventView{}, fmt.Errorf("outbox event %q not found", id)
 	}
 	return f.outboxEvent, nil
+}
+
+func (f *fakeAdminService) ListAuditLogs(_ context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error) {
+	f.lastAuditLogList = req
+	return f.auditLogs, nil
+}
+
+func (f *fakeAdminService) GetAuditLog(_ context.Context, id string) (maildb.AuditLogView, error) {
+	f.lastAuditLogID = id
+	if f.auditLog.ID == "" {
+		return maildb.AuditLogView{}, fmt.Errorf("audit log %q not found", id)
+	}
+	return f.auditLog, nil
 }
 
 func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {

@@ -1,0 +1,212 @@
+package maildb
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+)
+
+type AuditLogListRequest struct {
+	Limit      int
+	Category   string
+	Action     string
+	Result     string
+	TargetType string
+	CompanyID  string
+	DomainID   string
+	UserID     string
+	Since      time.Time
+}
+
+type AuditLogView struct {
+	ID         string          `json:"id"`
+	CompanyID  string          `json:"company_id,omitempty"`
+	DomainID   string          `json:"domain_id,omitempty"`
+	UserID     string          `json:"user_id,omitempty"`
+	ActorID    string          `json:"actor_id,omitempty"`
+	Category   string          `json:"category"`
+	Action     string          `json:"action"`
+	TargetType string          `json:"target_type,omitempty"`
+	TargetID   string          `json:"target_id,omitempty"`
+	IPAddress  string          `json:"ip_address,omitempty"`
+	UserAgent  string          `json:"user_agent,omitempty"`
+	Result     string          `json:"result"`
+	Detail     json.RawMessage `json:"detail"`
+	PrevHash   string          `json:"prev_hash"`
+	Hash       string          `json:"hash"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
+func (r *Repository) ListAuditLogs(ctx context.Context, req AuditLogListRequest) ([]AuditLogView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req = normalizeAuditLogListRequest(req)
+
+	query := `
+SELECT
+  id::text,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  COALESCE(user_id::text, ''),
+  COALESCE(actor_id::text, ''),
+  category,
+  action,
+  target_type,
+  COALESCE(target_id::text, ''),
+  COALESCE(ip_address::text, ''),
+  user_agent,
+  result,
+  detail,
+  prev_hash,
+  hash,
+  created_at
+FROM audit_logs`
+	var conditions []string
+	var args []any
+	if req.Category != "" {
+		args = append(args, req.Category)
+		conditions = append(conditions, fmt.Sprintf("category = $%d", len(args)))
+	}
+	if req.Action != "" {
+		args = append(args, req.Action)
+		conditions = append(conditions, fmt.Sprintf("action = $%d", len(args)))
+	}
+	if req.Result != "" {
+		args = append(args, req.Result)
+		conditions = append(conditions, fmt.Sprintf("result = $%d", len(args)))
+	}
+	if req.TargetType != "" {
+		args = append(args, req.TargetType)
+		conditions = append(conditions, fmt.Sprintf("target_type = $%d", len(args)))
+	}
+	if req.CompanyID != "" {
+		args = append(args, req.CompanyID)
+		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
+	}
+	if req.DomainID != "" {
+		args = append(args, req.DomainID)
+		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+	}
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+	}
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	args = append(args, req.Limit)
+	query += fmt.Sprintf(`
+ORDER BY created_at DESC, id DESC
+LIMIT $%d`, len(args))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []AuditLogView
+	for rows.Next() {
+		log, err := scanAuditLog(rows)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, log)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate audit logs: %w", err)
+	}
+	return logs, nil
+}
+
+func (r *Repository) GetAuditLog(ctx context.Context, id string) (AuditLogView, error) {
+	if r.db == nil {
+		return AuditLogView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return AuditLogView{}, fmt.Errorf("audit log id is required")
+	}
+	const query = `
+SELECT
+  id::text,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  COALESCE(user_id::text, ''),
+  COALESCE(actor_id::text, ''),
+  category,
+  action,
+  target_type,
+  COALESCE(target_id::text, ''),
+  COALESCE(ip_address::text, ''),
+  user_agent,
+  result,
+  detail,
+  prev_hash,
+  hash,
+  created_at
+FROM audit_logs
+WHERE id = $1`
+	log, err := scanAuditLog(r.db.QueryRowContext(ctx, query, id))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AuditLogView{}, fmt.Errorf("audit log not found")
+		}
+		return AuditLogView{}, fmt.Errorf("get audit log: %w", err)
+	}
+	return log, nil
+}
+
+func normalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
+	req.Limit = normalizeLimit(req.Limit)
+	req.Category = strings.TrimSpace(req.Category)
+	req.Action = strings.TrimSpace(req.Action)
+	req.Result = strings.TrimSpace(req.Result)
+	req.TargetType = strings.TrimSpace(req.TargetType)
+	req.CompanyID = strings.TrimSpace(req.CompanyID)
+	req.DomainID = strings.TrimSpace(req.DomainID)
+	req.UserID = strings.TrimSpace(req.UserID)
+	return req
+}
+
+type auditLogScanner interface {
+	Scan(...any) error
+}
+
+func scanAuditLog(scanner auditLogScanner) (AuditLogView, error) {
+	var log AuditLogView
+	if err := scanner.Scan(
+		&log.ID,
+		&log.CompanyID,
+		&log.DomainID,
+		&log.UserID,
+		&log.ActorID,
+		&log.Category,
+		&log.Action,
+		&log.TargetType,
+		&log.TargetID,
+		&log.IPAddress,
+		&log.UserAgent,
+		&log.Result,
+		&log.Detail,
+		&log.PrevHash,
+		&log.Hash,
+		&log.CreatedAt,
+	); err != nil {
+		return AuditLogView{}, fmt.Errorf("scan audit log: %w", err)
+	}
+	if len(log.Detail) == 0 {
+		log.Detail = json.RawMessage(`{}`)
+	}
+	log.CreatedAt = log.CreatedAt.UTC()
+	return log, nil
+}

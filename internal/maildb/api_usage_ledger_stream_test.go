@@ -47,6 +47,19 @@ func TestAPIUsageLedgerRetentionRunReadsRejectNilDatabase(t *testing.T) {
 	}
 }
 
+func TestAuditLogReadsRejectNilDatabase(t *testing.T) {
+	t.Parallel()
+
+	logs, err := (&Repository{}).ListAuditLogs(context.Background(), AuditLogListRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("logs = %+v err = %v", logs, err)
+	}
+	view, err := (&Repository{}).GetAuditLog(context.Background(), "audit-1")
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("view = %+v err = %v", view, err)
+	}
+}
+
 func TestNormalizeAPIUsageLedgerRetentionLimit(t *testing.T) {
 	t.Parallel()
 
