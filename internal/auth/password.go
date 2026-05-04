@@ -13,12 +13,28 @@ import (
 
 const PBKDF2SHA256Prefix = "pbkdf2-sha256"
 
+const (
+	maxPasswordHashBytes    = 4096
+	maxPBKDF2Iterations     = 1_000_000
+	maxPBKDF2SaltBytes      = 64
+	maxPBKDF2SaltPartBytes  = 128
+	maxPBKDF2KeyBytes       = 64
+	maxPBKDF2KeyPartBytes   = 128
+	legacySHA256DigestBytes = 64
+)
+
 func HashPasswordPBKDF2SHA256(password string, salt []byte, iterations int) (string, error) {
 	if iterations <= 0 {
 		iterations = 210_000
 	}
+	if iterations > maxPBKDF2Iterations {
+		return "", fmt.Errorf("iterations must be <= %d", maxPBKDF2Iterations)
+	}
 	if len(salt) < 16 {
 		return "", fmt.Errorf("salt must be at least 16 bytes")
+	}
+	if len(salt) > maxPBKDF2SaltBytes {
+		return "", fmt.Errorf("salt must be <= %d bytes", maxPBKDF2SaltBytes)
 	}
 	key, err := derivePBKDF2SHA256(password, salt, iterations)
 	if err != nil {
@@ -37,12 +53,19 @@ func VerifyPasswordHash(password string, encoded string) bool {
 	if encoded == "" {
 		return false
 	}
+	if len(encoded) > maxPasswordHashBytes {
+		return false
+	}
 	if strings.HasPrefix(encoded, "plain:") {
 		return subtle.ConstantTimeCompare([]byte(password), []byte(strings.TrimPrefix(encoded, "plain:"))) == 1
 	}
 	if strings.HasPrefix(encoded, "sha256:") {
+		digest := strings.TrimPrefix(encoded, "sha256:")
+		if len(digest) != legacySHA256DigestBytes {
+			return false
+		}
 		sum := sha256.Sum256([]byte(password))
-		return hmac.Equal([]byte(hex.EncodeToString(sum[:])), []byte(strings.TrimPrefix(encoded, "sha256:")))
+		return hmac.Equal([]byte(hex.EncodeToString(sum[:])), []byte(digest))
 	}
 
 	parts := strings.Split(encoded, "$")
@@ -50,15 +73,18 @@ func VerifyPasswordHash(password string, encoded string) bool {
 		return false
 	}
 	iterations, err := strconv.Atoi(parts[1])
-	if err != nil || iterations <= 0 {
+	if err != nil || iterations <= 0 || iterations > maxPBKDF2Iterations {
+		return false
+	}
+	if len(parts[2]) > maxPBKDF2SaltPartBytes || len(parts[3]) > maxPBKDF2KeyPartBytes {
 		return false
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[2])
-	if err != nil {
+	if err != nil || len(salt) < 16 || len(salt) > maxPBKDF2SaltBytes {
 		return false
 	}
 	want, err := base64.RawStdEncoding.DecodeString(parts[3])
-	if err != nil || len(want) == 0 {
+	if err != nil || len(want) == 0 || len(want) > maxPBKDF2KeyBytes {
 		return false
 	}
 	got, err := derivePBKDF2SHA256(password, salt, iterations)

@@ -175,6 +175,9 @@ guidance.
   payload, and signature segments before base64 decoding claim data.
 - Mail and Admin API authentication headers now reject oversized `Authorization`
   and `X-Admin-Token` values before bearer/JWT parsing or token comparison.
+- Password hash verification now rejects oversized stored hashes, excessive
+  PBKDF2 iteration counts, and oversized PBKDF2 salt/key metadata before
+  expensive derivation or decoded allocation.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

@@ -164,6 +164,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   values beyond a one-minute skew are rejected.
 - Mail/Admin authentication headers are size-bounded before bearer parsing,
   JWT decoding, or admin-token comparison.
+- Password hash verification rejects oversized stored hashes, excessive PBKDF2
+  iteration counts, and oversized salt/key metadata before expensive derivation
+  or decoded allocation.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed
