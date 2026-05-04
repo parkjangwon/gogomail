@@ -415,6 +415,7 @@ Implementation order:
 356. Redis event consumers now acknowledge malformed stream entries after logging decode failures, preventing poison messages from pinning worker progress while preserving retry behavior for handler failures.
 357. OpenAPI drift tests now pin Admin domain/user and delivery-route status enums against backend validators, preventing generated clients from drifting on supported lifecycle states.
 358. Project continuity docs now reflect the autonomous release-readiness hardening sprint, including parser hygiene, outbound/DSN RFC tightening, IMAP notification readiness, push outcome filters, Redis poison-message handling, and expanded OpenAPI guardrails.
+359. Redis event consumers can now reclaim idle pending stream messages with per-worker claim-idle settings, allowing event/search/API-metering/push/delivery workers to recover work left pending by crashed consumers.
 
 ## Deferred until backend contracts stabilize
 

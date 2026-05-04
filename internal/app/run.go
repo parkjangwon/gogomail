@@ -421,14 +421,15 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:   redisClient,
-		Stream:   cfg.EventStream,
-		Group:    cfg.EventConsumerGroup,
-		Consumer: cfg.EventConsumerName,
-		Count:    int64(cfg.EventConsumerCount),
-		Block:    cfg.EventConsumerBlock,
-		Handler:  router,
-		Logger:   logger,
+		Client:    redisClient,
+		Stream:    cfg.EventStream,
+		Group:     cfg.EventConsumerGroup,
+		Consumer:  cfg.EventConsumerName,
+		Count:     int64(cfg.EventConsumerCount),
+		Block:     cfg.EventConsumerBlock,
+		ClaimIdle: cfg.EventConsumerClaimIdle,
+		Handler:   router,
+		Logger:    logger,
 	})
 	if err != nil {
 		return err
@@ -481,14 +482,15 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:   redisClient,
-		Stream:   cfg.EventStream,
-		Group:    cfg.SearchIndexConsumerGroup,
-		Consumer: cfg.SearchIndexConsumerName,
-		Count:    int64(cfg.SearchIndexConsumerCount),
-		Block:    cfg.SearchIndexConsumerBlock,
-		Handler:  router,
-		Logger:   logger,
+		Client:    redisClient,
+		Stream:    cfg.EventStream,
+		Group:     cfg.SearchIndexConsumerGroup,
+		Consumer:  cfg.SearchIndexConsumerName,
+		Count:     int64(cfg.SearchIndexConsumerCount),
+		Block:     cfg.SearchIndexConsumerBlock,
+		ClaimIdle: cfg.SearchIndexConsumerClaimIdle,
+		Handler:   router,
+		Logger:    logger,
 	})
 	if err != nil {
 		return err
@@ -589,14 +591,15 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:   redisClient,
-		Stream:   cfg.APIMeteringStream,
-		Group:    cfg.APIMeteringConsumerGroup,
-		Consumer: cfg.APIMeteringConsumerName,
-		Count:    int64(cfg.APIMeteringConsumerCount),
-		Block:    cfg.APIMeteringConsumerBlock,
-		Handler:  router,
-		Logger:   logger,
+		Client:    redisClient,
+		Stream:    cfg.APIMeteringStream,
+		Group:     cfg.APIMeteringConsumerGroup,
+		Consumer:  cfg.APIMeteringConsumerName,
+		Count:     int64(cfg.APIMeteringConsumerCount),
+		Block:     cfg.APIMeteringConsumerBlock,
+		ClaimIdle: cfg.APIMeteringConsumerClaimIdle,
+		Handler:   router,
+		Logger:    logger,
 	})
 	if err != nil {
 		return err
@@ -647,14 +650,15 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:   redisClient,
-		Stream:   cfg.EventStream,
-		Group:    cfg.PushNotifyConsumerGroup,
-		Consumer: cfg.PushNotifyConsumerName,
-		Count:    int64(cfg.PushNotifyConsumerCount),
-		Block:    cfg.PushNotifyConsumerBlock,
-		Handler:  router,
-		Logger:   logger,
+		Client:    redisClient,
+		Stream:    cfg.EventStream,
+		Group:     cfg.PushNotifyConsumerGroup,
+		Consumer:  cfg.PushNotifyConsumerName,
+		Count:     int64(cfg.PushNotifyConsumerCount),
+		Block:     cfg.PushNotifyConsumerBlock,
+		ClaimIdle: cfg.PushNotifyConsumerClaimIdle,
+		Handler:   router,
+		Logger:    logger,
 	})
 	if err != nil {
 		return err
@@ -730,14 +734,15 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	handler.WithMetrics(deliveryMetrics(cfg, logger))
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:   redisClient,
-		Stream:   cfg.DeliveryStream,
-		Group:    cfg.DeliveryConsumerGroup,
-		Consumer: cfg.DeliveryConsumerName,
-		Count:    int64(cfg.DeliveryConsumerCount),
-		Block:    cfg.DeliveryConsumerBlock,
-		Handler:  handler,
-		Logger:   logger,
+		Client:    redisClient,
+		Stream:    cfg.DeliveryStream,
+		Group:     cfg.DeliveryConsumerGroup,
+		Consumer:  cfg.DeliveryConsumerName,
+		Count:     int64(cfg.DeliveryConsumerCount),
+		Block:     cfg.DeliveryConsumerBlock,
+		ClaimIdle: cfg.DeliveryConsumerClaimIdle,
+		Handler:   handler,
+		Logger:    logger,
 	})
 	if err != nil {
 		return err

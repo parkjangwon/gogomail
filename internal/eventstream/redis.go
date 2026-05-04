@@ -13,26 +13,38 @@ import (
 )
 
 type RedisConsumer struct {
-	client   *redis.Client
-	stream   string
-	group    string
-	consumer string
-	count    int64
-	block    time.Duration
-	handler  Handler
-	logger   *slog.Logger
+	client     redisConsumerClient
+	stream     string
+	group      string
+	consumer   string
+	count      int64
+	block      time.Duration
+	claimIdle  time.Duration
+	claimStart string
+	handler    Handler
+	logger     *slog.Logger
+}
+
+type redisConsumerClient interface {
+	XAck(ctx context.Context, stream string, group string, id ...string) *redis.IntCmd
+	XAutoClaim(ctx context.Context, a *redis.XAutoClaimArgs) *redis.XAutoClaimCmd
+	XGroupCreateMkStream(ctx context.Context, stream string, group string, start string) *redis.StatusCmd
+	XReadGroup(ctx context.Context, a *redis.XReadGroupArgs) *redis.XStreamSliceCmd
 }
 
 type RedisConsumerOptions struct {
-	Client   *redis.Client
-	Stream   string
-	Group    string
-	Consumer string
-	Count    int64
-	Block    time.Duration
-	Handler  Handler
-	Logger   *slog.Logger
+	Client    *redis.Client
+	Stream    string
+	Group     string
+	Consumer  string
+	Count     int64
+	Block     time.Duration
+	ClaimIdle time.Duration
+	Handler   Handler
+	Logger    *slog.Logger
 }
+
+const redisClaimStartID = "0-0"
 
 func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 	if opts.Client == nil {
@@ -56,19 +68,24 @@ func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 	if opts.Block <= 0 {
 		opts.Block = time.Second
 	}
+	if opts.ClaimIdle < 0 {
+		return nil, fmt.Errorf("redis consumer claim idle duration must not be negative")
+	}
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
 
 	return &RedisConsumer{
-		client:   opts.Client,
-		stream:   opts.Stream,
-		group:    opts.Group,
-		consumer: opts.Consumer,
-		count:    opts.Count,
-		block:    opts.Block,
-		handler:  opts.Handler,
-		logger:   opts.Logger,
+		client:     opts.Client,
+		stream:     opts.Stream,
+		group:      opts.Group,
+		consumer:   opts.Consumer,
+		count:      opts.Count,
+		block:      opts.Block,
+		claimIdle:  opts.ClaimIdle,
+		claimStart: redisClaimStartID,
+		handler:    opts.Handler,
+		logger:     opts.Logger,
 	}, nil
 }
 
@@ -99,6 +116,11 @@ func (c *RedisConsumer) Run(ctx context.Context) error {
 }
 
 func (c *RedisConsumer) ProcessOnce(ctx context.Context) (int, error) {
+	processed, err := c.claimPending(ctx)
+	if err != nil {
+		return 0, err
+	}
+
 	streams, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    c.group,
 		Consumer: c.consumer,
@@ -107,24 +129,70 @@ func (c *RedisConsumer) ProcessOnce(ctx context.Context) (int, error) {
 		Block:    c.block,
 	}).Result()
 	if errors.Is(err, redis.Nil) {
-		return 0, nil
+		return processed, nil
 	}
 	if err != nil {
-		return 0, fmt.Errorf("read redis stream group %q/%q: %w", c.stream, c.group, err)
+		return processed, fmt.Errorf("read redis stream group %q/%q: %w", c.stream, c.group, err)
 	}
 
-	processed := 0
 	for _, stream := range streams {
-		for _, redisMessage := range stream.Messages {
-			acked, err := c.processRedisMessage(ctx, stream.Stream, redisMessage, func(ctx context.Context, id string) error {
-				return c.client.XAck(ctx, c.stream, c.group, id).Err()
-			})
-			if err != nil {
-				return processed, err
-			}
-			if acked {
-				processed++
-			}
+		count, err := c.processRedisMessages(ctx, stream.Stream, stream.Messages)
+		if err != nil {
+			return processed, err
+		}
+		processed += count
+	}
+	return processed, nil
+}
+
+func (c *RedisConsumer) claimPending(ctx context.Context) (int, error) {
+	if c.claimIdle <= 0 {
+		return 0, nil
+	}
+	start := c.claimStart
+	if start == "" {
+		start = redisClaimStartID
+	}
+	messages, nextStart, err := c.client.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+		Stream:   c.stream,
+		Group:    c.group,
+		Consumer: c.consumer,
+		MinIdle:  c.claimIdle,
+		Start:    start,
+		Count:    c.count,
+	}).Result()
+	if err != nil {
+		return 0, fmt.Errorf("claim pending redis stream messages %q/%q: %w", c.stream, c.group, err)
+	}
+	if nextStart == "" {
+		nextStart = redisClaimStartID
+	}
+	c.claimStart = nextStart
+	if len(messages) == 0 {
+		return 0, nil
+	}
+	c.logger.Info(
+		"claimed pending redis stream messages",
+		"stream", c.stream,
+		"group", c.group,
+		"consumer", c.consumer,
+		"count", len(messages),
+		"min_idle", c.claimIdle.String(),
+	)
+	return c.processRedisMessages(ctx, c.stream, messages)
+}
+
+func (c *RedisConsumer) processRedisMessages(ctx context.Context, stream string, messages []redis.XMessage) (int, error) {
+	processed := 0
+	for _, redisMessage := range messages {
+		acked, err := c.processRedisMessage(ctx, stream, redisMessage, func(ctx context.Context, id string) error {
+			return c.client.XAck(ctx, c.stream, c.group, id).Err()
+		})
+		if err != nil {
+			return processed, err
+		}
+		if acked {
+			processed++
 		}
 	}
 	return processed, nil

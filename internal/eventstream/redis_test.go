@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -78,4 +79,115 @@ func TestRedisConsumerAcksMalformedMessage(t *testing.T) {
 	if !processed || len(acked) != 1 || acked[0] != "1-0" {
 		t.Fatalf("processed = %v, acked = %+v", processed, acked)
 	}
+}
+
+func TestRedisConsumerClaimsIdlePendingMessagesBeforeNewReads(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeRedisConsumerClient{
+		claimed: []redis.XMessage{{
+			ID: "1-0",
+			Values: map[string]any{
+				"outbox_id":     "outbox-1",
+				"partition_key": "message-1",
+				"payload":       `{"event":"mail.stored"}`,
+			},
+		}},
+		nextClaimStart: "0-0",
+		readErr:        redis.Nil,
+	}
+	var handled []Message
+	consumer := &RedisConsumer{
+		client:     client,
+		stream:     "mail.event",
+		group:      "gogomail.event-worker",
+		consumer:   "worker-2",
+		count:      10,
+		block:      time.Millisecond,
+		claimIdle:  5 * time.Minute,
+		claimStart: redisClaimStartID,
+		handler: HandlerFunc(func(_ context.Context, msg Message) error {
+			handled = append(handled, msg)
+			return nil
+		}),
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	processed, err := consumer.ProcessOnce(context.Background())
+	if err != nil {
+		t.Fatalf("ProcessOnce returned error: %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("processed = %d, want 1", processed)
+	}
+	if len(handled) != 1 || handled[0].ID != "1-0" {
+		t.Fatalf("handled = %+v, want claimed message", handled)
+	}
+	if len(client.acked) != 1 || client.acked[0] != "1-0" {
+		t.Fatalf("acked = %+v, want claimed message ack", client.acked)
+	}
+	if client.claimArgs == nil {
+		t.Fatal("XAutoClaim was not called")
+	}
+	if client.claimArgs.MinIdle != 5*time.Minute {
+		t.Fatalf("claim MinIdle = %s, want 5m", client.claimArgs.MinIdle)
+	}
+	if client.claimArgs.Consumer != "worker-2" {
+		t.Fatalf("claim Consumer = %q, want worker-2", client.claimArgs.Consumer)
+	}
+}
+
+func TestRedisConsumerSkipsPendingClaimWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeRedisConsumerClient{readErr: redis.Nil}
+	consumer := &RedisConsumer{
+		client:   client,
+		stream:   "mail.event",
+		group:    "gogomail.event-worker",
+		consumer: "worker-2",
+		count:    10,
+		block:    time.Millisecond,
+		handler:  HandlerFunc(func(context.Context, Message) error { return nil }),
+		logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	if _, err := consumer.ProcessOnce(context.Background()); err != nil {
+		t.Fatalf("ProcessOnce returned error: %v", err)
+	}
+	if client.claimArgs != nil {
+		t.Fatalf("XAutoClaim called with %+v, want disabled", client.claimArgs)
+	}
+}
+
+type fakeRedisConsumerClient struct {
+	claimed        []redis.XMessage
+	nextClaimStart string
+	claimErr       error
+	claimArgs      *redis.XAutoClaimArgs
+	readStreams    []redis.XStream
+	readErr        error
+	acked          []string
+}
+
+func (f *fakeRedisConsumerClient) XAck(ctx context.Context, stream string, group string, id ...string) *redis.IntCmd {
+	f.acked = append(f.acked, id...)
+	return redis.NewIntResult(int64(len(id)), nil)
+}
+
+func (f *fakeRedisConsumerClient) XAutoClaim(ctx context.Context, a *redis.XAutoClaimArgs) *redis.XAutoClaimCmd {
+	args := *a
+	f.claimArgs = &args
+	cmd := redis.NewXAutoClaimCmd(ctx)
+	cmd.SetVal(f.claimed, f.nextClaimStart)
+	cmd.SetErr(f.claimErr)
+	return cmd
+}
+
+func (f *fakeRedisConsumerClient) XGroupCreateMkStream(ctx context.Context, stream string, group string, start string) *redis.StatusCmd {
+	return redis.NewStatusResult("OK", nil)
+}
+
+func (f *fakeRedisConsumerClient) XReadGroup(ctx context.Context, a *redis.XReadGroupArgs) *redis.XStreamSliceCmd {
+	return redis.NewXStreamSliceCmdResult(f.readStreams, f.readErr)
 }

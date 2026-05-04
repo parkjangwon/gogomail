@@ -82,6 +82,30 @@ func TestValidateRejectsNonpositiveAPIMeteringConsumerSettings(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNegativeConsumerClaimIdle(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "event", mutate: func(cfg *Config) { cfg.EventConsumerClaimIdle = -time.Second }},
+		{name: "search index", mutate: func(cfg *Config) { cfg.SearchIndexConsumerClaimIdle = -time.Second }},
+		{name: "api metering", mutate: func(cfg *Config) { cfg.APIMeteringConsumerClaimIdle = -time.Second }},
+		{name: "push notification", mutate: func(cfg *Config) { cfg.PushNotifyConsumerClaimIdle = -time.Second }},
+		{name: "delivery", mutate: func(cfg *Config) { cfg.DeliveryConsumerClaimIdle = -time.Second }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want negative claim idle rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 	cfg := Load()
 	cfg.DeliveryThrottleEnabled = true

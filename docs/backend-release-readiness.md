@@ -57,6 +57,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work.
+- Redis-backed event/search/API-metering/push/delivery workers reclaim idle
+  pending stream messages with configurable claim-idle windows so crashed
+  consumers do not strand at-least-once work indefinitely.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
   MIME part-count cap with `PartsTruncated` signaling, and a large-body
   benchmark.

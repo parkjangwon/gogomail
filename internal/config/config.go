@@ -56,6 +56,7 @@ type Config struct {
 	PushNotifyConsumerName              string
 	PushNotifyConsumerCount             int
 	PushNotifyConsumerBlock             time.Duration
+	PushNotifyConsumerClaimIdle         time.Duration
 	APIMeteringBackend                  string
 	APIMeteringTimeout                  time.Duration
 	APIMeteringAggregateBackend         string
@@ -64,6 +65,7 @@ type Config struct {
 	APIMeteringConsumerName             string
 	APIMeteringConsumerCount            int
 	APIMeteringConsumerBlock            time.Duration
+	APIMeteringConsumerClaimIdle        time.Duration
 	APIUsageExportManifestSignerBackend string
 	APIUsageExportManifestSignerKeyID   string
 	APIUsageExportManifestSignerSecret  string
@@ -80,12 +82,14 @@ type Config struct {
 	EventConsumerName                   string
 	EventConsumerCount                  int
 	EventConsumerBlock                  time.Duration
+	EventConsumerClaimIdle              time.Duration
 	SearchIndexBackend                  string
 	SearchIndexMaxBodyBytes             int64
 	SearchIndexConsumerGroup            string
 	SearchIndexConsumerName             string
 	SearchIndexConsumerCount            int
 	SearchIndexConsumerBlock            time.Duration
+	SearchIndexConsumerClaimIdle        time.Duration
 	SearchIndexOpenSearchEndpoint       string
 	SearchIndexOpenSearchIndex          string
 	SearchIndexOpenSearchUsername       string
@@ -97,6 +101,7 @@ type Config struct {
 	DeliveryConsumerName                string
 	DeliveryConsumerCount               int
 	DeliveryConsumerBlock               time.Duration
+	DeliveryConsumerClaimIdle           time.Duration
 	DeliverySMTPHello                   string
 	DeliveryTimeout                     time.Duration
 	DeliveryTLSMode                     string
@@ -171,6 +176,7 @@ func Load() Config {
 		PushNotifyConsumerName:              envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", "push-notification-worker-1"),
 		PushNotifyConsumerCount:             intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT", 50),
 		PushNotifyConsumerBlock:             durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_BLOCK", time.Second),
+		PushNotifyConsumerClaimIdle:         durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		APIMeteringBackend:                  envOrDefault("GOGOMAIL_API_METERING_BACKEND", "none"),
 		APIMeteringTimeout:                  durationEnvOrDefault("GOGOMAIL_API_METERING_TIMEOUT", 100*time.Millisecond),
 		APIMeteringAggregateBackend:         envOrDefault("GOGOMAIL_API_METERING_AGGREGATE_BACKEND", "disabled"),
@@ -179,6 +185,7 @@ func Load() Config {
 		APIMeteringConsumerName:             envOrDefault("GOGOMAIL_API_METERING_CONSUMER_NAME", "api-metering-worker-1"),
 		APIMeteringConsumerCount:            intEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_COUNT", 100),
 		APIMeteringConsumerBlock:            durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_BLOCK", time.Second),
+		APIMeteringConsumerClaimIdle:        durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		APIUsageExportManifestSignerBackend: envOrDefault("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", "disabled"),
 		APIUsageExportManifestSignerKeyID:   envOrDefault("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID", ""),
 		APIUsageExportManifestSignerSecret:  os.Getenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET"),
@@ -195,12 +202,14 @@ func Load() Config {
 		EventConsumerName:                   envOrDefault("GOGOMAIL_EVENT_CONSUMER_NAME", "event-worker-1"),
 		EventConsumerCount:                  intEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_COUNT", 100),
 		EventConsumerBlock:                  durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_BLOCK", time.Second),
+		EventConsumerClaimIdle:              durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		SearchIndexBackend:                  envOrDefault("GOGOMAIL_SEARCH_INDEX_BACKEND", "disabled"),
 		SearchIndexMaxBodyBytes:             int64EnvOrDefault("GOGOMAIL_SEARCH_INDEX_MAX_BODY_BYTES", 1024*1024),
 		SearchIndexConsumerGroup:            envOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_GROUP", "gogomail.search-index-worker"),
 		SearchIndexConsumerName:             envOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_NAME", "search-index-worker-1"),
 		SearchIndexConsumerCount:            intEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT", 50),
 		SearchIndexConsumerBlock:            durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK", time.Second),
+		SearchIndexConsumerClaimIdle:        durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		SearchIndexOpenSearchEndpoint:       envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT", ""),
 		SearchIndexOpenSearchIndex:          envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX", "gogomail-messages"),
 		SearchIndexOpenSearchUsername:       envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_USERNAME", ""),
@@ -212,6 +221,7 @@ func Load() Config {
 		DeliveryConsumerName:                envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-worker-1"),
 		DeliveryConsumerCount:               intEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_COUNT", 50),
 		DeliveryConsumerBlock:               durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
+		DeliveryConsumerClaimIdle:           durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		DeliverySMTPHello:                   envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 		DeliveryTimeout:                     durationEnvOrDefault("GOGOMAIL_DELIVERY_TIMEOUT", 30*time.Second),
 		DeliveryTLSMode:                     envOrDefault("GOGOMAIL_DELIVERY_TLS_MODE", "opportunistic"),
