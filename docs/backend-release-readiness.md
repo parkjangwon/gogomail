@@ -227,6 +227,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API push-notification attempt and stats filters are trimmed before
   device/provider troubleshooting queries, and CR/LF-bearing or oversized
   filter values are rejected before service dispatch.
+- Admin push-notification attempt/stats repository filters also reject
+  invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL
+  dispatch.
 - Admin API user-list, IMAP UID backfill, DKIM key-list, and delivery-route
   resolution query filters are trimmed, and CR/LF-bearing or oversized values
   are rejected before service dispatch.

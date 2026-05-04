@@ -646,6 +646,9 @@ The platform hardening sprint completed the following:
 - Admin API push-notification attempt and stats filters are trimmed at the HTTP
   boundary before device/provider troubleshooting queries, and CR/LF-bearing
   or oversized filter values are rejected before service dispatch.
+- Admin push-notification attempt/stats repository filters also reject
+  invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL
+  dispatch.
 - OpenAPI drift tests now pin the push-device list `limit` query parameter so
   generated clients keep pagination controls for device management.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413

@@ -582,6 +582,8 @@ type PushNotificationStatsView struct {
 	InvalidToken  int64 `json:"invalid_token"`
 }
 
+const maxPushNotificationFilterBytes = 1024
+
 type SuppressionEntry struct {
 	ID              string    `json:"id"`
 	DomainID        string    `json:"domain_id"`
@@ -3936,21 +3938,10 @@ func (r *Repository) ListPushNotificationAttempts(ctx context.Context, req PushN
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	req.Limit = normalizeLimit(req.Limit)
-	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
-	req.UserID = strings.TrimSpace(req.UserID)
-	req.Platform = strings.ToLower(strings.TrimSpace(req.Platform))
-	req.DeviceID = strings.TrimSpace(req.DeviceID)
-	req.ProviderStatus = strings.TrimSpace(req.ProviderStatus)
-	req.ProviderMessageID = strings.TrimSpace(req.ProviderMessageID)
-	if !req.Since.IsZero() {
-		req.Since = req.Since.UTC()
-	}
-	if req.Status != "" && !allowedPushNotificationAttemptStatus(req.Status) {
-		return nil, fmt.Errorf("unsupported push notification attempt status")
-	}
-	if req.Platform != "" && !allowedPushPlatform(req.Platform) {
-		return nil, fmt.Errorf("unsupported push notification platform")
+	var err error
+	req, err = normalizePushNotificationAttemptListRequest(req)
+	if err != nil {
+		return nil, err
 	}
 
 	const query = `
@@ -4019,6 +4010,38 @@ LIMIT $1`
 	return attempts, nil
 }
 
+func normalizePushNotificationAttemptListRequest(req PushNotificationAttemptListRequest) (PushNotificationAttemptListRequest, error) {
+	req.Limit = normalizeLimit(req.Limit)
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.Platform = strings.ToLower(strings.TrimSpace(req.Platform))
+	req.DeviceID = strings.TrimSpace(req.DeviceID)
+	req.ProviderStatus = strings.TrimSpace(req.ProviderStatus)
+	req.ProviderMessageID = strings.TrimSpace(req.ProviderMessageID)
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
+	for field, value := range map[string]string{
+		"status":              req.Status,
+		"user_id":             req.UserID,
+		"platform":            req.Platform,
+		"device_id":           req.DeviceID,
+		"provider_status":     req.ProviderStatus,
+		"provider_message_id": req.ProviderMessageID,
+	} {
+		if err := validatePushNotificationFilter(field, value); err != nil {
+			return PushNotificationAttemptListRequest{}, err
+		}
+	}
+	if req.Status != "" && !allowedPushNotificationAttemptStatus(req.Status) {
+		return PushNotificationAttemptListRequest{}, fmt.Errorf("unsupported push notification attempt status")
+	}
+	if req.Platform != "" && !allowedPushPlatform(req.Platform) {
+		return PushNotificationAttemptListRequest{}, fmt.Errorf("unsupported push notification platform")
+	}
+	return req, nil
+}
+
 func allowedPushNotificationAttemptStatus(status string) bool {
 	switch status {
 	case "candidate", "queued", "delivered", "failed", "invalid_token":
@@ -4032,9 +4055,10 @@ func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotif
 	if r.db == nil {
 		return PushNotificationStatsView{}, fmt.Errorf("database handle is required")
 	}
-	req.UserID = strings.TrimSpace(req.UserID)
-	if !req.Since.IsZero() {
-		req.Since = req.Since.UTC()
+	var err error
+	req, err = normalizePushNotificationStatsRequest(req)
+	if err != nil {
+		return PushNotificationStatsView{}, err
 	}
 
 	const query = `
@@ -4063,6 +4087,33 @@ WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
 		return PushNotificationStatsView{}, fmt.Errorf("get push notification stats: %w", err)
 	}
 	return stats, nil
+}
+
+func normalizePushNotificationStatsRequest(req PushNotificationStatsRequest) (PushNotificationStatsRequest, error) {
+	req.UserID = strings.TrimSpace(req.UserID)
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
+	if err := validatePushNotificationFilter("user_id", req.UserID); err != nil {
+		return PushNotificationStatsRequest{}, err
+	}
+	return req, nil
+}
+
+func validatePushNotificationFilter(field string, value string) error {
+	if value == "" {
+		return nil
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s must not contain line breaks", field)
+	}
+	if len(value) > maxPushNotificationFilterBytes {
+		return fmt.Errorf("%s is too long", field)
+	}
+	if !utf8.ValidString(value) {
+		return fmt.Errorf("%s must be valid UTF-8", field)
+	}
+	return nil
 }
 
 func (r *Repository) ListSuppressionEntries(ctx context.Context, limit int) ([]SuppressionEntry, error) {
