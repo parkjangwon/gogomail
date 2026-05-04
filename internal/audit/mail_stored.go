@@ -17,6 +17,8 @@ type MailStoredHandler struct {
 	repository Repository
 }
 
+const maxMailStoredAuditMessageIDBytes = 200
+
 func NewMailStoredHandler(repository Repository) *MailStoredHandler {
 	return &MailStoredHandler{repository: repository}
 }
@@ -104,6 +106,9 @@ func requiredAuditEventValue(name string, value string) (string, error) {
 	}
 	if strings.ContainsAny(value, "\r\n") {
 		return "", fmt.Errorf("mail.stored audit payload has invalid %s", name)
+	}
+	if len(value) > maxMailStoredAuditMessageIDBytes {
+		return "", fmt.Errorf("mail.stored audit payload has oversized %s", name)
 	}
 	return value, nil
 }
