@@ -78,11 +78,13 @@ Current state:
   hydration when filters/highlights do not require fallback.
 - Mail API app wiring can inject the OpenSearch search source when
   `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`.
+- OpenSearch indexed documents include parsed sender and attachment presence
+  fields for search-filter parity.
 
 Next:
 
-- Add OpenSearch parity for folder/from/subject/attachment filters and
-  highlights before making it the general search backend.
+- Add OpenSearch query parity for from/subject/attachment filters and rank
+  preservation before broadening Mail API usage.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning

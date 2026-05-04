@@ -39,7 +39,10 @@ func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
 		UserID:        "user-1",
 		DomainID:      "domain-1",
 		Subject:       "Hello",
+		FromAddr:      "sender@example.com",
+		FromName:      "Sender",
 		StoragePath:   "messages/msg-1.eml",
+		HasAttachment: true,
 		BodyText:      "search me",
 		BodyTruncated: true,
 		BodyMaxBytes:  1024,
@@ -56,6 +59,9 @@ func TestOpenSearchIndexerIndexesDocumentByMessageID(t *testing.T) {
 	}
 	if payload["message_id"] != "msg-1" || payload["body_text"] != "search me" {
 		t.Fatalf("payload = %#v", payload)
+	}
+	if payload["from_addr"] != "sender@example.com" || payload["has_attachment"] != true {
+		t.Fatalf("payload sender/attachment = %#v", payload)
 	}
 	if payload["body_truncated"] != true || payload["body_max_bytes"].(float64) != 1024 {
 		t.Fatalf("payload truncation fields = %#v", payload)

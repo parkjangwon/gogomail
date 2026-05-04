@@ -49,6 +49,9 @@ func TestHandlerIndexesStoredMessageBody(t *testing.T) {
 	if doc.BodyText != "Body for search." {
 		t.Fatalf("BodyText = %q, want parsed plain body", doc.BodyText)
 	}
+	if doc.FromAddr != "alice@example.com" || doc.FromName != "Alice" {
+		t.Fatalf("from = %q/%q, want parsed sender", doc.FromAddr, doc.FromName)
+	}
 	if doc.BodyTruncated {
 		t.Fatal("BodyTruncated = true, want false")
 	}

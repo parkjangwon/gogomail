@@ -189,6 +189,8 @@ The platform hardening sprint completed the following:
 - Mail API app wiring can inject the OpenSearch search source when
   `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, enabling safe relevance-search
   read-side rollout while preserving fallback behavior.
+- OpenSearch indexed documents now include parsed sender and attachment
+  presence fields needed for Mail API search-filter parity.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.

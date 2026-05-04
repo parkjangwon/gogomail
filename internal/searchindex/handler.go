@@ -45,9 +45,12 @@ type Document struct {
 	UserID        string
 	Recipient     string
 	Subject       string
+	FromAddr      string
+	FromName      string
 	StoragePath   string
 	ReceivedAt    string
 	Size          int64
+	HasAttachment bool
 	BodyText      string
 	BodyTruncated bool
 	BodyMaxBytes  int64
@@ -131,9 +134,12 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		UserID:        event.UserID,
 		Recipient:     event.Recipient,
 		Subject:       firstNonEmpty(event.Subject, parsed.Subject),
+		FromAddr:      parsed.From.Address,
+		FromName:      parsed.From.Name,
 		StoragePath:   event.StoragePath,
 		ReceivedAt:    event.ReceivedAt,
 		Size:          event.Size,
+		HasAttachment: parsed.HasAttachment,
 		BodyText:      parsed.TextBody,
 		BodyTruncated: parsed.TextBodyTruncated,
 		BodyMaxBytes:  h.maxTextBodyBytes,
