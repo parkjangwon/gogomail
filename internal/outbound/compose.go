@@ -71,12 +71,12 @@ func ComposeText(msg TextMessage) (ComposedMessage, error) {
 	}
 	if strings.TrimSpace(msg.MessageID) == "" {
 		msg.MessageID = GenerateMessageID(domainFromAddress(msg.From.Email))
-	}
-	if !strings.HasPrefix(msg.MessageID, "<") {
-		msg.MessageID = "<" + msg.MessageID + ">"
-	}
-	if !strings.HasSuffix(msg.MessageID, ">") {
-		msg.MessageID += ">"
+	} else {
+		normalized := normalizeHeaderMessageID(msg.MessageID)
+		if normalized == "" {
+			return ComposedMessage{}, fmt.Errorf("message_id must be a valid RFC 5322 message id")
+		}
+		msg.MessageID = normalized
 	}
 
 	var buf bytes.Buffer
@@ -121,13 +121,20 @@ func normalizeHeaderMessageID(value string) string {
 	if value == "" || strings.ContainsAny(value, "\r\n") {
 		return ""
 	}
-	if !strings.HasPrefix(value, "<") {
-		value = "<" + value
+	if strings.HasPrefix(value, "<") || strings.HasSuffix(value, ">") {
+		if !strings.HasPrefix(value, "<") || !strings.HasSuffix(value, ">") {
+			return ""
+		}
+		value = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(value, "<"), ">"))
 	}
-	if !strings.HasSuffix(value, ">") {
-		value += ">"
+	if value == "" || strings.ContainsAny(value, " \t<>") || strings.Count(value, "@") != 1 {
+		return ""
 	}
-	return value
+	local, domain, _ := strings.Cut(value, "@")
+	if local == "" || domain == "" {
+		return ""
+	}
+	return "<" + value + ">"
 }
 
 func formatReferencesHeader(values []string) string {

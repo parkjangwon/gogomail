@@ -408,6 +408,7 @@ Implementation order:
 349. Shared EML text-body truncation now backs up to a valid UTF-8 boundary before storing bounded text previews, protecting Mail API/search/IMAP consumers from malformed strings on multibyte bodies.
 350. Shared EML attachment filename metadata is now basename-normalized, control-character cleaned, UTF-8-safe, and capped before storage/API/search consumers see it.
 351. Outbound RFC 5322 text composition now folds long headers, keeping generated `From`/`To`/`Subject`/thread metadata lines within mail line-length limits while preserving CR/LF injection rejection.
+352. Outbound RFC 5322 text composition now rejects malformed explicit `Message-ID` values and drops malformed thread IDs before writing `In-Reply-To`/`References` headers.
 
 ## Deferred until backend contracts stabilize
 
