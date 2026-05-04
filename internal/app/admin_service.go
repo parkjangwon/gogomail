@@ -48,9 +48,6 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 	if err != nil {
 		return maildb.APIUsageExportArtifactView{}, err
 	}
-	if batch.EventCount > maildb.MessageListMaxLimit {
-		return maildb.APIUsageExportArtifactView{}, fmt.Errorf("api usage export batch has %d events; maximum single artifact write is %d", batch.EventCount, maildb.MessageListMaxLimit)
-	}
 	objectKey := strings.TrimSpace(req.ObjectKey)
 	if objectKey == "" {
 		objectKey, err = apimeter.DefaultExportArtifactObjectKey(batch.ID)
@@ -69,7 +66,7 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 		}
 	}
 
-	ledgerReq := apiUsageLedgerRequestFromBatch(batch, maildb.MessageListMaxLimit)
+	ledgerReq := apiUsageLedgerRequestFromBatch(batch, maildb.APIUsageLedgerNoLimit)
 	var eventCount int64
 	result, err := apimeter.WriteExportArtifact(ctx, s.exportStore, apimeter.ExportArtifactWriteRequest{
 		ObjectKey: objectKey,
@@ -84,8 +81,8 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 	if err != nil {
 		return maildb.APIUsageExportArtifactView{}, err
 	}
-	if batch.EventCount > eventCount {
-		return maildb.APIUsageExportArtifactView{}, fmt.Errorf("api usage export batch has %d events but only %d were written; paginated artifact writing is required", batch.EventCount, eventCount)
+	if batch.EventCount != eventCount {
+		return maildb.APIUsageExportArtifactView{}, fmt.Errorf("api usage export batch expected %d events but wrote %d", batch.EventCount, eventCount)
 	}
 	storageBackend := strings.TrimSpace(req.StorageBackend)
 	if storageBackend == "" {
