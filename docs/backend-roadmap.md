@@ -302,6 +302,7 @@ Implementation order:
 247. IMAP STORE groundwork can mutate `\Seen`, `\Flagged`, and `\Answered` through the existing message flag JSON while advancing message/mailbox MODSEQ only for actual flag changes.
 248. IMAP UID backfill can assign missing mailbox-local UIDs to existing active messages in bounded stable-order batches, preparing mailboxes before a live protocol listener is enabled.
 249. Mail API move/delete paths now remove stale IMAP message UID rows in the same transaction, preventing mailbox-local UIDs from leaking across folders before IMAP MOVE/EXPUNGE semantics exist.
+250. Optional PostgreSQL integration tests now cover IMAP UID backfill and move invalidation against migrated schema when `GOGOMAIL_TEST_DATABASE_URL` is configured.
 
 ## Deferred until backend contracts stabilize
 

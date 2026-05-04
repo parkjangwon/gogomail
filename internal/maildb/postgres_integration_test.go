@@ -132,10 +132,76 @@ WHERE m.id = $1`, sentID).Scan(&hasAttachment, &queuedTopic, &queuedEvent, &queu
 	}
 }
 
+func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var firstID, secondID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<first@example.com>', 'first',
+   'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz, 100, 'mail/first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<second@example.com>', 'second',
+   'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz, 100, 'mail/second.eml')
+RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&firstID); err != nil {
+		t.Fatalf("insert first message: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM messages
+WHERE user_id = $1::uuid
+  AND folder_id = $2::uuid
+  AND subject = 'second'`, seed.userID, seed.inboxID).Scan(&secondID); err != nil {
+		t.Fatalf("select second message: %v", err)
+	}
+
+	assigned, err := repo.BackfillIMAPMailboxUIDs(ctx, seed.userID, seed.inboxID, 10)
+	if err != nil {
+		t.Fatalf("BackfillIMAPMailboxUIDs returned error: %v", err)
+	}
+	if len(assigned) != 2 || assigned[0].UID != 1 || assigned[1].UID != 2 {
+		t.Fatalf("assigned UIDs = %#v, want stable 1,2", assigned)
+	}
+
+	if err := repo.MoveMessage(ctx, seed.userID, firstID, seed.sentID); err != nil {
+		t.Fatalf("MoveMessage returned error: %v", err)
+	}
+	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, assigned[0].UID); err == nil {
+		t.Fatal("GetIMAPMessage found moved message in old mailbox")
+	}
+	movedUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.sentID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID after move returned error: %v", err)
+	}
+	if string(movedUID.MailboxID) != seed.sentID {
+		t.Fatalf("moved UID mailbox = %q, want sent mailbox %q", movedUID.MailboxID, seed.sentID)
+	}
+	if movedUID.UID != 1 {
+		t.Fatalf("moved UID = %d, want fresh UID 1 in sent mailbox", movedUID.UID)
+	}
+
+	remaining, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, assigned[1].UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage for remaining inbox UID returned error: %v", err)
+	}
+	if string(remaining.Summary.ID) != secondID {
+		t.Fatalf("remaining inbox message = %q, want %q", remaining.Summary.ID, secondID)
+	}
+}
+
 type postgresSeed struct {
 	companyID string
 	domainID  string
 	userID    string
+	inboxID   string
+	sentID    string
 }
 
 func seedPostgresMailUser(t *testing.T, db *sql.DB) postgresSeed {
@@ -163,9 +229,15 @@ WITH company AS (
   SELECT id, 'Drafts', '/Drafts', 'system', 'drafts' FROM app_user
   UNION ALL
   SELECT id, 'Sent', '/Sent', 'system', 'sent' FROM app_user
+  RETURNING id, system_type
 )
-SELECT domain.company_id::text, domain.id::text, app_user.id::text
-FROM domain, app_user`).Scan(&seed.companyID, &seed.domainID, &seed.userID); err != nil {
+SELECT
+  domain.company_id::text,
+  domain.id::text,
+  app_user.id::text,
+  (SELECT id::text FROM folders WHERE system_type = 'inbox'),
+  (SELECT id::text FROM folders WHERE system_type = 'sent')
+FROM domain, app_user`).Scan(&seed.companyID, &seed.domainID, &seed.userID, &seed.inboxID, &seed.sentID); err != nil {
 		t.Fatalf("seed postgres mail user: %v", err)
 	}
 	return seed
