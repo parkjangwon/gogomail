@@ -20,6 +20,8 @@ const (
 	maxExportManifestSignatureKeyIDBytes       = 200
 	maxExportManifestSigningSecretBytes        = 4096
 	maxRemoteSignerTokenBytes                  = 4096
+	hmacSHA256SignatureHexBytes                = 64
+	ed25519SignatureHexBytes                   = ed25519.SignatureSize * 2
 )
 
 type ExportManifestSigner interface {
@@ -90,7 +92,11 @@ func VerifyExportManifestSignature(signature ExportManifestSignature, secret []b
 	if err != nil {
 		return false, err
 	}
-	got, err := hex.DecodeString(strings.TrimSpace(signature.SignatureHex))
+	signatureHex := strings.TrimSpace(signature.SignatureHex)
+	if len(signatureHex) != hmacSHA256SignatureHexBytes {
+		return false, fmt.Errorf("hmac signature must be %d hex characters", hmacSHA256SignatureHexBytes)
+	}
+	got, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return false, fmt.Errorf("signature_hex must be hex: %w", err)
 	}
@@ -145,7 +151,11 @@ func (v Ed25519ExportManifestSignatureVerifier) VerifyExportManifestSignature(si
 	if !isLowerHexSHA256(digestHex) {
 		return false, fmt.Errorf("signed_digest_hex must be 64 lowercase hex characters")
 	}
-	signatureBytes, err := hex.DecodeString(strings.TrimSpace(signature.SignatureHex))
+	signatureHex := strings.TrimSpace(signature.SignatureHex)
+	if len(signatureHex) != ed25519SignatureHexBytes {
+		return false, fmt.Errorf("ed25519 signature must be %d hex characters", ed25519SignatureHexBytes)
+	}
+	signatureBytes, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return false, fmt.Errorf("signature_hex must be hex: %w", err)
 	}
