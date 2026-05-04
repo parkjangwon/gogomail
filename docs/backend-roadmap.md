@@ -465,6 +465,7 @@ Implementation order:
 406. Mail API push-device registration now normalizes user, platform, token, and label fields before validation/storage while keeping raw tokens write-only in responses.
 407. Mail compose draft/save/send requests now normalize user/source/from/address and attachment identifier fields before repository, storage, suppression, and outbound composition work.
 408. Attachment upload reservation and direct-upload service requests now normalize user, draft, filename, MIME type, and storage-path metadata before quota, storage, and repository work.
+409. Attachment list/download and draft-delete service methods now trim user, message, attachment, and draft identifiers before repository/storage work.
 
 ## Deferred until backend contracts stabilize
 

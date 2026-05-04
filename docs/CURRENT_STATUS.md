@@ -446,6 +446,8 @@ The platform hardening sprint completed the following:
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
   storage, and repository work.
+- Attachment list/download and draft-delete service methods trim user, message,
+  attachment, and draft identifiers before repository/storage work.
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
   the HTTP boundary before service dispatch.
 - Mail API search query, folder, sender, and subject filters are trimmed at the

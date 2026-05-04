@@ -109,6 +109,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
   storage, and repository work.
+- Attachment list/download and draft-delete service methods trim user, message,
+  attachment, and draft identifiers before repository/storage work.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
 - `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift, registered-route drift, dangling component references, request-body omissions, response envelope reference drift, message flag enum drift, list limit contract drift, and thread-list parameter leakage.
 - OpenAPI response components now document the Mail/Admin JSON envelope keys used by generated clients, including admin queue, IMAP UID backfill, delivery attempt, exhausted-attempt, suppression, DKIM, domain, and user read models.

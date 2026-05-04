@@ -114,6 +114,50 @@ func TestUpsertPushDeviceNormalizesRequest(t *testing.T) {
 	}
 }
 
+func TestAttachmentReadMethodsNormalizeIDs(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "attachments/body.txt", strings.NewReader("content")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	repo := &fakeRepository{
+		attachments: []maildb.Attachment{{ID: "att-1"}},
+		attachment:  maildb.Attachment{ID: "att-1", StoragePath: "attachments/body.txt"},
+	}
+	service := New(repo, store)
+
+	if _, err := service.ListAttachments(context.Background(), " user-1 ", " msg-1 "); err != nil {
+		t.Fatalf("ListAttachments returned error: %v", err)
+	}
+	if repo.lastAttachmentUserID != "user-1" || repo.lastAttachmentMessageID != "msg-1" {
+		t.Fatalf("list attachment ids = %q/%q", repo.lastAttachmentUserID, repo.lastAttachmentMessageID)
+	}
+
+	download, err := service.OpenAttachment(context.Background(), " user-1 ", " msg-1 ", " att-1 ")
+	if err != nil {
+		t.Fatalf("OpenAttachment returned error: %v", err)
+	}
+	_ = download.Body.Close()
+	if repo.lastAttachmentUserID != "user-1" || repo.lastAttachmentMessageID != "msg-1" || repo.lastAttachmentID != "att-1" {
+		t.Fatalf("open attachment ids = %q/%q/%q", repo.lastAttachmentUserID, repo.lastAttachmentMessageID, repo.lastAttachmentID)
+	}
+}
+
+func TestDeleteDraftNormalizesIDs(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if err := service.DeleteDraft(context.Background(), " user-1 ", " draft-1 "); err != nil {
+		t.Fatalf("DeleteDraft returned error: %v", err)
+	}
+	if repo.lastSenderUserID != "user-1" || repo.lastSentDraftID != "draft-1" {
+		t.Fatalf("delete draft ids = %q/%q", repo.lastSenderUserID, repo.lastSentDraftID)
+	}
+}
+
 func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 	t.Parallel()
 
@@ -625,6 +669,10 @@ type fakeRepository struct {
 	seenSuppressionRecipients   []string
 	lastDraft                   maildb.SaveDraftRequest
 	lastAttachmentUpload        maildb.CreateAttachmentUploadRequest
+	lastAttachmentUserID        string
+	lastAttachmentMessageID     string
+	lastAttachmentID            string
+	attachment                  maildb.Attachment
 	expiredAttachments          []maildb.Attachment
 	lastFlagMessageID           string
 	lastFlag                    string
@@ -765,12 +813,17 @@ func (f *fakeRepository) DeletePushDevice(context.Context, string, string) error
 	return nil
 }
 
-func (f *fakeRepository) ListAttachments(context.Context, string, string) ([]maildb.Attachment, error) {
+func (f *fakeRepository) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
+	f.lastAttachmentUserID = userID
+	f.lastAttachmentMessageID = messageID
 	return f.attachments, nil
 }
 
-func (f *fakeRepository) GetAttachment(context.Context, string, string, string) (maildb.Attachment, error) {
-	return maildb.Attachment{}, nil
+func (f *fakeRepository) GetAttachment(_ context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, error) {
+	f.lastAttachmentUserID = userID
+	f.lastAttachmentMessageID = messageID
+	f.lastAttachmentID = attachmentID
+	return f.attachment, nil
 }
 
 func (f *fakeRepository) SenderForUser(_ context.Context, userID string, from string) (maildb.Sender, error) {
@@ -821,7 +874,9 @@ func (f *fakeRepository) SaveDraft(_ context.Context, req maildb.SaveDraftReques
 	return maildb.MessageDetail{ID: "draft-1", Subject: req.Subject}, nil
 }
 
-func (f *fakeRepository) DeleteDraft(context.Context, string, string) error {
+func (f *fakeRepository) DeleteDraft(_ context.Context, userID string, draftID string) error {
+	f.lastSentDraftID = draftID
+	f.lastSenderUserID = userID
 	return nil
 }
 
