@@ -2570,7 +2570,7 @@ components:
           $ref: "#/components/schemas/PushDevice"
     QueueStat:
       type: object
-      required: [topic, status, count]
+      required: [topic, status, count, ready_count, delayed_count, stale_processing_count]
       properties:
         topic:
           type: string
@@ -2579,6 +2579,25 @@ components:
         count:
           type: integer
           format: int64
+          minimum: 0
+        ready_count:
+          type: integer
+          format: int64
+          minimum: 0
+        delayed_count:
+          type: integer
+          format: int64
+          minimum: 0
+        stale_processing_count:
+          type: integer
+          format: int64
+          minimum: 0
+        oldest_ready_at:
+          type: string
+          format: date-time
+        next_available_at:
+          type: string
+          format: date-time
     QueueStatsEnvelope:
       type: object
       required: [queues]
