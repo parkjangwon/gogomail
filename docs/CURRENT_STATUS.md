@@ -624,6 +624,9 @@ The platform hardening sprint completed the following:
 - Mail API exposes `GET /api/v1/attachments/capabilities` so clients can
   discover upload limits, supported modes, and resumable-upload readiness
   without hard-coded constants.
+- ADR 0007 records the future resumable/chunked upload boundary around explicit
+  upload sessions, quota reservation, storage adapters, final attachment rows,
+  and bounded cleanup.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

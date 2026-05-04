@@ -28,6 +28,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   deleting any stored upload object without waiting for stale cleanup.
 - Attachment upload capability discovery exposes current limits and supported
   modes for future clients without hard-coded constants.
+- ADR 0007 captures the resumable/chunked upload boundary before implementation,
+  keeping session state, quota reservation, staged chunks, final attachment
+  rows, and cleanup responsibilities explicit.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin
