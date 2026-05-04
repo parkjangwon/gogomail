@@ -579,6 +579,7 @@ type UpdatePushNotificationOutcomeRequest struct {
 type PushNotificationStatsRequest struct {
 	MessageID string
 	UserID    string
+	Platform  string
 	Since     time.Time
 }
 
@@ -4219,7 +4220,7 @@ func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotif
 
 	const query = `
 SELECT
-  COALESCE((SELECT COUNT(*) FROM push_devices WHERE status = 'active' AND (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)), 0),
+  COALESCE((SELECT COUNT(*) FROM push_devices WHERE status = 'active' AND (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid) AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))), 0),
   COALESCE(COUNT(*), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'candidate'), 0),
   COALESCE(COUNT(*) FILTER (WHERE status = 'queued'), 0),
@@ -4229,10 +4230,11 @@ SELECT
 FROM push_notification_attempts
 WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
   AND (NULLIF($2, '')::uuid IS NULL OR message_id = NULLIF($2, '')::uuid)
-  AND ($3::timestamptz IS NULL OR attempted_at >= $3::timestamptz)`
+  AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))
+  AND ($4::timestamptz IS NULL OR attempted_at >= $4::timestamptz)`
 
 	var stats PushNotificationStatsView
-	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.MessageID, nullableTime(req.Since)).Scan(
+	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.MessageID, req.Platform, nullableTime(req.Since)).Scan(
 		&stats.ActiveDevices,
 		&stats.TotalAttempts,
 		&stats.Candidate,
@@ -4249,16 +4251,21 @@ WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
 func normalizePushNotificationStatsRequest(req PushNotificationStatsRequest) (PushNotificationStatsRequest, error) {
 	req.MessageID = strings.TrimSpace(req.MessageID)
 	req.UserID = strings.TrimSpace(req.UserID)
+	req.Platform = strings.ToLower(strings.TrimSpace(req.Platform))
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
 	}
 	for field, value := range map[string]string{
 		"message_id": req.MessageID,
 		"user_id":    req.UserID,
+		"platform":   req.Platform,
 	} {
 		if err := validatePushNotificationFilter(field, value); err != nil {
 			return PushNotificationStatsRequest{}, err
 		}
+	}
+	if req.Platform != "" && !allowedPushPlatform(req.Platform) {
+		return PushNotificationStatsRequest{}, fmt.Errorf("unsupported push notification platform")
 	}
 	return req, nil
 }

@@ -324,10 +324,11 @@ Admin operational read models also keep explicit envelope keys:
   and text filters reject CR/LF-bearing or oversized values before service
   dispatch.
 - `GET /admin/v1/push-notification-stats` returns `{"push_notification_stats":{...}}`;
-  optional `message_id` and RFC3339 `since` scope attempt-status totals to one
-  message or recent attempts, while optional `user_id` scopes both active-device
-  and attempt-status totals to one user. Text filters use the same bounded
-  validation.
+  optional `message_id`, `platform`, and RFC3339 `since` scope attempt-status
+  totals to one message, provider platform, or recent attempts, while optional
+  `user_id` scopes both active-device and attempt-status totals to one user.
+  Text filters use the same bounded validation; `platform` is limited to
+  `apns`, `fcm`, or `webpush`.
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`; optional
   `domain_id` rejects CR/LF-bearing or oversized values before service

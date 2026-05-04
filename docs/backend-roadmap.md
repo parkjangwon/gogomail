@@ -567,6 +567,7 @@ Implementation order:
 508. Admin push-notification attempt listing now supports a bounded `message_id` filter so operators can inspect fan-out and provider outcomes for one stored message.
 509. Push notification worker outcome recording now delegates to the shared `maildb` outcome update path used by the Admin API, keeping queued/delivered/failed/invalid-token validation and invalid-token device deletion consistent across internal sinks and provider callbacks.
 510. Admin push-notification stats now supports a bounded `message_id` filter, matching attempt-list drilldowns so operators can summarize one stored message's fan-out outcomes before inspecting individual attempts.
+511. Admin push-notification stats now supports a platform filter limited to `apns`, `fcm`, and `webpush`, letting operators isolate provider-platform fan-out failures without querying raw attempts first.
 
 ## Deferred until backend contracts stabilize
 
