@@ -1428,15 +1428,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Domain statistics
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [stats]
-                properties:
-                  stats:
-                    $ref: "#/components/schemas/DomainStats"
+          $ref: "#/components/responses/DomainStats"
         default:
           $ref: "#/components/responses/Error"
   /domains/{id}/dns-check:
@@ -1963,6 +1955,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainEnvelope"
+    DomainStats:
+      description: Domain statistics envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainStatsEnvelope"
     DomainDNSCheck:
       description: Domain DNS verification envelope
       content:
@@ -4098,6 +4096,12 @@ components:
         suppression_count:
           type: integer
           format: int64
+    DomainStatsEnvelope:
+      type: object
+      required: [stats]
+      properties:
+        stats:
+          $ref: "#/components/schemas/DomainStats"
     Company:
       type: object
       required: [id, name, status, quota_used, quota_remaining, allocated_domain_quota, allocatable_domain_quota, over_allocated, created_at]
