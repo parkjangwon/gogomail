@@ -5505,6 +5505,12 @@ func (r *Repository) CreateDeliveryRoute(ctx context.Context, req CreateDelivery
 		port = 25
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DeliveryRouteView{}, fmt.Errorf("begin delivery route create transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	const query = `
 INSERT INTO delivery_routes (
   domain_pattern, farm, hosts, port, tls_mode, implicit_tls,
@@ -5518,7 +5524,7 @@ RETURNING
   created_at, updated_at`
 
 	var route DeliveryRouteView
-	if err := r.db.QueryRowContext(
+	if err := tx.QueryRowContext(
 		ctx,
 		query,
 		domainPattern,
@@ -5552,6 +5558,23 @@ RETURNING
 	); err != nil {
 		return DeliveryRouteView{}, fmt.Errorf("create delivery route: %w", err)
 	}
+	detail, err := deliveryRouteAuditDetail(route)
+	if err != nil {
+		return DeliveryRouteView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "delivery_route.create",
+		TargetType: "delivery_route",
+		TargetID:   route.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return DeliveryRouteView{}, fmt.Errorf("record delivery route create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return DeliveryRouteView{}, fmt.Errorf("commit delivery route create transaction: %w", err)
+	}
 	return route, nil
 }
 
@@ -5562,17 +5585,60 @@ func (r *Repository) UpdateDeliveryRouteStatus(ctx context.Context, req UpdateDe
 	if err := ValidateUpdateDeliveryRouteStatusRequest(req); err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(ctx, `
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delivery route status transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var route DeliveryRouteView
+	if err := tx.QueryRowContext(ctx, `
 UPDATE delivery_routes
 SET status = $2,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), strings.ToLower(strings.TrimSpace(req.Status)))
-	if err != nil {
+WHERE id = $1
+RETURNING
+  id::text, domain_pattern, farm, hosts, port, tls_mode, implicit_tls,
+  smtp_hello, pool_name, auth_identity, auth_username, status, description,
+  created_at, updated_at`, strings.TrimSpace(req.ID), strings.ToLower(strings.TrimSpace(req.Status))).Scan(
+		&route.ID,
+		&route.DomainPattern,
+		&route.Farm,
+		(*stringArray)(&route.Hosts),
+		&route.Port,
+		&route.TLSMode,
+		&route.ImplicitTLS,
+		&route.SMTPHello,
+		&route.PoolName,
+		&route.AuthIdentity,
+		&route.AuthUsername,
+		&route.Status,
+		&route.Description,
+		&route.CreatedAt,
+		&route.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("delivery route %q not found", req.ID)
+		}
 		return fmt.Errorf("update delivery route status: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("delivery route %q not found", req.ID)
+	detail, err := deliveryRouteAuditDetail(route)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "delivery_route.status_update",
+		TargetType: "delivery_route",
+		TargetID:   route.ID,
+		Result:     route.Status,
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record delivery route status audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delivery route status transaction: %w", err)
 	}
 	return nil
 }
@@ -5674,7 +5740,44 @@ func (r *Repository) DeleteDeliveryRoute(ctx context.Context, id string) error {
 	if id == "" {
 		return fmt.Errorf("delivery route id is required")
 	}
-	result, err := r.db.ExecContext(ctx, `DELETE FROM delivery_routes WHERE id = $1`, id)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delivery route delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var route DeliveryRouteView
+	if err := tx.QueryRowContext(ctx, `
+SELECT
+  id::text, domain_pattern, farm, hosts, port, tls_mode, implicit_tls,
+  smtp_hello, pool_name, auth_identity, auth_username, status, description,
+  created_at, updated_at
+FROM delivery_routes
+WHERE id = $1
+FOR UPDATE`, id).Scan(
+		&route.ID,
+		&route.DomainPattern,
+		&route.Farm,
+		(*stringArray)(&route.Hosts),
+		&route.Port,
+		&route.TLSMode,
+		&route.ImplicitTLS,
+		&route.SMTPHello,
+		&route.PoolName,
+		&route.AuthIdentity,
+		&route.AuthUsername,
+		&route.Status,
+		&route.Description,
+		&route.CreatedAt,
+		&route.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("delivery route %q not found", id)
+		}
+		return fmt.Errorf("read delivery route for deletion: %w", err)
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM delivery_routes WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete delivery route: %w", err)
 	}
@@ -5682,7 +5785,46 @@ func (r *Repository) DeleteDeliveryRoute(ctx context.Context, id string) error {
 	if err == nil && affected == 0 {
 		return fmt.Errorf("delivery route %q not found", id)
 	}
+	detail, err := deliveryRouteAuditDetail(route)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "delivery_route.delete",
+		TargetType: "delivery_route",
+		TargetID:   route.ID,
+		Result:     "deleted",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record delivery route delete audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delivery route delete transaction: %w", err)
+	}
 	return nil
+}
+
+func deliveryRouteAuditDetail(route DeliveryRouteView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"delivery_route_id": route.ID,
+		"domain_pattern":    route.DomainPattern,
+		"farm":              route.Farm,
+		"hosts":             route.Hosts,
+		"port":              route.Port,
+		"tls_mode":          route.TLSMode,
+		"implicit_tls":      route.ImplicitTLS,
+		"smtp_hello":        route.SMTPHello,
+		"pool_name":         route.PoolName,
+		"auth_identity":     route.AuthIdentity,
+		"auth_username":     route.AuthUsername,
+		"status":            route.Status,
+		"description":       route.Description,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal delivery route audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) RetryOutbox(ctx context.Context, id string) error {

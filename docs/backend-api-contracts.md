@@ -444,6 +444,10 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}` with
   optional `status=active|disabled`, `farm`, and `domain_pattern` filters for
   delivery control-plane audits.
+- Delivery route create/status/delete mutations persist `delivery_route.create`,
+  `delivery_route.status_update`, and `delivery_route.delete` admin audit rows
+  with bounded JSON detail in the same database transaction as the gateway
+  policy change. Audit detail excludes relay authentication passwords.
 - `GET /admin/v1/delivery-attempts`,
   `GET /admin/v1/delivery-attempts/stats`, and
   `GET /admin/v1/delivery-attempts/exhausted` support bounded `message_id`,
