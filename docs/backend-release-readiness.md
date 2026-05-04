@@ -31,8 +31,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch.
-- Mail API JSON request bodies reject trailing JSON tokens instead of accepting
-  the first object and ignoring the rest of the body.
+- Mail and Admin API JSON request bodies reject trailing JSON tokens instead of
+  accepting the first object and ignoring the rest of the body.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.
