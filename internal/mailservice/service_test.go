@@ -230,6 +230,79 @@ func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *test
 	}
 }
 
+func TestCanUseSearchIDSourceContract(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		query maildb.MessageSearchQuery
+		want  bool
+	}{
+		{
+			name: "relevance query",
+			query: maildb.MessageSearchQuery{
+				UserID: "user-1",
+				Query:  "hello",
+				Sort:   maildb.MessageSearchSortRelevance,
+			},
+			want: true,
+		},
+		{
+			name: "folder scoped relevance query",
+			query: maildb.MessageSearchQuery{
+				UserID:   "user-1",
+				FolderID: "folder-1",
+				Query:    "hello",
+				Sort:     maildb.MessageSearchSortRelevance,
+			},
+			want: true,
+		},
+		{
+			name: "empty query",
+			query: maildb.MessageSearchQuery{
+				UserID: "user-1",
+				Sort:   maildb.MessageSearchSortRelevance,
+			},
+			want: false,
+		},
+		{
+			name: "default date sort",
+			query: maildb.MessageSearchQuery{
+				UserID: "user-1",
+				Query:  "hello",
+			},
+			want: false,
+		},
+		{
+			name: "explicit date sort",
+			query: maildb.MessageSearchQuery{
+				UserID: "user-1",
+				Query:  "hello",
+				Sort:   maildb.MessageSearchSortDate,
+			},
+			want: false,
+		},
+		{
+			name: "unknown sort",
+			query: maildb.MessageSearchQuery{
+				UserID: "user-1",
+				Query:  "hello",
+				Sort:   "thread",
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := canUseSearchIDSource(tt.query); got != tt.want {
+				t.Fatalf("canUseSearchIDSource() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 type fakeRepository struct {
 	detail                    maildb.MessageDetail
 	imapMessage               maildb.IMAPStoredMessage
