@@ -15,8 +15,11 @@ func TestSummarizeDeliveryAttempts(t *testing.T) {
 		{name: "delivered", attempts: []DeliveryAttemptView{{Status: "delivered"}}, wantDelivery: "delivered", wantBounce: "none"},
 		{name: "retrying", attempts: []DeliveryAttemptView{{Status: "retry"}}, wantDelivery: "retrying", wantBounce: "none"},
 		{name: "failed", attempts: []DeliveryAttemptView{{Status: "failed"}}, wantDelivery: "failed", wantBounce: "none"},
+		{name: "failed temporary enhanced status", attempts: []DeliveryAttemptView{{Status: "failed", EnhancedStatus: "4.7.1"}}, wantDelivery: "retrying", wantBounce: "none"},
+		{name: "failed permanent enhanced status", attempts: []DeliveryAttemptView{{Status: "failed", EnhancedStatus: "5.1.1"}}, wantDelivery: "failed", wantBounce: "none"},
 		{name: "bounced", attempts: []DeliveryAttemptView{{Status: "bounced"}}, wantDelivery: "bounced", wantBounce: "hard"},
 		{name: "partial", attempts: []DeliveryAttemptView{{Status: "delivered"}, {Status: "temporary_failure"}}, wantDelivery: "partial", wantBounce: "none"},
+		{name: "partial failed temporary enhanced status", attempts: []DeliveryAttemptView{{Status: "delivered"}, {Status: "failed", EnhancedStatus: "4.2.0"}}, wantDelivery: "partial", wantBounce: "none"},
 	}
 
 	for _, tt := range tests {
