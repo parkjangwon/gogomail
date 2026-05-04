@@ -119,6 +119,7 @@ type ReceiverOptions struct {
 	DomainPolicyLookup  DomainPolicyLookup
 	Metrics             Metrics
 	RequireAuth         bool
+	DMARCEnforce        bool
 	SupportSMTPUTF8     bool
 	SupportRequireTLS   bool
 	SupportDSN          bool
@@ -145,6 +146,7 @@ type Receiver struct {
 	domainPolicyLookup  DomainPolicyLookup
 	metrics             Metrics
 	requireAuth         bool
+	dmarcEnforce        bool
 	supportSMTPUTF8     bool
 	supportRequireTLS   bool
 	supportDSN          bool
@@ -175,6 +177,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		domainPolicyLookup: opts.DomainPolicyLookup,
 		metrics:            metricsOrDefault(opts.Metrics),
 		requireAuth:       opts.RequireAuth,
+		dmarcEnforce:      opts.DMARCEnforce,
 		supportSMTPUTF8:   opts.SupportSMTPUTF8,
 		supportRequireTLS: opts.SupportRequireTLS,
 		supportDSN:        opts.SupportDSN,
@@ -424,6 +427,9 @@ func (s *session) Data(r io.Reader) (err error) {
 	authCtx := context.WithValue(context.Background(), authenticationRawMessageKey{}, spooled)
 	authResults, err := s.verifyAuthentication(authCtx, parsed, size)
 	if err != nil {
+		return err
+	}
+	if err := enforceDMARCPolicy(s.receiver.dmarcEnforce, authResults); err != nil {
 		return err
 	}
 	if s.receiver.authVerifier != nil {
