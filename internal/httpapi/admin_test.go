@@ -420,6 +420,10 @@ func TestAdminAttachmentCleanupRunHandler(t *testing.T) {
 	before := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
 	service := &fakeAdminService{
 		expiredAttachments: []maildb.Attachment{{ID: "att-1"}, {ID: "att-2"}},
+		staleAttachmentCount: maildb.StaleAttachmentUploadCount{
+			TotalCount:   5,
+			LimitedCount: 2,
+		},
 	}
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
@@ -439,6 +443,46 @@ func TestAdminAttachmentCleanupRunHandler(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"attachment_cleanup_run"`) || !strings.Contains(rec.Body.String(), `"expired_count":2`) {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"candidate_count":5`) || !strings.Contains(rec.Body.String(), `"limited_count":2`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminAttachmentCleanupRunHandlerSupportsDryRun(t *testing.T) {
+	t.Parallel()
+
+	before := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		staleAttachmentCount: maildb.StaleAttachmentUploadCount{
+			TotalCount:   7,
+			LimitedCount: 3,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/attachment-cleanup/runs", strings.NewReader(`{
+		"before": "`+before.Format(time.RFC3339)+`",
+		"limit": 3,
+		"dry_run": true
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastAttachmentCleanupBefore.IsZero() {
+		t.Fatalf("cleanup dispatched for dry run at %s", service.lastAttachmentCleanupBefore)
+	}
+	if !service.lastAttachmentCleanupCountBefore.Equal(before) || service.lastAttachmentCleanupCountLimit != 3 {
+		t.Fatalf("count request = %s/%d", service.lastAttachmentCleanupCountBefore, service.lastAttachmentCleanupCountLimit)
+	}
+	for _, want := range []string{`"dry_run":true`, `"candidate_count":7`, `"limited_count":3`, `"expired_count":0`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body missing %s: %s", want, rec.Body.String())
+		}
 	}
 }
 
@@ -3950,6 +3994,7 @@ type fakeAdminService struct {
 	quotaReconciliation                         []maildb.QuotaReconciliationView
 	quotaCorrection                             maildb.QuotaCorrectionResult
 	expiredAttachments                          []maildb.Attachment
+	staleAttachmentCount                        maildb.StaleAttachmentUploadCount
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -3981,6 +4026,8 @@ type fakeAdminService struct {
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAttachmentCleanupBefore                 time.Time
 	lastAttachmentCleanupLimit                  int
+	lastAttachmentCleanupCountBefore            time.Time
+	lastAttachmentCleanupCountLimit             int
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
 	lastAPIUsageLedgerRetention                 maildb.APIUsageLedgerRetentionRequest
 	lastAPIUsageExportCapabilities              bool
@@ -4162,6 +4209,12 @@ func (f *fakeAdminService) RunAttachmentCleanup(_ context.Context, before time.T
 	f.lastAttachmentCleanupBefore = before
 	f.lastAttachmentCleanupLimit = limit
 	return f.expiredAttachments, nil
+}
+
+func (f *fakeAdminService) CountStaleAttachmentUploads(_ context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error) {
+	f.lastAttachmentCleanupCountBefore = before
+	f.lastAttachmentCleanupCountLimit = limit
+	return f.staleAttachmentCount, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, limit int) ([]maildb.APIUsageDailyView, error) {

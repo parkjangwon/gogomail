@@ -29,6 +29,7 @@ type adminService struct {
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
 	attachmentCleanup           interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
+		CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
 	}
 }
 
@@ -54,6 +55,13 @@ func (s adminService) RunAttachmentCleanup(ctx context.Context, before time.Time
 		return nil, fmt.Errorf("attachment cleanup service is not configured")
 	}
 	return s.attachmentCleanup.ExpireStaleAttachmentUploads(ctx, before, limit)
+}
+
+func (s adminService) CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error) {
+	if s.attachmentCleanup == nil {
+		return maildb.StaleAttachmentUploadCount{}, fmt.Errorf("attachment cleanup service is not configured")
+	}
+	return s.attachmentCleanup.CountStaleAttachmentUploads(ctx, before, limit)
 }
 
 func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

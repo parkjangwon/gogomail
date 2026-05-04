@@ -27,6 +27,11 @@ type ExpireStaleAttachmentUploadsRequest struct {
 	Limit  int
 }
 
+type StaleAttachmentUploadCount struct {
+	TotalCount   int64
+	LimitedCount int64
+}
+
 const (
 	AttachmentCleanupDefaultLimit = 100
 	AttachmentCleanupMaxLimit     = 1000
@@ -329,6 +334,32 @@ WHERE id = $1
 		return nil, fmt.Errorf("commit stale attachment cleanup transaction: %w", err)
 	}
 	return attachments, nil
+}
+
+func (r *Repository) CountStaleAttachmentUploads(ctx context.Context, req ExpireStaleAttachmentUploadsRequest) (StaleAttachmentUploadCount, error) {
+	if r.db == nil {
+		return StaleAttachmentUploadCount{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateExpireStaleAttachmentUploadsRequest(req); err != nil {
+		return StaleAttachmentUploadCount{}, err
+	}
+	limit := NormalizeAttachmentCleanupLimit(req.Limit)
+
+	const query = `
+SELECT COUNT(*)
+FROM attachments
+WHERE status = 'uploading'
+  AND created_at < $1`
+
+	var total int64
+	if err := r.db.QueryRowContext(ctx, query, req.Before.UTC()).Scan(&total); err != nil {
+		return StaleAttachmentUploadCount{}, fmt.Errorf("count stale attachment uploads: %w", err)
+	}
+	limited := total
+	if limited > int64(limit) {
+		limited = int64(limit)
+	}
+	return StaleAttachmentUploadCount{TotalCount: total, LimitedCount: limited}, nil
 }
 
 func NormalizeAttachmentCleanupLimit(limit int) int {

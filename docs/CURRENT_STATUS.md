@@ -611,7 +611,9 @@ The platform hardening sprint completed the following:
   batch sizes use an attachment-specific 1000-row cap instead of the smaller
   message-list pagination cap.
 - Admin API exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated
-  on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff.
+  on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff,
+  and supports `dry_run` preview responses with total and batch-limited
+  candidate counts before destructive cleanup.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment
