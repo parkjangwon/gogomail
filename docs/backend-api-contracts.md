@@ -145,6 +145,11 @@ types fall back to `application/octet-stream` at the download boundary. The
 OpenAPI contract documents the binary media type plus `Content-Disposition` and
 `Cache-Control` response headers for generated clients.
 
+API usage artifact downloads apply the same defensive response-header stance:
+unsafe or blank stored content types fall back to `application/x-ndjson`, and
+the `X-Gogomail-Artifact-SHA256` header is emitted only when the stored digest
+is a valid 64-character lowercase/uppercase hexadecimal SHA-256 value.
+
 ## Push devices
 
 Push notification device tokens are user-scoped Mail API resources:

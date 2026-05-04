@@ -38,6 +38,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `no-store`, and unsafe stored MIME types fall back to
   `application/octet-stream` at the HTTP boundary. OpenAPI documents the binary
   media type and download response headers.
+- API usage artifact downloads sanitize stored content types and SHA-256
+  response headers before streaming handoff objects.
 - API errors use a stable structured envelope with code, message, HTTP status, and HTTP status text.
 - Service info exposes API and backend contract version metadata; readiness exposes a structured checks envelope.
 - Readiness checks now include contract/storage/outbox boundary metadata for deployment automation.

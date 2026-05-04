@@ -1151,6 +1151,36 @@ func TestAdminDownloadAPIUsageExportArtifactHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDownloadAPIUsageExportArtifactHandlerSanitizesHeaders(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifact: maildb.APIUsageExportArtifactView{
+			ID:          "api-usage-artifact-1",
+			BatchID:     "api-usage-export-1",
+			ContentType: "application/x-ndjson\r\nX-Bad: yes",
+			SHA256Hex:   strings.Repeat("a", 63) + "\n",
+		},
+		apiUsageExportArtifactBody: "{}\n",
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1/download", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/x-ndjson" {
+		t.Fatalf("content type = %q", got)
+	}
+	if got := rr.Header().Get("X-Gogomail-Artifact-SHA256"); got != "" {
+		t.Fatalf("sha header = %q", got)
+	}
+}
+
 func TestAdminVerifyAPIUsageExportArtifactHandler(t *testing.T) {
 	t.Parallel()
 

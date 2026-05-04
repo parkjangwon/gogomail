@@ -786,9 +786,13 @@ func asciiAttachmentFilename(filename string) string {
 }
 
 func attachmentContentType(mimeType string) string {
+	return safeContentType(mimeType, "application/octet-stream")
+}
+
+func safeContentType(mimeType string, fallback string) string {
 	mimeType = strings.TrimSpace(mimeType)
 	if mimeType == "" || strings.ContainsAny(mimeType, "\r\n") {
-		return "application/octet-stream"
+		return fallback
 	}
 	return mimeType
 }
