@@ -1080,6 +1080,78 @@ func TestAdminGetAPIUsageExportHandoffReadinessHandlerRejectsBadDeepQuery(t *tes
 	}
 }
 
+func TestAdminAPIUsageExportPathIDsRejectUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	oversizedBatchID := strings.Repeat("b", maxAdminQueryFilterBytes+1)
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{
+			name:   "batch crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export%0Abad",
+		},
+		{
+			name:   "batch oversized",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/" + oversizedBatchID + "/handoff-readiness",
+		},
+		{
+			name:   "create artifact batch crlf",
+			method: http.MethodPost,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export%0Dbad/artifacts",
+		},
+		{
+			name:   "artifact crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact%0Abad",
+		},
+		{
+			name:   "digest crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest%0Abad",
+		},
+		{
+			name:   "signature crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/api-usage-export-1/manifest-digests/api-usage-manifest-1/signatures/api-usage-signature%0Abad",
+		},
+		{
+			name:   "signature verification oversized batch",
+			method: http.MethodGet,
+			path:   "/admin/v1/api-usage/export-batches/" + oversizedBatchID + "/manifest-digests/api-usage-manifest-1/signatures/api-usage-signature-1/verification",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if service.lastAPIUsageExportBatchID != "" || service.lastAPIUsageExportArtifactID != "" || service.lastAPIUsageExportManifestDigestID != "" || service.lastAPIUsageExportManifestSignatureID != "" {
+				t.Fatalf("last ids = %q/%q/%q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportArtifactID, service.lastAPIUsageExportManifestDigestID, service.lastAPIUsageExportManifestSignatureID)
+			}
+			if service.lastCreateAPIUsageExportArtifact.BatchID != "" {
+				t.Fatalf("lastCreateAPIUsageExportArtifact = %+v", service.lastCreateAPIUsageExportArtifact)
+			}
+		})
+	}
+}
+
 func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
 	t.Parallel()
 
