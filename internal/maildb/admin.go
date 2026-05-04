@@ -169,6 +169,12 @@ type DeliveryRouteView struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type DeliveryRouteResolveView struct {
+	Domain  string             `json:"domain"`
+	Matched bool               `json:"matched"`
+	Route   *DeliveryRouteView `json:"route,omitempty"`
+}
+
 type DomainView struct {
 	ID         string    `json:"id"`
 	CompanyID  string    `json:"company_id"`
@@ -1577,6 +1583,21 @@ LIMIT 1`
 		return DeliveryRouteView{}, fmt.Errorf("get delivery route for domain: %w", err)
 	}
 	return route, nil
+}
+
+func (r *Repository) ResolveDeliveryRoute(ctx context.Context, domain string) (DeliveryRouteResolveView, error) {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	if !validAdminDomainName(domain) {
+		return DeliveryRouteResolveView{}, fmt.Errorf("domain must be a domain name")
+	}
+	route, err := r.DeliveryRouteForDomain(ctx, domain)
+	if err != nil {
+		if errors.Is(err, ErrDeliveryRouteNotFound) {
+			return DeliveryRouteResolveView{Domain: domain, Matched: false}, nil
+		}
+		return DeliveryRouteResolveView{}, err
+	}
+	return DeliveryRouteResolveView{Domain: domain, Matched: true, Route: &route}, nil
 }
 
 func (r *Repository) DeleteDeliveryRoute(ctx context.Context, id string) error {

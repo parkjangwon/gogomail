@@ -157,6 +157,7 @@ management:
 
 - `GET /admin/v1/delivery-routes`
 - `POST /admin/v1/delivery-routes`
+- `GET /admin/v1/delivery-routes/resolve?domain=mail.example.net`
 - `PATCH /admin/v1/delivery-routes/{id}/status`
 - `DELETE /admin/v1/delivery-routes/{id}`
 
@@ -164,6 +165,9 @@ Delivery routes accept an exact domain, wildcard suffix such as
 `*.example.net`, or `*` as the domain pattern. Hosts are stored without ports;
 the route-level port, TLS mode, implicit TLS flag, pool name, and optional SMTP
 AUTH identity/username/password keep gateway policy out of SMTP protocol core.
+The resolve endpoint is a dry-run observability surface; it returns
+`{"delivery_route_resolution":{"domain":"...","matched":true|false,"route":...}}`
+without sending mail.
 
 Domain onboarding and deliverability checks include DNS verification:
 

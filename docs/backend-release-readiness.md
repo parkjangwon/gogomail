@@ -21,6 +21,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API supports domain/user list, detail, create, and status updates plus queue, delivery-attempt, suppression, DKIM, retry, and delete operations.
 - Admin API now exposes trusted relay CIDR list/create/delete operations backed by PostgreSQL, preparing inbound SMTP relay policy for auditable runtime administration.
 - Admin API now exposes delivery route list/create/status/delete operations backed by PostgreSQL, preparing gateway and smart-host policy for auditable runtime administration without coupling it to SMTP core.
+- Admin API can dry-run delivery route resolution for a recipient domain, improving runtime route observability without triggering SMTP delivery.
 - Admin API exposes a quota usage pressure read model for domain and user limits so operators can spot backpressure risks before SMTP or Mail API writes start failing.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, establishing a tenant/domain policy contract without hard-coding policy enforcement into SMTP protocol core.
 - DKIM key creation derives the public DNS TXT record from the private key when omitted, reducing operator DNS setup errors while preserving private-key omission from admin list responses.

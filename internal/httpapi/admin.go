@@ -33,6 +33,7 @@ type AdminService interface {
 	DeleteTrustedRelay(ctx context.Context, id string) error
 	ListDeliveryRoutes(ctx context.Context, limit int) ([]maildb.DeliveryRouteView, error)
 	CreateDeliveryRoute(ctx context.Context, req maildb.CreateDeliveryRouteRequest) (maildb.DeliveryRouteView, error)
+	ResolveDeliveryRoute(ctx context.Context, domain string) (maildb.DeliveryRouteResolveView, error)
 	UpdateDeliveryRouteStatus(ctx context.Context, req maildb.UpdateDeliveryRouteStatusRequest) error
 	DeleteDeliveryRoute(ctx context.Context, id string) error
 	ListDKIMKeys(ctx context.Context, domainID string, limit int) ([]maildb.DKIMKeyView, error)
@@ -328,6 +329,15 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"delivery_route": route})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/delivery-routes/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		result, err := service.ResolveDeliveryRoute(r.Context(), r.URL.Query().Get("domain"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"delivery_route_resolution": result})
 	}))
 
 	mux.HandleFunc("PATCH /admin/v1/delivery-routes/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

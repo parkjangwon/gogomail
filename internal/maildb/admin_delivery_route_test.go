@@ -81,3 +81,12 @@ func TestValidateUpdateDeliveryRouteStatusRequest(t *testing.T) {
 		t.Fatal("ValidateUpdateDeliveryRouteStatusRequest accepted unsupported status")
 	}
 }
+
+func TestDeliveryRouteResolveViewCanRepresentDirectFallback(t *testing.T) {
+	t.Parallel()
+
+	view := DeliveryRouteResolveView{Domain: "example.net", Matched: false}
+	if view.Route != nil {
+		t.Fatalf("Route = %+v, want nil for direct fallback", view.Route)
+	}
+}

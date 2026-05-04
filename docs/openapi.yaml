@@ -387,6 +387,21 @@ paths:
           $ref: "#/components/responses/DeliveryRoute"
         default:
           $ref: "#/components/responses/Error"
+  /delivery-routes/resolve:
+    get:
+      operationId: resolveAdminDeliveryRoute
+      summary: Admin resolve the active delivery route for a recipient domain
+      parameters:
+        - name: domain
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/DeliveryRouteResolution"
+        default:
+          $ref: "#/components/responses/Error"
   /delivery-routes/{id}/status:
     patch:
       operationId: updateAdminDeliveryRouteStatus
@@ -745,6 +760,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DeliveryRouteEnvelope"
+    DeliveryRouteResolution:
+      description: Delivery route resolution envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryRouteResolutionEnvelope"
     DKIMKeyList:
       description: DKIM key list envelope
       content:
@@ -1400,6 +1421,22 @@ components:
       properties:
         delivery_route:
           $ref: "#/components/schemas/DeliveryRoute"
+    DeliveryRouteResolution:
+      type: object
+      required: [domain, matched]
+      properties:
+        domain:
+          type: string
+        matched:
+          type: boolean
+        route:
+          $ref: "#/components/schemas/DeliveryRoute"
+    DeliveryRouteResolutionEnvelope:
+      type: object
+      required: [delivery_route_resolution]
+      properties:
+        delivery_route_resolution:
+          $ref: "#/components/schemas/DeliveryRouteResolution"
     DKIMKey:
       type: object
       required: [id, domain_id, selector, public_key_dns, status, created_at, updated_at]

@@ -720,6 +720,34 @@ func TestAdminCreateDeliveryRouteHandler(t *testing.T) {
 	}
 }
 
+func TestAdminResolveDeliveryRouteHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		deliveryRouteResolution: maildb.DeliveryRouteResolveView{
+			Domain:  "mail.example.net",
+			Matched: true,
+			Route:   &maildb.DeliveryRouteView{ID: "route-1", DomainPattern: "*.example.net"},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-routes/resolve?domain=mail.example.net", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastResolveDeliveryRouteDomain != "mail.example.net" {
+		t.Fatalf("lastResolveDeliveryRouteDomain = %q", service.lastResolveDeliveryRouteDomain)
+	}
+	if !strings.Contains(rec.Body.String(), `"delivery_route_resolution"`) {
+		t.Fatalf("response missing delivery_route_resolution envelope: %s", rec.Body.String())
+	}
+}
+
 func TestAdminUpdateDeliveryRouteStatusHandler(t *testing.T) {
 	t.Parallel()
 
@@ -810,6 +838,7 @@ type fakeAdminService struct {
 	suppression               []maildb.SuppressionEntry
 	trustedRelays             []maildb.TrustedRelayView
 	deliveryRoutes            []maildb.DeliveryRouteView
+	deliveryRouteResolution   maildb.DeliveryRouteResolveView
 	dkimKeys                  []maildb.DKIMKeyView
 	createdDKIMKeyID          string
 	lastLimit                 int
@@ -825,6 +854,7 @@ type fakeAdminService struct {
 	lastCreateDKIMKey         maildb.CreateDKIMKeyInput
 	lastCreateTrustedRelay    maildb.CreateTrustedRelayRequest
 	lastCreateDeliveryRoute   maildb.CreateDeliveryRouteRequest
+	lastResolveDeliveryRouteDomain string
 	lastDeliveryRouteStatus   maildb.UpdateDeliveryRouteStatusRequest
 	lastDeactivateDKIMKeyID   string
 	lastRetryOutboxID         string
@@ -960,6 +990,11 @@ func (f *fakeAdminService) CreateDeliveryRoute(_ context.Context, req maildb.Cre
 		TLSMode:       req.TLSMode,
 		Status:        "active",
 	}, nil
+}
+
+func (f *fakeAdminService) ResolveDeliveryRoute(_ context.Context, domain string) (maildb.DeliveryRouteResolveView, error) {
+	f.lastResolveDeliveryRouteDomain = domain
+	return f.deliveryRouteResolution, nil
 }
 
 func (f *fakeAdminService) UpdateDeliveryRouteStatus(_ context.Context, req maildb.UpdateDeliveryRouteStatusRequest) error {
