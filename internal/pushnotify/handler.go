@@ -80,10 +80,15 @@ type CandidateRecorder interface {
 	RecordCandidate(ctx context.Context, record CandidateRecord) (CandidateRecordResult, error)
 }
 
+type OutcomeRecorder interface {
+	RecordOutcome(ctx context.Context, outcome AttemptOutcome) error
+}
+
 type Handler struct {
 	sink           Sink
 	targetResolver TargetResolver
 	recorder       CandidateRecorder
+	outcomes       OutcomeRecorder
 }
 
 type HandlerOption func(*Handler)
@@ -97,6 +102,12 @@ func WithTargetResolver(resolver TargetResolver) HandlerOption {
 func WithCandidateRecorder(recorder CandidateRecorder) HandlerOption {
 	return func(h *Handler) {
 		h.recorder = recorder
+	}
+}
+
+func WithOutcomeRecorder(recorder OutcomeRecorder) HandlerOption {
+	return func(h *Handler) {
+		h.outcomes = recorder
 	}
 }
 
@@ -138,6 +149,20 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 	if err := h.sink.EnqueuePush(ctx, notification); err != nil {
 		return fmt.Errorf("enqueue push notification candidate: %w", err)
+	}
+	if h.outcomes != nil {
+		for _, target := range notification.Targets {
+			attemptID := strings.TrimSpace(target.AttemptID)
+			if attemptID == "" {
+				continue
+			}
+			if err := h.outcomes.RecordOutcome(ctx, AttemptOutcome{
+				AttemptID: attemptID,
+				Status:    "queued",
+			}); err != nil {
+				return fmt.Errorf("record push notification queued outcome: %w", err)
+			}
+		}
 	}
 	return nil
 }

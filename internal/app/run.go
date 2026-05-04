@@ -631,11 +631,13 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	defer redisClient.Close()
 
 	repository := maildb.NewRepository(db)
+	pushRecorder := pushnotify.NewPostgresRecorder(db)
 	router := eventstream.NewRouter()
 	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(
 		pushnotify.SlogSink{Logger: logger},
 		pushnotify.WithTargetResolver(pushnotify.NewDeviceResolver(repository, cfg.PushNotifyDeviceLimit)),
-		pushnotify.WithCandidateRecorder(pushnotify.NewPostgresRecorder(db)),
+		pushnotify.WithCandidateRecorder(pushRecorder),
+		pushnotify.WithOutcomeRecorder(pushRecorder),
 	)); err != nil {
 		return err
 	}
