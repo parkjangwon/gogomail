@@ -64,6 +64,37 @@ func TestStorageReadinessCheckReportsProbeStatus(t *testing.T) {
 	}
 }
 
+func TestNewHTTPServerUsesConfiguredOperationalGuardrails(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Config{
+		HTTPAddr:              ":18080",
+		HTTPReadTimeout:       45 * time.Second,
+		HTTPWriteTimeout:      90 * time.Second,
+		HTTPIdleTimeout:       75 * time.Second,
+		HTTPReadHeaderTimeout: 3 * time.Second,
+		HTTPMaxHeaderBytes:    32 << 10,
+	}
+	handler := http.NewServeMux()
+	server := newHTTPServer(cfg, handler)
+	if server.Addr != ":18080" || server.Handler != handler {
+		t.Fatalf("server identity = addr:%q handler:%T", server.Addr, server.Handler)
+	}
+	if server.ReadTimeout != 45*time.Second ||
+		server.WriteTimeout != 90*time.Second ||
+		server.IdleTimeout != 75*time.Second ||
+		server.ReadHeaderTimeout != 3*time.Second ||
+		server.MaxHeaderBytes != 32<<10 {
+		t.Fatalf("server guardrails = read:%s write:%s idle:%s readHeader:%s maxHeader:%d",
+			server.ReadTimeout,
+			server.WriteTimeout,
+			server.IdleTimeout,
+			server.ReadHeaderTimeout,
+			server.MaxHeaderBytes,
+		)
+	}
+}
+
 func TestLocalStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
 	t.Parallel()
 

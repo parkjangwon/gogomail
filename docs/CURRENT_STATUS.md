@@ -133,6 +133,9 @@ guidance.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share the same storage backend validation, so
   unsupported object-storage settings cannot silently run against local storage.
+- HTTP server runtime guardrails are configurable and validated: read, write,
+  idle, read-header timeout, and maximum header bytes are wired into the shared
+  Mail/Admin/API-metered HTTP server.
 - Admin backpressure overrides now persist bounded hash-chain audit rows after
   Redis state changes, recording previous/current SMTP pressure levels without
   silently accepting unaudited operational receive throttles.

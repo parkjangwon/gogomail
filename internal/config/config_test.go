@@ -8,6 +8,11 @@ import (
 func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ENV", "")
 	t.Setenv("GOGOMAIL_HTTP_ADDR", "")
+	t.Setenv("GOGOMAIL_HTTP_READ_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_HTTP_WRITE_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_HTTP_IDLE_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_HTTP_READ_HEADER_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_HTTP_MAX_HEADER_BYTES", "")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_INBOUND_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "")
@@ -88,6 +93,21 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("HTTPAddr = %q, want :8080", cfg.HTTPAddr)
+	}
+	if cfg.HTTPReadTimeout != 5*time.Minute {
+		t.Fatalf("HTTPReadTimeout = %s, want 5m", cfg.HTTPReadTimeout)
+	}
+	if cfg.HTTPWriteTimeout != 10*time.Minute {
+		t.Fatalf("HTTPWriteTimeout = %s, want 10m", cfg.HTTPWriteTimeout)
+	}
+	if cfg.HTTPIdleTimeout != 2*time.Minute {
+		t.Fatalf("HTTPIdleTimeout = %s, want 2m", cfg.HTTPIdleTimeout)
+	}
+	if cfg.HTTPReadHeaderTimeout != 5*time.Second {
+		t.Fatalf("HTTPReadHeaderTimeout = %s, want 5s", cfg.HTTPReadHeaderTimeout)
+	}
+	if cfg.HTTPMaxHeaderBytes != 64*1024 {
+		t.Fatalf("HTTPMaxHeaderBytes = %d, want 64KiB", cfg.HTTPMaxHeaderBytes)
 	}
 	if cfg.SMTPAddr != ":2525" {
 		t.Fatalf("SMTPAddr = %q, want :2525", cfg.SMTPAddr)
@@ -310,6 +330,11 @@ func TestLoadAppliesDefaults(t *testing.T) {
 func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ENV", "test")
 	t.Setenv("GOGOMAIL_HTTP_ADDR", ":18080")
+	t.Setenv("GOGOMAIL_HTTP_READ_TIMEOUT", "45s")
+	t.Setenv("GOGOMAIL_HTTP_WRITE_TIMEOUT", "90s")
+	t.Setenv("GOGOMAIL_HTTP_IDLE_TIMEOUT", "75s")
+	t.Setenv("GOGOMAIL_HTTP_READ_HEADER_TIMEOUT", "3s")
+	t.Setenv("GOGOMAIL_HTTP_MAX_HEADER_BYTES", "32768")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", ":10025")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "25")
@@ -324,7 +349,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "false")
 	t.Setenv("GOGOMAIL_DATABASE_URL", "postgres://example")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "redis:6379")
-	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "minio")
+	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "local")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "db/migrations")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "mail.example.com")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "50")
@@ -394,6 +419,21 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.HTTPAddr != ":18080" {
 		t.Fatalf("HTTPAddr = %q, want :18080", cfg.HTTPAddr)
 	}
+	if cfg.HTTPReadTimeout != 45*time.Second {
+		t.Fatalf("HTTPReadTimeout = %s, want 45s", cfg.HTTPReadTimeout)
+	}
+	if cfg.HTTPWriteTimeout != 90*time.Second {
+		t.Fatalf("HTTPWriteTimeout = %s, want 90s", cfg.HTTPWriteTimeout)
+	}
+	if cfg.HTTPIdleTimeout != 75*time.Second {
+		t.Fatalf("HTTPIdleTimeout = %s, want 75s", cfg.HTTPIdleTimeout)
+	}
+	if cfg.HTTPReadHeaderTimeout != 3*time.Second {
+		t.Fatalf("HTTPReadHeaderTimeout = %s, want 3s", cfg.HTTPReadHeaderTimeout)
+	}
+	if cfg.HTTPMaxHeaderBytes != 32768 {
+		t.Fatalf("HTTPMaxHeaderBytes = %d, want 32768", cfg.HTTPMaxHeaderBytes)
+	}
 	if cfg.SMTPAddr != ":10025" {
 		t.Fatalf("SMTPAddr = %q, want :10025", cfg.SMTPAddr)
 	}
@@ -436,8 +476,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("RedisAddr = %q, want redis:6379", cfg.RedisAddr)
 	}
-	if cfg.StorageBackend != "minio" {
-		t.Fatalf("StorageBackend = %q, want minio", cfg.StorageBackend)
+	if cfg.StorageBackend != "local" {
+		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)
 	}
 	if cfg.MigrationDir != "db/migrations" {
 		t.Fatalf("MigrationDir = %q, want db/migrations", cfg.MigrationDir)
