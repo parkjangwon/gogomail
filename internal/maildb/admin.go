@@ -1559,20 +1559,27 @@ func (r *Repository) UpdateDomainQuota(ctx context.Context, req UpdateDomainQuot
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx, `
+	var view domainQuotaAuditView
+	if err := tx.QueryRowContext(ctx, `
 UPDATE domains
 SET quota_limit = NULLIF($2, 0),
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
-	if err != nil {
+WHERE id = $1
+RETURNING id::text, company_id::text, name, COALESCE(quota_limit, 0)`, strings.TrimSpace(req.ID), req.QuotaLimit).Scan(
+		&view.ID,
+		&view.CompanyID,
+		&view.Name,
+		&view.QuotaLimit,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("domain %q not found", req.ID)
+		}
 		return fmt.Errorf("update domain quota: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("domain %q not found", req.ID)
 	}
 	if req.DefaultUserQuota != nil {
 		defaultQuota := *req.DefaultUserQuota
+		view.DefaultUserQuotaSet = true
+		view.DefaultUserQuota = defaultQuota
 		if _, err := tx.ExecContext(ctx, `
 UPDATE domains
 SET settings = jsonb_set(settings, '{policy,default_user_quota}', to_jsonb($2::bigint), true),
@@ -1580,14 +1587,34 @@ SET settings = jsonb_set(settings, '{policy,default_user_quota}', to_jsonb($2::b
 WHERE id = $1`, strings.TrimSpace(req.ID), defaultQuota); err != nil {
 			return fmt.Errorf("update domain default user quota: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `
+		result, err := tx.ExecContext(ctx, `
 UPDATE users
 SET quota_limit = NULLIF($2, 0),
     updated_at = now()
 WHERE domain_id = $1
-  AND quota_source = 'default'`, strings.TrimSpace(req.ID), defaultQuota); err != nil {
+  AND quota_source = 'default'`, strings.TrimSpace(req.ID), defaultQuota)
+		if err != nil {
 			return fmt.Errorf("apply domain default user quota: %w", err)
 		}
+		if affected, err := result.RowsAffected(); err == nil {
+			view.DefaultUserQuotaUserUpdates = affected
+		}
+	}
+	detail, err := domainQuotaAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.CompanyID,
+		DomainID:   view.ID,
+		Category:   "admin",
+		Action:     "domain.quota_update",
+		TargetType: "domain",
+		TargetID:   view.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record domain quota audit: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit update domain quota transaction: %w", err)
@@ -1707,17 +1734,47 @@ func (r *Repository) UpdateCompanyQuota(ctx context.Context, req UpdateCompanyQu
 	if err := ValidateUpdateCompanyQuotaRequest(req); err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(ctx, `
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin company quota transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var view companyQuotaAuditView
+	if err := tx.QueryRowContext(ctx, `
 UPDATE companies
 SET quota_limit = NULLIF($2, 0),
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit)
-	if err != nil {
+WHERE id = $1
+RETURNING id::text, name, status, COALESCE(quota_limit, 0)`, strings.TrimSpace(req.ID), req.QuotaLimit).Scan(
+		&view.ID,
+		&view.Name,
+		&view.Status,
+		&view.QuotaLimit,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("company %q not found", req.ID)
+		}
 		return fmt.Errorf("update company quota: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("company %q not found", req.ID)
+	detail, err := companyQuotaAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.ID,
+		Category:   "admin",
+		Action:     "company.quota_update",
+		TargetType: "company",
+		TargetID:   view.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record company quota audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit company quota transaction: %w", err)
 	}
 	return nil
 }
@@ -1824,7 +1881,15 @@ func (r *Repository) UpdateUserQuota(ctx context.Context, req UpdateUserQuotaReq
 		return err
 	}
 	quotaSource, _ := normalizeQuotaSource(req.QuotaSource, "custom")
-	result, err := r.db.ExecContext(ctx, `
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin user quota transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var view userQuotaAuditView
+	if err := tx.QueryRowContext(ctx, `
 UPDATE users u
 SET quota_limit = CASE
       WHEN $3 = 'default' THEN NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
@@ -1834,13 +1899,39 @@ SET quota_limit = CASE
     updated_at = now()
 FROM domains d
 WHERE u.domain_id = d.id
-  AND u.id = $1`, strings.TrimSpace(req.ID), req.QuotaLimit, quotaSource)
-	if err != nil {
+  AND u.id = $1
+RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, COALESCE(u.quota_limit, 0), u.quota_source`, strings.TrimSpace(req.ID), req.QuotaLimit, quotaSource).Scan(
+		&view.ID,
+		&view.DomainID,
+		&view.CompanyID,
+		&view.Username,
+		&view.QuotaLimit,
+		&view.QuotaSource,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("user %q not found", req.ID)
+		}
 		return fmt.Errorf("update user quota: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("user %q not found", req.ID)
+	detail, err := userQuotaAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.CompanyID,
+		DomainID:   view.DomainID,
+		UserID:     view.ID,
+		Category:   "admin",
+		Action:     "user.quota_update",
+		TargetType: "user",
+		TargetID:   view.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record user quota audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit user quota transaction: %w", err)
 	}
 	return nil
 }
@@ -1909,6 +2000,76 @@ func userStatusAuditDetail(view userStatusAuditView) (json.RawMessage, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal user status audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type companyQuotaAuditView struct {
+	ID         string
+	Name       string
+	Status     string
+	QuotaLimit int64
+}
+
+func companyQuotaAuditDetail(view companyQuotaAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"company_id":  view.ID,
+		"name":        view.Name,
+		"status":      view.Status,
+		"quota_limit": view.QuotaLimit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal company quota audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type domainQuotaAuditView struct {
+	ID                          string
+	CompanyID                   string
+	Name                        string
+	QuotaLimit                  int64
+	DefaultUserQuotaSet         bool
+	DefaultUserQuota            int64
+	DefaultUserQuotaUserUpdates int64
+}
+
+func domainQuotaAuditDetail(view domainQuotaAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"domain_id":                       view.ID,
+		"company_id":                      view.CompanyID,
+		"name":                            view.Name,
+		"quota_limit":                     view.QuotaLimit,
+		"default_user_quota_set":          view.DefaultUserQuotaSet,
+		"default_user_quota":              view.DefaultUserQuota,
+		"default_user_quota_user_updates": view.DefaultUserQuotaUserUpdates,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal domain quota audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type userQuotaAuditView struct {
+	ID          string
+	DomainID    string
+	CompanyID   string
+	Username    string
+	QuotaLimit  int64
+	QuotaSource string
+}
+
+func userQuotaAuditDetail(view userQuotaAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"user_id":      view.ID,
+		"domain_id":    view.DomainID,
+		"company_id":   view.CompanyID,
+		"username":     view.Username,
+		"quota_limit":  view.QuotaLimit,
+		"quota_source": view.QuotaSource,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal user quota audit detail: %w", err)
 	}
 	return detail, nil
 }

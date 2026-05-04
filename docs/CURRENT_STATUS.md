@@ -290,6 +290,9 @@ guidance.
 - Domain and user lifecycle status updates now write hash-chain audit rows in
   the same database transaction as the status change, scoped by company/domain
   identifiers for tenant forensics.
+- Company, domain, and user quota mutations now write hash-chain audit rows in
+  the same database transaction as the quota change, including domain default
+  user quota propagation counts for quota forensics.
 - Admin API exposes a bounded audit-log integrity check that recomputes recent
   row hashes and reports hash or in-window prev-hash breaks without mutating the
   audit trail.

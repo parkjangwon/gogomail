@@ -656,6 +656,7 @@ Implementation order:
 596. Delivery route create/status/delete mutations now persist hash-chain admin audit rows in the same database transaction as the gateway policy change, while excluding relay authentication passwords from audit detail.
 597. DKIM key create/upsert, deactivate, and DNS-verification mutations now persist hash-chain admin audit rows in the same database transaction as the key lifecycle change, while excluding private key material from audit detail.
 598. Domain and user lifecycle status updates now persist hash-chain admin audit rows in the same database transaction as the status change, scoped by company/domain identifiers for tenant forensics.
+599. Company, domain, and user quota mutations now persist hash-chain admin audit rows in the same database transaction as the quota change, including domain default user quota propagation counts for quota forensics.
 
 ## Deferred until backend contracts stabilize
 

@@ -345,6 +345,11 @@ ledgers atomically inside the same PostgreSQL transaction for mail storage
 growth/delete flows and attachment upload/cleanup flows. User quota responses
 expose `quota_source` as `default|custom`, and domain quota updates may carry
 `default_user_quota`.
+Company, domain, and user quota mutations persist `company.quota_update`,
+`domain.quota_update`, and `user.quota_update` admin audit rows with bounded
+JSON detail in the same database transaction as the quota change. Domain quota
+audit detail includes the number of default-following user rows updated when a
+new default user quota is propagated.
 Domain policy updates store a backend-only operational model under
 `domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
 and optional max-recipient/max-message-byte/max-attachment-byte guardrail hints. SMTP core should
