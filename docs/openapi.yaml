@@ -674,6 +674,56 @@ paths:
           $ref: "#/components/responses/APIUsageExportArtifact"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/manifest-digests:
+    get:
+      operationId: listAdminAPIUsageExportManifestDigests
+      summary: List canonical API usage export manifest digests for a batch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportManifestDigestList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminAPIUsageExportManifestDigest
+      summary: Create a canonical API usage export manifest digest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/APIUsageExportManifestDigest"
+        default:
+          $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/manifest-digests/{digest_id}:
+    get:
+      operationId: getAdminAPIUsageExportManifestDigest
+      summary: API usage export manifest digest detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: digest_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportManifestDigest"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1372,6 +1422,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportArtifactListEnvelope"
+    APIUsageExportManifestDigest:
+      description: Canonical API usage export manifest digest envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportManifestDigestEnvelope"
+    APIUsageExportManifestDigestList:
+      description: Canonical API usage export manifest digest list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportManifestDigestListEnvelope"
     APIUsageExportBatch:
       description: API usage export batch manifest envelope
       content:
@@ -2574,6 +2636,43 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageExportArtifact"
+    APIUsageExportManifestDigest:
+      type: object
+      required: [id, batch_id, created_at, schema_version, digest_algorithm, digest_hex, manifest]
+      properties:
+        id:
+          type: string
+        batch_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        schema_version:
+          type: string
+          enum: [2026-05-04.api-usage-export-manifest.v1]
+        digest_algorithm:
+          type: string
+          enum: [sha256]
+        digest_hex:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        manifest:
+          type: object
+          additionalProperties: true
+    APIUsageExportManifestDigestEnvelope:
+      type: object
+      required: [api_usage_export_manifest_digest]
+      properties:
+        api_usage_export_manifest_digest:
+          $ref: "#/components/schemas/APIUsageExportManifestDigest"
+    APIUsageExportManifestDigestListEnvelope:
+      type: object
+      required: [api_usage_export_manifest_digests]
+      properties:
+        api_usage_export_manifest_digests:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageExportManifestDigest"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
