@@ -1624,10 +1624,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Bearer authentication headers are size-bounded before JWT parsing.
     adminToken:
       type: apiKey
       in: header
       name: X-Admin-Token
+      description: Admin token headers are size-bounded before token comparison.
   responses:
     Health:
       description: Process is alive

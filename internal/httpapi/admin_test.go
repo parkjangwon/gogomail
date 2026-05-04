@@ -2130,6 +2130,47 @@ func TestAdminAuthRejectsWrongLengthToken(t *testing.T) {
 	}
 }
 
+func TestAdminAuthRejectsOversizedAuthorizationHeaders(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		header string
+		value  string
+	}{
+		{
+			name:   "bearer",
+			header: "Authorization",
+			value:  strings.Repeat("a", maxHTTPAuthHeaderBytes+1),
+		},
+		{
+			name:   "admin_token",
+			header: "X-Admin-Token",
+			value:  strings.Repeat("a", maxHTTPAuthHeaderBytes+1),
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{
+				queueStats: []maildb.QueueStat{{Topic: "mail.outbound.general", Status: "pending", Count: 1}},
+			}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "secret")
+
+			req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+			req.Header.Set(tc.header, tc.value)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestAdminDomainsHandler(t *testing.T) {
 	t.Parallel()
 

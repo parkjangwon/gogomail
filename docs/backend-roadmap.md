@@ -526,6 +526,7 @@ Implementation order:
 467. Mail API message-list `folder_id` and search text/filter query parameters now reject CR/LF-bearing or oversized values before service dispatch.
 468. Mail API bearer JWT `user_id` and `sub` identities now reject CR/LF-bearing or oversized values during signing and verification before request scoping.
 469. Mail API bearer JWT verification now rejects oversized token, header, payload, and signature segments before base64 decoding.
+470. Mail and Admin API authentication headers now reject oversized `Authorization` and `X-Admin-Token` values before bearer parsing, JWT decoding, or token comparison.
 
 ## Deferred until backend contracts stabilize
 

@@ -1331,7 +1331,11 @@ func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 		return next
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !constantTimeTokenEqual(adminTokenFromRequest(r), token) {
+		got, ok := adminTokenFromRequest(w, r)
+		if !ok {
+			return
+		}
+		if !constantTimeTokenEqual(got, token) {
 			writeError(w, http.StatusUnauthorized, "admin token is required")
 			return
 		}
@@ -1507,13 +1511,21 @@ func parseBoundedAdminPathTriple(w http.ResponseWriter, r *http.Request, firstKe
 	return first, second, third, true
 }
 
-func adminTokenFromRequest(r *http.Request) string {
+func adminTokenFromRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
 	if value := strings.TrimSpace(r.Header.Get("X-Admin-Token")); value != "" {
-		return value
+		if len(value) > maxHTTPAuthHeaderBytes {
+			writeError(w, http.StatusBadRequest, "X-Admin-Token is too long")
+			return "", false
+		}
+		return value, true
 	}
 	auth := strings.TrimSpace(r.Header.Get("Authorization"))
-	if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
-		return strings.TrimSpace(auth[len("bearer "):])
+	if len(auth) > maxHTTPAuthHeaderBytes {
+		writeError(w, http.StatusBadRequest, "Authorization is too long")
+		return "", false
 	}
-	return ""
+	if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+		return strings.TrimSpace(auth[len("bearer "):]), true
+	}
+	return "", true
 }

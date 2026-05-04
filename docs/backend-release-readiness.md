@@ -162,6 +162,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   identities are whitespace-normalized and blank, CR/LF-bearing, or oversized
   identities are rejected during signing and verification; and future `iat`
   values beyond a one-minute skew are rejected.
+- Mail/Admin authentication headers are size-bounded before bearer parsing,
+  JWT decoding, or admin-token comparison.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed
