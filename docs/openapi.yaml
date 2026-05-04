@@ -547,6 +547,46 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerStats"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches:
+    get:
+      operationId: listAdminAPIUsageExportBatches
+      summary: Admin API usage export batch manifests
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportBatchList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminAPIUsageExportBatch
+      summary: Create an API usage export batch manifest checkpoint
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: principal_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 event timestamp lower bound.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive RFC3339 event timestamp upper bound.
+      responses:
+        "201":
+          $ref: "#/components/responses/APIUsageExportBatch"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
@@ -1233,6 +1273,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerStatsEnvelope"
+    APIUsageExportBatch:
+      description: API usage export batch manifest envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportBatchEnvelope"
+    APIUsageExportBatchList:
+      description: API usage export batch manifest list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIUsageExportBatchListEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -2275,6 +2327,81 @@ components:
       properties:
         api_usage_ledger_stats:
           $ref: "#/components/schemas/APIUsageLedgerStats"
+    APIUsageExportBatch:
+      type: object
+      required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        export_format:
+          type: string
+          enum: [ndjson]
+        tenant_id:
+          type: string
+        principal_id:
+          type: string
+        window_start:
+          type: string
+          format: date-time
+        window_end:
+          type: string
+          format: date-time
+        event_count:
+          type: integer
+          format: int64
+          minimum: 0
+        request_count:
+          type: integer
+          format: int64
+          minimum: 0
+        request_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        response_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_total:
+          type: integer
+          format: int64
+          minimum: 0
+        latency_ms_max:
+          type: integer
+          format: int64
+          minimum: 0
+        first_event_at:
+          type: string
+          format: date-time
+        last_event_at:
+          type: string
+          format: date-time
+        manifest:
+          type: object
+          additionalProperties: true
+    APIUsageExportBatchEnvelope:
+      type: object
+      required: [api_usage_export_batch]
+      properties:
+        api_usage_export_batch:
+          $ref: "#/components/schemas/APIUsageExportBatch"
+    APIUsageExportBatchListEnvelope:
+      type: object
+      required: [api_usage_export_batches]
+      properties:
+        api_usage_export_batches:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageExportBatch"
     QuotaReconciliation:
       type: object
       required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
