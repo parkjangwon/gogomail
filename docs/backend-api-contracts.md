@@ -364,7 +364,9 @@ current backend contract until an OpenSearch query adapter is added. The
 OpenSearch writer includes a strict bootstrap mapping for the indexed document
 shape so deployments can create the index before enabling the worker, or set
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true` to have the worker ensure it
-at startup.
+at startup. OpenSearch query-side groundwork can return ranked message IDs, but
+those IDs still need Postgres metadata hydration before the Mail API search
+contract can switch read backends.
 
 ## Deferred from this contract
 

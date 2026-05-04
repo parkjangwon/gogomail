@@ -70,10 +70,13 @@ Current state:
   query adapter work.
 - `search-index-worker` can bootstrap that mapping on startup with
   `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
+- OpenSearch query-side groundwork can return ranked message IDs scoped to a
+  user.
 
 Next:
 
-- Add an OpenSearch query adapter behind the Mail API search contract.
+- Hydrate OpenSearch message ID search results through Postgres message
+  metadata before exposing OpenSearch on the Mail API search path.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning
