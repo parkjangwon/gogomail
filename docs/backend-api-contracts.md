@@ -102,7 +102,9 @@ Errors use the stable envelope:
   for local SMTP Submission authentication. Supported formats are the existing
   `pbkdf2-sha256`, legacy/dev `sha256:`, and explicit `plain:` development
   fixture formats; unsupported, CR/LF-bearing, or oversized hash strings are
-  rejected before storage.
+  rejected before storage. User list/detail/create responses expose
+  `password_configured` for operator visibility without returning stored
+  password hashes.
 
 ## Pagination
 

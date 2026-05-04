@@ -721,17 +721,18 @@ type DomainView struct {
 }
 
 type UserView struct {
-	ID             string    `json:"id"`
-	DomainID       string    `json:"domain_id"`
-	Username       string    `json:"username"`
-	DisplayName    string    `json:"display_name"`
-	Role           string    `json:"role"`
-	Status         string    `json:"status"`
-	QuotaUsed      int64     `json:"quota_used"`
-	QuotaLimit     int64     `json:"quota_limit,omitempty"`
-	QuotaRemaining int64     `json:"quota_remaining"`
-	QuotaSource    string    `json:"quota_source"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID                 string    `json:"id"`
+	DomainID           string    `json:"domain_id"`
+	Username           string    `json:"username"`
+	DisplayName        string    `json:"display_name"`
+	Role               string    `json:"role"`
+	Status             string    `json:"status"`
+	PasswordConfigured bool      `json:"password_configured"`
+	QuotaUsed          int64     `json:"quota_used"`
+	QuotaLimit         int64     `json:"quota_limit,omitempty"`
+	QuotaRemaining     int64     `json:"quota_remaining"`
+	QuotaSource        string    `json:"quota_source"`
+	CreatedAt          time.Time `json:"created_at"`
 }
 
 type DomainPolicyView struct {
@@ -1185,7 +1186,7 @@ SELECT
   $6
 FROM domains d
 WHERE d.id = $1
-RETURNING id::text, domain_id::text, username, display_name, role, status, quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
+RETURNING id::text, domain_id::text, username, display_name, role, status, COALESCE(password_hash, '') <> '', quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
 
 	var user UserView
 	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), strings.TrimSpace(req.PasswordHash), req.QuotaLimit, quotaSource).Scan(
@@ -1195,6 +1196,7 @@ RETURNING id::text, domain_id::text, username, display_name, role, status, quota
 		&user.DisplayName,
 		&user.Role,
 		&user.Status,
+		&user.PasswordConfigured,
 		&user.QuotaUsed,
 		&user.QuotaLimit,
 		&user.QuotaSource,
@@ -1622,6 +1624,7 @@ SELECT
   display_name,
   role,
   status,
+  COALESCE(password_hash, '') <> '' AS password_configured,
   quota_used,
   COALESCE(quota_limit, 0),
   quota_source,
@@ -1647,6 +1650,7 @@ LIMIT $2`
 			&user.DisplayName,
 			&user.Role,
 			&user.Status,
+			&user.PasswordConfigured,
 			&user.QuotaUsed,
 			&user.QuotaLimit,
 			&user.QuotaSource,
@@ -1680,6 +1684,7 @@ SELECT
   display_name,
   role,
   status,
+  COALESCE(password_hash, '') <> '' AS password_configured,
   quota_used,
   COALESCE(quota_limit, 0),
   quota_source,
@@ -1696,6 +1701,7 @@ LIMIT 1`
 		&user.DisplayName,
 		&user.Role,
 		&user.Status,
+		&user.PasswordConfigured,
 		&user.QuotaUsed,
 		&user.QuotaLimit,
 		&user.QuotaSource,

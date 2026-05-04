@@ -629,6 +629,7 @@ Implementation order:
 569. `gogomail --mode=imap` now initializes a service-backed IMAP gateway scaffold with a process-local mailbox event broker while keeping the TCP IMAP protocol listener deferred.
 570. `gogomail --mode=all-in-one` now registers Mail API and Admin API routes in one HTTP process, making the documented single-node mode usable for local release smoke tests.
 571. Admin user creation and password-hash rotation now accept validated `password_hash` values, giving operators a supported path to create and maintain SMTP Submission-capable local users without direct database writes.
+572. Admin user read models now expose `password_configured`, giving operators safe visibility into Submission login readiness without returning password hashes.
 
 ## Deferred until backend contracts stabilize
 

@@ -636,6 +636,22 @@ func TestOpenAPIDraftDocumentsUserPasswordHashInput(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsUserPasswordConfiguredReadModel(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	block := extractOpenAPIComponentBlock(t, draft, "schemas", "User")
+	for _, want := range []string{"password_configured", "type: boolean"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("User schema does not document %q:\n%s", want, block)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsAdminStatusEnums(t *testing.T) {
 	t.Parallel()
 
