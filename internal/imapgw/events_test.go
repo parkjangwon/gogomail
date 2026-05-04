@@ -50,6 +50,75 @@ func TestMailboxEventBrokerCancelClosesSubscription(t *testing.T) {
 	}
 }
 
+func TestMailboxEventBrokerPublishDoesNotBlockOnSlowSubscriber(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(0)
+	events, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1})
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Publish returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Publish blocked on an unread unbuffered subscriber")
+	}
+
+	select {
+	case got := <-events:
+		t.Fatalf("slow subscriber unexpectedly received non-blocking event: %#v", got)
+	default:
+	}
+}
+
+func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	ctx, cancelContext := context.WithCancel(context.Background())
+	events, cancelSubscription, err := broker.Subscribe(ctx, "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancelSubscription()
+
+	cancelContext()
+	select {
+	case _, ok := <-events:
+		if ok {
+			t.Fatal("subscription channel is still open after context cancellation")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for subscription close")
+	}
+
+	if err := broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1}); err != nil {
+		t.Fatalf("Publish after cancellation returned error: %v", err)
+	}
+}
+
+func TestMailboxEventBrokerRejectsCanceledPublishContext(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := broker.Publish(ctx, MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1}); err == nil {
+		t.Fatal("Publish accepted canceled context")
+	}
+}
+
 func TestMailboxEventBrokerRejectsBlankSubscription(t *testing.T) {
 	t.Parallel()
 
