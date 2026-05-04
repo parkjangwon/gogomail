@@ -35,10 +35,10 @@ guidance.
   domain DNS checks, and policy-bearing domain settings.
 - Admin APIs for domains, users, quotas, DKIM keys, trusted relays, delivery
   routes, delivery route resolution, queue stats, delivery attempts,
-  suppression list, quota usage, domain DNS checks/history, backpressure
-  inspection/update, domain policy, per-domain stats, DKIM DNS verification,
-  delivery route runtime counters, and exhausted delivery attempts with
-  recipient-domain and recent-window filters.
+  outbox event metadata, suppression list, quota usage, domain DNS
+  checks/history, backpressure inspection/update, domain policy, per-domain
+  stats, DKIM DNS verification, delivery route runtime counters, and exhausted
+  delivery attempts with recipient-domain and recent-window filters.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, thread lists/thread messages, plus user-scoped sent-message
   delivery/bounce status.

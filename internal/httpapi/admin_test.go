@@ -44,6 +44,81 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 }
 
+func TestAdminOutboxEventsHandler(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		outboxEvents: []maildb.OutboxEventView{{
+			ID:           "outbox-1",
+			Topic:        "mail.event",
+			PartitionKey: "msg-1",
+			Status:       "pending",
+			Attempts:     1,
+			CreatedAt:    now,
+			AvailableAt:  now,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?limit=10&topic=mail.event&status=pending&since=2026-05-04T00:00:00Z", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Events []maildb.OutboxEventView `json:"outbox_events"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Events) != 1 || body.Events[0].ID != "outbox-1" {
+		t.Fatalf("outbox_events = %+v", body.Events)
+	}
+	if service.lastOutboxEventList.Limit != 10 || service.lastOutboxEventList.Topic != "mail.event" || service.lastOutboxEventList.Status != "pending" || service.lastOutboxEventList.Since.IsZero() {
+		t.Fatalf("lastOutboxEventList = %+v", service.lastOutboxEventList)
+	}
+}
+
+func TestAdminOutboxEventsHandlerRejectsInvalidSince(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?since=not-a-time", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "since must be RFC3339 timestamp") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminOutboxEventsHandlerRejectsInvalidStatus(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?status=stuck", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "unsupported outbox status") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminBackpressureHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2534,6 +2609,7 @@ type fakeAdminService struct {
 	dnsChecks                                   []maildb.DomainDNSCheckView
 	users                                       []maildb.UserView
 	queueStats                                  []maildb.QueueStat
+	outboxEvents                                []maildb.OutboxEventView
 	quotaUsage                                  []maildb.QuotaUsageView
 	apiUsageDaily                               []maildb.APIUsageDailyView
 	apiUsageMonthly                             []maildb.APIUsageMonthlyView
@@ -2571,6 +2647,7 @@ type fakeAdminService struct {
 	backpressureState                           backpressure.State
 	createdDKIMKeyID                            string
 	lastLimit                                   int
+	lastOutboxEventList                         maildb.OutboxEventListRequest
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
@@ -2719,6 +2796,14 @@ func (f *fakeAdminService) UpdateUserQuota(_ context.Context, req maildb.UpdateU
 
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {
 	return f.queueStats, nil
+}
+
+func (f *fakeAdminService) ListOutboxEvents(_ context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error) {
+	f.lastOutboxEventList = req
+	if req.Status != "" && req.Status != "pending" && req.Status != "processing" && req.Status != "done" && req.Status != "failed" {
+		return nil, fmt.Errorf("unsupported outbox status")
+	}
+	return f.outboxEvents, nil
 }
 
 func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {
