@@ -50,6 +50,7 @@ type AdminService interface {
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
 	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error)
 	GetAuditLog(ctx context.Context, id string) (maildb.AuditLogView, error)
+	CheckAuditLogIntegrity(ctx context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error)
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
@@ -556,6 +557,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"audit_logs": logs})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/audit-logs/integrity", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		since, ok := parseOptionalRFC3339Query(w, r, "since")
+		if !ok {
+			return
+		}
+		view, err := service.CheckAuditLogIntegrity(r.Context(), maildb.AuditLogIntegrityRequest{
+			Limit: limit,
+			Since: since,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"audit_log_integrity": view})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

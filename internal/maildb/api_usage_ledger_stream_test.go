@@ -58,6 +58,10 @@ func TestAuditLogReadsRejectNilDatabase(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("view = %+v err = %v", view, err)
 	}
+	integrity, err := (&Repository{}).CheckAuditLogIntegrity(context.Background(), AuditLogIntegrityRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("integrity = %+v err = %v", integrity, err)
+	}
 }
 
 func TestNormalizeAPIUsageLedgerRetentionLimit(t *testing.T) {

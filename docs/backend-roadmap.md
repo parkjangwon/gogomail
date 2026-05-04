@@ -620,6 +620,7 @@ Implementation order:
 560. Quota reconciliation corrections now record bounded audit-log detail for dry-run and applied attempts, including before/after drift counts and samples in the same correction transaction.
 561. Admin API now exposes bounded audit-log list/detail reads with operational filters, making persisted audit records inspectable without direct database access.
 562. Domain DNS check and quota reconciliation correction audit records now reuse the shared audit hash-chain writer, avoiding empty-hash audit rows in operator-visible trails.
+563. Admin API now exposes a bounded audit-log integrity check that recomputes row hashes and reports hash-chain breaks for recent audit windows.
 
 ## Deferred until backend contracts stabilize
 

@@ -390,6 +390,64 @@ func TestAdminAuditLogsHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminAuditLogIntegrityHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		auditLogIntegrity: maildb.AuditLogIntegrityView{
+			CheckedCount: 2,
+			Valid:        true,
+			FirstID:      "audit-1",
+			LastID:       "audit-2",
+			Breaks:       []maildb.AuditLogIntegrityBreak{},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs/integrity?limit=25&since=2026-05-04T00:00:00Z", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Integrity maildb.AuditLogIntegrityView `json:"audit_log_integrity"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.Integrity.Valid || body.Integrity.CheckedCount != 2 {
+		t.Fatalf("audit_log_integrity = %+v", body.Integrity)
+	}
+	if service.lastAuditLogIntegrity.Limit != 25 || service.lastAuditLogIntegrity.Since.IsZero() {
+		t.Fatalf("lastAuditLogIntegrity = %+v", service.lastAuditLogIntegrity)
+	}
+	if service.lastAuditLogID != "" {
+		t.Fatalf("integrity route dispatched detail id = %q", service.lastAuditLogID)
+	}
+}
+
+func TestAdminAuditLogIntegrityHandlerRejectsInvalidSince(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs/integrity?since=bad-time", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastAuditLogIntegrity.Limit != 0 {
+		t.Fatalf("lastAuditLogIntegrity = %+v", service.lastAuditLogIntegrity)
+	}
+}
+
 func TestAdminAuditLogDetailHandler(t *testing.T) {
 	t.Parallel()
 
@@ -4418,6 +4476,7 @@ type fakeAdminService struct {
 	outboxEvent                                 maildb.OutboxEventView
 	auditLogs                                   []maildb.AuditLogView
 	auditLog                                    maildb.AuditLogView
+	auditLogIntegrity                           maildb.AuditLogIntegrityView
 	quotaUsage                                  []maildb.QuotaUsageView
 	apiUsageDaily                               []maildb.APIUsageDailyView
 	apiUsageMonthly                             []maildb.APIUsageMonthlyView
@@ -4468,6 +4527,7 @@ type fakeAdminService struct {
 	lastOutboxEventID                           string
 	lastAuditLogList                            maildb.AuditLogListRequest
 	lastAuditLogID                              string
+	lastAuditLogIntegrity                       maildb.AuditLogIntegrityRequest
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
@@ -4665,6 +4725,11 @@ func (f *fakeAdminService) GetAuditLog(_ context.Context, id string) (maildb.Aud
 		return maildb.AuditLogView{}, fmt.Errorf("audit log %q not found", id)
 	}
 	return f.auditLog, nil
+}
+
+func (f *fakeAdminService) CheckAuditLogIntegrity(_ context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error) {
+	f.lastAuditLogIntegrity = req
+	return f.auditLogIntegrity, nil
 }
 
 func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {

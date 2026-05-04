@@ -3,6 +3,7 @@ package maildb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/outbound"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
@@ -777,6 +779,63 @@ INSERT INTO audit_logs (
 	}
 	if got.ID != keptID || got.CompanyID != seed.companyID || got.Hash != "hash-a" || got.PrevHash != "prev-a" {
 		t.Fatalf("audit log detail = %+v", got)
+	}
+}
+
+func TestPostgresAuditLogIntegrityCheck(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+	writer := audit.NewPostgresRepository(db)
+	now := time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC)
+
+	if err := writer.Insert(ctx, audit.Log{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		UserID:     seed.userID,
+		Category:   "mail",
+		Action:     "mail.received",
+		TargetType: "message",
+		Result:     "success",
+		Detail:     json.RawMessage(`{"message_id":"msg-1"}`),
+		CreatedAt:  now,
+	}); err != nil {
+		t.Fatalf("insert first audit log: %v", err)
+	}
+	if err := writer.Insert(ctx, audit.Log{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		UserID:     seed.userID,
+		Category:   "delivery",
+		Action:     "mail.delivered",
+		TargetType: "message",
+		Result:     "success",
+		Detail:     json.RawMessage(`{"message_id":"msg-2"}`),
+		CreatedAt:  now.Add(time.Minute),
+	}); err != nil {
+		t.Fatalf("insert second audit log: %v", err)
+	}
+
+	valid, err := repo.CheckAuditLogIntegrity(ctx, AuditLogIntegrityRequest{Limit: 10})
+	if err != nil {
+		t.Fatalf("CheckAuditLogIntegrity returned error: %v", err)
+	}
+	if !valid.Valid || valid.CheckedCount != 2 || len(valid.Breaks) != 0 {
+		t.Fatalf("valid integrity = %+v", valid)
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE audit_logs SET hash = 'tampered' WHERE action = 'mail.received'`); err != nil {
+		t.Fatalf("tamper audit log: %v", err)
+	}
+	broken, err := repo.CheckAuditLogIntegrity(ctx, AuditLogIntegrityRequest{Limit: 10})
+	if err != nil {
+		t.Fatalf("CheckAuditLogIntegrity after tamper returned error: %v", err)
+	}
+	if broken.Valid || len(broken.Breaks) == 0 {
+		t.Fatalf("broken integrity = %+v", broken)
 	}
 }
 

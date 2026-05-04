@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/audit"
 )
 
 type AuditLogListRequest struct {
@@ -39,6 +41,29 @@ type AuditLogView struct {
 	PrevHash   string          `json:"prev_hash"`
 	Hash       string          `json:"hash"`
 	CreatedAt  time.Time       `json:"created_at"`
+}
+
+type AuditLogIntegrityRequest struct {
+	Limit int
+	Since time.Time
+}
+
+type AuditLogIntegrityView struct {
+	CheckedCount int                      `json:"checked_count"`
+	Valid        bool                     `json:"valid"`
+	FirstID      string                   `json:"first_id,omitempty"`
+	LastID       string                   `json:"last_id,omitempty"`
+	Breaks       []AuditLogIntegrityBreak `json:"breaks"`
+}
+
+type AuditLogIntegrityBreak struct {
+	ID               string    `json:"id"`
+	CreatedAt        time.Time `json:"created_at"`
+	Reason           string    `json:"reason"`
+	ExpectedPrevHash string    `json:"expected_prev_hash,omitempty"`
+	ActualPrevHash   string    `json:"actual_prev_hash,omitempty"`
+	ExpectedHash     string    `json:"expected_hash,omitempty"`
+	ActualHash       string    `json:"actual_hash,omitempty"`
 }
 
 func (r *Repository) ListAuditLogs(ctx context.Context, req AuditLogListRequest) ([]AuditLogView, error) {
@@ -166,6 +191,118 @@ WHERE id = $1`
 	return log, nil
 }
 
+func (r *Repository) CheckAuditLogIntegrity(ctx context.Context, req AuditLogIntegrityRequest) (AuditLogIntegrityView, error) {
+	if r.db == nil {
+		return AuditLogIntegrityView{}, fmt.Errorf("database handle is required")
+	}
+	req = normalizeAuditLogIntegrityRequest(req)
+
+	query := `
+SELECT
+  id::text,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  COALESCE(user_id::text, ''),
+  COALESCE(actor_id::text, ''),
+  category,
+  action,
+  target_type,
+  COALESCE(target_id::text, ''),
+  COALESCE(ip_address::text, ''),
+  user_agent,
+  result,
+  detail,
+  prev_hash,
+  hash,
+  created_at
+FROM (
+  SELECT *
+  FROM audit_logs`
+	var args []any
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		query += fmt.Sprintf(`
+  WHERE created_at >= $%d`, len(args))
+	}
+	args = append(args, req.Limit)
+	query += fmt.Sprintf(`
+  ORDER BY created_at DESC, id DESC
+  LIMIT $%d
+) recent
+ORDER BY created_at ASC, id ASC`, len(args))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return AuditLogIntegrityView{}, fmt.Errorf("check audit log integrity: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []AuditLogView
+	for rows.Next() {
+		log, err := scanAuditLog(rows)
+		if err != nil {
+			return AuditLogIntegrityView{}, err
+		}
+		logs = append(logs, log)
+	}
+	if err := rows.Err(); err != nil {
+		return AuditLogIntegrityView{}, fmt.Errorf("iterate audit log integrity rows: %w", err)
+	}
+
+	view := AuditLogIntegrityView{
+		CheckedCount: len(logs),
+		Valid:        true,
+		Breaks:       []AuditLogIntegrityBreak{},
+	}
+	if len(logs) == 0 {
+		return view, nil
+	}
+	view.FirstID = logs[0].ID
+	view.LastID = logs[len(logs)-1].ID
+
+	for i, log := range logs {
+		expectedHash, err := audit.ComputeHash(log.PrevHash, audit.Log{
+			CompanyID:  log.CompanyID,
+			DomainID:   log.DomainID,
+			UserID:     log.UserID,
+			ActorID:    log.ActorID,
+			Category:   log.Category,
+			Action:     log.Action,
+			TargetType: log.TargetType,
+			TargetID:   log.TargetID,
+			IPAddress:  log.IPAddress,
+			UserAgent:  log.UserAgent,
+			Result:     log.Result,
+			Detail:     log.Detail,
+			CreatedAt:  log.CreatedAt,
+		})
+		if err != nil {
+			return AuditLogIntegrityView{}, fmt.Errorf("compute audit hash for %s: %w", log.ID, err)
+		}
+		if log.Hash != expectedHash {
+			view.Valid = false
+			view.Breaks = append(view.Breaks, AuditLogIntegrityBreak{
+				ID:           log.ID,
+				CreatedAt:    log.CreatedAt,
+				Reason:       "hash_mismatch",
+				ExpectedHash: expectedHash,
+				ActualHash:   log.Hash,
+			})
+		}
+		if i > 0 && log.PrevHash != logs[i-1].Hash {
+			view.Valid = false
+			view.Breaks = append(view.Breaks, AuditLogIntegrityBreak{
+				ID:               log.ID,
+				CreatedAt:        log.CreatedAt,
+				Reason:           "prev_hash_mismatch",
+				ExpectedPrevHash: logs[i-1].Hash,
+				ActualPrevHash:   log.PrevHash,
+			})
+		}
+	}
+	return view, nil
+}
+
 func normalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 	req.Limit = normalizeLimit(req.Limit)
 	req.Category = strings.TrimSpace(req.Category)
@@ -175,6 +312,11 @@ func normalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 	req.CompanyID = strings.TrimSpace(req.CompanyID)
 	req.DomainID = strings.TrimSpace(req.DomainID)
 	req.UserID = strings.TrimSpace(req.UserID)
+	return req
+}
+
+func normalizeAuditLogIntegrityRequest(req AuditLogIntegrityRequest) AuditLogIntegrityRequest {
+	req.Limit = normalizeLimit(req.Limit)
 	return req
 }
 
