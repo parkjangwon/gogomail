@@ -378,7 +378,10 @@ API call metering can now emit durable usage events:
   currently registered artifacts. Deep failures are returned as
   `deep_blocking_reasons` and `deep_verification_errors` without changing the
   metadata-only `ready` or `billing_ready` fields; clients that need object-
-  verified billing evidence should read `verified_billing_ready`.
+  verified billing evidence should read `verified_billing_ready`. Signature
+  verification is behind a backend interface; if no verifier is configured for
+  the latest signer backend, deep mode reports
+  `manifest_signature_verifier_unavailable`.
 - `GET /admin/v1/api-usage/export-batches/{id}/export` streams the saved
   manifest window as NDJSON, making export replay idempotent by batch ID.
 - `POST /admin/v1/api-usage/export-batches/{id}/artifacts` registers an

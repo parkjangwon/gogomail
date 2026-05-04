@@ -357,6 +357,7 @@ Implementation order:
 299. Admin API now exposes manifest signature create/list/detail/verification endpoints, preserving a vendor-neutral shape for future KMS or asymmetric signer backends.
 300. Admin API now exposes API usage export handoff readiness for a saved batch, summarizing artifact coverage, latest manifest digest/signature state, operational readiness, and billing readiness without creating new export artifacts or signatures.
 301. API usage export handoff readiness now supports explicit deep verification that streams artifacts, checks manifest artifact coverage, verifies digest/signature evidence, and returns `verified_billing_ready` separately from metadata-only billing readiness.
+302. API usage export manifest signature verification now uses an `ExportManifestSignatureVerifier` boundary parallel to the signer, with local-HMAC as the first adapter and a clear replacement point for future KMS/asymmetric verification.
 
 ## Deferred until backend contracts stabilize
 

@@ -287,13 +287,16 @@ Current state:
   metadata, and verifies the latest signature when a verifier is available.
   Deep mode returns `verified_billing_ready` separately so `billing_ready`
   remains a stable metadata/signer-eligibility signal.
+- Manifest signature verification now goes through an
+  `ExportManifestSignatureVerifier` interface. The local-HMAC verifier is wired
+  today; future KMS/asymmetric verification should implement the same boundary.
 
 Next:
 
-- Add external KMS/asymmetric signing before invoices or hard Open API limits
-  depend on completed export batches.
-- Consider adding a production signer adapter and a signer-capability endpoint
-  before treating `billing_candidate` as invoice-grade.
+- Add external KMS/asymmetric signing and verification before invoices or hard
+  Open API limits depend on completed export batches.
+- Consider adding a signer/verifier capability endpoint before treating
+  `billing_candidate` as invoice-grade.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 
