@@ -513,7 +513,8 @@ The platform hardening sprint completed the following:
   and folder identifiers before repository mutation and IMAP event fan-out.
 - Bulk flag, move, and delete service methods also trim user/message/flag and
   folder identifiers before repository mutation, IMAP UID lookup, and mailbox
-  event fan-out.
+  event fan-out; bulk message and folder identifiers reject CR/LF and oversized
+  values before database query construction.
 - Folder, message-list, thread-list, and message-detail service reads trim
   user, folder, thread, message, and folder-name inputs before repository work.
 - Message, thread, and push-device list service methods normalize list limits
