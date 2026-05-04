@@ -1924,17 +1924,35 @@ func TestAdminPushNotificationAttemptsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&status=candidate&user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?limit=10&status=candidate&user_id=user-1&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastPushAttemptList.Limit != 10 || service.lastPushAttemptList.Status != "candidate" || service.lastPushAttemptList.UserID != "user-1" {
+	if service.lastPushAttemptList.Limit != 10 || service.lastPushAttemptList.Status != "candidate" || service.lastPushAttemptList.UserID != "user-1" || service.lastPushAttemptList.Since.IsZero() {
 		t.Fatalf("lastPushAttemptList = %+v", service.lastPushAttemptList)
 	}
 	if !strings.Contains(rec.Body.String(), "push_notification_attempts") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminPushNotificationAttemptsHandlerRejectsInvalidSince(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/push-notification-attempts?since=not-a-time", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "since must be RFC3339 timestamp") {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 }

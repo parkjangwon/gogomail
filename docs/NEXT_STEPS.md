@@ -183,7 +183,7 @@ Current state:
   `candidate`, giving operators a clear retry/audit signal before vendor
   adapters exist.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
-  status/user filters for inspecting candidate fan-out.
+  status/user/since filters for inspecting candidate fan-out.
 - Admin API exposes `GET /admin/v1/push-notification-stats` for active-device
   and status-count summaries, with optional `user_id` and `since` scoping for
   per-user and recent-window troubleshooting.

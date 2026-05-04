@@ -461,6 +461,7 @@ type PushNotificationAttemptListRequest struct {
 	Limit  int
 	Status string
 	UserID string
+	Since  time.Time
 }
 
 type PushNotificationStatsRequest struct {
@@ -3599,6 +3600,9 @@ func (r *Repository) ListPushNotificationAttempts(ctx context.Context, req PushN
 	req.Limit = normalizeLimit(req.Limit)
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
 	req.UserID = strings.TrimSpace(req.UserID)
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
 	if req.Status != "" && !allowedPushNotificationAttemptStatus(req.Status) {
 		return nil, fmt.Errorf("unsupported push notification attempt status")
 	}
@@ -3622,10 +3626,11 @@ SELECT
 FROM push_notification_attempts
 WHERE (NULLIF($2, '') IS NULL OR status = $2)
   AND (NULLIF($3, '')::uuid IS NULL OR user_id = NULLIF($3, '')::uuid)
+  AND ($4::timestamptz IS NULL OR attempted_at >= $4::timestamptz)
 ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, req.UserID)
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, req.UserID, nullableTime(req.Since))
 	if err != nil {
 		return nil, fmt.Errorf("list push notification attempts: %w", err)
 	}
