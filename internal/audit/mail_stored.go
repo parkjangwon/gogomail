@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
 )
@@ -50,15 +51,26 @@ func MailStoredAuditLog(payload json.RawMessage) (Log, error) {
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return Log{}, fmt.Errorf("decode mail.stored audit payload: %w", err)
 	}
+	event.Event = strings.TrimSpace(event.Event)
 	if event.Event != "mail.stored" {
 		return Log{}, fmt.Errorf("unexpected audit event %q", event.Event)
 	}
+	event.SchemaVersion = strings.TrimSpace(event.SchemaVersion)
 	if event.SchemaVersion != "" && event.SchemaVersion != "2026-05-04.mail-stored.v1" {
 		return Log{}, fmt.Errorf("unsupported mail.stored audit schema_version %q", event.SchemaVersion)
 	}
-	if event.MessageID == "" {
-		return Log{}, fmt.Errorf("mail.stored audit payload is missing message_id")
+	var err error
+	if event.MessageID, err = requiredAuditEventValue("message_id", event.MessageID); err != nil {
+		return Log{}, err
 	}
+	event.RFCMessageID = strings.TrimSpace(event.RFCMessageID)
+	event.CompanyID = strings.TrimSpace(event.CompanyID)
+	event.DomainID = strings.TrimSpace(event.DomainID)
+	event.UserID = strings.TrimSpace(event.UserID)
+	event.Recipient = strings.TrimSpace(event.Recipient)
+	event.Subject = strings.TrimSpace(event.Subject)
+	event.StoragePath = strings.TrimSpace(event.StoragePath)
+	event.ReceivedAt = strings.TrimSpace(event.ReceivedAt)
 
 	detail, err := json.Marshal(map[string]any{
 		"recipient":      event.Recipient,
@@ -83,4 +95,15 @@ func MailStoredAuditLog(payload json.RawMessage) (Log, error) {
 		Result:     "success",
 		Detail:     detail,
 	}, nil
+}
+
+func requiredAuditEventValue(name string, value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("mail.stored audit payload is missing %s", name)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("mail.stored audit payload has invalid %s", name)
+	}
+	return value, nil
 }
