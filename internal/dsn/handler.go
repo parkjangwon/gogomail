@@ -6,8 +6,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	netmail "net/mail"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -103,6 +105,7 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 			FinalLogID:        event.MessageID,
 			LastAttemptAt:     event.AttemptedAt,
 		}},
+		OriginalHeaders: h.originalHeadersForEvent(ctx, event),
 	})
 	if err != nil {
 		return err
@@ -193,7 +196,9 @@ type bounceEvent struct {
 	EnhancedStatus  string    `json:"enhanced_status"`
 	ErrorMessage    string    `json:"error_message"`
 	AttemptedAt     time.Time `json:"attempted_at"`
+	StoragePath     string    `json:"storage_path"`
 	DSN             struct {
+		Return            string   `json:"return"`
 		EnvelopeID        string   `json:"envelope_id"`
 		Notify            []string `json:"notify"`
 		OriginalRecipient string   `json:"original_recipient"`
@@ -213,6 +218,7 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	event.Recipient = strings.TrimSpace(event.Recipient)
 	event.RecipientDomain = strings.TrimSpace(event.RecipientDomain)
 	event.EnhancedStatus = strings.TrimSpace(event.EnhancedStatus)
+	event.StoragePath = strings.TrimSpace(event.StoragePath)
 	if event.MessageID == "" {
 		return bounceEvent{}, fmt.Errorf("bounce event is missing message_id")
 	}
@@ -241,9 +247,16 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	}
 	event.Recipient = recipient
 	event.DSN.EnvelopeID = strings.TrimSpace(event.DSN.EnvelopeID)
+	event.DSN.Return = strings.ToUpper(strings.TrimSpace(event.DSN.Return))
 	event.DSN.OriginalRecipient = strings.TrimSpace(event.DSN.OriginalRecipient)
-	if containsLineBreak(event.DSN.EnvelopeID) || containsLineBreak(event.DSN.OriginalRecipient) {
+	if containsLineBreak(event.StoragePath) || containsLineBreak(event.DSN.EnvelopeID) || containsLineBreak(event.DSN.OriginalRecipient) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn metadata")
+	}
+	if event.StoragePath != "" && !validBounceStoragePath(event.StoragePath) {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid storage_path")
+	}
+	if event.DSN.Return != "" && event.DSN.Return != "HDRS" && event.DSN.Return != "FULL" {
+		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn return")
 	}
 	if event.DSN.EnvelopeID != "" && !validBounceDSNEnvelopeID(event.DSN.EnvelopeID) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid dsn envelope_id")
@@ -311,6 +324,72 @@ func normalizeBounceNotify(values []string) ([]string, error) {
 		return nil, fmt.Errorf("bounce event has invalid dsn notify: NEVER cannot be combined")
 	}
 	return normalized, nil
+}
+
+const maxOriginalHeaderReadBytes = 64 * 1024
+
+func (h *BounceHandler) originalHeadersForEvent(ctx context.Context, event bounceEvent) []OriginalHeader {
+	if event.DSN.Return != "HDRS" || strings.TrimSpace(event.StoragePath) == "" {
+		return nil
+	}
+	headers, err := readOriginalHeaders(ctx, h.store, event.StoragePath)
+	if err != nil {
+		return nil
+	}
+	return headers
+}
+
+func readOriginalHeaders(ctx context.Context, store storage.Store, storagePath string) ([]OriginalHeader, error) {
+	if store == nil {
+		return nil, fmt.Errorf("dsn storage is required")
+	}
+	if !validBounceStoragePath(storagePath) {
+		return nil, fmt.Errorf("invalid storage_path")
+	}
+	body, err := store.Get(ctx, storagePath)
+	if err != nil {
+		return nil, fmt.Errorf("read original message headers: %w", err)
+	}
+	defer body.Close()
+
+	msg, err := netmail.ReadMessage(io.LimitReader(body, maxOriginalHeaderReadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("parse original message headers: %w", err)
+	}
+	names := make([]string, 0, len(msg.Header))
+	for name := range msg.Header {
+		name = strings.TrimSpace(name)
+		if validHeaderFieldName(name) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	headers := make([]OriginalHeader, 0, len(names))
+	for _, name := range names {
+		for _, value := range msg.Header[name] {
+			headers = append(headers, OriginalHeader{Name: name, Value: value})
+		}
+	}
+	return headers, nil
+}
+
+func validBounceStoragePath(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 1024 || strings.ContainsAny(value, "\r\n\\") {
+		return false
+	}
+	if path.IsAbs(value) || path.Clean(value) != value || strings.HasPrefix(value, "../") || strings.Contains(value, "/../") {
+		return false
+	}
+	if strings.Contains(value, "//") || !strings.HasSuffix(strings.ToLower(value), ".eml") {
+		return false
+	}
+	for _, segment := range strings.Split(value, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 func validBounceDSNEnvelopeID(value string) bool {

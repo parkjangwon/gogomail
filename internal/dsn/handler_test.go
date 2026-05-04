@@ -18,7 +18,9 @@ import (
 func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 	t.Parallel()
 
-	store := &memoryStore{values: map[string][]byte{}}
+	store := &memoryStore{values: map[string][]byte{
+		"mailstore/original.eml": []byte("From: Sender <sender@example.com>\r\nTo: Bad <bad@example.net>\r\nSubject: Original\r\nMessage-ID: <original@example.com>\r\n\r\nbody"),
+	}}
 	queue := &captureQueue{}
 	handler := NewBounceHandler(HandlerOptions{
 		Store:        store,
@@ -41,8 +43,9 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 		"recipient_domain":"example.net",
 		"enhanced_status":"5.1.1",
 		"error_message":"550 5.1.1 no such user",
+		"storage_path":"mailstore/original.eml",
 		"attempted_at":"2026-05-04T01:00:00Z",
-		"dsn":{"envelope_id":"env-1","notify":["FAILURE"],"original_recipient":"rfc822;alias+40example.net"}
+		"dsn":{"return":"HDRS","envelope_id":"env-1","notify":["FAILURE"],"original_recipient":"rfc822;alias+40example.net"}
 	}`)})
 	if err != nil {
 		t.Fatalf("HandleEvent returned error: %v", err)
@@ -53,8 +56,8 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 	if queue.dedupeKey != "dsn:bounce:018f0000-0000-7000-8000-000000000001:bad@example.net" {
 		t.Fatalf("dedupeKey = %q, want stable bounce DSN key", queue.dedupeKey)
 	}
-	if len(store.values) != 1 {
-		t.Fatalf("stored messages = %d, want 1", len(store.values))
+	if len(store.values) != 2 {
+		t.Fatalf("stored messages = %d, want original plus DSN", len(store.values))
 	}
 
 	var queued delivery.QueuedMessage
@@ -78,6 +81,9 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 		"Original-Recipient: rfc822; alias+40example.net",
 		"Status: 5.1.1",
 		"Diagnostic-Code: smtp; 550 5.1.1 no such user",
+		"Content-Type: text/rfc822-headers",
+		"Message-Id: <original@example.com>",
+		"Subject: Original",
 		"Message-ID: <dsn-018f0000-0000-7000-8000-000000000001-bad-example@mx.example.com>",
 	} {
 		if !strings.Contains(raw, want) {
@@ -202,6 +208,19 @@ func TestDecodeBounceEventRejectsNewlineDSNMetadata(t *testing.T) {
 	}`))
 	if err == nil {
 		t.Fatal("decodeBounceEvent accepted newline-bearing DSN metadata")
+	}
+}
+
+func TestDecodeBounceEventRejectsInvalidReturnAndStoragePath(t *testing.T) {
+	t.Parallel()
+
+	for _, payload := range []string{
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","storage_path":"../msg.eml"}`,
+		`{"event":"mail.bounced","message_id":"msg-1","sender":"sender@example.com","recipient":"bad@example.net","dsn":{"return":"BODY"}}`,
+	} {
+		if _, err := decodeBounceEvent([]byte(payload)); err == nil {
+			t.Fatalf("decodeBounceEvent accepted invalid payload %s", payload)
+		}
 	}
 }
 
@@ -351,8 +370,8 @@ func (s *memoryStore) Put(_ context.Context, path string, body io.Reader) error 
 	return nil
 }
 
-func (s *memoryStore) Get(context.Context, string) (io.ReadCloser, error) {
-	return io.NopCloser(bytes.NewReader(nil)), nil
+func (s *memoryStore) Get(_ context.Context, path string) (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(s.values[path])), nil
 }
 
 func (s *memoryStore) Delete(_ context.Context, path string) error {
