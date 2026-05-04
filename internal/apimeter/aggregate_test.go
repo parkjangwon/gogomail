@@ -177,6 +177,53 @@ func TestDecodeUsageEventRejectsUnsupportedSchemaVersion(t *testing.T) {
 	}
 }
 
+func TestDecodeUsageEventRejectsMissingRouteKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload json.RawMessage
+	}{
+		{
+			name: "method",
+			payload: json.RawMessage(`{
+				"event":"api.usage",
+				"route":"GET /api/v1/messages",
+				"status":200,
+				"timestamp":"2026-05-04T00:00:00Z"
+			}`),
+		},
+		{
+			name: "route",
+			payload: json.RawMessage(`{
+				"event":"api.usage",
+				"method":"GET",
+				"status":200,
+				"timestamp":"2026-05-04T00:00:00Z"
+			}`),
+		},
+		{
+			name: "status",
+			payload: json.RawMessage(`{
+				"event":"api.usage",
+				"method":"GET",
+				"route":"GET /api/v1/messages",
+				"status":99,
+				"timestamp":"2026-05-04T00:00:00Z"
+			}`),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := DecodeUsageEvent(tc.payload); err == nil {
+				t.Fatal("DecodeUsageEvent accepted invalid route key")
+			}
+		})
+	}
+}
+
 func TestUsageHandlerAggregatesAPIUsageEvent(t *testing.T) {
 	t.Parallel()
 

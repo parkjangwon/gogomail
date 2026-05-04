@@ -415,6 +415,9 @@ API call metering can now emit durable usage events:
 - Negative request byte, response byte, and latency values from durable usage
   events are clamped to zero before ledger/aggregate storage; request count
   defaults to one when absent or nonpositive.
+- Durable usage events must include nonblank `method` and `route` fields and an
+  HTTP-like status code from 100 through 999 before they can enter ledger or
+  aggregate storage.
 - The aggregate worker claims `event_id` values before daily/monthly upserts, so
   replayed durable events do not double-count operational totals.
 - The middleware remains async and fail-open; request handling does not wait on
