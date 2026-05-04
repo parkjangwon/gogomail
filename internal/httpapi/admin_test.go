@@ -1968,6 +1968,51 @@ func TestAdminUpdateCompanyQuotaHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCompanyPathIDsRejectUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{
+			name:   "get crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/companies/company%0Abad",
+		},
+		{
+			name:   "quota oversized",
+			method: http.MethodPatch,
+			path:   "/admin/v1/companies/" + strings.Repeat("c", maxAdminQueryFilterBytes+1) + "/quota",
+			body:   `{"quota_limit":8192}`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastCompanyID != "" || service.lastCompanyQuota.ID != "" {
+				t.Fatalf("last company ids = %q/%q", service.lastCompanyID, service.lastCompanyQuota.ID)
+			}
+		})
+	}
+}
+
 func TestAdminJSONHandlersRejectTrailingTokens(t *testing.T) {
 	t.Parallel()
 
@@ -2182,6 +2227,78 @@ func TestAdminDomainDNSCheckHistoryHandler(t *testing.T) {
 	}
 	if service.lastDomainID != "domain-1" || service.lastLimit != 5 {
 		t.Fatalf("lastDomainID=%q lastLimit=%d", service.lastDomainID, service.lastLimit)
+	}
+}
+
+func TestAdminDomainPathIDsRejectUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{
+			name:   "get crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/domains/domain%0Abad",
+		},
+		{
+			name:   "stats oversized",
+			method: http.MethodGet,
+			path:   "/admin/v1/domains/" + strings.Repeat("d", maxAdminQueryFilterBytes+1) + "/stats",
+		},
+		{
+			name:   "dns check crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/domains/domain%0Dbad/dns-check",
+		},
+		{
+			name:   "dns checks oversized",
+			method: http.MethodGet,
+			path:   "/admin/v1/domains/" + strings.Repeat("d", maxAdminQueryFilterBytes+1) + "/dns-checks",
+		},
+		{
+			name:   "status crlf",
+			method: http.MethodPatch,
+			path:   "/admin/v1/domains/domain%0Abad/status",
+			body:   `{"status":"suspended"}`,
+		},
+		{
+			name:   "quota oversized",
+			method: http.MethodPatch,
+			path:   "/admin/v1/domains/" + strings.Repeat("d", maxAdminQueryFilterBytes+1) + "/quota",
+			body:   `{"quota_limit":1024}`,
+		},
+		{
+			name:   "policy crlf",
+			method: http.MethodPatch,
+			path:   "/admin/v1/domains/domain%0Abad/policy",
+			body:   `{"inbound_mode":"monitor"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDomainID != "" || service.lastDomainStatus.ID != "" || service.lastDomainQuota.ID != "" || service.lastDomainPolicy.ID != "" {
+				t.Fatalf("last domain ids = %q/%q/%q/%q", service.lastDomainID, service.lastDomainStatus.ID, service.lastDomainQuota.ID, service.lastDomainPolicy.ID)
+			}
+		})
 	}
 }
 
@@ -2417,6 +2534,57 @@ func TestAdminUpdateUserQuotaHandler(t *testing.T) {
 	}
 	if service.lastUserQuota.ID != "user-1" || service.lastUserQuota.QuotaLimit != 4096 {
 		t.Fatalf("lastUserQuota = %+v", service.lastUserQuota)
+	}
+}
+
+func TestAdminUserPathIDsRejectUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{
+			name:   "get crlf",
+			method: http.MethodGet,
+			path:   "/admin/v1/users/user%0Abad",
+		},
+		{
+			name:   "status oversized",
+			method: http.MethodPatch,
+			path:   "/admin/v1/users/" + strings.Repeat("u", maxAdminQueryFilterBytes+1) + "/status",
+			body:   `{"status":"disabled"}`,
+		},
+		{
+			name:   "quota crlf",
+			method: http.MethodPatch,
+			path:   "/admin/v1/users/user%0Dbad/quota",
+			body:   `{"quota_limit":4096}`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastUserID != "" || service.lastUserStatus.ID != "" || service.lastUserQuota.ID != "" {
+				t.Fatalf("last user ids = %q/%q/%q", service.lastUserID, service.lastUserStatus.ID, service.lastUserQuota.ID)
+			}
+		})
 	}
 }
 

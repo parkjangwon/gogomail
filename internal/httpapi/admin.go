@@ -135,9 +135,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		company, err := service.GetCompany(r.Context(), id)
@@ -156,7 +155,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		if err := service.UpdateCompanyQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -178,9 +181,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		domain, err := service.GetDomain(r.Context(), id)
@@ -192,9 +194,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		stats, err := service.GetDomainStats(r.Context(), id)
@@ -206,9 +207,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-check", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		report, err := service.VerifyDomainDNS(r.Context(), id)
@@ -220,9 +220,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-checks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -261,7 +260,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		if err := service.UpdateDomainStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -277,7 +280,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		if err := service.UpdateDomainQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -293,7 +300,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		policy, err := service.UpdateDomainPolicy(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -320,9 +331,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/users/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		user, err := service.GetUser(r.Context(), id)
@@ -357,7 +367,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		if err := service.UpdateUserStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -373,7 +387,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		if err := service.UpdateUserQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

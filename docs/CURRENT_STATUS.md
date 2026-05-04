@@ -157,6 +157,8 @@ guidance.
 - API usage export batch, artifact, manifest-digest, and signature path
   identifiers now reject blank, CR/LF-bearing, or oversized values before
   service dispatch.
+- Admin company, domain, and user detail/mutation path identifiers now use the
+  same blank, CR/LF, and size validation before service dispatch.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
