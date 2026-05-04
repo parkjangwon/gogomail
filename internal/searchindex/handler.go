@@ -16,6 +16,7 @@ const (
 	EventMailStored        = "mail.stored"
 	MailStoredSchemaV1     = "2026-05-04.mail-stored.v1"
 	defaultMaxTextBodyByte = int64(1 << 20)
+	maxEventReferences     = 1000
 )
 
 type Event struct {
@@ -242,6 +243,9 @@ func hasParentPathSegment(value string) bool {
 func cleanReferences(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
+		if len(out) >= maxEventReferences {
+			break
+		}
 		value = strings.TrimSpace(value)
 		if value != "" && !strings.ContainsAny(value, "\r\n") {
 			out = append(out, value)
