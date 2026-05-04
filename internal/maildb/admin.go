@@ -143,6 +143,20 @@ type SuppressionEntry struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+type DomainStatsView struct {
+	DomainID          string `json:"domain_id"`
+	ActiveUsers       int64  `json:"active_users"`
+	TotalUsers        int64  `json:"total_users"`
+	ActiveMessages    int64  `json:"active_messages"`
+	InboundMessages   int64  `json:"inbound_messages"`
+	OutboundMessages  int64  `json:"outbound_messages"`
+	StorageUsedBytes  int64  `json:"storage_used_bytes"`
+	StorageLimitBytes int64  `json:"storage_limit_bytes"`
+	Delivered24h      int64  `json:"delivered_24h"`
+	Failed24h         int64  `json:"failed_24h"`
+	SuppressionCount  int64  `json:"suppression_count"`
+}
+
 type TrustedRelayView struct {
 	ID          string    `json:"id"`
 	CIDR        string    `json:"cidr"`
@@ -1033,6 +1047,60 @@ LIMIT 1`
 		domain.LastDNSCheckedAt = &lastDNSCheckedAt.Time
 	}
 	return domain, nil
+}
+
+func (r *Repository) GetDomainStats(ctx context.Context, id string) (DomainStatsView, error) {
+	if r.db == nil {
+		return DomainStatsView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DomainStatsView{}, fmt.Errorf("domain id is required")
+	}
+
+	const query = `
+SELECT
+  d.id::text,
+  (SELECT COUNT(*) FROM users WHERE domain_id = d.id AND status = 'active'),
+  (SELECT COUNT(*) FROM users WHERE domain_id = d.id),
+  (SELECT COUNT(*) FROM messages WHERE domain_id = d.id AND status = 'active'),
+  (SELECT COUNT(*) FROM messages WHERE domain_id = d.id AND received_at IS NOT NULL AND sent_at IS NULL AND status = 'active'),
+  (SELECT COUNT(*) FROM messages WHERE domain_id = d.id AND sent_at IS NOT NULL AND status = 'active'),
+  d.quota_used,
+  COALESCE(d.quota_limit, 0),
+  (SELECT COUNT(*) FROM delivery_attempts da
+   JOIN messages m ON m.id = da.message_id
+   WHERE m.domain_id = d.id AND da.attempted_at > now() - INTERVAL '24 hours'
+     AND da.status = 'delivered'),
+  (SELECT COUNT(*) FROM delivery_attempts da
+   JOIN messages m ON m.id = da.message_id
+   WHERE m.domain_id = d.id AND da.attempted_at > now() - INTERVAL '24 hours'
+     AND da.status IN ('failed', 'bounced', 'exhausted')),
+  (SELECT COUNT(*) FROM suppression_list WHERE domain_id = d.id)
+FROM domains d
+WHERE d.id = $1
+LIMIT 1`
+
+	var stats DomainStatsView
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&stats.DomainID,
+		&stats.ActiveUsers,
+		&stats.TotalUsers,
+		&stats.ActiveMessages,
+		&stats.InboundMessages,
+		&stats.OutboundMessages,
+		&stats.StorageUsedBytes,
+		&stats.StorageLimitBytes,
+		&stats.Delivered24h,
+		&stats.Failed24h,
+		&stats.SuppressionCount,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return DomainStatsView{}, fmt.Errorf("domain %q not found", id)
+		}
+		return DomainStatsView{}, fmt.Errorf("get domain stats: %w", err)
+	}
+	return stats, nil
 }
 
 func (r *Repository) ListDomainDNSChecks(ctx context.Context, domainID string, limit int) ([]DomainDNSCheckView, error) {

@@ -979,6 +979,11 @@ func (f *fakeAdminService) GetDomain(_ context.Context, id string) (maildb.Domai
 	return maildb.DomainView{}, nil
 }
 
+func (f *fakeAdminService) GetDomainStats(_ context.Context, id string) (maildb.DomainStatsView, error) {
+	f.lastDomainID = id
+	return maildb.DomainStatsView{DomainID: id}, nil
+}
+
 func (f *fakeAdminService) VerifyDomainDNS(_ context.Context, id string) (dnscheck.DomainReport, error) {
 	f.lastDomainID = id
 	return f.dnsReport, nil

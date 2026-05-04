@@ -28,6 +28,7 @@ func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
 type AdminService interface {
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
+	GetDomainStats(ctx context.Context, id string) (maildb.DomainStatsView, error)
 	VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error)
 	ListDomainDNSChecks(ctx context.Context, id string, limit int) ([]maildb.DomainDNSCheckView, error)
 	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
@@ -101,6 +102,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"domain": domain})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.PathValue("id"))
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		stats, err := service.GetDomainStats(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"stats": stats})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-check", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

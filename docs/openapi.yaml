@@ -622,6 +622,29 @@ paths:
           $ref: "#/components/responses/Domain"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/stats:
+    get:
+      operationId: getAdminDomainStats
+      summary: Get aggregate statistics for a domain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Domain statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [stats]
+                properties:
+                  stats:
+                    $ref: "#/components/schemas/DomainStats"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/dns-check:
     get:
       operationId: checkAdminDomainDns
@@ -1668,6 +1691,53 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DKIMKey"
+    DomainStats:
+      type: object
+      required:
+        - domain_id
+        - active_users
+        - total_users
+        - active_messages
+        - inbound_messages
+        - outbound_messages
+        - storage_used_bytes
+        - storage_limit_bytes
+        - delivered_24h
+        - failed_24h
+        - suppression_count
+      properties:
+        domain_id:
+          type: string
+        active_users:
+          type: integer
+          format: int64
+        total_users:
+          type: integer
+          format: int64
+        active_messages:
+          type: integer
+          format: int64
+        inbound_messages:
+          type: integer
+          format: int64
+        outbound_messages:
+          type: integer
+          format: int64
+        storage_used_bytes:
+          type: integer
+          format: int64
+        storage_limit_bytes:
+          type: integer
+          format: int64
+        delivered_24h:
+          type: integer
+          format: int64
+        failed_24h:
+          type: integer
+          format: int64
+        suppression_count:
+          type: integer
+          format: int64
     Domain:
       type: object
       required: [id, company_id, name, name_ace, status, quota_used, created_at]
