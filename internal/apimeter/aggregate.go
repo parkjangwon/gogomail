@@ -17,7 +17,12 @@ type UsageEvent struct {
 	Method        string
 	Route         string
 	Status        int
+	TenantID      string
+	CompanyID     string
+	DomainID      string
 	UserID        string
+	APIKeyID      string
+	PrincipalID   string
 	AuthSource    string
 	RequestBytes  int64
 	ResponseBytes int64
@@ -176,7 +181,12 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		ResponseBytes int64  `json:"response_bytes"`
 		LatencyMS     int64  `json:"latency_ms"`
 		Timestamp     string `json:"timestamp"`
+		TenantID      string `json:"tenant_id"`
+		CompanyID     string `json:"company_id"`
+		DomainID      string `json:"domain_id"`
 		UserID        string `json:"user_id"`
+		APIKeyID      string `json:"api_key_id"`
+		PrincipalID   string `json:"principal_id"`
 		AuthSource    string `json:"auth_source"`
 	}
 	if err := json.Unmarshal(payload, &raw); err != nil {
@@ -185,7 +195,7 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 	if strings.TrimSpace(raw.Event) != EventAPIUsage {
 		return UsageEvent{}, fmt.Errorf("unexpected api metering event %q", raw.Event)
 	}
-	if schemaVersion := strings.TrimSpace(raw.SchemaVersion); schemaVersion != "" && schemaVersion != APIUsageSchemaV1 {
+	if schemaVersion := strings.TrimSpace(raw.SchemaVersion); schemaVersion != "" && schemaVersion != APIUsageSchemaV1 && schemaVersion != APIUsageSchemaV2 {
 		return UsageEvent{}, fmt.Errorf("unsupported api usage schema_version %q", schemaVersion)
 	}
 	timestamp, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(raw.Timestamp))
@@ -201,7 +211,12 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		Method:        strings.TrimSpace(raw.Method),
 		Route:         strings.TrimSpace(raw.Route),
 		Status:        raw.Status,
+		TenantID:      strings.TrimSpace(raw.TenantID),
+		CompanyID:     strings.TrimSpace(raw.CompanyID),
+		DomainID:      strings.TrimSpace(raw.DomainID),
 		UserID:        strings.TrimSpace(raw.UserID),
+		APIKeyID:      strings.TrimSpace(raw.APIKeyID),
+		PrincipalID:   strings.TrimSpace(raw.PrincipalID),
 		AuthSource:    normalizeAuthSource(raw.AuthSource),
 		RequestBytes:  raw.RequestBytes,
 		ResponseBytes: raw.ResponseBytes,

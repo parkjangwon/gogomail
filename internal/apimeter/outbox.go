@@ -12,9 +12,11 @@ import (
 )
 
 const (
-	OutboxTopicAPIUsage = "api.event"
-	EventAPIUsage       = "api.usage"
-	APIUsageSchemaV1    = "2026-05-04.api-usage.v1"
+	OutboxTopicAPIUsage   = "api.event"
+	EventAPIUsage         = "api.usage"
+	APIUsageSchemaV1      = "2026-05-04.api-usage.v1"
+	APIUsageSchemaV2      = "2026-05-04.api-usage.v2"
+	APIUsageSchemaCurrent = APIUsageSchemaV2
 )
 
 type SQLExecer interface {
@@ -39,6 +41,12 @@ func (s PostgresOutboxSink) Record(ctx context.Context, event Event) error {
 	}
 	partitionKey := strings.TrimSpace(event.UserID)
 	if partitionKey == "" {
+		partitionKey = strings.TrimSpace(event.Identity.PrincipalID)
+	}
+	if partitionKey == "" {
+		partitionKey = strings.TrimSpace(event.Identity.TenantID)
+	}
+	if partitionKey == "" {
 		partitionKey = strings.TrimSpace(event.RoutePattern)
 	}
 	if partitionKey == "" {
@@ -59,10 +67,18 @@ func apiUsagePayload(event Event) map[string]any {
 	if timestamp.IsZero() {
 		timestamp = time.Now().UTC()
 	}
+	identity := event.Identity.Normalize()
+	if identity.UserID == "" && event.UserID != "" {
+		identity.UserID = strings.TrimSpace(event.UserID)
+	}
+	if identity.AuthSource == AuthSourceUnknown && event.AuthSource != "" {
+		identity.AuthSource = normalizeAuthSource(event.AuthSource)
+	}
+	identity = identity.Normalize()
 	return map[string]any{
-		"schema_version": APIUsageSchemaV1,
+		"schema_version": APIUsageSchemaCurrent,
 		"event":          EventAPIUsage,
-		"event_id":       apiUsageEventID(event, timestamp),
+		"event_id":       apiUsageEventID(event, timestamp, identity),
 		"method":         strings.TrimSpace(event.Method),
 		"route":          strings.TrimSpace(event.RoutePattern),
 		"status":         event.Status,
@@ -70,22 +86,33 @@ func apiUsagePayload(event Event) map[string]any {
 		"response_bytes": event.ResponseBytes,
 		"latency_ms":     event.Latency.Milliseconds(),
 		"timestamp":      timestamp.UTC().Format(time.RFC3339Nano),
-		"user_id":        strings.TrimSpace(event.UserID),
-		"auth_source":    strings.TrimSpace(event.AuthSource),
+		"tenant_id":      identity.TenantID,
+		"company_id":     identity.CompanyID,
+		"domain_id":      identity.DomainID,
+		"user_id":        identity.UserID,
+		"api_key_id":     identity.APIKeyID,
+		"principal_id":   identity.PrincipalID,
+		"auth_source":    identity.AuthSource,
 	}
 }
 
-func apiUsageEventID(event Event, timestamp time.Time) string {
+func apiUsageEventID(event Event, timestamp time.Time, identity Identity) string {
 	if id := strings.TrimSpace(event.ID); id != "" {
 		return id
 	}
+	identity = identity.Normalize()
 	parts := []string{
 		timestamp.UTC().Format(time.RFC3339Nano),
 		strings.TrimSpace(event.Method),
 		strings.TrimSpace(event.RoutePattern),
 		fmt.Sprint(event.Status),
-		strings.TrimSpace(event.UserID),
-		strings.TrimSpace(event.AuthSource),
+		identity.TenantID,
+		identity.CompanyID,
+		identity.DomainID,
+		identity.UserID,
+		identity.APIKeyID,
+		identity.PrincipalID,
+		identity.AuthSource,
 		fmt.Sprint(event.RequestBytes),
 		fmt.Sprint(event.ResponseBytes),
 		fmt.Sprint(event.Latency.Milliseconds()),
