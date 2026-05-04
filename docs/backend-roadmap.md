@@ -505,6 +505,7 @@ Implementation order:
 446. Compose request validation now rejects CR/LF-bearing recipient display names and emails before draft persistence or outbound header composition.
 447. Compose request validation now rejects CR/LF-bearing explicit sender hints and subjects before draft persistence or outbound header composition.
 448. Bulk mailbox mutation validation now rejects CR/LF-bearing or oversized message/folder identifiers before repository mutation and IMAP event fan-out.
+449. Single-message mutation/read and attachment-read service methods now reject blank, CR/LF-bearing, or oversized message/folder/attachment identifiers before repository, storage, or IMAP UID lookup work.
 
 ## Deferred until backend contracts stabilize
 

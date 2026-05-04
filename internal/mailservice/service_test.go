@@ -76,6 +76,20 @@ func TestGetMessageMarksUnreadMessageRead(t *testing.T) {
 	}
 }
 
+func TestGetMessageRejectsUnsafeMessageID(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1\r\nmsg-2"); err == nil {
+		t.Fatal("GetMessage accepted newline-bearing message ID")
+	}
+	if repo.lastGetMessageID != "" {
+		t.Fatalf("repository was called with message ID %q", repo.lastGetMessageID)
+	}
+}
+
 func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
 	t.Parallel()
 
@@ -282,6 +296,24 @@ func TestAttachmentReadMethodsNormalizeIDs(t *testing.T) {
 	_ = download.Body.Close()
 	if repo.lastAttachmentUserID != "user-1" || repo.lastAttachmentMessageID != "msg-1" || repo.lastAttachmentID != "att-1" {
 		t.Fatalf("open attachment ids = %q/%q/%q", repo.lastAttachmentUserID, repo.lastAttachmentMessageID, repo.lastAttachmentID)
+	}
+}
+
+func TestAttachmentReadMethodsRejectUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	repo := &fakeRepository{}
+	service := New(repo, store)
+
+	if _, err := service.ListAttachments(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1)); err == nil {
+		t.Fatal("ListAttachments accepted oversized message ID")
+	}
+	if _, err := service.OpenAttachment(context.Background(), "user-1", "msg-1", "att-1\nbad"); err == nil {
+		t.Fatal("OpenAttachment accepted newline-bearing attachment ID")
+	}
+	if repo.lastAttachmentID != "" || repo.lastAttachmentMessageID != "" {
+		t.Fatalf("repository was called with attachment IDs %q/%q", repo.lastAttachmentMessageID, repo.lastAttachmentID)
 	}
 }
 
@@ -556,6 +588,20 @@ func TestMoveMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
 		t.Fatalf("events = %#v, want expunge event", events.events)
+	}
+}
+
+func TestMoveMessageRejectsUnsafeIDsBeforeIMAPLookup(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if err := service.MoveMessage(context.Background(), "user-1", "msg-1", "archive\r\nbad"); err == nil {
+		t.Fatal("MoveMessage accepted newline-bearing folder ID")
+	}
+	if repo.lastIMAPUIDLookupUserID != "" || repo.lastMoveFolderID != "" {
+		t.Fatalf("repository was called before validation: uid=%q folder=%q", repo.lastIMAPUIDLookupUserID, repo.lastMoveFolderID)
 	}
 }
 

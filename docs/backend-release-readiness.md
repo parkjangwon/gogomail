@@ -139,7 +139,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work.
 - Attachment list/download and draft-delete service methods trim user, message,
-  attachment, and draft identifiers before repository/storage work.
+  attachment, and draft identifiers before repository/storage work; attachment
+  reads reject blank, CR/LF-bearing, or oversized message/attachment
+  identifiers before repository/storage dispatch.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
 - `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift, registered-route drift, dangling component references, request-body omissions, response envelope reference drift, message flag enum drift, list limit contract drift, and thread-list parameter leakage.
 - OpenAPI response components now document the Mail/Admin JSON envelope keys used by generated clients, including admin queue, IMAP UID backfill, delivery attempt, exhausted-attempt, suppression, DKIM, domain, and user read models.
@@ -177,7 +179,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   composition, and draft saves enforce the same attachment-count cap as
   immediate sends.
 - Single-message flag, move, and delete service methods trim user/message/flag
-  and folder identifiers before repository mutation and IMAP event fan-out.
+  and folder identifiers before repository mutation and IMAP event fan-out, and
+  reject blank, CR/LF-bearing, or oversized message/folder identifiers before
+  repository or IMAP UID lookup work.
 - Bulk flag, move, and delete service methods trim user/message/flag and folder
   identifiers before repository mutation, IMAP UID lookup, and mailbox event
   fan-out, while rejecting CR/LF-bearing or oversized bulk resource IDs.
