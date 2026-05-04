@@ -2221,6 +2221,55 @@ LIMIT $1`
 	return batches, nil
 }
 
+func (r *Repository) GetAPIUsageExportBatch(ctx context.Context, id string) (APIUsageExportBatchView, error) {
+	if r.db == nil {
+		return APIUsageExportBatchView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return APIUsageExportBatchView{}, fmt.Errorf("api usage export batch id is required")
+	}
+	const query = `
+SELECT id, created_at, completed_at, status, export_format, tenant_id, principal_id,
+  window_start, window_end, event_count, request_count, request_bytes, response_bytes,
+  latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest
+FROM api_usage_export_batches
+WHERE id = $1`
+	var batch APIUsageExportBatchView
+	var completedAt sql.NullTime
+	var windowStart sql.NullTime
+	var windowEnd sql.NullTime
+	var firstEventAt sql.NullTime
+	var lastEventAt sql.NullTime
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&batch.ID,
+		&batch.CreatedAt,
+		&completedAt,
+		&batch.Status,
+		&batch.ExportFormat,
+		&batch.TenantID,
+		&batch.PrincipalID,
+		&windowStart,
+		&windowEnd,
+		&batch.EventCount,
+		&batch.RequestCount,
+		&batch.RequestBytes,
+		&batch.ResponseBytes,
+		&batch.LatencyMSTotal,
+		&batch.LatencyMSMax,
+		&firstEventAt,
+		&lastEventAt,
+		&batch.Manifest,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return APIUsageExportBatchView{}, fmt.Errorf("api usage export batch not found")
+		}
+		return APIUsageExportBatchView{}, fmt.Errorf("get api usage export batch: %w", err)
+	}
+	applyExportBatchNullableTimes(&batch, completedAt, windowStart, windowEnd, firstEventAt, lastEventAt)
+	return batch, nil
+}
+
 func newAPIUsageExportBatchID() (string, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
