@@ -1757,6 +1757,12 @@ components:
             $ref: "#/components/schemas/APIUsageLedgerListEnvelope"
     APIUsageLedgerExport:
       description: Immutable API usage ledger events as newline-delimited JSON.
+      headers:
+        Cache-Control:
+          description: Usage exports are sensitive operational/billing data and must not be stored by clients or shared caches.
+          schema:
+            type: string
+            enum: [no-store]
       content:
         application/x-ndjson:
           schema:
@@ -1794,6 +1800,11 @@ components:
     APIUsageExportArtifactDownload:
       description: API usage export artifact as newline-delimited JSON.
       headers:
+        Cache-Control:
+          description: Usage export artifacts are sensitive operational/billing data and must not be stored by clients or shared caches.
+          schema:
+            type: string
+            enum: [no-store]
         X-Gogomail-Artifact-SHA256:
           schema:
             type: string

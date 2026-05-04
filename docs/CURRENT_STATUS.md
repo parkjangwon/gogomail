@@ -433,6 +433,8 @@ The platform hardening sprint completed the following:
   `Cache-Control: no-store` headers with drift coverage.
 - API usage artifact downloads now sanitize stored content type and SHA-256
   response headers before streaming export objects.
+- API usage NDJSON exports and stored export artifact downloads now return
+  `Cache-Control: no-store`, with OpenAPI drift coverage.
 
 Next focus areas:
 
