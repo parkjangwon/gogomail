@@ -8,9 +8,22 @@ import (
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
+
+type adminRouteConfig struct {
+	routeCounters *delivery.RouteCounters
+}
+
+// AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
+type AdminRouteOption func(*adminRouteConfig)
+
+// WithRouteCounters enables the GET /admin/v1/delivery-routes/counters endpoint.
+func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.routeCounters = c }
+}
 
 type AdminService interface {
 	ListDomains(ctx context.Context, limit int) ([]maildb.DomainView, error)
@@ -51,7 +64,17 @@ type AdminBackpressureService interface {
 	UpdateBackpressure(ctx context.Context, req backpressure.StateUpdate) (backpressure.State, error)
 }
 
-func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string) {
+func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string, opts ...AdminRouteOption) {
+	var cfg adminRouteConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	if cfg.routeCounters != nil {
+		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{"route_counters": cfg.routeCounters.Snapshot()})
+		}))
+	}
+
 	mux.HandleFunc("GET /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {

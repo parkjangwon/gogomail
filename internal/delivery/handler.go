@@ -58,12 +58,13 @@ type Transport interface {
 }
 
 type Handler struct {
-	store     storage.Store
-	transport Transport
-	recorder  Recorder
-	retry     RetryScheduler
-	metrics   Metrics
-	throttler Throttler
+	store        storage.Store
+	transport    Transport
+	recorder     Recorder
+	retry        RetryScheduler
+	metrics      Metrics
+	throttler    Throttler
+	routeCounter *RouteCounters
 }
 
 func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
@@ -80,6 +81,11 @@ func (h *Handler) WithMetrics(metrics Metrics) *Handler {
 
 func (h *Handler) WithThrottler(throttler Throttler) *Handler {
 	h.throttler = throttler
+	return h
+}
+
+func (h *Handler) WithRouteCounters(counters *RouteCounters) *Handler {
+	h.routeCounter = counters
 	return h
 }
 
@@ -527,6 +533,9 @@ func (h *Handler) recordPartialAttempts(ctx context.Context, job Job, partial *P
 
 func (h *Handler) observe(ctx context.Context, event MetricEvent) {
 	h.metrics.ObserveDelivery(ctx, event)
+	if h.routeCounter != nil {
+		h.routeCounter.observe(event.RoutePool, event)
+	}
 }
 
 func metricEvent(queued QueuedMessage, stage MetricStage, result MetricResult, err error) MetricEvent {
@@ -537,6 +546,7 @@ func metricEvent(queued QueuedMessage, stage MetricStage, result MetricResult, e
 		RFCMessageID:   queued.RFCMessageID,
 		DomainID:       queued.DomainID,
 		Farm:           string(queued.Farm),
+		RoutePool:      string(queued.Farm),
 		RecipientCount: len(queued.Recipients()),
 	}
 	if err != nil {

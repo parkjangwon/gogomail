@@ -456,6 +456,40 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /delivery-routes/counters:
+    get:
+      operationId: getAdminDeliveryRouteCounters
+      summary: Admin delivery route runtime counters
+      responses:
+        "200":
+          description: Per-farm delivery counters since process start
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [route_counters]
+                properties:
+                  route_counters:
+                    type: array
+                    items:
+                      type: object
+                      required: [pool, delivered, failed, retried, exhausted, since]
+                      properties:
+                        pool:
+                          type: string
+                        delivered:
+                          type: integer
+                        failed:
+                          type: integer
+                        retried:
+                          type: integer
+                        exhausted:
+                          type: integer
+                        since:
+                          type: string
+                          format: date-time
+        default:
+          $ref: "#/components/responses/Error"
   /dkim-keys:
     get:
       operationId: listAdminDkimKeys

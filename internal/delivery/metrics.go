@@ -29,6 +29,7 @@ type MetricEvent struct {
 	RFCMessageID   string
 	DomainID       string
 	Farm           string
+	RoutePool      string
 	RecipientCount int
 	Error          string
 }
