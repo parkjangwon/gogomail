@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -793,6 +794,14 @@ func attachmentContentType(mimeType string) string {
 func safeContentType(mimeType string, fallback string) string {
 	mimeType = strings.TrimSpace(mimeType)
 	if mimeType == "" || strings.ContainsAny(mimeType, "\r\n") {
+		return fallback
+	}
+	mediaType, _, err := mime.ParseMediaType(mimeType)
+	if err != nil {
+		return fallback
+	}
+	typeName, subType, ok := strings.Cut(mediaType, "/")
+	if !ok || strings.TrimSpace(typeName) == "" || strings.TrimSpace(subType) == "" {
 		return fallback
 	}
 	return mimeType

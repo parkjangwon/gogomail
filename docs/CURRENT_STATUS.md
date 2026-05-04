@@ -448,12 +448,14 @@ The platform hardening sprint completed the following:
   before service dispatch.
 - Attachment download responses now emit both ASCII fallback and UTF-8
   `filename*` `Content-Disposition` parameters for internationalized filenames.
-- Attachment downloads now fall back to `application/octet-stream` for blank or
-  unsafe stored MIME types before setting response headers.
+- Attachment downloads now fall back to `application/octet-stream` for blank,
+  unsafe, or media-type-invalid stored MIME types before setting response
+  headers.
 - OpenAPI now documents attachment download `Content-Disposition` and
   `Cache-Control: no-store` headers with drift coverage.
 - API usage artifact downloads now sanitize stored content type and SHA-256
-  response headers before streaming export objects.
+  response headers before streaming export objects, including media-type
+  validation before the response `Content-Type` is written.
 - API usage NDJSON exports and stored export artifact downloads now return
   `Cache-Control: no-store`, with OpenAPI drift coverage.
 - Attachment downloads, usage NDJSON exports, and stored export artifact
