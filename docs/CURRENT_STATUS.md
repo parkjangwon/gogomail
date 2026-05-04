@@ -480,8 +480,8 @@ The platform hardening sprint completed the following:
 - Attachment scanner hook rejection/tempfail reasons are CR/LF-stripped and
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
-  the hook remains disabled by default and is wired only at SMTP
-  receive/submission app boundaries.
+  the hook remains disabled by default, supports an optional bounded bearer
+  token, and is wired only at SMTP receive/submission app boundaries.
 - Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
   message IDs or recipient addresses cannot create oversized Redis keys.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same

@@ -15,11 +15,13 @@ const maxWebhookResponseBytes = int64(64 << 10)
 
 type WebhookOptions struct {
 	Endpoint string
+	Token    string
 	Client   *http.Client
 }
 
 type WebhookScanner struct {
 	endpoint string
+	token    string
 	client   *http.Client
 }
 
@@ -36,7 +38,7 @@ func NewWebhookScanner(opts WebhookOptions) (*WebhookScanner, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &WebhookScanner{endpoint: endpoint, client: client}, nil
+	return &WebhookScanner{endpoint: endpoint, token: strings.TrimSpace(opts.Token), client: client}, nil
 }
 
 func (s *WebhookScanner) ScanAttachments(ctx context.Context, req Request) (Result, error) {
@@ -53,6 +55,9 @@ func (s *WebhookScanner) ScanAttachments(ctx context.Context, req Request) (Resu
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
+	if s.token != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+s.token)
+	}
 
 	resp, err := s.client.Do(httpReq)
 	if err != nil {

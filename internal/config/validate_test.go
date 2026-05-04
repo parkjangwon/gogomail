@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -75,6 +76,16 @@ func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
 			cfg.AttachmentScanWebhookURL = "ftp://scanner.example/scan"
 		}},
 		{name: "nonpositive timeout", mutate: func(cfg *Config) { cfg.AttachmentScanTimeout = 0 }},
+		{name: "token newline", mutate: func(cfg *Config) {
+			cfg.AttachmentScanBackend = "webhook"
+			cfg.AttachmentScanWebhookURL = "http://scanner.example/scan"
+			cfg.AttachmentScanWebhookToken = "bad\ntoken"
+		}},
+		{name: "token too long", mutate: func(cfg *Config) {
+			cfg.AttachmentScanBackend = "webhook"
+			cfg.AttachmentScanWebhookURL = "http://scanner.example/scan"
+			cfg.AttachmentScanWebhookToken = strings.Repeat("t", maxWebhookTokenBytes+1)
+		}},
 	}
 
 	for _, tt := range tests {

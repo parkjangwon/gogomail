@@ -12,6 +12,7 @@ import (
 const (
 	maxExportManifestSignerKeyIDBytes      = 200
 	maxExportManifestSignerCredentialBytes = 4096
+	maxWebhookTokenBytes                   = 4096
 )
 
 func (c Config) Validate() error {
@@ -62,6 +63,9 @@ func (c Config) Validate() error {
 	}
 	if strings.EqualFold(strings.TrimSpace(c.AttachmentScanBackend), "webhook") {
 		if err := validateHTTPURL("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", c.AttachmentScanWebhookURL); err != nil {
+			return err
+		}
+		if err := validateOptionalSecret("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", c.AttachmentScanWebhookToken); err != nil {
 			return err
 		}
 	}
@@ -276,6 +280,17 @@ func validateHTTPURL(name string, value string) error {
 	}
 	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return fmt.Errorf("%s must be an http or https URL", name)
+	}
+	return nil
+}
+
+func validateOptionalSecret(name string, value string) error {
+	value = strings.TrimSpace(value)
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s cannot contain line breaks", name)
+	}
+	if len(value) > maxWebhookTokenBytes {
+		return fmt.Errorf("%s is too long", name)
 	}
 	return nil
 }

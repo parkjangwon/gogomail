@@ -363,6 +363,7 @@ func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, compon
 	case "webhook":
 		scanner, err := attachmentscan.NewWebhookScanner(attachmentscan.WebhookOptions{
 			Endpoint: strings.TrimSpace(cfg.AttachmentScanWebhookURL),
+			Token:    cfg.AttachmentScanWebhookToken,
 			Client:   &http.Client{Timeout: cfg.AttachmentScanTimeout},
 		})
 		if err != nil {
