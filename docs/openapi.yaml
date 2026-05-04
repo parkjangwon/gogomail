@@ -132,6 +132,7 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 32
             enum: [date, relevance]
             default: date
         - name: include_rank
@@ -4656,6 +4657,7 @@ components:
       properties:
         draft_id:
           type: string
+          maxLength: 200
         file:
           type: string
           format: binary

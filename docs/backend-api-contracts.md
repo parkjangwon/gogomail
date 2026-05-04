@@ -166,12 +166,12 @@ Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart
 requests that exceed the direct upload envelope return HTTP 413
 `payload_too_large`; malformed multipart bodies that are within the cap remain
-HTTP 400 `bad_request`. Mail API path identifiers and the direct upload
-multipart `draft_id` field are trimmed at the HTTP boundary before service
-dispatch, keeping user-facing routes tolerant of incidental whitespace without
-storing whitespace-padded resource IDs. Attachment reservation and direct-upload
-`draft_id` values reject CR/LF-bearing or oversized identifiers before quota
-reservation or object writes.
+HTTP 400 `bad_request`. Mail API path identifiers, search control query values,
+and the direct upload multipart `draft_id` field are trimmed at the HTTP
+boundary before service dispatch, keeping user-facing routes tolerant of
+incidental whitespace without storing whitespace-padded resource IDs. Attachment
+reservation and direct-upload `draft_id` values reject CR/LF-bearing or
+oversized identifiers before quota reservation or object writes.
 
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of

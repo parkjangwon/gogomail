@@ -284,6 +284,8 @@ func TestSearchMessagesHandlerRejectsInvalidRankingOptions(t *testing.T) {
 		"/api/v1/search?user_id=user-1&sort=popular",
 		"/api/v1/search?user_id=user-1&include_rank=maybe",
 		"/api/v1/search?user_id=user-1&include_highlights=maybe",
+		"/api/v1/search?user_id=user-1&sort=" + strings.Repeat("s", maxHTTPControlBytes+1),
+		"/api/v1/search?user_id=user-1&include_rank=true%0Abad",
 	}
 	for _, target := range tests {
 		target := target
@@ -302,6 +304,25 @@ func TestSearchMessagesHandlerRejectsInvalidRankingOptions(t *testing.T) {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestMailRoutesRejectOversizedLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&limit="+strings.Repeat("9", maxHTTPControlBytes+1), nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "" {
+		t.Fatalf("handler should not dispatch oversized limit, lastUserID = %q", service.lastUserID)
 	}
 }
 
@@ -1012,6 +1033,61 @@ func TestUploadAttachmentHandlerRejectsOversizedRequestBody(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "attachment upload request is too large") {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestUploadAttachmentHandlerRejectsUnsafeDraftID(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		draftID string
+	}{
+		{
+			name:    "crlf",
+			draftID: "draft\nbad",
+		},
+		{
+			name:    "oversized",
+			draftID: strings.Repeat("d", maxHTTPResourceIDBytes+1),
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			if err := writer.WriteField("draft_id", tc.draftID); err != nil {
+				t.Fatalf("WriteField returned error: %v", err)
+			}
+			part, err := writer.CreateFormFile("file", "report.pdf")
+			if err != nil {
+				t.Fatalf("CreateFormFile returned error: %v", err)
+			}
+			if _, err := part.Write([]byte("content")); err != nil {
+				t.Fatalf("part.Write returned error: %v", err)
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatalf("writer.Close returned error: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments/upload?user_id=user-1", &body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastAttachmentUpload.DraftID != "" || service.lastAttachmentBody != "" {
+				t.Fatalf("handler should not dispatch unsafe draft_id: body=%q req=%+v", service.lastAttachmentBody, service.lastAttachmentUpload)
+			}
+		})
 	}
 }
 

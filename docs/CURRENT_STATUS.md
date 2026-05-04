@@ -178,6 +178,9 @@ guidance.
 - Password hash verification now rejects oversized stored hashes, excessive
   PBKDF2 iteration counts, and oversized PBKDF2 salt/key metadata before
   expensive derivation or decoded allocation.
+- Mail API search control query values and direct multipart attachment
+  `draft_id` fields now reject CR/LF-bearing or oversized values at the HTTP
+  boundary before service dispatch.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

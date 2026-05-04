@@ -21,6 +21,7 @@ import (
 const (
 	maxJSONBodyBytes       = 1 << 20
 	maxHTTPAuthHeaderBytes = 16 << 10
+	maxHTTPControlBytes    = 32
 	maxHTTPResourceIDBytes = 200
 	maxHTTPQueryBytes      = 1024
 )
@@ -224,7 +225,11 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		sortMode := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("sort")))
+		sortMode, ok := parseBoundedHTTPQuery(w, r, "sort", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		sortMode = strings.ToLower(sortMode)
 		if sortMode == "" {
 			sortMode = maildb.MessageSearchSortDate
 		}
@@ -619,9 +624,13 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusRequestEntityTooLarge, "attachment is too large")
 			return
 		}
+		draftID, ok := parseBoundedHTTPFormValue(w, r, "draft_id", false, maxHTTPResourceIDBytes)
+		if !ok {
+			return
+		}
 		attachment, err := service.UploadAttachment(r.Context(), mailservice.UploadAttachmentRequest{
 			UserID:   userID,
-			DraftID:  strings.TrimSpace(r.FormValue("draft_id")),
+			DraftID:  draftID,
 			Filename: header.Filename,
 			Size:     header.Size,
 			MIMEType: mimeType,
@@ -747,6 +756,10 @@ func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
 	if raw == "" {
 		return 0, true
 	}
+	if len(raw) > maxHTTPControlBytes {
+		writeError(w, http.StatusBadRequest, "limit is too long")
+		return 0, false
+	}
 	limit, err := strconv.Atoi(raw)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "limit must be an integer")
@@ -767,6 +780,14 @@ func parseOptionalBoolQuery(w http.ResponseWriter, r *http.Request, key string) 
 	raw := strings.TrimSpace(r.URL.Query().Get(key))
 	if raw == "" {
 		return nil, true
+	}
+	if strings.ContainsAny(raw, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return nil, false
+	}
+	if len(raw) > maxHTTPControlBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return nil, false
 	}
 	value, err := strconv.ParseBool(raw)
 	if err != nil {
@@ -840,6 +861,15 @@ func parseBoundedHTTPPathPair(w http.ResponseWriter, r *http.Request, firstKey s
 
 func parseBoundedHTTPQuery(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {
 	value := strings.TrimSpace(r.URL.Query().Get(key))
+	return parseBoundedHTTPValue(w, key, value, required, maxBytes)
+}
+
+func parseBoundedHTTPFormValue(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {
+	value := strings.TrimSpace(r.FormValue(key))
+	return parseBoundedHTTPValue(w, key, value, required, maxBytes)
+}
+
+func parseBoundedHTTPValue(w http.ResponseWriter, key string, value string, required bool, maxBytes int) (string, bool) {
 	if value == "" {
 		if required {
 			writeError(w, http.StatusBadRequest, key+" is required")
