@@ -160,6 +160,26 @@ func TestDecodeQueuedMessageRejectsOversizedStoragePath(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageRejectsTooManyRecipients(t *testing.T) {
+	t.Parallel()
+
+	recipients := make([]string, 0, maxQueuedRecipientCount+1)
+	for i := 0; i <= maxQueuedRecipientCount; i++ {
+		recipients = append(recipients, `{"email":"user`+string(rune('a'+i%26))+`-`+strings.Repeat("x", i/26)+`@example.net"}`)
+	}
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[` + strings.Join(recipients, ",") + `],
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "too many recipients") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want too many recipients", err)
+	}
+}
+
 func TestDecodeQueuedMessageCanonicalizesDSNNotifyOrder(t *testing.T) {
 	t.Parallel()
 
@@ -704,6 +724,27 @@ func TestDecodeQueuedMessageRejectsOversizedDSNOriginalRecipient(t *testing.T) {
 	}`))
 	if err == nil || !strings.Contains(err.Error(), "oversized dsn original_recipient") {
 		t.Fatalf("DecodeQueuedMessage error = %v, want oversized dsn original_recipient", err)
+	}
+}
+
+func TestDecodeQueuedMessageRejectsTooManyDSNRecipients(t *testing.T) {
+	t.Parallel()
+
+	recipients := make([]string, 0, maxQueuedRecipientCount+1)
+	for i := 0; i <= maxQueuedRecipientCount; i++ {
+		recipients = append(recipients, `{"address":"user`+string(rune('a'+i%26))+`-`+strings.Repeat("x", i/26)+`@example.net"}`)
+	}
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"user@example.net"}],
+		"dsn":{"recipients":[` + strings.Join(recipients, ",") + `]},
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "too many dsn recipients") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want too many dsn recipients", err)
 	}
 }
 

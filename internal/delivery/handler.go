@@ -51,6 +51,7 @@ const (
 	maxQueuedRFCMessageIDBytes         = 500
 	maxQueuedStoragePathBytes          = 2048
 	maxQueuedDSNOriginalRecipientBytes = 500
+	maxQueuedRecipientCount            = 100
 )
 
 type MessageOpener func(ctx context.Context) (io.ReadCloser, error)
@@ -277,6 +278,9 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 		}
 		queued.From.Email = from
 	}
+	if queuedRawRecipientCount(queued) > maxQueuedRecipientCount {
+		return QueuedMessage{}, fmt.Errorf("mail.queued payload has too many recipients")
+	}
 	if err := normalizeQueuedRecipients(&queued); err != nil {
 		return QueuedMessage{}, err
 	}
@@ -334,6 +338,10 @@ func normalizeQueuedRecipients(queued *QueuedMessage) error {
 	return nil
 }
 
+func queuedRawRecipientCount(queued QueuedMessage) int {
+	return len(queued.To) + len(queued.Cc) + len(queued.Bcc)
+}
+
 func normalizeAddressList(field string, addresses []outbound.Address) ([]outbound.Address, error) {
 	if len(addresses) == 0 {
 		return addresses, nil
@@ -366,6 +374,9 @@ func normalizeQueuedDSNOptions(queued *QueuedMessage) error {
 	}
 	if len(queued.DSN.Recipients) == 0 {
 		return nil
+	}
+	if len(queued.DSN.Recipients) > maxQueuedRecipientCount {
+		return fmt.Errorf("mail.queued payload has too many dsn recipients")
 	}
 	normalized := queued.DSN.Recipients[:0]
 	indexByAddress := make(map[string]int, len(queued.DSN.Recipients))
