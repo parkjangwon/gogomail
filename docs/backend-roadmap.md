@@ -432,6 +432,7 @@ Implementation order:
 373. API metering admin-token identity classification now compares SHA-256 digests of trimmed token values, matching the hardened Admin API authorization path while preserving bearer and `X-Admin-Token` classification.
 374. API usage ledger retention-readiness now rejects future cutoff timestamps at the HTTP boundary, preventing operators from marking still-open accounting windows ready for future archive/delete jobs.
 375. OpenAPI drift tests now pin API usage retention-readiness query parameters and document the non-future cutoff guardrail, keeping generated archive/delete tooling aligned with the safety gate.
+376. Direct multipart attachment uploads now classify over-limit HTTP request envelopes as 413 `payload_too_large` while preserving 400 responses for malformed multipart bodies, keeping generated clients aligned with upload retry/error handling.
 
 ## Deferred until backend contracts stabilize
 

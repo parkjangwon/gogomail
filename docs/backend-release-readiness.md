@@ -21,7 +21,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
 - Stale attachment uploads have a repository/service cleanup path and a partial index for efficient lifecycle sweeps.
 - Direct multipart uploads write through the configured storage backend and only record metadata after the object write succeeds.
-- Attachment upload size is guarded in HTTP and service layers, including multipart request caps and declared-size consistency checks.
+- Attachment upload size is guarded in HTTP and service layers, including
+  multipart request caps that return 413 for over-limit direct upload envelopes
+  and declared-size consistency checks.
 - Draft-to-send uses the normal outbound send path, then closes the source draft and links it to the sent message.
 - Draft attachment uploads move to the sent message during draft-to-send, keeping sent folder detail and attachment list views consistent.
 - Mail API send responses explicitly expose queued send, pending delivery, and no-bounce status fields so generated clients can model send lifecycle state without guessing from queue internals.
