@@ -281,14 +281,19 @@ Current state:
   signature, operational readiness, and separate billing readiness. Local-HMAC
   signed batches remain `billing_ready=false` with
   `production_manifest_signer_required`.
+- Passing `deep=true` to the handoff readiness endpoint streams all registered
+  artifacts from object storage, verifies their byte/SHA metadata, verifies the
+  latest manifest digest, checks that the digest still covers current artifact
+  metadata, and verifies the latest signature when a verifier is available.
+  Deep mode returns `verified_billing_ready` separately so `billing_ready`
+  remains a stable metadata/signer-eligibility signal.
 
 Next:
 
 - Add external KMS/asymmetric signing before invoices or hard Open API limits
   depend on completed export batches.
-- Add a deep handoff verification mode that streams artifacts and verifies the
-  latest digest/signature in one report when operators explicitly request the
-  more expensive check.
+- Consider adding a production signer adapter and a signer-capability endpoint
+  before treating `billing_candidate` as invoice-grade.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 

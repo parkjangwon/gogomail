@@ -370,7 +370,15 @@ API call metering can now emit durable usage events:
   `billing_ready`/`readiness_grade` fields. Local-HMAC signatures can satisfy
   operational handoff readiness but keep `billing_ready: false` with
   `production_manifest_signer_required` until a production signer backend is
-  wired.
+  wired. Passing `deep=true` explicitly runs the expensive verification path:
+  all registered artifacts are streamed from object storage and checked against
+  persisted byte/SHA metadata, the latest manifest digest is recomputed, and the
+  latest signature is verified when a verifier is available. Deep mode also
+  checks that the latest digest manifest artifact list still matches the
+  currently registered artifacts. Deep failures are returned as
+  `deep_blocking_reasons` and `deep_verification_errors` without changing the
+  metadata-only `ready` or `billing_ready` fields; clients that need object-
+  verified billing evidence should read `verified_billing_ready`.
 - `GET /admin/v1/api-usage/export-batches/{id}/export` streams the saved
   manifest window as NDJSON, making export replay idempotent by batch ID.
 - `POST /admin/v1/api-usage/export-batches/{id}/artifacts` registers an
