@@ -201,6 +201,16 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 	return imapgw.Message{Summary: stored.Summary, Body: body}, nil
 }
 
+func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsRequest) ([]imapgw.MessageSummary, error) {
+	repo, ok := s.repository.(interface {
+		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap flag repository is required")
+	}
+	return repo.StoreIMAPFlags(ctx, string(req.UserID), string(req.MailboxID), req.UIDs, req.Flags, req.Mode)
+}
+
 func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
 	repo, ok := s.repository.(DeliveryStatusRepository)
 	if !ok {

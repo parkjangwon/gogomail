@@ -299,6 +299,7 @@ Implementation order:
 244. `maildb` now exposes first IMAP mailbox adapter methods that list/get folders as `internal/imapgw.Mailbox` DTOs while ensuring UIDVALIDITY/UIDNEXT state.
 245. `maildb` can list mailbox messages as `internal/imapgw.MessageSummary` DTOs, assigning missing mailbox-local UIDs and mapping envelope/flag fields for future IMAP FETCH/LIST flows.
 246. IMAP fetch groundwork can resolve active messages by mailbox UID and stream the raw stored `.eml` body through `mailservice` without parsing or copying it into memory.
+247. IMAP STORE groundwork can mutate `\Seen`, `\Flagged`, and `\Answered` through the existing message flag JSON while advancing message/mailbox MODSEQ only for actual flag changes.
 
 ## Deferred until backend contracts stabilize
 

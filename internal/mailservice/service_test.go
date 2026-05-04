@@ -135,9 +135,36 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 	}
 }
 
+func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapFlagSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		UIDs:      []imapgw.UID{12},
+		Flags:     imapgw.MessageFlags{Read: true},
+		Mode:      imapgw.StoreFlagsAdd,
+	})
+	if err != nil {
+		t.Fatalf("StoreIMAPFlags returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].UID != 12 {
+		t.Fatalf("summaries = %#v, want repository result", got)
+	}
+	if repo.lastIMAPFlagMode != imapgw.StoreFlagsAdd || !repo.lastIMAPFlags.Read {
+		t.Fatalf("stored flags = %#v/%q, want read add", repo.lastIMAPFlags, repo.lastIMAPFlagMode)
+	}
+}
+
 type fakeRepository struct {
 	detail                    maildb.MessageDetail
 	imapMessage               maildb.IMAPStoredMessage
+	imapFlagSummaries         []imapgw.MessageSummary
 	attachments               []maildb.Attachment
 	suppressed                []string
 	domainPolicy              maildb.DomainPolicyView
@@ -152,6 +179,8 @@ type fakeRepository struct {
 	lastSentDraftID           string
 	lastSentDraftMessageID    string
 	lastOutgoing              maildb.OutgoingMessage
+	lastIMAPFlags             imapgw.MessageFlags
+	lastIMAPFlagMode          imapgw.StoreFlagsMode
 	recordErr                 error
 }
 
@@ -190,6 +219,12 @@ func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.Mes
 
 func (f *fakeRepository) GetIMAPMessage(context.Context, string, string, imapgw.UID) (maildb.IMAPStoredMessage, error) {
 	return f.imapMessage, nil
+}
+
+func (f *fakeRepository) StoreIMAPFlags(_ context.Context, _ string, _ string, _ []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error) {
+	f.lastIMAPFlags = flags
+	f.lastIMAPFlagMode = mode
+	return f.imapFlagSummaries, nil
 }
 
 func (f *fakeRepository) SetMessageFlag(_ context.Context, _ string, messageID string, flag string, _ bool) error {

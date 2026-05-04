@@ -299,6 +299,87 @@ LIMIT 1`
 	}, nil
 }
 
+func (r *Repository) StoreIMAPFlags(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if mailboxID == "" {
+		return nil, fmt.Errorf("mailbox_id is required")
+	}
+	if len(uids) == 0 {
+		return nil, fmt.Errorf("uids are required")
+	}
+	if len(uids) > 500 {
+		return nil, fmt.Errorf("too many uids")
+	}
+	for _, uid := range uids {
+		if uid == 0 {
+			return nil, fmt.Errorf("uid must not be zero")
+		}
+	}
+	changes, err := newIMAPStoreFlagChanges(flags, mode)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := r.EnsureIMAPMailboxState(ctx, userID, mailboxID); err != nil {
+		return nil, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin imap store flags transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var highestModSeq uint64
+	const lockMailbox = `
+SELECT highest_modseq
+FROM imap_mailbox_state
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid
+FOR UPDATE`
+	if err := tx.QueryRowContext(ctx, lockMailbox, mailboxID, userID).Scan(&highestModSeq); err != nil {
+		return nil, fmt.Errorf("lock imap mailbox state: %w", err)
+	}
+
+	summaries := make([]imapgw.MessageSummary, 0, len(uids))
+	changedAny := false
+	for _, uid := range uids {
+		row, messageUID, err := scanIMAPMessageByUID(ctx, tx, userID, mailboxID, uid)
+		if err != nil {
+			return nil, err
+		}
+		next, changed := applyIMAPStoreFlagChanges(row, changes)
+		if changed {
+			changedAny = true
+			highestModSeq++
+			messageUID.ModSeq = highestModSeq
+			if err := updateIMAPMessageFlags(ctx, tx, row.ID, messageUID.ModSeq, next); err != nil {
+				return nil, err
+			}
+			row = next
+		}
+		summaries = append(summaries, imapMessageFromRow(row, messageUID))
+	}
+	if changedAny {
+		if err := updateIMAPMailboxModSeq(ctx, tx, mailboxID, highestModSeq); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit imap store flags transaction: %w", err)
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].UID < summaries[j].UID
+	})
+	return summaries, nil
+}
+
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 	return imapgw.Mailbox{
 		ID:          imapgw.MailboxID(folder.ID),
@@ -328,6 +409,69 @@ type imapMessageRow struct {
 	Forwarded    bool
 	Draft        bool
 	Status       string
+}
+
+type imapStoreFlagChanges struct {
+	Read     *bool
+	Starred  *bool
+	Answered *bool
+}
+
+func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) (imapStoreFlagChanges, error) {
+	if flags.Forwarded || flags.Draft || strings.TrimSpace(flags.Status) != "" {
+		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flag set")
+	}
+	var changes imapStoreFlagChanges
+	switch mode {
+	case imapgw.StoreFlagsAdd:
+		if flags.Read {
+			changes.Read = boolPointer(true)
+		}
+		if flags.Starred {
+			changes.Starred = boolPointer(true)
+		}
+		if flags.Answered {
+			changes.Answered = boolPointer(true)
+		}
+	case imapgw.StoreFlagsRemove:
+		if flags.Read {
+			changes.Read = boolPointer(false)
+		}
+		if flags.Starred {
+			changes.Starred = boolPointer(false)
+		}
+		if flags.Answered {
+			changes.Answered = boolPointer(false)
+		}
+	case imapgw.StoreFlagsReplace:
+		changes.Read = boolPointer(flags.Read)
+		changes.Starred = boolPointer(flags.Starred)
+		changes.Answered = boolPointer(flags.Answered)
+	default:
+		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flags mode %q", mode)
+	}
+	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil {
+		return imapStoreFlagChanges{}, fmt.Errorf("imap flags are required")
+	}
+	return changes, nil
+}
+
+func applyIMAPStoreFlagChanges(row imapMessageRow, changes imapStoreFlagChanges) (imapMessageRow, bool) {
+	next := row
+	if changes.Read != nil {
+		next.Read = *changes.Read
+	}
+	if changes.Starred != nil {
+		next.Starred = *changes.Starred
+	}
+	if changes.Answered != nil {
+		next.Answered = *changes.Answered
+	}
+	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered
+}
+
+func boolPointer(value bool) *bool {
+	return &value
 }
 
 func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSummary {
@@ -371,6 +515,108 @@ func imapEnvelopeAddress(name string, address string) []imapgw.Address {
 		return []imapgw.Address{{Name: name, Mailbox: address}}
 	}
 	return []imapgw.Address{{Name: name, Mailbox: mailbox, Host: host}}
+}
+
+func scanIMAPMessageByUID(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, uid imapgw.UID) (imapMessageRow, IMAPMessageUID, error) {
+	const query = `
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  m.status,
+  i.uid,
+  i.modseq
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.user_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND i.uid = $3
+  AND m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+LIMIT 1
+FOR UPDATE OF i, m`
+
+	var row imapMessageRow
+	var messageUID IMAPMessageUID
+	if err := tx.QueryRowContext(ctx, query, userID, mailboxID, int64(uid)).Scan(
+		&row.ID,
+		&row.MailboxID,
+		&row.RFCMessageID,
+		&row.Subject,
+		&row.FromAddr,
+		&row.FromName,
+		&row.InternalDate,
+		&row.Size,
+		&row.Read,
+		&row.Starred,
+		&row.Answered,
+		&row.Forwarded,
+		&row.Draft,
+		&row.Status,
+		&messageUID.UID,
+		&messageUID.ModSeq,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return imapMessageRow{}, IMAPMessageUID{}, fmt.Errorf("imap message uid %d not found", uid)
+		}
+		return imapMessageRow{}, IMAPMessageUID{}, fmt.Errorf("scan imap message by uid: %w", err)
+	}
+	messageUID.MessageID = imapgw.MessageID(row.ID)
+	messageUID.MailboxID = imapgw.MailboxID(row.MailboxID)
+	if err := imapgw.ValidateMessageUID(messageUID); err != nil {
+		return imapMessageRow{}, IMAPMessageUID{}, err
+	}
+	return row, messageUID, nil
+}
+
+func updateIMAPMessageFlags(ctx context.Context, tx *sql.Tx, messageID string, modseq uint64, row imapMessageRow) error {
+	const updateMessage = `
+UPDATE messages
+SET flags = jsonb_set(
+      jsonb_set(
+        jsonb_set(flags, '{read}', to_jsonb($2::boolean), true),
+        '{starred}', to_jsonb($3::boolean), true
+      ),
+      '{answered}', to_jsonb($4::boolean), true
+    ),
+    updated_at = now()
+WHERE id = $1::uuid`
+	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered); err != nil {
+		return fmt.Errorf("update imap message flags: %w", err)
+	}
+
+	const updateUID = `
+UPDATE imap_message_uid
+SET modseq = $2,
+    updated_at = now()
+WHERE message_id = $1::uuid`
+	if _, err := tx.ExecContext(ctx, updateUID, messageID, int64(modseq)); err != nil {
+		return fmt.Errorf("update imap message modseq: %w", err)
+	}
+	return nil
+}
+
+func updateIMAPMailboxModSeq(ctx context.Context, tx *sql.Tx, mailboxID string, highestModSeq uint64) error {
+	const query = `
+UPDATE imap_mailbox_state
+SET highest_modseq = $2,
+    updated_at = now()
+WHERE mailbox_id = $1::uuid`
+	if _, err := tx.ExecContext(ctx, query, mailboxID, int64(highestModSeq)); err != nil {
+		return fmt.Errorf("update imap mailbox modseq: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) EnsureIMAPMailboxState(ctx context.Context, userID string, mailboxID string) (IMAPUIDState, error) {
