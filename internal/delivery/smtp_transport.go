@@ -217,8 +217,11 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 }
 
 func smtpMail(client *smtp.Client, job Job) error {
+	if jobNeedsUTF8(job) && !smtpClientSupports(client, "SMTPUTF8") {
+		return &SMTPStatusError{Op: "mail", Code: 553, Message: "5.6.7 SMTPUTF8 required but not advertised"}
+	}
 	needsExtensions := shouldSendOutboundDSNMailOptions(job) ||
-		jobNeedsUTF8(job) && smtpClientSupports(client, "SMTPUTF8")
+		jobNeedsUTF8(job)
 	if !needsExtensions {
 		return client.Mail(job.From.Email)
 	}
@@ -266,6 +269,9 @@ func containsNonASCIIByte(s string) bool {
 }
 
 func smtpRcpt(client *smtp.Client, job Job, recipient outbound.Address) error {
+	if containsNonASCIIByte(recipient.Email) && !smtpClientSupports(client, "SMTPUTF8") {
+		return &SMTPStatusError{Op: "rcpt", Code: 553, Message: "5.6.7 SMTPUTF8 required but not advertised"}
+	}
 	options := dsnOptionsForRecipient(job.DSN.Recipients, recipient.Email)
 	if !shouldSendOutboundDSNRcptOptions(job) || !smtpClientSupports(client, "DSN") || len(options) == 0 {
 		return client.Rcpt(recipient.Email)

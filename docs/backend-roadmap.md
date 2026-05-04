@@ -634,6 +634,7 @@ Implementation order:
 574. Admin user listing now also supports a status filter over `active`, `suspended`, and `disabled`, aligning list triage with the existing user status lifecycle.
 575. Admin DKIM key listing now supports `status=active|inactive`, letting operators inspect current signing keys or retired keys without direct database queries.
 576. Admin suppression-list reads now support bounded domain, email, and reason filters, letting operators triage bounce suppression state without direct database queries.
+577. Outbound SMTP now fails closed for internationalized envelope addresses when a remote MTA does not advertise SMTPUTF8, preventing accidental RFC 6531 option leakage to non-EAI peers.
 
 ## Deferred until backend contracts stabilize
 

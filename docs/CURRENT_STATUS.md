@@ -388,7 +388,8 @@ guidance.
   `4.x.x` enhanced status codes as retrying rather than terminal failed.
 - DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
-  addresses (RFC 6531 compliance fix).
+  addresses, and outbound delivery now fails closed with a permanent SMTPUTF8
+  error when the remote MTA does not advertise SMTPUTF8.
 - DSN composition supports an optional sanitized `text/rfc822-headers` returned
   header part, preparing RFC 3464 `RET=HDRS` wiring without header injection.
 - OpenAPI draft with route, request body, response envelope, operationId, and
