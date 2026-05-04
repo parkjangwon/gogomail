@@ -475,6 +475,50 @@ func TestPostgresFinalizeAttachmentUploadSessionRejectsDuplicateFinalize(t *test
 	}
 }
 
+func TestPostgresFinalizeAttachmentUploadSessionRejectsUnstoredBody(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	session, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "large.bin",
+		DeclaredSize: 512,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession returned error: %v", err)
+	}
+	var quotaAfterCreate int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaAfterCreate); err != nil {
+		t.Fatalf("query quota after create: %v", err)
+	}
+	if _, err := repo.FinalizeAttachmentUploadSession(ctx, FinalizeAttachmentUploadSessionRequest{
+		UserID:    seed.userID,
+		SessionID: session.ID,
+	}); err == nil {
+		t.Fatal("FinalizeAttachmentUploadSession accepted unstored body")
+	}
+	var quotaAfterFinalize int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaAfterFinalize); err != nil {
+		t.Fatalf("query quota after rejected finalize: %v", err)
+	}
+	if quotaAfterFinalize != quotaAfterCreate {
+		t.Fatalf("quota after rejected finalize = %d, want %d", quotaAfterFinalize, quotaAfterCreate)
+	}
+	var attachmentCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM attachments WHERE upload_id = $1`, session.UploadID).Scan(&attachmentCount); err != nil {
+		t.Fatalf("query attachment count: %v", err)
+	}
+	if attachmentCount != 0 {
+		t.Fatalf("attachment count = %d, want 0", attachmentCount)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 
