@@ -83,6 +83,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis-backed event/search/API-metering/push/delivery workers reclaim idle
   pending stream messages with configurable claim-idle windows so crashed
   consumers do not strand at-least-once work indefinitely.
+- Event routing trims registered and payload event names and rejects
+  CR/LF-bearing event names before worker dispatch.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
   MIME part-count cap with `PartsTruncated` signaling, and a large-body
   benchmark. Retained address-list and `References` metadata are also capped

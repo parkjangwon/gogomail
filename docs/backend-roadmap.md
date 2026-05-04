@@ -479,6 +479,7 @@ Implementation order:
 420. Domain policy service lookups now trim domain and user identifiers before repository policy reads for outbound and attachment enforcement.
 421. The audit `mail.stored` consumer now trims event, tenant, recipient, subject, storage, and timestamp fields and rejects CR/LF-bearing message identifiers before audit-log persistence.
 422. Delivery-status audit consumers now trim event, tenant, sender, recipient, farm, status, error, and timestamp fields and reject CR/LF-bearing message identifiers before audit-log persistence.
+423. Event routing now trims registered and payload event names and rejects CR/LF-bearing event names before worker dispatch.
 
 ## Deferred until backend contracts stabilize
 
