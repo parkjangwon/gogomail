@@ -531,6 +531,9 @@ The platform hardening sprint completed the following:
 - Attachment downloads, usage NDJSON exports, and stored export artifact
   downloads now return `X-Content-Type-Options: nosniff`, with OpenAPI drift
   coverage.
+- Backend release verification now fails when standard tests leave pending
+  repository changes behind, while local OpenChrome session artifacts are
+  ignored as developer-machine state.
 
 Next focus areas:
 

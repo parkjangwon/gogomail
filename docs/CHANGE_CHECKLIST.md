@@ -39,7 +39,7 @@ Run:
 ```bash
 go test ./...
 go mod tidy -diff
-git status --short
+./scripts/verify-backend-release.sh
 ```
 
 Optional when database behavior changed:

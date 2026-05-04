@@ -22,4 +22,10 @@ else
 fi
 
 echo "==> git status --short"
-git status --short
+status="$(git status --short)"
+if [ "$status" != "" ]; then
+	printf '%s\n' "$status"
+	echo "release verification failed: working tree is not clean" >&2
+	exit 1
+fi
+echo "working tree clean"
