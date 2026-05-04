@@ -87,10 +87,19 @@ Current state:
 - Optional OpenSearch integration coverage can validate bootstrap, indexing,
   and folder-aware relevance search against a real backend when
   `GOGOMAIL_TEST_OPENSEARCH_URL` is set.
+- OpenSearch sender/subject filters use lower-cased keyword fields for
+  Postgres-like case-insensitive filtering.
+- OpenSearch highlight fragments are bounded before they are mapped into Mail
+  API responses, and duplicate external hit IDs are deduplicated before
+  Postgres summary hydration.
+- Search index worker startup logs include non-secret backend diagnostics, and
+  OpenSearch calls have an explicit configurable timeout.
 
 Next:
 
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
+- Decide whether draft search should be indexed before expanding OpenSearch
+  beyond relevance-sorted received-message searches.
 
 ### 3. IMAP gateway planning
 
