@@ -141,8 +141,10 @@ resolves active devices for the `mail.stored.user_id` after commit and before
 invoking its sink. `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT` bounds per-message
 fan-out. Vendor delivery remains a future sink adapter, not a Mail API or SMTP
 side effect. The worker records one `push_notification_attempts` candidate row
-per resolved device before invoking the current sink so operations can inspect
-fan-out without coupling notification delivery to the SMTP transaction.
+per resolved device before invoking the current sink. The generated attempt id
+is attached to each sink target so future vendor adapters can update that exact
+row with delivered, failed, or invalid-token outcomes without coupling
+notification delivery to the SMTP transaction.
 
 ## Admin operations
 

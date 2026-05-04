@@ -96,6 +96,8 @@ guidance.
   touching SMTP hot paths or committing to FCM/APNs SDKs.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status or user.
+- Push notification sinks receive the persisted candidate attempt id with each
+  target, preparing clean vendor outcome updates later.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
