@@ -695,6 +695,26 @@ paths:
           $ref: "#/components/responses/APIUsageExportArtifact"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/artifacts/{artifact_id}/download:
+    get:
+      operationId: downloadAdminAPIUsageExportArtifact
+      summary: Download a stored API usage export artifact object
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportArtifactDownload"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches/{id}/manifest-digests:
     get:
       operationId: listAdminAPIUsageExportManifestDigests
@@ -1463,6 +1483,17 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageExportArtifactListEnvelope"
+    APIUsageExportArtifactDownload:
+      description: API usage export artifact as newline-delimited JSON.
+      headers:
+        X-Gogomail-Artifact-SHA256:
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+      content:
+        application/x-ndjson:
+          schema:
+            type: string
     APIUsageExportManifestDigest:
       description: Canonical API usage export manifest digest envelope
       content:
