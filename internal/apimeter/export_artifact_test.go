@@ -40,6 +40,26 @@ func TestWriteExportArtifactStreamsNDJSONAndMetadata(t *testing.T) {
 	}
 }
 
+func TestDefaultExportArtifactObjectKey(t *testing.T) {
+	t.Parallel()
+
+	got, err := DefaultExportArtifactObjectKey("api-usage-export-1")
+	if err != nil {
+		t.Fatalf("DefaultExportArtifactObjectKey returned error: %v", err)
+	}
+	if got != "exports/api-usage/api-usage-export-1.ndjson" {
+		t.Fatalf("object key = %q", got)
+	}
+
+	got, err = DefaultExportArtifactObjectKey("batch/tenant 1")
+	if err != nil {
+		t.Fatalf("DefaultExportArtifactObjectKey returned error: %v", err)
+	}
+	if got != "exports/api-usage/batch_tenant_1.ndjson" {
+		t.Fatalf("sanitized object key = %q", got)
+	}
+}
+
 func TestWriteExportArtifactRejectsUnsafeRequests(t *testing.T) {
 	t.Parallel()
 

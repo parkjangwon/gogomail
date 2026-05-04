@@ -31,6 +31,29 @@ type ExportArtifactWriteResult struct {
 	Metadata    json.RawMessage
 }
 
+func DefaultExportArtifactObjectKey(batchID string) (string, error) {
+	batchID = strings.TrimSpace(batchID)
+	if batchID == "" {
+		return "", fmt.Errorf("batch id is required")
+	}
+	var b strings.Builder
+	for _, r := range batchID {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	return "exports/api-usage/" + b.String() + ".ndjson", nil
+}
+
 func WriteExportArtifact(ctx context.Context, store ExportArtifactStore, req ExportArtifactWriteRequest) (ExportArtifactWriteResult, error) {
 	if store == nil {
 		return ExportArtifactWriteResult{}, fmt.Errorf("export artifact store is required")
