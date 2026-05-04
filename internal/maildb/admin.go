@@ -441,9 +441,10 @@ type DeliveryAttemptView struct {
 }
 
 type DeliveryAttemptListRequest struct {
-	Limit  int
-	Status string
-	Since  time.Time
+	Limit           int
+	Status          string
+	RecipientDomain string
+	Since           time.Time
 }
 
 type PushNotificationAttemptView struct {
@@ -3502,6 +3503,7 @@ func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttem
 	}
 	req.Limit = normalizeLimit(req.Limit)
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	req.RecipientDomain = strings.ToLower(strings.Trim(strings.TrimSpace(req.RecipientDomain), "."))
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
 	}
@@ -3523,10 +3525,11 @@ SELECT
 FROM delivery_attempts
 WHERE (NULLIF($2, '') IS NULL OR status = $2)
   AND ($3::timestamptz IS NULL OR attempted_at >= $3::timestamptz)
+  AND (NULLIF($4, '') IS NULL OR recipient_domain = $4)
 ORDER BY attempted_at DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, nullableTime(req.Since))
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, nullableTime(req.Since), req.RecipientDomain)
 	if err != nil {
 		return nil, fmt.Errorf("list delivery attempts: %w", err)
 	}

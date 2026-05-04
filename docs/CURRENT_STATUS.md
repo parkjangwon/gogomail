@@ -170,8 +170,8 @@ guidance.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
   `delivery_attempts` row with status `exhausted` written when all retries fail.
-- Admin delivery attempt lists can be scoped by status and recent time window
-  for bounded retry/bounce triage.
+- Admin delivery attempt lists can be scoped by status, recipient domain, and
+  recent time window for bounded retry/bounce triage.
 - DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses (RFC 6531 compliance fix).
