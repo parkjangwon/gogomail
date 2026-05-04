@@ -209,6 +209,52 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesDeduplicatesExternalHitsBeforeHydration(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		messagesByID: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	service := New(repo, nil).WithSearchIDSource(&fakeSearchIDSource{
+		hits: []searchindex.OpenSearchHit{
+			{
+				MessageID: "msg-1",
+				Score:     2,
+				Highlights: searchindex.OpenSearchHighlights{
+					Subject: []string{"<mark>first</mark>"},
+				},
+			},
+			{
+				MessageID: " msg-1 ",
+				Score:     1,
+				Highlights: searchindex.OpenSearchHighlights{
+					Subject: []string{"<mark>second</mark>"},
+				},
+			},
+		},
+	})
+
+	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
+		UserID:            "user-1",
+		Query:             "hello",
+		Sort:              maildb.MessageSearchSortRelevance,
+		IncludeRank:       true,
+		IncludeHighlights: true,
+	})
+	if err != nil {
+		t.Fatalf("SearchMessages returned error: %v", err)
+	}
+	if len(repo.lastHydrateIDs) != 1 || repo.lastHydrateIDs[0] != "msg-1" {
+		t.Fatalf("hydrated ids = %#v, want single msg-1", repo.lastHydrateIDs)
+	}
+	if got[0].SearchRank == nil || *got[0].SearchRank != 2 {
+		t.Fatalf("SearchRank = %#v, want first hit score", got[0].SearchRank)
+	}
+	if got[0].SearchHighlights == nil || got[0].SearchHighlights.Subject[0] != "<mark>first</mark>" {
+		t.Fatalf("SearchHighlights = %#v, want first hit highlights", got[0].SearchHighlights)
+	}
+}
+
 func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *testing.T) {
 	t.Parallel()
 

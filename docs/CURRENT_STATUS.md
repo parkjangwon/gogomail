@@ -197,6 +197,8 @@ The platform hardening sprint completed the following:
 - OpenSearch relevance search can return subject/from/body highlights and map
   them into the existing Mail API `search_highlights` response field with
   bounded UTF-8-safe fragments.
+- Mail API OpenSearch hydration deduplicates repeated external hit IDs before
+  loading Postgres summaries while preserving the first rank/highlight result.
 - Optional OpenSearch integration coverage can create a disposable index and
   verify indexing plus folder-aware relevance search when
   `GOGOMAIL_TEST_OPENSEARCH_URL` is available.
