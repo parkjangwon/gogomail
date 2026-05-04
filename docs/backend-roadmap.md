@@ -530,6 +530,7 @@ Implementation order:
 471. Password hash verification now rejects oversized stored hashes, excessive PBKDF2 iteration counts, and oversized PBKDF2 salt/key metadata before expensive derivation or decoded allocation.
 472. Mail API search control query values and direct multipart attachment `draft_id` fields now reject CR/LF-bearing or oversized values at the HTTP boundary before service dispatch.
 473. VERP return-path parsing now rejects oversized addresses, local parts, tokens, and encoded recipients before base64 decoding DSN recipient metadata.
+474. API usage export Ed25519 signer/verifier key configuration now rejects oversized base64 public/private keys before decoding.
 
 ## Deferred until backend contracts stabilize
 

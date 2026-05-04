@@ -172,6 +172,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   boundary before service dispatch.
 - VERP return-path parsing rejects oversized addresses, local parts, tokens,
   and encoded recipients before base64 decoding DSN recipient metadata.
+- API usage export Ed25519 signer/verifier key configuration rejects oversized
+  base64 public/private keys before decoding.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed

@@ -899,7 +899,11 @@ func apiUsageExportManifestVerifier(cfg config.Config) apimeter.ExportManifestSi
 }
 
 func decodeExportManifestKey(value string, size int) ([]byte, bool) {
-	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(value))
+	value = strings.TrimSpace(value)
+	if len(value) > base64.StdEncoding.EncodedLen(size) {
+		return nil, false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(value)
 	if err != nil || len(decoded) != size {
 		return nil, false
 	}
