@@ -646,6 +646,7 @@ Implementation order:
 586. Admin quota usage pressure reads now support scope, domain, over-limit, and over-allocation filters, letting operators isolate quota hot spots without scanning every company/domain/user row client-side.
 587. Attachment upload-session staged object paths are now validated as relative `upload-sessions/` keys before repository persistence and before service-side storage reads/deletes, hardening finalize/cancel/expiry flows against corrupted stored paths.
 588. Mailservice now validates DB-returned message and attachment storage paths before body reads or cleanup deletes, preventing corrupted rows from sending absolute, traversal, newline, backslash-bearing, or blank required object keys to storage adapters.
+589. Local storage now enforces a shared strict object-key validator before reads, writes, and deletes, rejecting non-canonical relative keys such as duplicate separators, dot segments, absolute paths, traversal, newlines, and backslashes.
 
 ## Deferred until backend contracts stabilize
 

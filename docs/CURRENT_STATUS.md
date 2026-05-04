@@ -853,6 +853,9 @@ The platform hardening sprint completed the following:
   paths before body reads or deletes, preventing corrupted rows from reaching
   the storage adapter with absolute, traversal, newline, or backslash-bearing
   keys.
+- Local storage now shares the strict object-path validator used by mailservice,
+  rejecting non-canonical keys such as duplicate separators or dot segments at
+  the adapter boundary before reads, writes, or deletes.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

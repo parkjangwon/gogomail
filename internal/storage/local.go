@@ -89,12 +89,12 @@ func (s *LocalStore) Delete(ctx context.Context, path string) error {
 }
 
 func (s *LocalStore) safePath(path string) (string, error) {
-	cleaned := filepath.Clean(strings.TrimSpace(path))
-	if cleaned == "." || filepath.IsAbs(cleaned) || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) || cleaned == ".." {
-		return "", fmt.Errorf("unsafe storage path %q", path)
+	objectPath, err := ValidateObjectPath(path)
+	if err != nil {
+		return "", fmt.Errorf("unsafe storage path %q: %w", path, err)
 	}
 
-	fullPath := filepath.Join(s.root, cleaned)
+	fullPath := filepath.Join(s.root, filepath.FromSlash(objectPath))
 	rel, err := filepath.Rel(s.root, fullPath)
 	if err != nil {
 		return "", fmt.Errorf("resolve storage path: %w", err)
