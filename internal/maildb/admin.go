@@ -323,6 +323,28 @@ type APIUsageExportManifestSignatureVerificationView struct {
 	Valid              bool   `json:"valid"`
 }
 
+type APIUsageExportHandoffView struct {
+	BatchID                    string     `json:"batch_id"`
+	BatchStatus                string     `json:"batch_status"`
+	BatchCompleted             bool       `json:"batch_completed"`
+	EventCount                 int64      `json:"event_count"`
+	ArtifactCount              int64      `json:"artifact_count"`
+	ArtifactEventCount         int64      `json:"artifact_event_count"`
+	ArtifactByteCount          int64      `json:"artifact_byte_count"`
+	EventsCovered              bool       `json:"events_covered"`
+	ManifestDigestCount        int64      `json:"manifest_digest_count"`
+	LatestManifestDigestID     string     `json:"latest_manifest_digest_id,omitempty"`
+	LatestManifestDigestHex    string     `json:"latest_manifest_digest_hex,omitempty"`
+	LatestManifestDigestAt     *time.Time `json:"latest_manifest_digest_at,omitempty"`
+	LatestDigestSignatureCount int64      `json:"latest_digest_signature_count"`
+	LatestSignatureID          string     `json:"latest_signature_id,omitempty"`
+	LatestSignatureSigner      string     `json:"latest_signature_signer,omitempty"`
+	LatestSignatureKeyID       string     `json:"latest_signature_key_id,omitempty"`
+	LatestSignatureAt          *time.Time `json:"latest_signature_at,omitempty"`
+	Ready                      bool       `json:"ready"`
+	MissingRequirements        []string   `json:"missing_requirements,omitempty"`
+}
+
 type CreateAPIUsageExportManifestSignatureRequest struct {
 	BatchID       string                           `json:"-"`
 	DigestID      string                           `json:"-"`
@@ -2397,6 +2419,81 @@ WHERE id = $1`
 	return batch, nil
 }
 
+func (r *Repository) GetAPIUsageExportHandoff(ctx context.Context, batchID string) (APIUsageExportHandoffView, error) {
+	if r.db == nil {
+		return APIUsageExportHandoffView{}, fmt.Errorf("database handle is required")
+	}
+	batch, err := r.GetAPIUsageExportBatch(ctx, batchID)
+	if err != nil {
+		return APIUsageExportHandoffView{}, err
+	}
+	view := APIUsageExportHandoffView{
+		BatchID:        batch.ID,
+		BatchStatus:    batch.Status,
+		BatchCompleted: batch.Status == "completed" && batch.CompletedAt != nil,
+		EventCount:     batch.EventCount,
+	}
+	const artifactQuery = `
+SELECT count(*), coalesce(sum(event_count), 0), coalesce(sum(byte_count), 0)
+FROM api_usage_export_artifacts
+WHERE batch_id = $1`
+	if err := r.db.QueryRowContext(ctx, artifactQuery, batch.ID).Scan(
+		&view.ArtifactCount,
+		&view.ArtifactEventCount,
+		&view.ArtifactByteCount,
+	); err != nil {
+		return APIUsageExportHandoffView{}, fmt.Errorf("get api usage export artifact handoff stats: %w", err)
+	}
+
+	var latestDigestAt sql.NullTime
+	const digestQuery = `
+SELECT count(*),
+  coalesce((array_agg(id ORDER BY created_at DESC, id DESC))[1], ''),
+  coalesce((array_agg(digest_hex ORDER BY created_at DESC, id DESC))[1], ''),
+  (array_agg(created_at ORDER BY created_at DESC, id DESC))[1]
+FROM api_usage_export_manifest_digests
+WHERE batch_id = $1`
+	if err := r.db.QueryRowContext(ctx, digestQuery, batch.ID).Scan(
+		&view.ManifestDigestCount,
+		&view.LatestManifestDigestID,
+		&view.LatestManifestDigestHex,
+		&latestDigestAt,
+	); err != nil {
+		return APIUsageExportHandoffView{}, fmt.Errorf("get api usage export manifest digest handoff stats: %w", err)
+	}
+	if latestDigestAt.Valid {
+		view.LatestManifestDigestAt = &latestDigestAt.Time
+	}
+
+	if view.LatestManifestDigestID != "" {
+		var latestSignatureAt sql.NullTime
+		const signatureQuery = `
+SELECT count(*),
+  coalesce((array_agg(id ORDER BY created_at DESC, id DESC))[1], ''),
+  coalesce((array_agg(signer_backend ORDER BY created_at DESC, id DESC))[1], ''),
+  coalesce((array_agg(key_id ORDER BY created_at DESC, id DESC))[1], ''),
+  (array_agg(created_at ORDER BY created_at DESC, id DESC))[1]
+FROM api_usage_export_manifest_signatures
+WHERE batch_id = $1
+  AND digest_id = $2`
+		if err := r.db.QueryRowContext(ctx, signatureQuery, batch.ID, view.LatestManifestDigestID).Scan(
+			&view.LatestDigestSignatureCount,
+			&view.LatestSignatureID,
+			&view.LatestSignatureSigner,
+			&view.LatestSignatureKeyID,
+			&latestSignatureAt,
+		); err != nil {
+			return APIUsageExportHandoffView{}, fmt.Errorf("get api usage export manifest signature handoff stats: %w", err)
+		}
+		if latestSignatureAt.Valid {
+			view.LatestSignatureAt = &latestSignatureAt.Time
+		}
+	}
+
+	applyAPIUsageExportHandoffReadiness(&view)
+	return view, nil
+}
+
 func (r *Repository) CreateAPIUsageExportArtifact(ctx context.Context, req CreateAPIUsageExportArtifactRequest) (APIUsageExportArtifactView, error) {
 	if r.db == nil {
 		return APIUsageExportArtifactView{}, fmt.Errorf("database handle is required")
@@ -2710,6 +2807,28 @@ func apiUsageExportManifestDigestVerification(digest APIUsageExportManifestDiges
 		Valid:             digest.DigestAlgorithm == "sha256" && digest.DigestHex == actual,
 		CanonicalManifest: canonical,
 	}, nil
+}
+
+func applyAPIUsageExportHandoffReadiness(view *APIUsageExportHandoffView) {
+	view.EventsCovered = view.ArtifactEventCount >= view.EventCount
+	var missing []string
+	if !view.BatchCompleted {
+		missing = append(missing, "batch_completed")
+	}
+	if view.ArtifactCount == 0 {
+		missing = append(missing, "export_artifact")
+	}
+	if !view.EventsCovered {
+		missing = append(missing, "event_coverage")
+	}
+	if view.ManifestDigestCount == 0 || view.LatestManifestDigestID == "" {
+		missing = append(missing, "manifest_digest")
+	}
+	if view.LatestDigestSignatureCount == 0 {
+		missing = append(missing, "manifest_signature")
+	}
+	view.MissingRequirements = missing
+	view.Ready = len(missing) == 0
 }
 
 func (r *Repository) CreateAPIUsageExportManifestSignature(ctx context.Context, req CreateAPIUsageExportManifestSignatureRequest) (APIUsageExportManifestSignatureView, error) {
