@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/mail"
 )
@@ -260,6 +262,16 @@ type APIUsageExportArtifactView struct {
 	SHA256Hex      string          `json:"sha256_hex"`
 	EventCount     int64           `json:"event_count"`
 	Metadata       json.RawMessage `json:"metadata"`
+}
+
+type APIUsageExportManifestDigestView struct {
+	ID              string          `json:"id"`
+	BatchID         string          `json:"batch_id"`
+	CreatedAt       time.Time       `json:"created_at"`
+	SchemaVersion   string          `json:"schema_version"`
+	DigestAlgorithm string          `json:"digest_algorithm"`
+	DigestHex       string          `json:"digest_hex"`
+	Manifest        json.RawMessage `json:"manifest"`
 }
 
 type CreateAPIUsageExportArtifactRequest struct {
@@ -2435,6 +2447,90 @@ WHERE batch_id = $1
 	return artifact, nil
 }
 
+func (r *Repository) CreateAPIUsageExportManifestDigest(ctx context.Context, batchID string) (APIUsageExportManifestDigestView, error) {
+	if r.db == nil {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("database handle is required")
+	}
+	batch, err := r.GetAPIUsageExportBatch(ctx, batchID)
+	if err != nil {
+		return APIUsageExportManifestDigestView{}, err
+	}
+	artifacts, err := r.ListAPIUsageExportArtifacts(ctx, batch.ID, MessageListMaxLimit)
+	if err != nil {
+		return APIUsageExportManifestDigestView{}, err
+	}
+	manifest := apiUsageExportManifest(batch, artifacts)
+	digest, raw, err := apimeter.DigestExportManifest(manifest)
+	if err != nil {
+		return APIUsageExportManifestDigestView{}, err
+	}
+	id, err := newAPIUsageExportManifestDigestID()
+	if err != nil {
+		return APIUsageExportManifestDigestView{}, err
+	}
+	const query = `
+INSERT INTO api_usage_export_manifest_digests (
+  id,
+  batch_id,
+  schema_version,
+  digest_algorithm,
+  digest_hex,
+  manifest
+) VALUES ($1, $2, $3, 'sha256', $4, $5)
+ON CONFLICT (batch_id, digest_algorithm, digest_hex) DO UPDATE SET
+  manifest = EXCLUDED.manifest
+RETURNING id, batch_id, created_at, schema_version, digest_algorithm, digest_hex, manifest`
+	var view APIUsageExportManifestDigestView
+	if err := r.db.QueryRowContext(ctx, query, id, batch.ID, manifest.SchemaVersion, digest, raw).Scan(
+		&view.ID,
+		&view.BatchID,
+		&view.CreatedAt,
+		&view.SchemaVersion,
+		&view.DigestAlgorithm,
+		&view.DigestHex,
+		&view.Manifest,
+	); err != nil {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("create api usage export manifest digest: %w", err)
+	}
+	return view, nil
+}
+
+func apiUsageExportManifest(batch APIUsageExportBatchView, artifacts []APIUsageExportArtifactView) apimeter.ExportManifest {
+	ordered := append([]APIUsageExportArtifactView(nil), artifacts...)
+	sort.Slice(ordered, func(i, j int) bool {
+		return ordered[i].ID < ordered[j].ID
+	})
+	manifest := apimeter.ExportManifest{
+		SchemaVersion: apimeter.ExportManifestSchemaV1,
+		Batch: apimeter.ExportManifestBatch{
+			ID:             batch.ID,
+			TenantID:       batch.TenantID,
+			PrincipalID:    batch.PrincipalID,
+			WindowStart:    apimeter.FormatManifestTime(batch.WindowStart),
+			WindowEnd:      apimeter.FormatManifestTime(batch.WindowEnd),
+			EventCount:     batch.EventCount,
+			RequestCount:   batch.RequestCount,
+			RequestBytes:   batch.RequestBytes,
+			ResponseBytes:  batch.ResponseBytes,
+			LatencyMSTotal: batch.LatencyMSTotal,
+			LatencyMSMax:   batch.LatencyMSMax,
+		},
+		Artifacts: make([]apimeter.ExportManifestArtifact, 0, len(ordered)),
+	}
+	for _, artifact := range ordered {
+		manifest.Artifacts = append(manifest.Artifacts, apimeter.ExportManifestArtifact{
+			ID:             artifact.ID,
+			StorageBackend: artifact.StorageBackend,
+			ObjectKey:      artifact.ObjectKey,
+			ContentType:    artifact.ContentType,
+			ByteCount:      artifact.ByteCount,
+			SHA256Hex:      artifact.SHA256Hex,
+			EventCount:     artifact.EventCount,
+		})
+	}
+	return manifest
+}
+
 func ValidateCreateAPIUsageExportArtifactRequest(req *CreateAPIUsageExportArtifactRequest) error {
 	req.BatchID = strings.TrimSpace(req.BatchID)
 	req.StorageBackend = strings.TrimSpace(req.StorageBackend)
@@ -2504,6 +2600,14 @@ func newAPIUsageExportArtifactID() (string, error) {
 		return "", fmt.Errorf("generate api usage export artifact id: %w", err)
 	}
 	return "api-usage-artifact-" + hex.EncodeToString(random[:]), nil
+}
+
+func newAPIUsageExportManifestDigestID() (string, error) {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate api usage export manifest digest id: %w", err)
+	}
+	return "api-usage-manifest-" + hex.EncodeToString(random[:]), nil
 }
 
 func optionalTimeString(value time.Time) string {
