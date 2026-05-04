@@ -122,8 +122,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `password_hash` values for SMTP Submission authentication, rejecting
   unsupported, CR/LF-bearing, or oversized hash strings before database
   storage. User read models expose `password_configured` without leaking stored
-  password hashes, and user listing can filter by that readiness flag for
-  operator triage.
+  password hashes, and user listing can filter by status plus that readiness
+  flag for operator triage.
 - Admin API now exposes trusted relay CIDR list/create/delete operations backed by PostgreSQL, preparing inbound SMTP relay policy for auditable runtime administration.
 - Admin API now exposes delivery route list/create/status/delete operations backed by PostgreSQL, preparing gateway and smart-host policy for auditable runtime administration without coupling it to SMTP core.
 - Admin API can dry-run delivery route resolution for a recipient domain, improving runtime route observability without triggering SMTP delivery.

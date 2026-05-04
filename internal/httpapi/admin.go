@@ -375,15 +375,25 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
 		passwordConfigured, ok := parseOptionalBoolQuery(w, r, "password_configured")
 		if !ok {
 			return
 		}
-		users, err := service.ListUsers(r.Context(), maildb.UserListRequest{
+		listReq := maildb.UserListRequest{
 			DomainID:           domainID,
+			Status:             status,
 			PasswordConfigured: passwordConfigured,
 			Limit:              limit,
-		})
+		}
+		if err := maildb.ValidateUserListRequest(listReq); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		users, err := service.ListUsers(r.Context(), listReq)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

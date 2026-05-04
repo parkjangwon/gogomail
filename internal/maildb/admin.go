@@ -737,6 +737,7 @@ type UserView struct {
 
 type UserListRequest struct {
 	DomainID           string
+	Status             string
 	PasswordConfigured *bool
 	Limit              int
 }
@@ -1265,11 +1266,26 @@ func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("user id is required")
 	}
-	switch normalizeAdminStatus(req.Status) {
-	case "active", "suspended", "disabled":
-		return nil
-	default:
+	if !isUserStatus(normalizeAdminStatus(req.Status)) {
 		return fmt.Errorf("unsupported user status %q", req.Status)
+	}
+	return nil
+}
+
+func ValidateUserListRequest(req UserListRequest) error {
+	status := normalizeAdminStatus(req.Status)
+	if status != "" && !isUserStatus(status) {
+		return fmt.Errorf("unsupported user status %q", req.Status)
+	}
+	return nil
+}
+
+func isUserStatus(status string) bool {
+	switch status {
+	case "active", "suspended", "disabled":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1620,7 +1636,11 @@ func (r *Repository) ListUsers(ctx context.Context, req UserListRequest) ([]User
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
+	if err := ValidateUserListRequest(req); err != nil {
+		return nil, err
+	}
 	limit := normalizeLimit(req.Limit)
+	status := normalizeAdminStatus(req.Status)
 
 	const query = `
 SELECT
@@ -1637,11 +1657,12 @@ SELECT
   created_at
 FROM users
 WHERE ($1 = '' OR domain_id::text = $1)
-  AND ($2::boolean IS NULL OR (COALESCE(password_hash, '') <> '') = $2)
+  AND ($2 = '' OR status = $2)
+  AND ($3::boolean IS NULL OR (COALESCE(password_hash, '') <> '') = $3)
 ORDER BY created_at DESC
-LIMIT $3`
+LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), req.PasswordConfigured, limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), status, req.PasswordConfigured, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}

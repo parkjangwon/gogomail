@@ -1892,6 +1892,11 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, disabled]
         - name: password_configured
           in: query
           schema:
