@@ -40,6 +40,7 @@ Successful collection responses keep a stable top-level plural key:
 - `{"domains":[...]}`
 - `{"users":[...]}`
 - `{"queues":[...]}`
+- `{"outbox_events":[...]}`
 - `{"delivery_attempts":[...]}`
 - `{"push_notification_attempts":[...]}`
 - `{"suppression_list":[...]}`
@@ -198,6 +199,9 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/companies` returns `{"companies":[...]}`
 - `GET /admin/v1/companies/{id}` returns `{"company":{...}}`
 - `GET /admin/v1/queue` returns `{"queues":[...]}`
+- `GET /admin/v1/outbox-events` returns `{"outbox_events":[...]}`;
+  optional `topic`, `status`, and RFC3339 `since` filters expose outbox event
+  metadata without returning JSON payload bodies.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`

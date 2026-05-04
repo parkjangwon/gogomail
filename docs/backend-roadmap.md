@@ -373,6 +373,7 @@ Implementation order:
 314. OpenAPI now documents and tests the API usage ledger `tenant_id`, `principal_id`, `from`, and `to` filters accepted by the Admin API, preventing generated billing/export clients from losing runtime-supported query scope.
 315. OpenAPI now exposes exhausted delivery attempts through a reusable `ExhaustedAttempts` response component and contract test, keeping terminal retry triage envelopes aligned with generated-client response handling.
 316. Admin delivery attempt stats now summarize total attempts, unique messages, unique recipients, and delivered/failed/bounced/exhausted buckets with the same status, recipient-domain, and RFC3339 `since` filters as the attempt list, giving operators a compact retry/bounce dashboard primitive.
+317. Admin API now exposes read-only outbox event metadata with bounded topic/status/RFC3339 `since` filters, letting operators inspect stuck async work without returning raw payload bodies.
 
 ## Deferred until backend contracts stabilize
 

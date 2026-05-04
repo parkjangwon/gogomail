@@ -46,6 +46,7 @@ type AdminService interface {
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
+	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
 	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
@@ -374,6 +375,28 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/outbox-events", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		since, ok := parseOptionalRFC3339Query(w, r, "since")
+		if !ok {
+			return
+		}
+		events, err := service.ListOutboxEvents(r.Context(), maildb.OutboxEventListRequest{
+			Limit:  limit,
+			Topic:  r.URL.Query().Get("topic"),
+			Status: r.URL.Query().Get("status"),
+			Since:  since,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"outbox_events": events})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

@@ -114,6 +114,26 @@ type QueueStat struct {
 	Count  int64  `json:"count"`
 }
 
+type OutboxEventListRequest struct {
+	Limit  int
+	Topic  string
+	Status string
+	Since  time.Time
+}
+
+type OutboxEventView struct {
+	ID           string     `json:"id"`
+	Topic        string     `json:"topic"`
+	PartitionKey string     `json:"partition_key"`
+	Status       string     `json:"status"`
+	Attempts     int        `json:"attempts"`
+	LastError    string     `json:"last_error,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	AvailableAt  time.Time  `json:"available_at"`
+	LockedAt     *time.Time `json:"locked_at,omitempty"`
+	ProcessedAt  *time.Time `json:"processed_at,omitempty"`
+}
+
 type CompanyView struct {
 	ID                     string    `json:"id"`
 	Name                   string    `json:"name"`
@@ -1882,6 +1902,87 @@ ORDER BY topic, status`
 		return nil, fmt.Errorf("iterate queue stats: %w", err)
 	}
 	return stats, nil
+}
+
+func (r *Repository) ListOutboxEvents(ctx context.Context, req OutboxEventListRequest) ([]OutboxEventView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req.Limit = normalizeLimit(req.Limit)
+	req.Topic = strings.TrimSpace(req.Topic)
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
+	if req.Status != "" && !allowedOutboxStatus(req.Status) {
+		return nil, fmt.Errorf("unsupported outbox status")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  topic,
+  partition_key,
+  status,
+  attempts,
+  COALESCE(last_error, ''),
+  created_at,
+  available_at,
+  locked_at,
+  processed_at
+FROM outbox
+WHERE (NULLIF($2, '') IS NULL OR topic = $2)
+  AND (NULLIF($3, '') IS NULL OR status = $3)
+  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
+ORDER BY created_at DESC, id DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Topic, req.Status, nullableTime(req.Since))
+	if err != nil {
+		return nil, fmt.Errorf("list outbox events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []OutboxEventView
+	for rows.Next() {
+		var event OutboxEventView
+		var lockedAt sql.NullTime
+		var processedAt sql.NullTime
+		if err := rows.Scan(
+			&event.ID,
+			&event.Topic,
+			&event.PartitionKey,
+			&event.Status,
+			&event.Attempts,
+			&event.LastError,
+			&event.CreatedAt,
+			&event.AvailableAt,
+			&lockedAt,
+			&processedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan outbox event: %w", err)
+		}
+		if lockedAt.Valid {
+			event.LockedAt = &lockedAt.Time
+		}
+		if processedAt.Valid {
+			event.ProcessedAt = &processedAt.Time
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate outbox events: %w", err)
+	}
+	return events, nil
+}
+
+func allowedOutboxStatus(status string) bool {
+	switch status {
+	case "pending", "processing", "done", "failed":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *Repository) ListQuotaUsage(ctx context.Context, limit int) ([]QuotaUsageView, error) {
