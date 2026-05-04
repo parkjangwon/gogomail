@@ -357,6 +357,15 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/ledger/stats` returns
   `{ "api_usage_ledger_stats": ... }` with count, byte, latency, and first/last
   event timestamps for export sanity checks.
+- `GET /admin/v1/api-usage/ledger/retention-readiness` returns
+  `{ "api_usage_ledger_retention_readiness": ... }` for a required exclusive
+  `cutoff` plus optional `tenant_id`/`principal_id` filters. It reports the
+  candidate ledger counts before the cutoff and only marks `ready: true` when
+  there are no candidates or a completed export batch with the same filters
+  covers the full candidate time range through the cutoff, completed after the
+  latest candidate row was recorded, and has artifact, manifest digest, and
+  manifest signature evidence. This is a read-only safety gate for future
+  archive/delete jobs; it does not mutate ledger rows.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
   ledger filter window with fixed event/request/byte/latency totals.

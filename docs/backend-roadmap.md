@@ -360,6 +360,7 @@ Implementation order:
 302. API usage export manifest signature verification now uses an `ExportManifestSignatureVerifier` boundary parallel to the signer, with local-HMAC as the first adapter and a clear replacement point for future production verification.
 303. Admin API now exposes API usage export capability inspection so operators can see signer/verifier configuration and production billing readiness support before running export handoff workflows.
 304. API usage export manifest signing now supports a disabled-by-default local-Ed25519 backend with base64 keypair validation, persisted `ed25519` signatures, backend/algorithm compatibility checks, and local-only billing readiness semantics.
+305. Admin API now exposes API usage ledger retention readiness, a read-only cutoff report that blocks future archive/delete work unless candidate ledger rows are covered by a completed export batch with matching tenant/principal filters, no later-recorded candidate rows, and artifact/digest/signature evidence.
 
 ## Deferred until backend contracts stabilize
 
