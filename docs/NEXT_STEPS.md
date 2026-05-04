@@ -93,12 +93,16 @@ Next:
 Current state:
 
 - SMTP pipeline defines stages/hooks but they are not fully pluggable.
-- Spam, FCM, attachment scan hooks are not wired.
+- Attachment scan hook exists as a disabled synchronous SMTP-stage adapter.
+- Push notification enqueue now has a disabled-by-default async
+  `push-notification-worker` over `mail.stored` with a replaceable sink and
+  `slog` first adapter.
+- Spam and vendor FCM/APNs delivery are not wired.
 
 Next:
 
-- Add `FCMNotifier` pipeline hook for new-message push notification.
-- Add `AttachmentScanner` hook interface at the SMTP receive stage.
+- Add device-token storage and FCM/APNs sink adapters behind `internal/pushnotify`.
+- Wire attachment scanning only when a concrete scanner backend is configured.
 - Keep hooks disabled by default and wired only in `app/run.go`.
 
 ### 5. Attachment upload API

@@ -16,6 +16,7 @@ const (
 	ModeDeliveryWorker    Mode = "delivery-worker"
 	ModeSearchIndexWorker Mode = "search-index-worker"
 	ModeAPIMeteringWorker Mode = "api-metering-worker"
+	ModePushWorker        Mode = "push-notification-worker"
 	ModeBatchWorker       Mode = "batch-worker"
 	ModeOutboxRelay       Mode = "outbox-relay"
 	ModeEventWorker       Mode = "event-worker"
@@ -32,6 +33,7 @@ var knownModes = map[Mode]struct{}{
 	ModeDeliveryWorker:    {},
 	ModeSearchIndexWorker: {},
 	ModeAPIMeteringWorker: {},
+	ModePushWorker:        {},
 	ModeBatchWorker:       {},
 	ModeOutboxRelay:       {},
 	ModeEventWorker:       {},

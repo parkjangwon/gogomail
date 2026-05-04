@@ -49,6 +49,15 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_METRICS_BACKEND", c.MetricsBackend, "none", "slog"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog"); err != nil {
+		return err
+	}
+	if c.PushNotifyConsumerCount <= 0 {
+		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT must be positive")
+	}
+	if c.PushNotifyConsumerBlock <= 0 {
+		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_BLOCK must be positive")
+	}
 	if err := validateEnum("GOGOMAIL_API_METERING_BACKEND", c.APIMeteringBackend, "none", "slog", "outbox"); err != nil {
 		return err
 	}

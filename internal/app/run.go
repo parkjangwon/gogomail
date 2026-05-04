@@ -31,6 +31,7 @@ import (
 	"github.com/gogomail/gogomail/internal/observability"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/outbox"
+	"github.com/gogomail/gogomail/internal/pushnotify"
 	"github.com/gogomail/gogomail/internal/ratelimit"
 	"github.com/gogomail/gogomail/internal/searchindex"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
@@ -76,6 +77,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:
 		return runAPIMeteringWorker(ctx, cfg, logger)
+	case ModePushWorker:
+		return runPushNotificationWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
@@ -530,6 +533,51 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		"group", cfg.APIMeteringConsumerGroup,
 		"consumer", cfg.APIMeteringConsumerName,
 		"backend", cfg.APIMeteringAggregateBackend,
+	)
+	return consumer.Run(ctx)
+}
+
+func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	backend := strings.ToLower(strings.TrimSpace(cfg.PushNotifyBackend))
+	if backend == "" || backend == "none" {
+		return waitForShutdown(ctx, logger, ModePushWorker)
+	}
+	if backend != "slog" {
+		return errors.New("unsupported push notification backend")
+	}
+
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	router := eventstream.NewRouter()
+	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(pushnotify.SlogSink{Logger: logger})); err != nil {
+		return err
+	}
+
+	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
+		Client:   redisClient,
+		Stream:   cfg.EventStream,
+		Group:    cfg.PushNotifyConsumerGroup,
+		Consumer: cfg.PushNotifyConsumerName,
+		Count:    int64(cfg.PushNotifyConsumerCount),
+		Block:    cfg.PushNotifyConsumerBlock,
+		Handler:  router,
+		Logger:   logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"push notification worker started",
+		"stream", cfg.EventStream,
+		"group", cfg.PushNotifyConsumerGroup,
+		"consumer", cfg.PushNotifyConsumerName,
+		"backend", backend,
 	)
 	return consumer.Run(ctx)
 }

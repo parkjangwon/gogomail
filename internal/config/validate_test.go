@@ -22,6 +22,35 @@ func TestValidateRejectsUnknownMetricsBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownPushNotifyBackend(t *testing.T) {
+	cfg := Load()
+	cfg.PushNotifyBackend = "fcm-direct"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want unknown push notification backend rejection")
+	}
+}
+
+func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "count", mutate: func(cfg *Config) { cfg.PushNotifyConsumerCount = 0 }},
+		{name: "block", mutate: func(cfg *Config) { cfg.PushNotifyConsumerBlock = 0 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want push notification consumer setting rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsUnknownAPIMeteringAggregateBackend(t *testing.T) {
 	cfg := Load()
 	cfg.APIMeteringAggregateBackend = "warehouse-ish"

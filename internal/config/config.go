@@ -50,6 +50,11 @@ type Config struct {
 	RateLimitBackend             string
 	BackpressureBackend          string
 	MetricsBackend               string
+	PushNotifyBackend            string
+	PushNotifyConsumerGroup      string
+	PushNotifyConsumerName       string
+	PushNotifyConsumerCount      int
+	PushNotifyConsumerBlock      time.Duration
 	APIMeteringBackend           string
 	APIMeteringTimeout           time.Duration
 	APIMeteringAggregateBackend  string
@@ -146,6 +151,11 @@ func Load() Config {
 		RateLimitBackend:             envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:          envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:               envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
+		PushNotifyBackend:            envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
+		PushNotifyConsumerGroup:      envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_GROUP", "gogomail.push-notification-worker"),
+		PushNotifyConsumerName:       envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", "push-notification-worker-1"),
+		PushNotifyConsumerCount:      intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT", 50),
+		PushNotifyConsumerBlock:      durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_BLOCK", time.Second),
 		APIMeteringBackend:           envOrDefault("GOGOMAIL_API_METERING_BACKEND", "none"),
 		APIMeteringTimeout:           durationEnvOrDefault("GOGOMAIL_API_METERING_TIMEOUT", 100*time.Millisecond),
 		APIMeteringAggregateBackend:  envOrDefault("GOGOMAIL_API_METERING_AGGREGATE_BACKEND", "disabled"),

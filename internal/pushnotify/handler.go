@@ -1,0 +1,141 @@
+package pushnotify
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"strings"
+
+	"github.com/gogomail/gogomail/internal/eventstream"
+)
+
+const EventMailStored = "mail.stored"
+
+type Event struct {
+	Event        string `json:"event"`
+	MessageID    string `json:"message_id"`
+	RFCMessageID string `json:"rfc_message_id"`
+	CompanyID    string `json:"company_id"`
+	DomainID     string `json:"domain_id"`
+	UserID       string `json:"user_id"`
+	Recipient    string `json:"recipient"`
+	Subject      string `json:"subject"`
+	ReceivedAt   string `json:"received_at"`
+}
+
+type Notification struct {
+	MessageID    string
+	RFCMessageID string
+	CompanyID    string
+	DomainID     string
+	UserID       string
+	Recipient    string
+	Subject      string
+	ReceivedAt   string
+}
+
+type Sink interface {
+	EnqueuePush(ctx context.Context, notification Notification) error
+}
+
+type Handler struct {
+	sink Sink
+}
+
+func NewHandler(sink Sink) *Handler {
+	return &Handler{sink: sink}
+}
+
+func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
+	if h == nil || h.sink == nil {
+		return fmt.Errorf("push notification sink is required")
+	}
+	event, err := DecodeEvent(msg.Payload)
+	if err != nil {
+		return err
+	}
+	if err := h.sink.EnqueuePush(ctx, notificationFromEvent(event)); err != nil {
+		return fmt.Errorf("enqueue push notification candidate: %w", err)
+	}
+	return nil
+}
+
+func DecodeEvent(payload json.RawMessage) (Event, error) {
+	var event Event
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return Event{}, fmt.Errorf("decode mail.stored push payload: %w", err)
+	}
+	if err := validateEvent(&event); err != nil {
+		return Event{}, err
+	}
+	return event, nil
+}
+
+func validateEvent(event *Event) error {
+	event.Event = strings.TrimSpace(event.Event)
+	if event.Event != EventMailStored {
+		return fmt.Errorf("unexpected push notification event %q", event.Event)
+	}
+	var err error
+	if event.MessageID, err = requiredValue("message_id", event.MessageID); err != nil {
+		return err
+	}
+	if event.UserID, err = requiredValue("user_id", event.UserID); err != nil {
+		return err
+	}
+	event.RFCMessageID = strings.TrimSpace(event.RFCMessageID)
+	event.CompanyID = strings.TrimSpace(event.CompanyID)
+	event.DomainID = strings.TrimSpace(event.DomainID)
+	event.Recipient = strings.TrimSpace(event.Recipient)
+	event.Subject = strings.TrimSpace(event.Subject)
+	event.ReceivedAt = strings.TrimSpace(event.ReceivedAt)
+	return nil
+}
+
+func requiredValue(name string, value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("mail.stored push payload is missing %s", name)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("mail.stored push payload has invalid %s", name)
+	}
+	return value, nil
+}
+
+func notificationFromEvent(event Event) Notification {
+	return Notification{
+		MessageID:    event.MessageID,
+		RFCMessageID: event.RFCMessageID,
+		CompanyID:    event.CompanyID,
+		DomainID:     event.DomainID,
+		UserID:       event.UserID,
+		Recipient:    event.Recipient,
+		Subject:      event.Subject,
+		ReceivedAt:   event.ReceivedAt,
+	}
+}
+
+type SlogSink struct {
+	Logger *slog.Logger
+}
+
+func (s SlogSink) EnqueuePush(_ context.Context, notification Notification) error {
+	logger := s.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	logger.Info(
+		"push notification candidate",
+		"message_id", notification.MessageID,
+		"rfc_message_id", notification.RFCMessageID,
+		"company_id", notification.CompanyID,
+		"domain_id", notification.DomainID,
+		"user_id", notification.UserID,
+		"recipient", notification.Recipient,
+		"subject", notification.Subject,
+		"received_at", notification.ReceivedAt,
+	)
+	return nil
+}
