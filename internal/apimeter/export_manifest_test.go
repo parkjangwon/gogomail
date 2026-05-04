@@ -45,6 +45,44 @@ func TestDigestExportManifestIsStable(t *testing.T) {
 	}
 }
 
+func TestDigestExportManifestJSONCanonicalizesInput(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte(`{
+		"artifacts":[{"event_count":2,"sha256_hex":"` + strings.Repeat("a", 64) + `","byte_count":12,"content_type":"application/x-ndjson","object_key":"exports/batch-1.ndjson","id":"artifact-1"}],
+		"batch":{"request_count":2,"event_count":2,"tenant_id":"tenant-1","id":"batch-1"},
+		"schema_version":"2026-05-04.api-usage-export-manifest.v1"
+	}`)
+
+	fromJSON, canonical, err := DigestExportManifestJSON(raw)
+	if err != nil {
+		t.Fatalf("DigestExportManifestJSON returned error: %v", err)
+	}
+	fromStruct, expectedCanonical, err := DigestExportManifest(ExportManifest{
+		SchemaVersion: ExportManifestSchemaV1,
+		Batch: ExportManifestBatch{
+			ID:           "batch-1",
+			TenantID:     "tenant-1",
+			EventCount:   2,
+			RequestCount: 2,
+		},
+		Artifacts: []ExportManifestArtifact{{
+			ID:          "artifact-1",
+			ObjectKey:   "exports/batch-1.ndjson",
+			ContentType: "application/x-ndjson",
+			ByteCount:   12,
+			SHA256Hex:   strings.Repeat("a", 64),
+			EventCount:  2,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("DigestExportManifest returned error: %v", err)
+	}
+	if fromJSON != fromStruct || string(canonical) != string(expectedCanonical) {
+		t.Fatalf("canonical digest/raw mismatch: %q/%s vs %q/%s", fromJSON, canonical, fromStruct, expectedCanonical)
+	}
+}
+
 func TestFormatManifestTime(t *testing.T) {
 	t.Parallel()
 
