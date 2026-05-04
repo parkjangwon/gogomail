@@ -121,6 +121,7 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
+- `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}`
 
 Admin deletion/retry/status/quota mutations return `{"status":"ok","id":"..."}`
 so consoles can reconcile optimistic updates against the affected backend id.
@@ -133,6 +134,19 @@ SMTP operational administration includes trusted relay CIDR management:
 
 Trusted relay entries accept IPv4/IPv6 CIDR prefixes or plain IP addresses.
 Plain IPs are canonicalized to `/32` or `/128` before persistence.
+
+Outbound gateway and smart-host administration includes delivery route
+management:
+
+- `GET /admin/v1/delivery-routes`
+- `POST /admin/v1/delivery-routes`
+- `PATCH /admin/v1/delivery-routes/{id}/status`
+- `DELETE /admin/v1/delivery-routes/{id}`
+
+Delivery routes accept an exact domain, wildcard suffix such as
+`*.example.net`, or `*` as the domain pattern. Hosts are stored without ports;
+the route-level port, TLS mode, implicit TLS flag, pool name, and optional SMTP
+AUTH identity/username/password keep gateway policy out of SMTP protocol core.
 
 ## Deferred from this contract
 

@@ -3,6 +3,7 @@ package maildb
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -10,6 +11,93 @@ import (
 
 	"github.com/gogomail/gogomail/internal/mail"
 )
+
+type stringArray []string
+
+func (a stringArray) Value() (driver.Value, error) {
+	var b strings.Builder
+	b.WriteByte('{')
+	for i, value := range a {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte('"')
+		for _, r := range value {
+			switch r {
+			case '\\', '"':
+				b.WriteByte('\\')
+				b.WriteRune(r)
+			default:
+				b.WriteRune(r)
+			}
+		}
+		b.WriteByte('"')
+	}
+	b.WriteByte('}')
+	return b.String(), nil
+}
+
+func (a *stringArray) Scan(src any) error {
+	switch value := src.(type) {
+	case string:
+		parsed, err := parsePostgresTextArray(value)
+		if err != nil {
+			return err
+		}
+		*a = parsed
+		return nil
+	case []byte:
+		parsed, err := parsePostgresTextArray(string(value))
+		if err != nil {
+			return err
+		}
+		*a = parsed
+		return nil
+	default:
+		return fmt.Errorf("unsupported text array source %T", src)
+	}
+}
+
+func parsePostgresTextArray(raw string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "{}" {
+		return nil, nil
+	}
+	if !strings.HasPrefix(raw, "{") || !strings.HasSuffix(raw, "}") {
+		return nil, fmt.Errorf("invalid text array")
+	}
+	raw = strings.TrimSuffix(strings.TrimPrefix(raw, "{"), "}")
+	var values []string
+	var b strings.Builder
+	inQuote := false
+	escaped := false
+	for _, r := range raw {
+		if escaped {
+			b.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if inQuote && r == '\\' {
+			escaped = true
+			continue
+		}
+		if r == '"' {
+			inQuote = !inQuote
+			continue
+		}
+		if r == ',' && !inQuote {
+			values = append(values, b.String())
+			b.Reset()
+			continue
+		}
+		b.WriteRune(r)
+	}
+	if inQuote || escaped {
+		return nil, fmt.Errorf("invalid quoted text array")
+	}
+	values = append(values, b.String())
+	return values, nil
+}
 
 type QueueStat struct {
 	Topic  string `json:"topic"`
@@ -43,6 +131,24 @@ type TrustedRelayView struct {
 	CIDR        string    `json:"cidr"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type DeliveryRouteView struct {
+	ID            string    `json:"id"`
+	DomainPattern string    `json:"domain_pattern"`
+	Farm          string    `json:"farm"`
+	Hosts         []string  `json:"hosts"`
+	Port          int       `json:"port"`
+	TLSMode       string    `json:"tls_mode"`
+	ImplicitTLS   bool      `json:"implicit_tls"`
+	SMTPHello     string    `json:"smtp_hello"`
+	PoolName      string    `json:"pool_name"`
+	AuthIdentity  string    `json:"auth_identity,omitempty"`
+	AuthUsername  string    `json:"auth_username,omitempty"`
+	Status        string    `json:"status"`
+	Description   string    `json:"description"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type DomainView struct {
@@ -106,6 +212,26 @@ type UpdateUserQuotaRequest struct {
 type CreateTrustedRelayRequest struct {
 	CIDR        string `json:"cidr"`
 	Description string `json:"description,omitempty"`
+}
+
+type CreateDeliveryRouteRequest struct {
+	DomainPattern string   `json:"domain_pattern"`
+	Farm          string   `json:"farm,omitempty"`
+	Hosts         []string `json:"hosts"`
+	Port          int      `json:"port,omitempty"`
+	TLSMode       string   `json:"tls_mode,omitempty"`
+	ImplicitTLS   bool     `json:"implicit_tls,omitempty"`
+	SMTPHello     string   `json:"smtp_hello,omitempty"`
+	PoolName      string   `json:"pool_name,omitempty"`
+	AuthIdentity  string   `json:"auth_identity,omitempty"`
+	AuthUsername  string   `json:"auth_username,omitempty"`
+	AuthPassword  string   `json:"auth_password,omitempty"`
+	Description   string   `json:"description,omitempty"`
+}
+
+type UpdateDeliveryRouteStatusRequest struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
 
 func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
@@ -217,6 +343,111 @@ func ValidateCreateTrustedRelayRequest(req CreateTrustedRelayRequest) error {
 		return fmt.Errorf("description is too long")
 	}
 	return nil
+}
+
+func ValidateCreateDeliveryRouteRequest(req CreateDeliveryRouteRequest) error {
+	if _, err := normalizeDeliveryRouteDomainPattern(req.DomainPattern); err != nil {
+		return err
+	}
+	if _, err := normalizeDeliveryRouteHosts(req.Hosts); err != nil {
+		return err
+	}
+	if req.Port != 0 && (req.Port < 1 || req.Port > 65535) {
+		return fmt.Errorf("port must be between 1 and 65535")
+	}
+	if _, err := normalizeDeliveryRouteTLSMode(req.TLSMode); err != nil {
+		return err
+	}
+	for field, value := range map[string]string{
+		"farm":          req.Farm,
+		"smtp_hello":    req.SMTPHello,
+		"pool_name":     req.PoolName,
+		"auth_identity": req.AuthIdentity,
+		"auth_username": req.AuthUsername,
+		"auth_password": req.AuthPassword,
+		"description":   req.Description,
+	} {
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("%s must not contain newlines", field)
+		}
+	}
+	if len(req.Description) > 512 {
+		return fmt.Errorf("description is too long")
+	}
+	return nil
+}
+
+func ValidateUpdateDeliveryRouteStatusRequest(req UpdateDeliveryRouteStatusRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("delivery route id is required")
+	}
+	switch strings.ToLower(strings.TrimSpace(req.Status)) {
+	case "active", "disabled":
+		return nil
+	default:
+		return fmt.Errorf("unsupported delivery route status %q", req.Status)
+	}
+}
+
+func normalizeDeliveryRouteDomainPattern(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "", fmt.Errorf("domain_pattern is required")
+	}
+	if value == "*" {
+		return value, nil
+	}
+	if strings.HasPrefix(value, "*.") {
+		suffix := strings.TrimPrefix(value, "*.")
+		if !validAdminDomainName(suffix) {
+			return "", fmt.Errorf("domain_pattern wildcard suffix must be a domain name")
+		}
+		return "*." + suffix, nil
+	}
+	if !validAdminDomainName(value) {
+		return "", fmt.Errorf("domain_pattern must be a domain name, wildcard domain, or *")
+	}
+	return value, nil
+}
+
+func normalizeDeliveryRouteHosts(hosts []string) ([]string, error) {
+	normalized := make([]string, 0, len(hosts))
+	seen := make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		host = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
+		if host == "" || strings.ContainsAny(host, " \t\r\n/\\") {
+			return nil, fmt.Errorf("hosts must contain DNS names or IP literals")
+		}
+		if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
+			return nil, fmt.Errorf("hosts must not include ports")
+		}
+		host = strings.Trim(host, "[]")
+		if host == "" {
+			return nil, fmt.Errorf("hosts must contain DNS names or IP literals")
+		}
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		normalized = append(normalized, host)
+	}
+	if len(normalized) == 0 {
+		return nil, fmt.Errorf("hosts is required")
+	}
+	return normalized, nil
+}
+
+func normalizeDeliveryRouteTLSMode(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "opportunistic", nil
+	}
+	switch value {
+	case "opportunistic", "require", "disable":
+		return value, nil
+	default:
+		return "", fmt.Errorf("unsupported tls_mode %q", value)
+	}
 }
 
 func normalizeTrustedRelayCIDR(value string) (string, error) {
@@ -862,6 +1093,184 @@ func (r *Repository) DeleteTrustedRelay(ctx context.Context, id string) error {
 	affected, err := result.RowsAffected()
 	if err == nil && affected == 0 {
 		return fmt.Errorf("trusted relay %q not found", id)
+	}
+	return nil
+}
+
+func (r *Repository) ListDeliveryRoutes(ctx context.Context, limit int) ([]DeliveryRouteView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = normalizeLimit(limit)
+
+	const query = `
+SELECT
+  id::text,
+  domain_pattern,
+  farm,
+  hosts,
+  port,
+  tls_mode,
+  implicit_tls,
+  smtp_hello,
+  pool_name,
+  auth_identity,
+  auth_username,
+  status,
+  description,
+  created_at,
+  updated_at
+FROM delivery_routes
+ORDER BY created_at DESC
+LIMIT $1`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list delivery routes: %w", err)
+	}
+	defer rows.Close()
+
+	var routes []DeliveryRouteView
+	for rows.Next() {
+		var route DeliveryRouteView
+		if err := rows.Scan(
+			&route.ID,
+			&route.DomainPattern,
+			&route.Farm,
+			(*stringArray)(&route.Hosts),
+			&route.Port,
+			&route.TLSMode,
+			&route.ImplicitTLS,
+			&route.SMTPHello,
+			&route.PoolName,
+			&route.AuthIdentity,
+			&route.AuthUsername,
+			&route.Status,
+			&route.Description,
+			&route.CreatedAt,
+			&route.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan delivery route: %w", err)
+		}
+		routes = append(routes, route)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate delivery routes: %w", err)
+	}
+	return routes, nil
+}
+
+func (r *Repository) CreateDeliveryRoute(ctx context.Context, req CreateDeliveryRouteRequest) (DeliveryRouteView, error) {
+	if r.db == nil {
+		return DeliveryRouteView{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateCreateDeliveryRouteRequest(req); err != nil {
+		return DeliveryRouteView{}, err
+	}
+	domainPattern, err := normalizeDeliveryRouteDomainPattern(req.DomainPattern)
+	if err != nil {
+		return DeliveryRouteView{}, err
+	}
+	hosts, err := normalizeDeliveryRouteHosts(req.Hosts)
+	if err != nil {
+		return DeliveryRouteView{}, err
+	}
+	tlsMode, err := normalizeDeliveryRouteTLSMode(req.TLSMode)
+	if err != nil {
+		return DeliveryRouteView{}, err
+	}
+	port := req.Port
+	if port == 0 {
+		port = 25
+	}
+
+	const query = `
+INSERT INTO delivery_routes (
+  domain_pattern, farm, hosts, port, tls_mode, implicit_tls,
+  smtp_hello, pool_name, auth_identity, auth_username, auth_password,
+  description
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING
+  id::text, domain_pattern, farm, hosts, port, tls_mode, implicit_tls,
+  smtp_hello, pool_name, auth_identity, auth_username, status, description,
+  created_at, updated_at`
+
+	var route DeliveryRouteView
+	if err := r.db.QueryRowContext(
+		ctx,
+		query,
+		domainPattern,
+		strings.TrimSpace(req.Farm),
+		stringArray(hosts),
+		port,
+		tlsMode,
+		req.ImplicitTLS,
+		strings.TrimSpace(req.SMTPHello),
+		strings.TrimSpace(req.PoolName),
+		strings.TrimSpace(req.AuthIdentity),
+		strings.TrimSpace(req.AuthUsername),
+		strings.TrimSpace(req.AuthPassword),
+		strings.TrimSpace(req.Description),
+	).Scan(
+		&route.ID,
+		&route.DomainPattern,
+		&route.Farm,
+		(*stringArray)(&route.Hosts),
+		&route.Port,
+		&route.TLSMode,
+		&route.ImplicitTLS,
+		&route.SMTPHello,
+		&route.PoolName,
+		&route.AuthIdentity,
+		&route.AuthUsername,
+		&route.Status,
+		&route.Description,
+		&route.CreatedAt,
+		&route.UpdatedAt,
+	); err != nil {
+		return DeliveryRouteView{}, fmt.Errorf("create delivery route: %w", err)
+	}
+	return route, nil
+}
+
+func (r *Repository) UpdateDeliveryRouteStatus(ctx context.Context, req UpdateDeliveryRouteStatusRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateDeliveryRouteStatusRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE delivery_routes
+SET status = $2,
+    updated_at = now()
+WHERE id = $1`, strings.TrimSpace(req.ID), strings.ToLower(strings.TrimSpace(req.Status)))
+	if err != nil {
+		return fmt.Errorf("update delivery route status: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("delivery route %q not found", req.ID)
+	}
+	return nil
+}
+
+func (r *Repository) DeleteDeliveryRoute(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("delivery route id is required")
+	}
+	result, err := r.db.ExecContext(ctx, `DELETE FROM delivery_routes WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete delivery route: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return fmt.Errorf("delivery route %q not found", id)
 	}
 	return nil
 }

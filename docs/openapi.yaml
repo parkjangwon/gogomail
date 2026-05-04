@@ -355,6 +355,51 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /delivery-routes:
+    get:
+      operationId: listAdminDeliveryRoutes
+      summary: Admin delivery gateway and smart-host route list
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/DeliveryRouteList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminDeliveryRoute
+      summary: Admin create delivery gateway or smart-host route
+      requestBody:
+        $ref: "#/components/requestBodies/DeliveryRouteCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DeliveryRoute"
+        default:
+          $ref: "#/components/responses/Error"
+  /delivery-routes/{id}/status:
+    patch:
+      operationId: updateAdminDeliveryRouteStatus
+      summary: Admin enable or disable a delivery route
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/DeliveryRouteStatusUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /delivery-routes/{id}:
+    delete:
+      operationId: deleteAdminDeliveryRoute
+      summary: Admin remove delivery route
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /dkim-keys:
     get:
       operationId: listAdminDkimKeys
@@ -647,6 +692,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/TrustedRelayEnvelope"
+    DeliveryRouteList:
+      description: Delivery route list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryRouteListEnvelope"
+    DeliveryRoute:
+      description: Delivery route resource envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryRouteEnvelope"
     DKIMKeyList:
       description: DKIM key list envelope
       content:
@@ -808,6 +865,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/TrustedRelayCreateRequest"
+    DeliveryRouteCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryRouteCreateRequest"
+    DeliveryRouteStatusUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeliveryRouteStatusUpdateRequest"
   schemas:
     HealthResponse:
       type: object
@@ -1166,6 +1235,65 @@ components:
       properties:
         trusted_relay:
           $ref: "#/components/schemas/TrustedRelay"
+    DeliveryRoute:
+      type: object
+      required: [id, domain_pattern, hosts, port, tls_mode, implicit_tls, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        domain_pattern:
+          type: string
+          description: Exact domain, wildcard suffix such as *.example.net, or * default route.
+        farm:
+          type: string
+        hosts:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: Gateway or smart-host DNS names/IP literals without ports.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        tls_mode:
+          type: string
+          enum: [opportunistic, require, disable]
+        implicit_tls:
+          type: boolean
+        smtp_hello:
+          type: string
+        pool_name:
+          type: string
+        auth_identity:
+          type: string
+        auth_username:
+          type: string
+        status:
+          type: string
+          enum: [active, disabled]
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DeliveryRouteListEnvelope:
+      type: object
+      required: [delivery_routes]
+      properties:
+        delivery_routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryRoute"
+    DeliveryRouteEnvelope:
+      type: object
+      required: [delivery_route]
+      properties:
+        delivery_route:
+          $ref: "#/components/schemas/DeliveryRoute"
     DKIMKey:
       type: object
       required: [id, domain_id, selector, public_key_dns, status, created_at, updated_at]
@@ -1481,6 +1609,54 @@ components:
         description:
           type: string
           maxLength: 512
+    DeliveryRouteCreateRequest:
+      type: object
+      required: [domain_pattern, hosts]
+      properties:
+        domain_pattern:
+          type: string
+          description: Exact domain, wildcard suffix such as *.example.net, or * default route.
+        farm:
+          type: string
+        hosts:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: Gateway or smart-host DNS names/IP literals without ports.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 25
+        tls_mode:
+          type: string
+          enum: [opportunistic, require, disable]
+          default: opportunistic
+        implicit_tls:
+          type: boolean
+          default: false
+        smtp_hello:
+          type: string
+        pool_name:
+          type: string
+        auth_identity:
+          type: string
+        auth_username:
+          type: string
+        auth_password:
+          type: string
+          writeOnly: true
+        description:
+          type: string
+          maxLength: 512
+    DeliveryRouteStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, disabled]
     ErrorEnvelope:
       type: object
       required: [error, error_message]
