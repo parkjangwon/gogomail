@@ -489,6 +489,7 @@ Implementation order:
 430. Backend release verification now fails on a dirty worktree after standard tests and ignores local OpenChrome session artifacts, turning final status inspection into an enforceable release gate.
 431. Push notification target resolution now drops CR/LF-bearing device IDs or tokens before sink handoff, preparing vendor adapters to receive cleaner target metadata.
 432. Push notification candidate and provider-outcome diagnostics now truncate at UTF-8 boundaries before Postgres storage, preserving valid Admin API text for internationalized subjects and vendor messages.
+433. Search indexing now rejects ambiguous `mail.stored` storage paths that would be changed by path cleaning, preventing traversal-shaped event payloads from opening a different `.eml` object key.
 
 ## Deferred until backend contracts stabilize
 

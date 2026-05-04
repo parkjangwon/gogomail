@@ -9,7 +9,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Inbound and reply/forward outbound persistence assign thread IDs from RFC thread headers or source messages where possible.
 - Reply composition writes RFC thread headers into outgoing `.eml`, preserving conversation threading outside gogomail.
 - Mail API exposes a small-deployment Postgres-backed search endpoint for active-message metadata, with full received-body indexing handled by the indexing worker boundary; draft search remains an explicit future contract.
-- Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
+- Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, rejects ambiguous storage object paths before opening `.eml` objects, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
 - OpenSearch has writer and query adapters behind `internal/searchindex`; the
   search index worker can select the writer with explicit endpoint/index
   configuration, configurable HTTP timeout, and optional index bootstrap on

@@ -68,6 +68,9 @@ guidance.
   `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects,
   extracts bounded text through the shared parser, and upserts Postgres search
   documents used by the existing search endpoint.
+- Search indexing rejects ambiguous `mail.stored` storage paths that would be
+  changed by path cleaning, preventing parent-traversal or duplicate-separator
+  event payloads from opening a different object key.
 - Shared EML text extraction and attachment metadata are bounded with UTF-8
   boundary preservation; attachment filenames are basename-normalized,
   control-character cleaned, and capped before reaching storage/API/search
