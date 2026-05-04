@@ -12,7 +12,7 @@ import (
 func TestStoredEventPayload(t *testing.T) {
 	t.Parallel()
 
-	payload, err := storedEventPayload("msg-1", smtpd.ReceivedMessage{
+	payload, err := storedEventPayload("msg-1", "folder-1", smtpd.ReceivedMessage{
 		EnvelopeFrom: "sender@example.net",
 		Mailbox: smtpd.Mailbox{
 			CompanyID: "company-1",
@@ -57,6 +57,9 @@ func TestStoredEventPayload(t *testing.T) {
 	}
 	if got["message_id"] != "msg-1" {
 		t.Fatalf("message_id = %v", got["message_id"])
+	}
+	if got["folder_id"] != "folder-1" {
+		t.Fatalf("folder_id = %v", got["folder_id"])
 	}
 	if got["company_id"] != "company-1" || got["domain_id"] != "domain-1" || got["user_id"] != "user-1" {
 		t.Fatalf("tenant identity = company:%v domain:%v user:%v", got["company_id"], got["domain_id"], got["user_id"])

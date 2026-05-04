@@ -24,6 +24,7 @@ func TestHandlerIndexesStoredMessageBody(t *testing.T) {
 		CompanyID:    "company-1",
 		DomainID:     "domain-1",
 		UserID:       "user-1",
+		FolderID:     "folder-1",
 		Recipient:    "bob@example.com",
 		Subject:      "Hello",
 		StoragePath:  "domains/example/users/user-1/messages/msg-1.eml",
@@ -42,6 +43,9 @@ func TestHandlerIndexesStoredMessageBody(t *testing.T) {
 	}
 	if doc.UserID != "user-1" {
 		t.Fatalf("UserID = %q, want user-1", doc.UserID)
+	}
+	if doc.FolderID != "folder-1" {
+		t.Fatalf("FolderID = %q, want folder-1", doc.FolderID)
 	}
 	if doc.StoragePath != "domains/example/users/user-1/messages/msg-1.eml" {
 		t.Fatalf("StoragePath = %q", doc.StoragePath)

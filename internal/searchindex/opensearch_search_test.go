@@ -42,6 +42,7 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 
 	hits, err := searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{
 		UserID:            "user-1",
+		FolderID:          "folder-1",
 		Query:             "hello",
 		From:              "sender@example.com",
 		Subject:           "hello",
@@ -58,7 +59,7 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	if request["size"].(float64) != 2 {
 		t.Fatalf("request size = %#v", request["size"])
 	}
-	if len(request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)) < 4 {
+	if len(request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)) < 5 {
 		t.Fatalf("request query did not include filters: %#v", request["query"])
 	}
 	if len(hits[0].Highlights.Subject) != 1 || len(hits[0].Highlights.Body) != 1 {

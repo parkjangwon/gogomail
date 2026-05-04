@@ -10,11 +10,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Reply composition writes RFC thread headers into outgoing `.eml`, preserving conversation threading outside gogomail.
 - Mail API exposes a small-deployment Postgres-backed search endpoint for metadata and draft text, with full body indexing deferred to the indexing worker boundary.
 - Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
-- OpenSearch has a first writer adapter behind `internal/searchindex`, and the
-  search index worker can select it with explicit endpoint/index configuration;
-  the worker can optionally bootstrap the index mapping on startup. API
-  read-side search remains on the current contract until a query adapter is
-  added.
+- OpenSearch has writer and query adapters behind `internal/searchindex`; the
+  search index worker can select the writer with explicit endpoint/index
+  configuration and optionally bootstrap the index mapping on startup. Mail API
+  relevance search can use OpenSearch for ranked IDs, folder/from/subject/
+  attachment filters, and highlights, then hydrate the existing response shape
+  from Postgres summaries.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.

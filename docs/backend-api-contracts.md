@@ -365,14 +365,14 @@ not sufficient. The
 OpenSearch writer includes a strict bootstrap mapping for the indexed document
 shape so deployments can create the index before enabling the worker, or set
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true` to have the worker ensure it
-at startup. Mail API can inject the OpenSearch source for relevance-only
-searches whose filters/highlights can be preserved; OpenSearch message IDs are
-hydrated through Postgres summaries before responses are returned. Indexed
-OpenSearch documents include parsed sender and attachment-presence fields for
-filter parity work, and OpenSearch relevance searches can apply from, subject,
-and attachment filters before hydration. OpenSearch highlights map into the
-existing `search_highlights` response shape. Folder filters still use the
-Postgres fallback path.
+at startup. Mail API can inject the OpenSearch source for relevance-sorted
+searches; OpenSearch message IDs are hydrated through Postgres summaries before
+responses are returned. Indexed OpenSearch documents include folder, parsed
+sender, and attachment-presence fields for filter parity work, and OpenSearch
+relevance searches can apply folder, from, subject, and attachment filters
+before hydration. OpenSearch highlights map into the existing
+`search_highlights` response shape. Newest-first search remains on the Postgres
+path so the default response ordering stays stable.
 
 ## Deferred from this contract
 

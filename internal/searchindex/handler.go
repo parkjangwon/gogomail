@@ -28,6 +28,7 @@ type Event struct {
 	CompanyID     string   `json:"company_id"`
 	DomainID      string   `json:"domain_id"`
 	UserID        string   `json:"user_id"`
+	FolderID      string   `json:"folder_id"`
 	Recipient     string   `json:"recipient"`
 	Subject       string   `json:"subject"`
 	StoragePath   string   `json:"storage_path"`
@@ -43,6 +44,7 @@ type Document struct {
 	CompanyID     string
 	DomainID      string
 	UserID        string
+	FolderID      string
 	Recipient     string
 	Subject       string
 	FromAddr      string
@@ -132,6 +134,7 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		CompanyID:     event.CompanyID,
 		DomainID:      event.DomainID,
 		UserID:        event.UserID,
+		FolderID:      event.FolderID,
 		Recipient:     event.Recipient,
 		Subject:       firstNonEmpty(event.Subject, parsed.Subject),
 		FromAddr:      parsed.From.Address,
@@ -190,6 +193,7 @@ func validateEvent(event *Event) error {
 	event.InReplyTo = strings.TrimSpace(event.InReplyTo)
 	event.CompanyID = strings.TrimSpace(event.CompanyID)
 	event.DomainID = strings.TrimSpace(event.DomainID)
+	event.FolderID = strings.TrimSpace(event.FolderID)
 	event.Recipient = strings.TrimSpace(event.Recipient)
 	event.Subject = strings.TrimSpace(event.Subject)
 	event.ReceivedAt = strings.TrimSpace(event.ReceivedAt)

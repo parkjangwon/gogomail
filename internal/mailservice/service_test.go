@@ -169,7 +169,7 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	repo := &fakeRepository{
 		messagesByID: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
 	}
-	service := New(repo, nil).WithSearchIDSource(fakeSearchIDSource{
+	source := &fakeSearchIDSource{
 		hits: []searchindex.OpenSearchHit{{
 			MessageID: "msg-1",
 			Score:     rank,
@@ -177,10 +177,12 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 				Subject: []string{"<mark>hello</mark>"},
 			},
 		}},
-	})
+	}
+	service := New(repo, nil).WithSearchIDSource(source)
 
 	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
 		UserID:            "user-1",
+		FolderID:          "folder-1",
 		Query:             "hello",
 		Limit:             10,
 		Sort:              maildb.MessageSearchSortRelevance,
@@ -202,21 +204,23 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	if len(repo.lastHydrateIDs) != 1 || repo.lastHydrateIDs[0] != "msg-1" {
 		t.Fatalf("hydrated ids = %#v", repo.lastHydrateIDs)
 	}
+	if source.lastQuery.FolderID != "folder-1" {
+		t.Fatalf("external folder_id = %q", source.lastQuery.FolderID)
+	}
 }
 
 func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *testing.T) {
 	t.Parallel()
 
 	repo := &fakeRepository{list: []maildb.MessageSummary{{ID: "pg-1"}}}
-	service := New(repo, nil).WithSearchIDSource(fakeSearchIDSource{
+	service := New(repo, nil).WithSearchIDSource(&fakeSearchIDSource{
 		hits: []searchindex.OpenSearchHit{{MessageID: "os-1", Score: 1}},
 	})
 
 	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
-		UserID:   "user-1",
-		Query:    "hello",
-		FolderID: "folder-1",
-		Sort:     maildb.MessageSearchSortRelevance,
+		UserID: "user-1",
+		Query:  "hello",
+		Sort:   maildb.MessageSearchSortDate,
 	})
 	if err != nil {
 		t.Fatalf("SearchMessages returned error: %v", err)
@@ -424,10 +428,12 @@ func (f *fakeRepository) CreateAttachmentUpload(_ context.Context, req maildb.Cr
 }
 
 type fakeSearchIDSource struct {
-	hits []searchindex.OpenSearchHit
+	hits      []searchindex.OpenSearchHit
+	lastQuery searchindex.OpenSearchSearchQuery
 }
 
-func (s fakeSearchIDSource) SearchMessageIDs(context.Context, searchindex.OpenSearchSearchQuery) ([]searchindex.OpenSearchHit, error) {
+func (s *fakeSearchIDSource) SearchMessageIDs(_ context.Context, query searchindex.OpenSearchSearchQuery) ([]searchindex.OpenSearchHit, error) {
+	s.lastQuery = query
 	return s.hits, nil
 }
 
