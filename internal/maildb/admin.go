@@ -4407,6 +4407,10 @@ func (r *Repository) RetryOutbox(ctx context.Context, id string) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("outbox event id is required")
+	}
 
 	const query = `
 UPDATE outbox
