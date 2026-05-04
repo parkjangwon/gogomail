@@ -4018,6 +4018,66 @@ LIMIT $1`
 	return attempts, nil
 }
 
+func (r *Repository) GetPushNotificationAttempt(ctx context.Context, id string) (PushNotificationAttemptView, error) {
+	if r.db == nil {
+		return PushNotificationAttemptView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if err := validatePushNotificationFilter("attempt_id", id); err != nil {
+		return PushNotificationAttemptView{}, err
+	}
+	if id == "" {
+		return PushNotificationAttemptView{}, fmt.Errorf("attempt_id is required")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  message_id::text,
+  rfc_message_id,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  user_id::text,
+  recipient,
+  subject,
+  COALESCE(device_id::text, ''),
+  platform,
+  token_suffix,
+  status,
+  error_message,
+  provider_message_id,
+  provider_status,
+  attempted_at
+FROM push_notification_attempts
+WHERE id = $1::uuid`
+
+	var attempt PushNotificationAttemptView
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&attempt.ID,
+		&attempt.MessageID,
+		&attempt.RFCMessageID,
+		&attempt.CompanyID,
+		&attempt.DomainID,
+		&attempt.UserID,
+		&attempt.Recipient,
+		&attempt.Subject,
+		&attempt.DeviceID,
+		&attempt.Platform,
+		&attempt.TokenSuffix,
+		&attempt.Status,
+		&attempt.ErrorMessage,
+		&attempt.ProviderMessageID,
+		&attempt.ProviderStatus,
+		&attempt.AttemptedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return PushNotificationAttemptView{}, fmt.Errorf("push notification attempt %q not found", id)
+		}
+		return PushNotificationAttemptView{}, fmt.Errorf("get push notification attempt: %w", err)
+	}
+	return attempt, nil
+}
+
 func normalizePushNotificationAttemptListRequest(req PushNotificationAttemptListRequest) (PushNotificationAttemptListRequest, error) {
 	req.Limit = normalizeLimit(req.Limit)
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))

@@ -130,6 +130,24 @@ func TestNormalizePushNotificationAttemptListRequestNormalizesValues(t *testing.
 	}
 }
 
+func TestValidatePushNotificationAttemptIDRejectsUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{
+		"attempt-1\nbad",
+		strings.Repeat("a", maxPushNotificationFilterBytes+1),
+		string([]byte{0xff}),
+	} {
+		id := id
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+			if err := validatePushNotificationFilter("attempt_id", id); err == nil {
+				t.Fatalf("validatePushNotificationFilter accepted %q", id)
+			}
+		})
+	}
+}
+
 func TestNormalizePushNotificationStatsRequestRejectsUnsafeUserID(t *testing.T) {
 	t.Parallel()
 

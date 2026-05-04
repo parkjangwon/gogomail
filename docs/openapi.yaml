@@ -1206,6 +1206,17 @@ paths:
           $ref: "#/components/responses/PushNotificationAttempts"
         default:
           $ref: "#/components/responses/Error"
+  /push-notification-attempts/{id}:
+    get:
+      operationId: getAdminPushNotificationAttempt
+      summary: Admin push notification attempt detail
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/PushNotificationAttempt"
+        default:
+          $ref: "#/components/responses/Error"
   /push-notification-attempts/{id}/outcome:
     patch:
       operationId: updateAdminPushNotificationOutcome
@@ -1981,6 +1992,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PushNotificationAttemptsEnvelope"
+    PushNotificationAttempt:
+      description: Push notification attempt envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PushNotificationAttemptEnvelope"
     PushNotificationStats:
       description: Push notification stats envelope
       content:
@@ -3974,6 +3991,12 @@ components:
           type: string
           maxLength: 500
           description: Vendor-specific delivery status or reason code.
+    PushNotificationAttemptEnvelope:
+      type: object
+      required: [push_notification_attempt]
+      properties:
+        push_notification_attempt:
+          $ref: "#/components/schemas/PushNotificationAttempt"
     PushNotificationAttemptsEnvelope:
       type: object
       required: [push_notification_attempts]
