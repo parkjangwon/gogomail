@@ -173,12 +173,15 @@ Current state:
 - Attachment scan hook exists as a disabled-by-default synchronous SMTP-stage
   adapter, and `GOGOMAIL_ATTACHMENT_SCAN_BACKEND=webhook` wires a bounded HTTP
   scanner with an optional bounded bearer token into Edge, Inbound, and
-  Submission MTA app boundaries.
+  Submission MTA app boundaries. `docs/webhook-integrations.md` records the
+  scanner JSON payload, bounded response, and verdict semantics.
 - Push notification enqueue now has a disabled-by-default async
   `push-notification-worker` over `mail.stored` with a replaceable sink and
   `slog` first adapter plus `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` for
   handing raw-token targets to an external push gateway with an optional
   bounded bearer token; webhook URLs must be HTTPS in production.
+  `docs/webhook-integrations.md` records the push gateway payload and attempt
+  state semantics.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
   remain write-only.

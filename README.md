@@ -90,6 +90,9 @@ GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT=2s
 Production webhook URLs must use HTTPS. Local development and private test
 harnesses may use HTTP.
 
+See `docs/webhook-integrations.md` for the push gateway JSON payload, attempt
+state semantics, and authentication contract.
+
 ## Verify
 
 ```bash
@@ -209,6 +212,8 @@ GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT=2s
 The scanner hook runs only for parsed messages with attachments and remains
 disabled by default. Production webhook URLs must use HTTPS. The same scanner
 configuration is available to `edge-mta`, `inbound-mta`, and `outbound-mta`.
+See `docs/webhook-integrations.md` for the scanner request/response contract
+and verdict semantics.
 
 Accepted messages are stored as raw `.eml` files under:
 
