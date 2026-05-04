@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"fmt"
 	"net/mail"
 	"strings"
@@ -76,15 +78,31 @@ func (c Config) Validate() error {
 	if c.APIMeteringConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_BLOCK must be positive")
 	}
-	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac"); err != nil {
+	if err := validateEnum("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", c.APIUsageExportManifestSignerBackend, "disabled", "local-hmac", "local-ed25519"); err != nil {
 		return err
 	}
-	if strings.EqualFold(strings.TrimSpace(c.APIUsageExportManifestSignerBackend), "local-hmac") {
+	switch strings.ToLower(strings.TrimSpace(c.APIUsageExportManifestSignerBackend)) {
+	case "local-hmac":
 		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
 			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for local-hmac signer")
 		}
 		if c.APIUsageExportManifestSignerSecret == "" {
 			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET is required for local-hmac signer")
+		}
+	case "local-ed25519":
+		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for local-ed25519 signer")
+		}
+		privateKey, err := decodeBase64Key("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY", c.APIUsageExportSignerPrivateKey, ed25519.PrivateKeySize)
+		if err != nil {
+			return err
+		}
+		publicKey, err := decodeBase64Key("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY", c.APIUsageExportSignerPublicKey, ed25519.PublicKeySize)
+		if err != nil {
+			return err
+		}
+		if !stringBytesEqual(ed25519.PrivateKey(privateKey).Public().(ed25519.PublicKey), publicKey) {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY must match GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY")
 		}
 	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
@@ -155,4 +173,30 @@ func validateEnum(name string, value string, allowed ...string) error {
 		}
 	}
 	return fmt.Errorf("%s has unsupported value %q", name, value)
+}
+
+func decodeBase64Key(name string, value string, size int) ([]byte, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, fmt.Errorf("%s is required", name)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return nil, fmt.Errorf("%s must be base64: %w", name, err)
+	}
+	if len(decoded) != size {
+		return nil, fmt.Errorf("%s must decode to %d bytes", name, size)
+	}
+	return decoded, nil
+}
+
+func stringBytesEqual(a []byte, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var diff byte
+	for i := range a {
+		diff |= a[i] ^ b[i]
+	}
+	return diff == 0
 }

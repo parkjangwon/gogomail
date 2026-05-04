@@ -2,9 +2,12 @@ package app
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/tls"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -125,6 +128,21 @@ func TestAPIUsageExportManifestSignerConfig(t *testing.T) {
 	}
 	if verifier := apiUsageExportManifestVerifier(enabled); verifier == nil {
 		t.Fatal("local-hmac verifier is nil")
+	}
+
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize)))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	ed25519Enabled := config.Config{
+		APIUsageExportManifestSignerBackend: "local-ed25519",
+		APIUsageExportManifestSignerKeyID:   "key-2",
+		APIUsageExportSignerPrivateKey:      base64.StdEncoding.EncodeToString(privateKey),
+		APIUsageExportSignerPublicKey:       base64.StdEncoding.EncodeToString(publicKey),
+	}
+	if signer := apiUsageExportManifestSigner(ed25519Enabled); signer == nil {
+		t.Fatal("local-ed25519 signer is nil")
+	}
+	if verifier := apiUsageExportManifestVerifier(ed25519Enabled); verifier == nil {
+		t.Fatal("local-ed25519 verifier is nil")
 	}
 }
 

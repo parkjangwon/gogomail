@@ -67,6 +67,8 @@ type Config struct {
 	APIUsageExportManifestSignerBackend string
 	APIUsageExportManifestSignerKeyID   string
 	APIUsageExportManifestSignerSecret  string
+	APIUsageExportSignerPrivateKey      string
+	APIUsageExportSignerPublicKey       string
 	RcptRateLimitPerMinute              int
 	OutboxRelayBatchSize                int
 	OutboxRelayPollInterval             time.Duration
@@ -178,6 +180,8 @@ func Load() Config {
 		APIUsageExportManifestSignerBackend: envOrDefault("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND", "disabled"),
 		APIUsageExportManifestSignerKeyID:   envOrDefault("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID", ""),
 		APIUsageExportManifestSignerSecret:  os.Getenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET"),
+		APIUsageExportSignerPrivateKey:      os.Getenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY"),
+		APIUsageExportSignerPublicKey:       os.Getenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY"),
 		RcptRateLimitPerMinute:              intEnvOrDefault("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", 60),
 		OutboxRelayBatchSize:                intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", 100),
 		OutboxRelayPollInterval:             durationEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", time.Second),

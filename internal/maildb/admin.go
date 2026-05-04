@@ -2864,13 +2864,22 @@ func applyAPIUsageExportHandoffReadiness(view *APIUsageExportHandoffView) {
 		view.BillingBlockingReasons = []string{"handoff_not_ready"}
 		return
 	}
-	if view.LatestSignatureSigner == "" || view.LatestSignatureSigner == "local-hmac" {
+	if apiUsageExportManifestSignerNeedsProductionBackend(view.LatestSignatureSigner) {
 		view.ReadinessGrade = "operational"
 		view.BillingBlockingReasons = []string{"production_manifest_signer_required"}
 		return
 	}
 	view.ReadinessGrade = "billing_candidate"
 	view.BillingReady = true
+}
+
+func apiUsageExportManifestSignerNeedsProductionBackend(backend string) bool {
+	switch strings.ToLower(strings.TrimSpace(backend)) {
+	case "", "local-hmac", "local-ed25519":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *Repository) CreateAPIUsageExportManifestSignature(ctx context.Context, req CreateAPIUsageExportManifestSignatureRequest) (APIUsageExportManifestSignatureView, error) {
@@ -3047,8 +3056,13 @@ func ValidateCreateAPIUsageExportManifestSignatureRequest(req *CreateAPIUsageExp
 	if req.SignerBackend == "" {
 		return fmt.Errorf("signer_backend is required")
 	}
-	if req.Signature.Algorithm != apimeter.ExportManifestSignatureAlgorithmHMACSHA256 {
-		return fmt.Errorf("signature_algorithm must be hmac-sha256")
+	switch req.Signature.Algorithm {
+	case apimeter.ExportManifestSignatureAlgorithmHMACSHA256, apimeter.ExportManifestSignatureAlgorithmEd25519:
+	default:
+		return fmt.Errorf("signature_algorithm must be hmac-sha256 or ed25519")
+	}
+	if !apiUsageExportManifestSignatureBackendMatchesAlgorithm(req.SignerBackend, req.Signature.Algorithm) {
+		return fmt.Errorf("signer_backend %q is not compatible with signature_algorithm %q", req.SignerBackend, req.Signature.Algorithm)
 	}
 	if req.Signature.KeyID == "" {
 		return fmt.Errorf("key_id is required")
@@ -3056,8 +3070,11 @@ func ValidateCreateAPIUsageExportManifestSignatureRequest(req *CreateAPIUsageExp
 	if !isLowerHexSHA256(req.Signature.SignedDigestHex) {
 		return fmt.Errorf("signed_digest_hex must be 64 lowercase hex characters")
 	}
-	if !isLowerHexSHA256(req.Signature.SignatureHex) {
+	if req.Signature.Algorithm == apimeter.ExportManifestSignatureAlgorithmHMACSHA256 && !isLowerHexBytes(req.Signature.SignatureHex, 32) {
 		return fmt.Errorf("signature_hex must be 64 lowercase hex characters")
+	}
+	if req.Signature.Algorithm == apimeter.ExportManifestSignatureAlgorithmEd25519 && !isLowerHexBytes(req.Signature.SignatureHex, 64) {
+		return fmt.Errorf("signature_hex must be 128 lowercase hex characters")
 	}
 	if len(req.Metadata) == 0 {
 		req.Metadata = json.RawMessage(`{}`)
@@ -3067,6 +3084,17 @@ func ValidateCreateAPIUsageExportManifestSignatureRequest(req *CreateAPIUsageExp
 		return fmt.Errorf("metadata must be a JSON object: %w", err)
 	}
 	return nil
+}
+
+func apiUsageExportManifestSignatureBackendMatchesAlgorithm(backend string, algorithm string) bool {
+	switch strings.ToLower(strings.TrimSpace(backend)) {
+	case "local-hmac":
+		return algorithm == apimeter.ExportManifestSignatureAlgorithmHMACSHA256
+	case "local-ed25519":
+		return algorithm == apimeter.ExportManifestSignatureAlgorithmEd25519
+	default:
+		return true
+	}
 }
 
 func apiUsageExportManifest(batch APIUsageExportBatchView, artifacts []APIUsageExportArtifactView) apimeter.ExportManifest {
@@ -3149,7 +3177,11 @@ func ValidateCreateAPIUsageExportArtifactRequest(req *CreateAPIUsageExportArtifa
 }
 
 func isLowerHexSHA256(value string) bool {
-	if len(value) != 64 {
+	return isLowerHexBytes(value, 32)
+}
+
+func isLowerHexBytes(value string, bytes int) bool {
+	if len(value) != bytes*2 {
 		return false
 	}
 	for _, r := range value {

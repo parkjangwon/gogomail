@@ -111,22 +111,22 @@ guidance.
   verification endpoints. Operators can generate SHA-256 digests over the saved
   batch plus registered artifacts, list/fetch digest records, and re-check the
   stored manifest against its canonical digest before billing handoff.
-- API usage export manifest digests can now be signed through a disabled-by-
-  default local HMAC signer. Admin API exposes signature create/list/detail and
-  verification endpoints while keeping the signer backend pluggable for future
-  KMS/asymmetric integrations.
+- API usage export manifest digests can now be signed through disabled-by-
+  default local HMAC or local Ed25519 signers. Admin API exposes signature
+  create/list/detail and verification endpoints while keeping the signer
+  backend pluggable for future KMS integrations.
 - Admin API exposes API usage export handoff readiness by batch. The report
   summarizes artifact coverage, latest digest/signature state, operational
-  readiness, and a separate billing readiness grade so local-HMAC signed batches
-  are not mistaken for invoice-grade exports.
+  readiness, and a separate billing readiness grade so local signers are not
+  mistaken for invoice-grade exports.
 - Handoff readiness can now opt into `deep=true`, which streams registered
   artifacts from object storage for byte/SHA verification and verifies the
   latest manifest digest/signature in one operator report while keeping
   metadata-only readiness fields stable.
 - Manifest signature verification now sits behind an
   `apimeter.ExportManifestSignatureVerifier` boundary parallel to signing. The
-  current wired verifier is local-HMAC, leaving a clean replacement point for
-  KMS/asymmetric verification.
+  current wired verifiers are local-HMAC and local-Ed25519, leaving a clean
+  replacement point for KMS-backed production verification.
 - Admin API exposes API usage export capabilities so operators can see the
   configured signer backend, signer key ID, verifier availability, and whether
   production/verified billing readiness is supported before creating handoff
@@ -321,15 +321,15 @@ The platform hardening sprint completed the following:
   Admin API endpoints, preparing object-store handoff without adding a vendor
   dependency to the core service.
 - API usage export manifests now have canonical SHA-256 digest generation,
-  local-HMAC signing, and verification Admin API endpoints, tightening the audit
-  trail before external KMS/asymmetric signers are added.
+  local-HMAC/local-Ed25519 signing, and verification Admin API endpoints,
+  tightening the audit trail before external KMS-backed signers are added.
 - API usage export artifact writing now has a local object-store adapter path
   through Admin API, including full-batch streaming, retry-friendly artifact
   registration, stored artifact download, and object body byte/SHA verification.
 - API usage export handoff readiness now has a compact Admin API report that
   shows whether a batch has artifact coverage, a latest manifest digest, and a
-  signature for that digest while keeping local-HMAC signatures billing-blocked
-  until production signing is wired.
+  signature for that digest while keeping local signatures billing-blocked until
+  production signing is wired.
 - API usage export handoff readiness can now run an explicit deep verification
   mode for release/warehouse checks, returning artifact, digest, and signature
   verification evidence plus `verified_billing_ready` without turning the
@@ -346,6 +346,6 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add external KMS/asymmetric signing before using API usage batches for
+5. Add external KMS-backed signing before using API usage batches for
    invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.

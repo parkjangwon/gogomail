@@ -1,6 +1,7 @@
 package app
 
 import (
+	"crypto/ed25519"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -123,6 +124,27 @@ func TestAdminServiceAPIUsageExportCapabilities(t *testing.T) {
 		t.Fatalf("capabilities = %+v", view)
 	}
 	if view.SignerKeyID != "key-1" || strings.Join(view.BlockingReasons, ",") != "production_manifest_signer_required" {
+		t.Fatalf("capabilities = %+v", view)
+	}
+}
+
+func TestAdminServiceAPIUsageExportCapabilitiesLocalEd25519(t *testing.T) {
+	t.Parallel()
+
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize)))
+	service := adminService{
+		exportManifestSigner:        apimeter.Ed25519ExportManifestSigner{KeyID: "key-2", PrivateKey: privateKey},
+		exportManifestSignerBackend: "local-ed25519",
+		exportManifestVerifier:      apimeter.Ed25519ExportManifestSignatureVerifier{KeyID: "key-2", PublicKey: privateKey.Public().(ed25519.PublicKey)},
+	}
+	view, err := service.GetAPIUsageExportCapabilities(t.Context())
+	if err != nil {
+		t.Fatalf("GetAPIUsageExportCapabilities returned error: %v", err)
+	}
+	if !view.SignerConfigured || !view.VerifierConfigured || view.ProductionSignatureReady || view.BillingReadySupported || view.VerifiedBillingReadySupported {
+		t.Fatalf("capabilities = %+v", view)
+	}
+	if view.SignerKeyID != "key-2" || strings.Join(view.BlockingReasons, ",") != "production_manifest_signer_required" {
 		t.Fatalf("capabilities = %+v", view)
 	}
 }

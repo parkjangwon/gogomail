@@ -67,19 +67,20 @@ limits.
 Export batches can also produce canonical SHA-256 manifest digest records over
 the saved batch metadata and registered artifacts. The Admin API exposes digest
 creation, listing, detail, and verification so operators can audit integrity
-before signing. Manifest digests can be signed through a disabled-by-default
-local-HMAC signer with explicit key IDs, persisted signature rows, and Admin API
-verification. Signing and verification are separate interfaces. The signer and
-verifier boundaries stay vendor-neutral so a future KMS or asymmetric backend
-can replace local HMAC without changing the export handoff shape.
+before signing. Manifest digests can be signed through disabled-by-default
+local-HMAC or local-Ed25519 signers with explicit key IDs, persisted signature
+rows, and Admin API verification. Signing and verification are separate
+interfaces. Local signers sign the lowercase 64-character manifest digest hex
+string. The signer and verifier boundaries stay vendor-neutral so a future KMS
+backend can replace local keys without changing the export handoff shape.
 
 The Admin API also exposes a read-only handoff readiness report for a saved
 batch. The report summarizes whether the batch is complete, artifact event
 counts cover the saved batch total, at least one manifest digest exists, and the
 latest digest has a signature. It intentionally separates operational readiness
-from billing readiness: local-HMAC signed batches can be operationally ready for
+from billing readiness: locally signed batches can be operationally ready for
 warehouse handoff checks, but remain billing-blocked until a production signer
-such as KMS-backed asymmetric signing is configured.
+such as KMS-backed signing is configured.
 
 When operators explicitly request deep verification, the report may stream
 registered artifacts from object storage, verify artifact byte/SHA metadata,

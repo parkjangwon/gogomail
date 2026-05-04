@@ -111,6 +111,29 @@ func TestApplyAPIUsageExportHandoffReadiness(t *testing.T) {
 	}
 }
 
+func TestApplyAPIUsageExportHandoffReadinessMarksLocalEd25519Operational(t *testing.T) {
+	t.Parallel()
+
+	view := APIUsageExportHandoffView{
+		BatchID:                    "batch-1",
+		BatchStatus:                "completed",
+		BatchCompleted:             true,
+		EventCount:                 10,
+		ArtifactCount:              1,
+		ArtifactEventCount:         10,
+		ManifestDigestCount:        1,
+		LatestManifestDigestID:     "digest-1",
+		LatestDigestSignatureCount: 1,
+		LatestSignatureID:          "signature-1",
+		LatestSignatureSigner:      "local-ed25519",
+	}
+	applyAPIUsageExportHandoffReadiness(&view)
+
+	if !view.Ready || view.BillingReady || view.ReadinessGrade != "operational" || strings.Join(view.BillingBlockingReasons, ",") != "production_manifest_signer_required" {
+		t.Fatalf("handoff readiness = %+v", view)
+	}
+}
+
 func TestApplyAPIUsageExportHandoffReadinessReportsMissingRequirements(t *testing.T) {
 	t.Parallel()
 

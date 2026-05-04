@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/subtle"
 	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -822,22 +824,53 @@ func deliveryMetrics(cfg config.Config, logger *slog.Logger) delivery.Metrics {
 }
 
 func apiUsageExportManifestSigner(cfg config.Config) apimeter.ExportManifestSigner {
-	if !strings.EqualFold(strings.TrimSpace(cfg.APIUsageExportManifestSignerBackend), "local-hmac") {
+	switch strings.ToLower(strings.TrimSpace(cfg.APIUsageExportManifestSignerBackend)) {
+	case "local-hmac":
+		return apimeter.HMACExportManifestSigner{
+			KeyID:  cfg.APIUsageExportManifestSignerKeyID,
+			Secret: []byte(cfg.APIUsageExportManifestSignerSecret),
+		}
+	case "local-ed25519":
+		privateKey, ok := decodeExportManifestKey(cfg.APIUsageExportSignerPrivateKey, ed25519.PrivateKeySize)
+		if !ok {
+			return nil
+		}
+		return apimeter.Ed25519ExportManifestSigner{
+			KeyID:      cfg.APIUsageExportManifestSignerKeyID,
+			PrivateKey: ed25519.PrivateKey(privateKey),
+		}
+	default:
 		return nil
-	}
-	return apimeter.HMACExportManifestSigner{
-		KeyID:  cfg.APIUsageExportManifestSignerKeyID,
-		Secret: []byte(cfg.APIUsageExportManifestSignerSecret),
 	}
 }
 
 func apiUsageExportManifestVerifier(cfg config.Config) apimeter.ExportManifestSignatureVerifier {
-	if !strings.EqualFold(strings.TrimSpace(cfg.APIUsageExportManifestSignerBackend), "local-hmac") {
+	switch strings.ToLower(strings.TrimSpace(cfg.APIUsageExportManifestSignerBackend)) {
+	case "local-hmac":
+		return apimeter.HMACExportManifestSignatureVerifier{
+			KeyID:  cfg.APIUsageExportManifestSignerKeyID,
+			Secret: []byte(cfg.APIUsageExportManifestSignerSecret),
+		}
+	case "local-ed25519":
+		publicKey, ok := decodeExportManifestKey(cfg.APIUsageExportSignerPublicKey, ed25519.PublicKeySize)
+		if !ok {
+			return nil
+		}
+		return apimeter.Ed25519ExportManifestSignatureVerifier{
+			KeyID:     cfg.APIUsageExportManifestSignerKeyID,
+			PublicKey: ed25519.PublicKey(publicKey),
+		}
+	default:
 		return nil
 	}
-	return apimeter.HMACExportManifestSignatureVerifier{
-		Secret: []byte(cfg.APIUsageExportManifestSignerSecret),
+}
+
+func decodeExportManifestKey(value string, size int) ([]byte, bool) {
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(value))
+	if err != nil || len(decoded) != size {
+		return nil, false
 	}
+	return decoded, true
 }
 
 type dkimKeyRepository interface {

@@ -271,14 +271,18 @@ Current state:
   stored manifest digest. This gives operators a vendor-neutral integrity check
   over the saved batch plus registered artifact metadata before external
   signing, billing, or warehouse handoff.
-- Admin API can create/list/get local-HMAC signatures for manifest digests and
-  verify persisted signatures. The signer is disabled by default and configured
-  through `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=local-hmac`,
+- Admin API can create/list/get local-HMAC or local-Ed25519 signatures for
+  manifest digests and verify persisted signatures. The signer is disabled by
+  default. HMAC uses
+  `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=local-hmac`,
   `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID`, and
-  `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET`.
+  `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET`; Ed25519 uses
+  `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=local-ed25519` plus
+  base64 raw Ed25519 private/public key env vars. Both sign the lowercase
+  64-character manifest digest hex string.
 - Admin API can report API usage export handoff readiness for a saved batch,
   summarizing artifact event coverage, latest manifest digest, latest digest
-  signature, operational readiness, and separate billing readiness. Local-HMAC
+  signature, operational readiness, and separate billing readiness. Locally
   signed batches remain `billing_ready=false` with
   `production_manifest_signer_required`.
 - Passing `deep=true` to the handoff readiness endpoint streams all registered
@@ -288,15 +292,16 @@ Current state:
   Deep mode returns `verified_billing_ready` separately so `billing_ready`
   remains a stable metadata/signer-eligibility signal.
 - Manifest signature verification now goes through an
-  `ExportManifestSignatureVerifier` interface. The local-HMAC verifier is wired
-  today; future KMS/asymmetric verification should implement the same boundary.
+  `ExportManifestSignatureVerifier` interface. Local-HMAC and local-Ed25519
+  verifiers are wired today; future KMS-backed verification should implement
+  the same boundary.
 - Admin API exposes API usage export capabilities, including signer backend,
   signer key ID, verifier availability, production signature readiness, and
   billing/verified-billing support flags.
 
 Next:
 
-- Add external KMS/asymmetric signing and verification before invoices or hard
+- Add external KMS-backed signing and verification before invoices or hard
   Open API limits depend on completed export batches.
 - Consider adding operator runbook examples for export capability checks before
   treating `billing_candidate` as invoice-grade.

@@ -372,8 +372,9 @@ API call metering can now emit durable usage events:
   `{ "api_usage_export_handoff_readiness": ... }`, a read-only operator report
   summarizing batch completion, artifact event coverage, latest manifest
   digest, latest digest signature, operational `ready`, and separate
-  `billing_ready`/`readiness_grade` fields. Local-HMAC signatures can satisfy
-  operational handoff readiness but keep `billing_ready: false` with
+  `billing_ready`/`readiness_grade` fields. Local-HMAC and local-Ed25519
+  signatures can satisfy operational handoff readiness but keep
+  `billing_ready: false` with
   `production_manifest_signer_required` until a production signer backend is
   wired. Passing `deep=true` explicitly runs the expensive verification path:
   all registered artifacts are streamed from object storage and checked against
@@ -421,15 +422,19 @@ API call metering can now emit durable usage events:
   manifest JSON used for verification.
 - `POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`
   signs the digest with the configured manifest signer and returns
-  `{ "api_usage_export_manifest_signature": ... }`.
+  `{ "api_usage_export_manifest_signature": ... }`. Local signers sign the
+  lowercase 64-character manifest digest hex string. `local-hmac` emits
+  `hmac-sha256` with a 64-character hex signature; `local-ed25519` emits
+  `ed25519` with a 128-character hex signature. Local signer backends remain
+  operational evidence only, not invoice-grade billing evidence.
 - `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`
   returns `{ "api_usage_export_manifest_signatures": [...] }`, and
   `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}`
   returns one persisted signature.
 - `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification`
   returns `{ "api_usage_export_manifest_signature_verification": ... }`,
-  recomputing the local-HMAC signature and confirming that the signed digest
-  still matches the persisted manifest digest.
+  verifying the persisted signature through the configured backend verifier and
+  confirming that the signed digest still matches the persisted manifest digest.
 
 Message search starts with a small-deployment Postgres implementation:
 
