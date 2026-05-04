@@ -471,7 +471,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail/Admin scalar query parameters reject duplicate values before dispatch,
   preventing HTTP parameter pollution ambiguity for user IDs, limits, boolean
   flags, timestamps, and operational filters.
-- Mail API read/search/list routes reject unknown query parameter names before
+- Mail API read/search/list, draft-search, attachment capability/session/download,
+  and push-device list routes reject unknown query parameter names before
   dispatch, making generated-client typos visible as HTTP 400 responses.
 - Admin company/domain/DNS-check/user list routes reject unknown query
   parameter names before dispatch, keeping core operator filters aligned with

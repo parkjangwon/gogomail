@@ -184,6 +184,48 @@ func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
 				return service.lastMessageID != ""
 			},
 		},
+		{
+			name: "draft search",
+			path: "/api/v1/drafts/search?user_id=user-1&q=hello&include_highlights=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastDraftSearch.UserID != ""
+			},
+		},
+		{
+			name: "message attachments",
+			path: "/api/v1/messages/msg-1/attachments?user_id=user-1&limit=5",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastMessageID != ""
+			},
+		},
+		{
+			name: "attachment capabilities",
+			path: "/api/v1/attachments/capabilities?user_id=user-1&deep=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name: "upload session read",
+			path: "/api/v1/attachments/upload-sessions/session-1?user_id=user-1&include_body=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastGetUploadSessionID != ""
+			},
+		},
+		{
+			name: "attachment download",
+			path: "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1&filename=report.pdf",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastMessageID != ""
+			},
+		},
+		{
+			name: "push devices",
+			path: "/api/v1/push-devices?user_id=user-1&cursor=opaque",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != "" || service.lastLimit != 0
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt

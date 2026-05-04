@@ -246,7 +246,8 @@ multipart body, not the URL query string, and reject repeated `draft_id` or
 `user_id`, `limit`, search filters, boolean flags, timestamps, and Admin API
 filters must appear at most once; duplicate scalar query controls return HTTP
 400 `bad_request`.
-Mail API read/search/list routes reject query parameter names outside their
+Mail API read/search/list, draft-search, attachment capability/session/download,
+and push-device list routes reject query parameter names outside their
 documented allowlists before service dispatch, so generated-client typos fail
 fast instead of being silently ignored.
 Admin company/domain/DNS-check/user list routes apply the same unknown-query

@@ -930,8 +930,9 @@ The platform hardening sprint completed the following:
 - Mail and Admin API scalar query parameters now reject duplicate values before
   dispatch, preventing ambiguous user IDs, list limits, booleans, timestamps,
   and operational filters from being interpreted by first-value wins behavior.
-- Mail API read/search/list routes now reject unknown query parameter names
-  before dispatch, making generated-client typos visible as HTTP 400 responses.
+- Mail API read/search/list, draft-search, attachment capability/session/download,
+  and push-device list routes now reject unknown query parameter names before
+  dispatch, making generated-client typos visible as HTTP 400 responses.
 - Admin company/domain/DNS-check/user list routes now reject unknown query
   parameter names before dispatch, keeping core operator filters aligned with
   the documented contract.
