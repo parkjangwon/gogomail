@@ -65,6 +65,11 @@ type ExpireAttachmentUploadSessionsRequest struct {
 	Limit  int
 }
 
+type StaleAttachmentUploadSessionCount struct {
+	TotalCount   int64
+	LimitedCount int64
+}
+
 func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSessionRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -622,6 +627,32 @@ WHERE id = $1
 		return nil, fmt.Errorf("commit attachment upload session expiry transaction: %w", err)
 	}
 	return expired, nil
+}
+
+func (r *Repository) CountStaleAttachmentUploadSessions(ctx context.Context, req ExpireAttachmentUploadSessionsRequest) (StaleAttachmentUploadSessionCount, error) {
+	if r.db == nil {
+		return StaleAttachmentUploadSessionCount{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateExpireAttachmentUploadSessionsRequest(req); err != nil {
+		return StaleAttachmentUploadSessionCount{}, err
+	}
+	limit := NormalizeAttachmentCleanupLimit(req.Limit)
+
+	const query = `
+SELECT COUNT(*)
+FROM attachment_upload_sessions
+WHERE status IN ('pending', 'uploading', 'failed')
+  AND expires_at < $1`
+
+	var total int64
+	if err := r.db.QueryRowContext(ctx, query, req.Before.UTC()).Scan(&total); err != nil {
+		return StaleAttachmentUploadSessionCount{}, fmt.Errorf("count stale attachment upload sessions: %w", err)
+	}
+	limited := total
+	if limited > int64(limit) {
+		limited = int64(limit)
+	}
+	return StaleAttachmentUploadSessionCount{TotalCount: total, LimitedCount: limited}, nil
 }
 
 type attachmentUploadSessionScanner interface {

@@ -331,6 +331,16 @@ func TestPostgresExpireAttachmentUploadSessionsReleasesQuota(t *testing.T) {
 	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&reserved); err != nil {
 		t.Fatalf("query reserved quota: %v", err)
 	}
+	counts, err := repo.CountStaleAttachmentUploadSessions(ctx, ExpireAttachmentUploadSessionsRequest{
+		Before: time.Now(),
+		Limit:  10,
+	})
+	if err != nil {
+		t.Fatalf("CountStaleAttachmentUploadSessions returned error: %v", err)
+	}
+	if counts.TotalCount != 1 || counts.LimitedCount != 1 {
+		t.Fatalf("stale session counts = %+v", counts)
+	}
 
 	expired, err := repo.ExpireAttachmentUploadSessions(ctx, ExpireAttachmentUploadSessionsRequest{
 		Before: time.Now(),

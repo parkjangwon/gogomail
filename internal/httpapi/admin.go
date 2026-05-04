@@ -52,6 +52,8 @@ type AdminService interface {
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
 	ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
+	RunAttachmentUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error)
+	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 	ListAPIUsageDaily(ctx context.Context, limit int) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, limit int) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -618,7 +620,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		sessionCounts, err := service.CountStaleAttachmentUploadSessions(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		expiredCount := 0
+		expiredSessionCount := 0
 		if !req.DryRun {
 			expired, err := service.RunAttachmentCleanup(r.Context(), before, req.Limit)
 			if err != nil {
@@ -626,15 +634,24 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 				return
 			}
 			expiredCount = len(expired)
+			expiredSessions, err := service.RunAttachmentUploadSessionCleanup(r.Context(), before, req.Limit)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			expiredSessionCount = len(expiredSessions)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"attachment_cleanup_run": map[string]any{
-				"dry_run":         req.DryRun,
-				"candidate_count": counts.TotalCount,
-				"limited_count":   counts.LimitedCount,
-				"expired_count":   expiredCount,
-				"before":          before.Format(time.RFC3339),
-				"limit":           maildb.NormalizeAttachmentCleanupLimit(req.Limit),
+				"dry_run":                 req.DryRun,
+				"candidate_count":         counts.TotalCount,
+				"limited_count":           counts.LimitedCount,
+				"expired_count":           expiredCount,
+				"session_candidate_count": sessionCounts.TotalCount,
+				"session_limited_count":   sessionCounts.LimitedCount,
+				"expired_session_count":   expiredSessionCount,
+				"before":                  before.Format(time.RFC3339),
+				"limit":                   maildb.NormalizeAttachmentCleanupLimit(req.Limit),
 			},
 		})
 	}))

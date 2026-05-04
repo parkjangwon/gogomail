@@ -219,7 +219,10 @@ Authenticated operators can run stale attachment cleanup on demand with
 RFC3339 `before` cutoff and accepts an optional `limit` capped at 1000 plus
 `dry_run` for preview-only runs. Future cutoffs are rejected. Successful
 responses return
-`{"attachment_cleanup_run":{"dry_run":...,"candidate_count":...,"limited_count":...,"expired_count":...,"before":"...","limit":...}}`.
+`{"attachment_cleanup_run":{"dry_run":...,"candidate_count":...,"limited_count":...,"expired_count":...,"session_candidate_count":...,"session_limited_count":...,"expired_session_count":...,"before":"...","limit":...}}`.
+The session counters cover unfinalized upload sessions that the background
+cleanup worker also expires, so operator dry-runs show both legacy attachment
+upload rows and upload-session quota reservations before destructive cleanup.
 Negative limits are rejected at the HTTP boundary as `bad_request`.
 Operators can also inspect the bounded candidate set with
 `POST /admin/v1/attachment-cleanup/candidates`, which accepts the same cutoff

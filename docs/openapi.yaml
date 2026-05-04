@@ -4161,7 +4161,7 @@ components:
           description: When true, preview matching stale uploads without expiring rows or deleting stored objects.
     AttachmentCleanupRun:
       type: object
-      required: [dry_run, candidate_count, limited_count, expired_count, before, limit]
+      required: [dry_run, candidate_count, limited_count, expired_count, session_candidate_count, session_limited_count, expired_session_count, before, limit]
       properties:
         dry_run:
           type: boolean
@@ -4176,6 +4176,19 @@ components:
         expired_count:
           type: integer
           minimum: 0
+          description: Number of legacy uploading attachment rows expired by this run.
+        session_candidate_count:
+          type: integer
+          minimum: 0
+          description: Total unfinalized upload sessions matching the cutoff before the run.
+        session_limited_count:
+          type: integer
+          minimum: 0
+          description: Number of matching upload sessions eligible under the normalized batch limit.
+        expired_session_count:
+          type: integer
+          minimum: 0
+          description: Number of upload sessions expired by this run.
         before:
           type: string
           format: date-time

@@ -77,7 +77,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   including stale resumable session expiry, optional run-once execution for
   scheduler-driven deployments, and Admin API dry-run previews plus candidate
-  listing before on-demand cleanup.
+  listing before on-demand cleanup. Admin cleanup run responses now include
+  stale upload-session candidate and expired counts so operator previews cover
+  the same quota reservations that the worker can release.
 - Direct multipart uploads write through the configured storage backend and only record metadata after the object write succeeds.
 - Attachment upload size is guarded in HTTP and service layers, including
   multipart request caps that return 413 for over-limit direct upload envelopes

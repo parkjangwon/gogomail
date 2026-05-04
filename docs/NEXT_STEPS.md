@@ -273,6 +273,8 @@ Current state:
   release on repeated cancellation.
 - `maildb` can expire stale pending/uploading/failed upload sessions in bounded
   batches, marking them `expired` and releasing declared quota reservations.
+- `maildb` can count stale pending/uploading/failed upload sessions under the
+  same normalized cleanup cap, enabling non-destructive operator previews.
 - `mailservice` exposes resumable upload session create/cancel/expire methods
   over the repository boundary, reusing attachment metadata validation,
   max-size checks, and domain outbound attachment policy enforcement.
@@ -302,7 +304,9 @@ Current state:
   keeping worker-driven cleanup aligned with quota release.
 - Admin API can preview counts, list bounded candidates, and run stale upload
   cleanup on demand with an explicit non-future cutoff for operator-controlled
-  maintenance.
+  maintenance. Cleanup run/dry-run responses include stale upload-session
+  candidate and expired counts, matching the background worker's full cleanup
+  scope.
 
 Next:
 

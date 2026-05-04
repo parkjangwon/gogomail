@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-04 (updated after autonomous release-readiness hardening)
+Last updated: 2026-05-05 (updated after admin cleanup upload-session visibility)
 
 ## Current phase
 
@@ -613,8 +613,10 @@ The platform hardening sprint completed the following:
 - Admin API exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated
   on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff,
   and supports `dry_run` preview responses with total and batch-limited
-  candidate counts before destructive cleanup. Operators can also list the
-  bounded candidate set through
+  candidate counts before destructive cleanup. Cleanup run responses also
+  report upload-session candidate and expired counts so operator dry-runs match
+  the background worker's full cleanup scope. Operators can also list the
+  bounded legacy attachment-upload candidate set through
   `POST /admin/v1/attachment-cleanup/candidates`.
 - Mail API exposes `DELETE /api/v1/attachments/{id}` so users can cancel
   unbound pending uploads immediately, releasing quota and removing any stored
@@ -636,6 +638,8 @@ The platform hardening sprint completed the following:
   `failed` state, releasing the declared byte reservation once.
 - `maildb` can expire stale resumable upload sessions in bounded batches,
   marking them `expired` and releasing declared quota reservations.
+- `maildb` can count stale resumable upload sessions with the same normalized
+  cleanup batch cap used by expiry, supporting non-destructive Admin previews.
 - `mailservice` now owns resumable upload session create/cancel/expire methods,
   preserving attachment validation, max-size checks, and domain attachment
   policy enforcement above the repository boundary.
