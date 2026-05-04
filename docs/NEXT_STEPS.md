@@ -95,10 +95,14 @@ Current state:
   messages can receive fresh mailbox-local UIDs later.
 - Optional PostgreSQL integration tests cover IMAP UID backfill and move
   invalidation when a test database URL is configured.
+- `internal/imapgw` includes an in-memory mailbox event broker that future IDLE
+  sessions can subscribe to without blocking write paths.
 
 Next:
 
-- Plan IMAP IDLE support for push-on-connect clients.
+- Wire mailbox event publication from append/flag/move/delete paths.
+- Plan IMAP IDLE support over the mailbox event broker for push-on-connect
+  clients.
 - Keep IMAP as a separate binary mode (`--mode=imap`).
 
 ### 4. Pipeline extension hooks

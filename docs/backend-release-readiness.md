@@ -38,6 +38,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API metering has a disabled-by-default aggregation worker and daily/monthly Postgres read models exposed through `GET /admin/v1/api-usage/daily` and `GET /admin/v1/api-usage/monthly`; the aggregates are operational telemetry, not a billing ledger yet.
 - IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
 - IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows and message UID/MODSEQ rows, with transactional assignment helpers, first mailbox/message list adapters, raw body fetch groundwork, MODSEQ-aware flag mutation, bounded UID backfill, and move/delete UID invalidation; no protocol server is in release scope yet.
+- IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
+  mailbox event broker for future session fan-out.
 - Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver, per-device candidate-attempt persistence, Admin API inspection/stats, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.

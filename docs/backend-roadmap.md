@@ -303,6 +303,7 @@ Implementation order:
 248. IMAP UID backfill can assign missing mailbox-local UIDs to existing active messages in bounded stable-order batches, preparing mailboxes before a live protocol listener is enabled.
 249. Mail API move/delete paths now remove stale IMAP message UID rows in the same transaction, preventing mailbox-local UIDs from leaking across folders before IMAP MOVE/EXPUNGE semantics exist.
 250. Optional PostgreSQL integration tests now cover IMAP UID backfill and move invalidation against migrated schema when `GOGOMAIL_TEST_DATABASE_URL` is configured.
+251. `internal/imapgw` now includes a dependency-light in-memory mailbox event broker for future IMAP IDLE fan-out, with non-blocking delivery to avoid write-path backpressure.
 
 ## Deferred until backend contracts stabilize
 
