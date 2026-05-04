@@ -532,6 +532,18 @@ func maybeBootstrapSearchIndex(ctx context.Context, cfg config.Config, indexer a
 	return bootstrapper.EnsureIndex(ctx)
 }
 
+func searchIDSourceForConfig(cfg config.Config) (mailservice.SearchIDSource, error) {
+	if !strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
+		return nil, nil
+	}
+	return searchindex.NewOpenSearchSearcher(searchindex.OpenSearchOptions{
+		Endpoint: cfg.SearchIndexOpenSearchEndpoint,
+		Index:    cfg.SearchIndexOpenSearchIndex,
+		Username: cfg.SearchIndexOpenSearchUsername,
+		Password: cfg.SearchIndexOpenSearchPassword,
+	})
+}
+
 func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if strings.EqualFold(strings.TrimSpace(cfg.APIMeteringAggregateBackend), "disabled") {
 		return waitForShutdown(ctx, logger, ModeAPIMeteringWorker)
@@ -827,6 +839,13 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 
 		repository := maildb.NewRepository(db)
 		service := mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot))
+		searchIDSource, err := searchIDSourceForConfig(cfg)
+		if err != nil {
+			return err
+		}
+		if searchIDSource != nil {
+			service.WithSearchIDSource(searchIDSource)
+		}
 		var tokenManager *auth.TokenManager
 		if cfg.AuthJWTSecret != "" {
 			tokenManager, err = auth.NewTokenManager(cfg.AuthJWTSecret)

@@ -314,6 +314,7 @@ Implementation order:
 259. OpenSearch query-side groundwork can search user-scoped indexed documents and return ranked gogomail message IDs for later metadata hydration.
 260. `maildb` can hydrate ordered search message IDs into active `MessageSummary` rows, preparing OpenSearch read-side results to preserve the existing Mail API response envelope.
 261. `mailservice` can compose OpenSearch relevance ID hits with Postgres summary hydration when the current API search contract can be preserved, falling back to Postgres for unsupported filters/highlights.
+262. Mail API app wiring can inject the OpenSearch search source when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, enabling safe relevance-search rollout with Postgres fallback for unsupported contract features.
 
 ## Deferred until backend contracts stabilize
 

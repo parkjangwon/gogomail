@@ -359,14 +359,15 @@ newest-first ordering remains the default. `search-index-worker` can also write
 received-message documents to OpenSearch with
 `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`, and
-`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; API read-side search still uses the
-current backend contract until an OpenSearch query adapter is added. The
+`GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; API read-side search uses the
+current backend contract and falls back to Postgres when OpenSearch parity is
+not sufficient. The
 OpenSearch writer includes a strict bootstrap mapping for the indexed document
 shape so deployments can create the index before enabling the worker, or set
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true` to have the worker ensure it
-at startup. OpenSearch query-side groundwork can return ranked message IDs, but
-those IDs still need Postgres metadata hydration before the Mail API search
-contract can switch read backends.
+at startup. Mail API can inject the OpenSearch source for relevance-only
+searches whose filters/highlights can be preserved; OpenSearch message IDs are
+hydrated through Postgres summaries before responses are returned.
 
 ## Deferred from this contract
 
