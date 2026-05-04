@@ -279,6 +279,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API-usage export batch creation now writes a hash-chain audit row in the
   same transaction as the batch, keeping invoice/retention export boundaries
   inspectable before artifact handoff.
+- Admin API-usage export artifact creation/upsert now writes a hash-chain audit
+  row in the same transaction as artifact persistence, keeping object key,
+  byte/event counts, and SHA-256 digest evidence inspectable.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize

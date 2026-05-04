@@ -669,6 +669,7 @@ Implementation order:
 609. Admin attachment cleanup runs now persist bounded hash-chain audit rows after stale upload and upload-session expiry sweeps, recording cutoff, normalized limit, expired counts, and ID samples without storage paths.
 610. Admin IMAP UID backfill now persists a hash-chain audit row in the same transaction as UID assignment, recording mailbox/user scope, normalized limit, assigned count, and a bounded message/UID sample.
 611. Admin API-usage export batch creation now persists a hash-chain audit row in the same transaction as the batch, recording tenant/principal scope, export window, counts, byte totals, latency totals, and export format.
+612. Admin API-usage export artifact creation/upsert now persists a hash-chain audit row in the same transaction as artifact persistence, recording object key, storage backend, content type, byte/event counts, and SHA-256 digest evidence.
 
 ## Deferred until backend contracts stabilize
 
