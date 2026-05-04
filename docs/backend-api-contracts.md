@@ -390,6 +390,10 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
+- `GET /admin/v1/domains` returns `{"domains":[...]}` with optional
+  `company_id`, `status=active|suspended|disabled`, and
+  `dns_status=ok|missing|mismatch|error` filters for tenant/domain onboarding
+  triage.
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`;
   optional `status`, `recipient_domain`, and RFC3339 `since` filters keep
   delivery triage bounded. Attempt rows include sender, enhanced-status, and

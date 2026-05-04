@@ -727,6 +727,13 @@ type DomainView struct {
 	CreatedAt            time.Time  `json:"created_at"`
 }
 
+type DomainListRequest struct {
+	Limit     int
+	CompanyID string
+	Status    string
+	DNSStatus string
+}
+
 type UserView struct {
 	ID                 string    `json:"id"`
 	DomainID           string    `json:"domain_id"`
@@ -845,11 +852,46 @@ func ValidateUpdateDomainStatusRequest(req UpdateDomainStatusRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("domain id is required")
 	}
-	switch normalizeAdminStatus(req.Status) {
-	case "active", "suspended", "disabled":
-		return nil
-	default:
+	if !isDomainStatus(normalizeAdminStatus(req.Status)) {
 		return fmt.Errorf("unsupported domain status %q", req.Status)
+	}
+	return nil
+}
+
+func ValidateDomainListRequest(req DomainListRequest) error {
+	if err := validatePushNotificationFilter("company_id", strings.TrimSpace(req.CompanyID)); err != nil {
+		return err
+	}
+	status := normalizeAdminStatus(req.Status)
+	if status != "" && !isDomainStatus(status) {
+		return fmt.Errorf("unsupported domain status %q", req.Status)
+	}
+	dnsStatus := normalizeDNSStatus(req.DNSStatus)
+	if dnsStatus != "" && !isDNSStatus(dnsStatus) {
+		return fmt.Errorf("unsupported domain dns status %q", req.DNSStatus)
+	}
+	return nil
+}
+
+func isDomainStatus(status string) bool {
+	switch status {
+	case "active", "suspended", "disabled":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeDNSStatus(status string) string {
+	return strings.ToLower(strings.TrimSpace(status))
+}
+
+func isDNSStatus(status string) bool {
+	switch dnscheck.Status(status) {
+	case dnscheck.StatusOK, dnscheck.StatusMissing, dnscheck.StatusMismatch, dnscheck.StatusError:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1751,11 +1793,16 @@ LIMIT 1`
 	return user, nil
 }
 
-func (r *Repository) ListDomains(ctx context.Context, limit int) ([]DomainView, error) {
+func (r *Repository) ListDomains(ctx context.Context, req DomainListRequest) ([]DomainView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateDomainListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	status := normalizeAdminStatus(req.Status)
+	dnsStatus := normalizeDNSStatus(req.DNSStatus)
 
 	const query = `
 SELECT
@@ -1785,10 +1832,13 @@ LEFT JOIN LATERAL (
   ORDER BY checked_at DESC
   LIMIT 1
 ) latest ON true
+WHERE ($1 = '' OR d.company_id::text = $1)
+  AND ($2 = '' OR d.status = $2)
+  AND ($3 = '' OR COALESCE(latest.status, '') = $3)
 ORDER BY d.created_at DESC
-LIMIT $1`
+LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.CompanyID), status, dnsStatus, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list domains: %w", err)
 	}

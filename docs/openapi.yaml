@@ -1798,6 +1798,21 @@ paths:
       summary: Admin domain list
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, disabled]
+        - name: dns_status
+          in: query
+          schema:
+            type: string
+            enum: [ok, missing, mismatch, error]
       responses:
         "200":
           $ref: "#/components/responses/DomainList"
