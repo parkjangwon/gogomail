@@ -4,7 +4,39 @@ Go-first backend implementation for the gogomail webmail/mail-server platform.
 
 ## Current scope
 
-This repository starts with the backend foundation only. The Next.js web apps will be added after the SMTP/API backend contracts stabilize.
+This repository is currently in the backend platform hardening phase.
+
+The SMTP engine is materially advanced, and current work is broadening into
+tenant/domain operations, Admin API, Mail API contracts, delivery routing,
+DNS/DKIM onboarding, quota/policy enforcement, and OpenAPI drift prevention.
+
+The Next.js web apps will be added after the backend contracts stabilize and
+after the user provides frontend-specific guidance.
+
+## Agent handoff
+
+Future coding agents should read these files before changing code:
+
+- `AGENTS.md`
+- `docs/CURRENT_STATUS.md`
+- `docs/NEXT_STEPS.md`
+- `docs/backend-roadmap.md`
+- `docs/backend-api-contracts.md`
+- `docs/backend-release-readiness.md`
+- `docs/openapi.yaml`
+
+Key architecture decisions:
+
+- `docs/adr/0001-domain-is-tenant.md`
+- `docs/adr/0002-smtp-core-is-not-spam-engine.md`
+
+Guardrails:
+
+- Implemented SMTP features must follow the relevant email RFCs.
+- Do not advertise SMTP extensions before end-to-end semantics are implemented.
+- Do not build a spam engine into SMTP core.
+- Do not start frontend implementation without user guidance.
+- Commit feature-sized changes and push after successful verification.
 
 ## Backend modes
 
@@ -23,6 +55,12 @@ go run ./cmd/gogomail --mode=admin-api
 
 ```bash
 go test ./...
+```
+
+Release-oriented local verification:
+
+```bash
+scripts/verify-backend-release.sh
 ```
 
 Release-oriented PostgreSQL checks are opt-in because they need a disposable

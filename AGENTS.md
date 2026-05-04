@@ -102,6 +102,7 @@ When resuming work from a scheduled or autonomous run, first rebuild context bef
 - Check `git status --short` before editing.
 - Prefer improvements that move gogomail toward a releasable, powerful mail server rather than low-value churn.
 - Commit each autonomous improvement as a meaningful, reviewable unit.
+- After successful verification, push completed feature commits to `origin/main` unless the user explicitly says not to push.
 
 ## Frontend start gate
 
