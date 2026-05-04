@@ -437,6 +437,7 @@ Implementation order:
 378. OpenAPI drift tests now pin attachment reservation and direct-upload HTTP 413 Error responses, protecting generated clients from losing size-cap failure modeling.
 379. Mail and Admin API JSON request handlers now reject trailing JSON tokens before service dispatch, preventing malformed multi-object bodies from being partially accepted.
 380. Attachment download responses now include a safe ASCII `filename` fallback plus RFC 5987-style UTF-8 `filename*` parameter, preserving internationalized attachment filenames for webmail clients without relaxing header-injection guards.
+381. Attachment downloads now sanitize the stored MIME type at the HTTP boundary, falling back to `application/octet-stream` for blank or newline-bearing values before response headers are written.
 
 ## Deferred until backend contracts stabilize
 

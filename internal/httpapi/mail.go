@@ -571,7 +571,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		defer download.Body.Close()
 
-		w.Header().Set("Content-Type", download.Attachment.MIMEType)
+		w.Header().Set("Content-Type", attachmentContentType(download.Attachment.MIMEType))
 		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Attachment.Filename))
 		w.Header().Set("Cache-Control", "no-store")
 		if download.Attachment.Size > 0 {
@@ -783,6 +783,14 @@ func asciiAttachmentFilename(filename string) string {
 		return "attachment"
 	}
 	return builder.String()
+}
+
+func attachmentContentType(mimeType string) string {
+	mimeType = strings.TrimSpace(mimeType)
+	if mimeType == "" || strings.ContainsAny(mimeType, "\r\n") {
+		return "application/octet-stream"
+	}
+	return mimeType
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

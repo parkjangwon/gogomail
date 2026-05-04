@@ -1018,6 +1018,30 @@ func TestDownloadAttachmentHandlerUsesUTF8FilenameParameter(t *testing.T) {
 	}
 }
 
+func TestDownloadAttachmentHandlerFallsBackForUnsafeMIMEType(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		download: mailservice.AttachmentDownload{
+			Attachment: maildb.Attachment{ID: "att-1", Filename: "report.pdf", MIMEType: "application/pdf\r\nX-Bad: yes", Size: 7},
+			Body:       io.NopCloser(strings.NewReader("content")),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/octet-stream" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+}
+
 func TestSendMessageHandler(t *testing.T) {
 	t.Parallel()
 
