@@ -85,6 +85,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   consumers do not strand at-least-once work indefinitely.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing event names before worker dispatch.
+- Redis stream event decoding trims outbox id, partition key, and payload
+  fields and rejects blank metadata before handler dispatch.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
   MIME part-count cap with `PartsTruncated` signaling, and a large-body
   benchmark. Retained address-list and `References` metadata are also capped

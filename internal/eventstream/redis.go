@@ -250,11 +250,13 @@ func stringValue(values map[string]any, key string) (string, error) {
 	}
 	switch typed := value.(type) {
 	case string:
+		typed = strings.TrimSpace(typed)
 		if typed == "" {
 			return "", fmt.Errorf("redis stream message has empty %q", key)
 		}
 		return typed, nil
 	case []byte:
+		typed = []byte(strings.TrimSpace(string(typed)))
 		if len(typed) == 0 {
 			return "", fmt.Errorf("redis stream message has empty %q", key)
 		}
