@@ -205,6 +205,31 @@ func TestDefaultIdentityFromRequestExtractsHeaders(t *testing.T) {
 	}
 }
 
+func TestDefaultIdentityFromRequestDropsUnsafeDimensions(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/?user_id=user%0Abad", nil)
+	req.Header.Set("X-Gogomail-Tenant-ID", "tenant\nbad")
+	req.Header.Set("X-Gogomail-Company-ID", strings.Repeat("c", maxRequestIdentityBytes+1))
+	req.Header.Set("X-Gogomail-Domain-ID", " domain-1 ")
+	req.Header.Set("X-Gogomail-API-Key-ID", "api-key\rbad")
+	req.Header.Set("X-Gogomail-Principal-ID", strings.Repeat("p", maxRequestIdentityBytes+1))
+
+	id := defaultIdentityFromRequest(req).Normalize()
+	if id.TenantID != "" || id.CompanyID != "" || id.UserID != "" || id.APIKeyID != "" {
+		t.Fatalf("unsafe dimensions should be dropped: %+v", id)
+	}
+	if id.PrincipalID != AuthSourceAnonymous {
+		t.Fatalf("principal id = %q, want anonymous fallback", id.PrincipalID)
+	}
+	if id.DomainID != "domain-1" {
+		t.Fatalf("safe domain id = %q, want domain-1", id.DomainID)
+	}
+	if id.AuthSource != AuthSourceAnonymous {
+		t.Fatalf("auth source = %q, want anonymous", id.AuthSource)
+	}
+}
+
 func TestAuthSourceFromRequest(t *testing.T) {
 	t.Parallel()
 
@@ -216,8 +241,14 @@ func TestAuthSourceFromRequest(t *testing.T) {
 		{name: "nil", want: "anonymous"},
 		{name: "bearer", req: requestWithHeader("Authorization", "Bearer token"), want: "bearer"},
 		{name: "blank bearer", req: requestWithHeader("Authorization", "Bearer  "), want: "anonymous"},
+		{name: "bearer line break", req: requestWithHeader("Authorization", "Bearer token\nbad"), want: "anonymous"},
+		{name: "bearer too long", req: requestWithHeader("Authorization", "Bearer "+strings.Repeat("t", maxRequestAuthHeaderBytes+1)), want: "anonymous"},
 		{name: "admin token", req: requestWithHeader("X-Admin-Token", "secret"), want: "admin_token"},
+		{name: "admin token line break", req: requestWithHeader("X-Admin-Token", "secret\nbad"), want: "anonymous"},
+		{name: "admin token too long", req: requestWithHeader("X-Admin-Token", strings.Repeat("s", maxRequestAuthHeaderBytes+1)), want: "anonymous"},
 		{name: "query user", req: httptest.NewRequest(http.MethodGet, "/?user_id=user-1", nil), want: "query_user_id"},
+		{name: "query user line break", req: httptest.NewRequest(http.MethodGet, "/?user_id=user%0Abad", nil), want: "anonymous"},
+		{name: "query user too long", req: httptest.NewRequest(http.MethodGet, "/?user_id="+strings.Repeat("u", maxRequestIdentityBytes+1), nil), want: "anonymous"},
 		{name: "anonymous", req: httptest.NewRequest(http.MethodGet, "/", nil), want: "anonymous"},
 	}
 

@@ -139,8 +139,9 @@ guidance.
   `anonymous|bearer|admin_token|query_user_id|unknown`; unexpected values fold
   to `unknown` before ledger/aggregate storage.
 - API metering request identity extraction trims tenant/company/domain/user/API
-  key/principal dimensions and no longer classifies blank `Authorization:
-  Bearer` headers as bearer traffic.
+  key/principal dimensions, drops CR/LF-bearing or oversized default request
+  dimensions, and no longer classifies blank or unsafe `Authorization: Bearer`
+  headers as bearer traffic.
 - API metering durable event metrics clamp negative byte/latency values to zero
   and default nonpositive request counts to one before ledger/aggregate storage.
 - API metering outbox payloads clamp negative byte/latency values to zero before
