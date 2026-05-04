@@ -133,18 +133,21 @@ func (s *Service) DeleteFolder(ctx context.Context, userID string, folderID stri
 
 func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
 	userID = strings.TrimSpace(userID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return s.repository.ListMessages(ctx, userID, limit)
 }
 
 func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return s.repository.ListMessagesInFolder(ctx, userID, folderID, limit)
 }
 
 func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor)
 }
 
@@ -156,6 +159,7 @@ func (s *Service) ListThreads(ctx context.Context, userID string, limit int) ([]
 		return nil, fmt.Errorf("thread repository is required")
 	}
 	userID = strings.TrimSpace(userID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.ListThreads(ctx, userID, limit)
 }
 
@@ -168,6 +172,7 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 	}
 	userID = strings.TrimSpace(userID)
 	threadID = strings.TrimSpace(threadID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.ListThreadMessages(ctx, userID, threadID, limit)
 }
 
@@ -578,6 +583,7 @@ func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int)
 		return nil, fmt.Errorf("push device repository is required")
 	}
 	userID = strings.TrimSpace(userID)
+	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.ListPushDevices(ctx, userID, limit)
 }
 
