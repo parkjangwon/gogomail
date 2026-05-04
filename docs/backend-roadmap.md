@@ -411,6 +411,7 @@ Implementation order:
 352. Outbound RFC 5322 text composition now rejects malformed explicit `Message-ID` values and drops malformed thread IDs before writing `In-Reply-To`/`References` headers.
 353. DSN composition now validates typed `Original-Recipient`/`Final-Recipient` address-type fields at the package boundary while preserving normalized bare RFC822 recipients.
 354. The IMAP `mail.stored` notification handler can now publish UID-bearing `EXISTS` mailbox events after successful async UID assignment, preparing the future IDLE listener without adding work to SMTP receive.
+355. Admin push notification attempt triage can now filter by platform, device id, provider status, and provider message id in addition to status/user/since, improving vendor-outcome troubleshooting readiness.
 
 ## Deferred until backend contracts stabilize
 
