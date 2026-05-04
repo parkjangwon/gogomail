@@ -498,6 +498,7 @@ Implementation order:
 439. API usage export artifact writes now reject ambiguous object keys that would change during path cleaning, including duplicate separators, dot segments, backslashes, and parent traversal.
 440. API usage export manifest digesting now rejects unsupported explicit manifest schema versions before canonical digest evidence is generated.
 441. API usage export manifest signing now rejects blank, CR/LF-bearing, or oversized key IDs for local and remote signer metadata before signature evidence is returned.
+442. Admin API DKIM key deactivate and DNS-verify path identifiers are now trimmed before service dispatch and response envelopes, aligning DKIM operations with other Admin route ID handling.
 
 ## Deferred until backend contracts stabilize
 

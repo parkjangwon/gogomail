@@ -2553,7 +2553,7 @@ func TestAdminDeactivateDKIMKeyHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/dkim-keys/dkim-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/dkim-keys/%20dkim-1%20", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2562,6 +2562,25 @@ func TestAdminDeactivateDKIMKeyHandler(t *testing.T) {
 	}
 	if service.lastDeactivateDKIMKeyID != "dkim-1" {
 		t.Fatalf("lastDeactivateDKIMKeyID = %q", service.lastDeactivateDKIMKeyID)
+	}
+}
+
+func TestAdminVerifyDKIMKeyDNSHandlerTrimsID(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/dkim-keys/%20dkim-1%20/verify-dns", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastVerifyDKIMKeyID != "dkim-1" {
+		t.Fatalf("lastVerifyDKIMKeyID = %q", service.lastVerifyDKIMKeyID)
 	}
 }
 
@@ -2937,6 +2956,7 @@ type fakeAdminService struct {
 	lastIMAPBackfillLimit                       int
 	lastBackpressureUpdate                      backpressure.StateUpdate
 	lastDeactivateDKIMKeyID                     string
+	lastVerifyDKIMKeyID                         string
 	lastRetryOutboxID                           string
 	lastDeleteSuppressionID                     string
 	lastDeleteTrustedRelayID                    string
@@ -3349,6 +3369,7 @@ func (f *fakeAdminService) DeactivateDKIMKey(_ context.Context, id string) error
 }
 
 func (f *fakeAdminService) VerifyDKIMKeyDNS(_ context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error) {
+	f.lastVerifyDKIMKeyID = keyID
 	return maildb.DKIMKeyDNSVerificationResult{KeyID: keyID, Selector: "default"}, nil
 }
 
