@@ -82,6 +82,37 @@ func TestAdminBackfillIMAPMailboxUIDsHandler(t *testing.T) {
 	}
 }
 
+func TestAdminBackfillIMAPMailboxUIDsRejectsUnsafeUserID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/imap/mailboxes/inbox/uid-backfill?user_id=user%0Abad",
+		"/admin/v1/imap/mailboxes/inbox/uid-backfill?user_id=" + strings.Repeat("u", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastIMAPBackfillUserID != "" || service.lastIMAPBackfillMailboxID != "" {
+				t.Fatalf("backfill request = %q/%q", service.lastIMAPBackfillUserID, service.lastIMAPBackfillMailboxID)
+			}
+		})
+	}
+}
+
 func TestAdminOutboxEventsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2201,6 +2232,37 @@ func TestAdminUsersHandler(t *testing.T) {
 	}
 }
 
+func TestAdminUsersHandlerRejectsUnsafeDomainID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/users?domain_id=domain%0Abad",
+		"/admin/v1/users?domain_id=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDomainID != "" {
+				t.Fatalf("lastDomainID = %q", service.lastDomainID)
+			}
+		})
+	}
+}
+
 func TestAdminGetUserHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2764,6 +2826,37 @@ func TestAdminDKIMKeysHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDKIMKeysHandlerRejectsUnsafeDomainID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/dkim-keys?domain_id=domain%0Abad",
+		"/admin/v1/dkim-keys?domain_id=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDomainID != "" {
+				t.Fatalf("lastDomainID = %q", service.lastDomainID)
+			}
+		})
+	}
+}
+
 func TestAdminCreateDKIMKeyHandler(t *testing.T) {
 	t.Parallel()
 
@@ -3028,6 +3121,37 @@ func TestAdminResolveDeliveryRouteHandler(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"delivery_route_resolution"`) {
 		t.Fatalf("response missing delivery_route_resolution envelope: %s", rec.Body.String())
+	}
+}
+
+func TestAdminResolveDeliveryRouteRejectsUnsafeDomain(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/delivery-routes/resolve?domain=mail%0Aexample.net",
+		"/admin/v1/delivery-routes/resolve?domain=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastResolveDeliveryRouteDomain != "" {
+				t.Fatalf("lastResolveDeliveryRouteDomain = %q", service.lastResolveDeliveryRouteDomain)
+			}
+		})
 	}
 }
 

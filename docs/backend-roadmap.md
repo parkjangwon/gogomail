@@ -517,6 +517,7 @@ Implementation order:
 458. Admin delivery-attempt list, stats, and exhausted filters now reject CR/LF-bearing or oversized values before service dispatch.
 459. Admin push-notification attempt and stats filters now reject CR/LF-bearing or oversized values before service dispatch.
 460. Admin API usage ledger/export/stats/export-batch/retention tenant/principal filters now reject CR/LF-bearing or oversized values before service dispatch.
+461. Admin user-list, IMAP UID backfill, DKIM key-list, and delivery-route resolution query filters now reject CR/LF-bearing or oversized values before service dispatch.
 
 ## Deferred until backend contracts stabilize
 

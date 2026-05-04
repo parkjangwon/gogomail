@@ -152,6 +152,8 @@ guidance.
 - Admin API usage ledger, NDJSON export, stats, export-batch creation, and
   retention-readiness tenant/principal filters now reject CR/LF-bearing or
   oversized values before service dispatch.
+- Admin user listing, IMAP UID backfill, DKIM key listing, and delivery-route
+  resolution query filters now share the same CR/LF and size boundary checks.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

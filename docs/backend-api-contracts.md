@@ -266,7 +266,8 @@ Admin operational read models also keep explicit envelope keys:
   next-available metadata for operator dashboards.
 - `POST /admin/v1/imap/mailboxes/{id}/uid-backfill?user_id=...&limit=...`
   returns `{"imap_uid_backfill":[...]}` with bounded mailbox-local UID
-  assignments for future IMAP bootstrap/operator runs.
+  assignments for future IMAP bootstrap/operator runs. The `user_id` query
+  rejects CR/LF-bearing or oversized values before service dispatch.
 - `GET /admin/v1/outbox-events` returns `{"outbox_events":[...]}`;
   optional `topic`, `partition_key`, `status`, and RFC3339 `since` filters
   expose outbox event metadata without returning JSON payload bodies. Text
@@ -300,7 +301,9 @@ Admin operational read models also keep explicit envelope keys:
   while optional RFC3339 `since` scopes attempt-status totals to recent attempts;
   text filters use the same bounded validation.
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
-- `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
+- `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`; optional
+  `domain_id` rejects CR/LF-bearing or oversized values before service
+  dispatch.
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`
 - `GET /admin/v1/delivery-routes` returns `{"delivery_routes":[...]}`
 - `GET /admin/v1/domains/{id}/dns-checks` returns `{"dns_checks":[...]}`
@@ -347,7 +350,8 @@ management:
 
 - `GET /admin/v1/delivery-routes`
 - `POST /admin/v1/delivery-routes`
-- `GET /admin/v1/delivery-routes/resolve?domain=mail.example.net`
+- `GET /admin/v1/delivery-routes/resolve?domain=mail.example.net` rejects
+  CR/LF-bearing or oversized domain values before service dispatch.
 - `GET /admin/v1/delivery-routes/counters`
 - `PATCH /admin/v1/delivery-routes/{id}/status`
 - `DELETE /admin/v1/delivery-routes/{id}`

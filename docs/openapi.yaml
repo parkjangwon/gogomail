@@ -439,6 +439,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -1291,6 +1292,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/DeliveryRouteResolution"
@@ -1339,6 +1341,7 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/DKIMKeyList"
@@ -1541,6 +1544,7 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/UserList"
