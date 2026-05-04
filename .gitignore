@@ -5,6 +5,7 @@
 /bin/
 /tmp/
 /coverage.out
+/.openchrome/
 
 .env
 .env.*
