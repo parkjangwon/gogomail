@@ -53,6 +53,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   a ready stored session body without double-reserving quota.
 - Optional PostgreSQL integration coverage verifies upload session finalization
   creates an attachment row while preserving the original quota reservation.
+- Optional PostgreSQL integration coverage also rejects duplicate upload
+  session finalization without changing quota or creating extra attachment rows.
 - Upload session cancellation deletes staged session bodies when present,
   aligning storage cleanup with quota release.
 - Upload session expiry deletes staged session bodies when present, so cleanup

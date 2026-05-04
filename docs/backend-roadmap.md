@@ -601,6 +601,7 @@ Implementation order:
 542. Upload session cancellation now deletes staged session bodies when present, keeping storage cleanup aligned with quota release.
 543. Upload session expiry now deletes staged session bodies when present, keeping worker-driven cleanup aligned with quota release.
 544. Optional PostgreSQL integration coverage now verifies upload session finalization creates an attachment row without double-reserving quota.
+545. Optional PostgreSQL integration coverage now verifies duplicate upload session finalization does not change quota or create extra attachment rows.
 
 ## Deferred until backend contracts stabilize
 

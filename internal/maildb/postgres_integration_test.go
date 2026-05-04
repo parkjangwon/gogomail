@@ -416,6 +416,65 @@ func TestPostgresFinalizeAttachmentUploadSessionCreatesAttachmentWithoutDoubleQu
 	}
 }
 
+func TestPostgresFinalizeAttachmentUploadSessionRejectsDuplicateFinalize(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	session, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "large.bin",
+		DeclaredSize: 512,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession returned error: %v", err)
+	}
+	if _, err := repo.StoreAttachmentUploadSessionBody(ctx, StoreAttachmentUploadSessionBodyRequest{
+		UserID:         seed.userID,
+		SessionID:      session.ID,
+		ReceivedSize:   512,
+		StoragePath:    "upload-sessions/" + seed.userID + "/" + session.ID + "/body",
+		ChecksumSHA256: strings.Repeat("a", 64),
+	}); err != nil {
+		t.Fatalf("StoreAttachmentUploadSessionBody returned error: %v", err)
+	}
+	if _, err := repo.FinalizeAttachmentUploadSession(ctx, FinalizeAttachmentUploadSessionRequest{
+		UserID:    seed.userID,
+		SessionID: session.ID,
+	}); err != nil {
+		t.Fatalf("FinalizeAttachmentUploadSession returned error: %v", err)
+	}
+	var quotaAfterFirst int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaAfterFirst); err != nil {
+		t.Fatalf("query quota after first finalize: %v", err)
+	}
+	if _, err := repo.FinalizeAttachmentUploadSession(ctx, FinalizeAttachmentUploadSessionRequest{
+		UserID:    seed.userID,
+		SessionID: session.ID,
+	}); err == nil {
+		t.Fatal("FinalizeAttachmentUploadSession accepted duplicate finalize")
+	}
+	var quotaAfterSecond int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaAfterSecond); err != nil {
+		t.Fatalf("query quota after duplicate finalize: %v", err)
+	}
+	if quotaAfterSecond != quotaAfterFirst {
+		t.Fatalf("quota after duplicate finalize = %d, want %d", quotaAfterSecond, quotaAfterFirst)
+	}
+	var attachmentCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM attachments WHERE upload_id = $1`, session.UploadID).Scan(&attachmentCount); err != nil {
+		t.Fatalf("query attachment count: %v", err)
+	}
+	if attachmentCount != 1 {
+		t.Fatalf("attachment count = %d, want 1", attachmentCount)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 
