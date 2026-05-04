@@ -294,11 +294,7 @@ paths:
       summary: Download an attachment
       parameters:
         - $ref: "#/components/parameters/PathID"
-        - name: attachment_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/AttachmentID"
       responses:
         "200":
           description: Attachment bytes
@@ -892,11 +888,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: digest_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/DigestID"
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportManifestDigest"
@@ -912,11 +904,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: digest_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/DigestID"
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportManifestDigestVerification"
@@ -932,11 +920,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: digest_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/DigestID"
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -952,11 +936,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: digest_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/DigestID"
       responses:
         "201":
           $ref: "#/components/responses/APIUsageExportManifestSignature"
@@ -972,16 +952,8 @@ paths:
           required: true
           schema:
             type: string
-        - name: digest_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: signature_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/DigestID"
+        - $ref: "#/components/parameters/SignatureID"
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportManifestSignature"
@@ -997,16 +969,8 @@ paths:
           required: true
           schema:
             type: string
-        - name: digest_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: signature_id
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/DigestID"
+        - $ref: "#/components/parameters/SignatureID"
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportManifestSignatureVerification"
@@ -2000,6 +1964,24 @@ components:
   parameters:
     PathID:
       name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    AttachmentID:
+      name: attachment_id
+      in: path
+      required: true
+      schema:
+        type: string
+    DigestID:
+      name: digest_id
+      in: path
+      required: true
+      schema:
+        type: string
+    SignatureID:
+      name: signature_id
       in: path
       required: true
       schema:

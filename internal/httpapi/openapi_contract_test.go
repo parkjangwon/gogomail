@@ -287,6 +287,31 @@ func TestOpenAPIDraftDocumentsPathParameters(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftUsesReusableNestedPathParameters(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for route, refs := range map[string][]string{
+		"GET /messages/{id}/attachments/{attachment_id}/download":                                                {"#/components/parameters/PathID", "#/components/parameters/AttachmentID"},
+		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}":                                        {"#/components/parameters/DigestID"},
+		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification":                           {"#/components/parameters/DigestID"},
+		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures":                             {"#/components/parameters/DigestID"},
+		"POST /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures":                            {"#/components/parameters/DigestID"},
+		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}":              {"#/components/parameters/DigestID", "#/components/parameters/SignatureID"},
+		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification": {"#/components/parameters/DigestID", "#/components/parameters/SignatureID"},
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		for _, ref := range refs {
+			if !strings.Contains(block, `$ref: "`+ref+`"`) {
+				t.Fatalf("OpenAPI operation %s must use reusable path parameter %s", route, ref)
+			}
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsDeliveryAttemptDiagnostics(t *testing.T) {
 	t.Parallel()
 
@@ -674,6 +699,18 @@ func openAPIOperationDocumentsParameter(block string, name string) bool {
 	}
 	if name == "id" && strings.Contains(block, "#/components/parameters/PathID") {
 		return true
+	}
+	for _, namedRef := range []struct {
+		name string
+		ref  string
+	}{
+		{name: "attachment_id", ref: "#/components/parameters/AttachmentID"},
+		{name: "digest_id", ref: "#/components/parameters/DigestID"},
+		{name: "signature_id", ref: "#/components/parameters/SignatureID"},
+	} {
+		if name == namedRef.name && strings.Contains(block, namedRef.ref) {
+			return true
+		}
 	}
 	return strings.Contains(block, "name: "+name)
 }
