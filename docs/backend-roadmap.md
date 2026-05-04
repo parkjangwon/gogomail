@@ -687,6 +687,7 @@ Implementation order:
 627. Shared storage object path validation now enforces total-key and per-segment byte caps before local storage, mailservice body reads, cleanup deletes, and artifact/storage-key callers reach storage adapters.
 628. Shared audit-log normalization now bounds scalar metadata and JSON detail size before hash computation or database insertion, keeping every audit producer on the same persistence guardrails.
 629. Mail and Admin API JSON mutation bodies now reject repeated `Content-Type` headers before JSON decoding, preventing ambiguous media-type interpretation at the HTTP boundary.
+630. Shared EML parsing now pre-bounds oversized structured address and message-id-list headers before list parsing, preserving parser hot-path memory guardrails in addition to retained metadata caps.
 
 ## Deferred until backend contracts stabilize
 
