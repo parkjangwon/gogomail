@@ -257,6 +257,10 @@ manifest-digest, and manifest-signature routes also reject query parameter
 names outside their documented allowlists. Detail, download, verification, and
 mutation routes that do not define query controls reject unexpected query
 strings instead of silently ignoring them.
+Admin queue, outbox, audit, backpressure, quota, attachment-session,
+delivery-attempt, push-notification, suppression-list, trusted-relay,
+delivery-route, and DKIM read routes likewise reject query parameter names
+outside their documented allowlists.
 Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
 when the raw body exceeds the attachment upload size cap. Upload session body
 control headers such as `Content-Range` and `X-Content-SHA256` must appear at

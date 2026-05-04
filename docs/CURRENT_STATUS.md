@@ -940,6 +940,10 @@ The platform hardening sprint completed the following:
   manifest-digest, and manifest-signature routes now reject unknown query
   parameter names before dispatch, including unexpected query strings on
   detail, download, verification, and mutation routes with no query controls.
+- Admin queue, outbox, audit, backpressure, quota, attachment-session,
+  delivery-attempt, push-notification, suppression-list, trusted-relay,
+  delivery-route, and DKIM read routes now reject unknown query parameter names
+  before dispatch.
 - API error responses now use `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`, with the reusable OpenAPI error response
   documenting both headers for generated clients.

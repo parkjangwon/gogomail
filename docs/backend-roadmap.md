@@ -693,6 +693,7 @@ Implementation order:
 633. Admin company/domain/DNS-check/user list routes now reject unknown query parameter names before dispatch, keeping core operator filters aligned with the documented contract.
 634. Admin API usage aggregate, ledger, retention, export-batch, artifact, manifest-digest, and manifest-signature routes now reject unknown query parameter names before dispatch, including unexpected query strings on detail, download, verification, and mutation routes with no query controls.
 635. Mail API draft-search, attachment capability/session/download, and push-device list routes now reject unknown query parameter names before dispatch, extending generated-client typo detection beyond the primary mailbox read routes.
+636. Admin queue, outbox, audit, backpressure, quota, attachment-session, delivery-attempt, push-notification, suppression-list, trusted-relay, delivery-route, and DKIM read routes now reject unknown query parameter names before dispatch, extending generated-client typo detection across operator read surfaces.
 
 ## Deferred until backend contracts stabilize
 
