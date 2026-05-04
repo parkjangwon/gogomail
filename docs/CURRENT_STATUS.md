@@ -186,6 +186,9 @@ The platform hardening sprint completed the following:
 - `mailservice` can compose OpenSearch relevance ID hits with Postgres summary
   hydration when the current API search contract can be preserved; unsupported
   filter/highlight combinations fall back to Postgres search.
+- Mail API app wiring can inject the OpenSearch search source when
+  `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, enabling safe relevance-search
+  read-side rollout while preserving fallback behavior.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.
@@ -230,7 +233,8 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Wire the OpenSearch search source into app configuration for the Mail API.
+1. Add OpenSearch parity for folder/from/subject/attachment filters and
+   highlights before making it the general search backend.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. Wire mailbox event publication from append/flag/move/delete paths behind the
    IMAP gateway boundary.

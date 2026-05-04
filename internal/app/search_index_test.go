@@ -58,6 +58,34 @@ func TestMaybeBootstrapSearchIndexSkipsWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestSearchIDSourceForConfigBuildsOpenSearchSource(t *testing.T) {
+	t.Parallel()
+
+	source, err := searchIDSourceForConfig(config.Config{
+		SearchIndexBackend:            "opensearch",
+		SearchIndexOpenSearchEndpoint: "http://localhost:9200",
+		SearchIndexOpenSearchIndex:    "gogomail-messages",
+	})
+	if err != nil {
+		t.Fatalf("searchIDSourceForConfig returned error: %v", err)
+	}
+	if source == nil {
+		t.Fatal("source is nil")
+	}
+}
+
+func TestSearchIDSourceForConfigSkipsNonOpenSearchBackends(t *testing.T) {
+	t.Parallel()
+
+	source, err := searchIDSourceForConfig(config.Config{SearchIndexBackend: "postgres"})
+	if err != nil {
+		t.Fatalf("searchIDSourceForConfig returned error: %v", err)
+	}
+	if source != nil {
+		t.Fatalf("source = %#v, want nil", source)
+	}
+}
+
 type fakeBootstrapIndexer struct {
 	called bool
 }

@@ -76,10 +76,13 @@ Current state:
   `MessageSummary` rows.
 - `mailservice` can compose OpenSearch relevance ID hits with Postgres summary
   hydration when filters/highlights do not require fallback.
+- Mail API app wiring can inject the OpenSearch search source when
+  `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`.
 
 Next:
 
-- Wire the OpenSearch search source into app configuration for the Mail API.
+- Add OpenSearch parity for folder/from/subject/attachment filters and
+  highlights before making it the general search backend.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning
