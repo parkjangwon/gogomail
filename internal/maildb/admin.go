@@ -2722,13 +2722,13 @@ func normalizeAPIUsageAggregateListRequest(req APIUsageAggregateListRequest) (AP
 	if req.AuthSource, err = normalizeAPIUsageAggregateFilter("auth_source", req.AuthSource, true); err != nil {
 		return APIUsageAggregateListRequest{}, err
 	}
-	if req.Method, err = normalizeAPIUsageAggregateFilter("method", req.Method, true); err != nil {
+	if req.Method, err = normalizeAPIUsageAggregateFilter("method", req.Method, false); err != nil {
 		return APIUsageAggregateListRequest{}, err
 	}
 	if req.Route, err = normalizeAPIUsageAggregateFilter("route", req.Route, false); err != nil {
 		return APIUsageAggregateListRequest{}, err
 	}
-	if req.Status < 0 || req.Status > 999 {
+	if req.Status < 0 || req.Status > 599 || (req.Status > 0 && req.Status < 100) {
 		return APIUsageAggregateListRequest{}, fmt.Errorf("status must be an HTTP-like status code")
 	}
 	if !req.From.IsZero() {
