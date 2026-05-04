@@ -466,6 +466,8 @@ The platform hardening sprint completed the following:
   user, folder, thread, message, and folder-name inputs before repository work.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
+- Message delivery-status and reply source-thread service lookups trim user,
+  message, and source-message identifiers before repository work.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.

@@ -145,6 +145,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   user, folder, thread, message, and folder-name inputs before repository work.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
+- Message delivery-status and reply source-thread service lookups trim user,
+  message, and source-message identifiers before repository work.
 - Mail API search query, folder, sender, and subject filters are trimmed before
   search backend dispatch, reducing accidental UI/client whitespace drift.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.

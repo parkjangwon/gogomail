@@ -209,6 +209,20 @@ func TestPushDeviceReadAndDeleteNormalizeIDs(t *testing.T) {
 	}
 }
 
+func TestMessageDeliveryStatusNormalizesIDs(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if _, err := service.MessageDeliveryStatus(context.Background(), " user-1 ", " msg-1 "); err != nil {
+		t.Fatalf("MessageDeliveryStatus returned error: %v", err)
+	}
+	if repo.lastDeliveryStatusUserID != "user-1" || repo.lastDeliveryStatusMessageID != "msg-1" {
+		t.Fatalf("delivery status ids = %q/%q", repo.lastDeliveryStatusUserID, repo.lastDeliveryStatusMessageID)
+	}
+}
+
 func TestAttachmentReadMethodsNormalizeIDs(t *testing.T) {
 	t.Parallel()
 
@@ -864,6 +878,10 @@ type fakeRepository struct {
 	lastListPushDeviceUserID       string
 	lastDeletePushDeviceUserID     string
 	lastDeletePushDeviceID         string
+	lastDeliveryStatusUserID       string
+	lastDeliveryStatusMessageID    string
+	lastSourceThreadUserID         string
+	lastSourceThreadMessageID      string
 	lastIMAPFlags                  imapgw.MessageFlags
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
 	lastIMAPUIDLookupUserID        string
@@ -1031,6 +1049,12 @@ func (f *fakeRepository) DeletePushDevice(_ context.Context, userID string, id s
 	return nil
 }
 
+func (f *fakeRepository) MessageDeliveryStatus(_ context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
+	f.lastDeliveryStatusUserID = userID
+	f.lastDeliveryStatusMessageID = messageID
+	return maildb.MessageDeliveryStatusView{}, nil
+}
+
 func (f *fakeRepository) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
 	f.lastAttachmentUserID = userID
 	f.lastAttachmentMessageID = messageID
@@ -1083,7 +1107,9 @@ func (f *fakeRepository) DomainPolicyForUser(context.Context, string) (maildb.Do
 	return f.domainPolicy, nil
 }
 
-func (f *fakeRepository) SourceThread(context.Context, string, string) (maildb.SourceThreadView, error) {
+func (f *fakeRepository) SourceThread(_ context.Context, userID string, sourceMessageID string) (maildb.SourceThreadView, error) {
+	f.lastSourceThreadUserID = userID
+	f.lastSourceThreadMessageID = sourceMessageID
 	return f.sourceThread, nil
 }
 
@@ -1377,15 +1403,18 @@ func TestSendTextWritesReplyThreadHeaders(t *testing.T) {
 	store := storage.NewLocalStore(t.TempDir())
 	service := New(repo, store)
 	_, err := service.SendText(context.Background(), SendTextRequest{
-		UserID:          "user-1",
+		UserID:          " user-1 ",
 		Intent:          ComposeIntentReply,
-		SourceMessageID: "msg-parent",
+		SourceMessageID: " msg-parent ",
 		To:              []outbound.Address{{Email: "sender@example.net"}},
 		Subject:         "Re: hello",
 		TextBody:        "body",
 	})
 	if err != nil {
 		t.Fatalf("SendText returned error: %v", err)
+	}
+	if repo.lastSourceThreadUserID != "user-1" || repo.lastSourceThreadMessageID != "msg-parent" {
+		t.Fatalf("source thread ids = %q/%q", repo.lastSourceThreadUserID, repo.lastSourceThreadMessageID)
 	}
 	body, err := store.Get(context.Background(), repo.lastOutgoing.StoragePath)
 	if err != nil {
