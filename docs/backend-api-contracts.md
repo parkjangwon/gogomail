@@ -584,6 +584,13 @@ API call metering can now emit durable usage events:
   completed after the latest candidate row was recorded, and has artifact,
   manifest digest, and manifest signature evidence. This is a read-only safety
   gate for future archive/delete jobs; it does not mutate ledger rows.
+- `POST /admin/v1/api-usage/ledger/retention-runs` accepts a JSON body with
+  required `cutoff`, optional `tenant_id`/`principal_id`, optional `limit`
+  capped at 10000, `dry_run`, and `confirm_ready`. Destructive runs require
+  `confirm_ready=true`, reuse the readiness gate, and return
+  `{ "api_usage_ledger_retention_run": ... }` with candidate, limited, deleted,
+  and embedded readiness fields. When readiness is blocked, deleted count stays
+  zero.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
   ledger filter window with fixed event/request/byte/latency totals. The

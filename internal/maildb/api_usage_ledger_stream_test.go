@@ -25,6 +25,33 @@ func TestGetAPIUsageLedgerRetentionReadinessRejectsNilDatabase(t *testing.T) {
 	}
 }
 
+func TestRunAPIUsageLedgerRetentionRejectsNilDatabase(t *testing.T) {
+	t.Parallel()
+
+	view, err := (&Repository{}).RunAPIUsageLedgerRetention(context.Background(), APIUsageLedgerRetentionRunRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("view = %+v err = %v", view, err)
+	}
+}
+
+func TestNormalizeAPIUsageLedgerRetentionLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := map[int]int{
+		0:                                       APIUsageLedgerRetentionDefaultLimit,
+		-1:                                      APIUsageLedgerRetentionDefaultLimit,
+		25:                                      25,
+		APIUsageLedgerRetentionMaxLimit:         APIUsageLedgerRetentionMaxLimit,
+		APIUsageLedgerRetentionMaxLimit + 1:     APIUsageLedgerRetentionMaxLimit,
+		APIUsageLedgerRetentionDefaultLimit + 1: APIUsageLedgerRetentionDefaultLimit + 1,
+	}
+	for input, want := range tests {
+		if got := NormalizeAPIUsageLedgerRetentionLimit(input); got != want {
+			t.Fatalf("NormalizeAPIUsageLedgerRetentionLimit(%d) = %d, want %d", input, got, want)
+		}
+	}
+}
+
 func TestAPIUsageLedgerStreamLimit(t *testing.T) {
 	t.Parallel()
 

@@ -52,8 +52,12 @@ API exposes a read-only retention readiness report for a cutoff and optional
 tenant/principal filters. It marks rows ready only when no candidates exist or a
 completed export batch with matching filters covers the candidate time range
 through the cutoff, was completed after the latest candidate row was recorded,
-and has artifact, manifest digest, and signature evidence. Actual archive/delete
-jobs remain deferred behind that operator-visible gate.
+and has artifact, manifest digest, and signature evidence. Admin API also
+exposes an operator-controlled bounded retention run that reuses the same
+readiness gate, requires explicit destructive confirmation, and deletes only a
+normalized batch of ready immutable ledger rows. Scheduled archive/delete
+workers remain deferred until production export storage and signer policy are
+settled.
 
 Operators can also create persisted export batch manifests over a bounded
 ledger window. A saved batch fixes the filter window and totals, and can be

@@ -124,3 +124,19 @@ reasons mean:
 
 Do not archive or purge immutable ledger rows when any blocking reason is
 present.
+
+## 8. Run bounded retention
+
+After readiness is true for the exact cutoff and filters, run a dry-run first:
+
+```bash
+curl -sS -X POST -H "Authorization: Bearer $GOGOMAIL_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"cutoff":"'"$WINDOW_END"'","tenant_id":"'"$TENANT_ID"'","dry_run":true,"limit":1000}' \
+  "$GOGOMAIL_ADMIN_URL/admin/v1/api-usage/ledger/retention-runs"
+```
+
+For a destructive bounded batch, set `dry_run` to `false` and include
+`confirm_ready:true`. The run rechecks readiness before deleting rows and
+returns the embedded readiness evidence plus candidate, limited, and deleted
+counts.

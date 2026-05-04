@@ -1028,6 +1028,114 @@ func TestAdminAPIUsageLedgerRetentionReadinessRejectsUnsafeIdentityFilters(t *te
 	}
 }
 
+func TestAdminAPIUsageLedgerRetentionRunHandler(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	service := &fakeAdminService{
+		apiUsageLedgerRetentionRun: maildb.APIUsageLedgerRetentionRunView{
+			Cutoff:         cutoff,
+			TenantID:       "tenant-1",
+			PrincipalID:    "principal-1",
+			Limit:          25,
+			DryRun:         false,
+			ConfirmReady:   true,
+			Ready:          true,
+			CandidateCount: 40,
+			LimitedCount:   25,
+			DeletedCount:   25,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/ledger/retention-runs", strings.NewReader(`{
+		"cutoff": "`+cutoff.Format(time.RFC3339)+`",
+		"tenant_id": " tenant-1 ",
+		"principal_id": " principal-1 ",
+		"limit": 25,
+		"dry_run": false,
+		"confirm_ready": true
+	}`))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Run maildb.APIUsageLedgerRetentionRunView `json:"api_usage_ledger_retention_run"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Run.DeletedCount != 25 || !body.Run.Ready {
+		t.Fatalf("run = %+v", body.Run)
+	}
+	if service.lastAPIUsageLedgerRetentionRun.TenantID != "tenant-1" ||
+		service.lastAPIUsageLedgerRetentionRun.PrincipalID != "principal-1" ||
+		service.lastAPIUsageLedgerRetentionRun.Limit != 25 ||
+		!service.lastAPIUsageLedgerRetentionRun.ConfirmReady ||
+		service.lastAPIUsageLedgerRetentionRun.Cutoff.IsZero() {
+		t.Fatalf("lastAPIUsageLedgerRetentionRun = %+v", service.lastAPIUsageLedgerRetentionRun)
+	}
+}
+
+func TestAdminAPIUsageLedgerRetentionRunRequiresConfirmForDestructiveRun(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/ledger/retention-runs", strings.NewReader(`{"cutoff":"`+cutoff+`","dry_run":false}`))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !service.lastAPIUsageLedgerRetentionRun.Cutoff.IsZero() {
+		t.Fatalf("retention run dispatched: %+v", service.lastAPIUsageLedgerRetentionRun)
+	}
+}
+
+func TestAdminAPIUsageLedgerRetentionRunRejectsUnsafeRequests(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	tests := []string{
+		`{"limit":25,"dry_run":true}`,
+		`{"cutoff":"not-a-time","dry_run":true}`,
+		`{"cutoff":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `","dry_run":true}`,
+		`{"cutoff":"` + cutoff + `","limit":-1,"dry_run":true}`,
+		`{"cutoff":"` + cutoff + `","tenant_id":"tenant\nbad","dry_run":true}`,
+		`{"cutoff":"` + cutoff + `","principal_id":"` + strings.Repeat("p", maxAdminQueryFilterBytes+1) + `","dry_run":true}`,
+	}
+	for _, body := range tests {
+		body := body
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/ledger/retention-runs", strings.NewReader(body))
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if !service.lastAPIUsageLedgerRetentionRun.Cutoff.IsZero() {
+				t.Fatalf("retention run dispatched: %+v", service.lastAPIUsageLedgerRetentionRun)
+			}
+		})
+	}
+}
+
 func TestAdminCreateAPIUsageExportBatchHandler(t *testing.T) {
 	t.Parallel()
 
@@ -4075,6 +4183,7 @@ type fakeAdminService struct {
 	apiUsageLedger                              []maildb.APIUsageLedgerView
 	apiUsageLedgerStats                         maildb.APIUsageLedgerStatsView
 	apiUsageLedgerRetentionReadiness            maildb.APIUsageLedgerRetentionReadinessView
+	apiUsageLedgerRetentionRun                  maildb.APIUsageLedgerRetentionRunView
 	apiUsageExportCapabilities                  maildb.APIUsageExportCapabilityView
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
@@ -4140,6 +4249,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListLimit       int
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
 	lastAPIUsageLedgerRetention                 maildb.APIUsageLedgerRetentionRequest
+	lastAPIUsageLedgerRetentionRun              maildb.APIUsageLedgerRetentionRunRequest
 	lastAPIUsageExportCapabilities              bool
 	lastAPIUsageExportBatchID                   string
 	lastAPIUsageExportHandoffDeep               bool
@@ -4375,6 +4485,11 @@ func (f *fakeAdminService) GetAPIUsageLedgerStats(_ context.Context, req maildb.
 func (f *fakeAdminService) GetAPIUsageLedgerRetentionReadiness(_ context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error) {
 	f.lastAPIUsageLedgerRetention = req
 	return f.apiUsageLedgerRetentionReadiness, nil
+}
+
+func (f *fakeAdminService) RunAPIUsageLedgerRetention(_ context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error) {
+	f.lastAPIUsageLedgerRetentionRun = req
+	return f.apiUsageLedgerRetentionRun, nil
 }
 
 func (f *fakeAdminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

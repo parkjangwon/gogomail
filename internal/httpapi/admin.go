@@ -60,6 +60,7 @@ type AdminService interface {
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
 	GetAPIUsageLedgerStats(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error)
 	GetAPIUsageLedgerRetentionReadiness(ctx context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error)
+	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, limit int) ([]maildb.APIUsageExportBatchView, error)
@@ -122,6 +123,15 @@ type adminAttachmentCleanupRunRequest struct {
 	Before string `json:"before"`
 	Limit  int    `json:"limit,omitempty"`
 	DryRun bool   `json:"dry_run,omitempty"`
+}
+
+type adminAPIUsageLedgerRetentionRunRequest struct {
+	Cutoff       string `json:"cutoff"`
+	TenantID     string `json:"tenant_id,omitempty"`
+	PrincipalID  string `json:"principal_id,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmReady bool   `json:"confirm_ready,omitempty"`
 }
 
 func parseAdminAttachmentCleanupRequest(w http.ResponseWriter, req adminAttachmentCleanupRunRequest) (time.Time, bool) {
@@ -755,6 +765,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_readiness": readiness})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/api-usage/ledger/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var body adminAPIUsageLedgerRetentionRunRequest
+		if err := decodeJSONBody(r, &body); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		req, ok := parseAPIUsageLedgerRetentionRunRequest(w, body)
+		if !ok {
+			return
+		}
+		run, err := service.RunAPIUsageLedgerRetention(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -1609,6 +1639,58 @@ func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request)
 		Cutoff:      cutoff,
 		TenantID:    tenantID,
 		PrincipalID: principalID,
+	}, true
+}
+
+func parseAPIUsageLedgerRetentionRunRequest(w http.ResponseWriter, req adminAPIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunRequest, bool) {
+	tenantID := strings.TrimSpace(req.TenantID)
+	if strings.ContainsAny(tenantID, "\r\n") {
+		writeError(w, http.StatusBadRequest, "tenant_id must not contain CR or LF")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if len(tenantID) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, "tenant_id is too long")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	principalID := strings.TrimSpace(req.PrincipalID)
+	if strings.ContainsAny(principalID, "\r\n") {
+		writeError(w, http.StatusBadRequest, "principal_id must not contain CR or LF")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if len(principalID) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, "principal_id is too long")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	cutoffRaw := strings.TrimSpace(req.Cutoff)
+	if cutoffRaw == "" {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	cutoff, err := time.Parse(time.RFC3339, cutoffRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cutoff must be RFC3339 timestamp")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	cutoff = cutoff.UTC()
+	if cutoff.After(time.Now().UTC()) {
+		writeError(w, http.StatusBadRequest, "cutoff must not be in the future")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if req.Limit < 0 {
+		writeError(w, http.StatusBadRequest, "limit must not be negative")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if !req.DryRun && !req.ConfirmReady {
+		writeError(w, http.StatusBadRequest, "confirm_ready is required for destructive retention runs")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	return maildb.APIUsageLedgerRetentionRunRequest{
+		Cutoff:       cutoff,
+		TenantID:     tenantID,
+		PrincipalID:  principalID,
+		Limit:        req.Limit,
+		DryRun:       req.DryRun,
+		ConfirmReady: req.ConfirmReady,
 	}, true
 }
 
