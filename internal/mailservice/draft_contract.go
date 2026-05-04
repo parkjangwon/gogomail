@@ -50,6 +50,9 @@ func ValidateSaveDraftRequest(req SaveDraftRequest) error {
 	if err := validateComposeAddresses("bcc", req.Bcc); err != nil {
 		return err
 	}
+	if len(req.AttachmentIDs) > MaxComposeAttachments {
+		return fmt.Errorf("too many attachments")
+	}
 	for _, id := range req.AttachmentIDs {
 		if strings.TrimSpace(id) == "" {
 			return fmt.Errorf("attachment id must not be blank")

@@ -32,6 +32,22 @@ func TestValidateSaveDraftRequestRejectsBlankAttachmentID(t *testing.T) {
 	}
 }
 
+func TestValidateSaveDraftRequestRejectsTooManyAttachments(t *testing.T) {
+	t.Parallel()
+
+	ids := make([]string, MaxComposeAttachments+1)
+	for i := range ids {
+		ids[i] = "att"
+	}
+	err := ValidateSaveDraftRequest(SaveDraftRequest{
+		UserID:        "user-1",
+		AttachmentIDs: ids,
+	})
+	if err == nil {
+		t.Fatal("ValidateSaveDraftRequest accepted too many attachment ids")
+	}
+}
+
 func TestValidateSaveDraftRequestRejectsBlankRecipientEmail(t *testing.T) {
 	t.Parallel()
 
