@@ -103,7 +103,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Detail reads mark unread messages as read while avoiding redundant writes for already-read messages.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
-  at the HTTP boundary before service dispatch.
+  at the HTTP boundary before service dispatch, and direct multipart uploads
+  reject repeated `draft_id` or `file` parts before storage work begins.
 - Mail and Admin API JSON request bodies reject trailing JSON tokens and
   unknown object fields instead of accepting drifted payloads, and shared JSON
   decoding is capped at 1 MiB before parsing.

@@ -844,7 +844,8 @@ The platform hardening sprint completed the following:
   reads reject blank, CR/LF-bearing, or oversized message/attachment
   identifiers before repository/storage dispatch.
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
-  the HTTP boundary before service dispatch.
+  the HTTP boundary before service dispatch, and direct multipart uploads reject
+  repeated `draft_id` or `file` parts before storage work begins.
 - Mail API search query, folder, sender, and subject filters are trimmed at the
   HTTP and service boundaries before search backend dispatch, and service
   search validation rejects CR/LF-bearing or oversized query/filter fields

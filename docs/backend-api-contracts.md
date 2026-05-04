@@ -234,9 +234,12 @@ and the direct upload multipart `draft_id` field are trimmed at the HTTP
 boundary before service dispatch, keeping user-facing routes tolerant of
 incidental whitespace without storing whitespace-padded resource IDs. Attachment
 reservation and direct-upload `draft_id` values reject CR/LF-bearing or
-oversized input. Scalar query parameters such as `user_id`, `limit`, search
-filters, boolean flags, timestamps, and Admin API filters must appear at most
-once; duplicate scalar query controls return HTTP 400 `bad_request`.
+oversized input. Direct multipart uploads read optional `draft_id` only from the
+multipart body, not the URL query string, and reject repeated `draft_id` or
+`file` parts with HTTP 400 `bad_request`. Scalar query parameters such as
+`user_id`, `limit`, search filters, boolean flags, timestamps, and Admin API
+filters must appear at most once; duplicate scalar query controls return HTTP
+400 `bad_request`.
 Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
 when the raw body exceeds the attachment upload size cap.
 Because `resumable_chunked_uploads` remains `false`, `Content-Range` requests
