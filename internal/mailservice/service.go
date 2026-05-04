@@ -1023,10 +1023,61 @@ func (s *Service) FinalizeAttachmentUploadSession(ctx context.Context, userID st
 	if !ok {
 		return maildb.Attachment{}, fmt.Errorf("attachment upload session repository is required")
 	}
+	if s.store == nil {
+		return maildb.Attachment{}, fmt.Errorf("mail storage is required")
+	}
+	session, err := repo.GetAttachmentUploadSession(ctx, maildb.GetAttachmentUploadSessionRequest{
+		UserID:    userID,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return maildb.Attachment{}, err
+	}
+	if err := s.verifyUploadSessionBody(ctx, session); err != nil {
+		return maildb.Attachment{}, err
+	}
 	return repo.FinalizeAttachmentUploadSession(ctx, maildb.FinalizeAttachmentUploadSessionRequest{
 		UserID:    userID,
 		SessionID: sessionID,
 	})
+}
+
+func (s *Service) verifyUploadSessionBody(ctx context.Context, session maildb.AttachmentUploadSession) error {
+	if session.Status != "uploading" {
+		return fmt.Errorf("attachment upload session %q is not ready for finalization", session.ID)
+	}
+	if session.ReceivedSize != session.DeclaredSize || session.DeclaredSize < 0 {
+		return fmt.Errorf("attachment upload session %q has incomplete body", session.ID)
+	}
+	if strings.TrimSpace(session.StoragePath) == "" {
+		return fmt.Errorf("attachment upload session %q storage path is required", session.ID)
+	}
+	if !isLowerSHA256Hex(strings.TrimSpace(session.ChecksumSHA256)) {
+		return fmt.Errorf("attachment upload session %q checksum is required", session.ID)
+	}
+	if !session.ExpiresAt.After(time.Now().UTC()) {
+		return fmt.Errorf("attachment upload session %q is expired", session.ID)
+	}
+	body, err := s.store.Get(ctx, session.StoragePath)
+	if err != nil {
+		return fmt.Errorf("open attachment upload session body: %w", err)
+	}
+	defer body.Close()
+
+	counter := &countingReader{reader: body}
+	limitedBody := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, limitedBody); err != nil {
+		return fmt.Errorf("read attachment upload session body: %w", err)
+	}
+	if limitedBody.N == 0 || counter.n != session.DeclaredSize {
+		return fmt.Errorf("attachment upload session body size %d does not match declared size %d", counter.n, session.DeclaredSize)
+	}
+	checksum := hex.EncodeToString(hash.Sum(nil))
+	if checksum != session.ChecksumSHA256 {
+		return fmt.Errorf("attachment upload session checksum %s does not match stored %s", checksum, session.ChecksumSHA256)
+	}
+	return nil
 }
 
 func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error) {

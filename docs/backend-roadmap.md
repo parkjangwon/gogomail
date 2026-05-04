@@ -609,6 +609,7 @@ Implementation order:
 550. Optional PostgreSQL integration coverage now verifies upload session finalization rejects unstored bodies without changing quota or creating empty attachment rows.
 551. OpenAPI contract tests now lock the upload session body `X-Content-SHA256` header so generated clients keep the integrity precondition.
 552. Upload session body storage now explicitly rejects `Content-Range` requests while full range-aware chunk semantics remain disabled.
+553. Upload session finalization now verifies staged object existence, byte count, and SHA-256 before creating the attachment row.
 
 ## Deferred until backend contracts stabilize
 
