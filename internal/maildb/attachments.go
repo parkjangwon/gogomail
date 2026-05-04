@@ -32,6 +32,19 @@ type StaleAttachmentUploadCount struct {
 	LimitedCount int64
 }
 
+type StaleAttachmentUploadCandidate struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	MessageID   string    `json:"message_id"`
+	UploadID    string    `json:"upload_id"`
+	StoragePath string    `json:"storage_path"`
+	Filename    string    `json:"filename"`
+	Size        int64     `json:"size"`
+	MIMEType    string    `json:"mime_type"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 const (
 	AttachmentCleanupDefaultLimit = 100
 	AttachmentCleanupMaxLimit     = 1000
@@ -360,6 +373,64 @@ WHERE status = 'uploading'
 		limited = int64(limit)
 	}
 	return StaleAttachmentUploadCount{TotalCount: total, LimitedCount: limited}, nil
+}
+
+func (r *Repository) ListStaleAttachmentUploads(ctx context.Context, req ExpireStaleAttachmentUploadsRequest) ([]StaleAttachmentUploadCandidate, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateExpireStaleAttachmentUploadsRequest(req); err != nil {
+		return nil, err
+	}
+	limit := NormalizeAttachmentCleanupLimit(req.Limit)
+
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(message_id::text, ''),
+  upload_id,
+  storage_path,
+  filename,
+  size,
+  mime_type,
+  status,
+  created_at
+FROM attachments
+WHERE status = 'uploading'
+  AND created_at < $1
+ORDER BY created_at ASC
+LIMIT $2`
+
+	rows, err := r.db.QueryContext(ctx, query, req.Before.UTC(), limit)
+	if err != nil {
+		return nil, fmt.Errorf("list stale attachment uploads: %w", err)
+	}
+	defer rows.Close()
+
+	candidates := make([]StaleAttachmentUploadCandidate, 0)
+	for rows.Next() {
+		var candidate StaleAttachmentUploadCandidate
+		if err := rows.Scan(
+			&candidate.ID,
+			&candidate.UserID,
+			&candidate.MessageID,
+			&candidate.UploadID,
+			&candidate.StoragePath,
+			&candidate.Filename,
+			&candidate.Size,
+			&candidate.MIMEType,
+			&candidate.Status,
+			&candidate.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan stale attachment upload candidate: %w", err)
+		}
+		candidates = append(candidates, candidate)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate stale attachment upload candidates: %w", err)
+	}
+	return candidates, nil
 }
 
 func NormalizeAttachmentCleanupLimit(limit int) int {

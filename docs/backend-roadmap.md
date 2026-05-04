@@ -575,6 +575,7 @@ Implementation order:
 516. Stale attachment cleanup now uses an attachment-specific 1000-row batch cap instead of the shared message-list pagination limit, keeping `GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE` meaningful for operational sweeps.
 517. Admin API now exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff and bounded batch size.
 518. Admin attachment cleanup runs now support `dry_run` previews that return total and batch-limited stale upload candidate counts before destructive cleanup.
+519. Admin API now exposes `POST /admin/v1/attachment-cleanup/candidates` so operators can inspect the bounded stale upload candidate set before running cleanup.
 
 ## Deferred until backend contracts stabilize
 

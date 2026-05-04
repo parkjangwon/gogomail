@@ -27,7 +27,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin
-  API dry-run previews before on-demand cleanup.
+  API dry-run previews plus candidate listing before on-demand cleanup.
 - Direct multipart uploads write through the configured storage backend and only record metadata after the object write succeeds.
 - Attachment upload size is guarded in HTTP and service layers, including
   multipart request caps that return 413 for over-limit direct upload envelopes

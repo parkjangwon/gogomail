@@ -522,6 +522,17 @@ paths:
           $ref: "#/components/responses/QuotaUsageList"
         default:
           $ref: "#/components/responses/Error"
+  /attachment-cleanup/candidates:
+    post:
+      operationId: listAdminAttachmentCleanupCandidates
+      summary: Preview stale attachment upload cleanup candidates
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentCleanupRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/AttachmentCleanupCandidates"
+        default:
+          $ref: "#/components/responses/Error"
   /attachment-cleanup/runs:
     post:
       operationId: runAdminAttachmentCleanup
@@ -2003,6 +2014,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AttachmentCleanupRunEnvelope"
+    AttachmentCleanupCandidates:
+      description: Attachment cleanup candidate preview envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AttachmentCleanupCandidatesEnvelope"
     QuotaReconciliationList:
       description: Quota ledger reconciliation report envelope
       content:
@@ -3920,6 +3937,55 @@ components:
           type: integer
           minimum: 1
           maximum: 1000
+    AttachmentCleanupCandidate:
+      type: object
+      required: [id, user_id, message_id, upload_id, storage_path, filename, size, mime_type, status, created_at]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        message_id:
+          type: string
+        upload_id:
+          type: string
+        storage_path:
+          type: string
+        filename:
+          type: string
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+        mime_type:
+          type: string
+        status:
+          type: string
+          enum: [uploading]
+        created_at:
+          type: string
+          format: date-time
+    AttachmentCleanupCandidates:
+      type: object
+      required: [candidates, before, limit]
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentCleanupCandidate"
+        before:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    AttachmentCleanupCandidatesEnvelope:
+      type: object
+      required: [attachment_cleanup_candidates]
+      properties:
+        attachment_cleanup_candidates:
+          $ref: "#/components/schemas/AttachmentCleanupCandidates"
     AttachmentCleanupRunEnvelope:
       type: object
       required: [attachment_cleanup_run]

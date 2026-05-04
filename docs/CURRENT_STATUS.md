@@ -613,7 +613,9 @@ The platform hardening sprint completed the following:
 - Admin API exposes `POST /admin/v1/attachment-cleanup/runs` for authenticated
   on-demand stale upload cleanup with an explicit non-future RFC3339 cutoff,
   and supports `dry_run` preview responses with total and batch-limited
-  candidate counts before destructive cleanup.
+  candidate counts before destructive cleanup. Operators can also list the
+  bounded candidate set through
+  `POST /admin/v1/attachment-cleanup/candidates`.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

@@ -1047,12 +1047,14 @@ type fakeRepository struct {
 	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
+	lastAttachmentCleanupList      maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentUserID           string
 	lastAttachmentMessageID        string
 	lastAttachmentID               string
 	attachment                     maildb.Attachment
 	expiredAttachments             []maildb.Attachment
 	staleAttachmentCount           maildb.StaleAttachmentUploadCount
+	staleAttachmentCandidates      []maildb.StaleAttachmentUploadCandidate
 	lastListFoldersUserID          string
 	lastCreateFolder               maildb.CreateFolderRequest
 	lastRenameFolderUserID         string
@@ -1425,6 +1427,11 @@ func (f *fakeRepository) CountStaleAttachmentUploads(_ context.Context, req mail
 	return f.staleAttachmentCount, nil
 }
 
+func (f *fakeRepository) ListStaleAttachmentUploads(_ context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.StaleAttachmentUploadCandidate, error) {
+	f.lastAttachmentCleanupList = req
+	return f.staleAttachmentCandidates, nil
+}
+
 func TestExpireStaleAttachmentUploadsDeletesStoredObjects(t *testing.T) {
 	t.Parallel()
 
@@ -1543,6 +1550,27 @@ func TestCountStaleAttachmentUploadsUsesRepositoryPreview(t *testing.T) {
 	}
 	if !repo.lastAttachmentCleanupCount.Before.Equal(before) || repo.lastAttachmentCleanupCount.Limit != 5 {
 		t.Fatalf("count request = %+v", repo.lastAttachmentCleanupCount)
+	}
+}
+
+func TestListStaleAttachmentUploadsUsesRepositoryPreview(t *testing.T) {
+	t.Parallel()
+
+	before := time.Now()
+	repo := &fakeRepository{
+		staleAttachmentCandidates: []maildb.StaleAttachmentUploadCandidate{{ID: "att-1"}},
+	}
+	service := New(repo, nil)
+
+	candidates, err := service.ListStaleAttachmentUploads(context.Background(), before, 12)
+	if err != nil {
+		t.Fatalf("ListStaleAttachmentUploads returned error: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].ID != "att-1" {
+		t.Fatalf("candidates = %+v", candidates)
+	}
+	if !repo.lastAttachmentCleanupList.Before.Equal(before) || repo.lastAttachmentCleanupList.Limit != 12 {
+		t.Fatalf("list request = %+v", repo.lastAttachmentCleanupList)
 	}
 }
 
