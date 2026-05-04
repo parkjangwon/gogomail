@@ -44,6 +44,8 @@ guidance.
   retry delay.
 - Outbox event metadata can be filtered by topic, partition key, status, and
   recent time window without exposing payload bodies.
+- Outbox event list responses bound `last_error` previews at UTF-8 boundaries
+  so operational dashboards do not pull oversized diagnostics by default.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, thread lists/thread messages, plus user-scoped sent-message
   delivery/bounce status.
