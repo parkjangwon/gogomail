@@ -107,6 +107,9 @@ Errors use the stable envelope:
   password hashes. `GET /admin/v1/users` accepts optional `status` and
   `password_configured=true|false` query filters for account and
   Submission-readiness triage.
+- Domain and user lifecycle status mutations persist `domain.status_update` and
+  `user.status_update` admin audit rows with bounded JSON detail in the same
+  database transaction as the status change.
 
 ## Pagination
 

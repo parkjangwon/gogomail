@@ -1500,17 +1500,48 @@ func (r *Repository) UpdateDomainStatus(ctx context.Context, req UpdateDomainSta
 	if err := ValidateUpdateDomainStatusRequest(req); err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(ctx, `
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin domain status transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var view domainStatusAuditView
+	if err := tx.QueryRowContext(ctx, `
 UPDATE domains
 SET status = $2,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status))
-	if err != nil {
+WHERE id = $1
+RETURNING id::text, company_id::text, name, status`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status)).Scan(
+		&view.ID,
+		&view.CompanyID,
+		&view.Name,
+		&view.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("domain %q not found", req.ID)
+		}
 		return fmt.Errorf("update domain status: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("domain %q not found", req.ID)
+	detail, err := domainStatusAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.CompanyID,
+		DomainID:   view.ID,
+		Category:   "admin",
+		Action:     "domain.status_update",
+		TargetType: "domain",
+		TargetID:   view.ID,
+		Result:     view.Status,
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record domain status audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit domain status transaction: %w", err)
 	}
 	return nil
 }
@@ -1735,17 +1766,52 @@ func (r *Repository) UpdateUserStatus(ctx context.Context, req UpdateUserStatusR
 	if err := ValidateUpdateUserStatusRequest(req); err != nil {
 		return err
 	}
-	result, err := r.db.ExecContext(ctx, `
-UPDATE users
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin user status transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var view userStatusAuditView
+	if err := tx.QueryRowContext(ctx, `
+UPDATE users u
 SET status = $2,
     updated_at = now()
-WHERE id = $1`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status))
-	if err != nil {
+FROM domains d
+WHERE u.domain_id = d.id
+  AND u.id = $1
+RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, u.status`, strings.TrimSpace(req.ID), normalizeAdminStatus(req.Status)).Scan(
+		&view.ID,
+		&view.DomainID,
+		&view.CompanyID,
+		&view.Username,
+		&view.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("user %q not found", req.ID)
+		}
 		return fmt.Errorf("update user status: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err == nil && affected == 0 {
-		return fmt.Errorf("user %q not found", req.ID)
+	detail, err := userStatusAuditDetail(view)
+	if err != nil {
+		return err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.CompanyID,
+		DomainID:   view.DomainID,
+		UserID:     view.ID,
+		Category:   "admin",
+		Action:     "user.status_update",
+		TargetType: "user",
+		TargetID:   view.ID,
+		Result:     view.Status,
+		Detail:     detail,
+	}); err != nil {
+		return fmt.Errorf("record user status audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit user status transaction: %w", err)
 	}
 	return nil
 }
@@ -1803,6 +1869,48 @@ WHERE id = $1`, strings.TrimSpace(req.ID), strings.TrimSpace(req.PasswordHash))
 
 func normalizeAdminStatus(status string) string {
 	return strings.ToLower(strings.TrimSpace(status))
+}
+
+type domainStatusAuditView struct {
+	ID        string
+	CompanyID string
+	Name      string
+	Status    string
+}
+
+func domainStatusAuditDetail(view domainStatusAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"domain_id":  view.ID,
+		"company_id": view.CompanyID,
+		"name":       view.Name,
+		"status":     view.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal domain status audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+type userStatusAuditView struct {
+	ID        string
+	DomainID  string
+	CompanyID string
+	Username  string
+	Status    string
+}
+
+func userStatusAuditDetail(view userStatusAuditView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"user_id":    view.ID,
+		"domain_id":  view.DomainID,
+		"company_id": view.CompanyID,
+		"username":   view.Username,
+		"status":     view.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal user status audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListUsers(ctx context.Context, req UserListRequest) ([]UserView, error) {
