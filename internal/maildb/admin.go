@@ -1994,10 +1994,7 @@ func (r *Repository) StreamAPIUsageLedger(ctx context.Context, req APIUsageLedge
 	if yield == nil {
 		return fmt.Errorf("api usage ledger yield function is required")
 	}
-	limit := 0
-	if req.Limit != APIUsageLedgerNoLimit {
-		limit = normalizeLimit(req.Limit)
-	}
+	limit, unbounded := apiUsageLedgerStreamLimit(req.Limit)
 
 	query := `
 SELECT
@@ -2042,7 +2039,7 @@ FROM api_usage_ledger`
 	if len(conditions) > 0 {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
 	}
-	if req.Limit == APIUsageLedgerNoLimit {
+	if unbounded {
 		query += `
 ORDER BY event_timestamp DESC, event_id DESC
 `
@@ -2092,6 +2089,13 @@ LIMIT $%d`, len(args))
 		return fmt.Errorf("iterate api usage ledger: %w", err)
 	}
 	return nil
+}
+
+func apiUsageLedgerStreamLimit(limit int) (int, bool) {
+	if limit == APIUsageLedgerNoLimit {
+		return 0, true
+	}
+	return normalizeLimit(limit), false
 }
 
 func (r *Repository) GetAPIUsageLedgerStats(ctx context.Context, req APIUsageLedgerListRequest) (APIUsageLedgerStatsView, error) {
