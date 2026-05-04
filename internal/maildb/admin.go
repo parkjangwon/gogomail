@@ -2396,6 +2396,45 @@ LIMIT $2`
 	return artifacts, nil
 }
 
+func (r *Repository) GetAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (APIUsageExportArtifactView, error) {
+	if r.db == nil {
+		return APIUsageExportArtifactView{}, fmt.Errorf("database handle is required")
+	}
+	batchID = strings.TrimSpace(batchID)
+	artifactID = strings.TrimSpace(artifactID)
+	if batchID == "" {
+		return APIUsageExportArtifactView{}, fmt.Errorf("batch_id is required")
+	}
+	if artifactID == "" {
+		return APIUsageExportArtifactView{}, fmt.Errorf("artifact_id is required")
+	}
+	const query = `
+SELECT id, batch_id, created_at, storage_backend, object_key, content_type,
+  byte_count, sha256_hex, event_count, metadata
+FROM api_usage_export_artifacts
+WHERE batch_id = $1
+  AND id = $2`
+	var artifact APIUsageExportArtifactView
+	if err := r.db.QueryRowContext(ctx, query, batchID, artifactID).Scan(
+		&artifact.ID,
+		&artifact.BatchID,
+		&artifact.CreatedAt,
+		&artifact.StorageBackend,
+		&artifact.ObjectKey,
+		&artifact.ContentType,
+		&artifact.ByteCount,
+		&artifact.SHA256Hex,
+		&artifact.EventCount,
+		&artifact.Metadata,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return APIUsageExportArtifactView{}, fmt.Errorf("api usage export artifact not found")
+		}
+		return APIUsageExportArtifactView{}, fmt.Errorf("get api usage export artifact: %w", err)
+	}
+	return artifact, nil
+}
+
 func ValidateCreateAPIUsageExportArtifactRequest(req *CreateAPIUsageExportArtifactRequest) error {
 	req.BatchID = strings.TrimSpace(req.BatchID)
 	req.StorageBackend = strings.TrimSpace(req.StorageBackend)
