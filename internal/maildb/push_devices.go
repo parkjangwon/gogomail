@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -44,6 +45,9 @@ func ValidateUpsertPushDeviceRequest(req UpsertPushDeviceRequest) error {
 	if strings.ContainsAny(userID, "\r\n") || len(userID) > maxPushDeviceUserIDBytes {
 		return fmt.Errorf("user_id is invalid")
 	}
+	if !utf8.ValidString(userID) {
+		return fmt.Errorf("user_id must be valid UTF-8")
+	}
 	if !allowedPushPlatform(req.Platform) {
 		return fmt.Errorf("platform must be apns, fcm, or webpush")
 	}
@@ -56,6 +60,9 @@ func ValidateUpsertPushDeviceRequest(req UpsertPushDeviceRequest) error {
 	}
 	if len(req.Label) > maxPushDeviceLabelBytes {
 		return fmt.Errorf("label is too long")
+	}
+	if !utf8.ValidString(token) || !utf8.ValidString(req.Label) {
+		return fmt.Errorf("push device fields must be valid UTF-8")
 	}
 	if strings.ContainsAny(token, "\r\n") || strings.ContainsAny(req.Label, "\r\n") {
 		return fmt.Errorf("push device fields must not contain line breaks")
