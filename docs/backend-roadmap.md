@@ -317,6 +317,7 @@ Implementation order:
 262. Mail API app wiring can inject the OpenSearch search source when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, enabling safe relevance-search rollout with Postgres fallback for unsupported contract features.
 263. OpenSearch indexed message documents now include parsed sender and attachment presence fields, preparing from/attachment search-filter parity with the Postgres search contract.
 264. OpenSearch relevance search can apply from, subject, and attachment filters before Postgres metadata hydration, while folder filters and highlights remain on the Postgres fallback path.
+265. OpenSearch relevance search can return subject/from/body highlights and map them into the existing Mail API `search_highlights` response shape.
 
 ## Deferred until backend contracts stabilize
 

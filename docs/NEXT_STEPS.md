@@ -82,11 +82,13 @@ Current state:
   fields for search-filter parity.
 - OpenSearch relevance search can apply from, subject, and attachment filters
   before Postgres metadata hydration.
+- OpenSearch relevance search can return subject/from/body highlights in the
+  existing Mail API `search_highlights` shape.
 
 Next:
 
-- Add OpenSearch highlight parity and folder-aware filtering before making it
-  the general Mail API search backend.
+- Add folder-aware filtering before making OpenSearch the general Mail API
+  search backend.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning

@@ -166,18 +166,20 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 		return nil, fmt.Errorf("search hydration repository is required")
 	}
 	hits, err := s.searchIDSource.SearchMessageIDs(ctx, searchindex.OpenSearchSearchQuery{
-		UserID:        query.UserID,
-		Query:         query.Query,
-		From:          query.From,
-		Subject:       query.Subject,
-		HasAttachment: query.HasAttachment,
-		Limit:         query.Limit,
+		UserID:            query.UserID,
+		Query:             query.Query,
+		From:              query.From,
+		Subject:           query.Subject,
+		HasAttachment:     query.HasAttachment,
+		IncludeHighlights: query.IncludeHighlights,
+		Limit:             query.Limit,
 	})
 	if err != nil {
 		return nil, err
 	}
 	messageIDs := make([]string, 0, len(hits))
 	ranks := make(map[string]float64, len(hits))
+	highlights := make(map[string]searchindex.OpenSearchHighlights, len(hits))
 	for _, hit := range hits {
 		id := strings.TrimSpace(hit.MessageID)
 		if id == "" {
@@ -185,6 +187,7 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 		}
 		messageIDs = append(messageIDs, id)
 		ranks[id] = hit.Score
+		highlights[id] = hit.Highlights
 	}
 	messages, err := hydrator.ListMessagesByIDs(ctx, query.UserID, messageIDs)
 	if err != nil {
@@ -197,14 +200,24 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 			}
 		}
 	}
+	if query.IncludeHighlights {
+		for i := range messages {
+			if highlight, ok := highlights[messages[i].ID]; ok {
+				messages[i].SearchHighlights = &maildb.MessageSearchHighlights{
+					Subject: append([]string(nil), highlight.Subject...),
+					From:    append([]string(nil), highlight.From...),
+					Body:    append([]string(nil), highlight.Body...),
+				}
+			}
+		}
+	}
 	return messages, nil
 }
 
 func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
 	return strings.TrimSpace(query.Query) != "" &&
 		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance &&
-		strings.TrimSpace(query.FolderID) == "" &&
-		!query.IncludeHighlights
+		strings.TrimSpace(query.FolderID) == ""
 }
 
 func normalizedSearchSort(sort string) string {

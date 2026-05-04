@@ -170,15 +170,22 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 		messagesByID: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
 	}
 	service := New(repo, nil).WithSearchIDSource(fakeSearchIDSource{
-		hits: []searchindex.OpenSearchHit{{MessageID: "msg-1", Score: rank}},
+		hits: []searchindex.OpenSearchHit{{
+			MessageID: "msg-1",
+			Score:     rank,
+			Highlights: searchindex.OpenSearchHighlights{
+				Subject: []string{"<mark>hello</mark>"},
+			},
+		}},
 	})
 
 	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
-		UserID:      "user-1",
-		Query:       "hello",
-		Limit:       10,
-		Sort:        maildb.MessageSearchSortRelevance,
-		IncludeRank: true,
+		UserID:            "user-1",
+		Query:             "hello",
+		Limit:             10,
+		Sort:              maildb.MessageSearchSortRelevance,
+		IncludeRank:       true,
+		IncludeHighlights: true,
 	})
 	if err != nil {
 		t.Fatalf("SearchMessages returned error: %v", err)
@@ -188,6 +195,9 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	}
 	if got[0].SearchRank == nil || *got[0].SearchRank != rank {
 		t.Fatalf("SearchRank = %#v, want %v", got[0].SearchRank, rank)
+	}
+	if got[0].SearchHighlights == nil || len(got[0].SearchHighlights.Subject) != 1 {
+		t.Fatalf("SearchHighlights = %#v", got[0].SearchHighlights)
 	}
 	if len(repo.lastHydrateIDs) != 1 || repo.lastHydrateIDs[0] != "msg-1" {
 		t.Fatalf("hydrated ids = %#v", repo.lastHydrateIDs)
@@ -203,10 +213,10 @@ func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *test
 	})
 
 	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
-		UserID:            "user-1",
-		Query:             "hello",
-		IncludeHighlights: true,
-		Sort:              maildb.MessageSearchSortRelevance,
+		UserID:   "user-1",
+		Query:    "hello",
+		FolderID: "folder-1",
+		Sort:     maildb.MessageSearchSortRelevance,
 	})
 	if err != nil {
 		t.Fatalf("SearchMessages returned error: %v", err)

@@ -23,7 +23,7 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"hits": {
 				"hits": [
-					{"_id":"msg-1","_score":1.5,"_source":{"message_id":"msg-1"}},
+					{"_id":"msg-1","_score":1.5,"_source":{"message_id":"msg-1"},"highlight":{"subject":["<mark>hello</mark>"],"body_text":["body <mark>hello</mark>"]}},
 					{"_id":"msg-2","_score":0.75,"_source":{"message_id":"msg-2"}}
 				]
 			}
@@ -41,12 +41,13 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	}
 
 	hits, err := searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{
-		UserID:        "user-1",
-		Query:         "hello",
-		From:          "sender@example.com",
-		Subject:       "hello",
-		HasAttachment: boolSearchPtr(true),
-		Limit:         2,
+		UserID:            "user-1",
+		Query:             "hello",
+		From:              "sender@example.com",
+		Subject:           "hello",
+		HasAttachment:     boolSearchPtr(true),
+		IncludeHighlights: true,
+		Limit:             2,
 	})
 	if err != nil {
 		t.Fatalf("SearchMessageIDs returned error: %v", err)
@@ -59,6 +60,12 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	}
 	if len(request["query"].(map[string]any)["bool"].(map[string]any)["must"].([]any)) < 4 {
 		t.Fatalf("request query did not include filters: %#v", request["query"])
+	}
+	if len(hits[0].Highlights.Subject) != 1 || len(hits[0].Highlights.Body) != 1 {
+		t.Fatalf("highlights = %#v", hits[0].Highlights)
+	}
+	if request["highlight"] == nil {
+		t.Fatalf("request did not include highlighter: %#v", request)
 	}
 }
 

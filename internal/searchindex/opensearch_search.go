@@ -13,17 +13,25 @@ import (
 )
 
 type OpenSearchSearchQuery struct {
-	UserID        string
-	Query         string
-	From          string
-	Subject       string
-	HasAttachment *bool
-	Limit         int
+	UserID            string
+	Query             string
+	From              string
+	Subject           string
+	HasAttachment     *bool
+	IncludeHighlights bool
+	Limit             int
 }
 
 type OpenSearchHit struct {
-	MessageID string
-	Score     float64
+	MessageID  string
+	Score      float64
+	Highlights OpenSearchHighlights
+}
+
+type OpenSearchHighlights struct {
+	Subject []string
+	From    []string
+	Body    []string
 }
 
 type OpenSearchSearcher struct {
@@ -85,6 +93,7 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 				Source struct {
 					MessageID string `json:"message_id"`
 				} `json:"_source"`
+				Highlight map[string][]string `json:"highlight"`
 			} `json:"hits"`
 		} `json:"hits"`
 	}
@@ -103,7 +112,11 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 		if messageID == "" {
 			continue
 		}
-		hits = append(hits, OpenSearchHit{MessageID: messageID, Score: hit.Score})
+		hits = append(hits, OpenSearchHit{
+			MessageID:  messageID,
+			Score:      hit.Score,
+			Highlights: openSearchHighlightsFromResponse(hit.Highlight),
+		})
 	}
 	return hits, nil
 }
@@ -136,7 +149,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 			"term": map[string]any{"has_attachment": *query.HasAttachment},
 		})
 	}
-	return map[string]any{
+	payload := map[string]any{
 		"size": limit,
 		"_source": []string{
 			"message_id",
@@ -146,5 +159,31 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 				"must": must,
 			},
 		},
+	}
+	if query.IncludeHighlights && strings.TrimSpace(query.Query) != "" {
+		payload["highlight"] = map[string]any{
+			"pre_tags":  []string{"<mark>"},
+			"post_tags": []string{"</mark>"},
+			"fields": map[string]any{
+				"subject":   map[string]any{"number_of_fragments": 2},
+				"from_name": map[string]any{"number_of_fragments": 1},
+				"from_addr": map[string]any{"number_of_fragments": 1},
+				"body_text": map[string]any{"number_of_fragments": 3, "fragment_size": 160},
+			},
+		}
+	}
+	return payload
+}
+
+func openSearchHighlightsFromResponse(values map[string][]string) OpenSearchHighlights {
+	if len(values) == 0 {
+		return OpenSearchHighlights{}
+	}
+	from := append([]string(nil), values["from_name"]...)
+	from = append(from, values["from_addr"]...)
+	return OpenSearchHighlights{
+		Subject: append([]string(nil), values["subject"]...),
+		From:    from,
+		Body:    append([]string(nil), values["body_text"]...),
 	}
 }

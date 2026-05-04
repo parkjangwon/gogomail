@@ -370,8 +370,9 @@ searches whose filters/highlights can be preserved; OpenSearch message IDs are
 hydrated through Postgres summaries before responses are returned. Indexed
 OpenSearch documents include parsed sender and attachment-presence fields for
 filter parity work, and OpenSearch relevance searches can apply from, subject,
-and attachment filters before hydration. Folder filters and highlight snippets
-still use the Postgres fallback path.
+and attachment filters before hydration. OpenSearch highlights map into the
+existing `search_highlights` response shape. Folder filters still use the
+Postgres fallback path.
 
 ## Deferred from this contract
 
