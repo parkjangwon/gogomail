@@ -878,6 +878,8 @@ type fakeRepository struct {
 	domainPolicy                   maildb.DomainPolicyView
 	sourceThread                   maildb.SourceThreadView
 	seenSuppressionRecipients      []string
+	lastDomainPolicyID             string
+	lastDomainPolicyUserID         string
 	lastDraft                      maildb.SaveDraftRequest
 	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
@@ -1169,14 +1171,16 @@ func (f *fakeRepository) SuppressedRecipients(_ context.Context, _ string, recip
 	return f.suppressed, nil
 }
 
-func (f *fakeRepository) DomainPolicy(context.Context, string) (maildb.DomainPolicyView, error) {
+func (f *fakeRepository) DomainPolicy(_ context.Context, domainID string) (maildb.DomainPolicyView, error) {
+	f.lastDomainPolicyID = domainID
 	if f.domainPolicy.DomainID == "" {
-		return maildb.DomainPolicyView{DomainID: "domain-1", InboundMode: "inherit", OutboundMode: "inherit"}, nil
+		return maildb.DomainPolicyView{DomainID: domainID, InboundMode: "inherit", OutboundMode: "inherit"}, nil
 	}
 	return f.domainPolicy, nil
 }
 
-func (f *fakeRepository) DomainPolicyForUser(context.Context, string) (maildb.DomainPolicyView, error) {
+func (f *fakeRepository) DomainPolicyForUser(_ context.Context, userID string) (maildb.DomainPolicyView, error) {
+	f.lastDomainPolicyUserID = userID
 	if f.domainPolicy.DomainID == "" {
 		return maildb.DomainPolicyView{DomainID: "domain-1", InboundMode: "inherit", OutboundMode: "inherit"}, nil
 	}
@@ -1648,6 +1652,24 @@ func TestCreateAttachmentUploadRejectsDomainAttachmentLimit(t *testing.T) {
 	}
 	if repo.lastAttachmentUpload.Filename != "" {
 		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
+	}
+	if repo.lastDomainPolicyUserID != "user-1" {
+		t.Fatalf("domain policy user = %q", repo.lastDomainPolicyUserID)
+	}
+}
+
+func TestDomainPolicyNormalizesDomainID(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	policy, err := service.domainPolicy(context.Background(), " domain-1 ")
+	if err != nil {
+		t.Fatalf("domainPolicy returned error: %v", err)
+	}
+	if policy.DomainID != "domain-1" || repo.lastDomainPolicyID != "domain-1" {
+		t.Fatalf("domain policy = %+v last id = %q", policy, repo.lastDomainPolicyID)
 	}
 }
 

@@ -106,6 +106,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext identity metadata before it can reach outbound SMTP command generation or RFC 3464 report composition.
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - Attachment upload storage paths reject absolute, parent-traversal, backslash, and newline forms, and generated attachment object paths sanitize path segments before writing to storage.
+- Domain policy service lookups trim domain and user identifiers before
+  repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
   storage, and repository work.

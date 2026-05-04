@@ -1124,6 +1124,7 @@ func (s *Service) sourceThread(ctx context.Context, req SendTextRequest) (maildb
 }
 
 func (s *Service) domainPolicy(ctx context.Context, domainID string) (maildb.DomainPolicyView, error) {
+	domainID = strings.TrimSpace(domainID)
 	repo, ok := s.repository.(DomainPolicyRepository)
 	if !ok {
 		return maildb.DomainPolicyView{DomainID: domainID, InboundMode: "inherit", OutboundMode: "inherit"}, nil
@@ -1136,6 +1137,7 @@ func (s *Service) enforceAttachmentPolicy(ctx context.Context, userID string, si
 	if !ok {
 		return nil
 	}
+	userID = strings.TrimSpace(userID)
 	policy, err := repo.DomainPolicyForUser(ctx, userID)
 	if err != nil {
 		return err
