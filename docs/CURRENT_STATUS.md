@@ -481,6 +481,8 @@ The platform hardening sprint completed the following:
   the HTTP boundary before retry/bounce inspection.
 - Admin API push-notification attempt and stats filters are trimmed at the HTTP
   boundary before device/provider troubleshooting queries.
+- OpenAPI drift tests now pin the push-device list `limit` query parameter so
+  generated clients keep pagination controls for device management.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
   error responses for size-cap failures.
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens
