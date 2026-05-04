@@ -423,6 +423,8 @@ The platform hardening sprint completed the following:
   the HTTP boundary before service dispatch.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
   error responses for size-cap failures.
+- Mail API JSON request handlers now reject trailing JSON tokens before service
+  dispatch.
 
 Next focus areas:
 
