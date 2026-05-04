@@ -528,6 +528,9 @@ API call metering can now emit durable usage events:
   `manifest_signature_verifier_unavailable`.
 - `GET /admin/v1/api-usage/export-batches/{id}/export` streams the saved
   manifest window as NDJSON, making export replay idempotent by batch ID.
+- API usage export batch, artifact, manifest-digest, and manifest-signature path
+  identifiers reject blank, CR/LF-bearing, or oversized values before service
+  dispatch.
 - `POST /admin/v1/api-usage/export-batches/{id}/artifacts` registers an
   external export artifact with `object_key`, `byte_count`, `sha256_hex`,
   `event_count`, and optional metadata; artifact rows are deduplicated per batch

@@ -730,6 +730,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportBatch"
@@ -745,6 +746,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - name: deep
           in: query
           required: false
@@ -767,6 +769,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -783,6 +786,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -798,6 +802,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
       requestBody:
         required: true
         content:
@@ -819,11 +824,13 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - name: artifact_id
           in: path
           required: true
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportArtifact"
@@ -839,6 +846,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
       requestBody:
         required: false
         content:
@@ -860,11 +868,13 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - name: artifact_id
           in: path
           required: true
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportArtifactDownload"
@@ -880,11 +890,13 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - name: artifact_id
           in: path
           required: true
           schema:
             type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportArtifactVerification"
@@ -900,6 +912,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -915,6 +928,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
       responses:
         "201":
           $ref: "#/components/responses/APIUsageExportManifestDigest"
@@ -930,6 +944,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/DigestID"
       responses:
         "200":
@@ -946,6 +961,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/DigestID"
       responses:
         "200":
@@ -962,6 +978,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/DigestID"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -978,6 +995,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/DigestID"
       responses:
         "201":
@@ -994,6 +1012,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/DigestID"
         - $ref: "#/components/parameters/SignatureID"
       responses:
@@ -1011,6 +1030,7 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 1024
         - $ref: "#/components/parameters/DigestID"
         - $ref: "#/components/parameters/SignatureID"
       responses:
@@ -2073,6 +2093,7 @@ components:
       required: true
       schema:
         type: string
+        maxLength: 1024
     AttachmentID:
       name: attachment_id
       in: path
@@ -2085,12 +2106,14 @@ components:
       required: true
       schema:
         type: string
+        maxLength: 1024
     SignatureID:
       name: signature_id
       in: path
       required: true
       schema:
         type: string
+        maxLength: 1024
     Limit:
       name: limit
       in: query

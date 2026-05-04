@@ -645,9 +645,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		batch, err := service.GetAPIUsageExportBatch(r.Context(), id)
@@ -659,9 +658,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		deep, ok := parseBoolQueryDefaultFalse(w, r, "deep")
@@ -677,9 +675,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -703,9 +700,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		var req maildb.CreateAPIUsageExportArtifactRequest
@@ -723,9 +719,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -742,9 +737,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts/write", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		var req maildb.WriteAPIUsageExportArtifactRequest
@@ -763,10 +757,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		artifactID := strings.TrimSpace(r.PathValue("artifact_id"))
-		if id == "" || artifactID == "" {
-			writeError(w, http.StatusBadRequest, "id and artifact_id are required")
+		id, artifactID, ok := parseBoundedAdminPathPair(w, r, "id", "artifact_id")
+		if !ok {
 			return
 		}
 		artifact, err := service.GetAPIUsageExportArtifact(r.Context(), id, artifactID)
@@ -778,10 +770,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		artifactID := strings.TrimSpace(r.PathValue("artifact_id"))
-		if id == "" || artifactID == "" {
-			writeError(w, http.StatusBadRequest, "id and artifact_id are required")
+		id, artifactID, ok := parseBoundedAdminPathPair(w, r, "id", "artifact_id")
+		if !ok {
 			return
 		}
 		artifact, body, err := service.OpenAPIUsageExportArtifact(r.Context(), id, artifactID)
@@ -801,10 +791,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		artifactID := strings.TrimSpace(r.PathValue("artifact_id"))
-		if id == "" || artifactID == "" {
-			writeError(w, http.StatusBadRequest, "id and artifact_id are required")
+		id, artifactID, ok := parseBoundedAdminPathPair(w, r, "id", "artifact_id")
+		if !ok {
 			return
 		}
 		verification, err := service.VerifyAPIUsageExportArtifact(r.Context(), id, artifactID)
@@ -816,9 +804,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		digest, err := service.CreateAPIUsageExportManifestDigest(r.Context(), id)
@@ -830,9 +817,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -848,10 +834,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		digestID := strings.TrimSpace(r.PathValue("digest_id"))
-		if id == "" || digestID == "" {
-			writeError(w, http.StatusBadRequest, "id and digest_id are required")
+		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
+		if !ok {
 			return
 		}
 		digest, err := service.GetAPIUsageExportManifestDigest(r.Context(), id, digestID)
@@ -863,10 +847,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		digestID := strings.TrimSpace(r.PathValue("digest_id"))
-		if id == "" || digestID == "" {
-			writeError(w, http.StatusBadRequest, "id and digest_id are required")
+		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
+		if !ok {
 			return
 		}
 		verification, err := service.VerifyAPIUsageExportManifestDigest(r.Context(), id, digestID)
@@ -878,10 +860,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		digestID := strings.TrimSpace(r.PathValue("digest_id"))
-		if id == "" || digestID == "" {
-			writeError(w, http.StatusBadRequest, "id and digest_id are required")
+		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
+		if !ok {
 			return
 		}
 		signature, err := service.CreateAPIUsageExportManifestSignature(r.Context(), id, digestID)
@@ -893,10 +873,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		digestID := strings.TrimSpace(r.PathValue("digest_id"))
-		if id == "" || digestID == "" {
-			writeError(w, http.StatusBadRequest, "id and digest_id are required")
+		id, digestID, ok := parseBoundedAdminPathPair(w, r, "id", "digest_id")
+		if !ok {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -912,11 +890,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		digestID := strings.TrimSpace(r.PathValue("digest_id"))
-		signatureID := strings.TrimSpace(r.PathValue("signature_id"))
-		if id == "" || digestID == "" || signatureID == "" {
-			writeError(w, http.StatusBadRequest, "id, digest_id, and signature_id are required")
+		id, digestID, signatureID, ok := parseBoundedAdminPathTriple(w, r, "id", "digest_id", "signature_id")
+		if !ok {
 			return
 		}
 		signature, err := service.GetAPIUsageExportManifestSignature(r.Context(), id, digestID, signatureID)
@@ -928,11 +903,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		digestID := strings.TrimSpace(r.PathValue("digest_id"))
-		signatureID := strings.TrimSpace(r.PathValue("signature_id"))
-		if id == "" || digestID == "" || signatureID == "" {
-			writeError(w, http.StatusBadRequest, "id, digest_id, and signature_id are required")
+		id, digestID, signatureID, ok := parseBoundedAdminPathTriple(w, r, "id", "digest_id", "signature_id")
+		if !ok {
 			return
 		}
 		verification, err := service.VerifyAPIUsageExportManifestSignature(r.Context(), id, digestID, signatureID)
@@ -1474,6 +1446,47 @@ func parseBoundedAdminQuery(w http.ResponseWriter, r *http.Request, key string) 
 		return "", false
 	}
 	return value, true
+}
+
+func parseBoundedAdminPathValue(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	value := strings.TrimSpace(r.PathValue(key))
+	if value == "" {
+		writeError(w, http.StatusBadRequest, key+" is required")
+		return "", false
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
+}
+
+func parseBoundedAdminPathPair(w http.ResponseWriter, r *http.Request, firstKey string, secondKey string) (string, string, bool) {
+	first, ok := parseBoundedAdminPathValue(w, r, firstKey)
+	if !ok {
+		return "", "", false
+	}
+	second, ok := parseBoundedAdminPathValue(w, r, secondKey)
+	if !ok {
+		return "", "", false
+	}
+	return first, second, true
+}
+
+func parseBoundedAdminPathTriple(w http.ResponseWriter, r *http.Request, firstKey string, secondKey string, thirdKey string) (string, string, string, bool) {
+	first, second, ok := parseBoundedAdminPathPair(w, r, firstKey, secondKey)
+	if !ok {
+		return "", "", "", false
+	}
+	third, ok := parseBoundedAdminPathValue(w, r, thirdKey)
+	if !ok {
+		return "", "", "", false
+	}
+	return first, second, third, true
 }
 
 func adminTokenFromRequest(r *http.Request) string {
