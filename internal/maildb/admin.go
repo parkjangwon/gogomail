@@ -274,6 +274,17 @@ type APIUsageExportManifestDigestView struct {
 	Manifest        json.RawMessage `json:"manifest"`
 }
 
+type APIUsageExportManifestDigestVerificationView struct {
+	BatchID           string          `json:"batch_id"`
+	DigestID          string          `json:"digest_id"`
+	SchemaVersion     string          `json:"schema_version"`
+	DigestAlgorithm   string          `json:"digest_algorithm"`
+	ExpectedDigestHex string          `json:"expected_digest_hex"`
+	ActualDigestHex   string          `json:"actual_digest_hex"`
+	Valid             bool            `json:"valid"`
+	CanonicalManifest json.RawMessage `json:"canonical_manifest"`
+}
+
 type CreateAPIUsageExportArtifactRequest struct {
 	BatchID        string          `json:"-"`
 	StorageBackend string          `json:"storage_backend"`
@@ -2571,6 +2582,31 @@ WHERE batch_id = $1
 		return APIUsageExportManifestDigestView{}, fmt.Errorf("get api usage export manifest digest: %w", err)
 	}
 	return digest, nil
+}
+
+func (r *Repository) VerifyAPIUsageExportManifestDigest(ctx context.Context, batchID string, digestID string) (APIUsageExportManifestDigestVerificationView, error) {
+	digest, err := r.GetAPIUsageExportManifestDigest(ctx, batchID, digestID)
+	if err != nil {
+		return APIUsageExportManifestDigestVerificationView{}, err
+	}
+	return apiUsageExportManifestDigestVerification(digest)
+}
+
+func apiUsageExportManifestDigestVerification(digest APIUsageExportManifestDigestView) (APIUsageExportManifestDigestVerificationView, error) {
+	actual, canonical, err := apimeter.DigestExportManifestJSON(digest.Manifest)
+	if err != nil {
+		return APIUsageExportManifestDigestVerificationView{}, err
+	}
+	return APIUsageExportManifestDigestVerificationView{
+		BatchID:           digest.BatchID,
+		DigestID:          digest.ID,
+		SchemaVersion:     digest.SchemaVersion,
+		DigestAlgorithm:   digest.DigestAlgorithm,
+		ExpectedDigestHex: digest.DigestHex,
+		ActualDigestHex:   actual,
+		Valid:             digest.DigestAlgorithm == "sha256" && digest.DigestHex == actual,
+		CanonicalManifest: canonical,
+	}, nil
 }
 
 func apiUsageExportManifest(batch APIUsageExportBatchView, artifacts []APIUsageExportArtifactView) apimeter.ExportManifest {
