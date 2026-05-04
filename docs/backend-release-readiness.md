@@ -282,6 +282,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API-usage export artifact creation/upsert now writes a hash-chain audit
   row in the same transaction as artifact persistence, keeping object key,
   byte/event counts, and SHA-256 digest evidence inspectable.
+- Admin API-usage export manifest digest and signature creation now write
+  hash-chain audit rows in the same transaction as the evidence rows, keeping
+  canonical digest and signer evidence inspectable without copying raw
+  manifests, metadata, or full signature material into audit detail.
 - Domain policy service lookups trim domain and user identifiers before
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize

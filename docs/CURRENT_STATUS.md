@@ -152,6 +152,10 @@ guidance.
   audit row in the same transaction as the artifact row, recording object key,
   storage backend, content type, byte/event counts, and SHA-256 digest without
   copying artifact metadata into the audit detail.
+- Admin API-usage export manifest digest and signature creation now persist
+  hash-chain audit rows in the same transaction as the evidence rows, recording
+  bounded digest/signature evidence without copying raw manifests, metadata, or
+  full signature material into audit detail.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

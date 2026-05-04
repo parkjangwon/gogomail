@@ -4555,6 +4555,11 @@ func (r *Repository) CreateAPIUsageExportManifestDigest(ctx context.Context, bat
 	if err != nil {
 		return APIUsageExportManifestDigestView{}, err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("begin api usage export manifest digest transaction: %w", err)
+	}
+	defer tx.Rollback()
 	const query = `
 INSERT INTO api_usage_export_manifest_digests (
   id,
@@ -4568,7 +4573,7 @@ ON CONFLICT (batch_id, digest_algorithm, digest_hex) DO UPDATE SET
   manifest = EXCLUDED.manifest
 RETURNING id, batch_id, created_at, schema_version, digest_algorithm, digest_hex, manifest`
 	var view APIUsageExportManifestDigestView
-	if err := r.db.QueryRowContext(ctx, query, id, batch.ID, manifest.SchemaVersion, digest, raw).Scan(
+	if err := tx.QueryRowContext(ctx, query, id, batch.ID, manifest.SchemaVersion, digest, raw).Scan(
 		&view.ID,
 		&view.BatchID,
 		&view.CreatedAt,
@@ -4579,7 +4584,40 @@ RETURNING id, batch_id, created_at, schema_version, digest_algorithm, digest_hex
 	); err != nil {
 		return APIUsageExportManifestDigestView{}, fmt.Errorf("create api usage export manifest digest: %w", err)
 	}
+	detail, err := apiUsageExportManifestDigestAuditDetail(view, len(manifest.Artifacts))
+	if err != nil {
+		return APIUsageExportManifestDigestView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "api_usage_export.manifest_digest_create",
+		TargetType: "api_usage_export_manifest_digest",
+		TargetID:   view.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("record api usage export manifest digest audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("commit api usage export manifest digest transaction: %w", err)
+	}
 	return view, nil
+}
+
+func apiUsageExportManifestDigestAuditDetail(digest APIUsageExportManifestDigestView, artifactCount int) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"digest_id":        digest.ID,
+		"batch_id":         digest.BatchID,
+		"schema_version":   digest.SchemaVersion,
+		"digest_algorithm": digest.DigestAlgorithm,
+		"digest_hex":       digest.DigestHex,
+		"manifest_bytes":   len(digest.Manifest),
+		"artifact_count":   artifactCount,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal api usage export manifest digest audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListAPIUsageExportManifestDigests(ctx context.Context, batchID string, limit int) ([]APIUsageExportManifestDigestView, error) {
@@ -4746,6 +4784,11 @@ func (r *Repository) CreateAPIUsageExportManifestSignature(ctx context.Context, 
 	if err != nil {
 		return APIUsageExportManifestSignatureView{}, err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("begin api usage export manifest signature transaction: %w", err)
+	}
+	defer tx.Rollback()
 	const query = `
 INSERT INTO api_usage_export_manifest_signatures (
   id,
@@ -4763,7 +4806,7 @@ ON CONFLICT (digest_id, signature_algorithm, key_id, signature_hex) DO UPDATE SE
 RETURNING id, digest_id, batch_id, created_at, signer_backend, key_id,
   signature_algorithm, signed_digest_hex, signature_hex, metadata`
 	var view APIUsageExportManifestSignatureView
-	if err := r.db.QueryRowContext(
+	if err := tx.QueryRowContext(
 		ctx,
 		query,
 		id,
@@ -4789,7 +4832,41 @@ RETURNING id, digest_id, batch_id, created_at, signer_backend, key_id,
 	); err != nil {
 		return APIUsageExportManifestSignatureView{}, fmt.Errorf("create api usage export manifest signature: %w", err)
 	}
+	detail, err := apiUsageExportManifestSignatureAuditDetail(view)
+	if err != nil {
+		return APIUsageExportManifestSignatureView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "api_usage_export.manifest_signature_create",
+		TargetType: "api_usage_export_manifest_signature",
+		TargetID:   view.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("record api usage export manifest signature audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return APIUsageExportManifestSignatureView{}, fmt.Errorf("commit api usage export manifest signature transaction: %w", err)
+	}
 	return view, nil
+}
+
+func apiUsageExportManifestSignatureAuditDetail(signature APIUsageExportManifestSignatureView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"signature_id":        signature.ID,
+		"digest_id":           signature.DigestID,
+		"batch_id":            signature.BatchID,
+		"signer_backend":      signature.SignerBackend,
+		"key_id":              signature.KeyID,
+		"signature_algorithm": signature.SignatureAlgorithm,
+		"signed_digest_hex":   signature.SignedDigestHex,
+		"signature_hex_len":   len(signature.SignatureHex),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal api usage export manifest signature audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListAPIUsageExportManifestSignatures(ctx context.Context, batchID string, digestID string, limit int) ([]APIUsageExportManifestSignatureView, error) {
