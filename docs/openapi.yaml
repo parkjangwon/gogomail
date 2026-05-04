@@ -1342,7 +1342,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
-        $ref: "#/components/requestBodies/QuotaUpdate"
+        $ref: "#/components/requestBodies/CompanyQuotaUpdate"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
@@ -1438,7 +1438,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
-        $ref: "#/components/requestBodies/QuotaUpdate"
+        $ref: "#/components/requestBodies/DomainQuotaUpdate"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
@@ -1513,7 +1513,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
-        $ref: "#/components/requestBodies/QuotaUpdate"
+        $ref: "#/components/requestBodies/UserQuotaUpdate"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
@@ -2092,12 +2092,24 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/StatusUpdateRequest"
-    QuotaUpdate:
+    CompanyQuotaUpdate:
       required: true
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/QuotaUpdateRequest"
+            $ref: "#/components/schemas/CompanyQuotaUpdateRequest"
+    DomainQuotaUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainQuotaUpdateRequest"
+    UserQuotaUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UserQuotaUpdateRequest"
     DomainPolicyUpdate:
       required: true
       content:
@@ -4526,7 +4538,7 @@ components:
         status:
           type: string
           enum: [active, suspended, disabled]
-    QuotaUpdateRequest:
+    CompanyQuotaUpdateRequest:
       type: object
       required: [quota_limit]
       properties:
@@ -4534,6 +4546,31 @@ components:
           type: integer
           format: int64
           minimum: 0
+    DomainQuotaUpdateRequest:
+      type: object
+      required: [quota_limit]
+      properties:
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        default_user_quota:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Optional new default quota for users that still follow the domain default.
+    UserQuotaUpdateRequest:
+      type: object
+      required: [quota_limit]
+      properties:
+        quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_source:
+          type: string
+          enum: [default, custom]
+          description: Optional source marker. Use default to follow the domain default, or custom for an explicit user quota.
     DomainPolicyUpdateRequest:
       type: object
       required: [inbound_mode, outbound_mode]
