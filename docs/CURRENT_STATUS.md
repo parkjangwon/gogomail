@@ -96,6 +96,8 @@ guidance.
   touching SMTP hot paths or committing to FCM/APNs SDKs.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` for inspecting
   push notification candidate fan-out by status or user.
+- Admin API exposes `GET /admin/v1/push-notification-stats` for a compact
+  active-device and attempt-status summary.
 - Push notification sinks receive the persisted candidate attempt id with each
   target, preparing clean vendor outcome updates later.
 - `internal/pushnotify` can update attempt outcomes to queued, delivered,

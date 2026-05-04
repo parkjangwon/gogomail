@@ -207,6 +207,16 @@ type PushNotificationAttemptListRequest struct {
 	UserID string
 }
 
+type PushNotificationStatsView struct {
+	ActiveDevices int64 `json:"active_devices"`
+	TotalAttempts int64 `json:"total_attempts"`
+	Candidate     int64 `json:"candidate"`
+	Queued        int64 `json:"queued"`
+	Delivered     int64 `json:"delivered"`
+	Failed        int64 `json:"failed"`
+	InvalidToken  int64 `json:"invalid_token"`
+}
+
 type SuppressionEntry struct {
 	ID              string    `json:"id"`
 	DomainID        string    `json:"domain_id"`
@@ -1998,6 +2008,37 @@ func allowedPushNotificationAttemptStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func (r *Repository) GetPushNotificationStats(ctx context.Context) (PushNotificationStatsView, error) {
+	if r.db == nil {
+		return PushNotificationStatsView{}, fmt.Errorf("database handle is required")
+	}
+
+	const query = `
+SELECT
+  COALESCE((SELECT COUNT(*) FROM push_devices WHERE status = 'active'), 0),
+  COALESCE(COUNT(*), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'candidate'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'queued'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'delivered'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'failed'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'invalid_token'), 0)
+FROM push_notification_attempts`
+
+	var stats PushNotificationStatsView
+	if err := r.db.QueryRowContext(ctx, query).Scan(
+		&stats.ActiveDevices,
+		&stats.TotalAttempts,
+		&stats.Candidate,
+		&stats.Queued,
+		&stats.Delivered,
+		&stats.Failed,
+		&stats.InvalidToken,
+	); err != nil {
+		return PushNotificationStatsView{}, fmt.Errorf("get push notification stats: %w", err)
+	}
+	return stats, nil
 }
 
 func (r *Repository) ListSuppressionEntries(ctx context.Context, limit int) ([]SuppressionEntry, error) {
