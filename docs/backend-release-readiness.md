@@ -41,8 +41,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Repository support can expire stale resumable upload sessions in bounded
   batches and release declared quota reservations.
 - `mailservice` wraps resumable upload session create/cancel/expire operations,
-  preserving validation and domain attachment policy enforcement before future
-  HTTP wiring.
+  preserving validation and domain attachment policy enforcement.
+- Mail API exposes upload session create/cancel endpoints while keeping
+  `resumable_chunked_uploads=false` until chunk receive and finalize routes are
+  implemented.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   including stale resumable session expiry, optional run-once execution for

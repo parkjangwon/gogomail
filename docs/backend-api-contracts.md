@@ -176,9 +176,13 @@ upload cancellation, declared-size requirements, quota reservation semantics,
 and the fact that resumable/chunked uploads are not yet supported.
 OpenAPI documents the current maximum attachment and filename byte caps so
 generated clients can validate these limits without copying hidden constants.
-Resumable/chunked upload contracts will follow ADR 0007 and remain disabled in
-capabilities until explicit upload sessions, adapter-owned staged chunks,
-finalization, cancellation, and cleanup are implemented.
+Resumable/chunked upload contracts follow ADR 0007 and remain disabled in
+capabilities until adapter-owned staged chunks and finalization are implemented.
+The Mail API exposes the first session lifecycle endpoints,
+`POST /api/v1/attachments/upload-sessions` and
+`DELETE /api/v1/attachments/upload-sessions/{id}`, for quota-reserving session
+creation and user-scoped cancellation; chunk upload/finalization routes are not
+yet exposed, so `resumable_chunked_uploads` remains `false`.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

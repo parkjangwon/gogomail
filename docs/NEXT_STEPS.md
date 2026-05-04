@@ -280,13 +280,15 @@ Current state:
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments, and now expires stale resumable upload sessions in the same
   bounded sweep.
+- Mail API exposes upload session create/cancel endpoints, reserving declared
+  quota for future resumable workflows without yet advertising chunk support.
 - Admin API can preview counts, list bounded candidates, and run stale upload
   cleanup on demand with an explicit non-future cutoff for operator-controlled
   maintenance.
 
 Next:
 
-- Add the Mail API session contract described by ADR 0007 on top of
+- Add chunk receive/finalize contracts described by ADR 0007 on top of
   `attachment_upload_sessions`.
 
 ### 6. OpenAPI/client readiness
