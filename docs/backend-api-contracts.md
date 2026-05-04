@@ -204,6 +204,8 @@ boundary before service dispatch, keeping user-facing routes tolerant of
 incidental whitespace without storing whitespace-padded resource IDs. Attachment
 reservation and direct-upload `draft_id` values reject CR/LF-bearing or
 oversized identifiers before quota reservation or object writes.
+Upload session body storage uses the same HTTP 413 `payload_too_large` envelope
+when the raw body exceeds the attachment upload size cap.
 
 Authenticated operators can run stale attachment cleanup on demand with
 `POST /admin/v1/attachment-cleanup/runs`. The JSON body requires an explicit

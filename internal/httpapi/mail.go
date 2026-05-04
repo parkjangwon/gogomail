@@ -1191,5 +1191,10 @@ func writeMailServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusInsufficientStorage, err.Error())
 		return
 	}
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		writeError(w, http.StatusRequestEntityTooLarge, "attachment upload request is too large")
+		return
+	}
 	writeError(w, http.StatusBadRequest, err.Error())
 }

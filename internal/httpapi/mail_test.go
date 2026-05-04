@@ -1125,6 +1125,25 @@ func TestStoreAttachmentUploadSessionBodyHandler(t *testing.T) {
 	}
 }
 
+func TestStoreAttachmentUploadSessionBodyHandlerRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", bytes.NewReader(bytes.Repeat([]byte("x"), int(mailservice.MaxAttachmentUploadBytes+2))))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"code":"payload_too_large"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestFinalizeAttachmentUploadSessionHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2008,7 +2027,10 @@ func (f *fakeMessageService) GetAttachmentUploadSession(_ context.Context, userI
 func (f *fakeMessageService) StoreAttachmentUploadSessionBody(_ context.Context, req mailservice.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
 	f.lastUserID = req.UserID
 	f.lastStoreUploadSessionID = req.SessionID
-	raw, _ := io.ReadAll(req.Body)
+	raw, err := io.ReadAll(req.Body)
+	if err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
 	f.lastUploadSessionBody = string(raw)
 	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: int64(len(raw)), Status: "uploading"}, nil
 }
