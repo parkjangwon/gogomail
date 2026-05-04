@@ -101,6 +101,12 @@ Search query, folder, sender, and subject filters are whitespace-normalized and
 reject CR/LF-bearing or oversized values before either Postgres or OpenSearch
 dispatch.
 
+## Folders
+
+User-created folder names reject blank, path-bearing, CR/LF-bearing, or
+oversized values. Folder rename/delete identifiers are whitespace-normalized and
+reject blank, CR/LF-bearing, or oversized IDs before repository dispatch.
+
 ## Mailbox bulk actions
 
 Bulk mailbox mutations are bounded to 500 unique message IDs per request and only affect active messages owned by the authenticated user.

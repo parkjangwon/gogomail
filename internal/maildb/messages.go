@@ -84,6 +84,7 @@ type BulkMessageDeleteRequest struct {
 }
 
 const maxMailboxResourceIDBytes = 200
+const maxFolderNameBytes = 200
 
 func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
@@ -170,11 +171,8 @@ func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) 
 		return Folder{}, fmt.Errorf("database handle is required")
 	}
 	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return Folder{}, fmt.Errorf("folder name is required")
-	}
-	if strings.ContainsAny(name, `/\`) {
-		return Folder{}, fmt.Errorf("folder name must not contain path separators")
+	if err := validateFolderName(name); err != nil {
+		return Folder{}, err
 	}
 
 	const query = `
@@ -202,11 +200,8 @@ func (r *Repository) RenameFolder(ctx context.Context, userID string, folderID s
 		return Folder{}, fmt.Errorf("database handle is required")
 	}
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return Folder{}, fmt.Errorf("folder name is required")
-	}
-	if strings.ContainsAny(name, `/\`) {
-		return Folder{}, fmt.Errorf("folder name must not contain path separators")
+	if err := validateFolderName(name); err != nil {
+		return Folder{}, err
 	}
 
 	const query = `
@@ -234,6 +229,23 @@ RETURNING id::text, COALESCE(parent_id::text, ''), name, full_path, type, COALES
 		return Folder{}, fmt.Errorf("rename folder: %w", err)
 	}
 	return folder, nil
+}
+
+func validateFolderName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("folder name is required")
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("folder name must not contain path separators")
+	}
+	if strings.ContainsAny(name, "\r\n") {
+		return fmt.Errorf("folder name must not contain CR or LF")
+	}
+	if len(name) > maxFolderNameBytes {
+		return fmt.Errorf("folder name is too long")
+	}
+	return nil
 }
 
 func (r *Repository) DeleteFolder(ctx context.Context, userID string, folderID string) error {

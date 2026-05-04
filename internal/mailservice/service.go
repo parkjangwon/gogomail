@@ -122,12 +122,18 @@ func (s *Service) RenameFolder(ctx context.Context, userID string, folderID stri
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
 	name = strings.TrimSpace(name)
+	if err := validateServiceResourceID("folder_id", folderID); err != nil {
+		return maildb.Folder{}, err
+	}
 	return s.repository.RenameFolder(ctx, userID, folderID, name)
 }
 
 func (s *Service) DeleteFolder(ctx context.Context, userID string, folderID string) error {
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
+	if err := validateServiceResourceID("folder_id", folderID); err != nil {
+		return err
+	}
 	return s.repository.DeleteFolder(ctx, userID, folderID)
 }
 

@@ -526,7 +526,10 @@ The platform hardening sprint completed the following:
   event fan-out; bulk message and folder identifiers reject CR/LF and oversized
   values before database query construction.
 - Folder, message-list, thread-list, and message-detail service reads trim
-  user, folder, thread, message, and folder-name inputs before repository work.
+  user, folder, thread, message, and folder-name inputs before repository work;
+  user folder create/rename rejects blank, path-bearing, CR/LF-bearing, or
+  oversized names, and rename/delete reject unsafe folder identifiers before
+  repository dispatch.
 - Message, thread, and push-device list service methods normalize list limits
   to the documented message-list bounds before repository work.
 - IMAP service methods trim user/mailbox identifiers and normalize list/backfill
