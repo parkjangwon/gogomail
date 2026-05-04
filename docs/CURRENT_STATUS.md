@@ -266,6 +266,8 @@ guidance.
   CR/LF-bearing event names before worker dispatch.
 - Redis stream event decoding trims outbox id, partition key, and payload
   fields and rejects blank metadata before handler dispatch.
+- Redis outbox publishing trims event id, topic, partition key, and payload
+  metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - Admin API exposes a bounded IMAP mailbox UID backfill endpoint for future
   IMAP bootstrap/operator runs without enabling an IMAP protocol listener.
 - Push notification workers no longer redeliver a Redis event solely because

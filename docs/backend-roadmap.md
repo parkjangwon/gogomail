@@ -482,6 +482,7 @@ Implementation order:
 423. Event routing now trims registered and payload event names and rejects CR/LF-bearing event names before worker dispatch.
 424. Redis stream event decoding now trims outbox id, partition key, and payload fields and rejects blank metadata before handler dispatch.
 425. Delivery outcome and exhausted outbox event payloads now trim message, tenant, farm, sender, recipient, error, and DSN metadata before event persistence.
+426. Redis outbox publishing now trims event id, topic, partition key, and payload metadata and rejects invalid topics or non-JSON payloads before stream writes.
 
 ## Deferred until backend contracts stabilize
 
