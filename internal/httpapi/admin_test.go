@@ -100,7 +100,7 @@ func TestAdminOutboxEventsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?limit=10&topic=mail.event&partition_key=msg-1&status=pending&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/outbox-events?limit=10&topic=%20mail.event%20&partition_key=%20msg-1%20&status=%20pending%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 

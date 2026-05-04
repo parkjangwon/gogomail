@@ -449,6 +449,8 @@ The platform hardening sprint completed the following:
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.
+- Admin API outbox event topic, partition key, and status filters are trimmed
+  at the HTTP boundary before operational queue inspection.
 - OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
   error responses for size-cap failures.
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens
