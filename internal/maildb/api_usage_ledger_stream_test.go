@@ -2,6 +2,7 @@ package maildb
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,30 @@ func TestRunAPIUsageLedgerRetentionRejectsNilDatabase(t *testing.T) {
 	view, err := (&Repository{}).RunAPIUsageLedgerRetention(context.Background(), APIUsageLedgerRetentionRunRequest{})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("view = %+v err = %v", view, err)
+	}
+}
+
+func TestAPIUsageLedgerRetentionRejectsFutureCutoff(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("pgx", "postgres://gogomail.invalid/gogomail")
+	if err != nil {
+		t.Fatalf("open db handle: %v", err)
+	}
+	defer db.Close()
+	repo := NewRepository(db)
+	future := time.Now().UTC().Add(time.Hour)
+	readiness, err := repo.GetAPIUsageLedgerRetentionReadiness(context.Background(), APIUsageLedgerRetentionRequest{Cutoff: future})
+	if err == nil || !strings.Contains(err.Error(), "cutoff must not be in the future") {
+		t.Fatalf("readiness = %+v err = %v", readiness, err)
+	}
+	run, err := repo.RunAPIUsageLedgerRetention(context.Background(), APIUsageLedgerRetentionRunRequest{
+		Cutoff:       future,
+		DryRun:       true,
+		ConfirmReady: false,
+	})
+	if err == nil || !strings.Contains(err.Error(), "cutoff must not be in the future") {
+		t.Fatalf("run = %+v err = %v", run, err)
 	}
 }
 

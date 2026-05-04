@@ -624,6 +624,7 @@ Implementation order:
 564. `api-usage-retention-worker` now runs bounded API usage ledger retention on an interval or once-and-exit, dry-run by default and guarded by the existing readiness/confirm gates.
 565. Destructive `api-usage-retention-worker` configuration now requires a production-oriented `remote-ed25519` export manifest signer backend in addition to explicit `confirm_ready`.
 566. API usage export capabilities now advertise bounded retention-run support, retention-worker support, and the remote-key requirement for destructive worker purges.
+567. API usage ledger retention now rejects future cutoffs inside the repository boundary, aligning worker/direct-call behavior with the Admin API future-cutoff guard.
 
 ## Deferred until backend contracts stabilize
 

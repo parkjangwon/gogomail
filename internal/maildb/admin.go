@@ -2618,6 +2618,9 @@ func (r *Repository) GetAPIUsageLedgerRetentionReadiness(ctx context.Context, re
 		return APIUsageLedgerRetentionReadinessView{}, fmt.Errorf("cutoff is required")
 	}
 	req.Cutoff = req.Cutoff.UTC()
+	if req.Cutoff.After(time.Now().UTC()) {
+		return APIUsageLedgerRetentionReadinessView{}, fmt.Errorf("cutoff must not be in the future")
+	}
 
 	view := APIUsageLedgerRetentionReadinessView{
 		Cutoff:      req.Cutoff,
@@ -2703,13 +2706,16 @@ func (r *Repository) RunAPIUsageLedgerRetention(ctx context.Context, req APIUsag
 	if req.Cutoff.IsZero() {
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("cutoff is required")
 	}
+	req.Cutoff = req.Cutoff.UTC()
+	if req.Cutoff.After(time.Now().UTC()) {
+		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("cutoff must not be in the future")
+	}
 	if req.Limit < 0 {
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("limit must not be negative")
 	}
 	if !req.DryRun && !req.ConfirmReady {
 		return APIUsageLedgerRetentionRunView{}, fmt.Errorf("confirm_ready is required for destructive retention runs")
 	}
-	req.Cutoff = req.Cutoff.UTC()
 	limit := NormalizeAPIUsageLedgerRetentionLimit(req.Limit)
 	id, err := newAPIUsageLedgerRetentionRunID()
 	if err != nil {
