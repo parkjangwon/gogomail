@@ -695,6 +695,13 @@ type DeliveryRouteView struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type DeliveryRouteListRequest struct {
+	Limit         int
+	Status        string
+	Farm          string
+	DomainPattern string
+}
+
 type DeliveryRouteResolveView struct {
 	Domain  string             `json:"domain"`
 	Matched bool               `json:"matched"`
@@ -1089,11 +1096,34 @@ func ValidateUpdateDeliveryRouteStatusRequest(req UpdateDeliveryRouteStatusReque
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("delivery route id is required")
 	}
-	switch strings.ToLower(strings.TrimSpace(req.Status)) {
-	case "active", "disabled":
-		return nil
-	default:
+	if !isDeliveryRouteStatus(strings.ToLower(strings.TrimSpace(req.Status))) {
 		return fmt.Errorf("unsupported delivery route status %q", req.Status)
+	}
+	return nil
+}
+
+func ValidateDeliveryRouteListRequest(req DeliveryRouteListRequest) error {
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status != "" && !isDeliveryRouteStatus(status) {
+		return fmt.Errorf("unsupported delivery route status %q", req.Status)
+	}
+	for field, value := range map[string]string{
+		"farm":           req.Farm,
+		"domain_pattern": req.DomainPattern,
+	} {
+		if err := validatePushNotificationFilter(field, strings.TrimSpace(value)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isDeliveryRouteStatus(status string) bool {
+	switch status {
+	case "active", "disabled":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -4924,11 +4954,15 @@ func (r *Repository) DeleteTrustedRelay(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *Repository) ListDeliveryRoutes(ctx context.Context, limit int) ([]DeliveryRouteView, error) {
+func (r *Repository) ListDeliveryRoutes(ctx context.Context, req DeliveryRouteListRequest) ([]DeliveryRouteView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateDeliveryRouteListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
+	status := strings.ToLower(strings.TrimSpace(req.Status))
 
 	const query = `
 SELECT
@@ -4948,10 +4982,13 @@ SELECT
   created_at,
   updated_at
 FROM delivery_routes
+WHERE ($1 = '' OR status = $1)
+  AND ($2 = '' OR farm = $2)
+  AND ($3 = '' OR domain_pattern = $3)
 ORDER BY created_at DESC
-LIMIT $1`
+LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, status, strings.TrimSpace(req.Farm), strings.TrimSpace(req.DomainPattern), limit)
 	if err != nil {
 		return nil, fmt.Errorf("list delivery routes: %w", err)
 	}

@@ -636,6 +636,7 @@ Implementation order:
 576. Admin suppression-list reads now support bounded domain, email, and reason filters, letting operators triage bounce suppression state without direct database queries.
 577. Outbound SMTP now fails closed for internationalized envelope addresses when a remote MTA does not advertise SMTPUTF8, preventing accidental RFC 6531 option leakage to non-EAI peers.
 578. Admin domain listing now supports company, lifecycle status, and latest DNS-status filters, letting operators triage tenant onboarding and suspended domains without client-side full-list scans.
+579. Admin delivery-route listing now supports status, farm, and domain-pattern filters, making route audits and incident triage possible without client-side full-list scans.
 
 ## Deferred until backend contracts stabilize
 

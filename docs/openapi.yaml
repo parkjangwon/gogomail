@@ -1629,6 +1629,21 @@ paths:
       summary: Admin delivery gateway and smart-host route list
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, disabled]
+        - name: farm
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: domain_pattern
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/DeliveryRouteList"

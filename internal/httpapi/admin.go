@@ -99,7 +99,7 @@ type AdminService interface {
 	ListTrustedRelays(ctx context.Context, limit int) ([]maildb.TrustedRelayView, error)
 	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
 	DeleteTrustedRelay(ctx context.Context, id string) error
-	ListDeliveryRoutes(ctx context.Context, limit int) ([]maildb.DeliveryRouteView, error)
+	ListDeliveryRoutes(ctx context.Context, req maildb.DeliveryRouteListRequest) ([]maildb.DeliveryRouteView, error)
 	CreateDeliveryRoute(ctx context.Context, req maildb.CreateDeliveryRouteRequest) (maildb.DeliveryRouteView, error)
 	ResolveDeliveryRoute(ctx context.Context, domain string) (maildb.DeliveryRouteResolveView, error)
 	UpdateDeliveryRouteStatus(ctx context.Context, req maildb.UpdateDeliveryRouteStatusRequest) error
@@ -1544,7 +1544,29 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		routes, err := service.ListDeliveryRoutes(r.Context(), limit)
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		farm, ok := parseBoundedAdminQuery(w, r, "farm")
+		if !ok {
+			return
+		}
+		domainPattern, ok := parseBoundedAdminQuery(w, r, "domain_pattern")
+		if !ok {
+			return
+		}
+		listReq := maildb.DeliveryRouteListRequest{
+			Limit:         limit,
+			Status:        status,
+			Farm:          farm,
+			DomainPattern: domainPattern,
+		}
+		if err := maildb.ValidateDeliveryRouteListRequest(listReq); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		routes, err := service.ListDeliveryRoutes(r.Context(), listReq)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
