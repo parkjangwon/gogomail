@@ -206,6 +206,14 @@ type APIUsageLedgerView struct {
 	Payload       json.RawMessage `json:"payload"`
 }
 
+type APIUsageLedgerListRequest struct {
+	Limit       int
+	TenantID    string
+	PrincipalID string
+	From        time.Time
+	To          time.Time
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
@@ -1867,13 +1875,13 @@ LIMIT $1`
 	return usages, nil
 }
 
-func (r *Repository) ListAPIUsageLedger(ctx context.Context, limit int) ([]APIUsageLedgerView, error) {
+func (r *Repository) ListAPIUsageLedger(ctx context.Context, req APIUsageLedgerListRequest) ([]APIUsageLedgerView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	limit := normalizeLimit(req.Limit)
 
-	const query = `
+	query := `
 SELECT
   event_id,
   schema_version,
@@ -1894,11 +1902,34 @@ SELECT
   response_bytes,
   latency_ms,
   payload
-FROM api_usage_ledger
+FROM api_usage_ledger`
+	var conditions []string
+	var args []any
+	if tenantID := strings.TrimSpace(req.TenantID); tenantID != "" {
+		args = append(args, tenantID)
+		conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", len(args)))
+	}
+	if principalID := strings.TrimSpace(req.PrincipalID); principalID != "" {
+		args = append(args, principalID)
+		conditions = append(conditions, fmt.Sprintf("principal_id = $%d", len(args)))
+	}
+	if !req.From.IsZero() {
+		args = append(args, req.From.UTC())
+		conditions = append(conditions, fmt.Sprintf("event_timestamp >= $%d", len(args)))
+	}
+	if !req.To.IsZero() {
+		args = append(args, req.To.UTC())
+		conditions = append(conditions, fmt.Sprintf("event_timestamp < $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	args = append(args, limit)
+	query += fmt.Sprintf(`
 ORDER BY event_timestamp DESC, event_id DESC
-LIMIT $1`
+LIMIT $%d`, len(args))
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage ledger: %w", err)
 	}

@@ -255,7 +255,7 @@ func TestAdminAPIUsageLedgerHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger?limit=5&tenant_id=tenant-1&principal_id=principal-1&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -276,6 +276,27 @@ func TestAdminAPIUsageLedgerHandler(t *testing.T) {
 	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+	if service.lastAPIUsageLedgerList.TenantID != "tenant-1" || service.lastAPIUsageLedgerList.PrincipalID != "principal-1" {
+		t.Fatalf("lastAPIUsageLedgerList = %+v", service.lastAPIUsageLedgerList)
+	}
+	if service.lastAPIUsageLedgerList.From.IsZero() || service.lastAPIUsageLedgerList.To.IsZero() {
+		t.Fatalf("lastAPIUsageLedgerList timestamps = %+v", service.lastAPIUsageLedgerList)
+	}
+}
+
+func TestAdminAPIUsageLedgerRejectsInvalidTimeRange(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger?from=2026-05-05T00:00:00Z&to=2026-05-04T00:00:00Z", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -1322,6 +1343,7 @@ type fakeAdminService struct {
 	lastUserStatus                 maildb.UpdateUserStatusRequest
 	lastUserQuota                  maildb.UpdateUserQuotaRequest
 	lastQuotaCorrection            maildb.CorrectQuotaReconciliationRequest
+	lastAPIUsageLedgerList         maildb.APIUsageLedgerListRequest
 	lastPushAttemptList            maildb.PushNotificationAttemptListRequest
 	lastCreateUser                 maildb.CreateUserRequest
 	lastCreateDKIMKey              maildb.CreateDKIMKeyInput
@@ -1477,8 +1499,9 @@ func (f *fakeAdminService) ListAPIUsageMonthly(_ context.Context, limit int) ([]
 	return f.apiUsageMonthly, nil
 }
 
-func (f *fakeAdminService) ListAPIUsageLedger(_ context.Context, limit int) ([]maildb.APIUsageLedgerView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListAPIUsageLedger(_ context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error) {
+	f.lastLimit = req.Limit
+	f.lastAPIUsageLedgerList = req
 	return f.apiUsageLedger, nil
 }
 
