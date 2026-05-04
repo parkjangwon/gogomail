@@ -90,9 +90,10 @@ guidance.
   and monthly aggregates, and exposes `GET /admin/v1/api-usage/daily` plus
   `GET /admin/v1/api-usage/monthly` for operations.
 - Push notification enqueue now has an async worker boundary:
-  `push-notification-worker` consumes `mail.stored` events and can emit
-  disabled-by-default `slog` notification candidates without touching SMTP hot
-  paths or committing to FCM/APNs SDKs.
+  `push-notification-worker` consumes `mail.stored` events, resolves active
+  user devices from PostgreSQL, and can emit disabled-by-default `slog`
+  notification candidates without touching SMTP hot paths or committing to
+  FCM/APNs SDKs.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
@@ -162,7 +163,8 @@ The platform hardening sprint completed the following:
 - IMAP gateway planning: native backend interfaces and RFC-shaped flag/mailbox
   helpers exist without starting a TCP protocol server.
 - Push notification worker boundary: `mail.stored` can be consumed by a
-  dedicated notification worker with a replaceable sink.
+  dedicated notification worker with a replaceable sink and a bounded Postgres
+  device-target resolver.
 - Push notification device storage: authenticated users can register, list, and
   delete active device tokens through the Mail API while responses expose only a
   short token suffix.

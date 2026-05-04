@@ -51,6 +51,7 @@ type Config struct {
 	BackpressureBackend          string
 	MetricsBackend               string
 	PushNotifyBackend            string
+	PushNotifyDeviceLimit        int
 	PushNotifyConsumerGroup      string
 	PushNotifyConsumerName       string
 	PushNotifyConsumerCount      int
@@ -152,6 +153,7 @@ func Load() Config {
 		BackpressureBackend:          envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:               envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
 		PushNotifyBackend:            envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
+		PushNotifyDeviceLimit:        intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", 200),
 		PushNotifyConsumerGroup:      envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_GROUP", "gogomail.push-notification-worker"),
 		PushNotifyConsumerName:       envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", "push-notification-worker-1"),
 		PushNotifyConsumerCount:      intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT", 50),
