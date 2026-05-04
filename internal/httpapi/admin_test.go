@@ -2263,6 +2263,31 @@ func TestAdminDeliveryAttemptsHandlerRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestAdminDeliveryAttemptsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/delivery-attempts?status=failed%0Abad",
+		"/admin/v1/delivery-attempts?recipient_domain=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDeliveryAttemptList.Limit != 0 {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDeliveryAttemptList)
+		}
+	}
+}
+
 func TestAdminDeliveryAttemptStatsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2337,6 +2362,31 @@ func TestAdminDeliveryAttemptStatsHandlerRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestAdminDeliveryAttemptStatsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/delivery-attempts/stats?status=failed%0Dbad",
+		"/admin/v1/delivery-attempts/stats?recipient_domain=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDeliveryAttemptStats.Status != "" || service.lastDeliveryAttemptStats.RecipientDomain != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDeliveryAttemptStats)
+		}
+	}
+}
+
 func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2367,6 +2417,25 @@ func TestAdminExhaustedAttemptsHandler(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"enhanced_status":"4.0.0"`) {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminExhaustedAttemptsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/delivery-attempts/exhausted?recipient_domain=example.net%0Abad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastExhaustedAttemptList.RecipientDomain != "" {
+		t.Fatalf("dispatched request %+v", service.lastExhaustedAttemptList)
 	}
 }
 
