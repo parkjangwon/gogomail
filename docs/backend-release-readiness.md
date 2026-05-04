@@ -471,6 +471,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail/Admin scalar query parameters reject duplicate values before dispatch,
   preventing HTTP parameter pollution ambiguity for user IDs, limits, boolean
   flags, timestamps, and operational filters.
+- Mail API read/search/list routes reject unknown query parameter names before
+  dispatch, making generated-client typos visible as HTTP 400 responses.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.
 - `docs/smtp-release-runbook.md` now records operator-facing SMTP soak, STARTTLS, SMTPS, trusted relay, and outbound DSN/bounce smoke procedures.
 - `docs/api-usage-export-runbook.md` records the operator-facing API usage export, deep handoff verification, signer capability, and retention-readiness sequence.

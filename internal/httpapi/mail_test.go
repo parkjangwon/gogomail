@@ -134,6 +134,80 @@ func TestMailHandlersRejectDuplicateScalarQuery(t *testing.T) {
 	}
 }
 
+func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		path       string
+		dispatched func(*fakeMessageService) bool
+	}{
+		{
+			name: "folders",
+			path: "/api/v1/folders?user_id=user-1&typo=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name: "messages",
+			path: "/api/v1/messages?user_id=user-1&folder_id=folder-1&unexpected=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name: "search",
+			path: "/api/v1/search?user_id=user-1&q=hello&includeRanks=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastSearch.UserID != ""
+			},
+		},
+		{
+			name: "threads",
+			path: "/api/v1/threads?user_id=user-1&page=2",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name: "thread messages",
+			path: "/api/v1/threads/thread-1/messages?user_id=user-1&page=2",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastThreadID != ""
+			},
+		},
+		{
+			name: "delivery status",
+			path: "/api/v1/messages/msg-1/delivery-status?user_id=user-1&expand=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastMessageID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
+			}
+		})
+	}
+}
+
 func TestListFoldersHandler(t *testing.T) {
 	t.Parallel()
 
