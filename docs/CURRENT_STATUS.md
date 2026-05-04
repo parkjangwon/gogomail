@@ -169,6 +169,8 @@ guidance.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests.  All schemas kept in sync with Go types.
 - Backend release verification script and SMTP release runbook.
+- API usage export runbook covering capability checks, artifact/digest/signature
+  handoff evidence, deep readiness, and retention-readiness gates.
 - Public GitHub repository:
   <https://github.com/parkjangwon/gogomail>
 

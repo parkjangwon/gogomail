@@ -308,8 +308,6 @@ Next:
 
 - Add external KMS-backed signing and verification before invoices or hard
   Open API limits depend on completed export batches.
-- Consider adding operator runbook examples for export capability checks before
-  treating `billing_candidate` as invoice-grade.
 - Add the actual archive/delete worker for immutable API usage ledger rows after
   retention readiness is wired into an operator runbook and production storage
   target.
