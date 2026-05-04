@@ -191,6 +191,8 @@ The platform hardening sprint completed the following:
   transaction, keeping mailbox-local UID state from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
   move invalidation when `GOGOMAIL_TEST_DATABASE_URL` is available.
+- `internal/imapgw` has a small in-memory mailbox event broker for future IDLE
+  fan-out without introducing a protocol listener yet.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
@@ -209,7 +211,8 @@ Next focus areas:
 
 1. Add OpenSearch adapter behind the search indexing boundary.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
-3. Plan IMAP IDLE event delivery over the existing mailbox event boundary.
+3. Wire mailbox event publication from append/flag/move/delete paths behind the
+   IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
 5. Add billing-grade API metering dimensions/idempotency before using
