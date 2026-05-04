@@ -360,9 +360,9 @@ func TestBulkSetMessageFlagPublishesIMAPFlagEvents(t *testing.T) {
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	updated, err := service.BulkSetMessageFlag(context.Background(), maildb.BulkMessageFlagRequest{
-		UserID:     "user-1",
-		MessageIDs: []string{"msg-1", "msg-2"},
-		Flag:       "read",
+		UserID:     " user-1 ",
+		MessageIDs: []string{" msg-1 ", " msg-2 "},
+		Flag:       " read ",
 		Value:      true,
 	})
 	if err != nil {
@@ -370,6 +370,12 @@ func TestBulkSetMessageFlagPublishesIMAPFlagEvents(t *testing.T) {
 	}
 	if updated != 2 {
 		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if repo.lastBulkFlag.UserID != "user-1" || repo.lastBulkFlag.Flag != "read" || len(repo.lastBulkFlag.MessageIDs) != 2 || repo.lastBulkFlag.MessageIDs[0] != "msg-1" || repo.lastBulkFlag.MessageIDs[1] != "msg-2" {
+		t.Fatalf("bulk flag request = %#v", repo.lastBulkFlag)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
 	}
 	if len(events.events) != 2 || events.events[0].UID != 12 || events.events[1].UID != 13 {
 		t.Fatalf("events = %#v, want two flags events", events.events)
@@ -412,15 +418,21 @@ func TestBulkMoveMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	updated, err := service.BulkMoveMessages(context.Background(), maildb.BulkMessageMoveRequest{
-		UserID:     "user-1",
-		MessageIDs: []string{"msg-1", "msg-2"},
-		FolderID:   "archive",
+		UserID:     " user-1 ",
+		MessageIDs: []string{" msg-1 ", " msg-2 "},
+		FolderID:   " archive ",
 	})
 	if err != nil {
 		t.Fatalf("BulkMoveMessages returned error: %v", err)
 	}
 	if updated != 2 {
 		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if repo.lastBulkMove.UserID != "user-1" || repo.lastBulkMove.FolderID != "archive" || len(repo.lastBulkMove.MessageIDs) != 2 || repo.lastBulkMove.MessageIDs[0] != "msg-1" || repo.lastBulkMove.MessageIDs[1] != "msg-2" {
+		t.Fatalf("bulk move request = %#v", repo.lastBulkMove)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
 	}
 	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[1].UID != 13 {
 		t.Fatalf("events = %#v, want two expunge events", events.events)
@@ -460,14 +472,20 @@ func TestBulkDeleteMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	updated, err := service.BulkDeleteMessages(context.Background(), maildb.BulkMessageDeleteRequest{
-		UserID:     "user-1",
-		MessageIDs: []string{"msg-1", "msg-2"},
+		UserID:     " user-1 ",
+		MessageIDs: []string{" msg-1 ", " msg-2 "},
 	})
 	if err != nil {
 		t.Fatalf("BulkDeleteMessages returned error: %v", err)
 	}
 	if updated != 2 {
 		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if repo.lastBulkDelete.UserID != "user-1" || len(repo.lastBulkDelete.MessageIDs) != 2 || repo.lastBulkDelete.MessageIDs[0] != "msg-1" || repo.lastBulkDelete.MessageIDs[1] != "msg-2" {
+		t.Fatalf("bulk delete request = %#v", repo.lastBulkDelete)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
 	}
 	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[1].UID != 13 {
 		t.Fatalf("events = %#v, want two expunge events", events.events)
@@ -689,6 +707,9 @@ type fakeRepository struct {
 	lastMoveMessageID           string
 	lastMoveFolderID            string
 	lastDeleteMessageID         string
+	lastBulkFlag                maildb.BulkMessageFlagRequest
+	lastBulkMove                maildb.BulkMessageMoveRequest
+	lastBulkDelete              maildb.BulkMessageDeleteRequest
 	lastPageCursor              maildb.MessageListCursor
 	lastHydrateIDs              []string
 	lastSentDraftID             string
@@ -795,6 +816,7 @@ func (f *fakeRepository) SetMessageFlag(_ context.Context, userID string, messag
 }
 
 func (f *fakeRepository) BulkSetMessageFlag(_ context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
+	f.lastBulkFlag = req
 	return int64(len(req.MessageIDs)), nil
 }
 
@@ -806,6 +828,7 @@ func (f *fakeRepository) MoveMessage(_ context.Context, userID string, messageID
 }
 
 func (f *fakeRepository) BulkMoveMessages(_ context.Context, req maildb.BulkMessageMoveRequest) (int64, error) {
+	f.lastBulkMove = req
 	return int64(len(req.MessageIDs)), nil
 }
 
@@ -816,6 +839,7 @@ func (f *fakeRepository) DeleteMessage(_ context.Context, userID string, message
 }
 
 func (f *fakeRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
+	f.lastBulkDelete = req
 	return int64(len(req.MessageIDs)), nil
 }
 

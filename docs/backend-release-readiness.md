@@ -136,6 +136,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   outbound composition work.
 - Single-message flag, move, and delete service methods trim user/message/flag
   and folder identifiers before repository mutation and IMAP event fan-out.
+- Bulk flag, move, and delete service methods trim user/message/flag and folder
+  identifiers before repository mutation, IMAP UID lookup, and mailbox event
+  fan-out.
 - Mail API search query, folder, sender, and subject filters are trimmed before
   search backend dispatch, reducing accidental UI/client whitespace drift.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.
