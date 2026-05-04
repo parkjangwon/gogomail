@@ -186,7 +186,8 @@ The Mail API exposes the first session lifecycle endpoints,
 session creation, user-scoped status reads, and user-scoped cancellation; chunk
 upload/finalization routes are not yet exposed, so `resumable_chunked_uploads`
 remains `false`. `PUT /api/v1/attachments/upload-sessions/{id}/body` stores a
-complete session body, records received bytes and SHA-256, and leaves
+complete session body, records received bytes and SHA-256, optionally verifies
+the lowercase `X-Content-SHA256` request header before recording, and leaves
 attachment-row creation to
 `POST /api/v1/attachments/upload-sessions/{id}/finalize`, which converts a
 ready stored session body into the normal pending attachment row without

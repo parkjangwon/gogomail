@@ -991,12 +991,17 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		_ = s.store.Delete(ctx, path)
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session body size %d does not match declared size %d", counter.n, session.DeclaredSize)
 	}
+	checksum := hex.EncodeToString(hash.Sum(nil))
+	if req.ExpectedChecksumSHA256 != "" && checksum != req.ExpectedChecksumSHA256 {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session checksum %s does not match expected %s", checksum, req.ExpectedChecksumSHA256)
+	}
 	stored, err := repo.StoreAttachmentUploadSessionBody(ctx, maildb.StoreAttachmentUploadSessionBodyRequest{
 		UserID:         req.UserID,
 		SessionID:      req.SessionID,
 		ReceivedSize:   counter.n,
 		StoragePath:    path,
-		ChecksumSHA256: hex.EncodeToString(hash.Sum(nil)),
+		ChecksumSHA256: checksum,
 	})
 	if err != nil {
 		_ = s.store.Delete(ctx, path)
@@ -1073,6 +1078,7 @@ func normalizeCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSes
 func normalizeStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSessionBodyRequest) StoreAttachmentUploadSessionBodyRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.SessionID = strings.TrimSpace(req.SessionID)
+	req.ExpectedChecksumSHA256 = strings.TrimSpace(req.ExpectedChecksumSHA256)
 	return req
 }
 

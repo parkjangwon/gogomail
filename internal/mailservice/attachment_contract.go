@@ -41,9 +41,10 @@ type CreateAttachmentUploadSessionRequest struct {
 }
 
 type StoreAttachmentUploadSessionBodyRequest struct {
-	UserID    string
-	SessionID string
-	Body      io.Reader
+	UserID                 string
+	SessionID              string
+	ExpectedChecksumSHA256 string
+	Body                   io.Reader
 }
 
 func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) error {
@@ -122,10 +123,25 @@ func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSe
 	if err := validateServiceResourceID("session_id", strings.TrimSpace(req.SessionID)); err != nil {
 		return err
 	}
+	if strings.TrimSpace(req.ExpectedChecksumSHA256) != "" && !isLowerSHA256Hex(strings.TrimSpace(req.ExpectedChecksumSHA256)) {
+		return fmt.Errorf("expected checksum must be a lowercase SHA-256 hex digest")
+	}
 	if req.Body == nil {
 		return fmt.Errorf("attachment upload session body is required")
 	}
 	return nil
+}
+
+func isLowerSHA256Hex(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 func validateAttachmentStoragePath(storagePath string) error {

@@ -654,6 +654,8 @@ The platform hardening sprint completed the following:
 - Mail API can store a complete body for an upload session, persisting it under
   session-scoped storage and recording received bytes plus SHA-256 digest before
   finalize creates the normal attachment row.
+- Upload session body storage can verify an optional client-provided
+  `X-Content-SHA256` digest before recording the staged body.
 - Upload session finalization now converts a ready stored session body into the
   normal pending attachment row without double-reserving quota, and marks the
   session finalized.

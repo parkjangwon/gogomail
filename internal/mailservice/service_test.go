@@ -2244,15 +2244,16 @@ func TestStoreAttachmentUploadSessionBodyWritesStorageAndRecordsDigest(t *testin
 	}
 	store := storage.NewLocalStore(t.TempDir())
 	service := New(repo, store)
+	wantChecksum := sha256.Sum256([]byte("content"))
 	session, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
-		UserID:    " user-1 ",
-		SessionID: " session-1 ",
-		Body:      strings.NewReader("content"),
+		UserID:                 " user-1 ",
+		SessionID:              " session-1 ",
+		ExpectedChecksumSHA256: " " + hex.EncodeToString(wantChecksum[:]) + " ",
+		Body:                   strings.NewReader("content"),
 	})
 	if err != nil {
 		t.Fatalf("StoreAttachmentUploadSessionBody returned error: %v", err)
 	}
-	wantChecksum := sha256.Sum256([]byte("content"))
 	if session.Status != "uploading" ||
 		repo.lastStoreUploadSessionBody.UserID != "user-1" ||
 		repo.lastStoreUploadSessionBody.SessionID != "session-1" ||
@@ -2268,6 +2269,34 @@ func TestStoreAttachmentUploadSessionBodyWritesStorageAndRecordsDigest(t *testin
 	raw, _ := io.ReadAll(body)
 	if string(raw) != "content" {
 		t.Fatalf("stored body = %q", raw)
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyRejectsChecksumMismatch(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:           "session-1",
+			UserID:       "user-1",
+			DeclaredSize: 7,
+			Status:       "pending",
+			ExpiresAt:    time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+	_, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
+		UserID:                 "user-1",
+		SessionID:              "session-1",
+		ExpectedChecksumSHA256: strings.Repeat("0", 64),
+		Body:                   strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("StoreAttachmentUploadSessionBody accepted checksum mismatch")
+	}
+	if repo.lastStoreUploadSessionBody.StoragePath != "" {
+		t.Fatalf("mismatched body should not be recorded: %+v", repo.lastStoreUploadSessionBody)
 	}
 }
 
