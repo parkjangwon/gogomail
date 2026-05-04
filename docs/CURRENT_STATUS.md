@@ -145,6 +145,9 @@ guidance.
 - Admin IMAP UID backfill now persists a hash-chain audit row in the same
   transaction as UID assignment, recording mailbox/user scope, normalized
   limit, assigned count, and a bounded message/UID sample.
+- Admin API-usage export batch creation now persists a hash-chain audit row in
+  the same transaction as the batch, recording tenant/principal scope, export
+  window, event/request counts, bytes, latency totals, and export format.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords
