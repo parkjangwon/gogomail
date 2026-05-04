@@ -188,6 +188,27 @@ func TestUpsertPushDeviceNormalizesRequest(t *testing.T) {
 	}
 }
 
+func TestPushDeviceReadAndDeleteNormalizeIDs(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if _, err := service.ListPushDevices(context.Background(), " user-1 ", 25); err != nil {
+		t.Fatalf("ListPushDevices returned error: %v", err)
+	}
+	if err := service.DeletePushDevice(context.Background(), " user-1 ", " device-1 "); err != nil {
+		t.Fatalf("DeletePushDevice returned error: %v", err)
+	}
+
+	if repo.lastListPushDeviceUserID != "user-1" {
+		t.Fatalf("list push devices user = %q", repo.lastListPushDeviceUserID)
+	}
+	if repo.lastDeletePushDeviceUserID != "user-1" || repo.lastDeletePushDeviceID != "device-1" {
+		t.Fatalf("delete push device = %q/%q", repo.lastDeletePushDeviceUserID, repo.lastDeletePushDeviceID)
+	}
+}
+
 func TestAttachmentReadMethodsNormalizeIDs(t *testing.T) {
 	t.Parallel()
 
@@ -840,6 +861,9 @@ type fakeRepository struct {
 	lastSenderFrom                 string
 	lastOutgoing                   maildb.OutgoingMessage
 	lastPushDevice                 maildb.UpsertPushDeviceRequest
+	lastListPushDeviceUserID       string
+	lastDeletePushDeviceUserID     string
+	lastDeletePushDeviceID         string
 	lastIMAPFlags                  imapgw.MessageFlags
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
 	lastIMAPUIDLookupUserID        string
@@ -991,7 +1015,8 @@ func (f *fakeRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMe
 	return int64(len(req.MessageIDs)), nil
 }
 
-func (f *fakeRepository) ListPushDevices(context.Context, string, int) ([]maildb.PushDevice, error) {
+func (f *fakeRepository) ListPushDevices(_ context.Context, userID string, _ int) ([]maildb.PushDevice, error) {
+	f.lastListPushDeviceUserID = userID
 	return nil, nil
 }
 
@@ -1000,7 +1025,9 @@ func (f *fakeRepository) UpsertPushDevice(_ context.Context, req maildb.UpsertPu
 	return maildb.PushDevice{ID: "device-1", UserID: req.UserID, Platform: req.Platform, Token: req.Token, Status: "active"}, nil
 }
 
-func (f *fakeRepository) DeletePushDevice(context.Context, string, string) error {
+func (f *fakeRepository) DeletePushDevice(_ context.Context, userID string, id string) error {
+	f.lastDeletePushDeviceUserID = userID
+	f.lastDeletePushDeviceID = id
 	return nil
 }
 

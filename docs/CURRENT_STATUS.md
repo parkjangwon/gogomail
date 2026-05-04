@@ -208,6 +208,8 @@ guidance.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
+- Push-device list and delete service methods trim user and device identifiers
+  before repository work.
 - DKIM key DNS verification workflow with `dns_verified_at` persistence.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
