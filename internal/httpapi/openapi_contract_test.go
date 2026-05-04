@@ -302,6 +302,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /push-notification-attempts":                      {"limit", "status", "user_id", "platform", "device_id", "provider_status", "provider_message_id", "since"},
 		"GET /push-notification-stats":                         {"user_id", "since"},
 		"GET /outbox-events":                                   {"limit", "topic", "partition_key", "status", "since"},
+		"GET /api-usage/ledger/retention-readiness":            {"cutoff", "tenant_id", "principal_id"},
 		"POST /api-usage/export-batches":                       {"tenant_id", "principal_id", "from", "to"},
 		"GET /api-usage/export-batches/{id}/handoff-readiness": {"id", "deep"},
 		"GET /suppression-list":                                {"limit"},
@@ -320,6 +321,19 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 				t.Fatalf("OpenAPI operation %s must document parameter %q", route, param)
 			}
 		}
+	}
+}
+
+func TestOpenAPIDraftDocumentsRetentionCutoffGuardrail(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["GET /api-usage/ledger/retention-readiness"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /api-usage/ledger/retention-readiness is missing")
+	}
+	if !strings.Contains(block, "future cutoffs are rejected") {
+		t.Fatalf("retention-readiness cutoff parameter must document future-cutoff rejection, got:\n%s", block)
 	}
 }
 
