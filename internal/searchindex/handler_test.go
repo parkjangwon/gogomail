@@ -145,6 +145,38 @@ func TestHandlerRejectsUnsupportedSchemaVersion(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsAmbiguousStoragePath(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"messages/../secret.eml",
+		"messages//msg-1.eml",
+		"./messages/msg-1.eml",
+		"messages\\msg-1.eml",
+		"/messages/msg-1.eml",
+	}
+
+	for _, storagePath := range tests {
+		t.Run(storagePath, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewHandler(fakeStore{}, &fakeIndexer{}, HandlerOptions{})
+			err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: mustJSON(t, Event{
+				Event:       "mail.stored",
+				MessageID:   "msg-1",
+				UserID:      "user-1",
+				StoragePath: storagePath,
+			})})
+			if err == nil {
+				t.Fatal("HandleEvent returned nil, want storage path validation error")
+			}
+			if !strings.Contains(err.Error(), "storage_path") {
+				t.Fatalf("error = %q, want storage_path", err.Error())
+			}
+		})
+	}
+}
+
 func TestHandlerIndexesBoundedTruncatedBody(t *testing.T) {
 	store := fakeStore{
 		"messages/msg-1.eml": "Subject: Long\r\n\r\nabcdefghijklmnopqrstuvwxyz",

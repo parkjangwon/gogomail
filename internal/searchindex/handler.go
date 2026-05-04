@@ -217,14 +217,26 @@ func requiredStoragePath(value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if strings.Contains(value, "\\") {
+		return "", fmt.Errorf("mail.stored search payload has invalid storage_path")
+	}
 	cleaned := path.Clean(value)
-	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." || strings.HasPrefix(cleaned, "/") || strings.Contains(cleaned, "\\") {
+	if cleaned == "." || cleaned != value || strings.HasPrefix(cleaned, "/") || hasParentPathSegment(cleaned) {
 		return "", fmt.Errorf("mail.stored search payload has invalid storage_path")
 	}
 	if !strings.HasSuffix(strings.ToLower(cleaned), ".eml") {
 		return "", fmt.Errorf("mail.stored search payload storage_path must reference an .eml object")
 	}
 	return cleaned, nil
+}
+
+func hasParentPathSegment(value string) bool {
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 func cleanReferences(values []string) []string {
