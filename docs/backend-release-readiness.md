@@ -130,7 +130,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API now exposes delivery route list/create/status/delete operations backed by PostgreSQL, preparing gateway and smart-host policy for auditable runtime administration without coupling it to SMTP core.
 - Admin API can dry-run delivery route resolution for a recipient domain, improving runtime route observability without triggering SMTP delivery.
 - Admin queue stats distinguish ready pending work, delayed pending work, and stale processing locks so operators can tell backlog from scheduled retry delay.
-- Admin API exposes a quota usage pressure read model for company, domain, and user limits so operators can spot backpressure risks before SMTP or Mail API writes start failing.
+- Admin API exposes a quota usage pressure read model for company, domain, and user limits, with scope/domain/over-limit/over-allocation filters so operators can spot targeted backpressure risks before SMTP or Mail API writes start failing.
 - Admin quota read models expose remaining capacity, child allocation, allocatable capacity, and over-allocation flags.
 - Admin API exposes a read-only quota reconciliation report for detecting ledger drift against message and attachment source rows.
 - Admin API exposes operator-controlled quota reconciliation corrections guarded by transaction/advisory locking, with bounded audit-log detail for dry-run and applied correction attempts.

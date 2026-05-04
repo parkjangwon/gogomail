@@ -216,6 +216,51 @@ func TestNormalizeAPIUsageAggregateListRequestNormalizesFilters(t *testing.T) {
 	}
 }
 
+func TestNormalizeQuotaUsageListRequestRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []QuotaUsageListRequest{
+		{Scope: "mailbox"},
+		{Scope: "domain\nbad"},
+		{DomainID: strings.Repeat("d", maxPushNotificationFilterBytes+1)},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.Scope+req.DomainID, func(t *testing.T) {
+			t.Parallel()
+			if _, err := normalizeQuotaUsageListRequest(req); err == nil {
+				t.Fatalf("normalizeQuotaUsageListRequest accepted %+v", req)
+			}
+		})
+	}
+}
+
+func TestNormalizeQuotaUsageListRequestNormalizesFilters(t *testing.T) {
+	t.Parallel()
+
+	overLimit := true
+	overAllocated := false
+	got, err := normalizeQuotaUsageListRequest(QuotaUsageListRequest{
+		Limit:         5,
+		Scope:         " Domain ",
+		DomainID:      " domain-1 ",
+		OverLimit:     &overLimit,
+		OverAllocated: &overAllocated,
+	})
+	if err != nil {
+		t.Fatalf("normalizeQuotaUsageListRequest returned error: %v", err)
+	}
+	if got.Limit != 5 ||
+		got.Scope != "domain" ||
+		got.DomainID != "domain-1" ||
+		got.OverLimit == nil ||
+		!*got.OverLimit ||
+		got.OverAllocated == nil ||
+		*got.OverAllocated {
+		t.Fatalf("request = %+v, want normalized filters", got)
+	}
+}
+
 func TestQuotaCorrectionAuditDetailIsBounded(t *testing.T) {
 	t.Parallel()
 

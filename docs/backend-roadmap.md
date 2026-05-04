@@ -643,6 +643,7 @@ Implementation order:
 583. OpenSearch indexing now rejects blank, CR/LF-bearing, or oversized message IDs before building `_doc/{id}` URLs and uses the same cleaned ID in JSON payload metadata.
 584. Admin delivery-attempt list, stats, and exhausted-attempt reads now support bounded message-id, farm, and sender filters, letting operators triage one failed message, sender, or delivery farm without direct SQL.
 585. Admin API usage daily/monthly aggregate reads now support bounded tenant, company, domain, user, API-key, principal, auth-source, method, route, status, and time-window filters, making aggregate billing/incident triage possible without global scans.
+586. Admin quota usage pressure reads now support scope, domain, over-limit, and over-allocation filters, letting operators isolate quota hot spots without scanning every company/domain/user row client-side.
 
 ## Deferred until backend contracts stabilize
 

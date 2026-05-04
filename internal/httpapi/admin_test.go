@@ -574,7 +574,7 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/quota-usage?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/quota-usage?limit=5&scope=domain&domain_id=domain-1&over_limit=true&over_allocated=false", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -595,6 +595,40 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+	if service.lastQuotaUsageList.Scope != "domain" ||
+		service.lastQuotaUsageList.DomainID != "domain-1" ||
+		service.lastQuotaUsageList.OverLimit == nil ||
+		!*service.lastQuotaUsageList.OverLimit ||
+		service.lastQuotaUsageList.OverAllocated == nil ||
+		*service.lastQuotaUsageList.OverAllocated {
+		t.Fatalf("lastQuotaUsageList = %+v", service.lastQuotaUsageList)
+	}
+}
+
+func TestAdminQuotaUsageHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/quota-usage?scope=domain%0Abad",
+		"/admin/v1/quota-usage?domain_id=" + strings.Repeat("d", maxAdminQueryFilterBytes+1),
+		"/admin/v1/quota-usage?over_limit=maybe",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastQuotaUsageList.Limit != 0 {
+			t.Fatalf("%s dispatched request %+v", path, service.lastQuotaUsageList)
+		}
 	}
 }
 
@@ -4807,6 +4841,7 @@ type fakeAdminService struct {
 	lastAttachmentCleanupCountLimit             int
 	lastAttachmentSessionCleanupCountBefore     time.Time
 	lastAttachmentSessionCleanupCountLimit      int
+	lastQuotaUsageList                          maildb.QuotaUsageListRequest
 	lastAttachmentCleanupListBefore             time.Time
 	lastAttachmentCleanupListLimit              int
 	lastAttachmentSessionCleanupListBefore      time.Time
@@ -5017,8 +5052,9 @@ func (f *fakeAdminService) UpdateBackpressure(_ context.Context, req backpressur
 	return backpressure.State{Level: req.Level, Reason: req.Reason}, nil
 }
 
-func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maildb.QuotaUsageView, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListQuotaUsage(_ context.Context, req maildb.QuotaUsageListRequest) ([]maildb.QuotaUsageView, error) {
+	f.lastLimit = req.Limit
+	f.lastQuotaUsageList = req
 	return f.quotaUsage, nil
 }
 

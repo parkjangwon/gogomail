@@ -142,6 +142,8 @@ guidance.
 - Admin quota views now expose runtime remaining capacity, child-allocation
   usage, allocatable capacity, and over-allocation indicators for
   company/domain/user operations.
+- Admin quota usage pressure reads can filter by scope, domain, over-limit
+  status, and over-allocation status for targeted capacity triage.
 - Admin API exposes a read-only quota reconciliation report comparing ledger
   counters with message and attachment source rows.
 - Admin API can run operator-controlled quota reconciliation corrections with

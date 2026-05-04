@@ -388,7 +388,9 @@ Admin operational read models also keep explicit envelope keys:
   in-window `prev_hash` continuity, and returns typed break records without
   mutating audit rows.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
-- `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
+- `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
+  `scope=company|domain|user`, `domain_id`, `over_limit`, and
+  `over_allocated` filters for quota pressure triage.
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
 - `GET /admin/v1/domains` returns `{"domains":[...]}` with optional
   `company_id`, `status=active|suspended|disabled`, and

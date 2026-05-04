@@ -53,7 +53,7 @@ type AdminService interface {
 	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error)
 	GetAuditLog(ctx context.Context, id string) (maildb.AuditLogView, error)
 	CheckAuditLogIntegrity(ctx context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error)
-	ListQuotaUsage(ctx context.Context, limit int) ([]maildb.QuotaUsageView, error)
+	ListQuotaUsage(ctx context.Context, req maildb.QuotaUsageListRequest) ([]maildb.QuotaUsageView, error)
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
 	ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
@@ -701,9 +701,31 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		usages, err := service.ListQuotaUsage(r.Context(), limit)
+		scope, ok := parseBoundedAdminQuery(w, r, "scope")
+		if !ok {
+			return
+		}
+		domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+		if !ok {
+			return
+		}
+		overLimit, ok := parseOptionalBoolQuery(w, r, "over_limit")
+		if !ok {
+			return
+		}
+		overAllocated, ok := parseOptionalBoolQuery(w, r, "over_allocated")
+		if !ok {
+			return
+		}
+		usages, err := service.ListQuotaUsage(r.Context(), maildb.QuotaUsageListRequest{
+			Limit:         limit,
+			Scope:         scope,
+			DomainID:      domainID,
+			OverLimit:     overLimit,
+			OverAllocated: overAllocated,
+		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_usage": usages})

@@ -175,6 +175,14 @@ type QuotaUsageView struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type QuotaUsageListRequest struct {
+	Limit         int
+	Scope         string
+	DomainID      string
+	OverLimit     *bool
+	OverAllocated *bool
+}
+
 type APIUsageDailyView struct {
 	Day              time.Time `json:"day"`
 	Method           string    `json:"method"`
@@ -2400,11 +2408,14 @@ func allowedOutboxStatus(status string) bool {
 	}
 }
 
-func (r *Repository) ListQuotaUsage(ctx context.Context, limit int) ([]QuotaUsageView, error) {
+func (r *Repository) ListQuotaUsage(ctx context.Context, req QuotaUsageListRequest) ([]QuotaUsageView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	req, err := normalizeQuotaUsageListRequest(req)
+	if err != nil {
+		return nil, err
+	}
 
 	const query = `
 SELECT scope, id, domain_id, name, quota_used, quota_limit, allocated_quota, updated_at
@@ -2458,10 +2469,14 @@ FROM (
   JOIN domains ON domains.id = users.domain_id
   WHERE users.quota_limit IS NOT NULL AND users.quota_limit > 0
 ) usage
+WHERE ($2 = '' OR scope = $2)
+  AND ($3 = '' OR domain_id = $3)
+  AND ($4::bool IS NULL OR (quota_used >= quota_limit) = $4)
+  AND ($5::bool IS NULL OR (allocated_quota > quota_limit) = $5)
 ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Scope, req.DomainID, req.OverLimit, req.OverAllocated)
 	if err != nil {
 		return nil, fmt.Errorf("list quota usage: %w", err)
 	}
@@ -2494,6 +2509,23 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate quota usage: %w", err)
 	}
 	return usages, nil
+}
+
+func normalizeQuotaUsageListRequest(req QuotaUsageListRequest) (QuotaUsageListRequest, error) {
+	req.Limit = normalizeLimit(req.Limit)
+	req.Scope = strings.ToLower(strings.TrimSpace(req.Scope))
+	if req.Scope != "" {
+		switch req.Scope {
+		case "company", "domain", "user":
+		default:
+			return QuotaUsageListRequest{}, fmt.Errorf("unsupported quota usage scope %q", req.Scope)
+		}
+	}
+	var err error
+	if req.DomainID, err = normalizeAPIUsageAggregateFilter("domain_id", req.DomainID, false); err != nil {
+		return QuotaUsageListRequest{}, err
+	}
+	return req, nil
 }
 
 func (r *Repository) ListAPIUsageDaily(ctx context.Context, req APIUsageAggregateListRequest) ([]APIUsageDailyView, error) {

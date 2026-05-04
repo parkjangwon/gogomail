@@ -714,6 +714,28 @@ paths:
       summary: Admin domain and user quota usage pressure list
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [company, domain, user]
+          description: Limit pressure rows to one quota scope.
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit domain/user rows to one domain.
+        - name: over_limit
+          in: query
+          schema:
+            type: boolean
+          description: Return only rows matching over-limit status.
+        - name: over_allocated
+          in: query
+          schema:
+            type: boolean
+          description: Return only rows matching child-allocation pressure status.
       responses:
         "200":
           $ref: "#/components/responses/QuotaUsageList"
