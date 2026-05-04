@@ -23,12 +23,20 @@ func TestPostgresMigrationsApplyWithReleaseSchema(t *testing.T) {
 	t.Parallel()
 
 	db := openMigratedPostgresTestDB(t)
+	migrationDir := filepath.Join("..", "..", "migrations")
 	var count int
 	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM goose_db_version`).Scan(&count); err != nil {
 		t.Fatalf("query goose version table: %v", err)
 	}
 	if count == 0 {
 		t.Fatal("goose_db_version is empty after migrations")
+	}
+	current, expected, err := database.MigrationVersionReady(context.Background(), db, migrationDir)
+	if err != nil {
+		t.Fatalf("MigrationVersionReady returned error: %v", err)
+	}
+	if current != expected {
+		t.Fatalf("migration version = %d/%d, want current at expected", current, expected)
 	}
 }
 

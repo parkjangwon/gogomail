@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,4 +70,88 @@ func MigrateUp(ctx context.Context, db *sql.DB, dir string) error {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 	return nil
+}
+
+func ExpectedMigrationVersion(dir string) (int64, error) {
+	migrationDir, err := ValidateMigrationDir(dir)
+	if err != nil {
+		return 0, err
+	}
+	matches, err := filepath.Glob(filepath.Join(migrationDir, "*.sql"))
+	if err != nil {
+		return 0, fmt.Errorf("glob migrations: %w", err)
+	}
+	if len(matches) == 0 {
+		return 0, fmt.Errorf("migration directory %q contains no sql migrations", migrationDir)
+	}
+
+	var expected int64
+	for _, path := range matches {
+		version, err := migrationVersionFromFilename(filepath.Base(path))
+		if err != nil {
+			return 0, err
+		}
+		if version > expected {
+			expected = version
+		}
+	}
+	return expected, nil
+}
+
+func CurrentMigrationVersion(ctx context.Context, db *sql.DB) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	rows, err := db.QueryContext(ctx, `SELECT version_id, is_applied FROM goose_db_version ORDER BY id DESC`)
+	if err != nil {
+		return 0, fmt.Errorf("query goose migration version: %w", err)
+	}
+	defer rows.Close()
+
+	skipped := make(map[int64]struct{})
+	for rows.Next() {
+		var version int64
+		var applied bool
+		if err := rows.Scan(&version, &applied); err != nil {
+			return 0, fmt.Errorf("scan goose migration version: %w", err)
+		}
+		if _, ok := skipped[version]; ok {
+			continue
+		}
+		if applied {
+			return version, nil
+		}
+		skipped[version] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate goose migration versions: %w", err)
+	}
+	return 0, fmt.Errorf("goose migration version table has no applied version")
+}
+
+func MigrationVersionReady(ctx context.Context, db *sql.DB, dir string) (int64, int64, error) {
+	expected, err := ExpectedMigrationVersion(dir)
+	if err != nil {
+		return 0, 0, err
+	}
+	current, err := CurrentMigrationVersion(ctx, db)
+	if err != nil {
+		return 0, expected, err
+	}
+	if current < expected {
+		return current, expected, fmt.Errorf("migration version %d is behind expected %d", current, expected)
+	}
+	return current, expected, nil
+}
+
+func migrationVersionFromFilename(name string) (int64, error) {
+	rawVersion, _, ok := strings.Cut(name, "_")
+	if !ok || rawVersion == "" {
+		return 0, fmt.Errorf("migration %s must start with a numeric version prefix", name)
+	}
+	version, err := strconv.ParseInt(rawVersion, 10, 64)
+	if err != nil || version <= 0 {
+		return 0, fmt.Errorf("migration %s has invalid numeric version %q", name, rawVersion)
+	}
+	return version, nil
 }

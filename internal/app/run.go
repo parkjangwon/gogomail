@@ -1203,7 +1203,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			return err
 		}
 		defer db.Close()
-		readinessChecks = append(readinessChecks, databaseReadinessCheck("mail_database", db))
+		readinessChecks = append(readinessChecks, databaseReadinessCheck("mail_database", db, cfg.MigrationDir))
 
 		repository := maildb.NewRepository(db)
 		service := mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot))
@@ -1229,7 +1229,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			return err
 		}
 		defer db.Close()
-		readinessChecks = append(readinessChecks, databaseReadinessCheck("admin_database", db))
+		readinessChecks = append(readinessChecks, databaseReadinessCheck("admin_database", db, cfg.MigrationDir))
 
 		var redisClient *redis.Client
 		var pressure backpressureStore
@@ -1265,7 +1265,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		defer db.Close()
 		meteringDB = db
-		readinessChecks = append(readinessChecks, databaseReadinessCheck("api_metering_database", db))
+		readinessChecks = append(readinessChecks, databaseReadinessCheck("api_metering_database", db, cfg.MigrationDir))
 	}
 	httpapi.RegisterHealthRoutesWithChecks(mux, readinessChecks...)
 
@@ -1303,7 +1303,7 @@ func modeIncludesAdminAPI(mode Mode) bool {
 	return mode == ModeAdminAPI || mode == ModeAllInOne
 }
 
-func databaseReadinessCheck(name string, db *sql.DB) httpapi.ReadinessCheckFunc {
+func databaseReadinessCheck(name string, db *sql.DB, migrationDir string) httpapi.ReadinessCheckFunc {
 	return func(ctx context.Context) httpapi.ReadinessCheck {
 		if db == nil {
 			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: "database handle is not configured"}
@@ -1311,7 +1311,15 @@ func databaseReadinessCheck(name string, db *sql.DB) httpapi.ReadinessCheckFunc 
 		if err := db.PingContext(ctx); err != nil {
 			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
 		}
-		return httpapi.ReadinessCheck{Name: name, Status: "ok", Detail: "ping ok"}
+		current, expected, err := database.MigrationVersionReady(ctx, db, migrationDir)
+		if err != nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
+		}
+		return httpapi.ReadinessCheck{
+			Name:   name,
+			Status: "ok",
+			Detail: fmt.Sprintf("ping ok; migration version %d/%d", current, expected),
+		}
 	}
 }
 
