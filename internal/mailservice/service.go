@@ -966,7 +966,11 @@ func (s *Service) CancelAttachmentUploadSession(ctx context.Context, userID stri
 		return maildb.AttachmentUploadSession{}, err
 	}
 	if s.store != nil && strings.TrimSpace(session.StoragePath) != "" {
-		if err := s.store.Delete(ctx, session.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		storagePath, err := validateUploadSessionObjectPath(session.StoragePath)
+		if err != nil {
+			return session, err
+		}
+		if err := s.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return session, fmt.Errorf("delete canceled upload session object: %w", err)
 		}
 	}
@@ -1056,7 +1060,9 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		return maildb.AttachmentUploadSession{}, err
 	}
 	if previousPath := strings.TrimSpace(session.StoragePath); previousPath != "" && previousPath != path {
-		_ = s.store.Delete(ctx, previousPath)
+		if previousPath, err := validateUploadSessionObjectPath(previousPath); err == nil {
+			_ = s.store.Delete(ctx, previousPath)
+		}
 	}
 	return stored, nil
 }
@@ -1103,13 +1109,17 @@ func (s *Service) verifyUploadSessionBody(ctx context.Context, session maildb.At
 	if strings.TrimSpace(session.StoragePath) == "" {
 		return fmt.Errorf("attachment upload session %q storage path is required", session.ID)
 	}
+	storagePath, err := validateUploadSessionObjectPath(session.StoragePath)
+	if err != nil {
+		return err
+	}
 	if !isLowerSHA256Hex(strings.TrimSpace(session.ChecksumSHA256)) {
 		return fmt.Errorf("attachment upload session %q checksum is required", session.ID)
 	}
 	if !session.ExpiresAt.After(time.Now().UTC()) {
 		return fmt.Errorf("attachment upload session %q is expired", session.ID)
 	}
-	body, err := s.store.Get(ctx, session.StoragePath)
+	body, err := s.store.Get(ctx, storagePath)
 	if err != nil {
 		return fmt.Errorf("open attachment upload session body: %w", err)
 	}
@@ -1152,7 +1162,11 @@ func (s *Service) ExpireAttachmentUploadSessions(ctx context.Context, before tim
 			if strings.TrimSpace(session.StoragePath) == "" {
 				continue
 			}
-			if err := s.store.Delete(ctx, session.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			storagePath, err := validateUploadSessionObjectPath(session.StoragePath)
+			if err != nil {
+				return expired, err
+			}
+			if err := s.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return expired, fmt.Errorf("delete expired upload session object: %w", err)
 			}
 		}
@@ -1212,6 +1226,20 @@ func normalizeStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadS
 	req.SessionID = strings.TrimSpace(req.SessionID)
 	req.ExpectedChecksumSHA256 = strings.TrimSpace(req.ExpectedChecksumSHA256)
 	return req
+}
+
+func validateUploadSessionObjectPath(storagePath string) (string, error) {
+	storagePath = strings.TrimSpace(storagePath)
+	if err := validateAttachmentStoragePath(storagePath); err != nil {
+		return "", err
+	}
+	if storagePath == "" {
+		return "", fmt.Errorf("storage_path is required")
+	}
+	if !strings.HasPrefix(storagePath, "upload-sessions/") {
+		return "", fmt.Errorf("storage_path must use upload-sessions prefix")
+	}
+	return storagePath, nil
 }
 
 func normalizeUploadAttachmentRequest(req UploadAttachmentRequest) UploadAttachmentRequest {

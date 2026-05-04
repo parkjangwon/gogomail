@@ -2581,6 +2581,43 @@ func TestFinalizeAttachmentUploadSessionRejectsMissingStoredBody(t *testing.T) {
 	}
 }
 
+func TestFinalizeAttachmentUploadSessionRejectsUnsafeStoredBodyPath(t *testing.T) {
+	t.Parallel()
+
+	checksum := sha256.Sum256([]byte("content"))
+	for _, storagePath := range []string{
+		"upload-sessions/user-1/../body",
+		"upload-sessions//user-1/body",
+		`upload-sessions\user-1\body`,
+		"uploads/user-1/body",
+	} {
+		storagePath := storagePath
+		t.Run(storagePath, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &fakeRepository{
+				uploadSession: maildb.AttachmentUploadSession{
+					ID:             "session-1",
+					UserID:         "user-1",
+					DeclaredSize:   7,
+					ReceivedSize:   7,
+					StoragePath:    storagePath,
+					ChecksumSHA256: hex.EncodeToString(checksum[:]),
+					Status:         "uploading",
+					ExpiresAt:      time.Now().Add(time.Hour),
+				},
+			}
+			service := New(repo, storage.NewLocalStore(t.TempDir()))
+			if _, err := service.FinalizeAttachmentUploadSession(context.Background(), "user-1", "session-1"); err == nil {
+				t.Fatalf("FinalizeAttachmentUploadSession accepted unsafe path %q", storagePath)
+			}
+			if repo.lastFinalizeUploadSession.SessionID != "" {
+				t.Fatalf("unsafe path reached finalize: %+v", repo.lastFinalizeUploadSession)
+			}
+		})
+	}
+}
+
 func TestFinalizeAttachmentUploadSessionRejectsStoredChecksumMismatch(t *testing.T) {
 	t.Parallel()
 

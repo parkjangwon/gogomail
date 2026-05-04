@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 )
@@ -135,8 +136,8 @@ func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSe
 	if strings.TrimSpace(req.StoragePath) == "" {
 		return fmt.Errorf("storage_path is required")
 	}
-	if strings.ContainsAny(req.StoragePath, "\r\n") {
-		return fmt.Errorf("storage_path must not contain newlines")
+	if err := validateUploadSessionStoragePath(req.StoragePath); err != nil {
+		return err
 	}
 	if strings.TrimSpace(req.ChecksumSHA256) == "" {
 		return fmt.Errorf("checksum_sha256 is required")
@@ -149,6 +150,38 @@ func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSe
 		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
 			return fmt.Errorf("checksum_sha256 must be a lowercase SHA-256 hex digest")
 		}
+	}
+	return nil
+}
+
+func validateUploadSessionStoragePath(storagePath string) error {
+	storagePath = strings.TrimSpace(storagePath)
+	if storagePath == "" {
+		return fmt.Errorf("storage_path is required")
+	}
+	if len(storagePath) > 2048 {
+		return fmt.Errorf("storage_path is too long")
+	}
+	if strings.ContainsAny(storagePath, "\r\n") {
+		return fmt.Errorf("storage_path must not contain newlines")
+	}
+	if strings.Contains(storagePath, `\`) {
+		return fmt.Errorf("storage_path must use forward slash separators")
+	}
+	if strings.HasPrefix(storagePath, "/") {
+		return fmt.Errorf("storage_path must be relative")
+	}
+	cleaned := path.Clean(storagePath)
+	if cleaned == "." || cleaned != storagePath {
+		return fmt.Errorf("storage_path contains an invalid segment")
+	}
+	for _, segment := range strings.Split(cleaned, "/") {
+		if segment == "." || segment == ".." || strings.TrimSpace(segment) == "" {
+			return fmt.Errorf("storage_path contains an invalid segment")
+		}
+	}
+	if !strings.HasPrefix(cleaned, "upload-sessions/") {
+		return fmt.Errorf("storage_path must use upload-sessions prefix")
 	}
 	return nil
 }
