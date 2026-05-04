@@ -585,11 +585,13 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	service := New(repo, nil).WithSearchIDSource(source)
 
 	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
-		UserID:            "user-1",
-		FolderID:          "folder-1",
-		Query:             "hello",
+		UserID:            " user-1 ",
+		FolderID:          " folder-1 ",
+		Query:             " hello ",
+		From:              " sender@example.net ",
+		Subject:           " greeting ",
 		Limit:             10,
-		Sort:              maildb.MessageSearchSortRelevance,
+		Sort:              " relevance ",
 		IncludeRank:       true,
 		IncludeHighlights: true,
 	})
@@ -610,6 +612,9 @@ func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	}
 	if source.lastQuery.FolderID != "folder-1" {
 		t.Fatalf("external folder_id = %q", source.lastQuery.FolderID)
+	}
+	if source.lastQuery.UserID != "user-1" || source.lastQuery.Query != "hello" || source.lastQuery.From != "sender@example.net" || source.lastQuery.Subject != "greeting" {
+		t.Fatalf("external query = %#v", source.lastQuery)
 	}
 }
 
@@ -677,6 +682,31 @@ func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *test
 	}
 	if len(got) != 1 || got[0].ID != "pg-1" {
 		t.Fatalf("messages = %#v, want postgres fallback", got)
+	}
+}
+
+func TestSearchMessagesNormalizesPostgresFallbackQuery(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{list: []maildb.MessageSummary{{ID: "pg-1"}}}
+	service := New(repo, nil)
+
+	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
+		UserID:   " user-1 ",
+		FolderID: " inbox ",
+		Query:    " invoice ",
+		From:     " sender@example.net ",
+		Subject:  " receipt ",
+		Sort:     " date ",
+	})
+	if err != nil {
+		t.Fatalf("SearchMessages returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "pg-1" {
+		t.Fatalf("messages = %#v", got)
+	}
+	if repo.lastSearchQuery.UserID != "user-1" || repo.lastSearchQuery.FolderID != "inbox" || repo.lastSearchQuery.Query != "invoice" || repo.lastSearchQuery.From != "sender@example.net" || repo.lastSearchQuery.Subject != "receipt" || repo.lastSearchQuery.Sort != maildb.MessageSearchSortDate {
+		t.Fatalf("postgres query = %#v", repo.lastSearchQuery)
 	}
 }
 
@@ -792,6 +822,7 @@ type fakeRepository struct {
 	lastThreadID                   string
 	lastGetMessageUserID           string
 	lastGetMessageID               string
+	lastSearchQuery                maildb.MessageSearchQuery
 	lastFlagMessageID              string
 	lastFlag                       string
 	lastMutationUserID             string
@@ -837,7 +868,8 @@ func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, fold
 	return []maildb.MessageSummary{{ID: "msg-page"}}, nil
 }
 
-func (f *fakeRepository) SearchMessages(context.Context, maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) SearchMessages(_ context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	f.lastSearchQuery = query
 	return f.list, nil
 }
 

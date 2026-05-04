@@ -462,6 +462,8 @@ The platform hardening sprint completed the following:
   event fan-out.
 - Folder, message-list, thread-list, and message-detail service reads trim
   user, folder, thread, message, and folder-name inputs before repository work.
+- Mail search service queries normalize user, text, folder, sender, subject,
+  and sort inputs before Postgres or OpenSearch dispatch.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed at the HTTP boundary before service
   dispatch.
