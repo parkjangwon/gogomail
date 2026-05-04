@@ -56,6 +56,7 @@ type MessageService interface {
 	CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error)
 	CreateAttachmentUploadSession(ctx context.Context, req mailservice.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	CancelAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
+	GetAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
@@ -727,6 +728,23 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		session, err := service.CancelAttachmentUploadSession(r.Context(), userID, sessionID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_session": session})
+	})
+
+	mux.HandleFunc("GET /api/v1/attachments/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		sessionID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		session, err := service.GetAttachmentUploadSession(r.Context(), userID, sessionID)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

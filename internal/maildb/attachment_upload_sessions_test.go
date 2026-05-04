@@ -84,6 +84,34 @@ func TestValidateCancelAttachmentUploadSessionRequest(t *testing.T) {
 	}
 }
 
+func TestValidateGetAttachmentUploadSessionRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := GetAttachmentUploadSessionRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+	}
+	if err := ValidateGetAttachmentUploadSessionRequest(valid); err != nil {
+		t.Fatalf("ValidateGetAttachmentUploadSessionRequest returned error: %v", err)
+	}
+
+	for _, req := range []GetAttachmentUploadSessionRequest{
+		{SessionID: "session-1"},
+		{UserID: "user-1"},
+		{UserID: "user\n1", SessionID: "session-1"},
+		{UserID: "user-1", SessionID: "session\n1"},
+	} {
+		req := req
+		t.Run(req.UserID+"/"+req.SessionID, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateGetAttachmentUploadSessionRequest(req); err == nil {
+				t.Fatal("ValidateGetAttachmentUploadSessionRequest accepted invalid request")
+			}
+		})
+	}
+}
+
 func TestValidateExpireAttachmentUploadSessionsRequest(t *testing.T) {
 	t.Parallel()
 

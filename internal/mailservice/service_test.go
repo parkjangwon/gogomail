@@ -1049,6 +1049,7 @@ type fakeRepository struct {
 	lastCancelAttachmentID         string
 	lastAttachmentUploadSession    maildb.CreateAttachmentUploadSessionRequest
 	lastCancelUploadSession        maildb.CancelAttachmentUploadSessionRequest
+	lastGetUploadSession           maildb.GetAttachmentUploadSessionRequest
 	lastExpireUploadSessions       maildb.ExpireAttachmentUploadSessionsRequest
 	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentCleanupCount     maildb.ExpireStaleAttachmentUploadsRequest
@@ -1425,6 +1426,14 @@ func (f *fakeRepository) CancelAttachmentUploadSession(_ context.Context, req ma
 		return f.uploadSession, nil
 	}
 	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, Status: "canceled"}, nil
+}
+
+func (f *fakeRepository) GetAttachmentUploadSession(_ context.Context, req maildb.GetAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error) {
+	f.lastGetUploadSession = req
+	if f.uploadSession.ID != "" {
+		return f.uploadSession, nil
+	}
+	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, Status: "pending"}, nil
 }
 
 func (f *fakeRepository) ExpireAttachmentUploadSessions(_ context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error) {
@@ -2114,6 +2123,20 @@ func TestCancelAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
 	}
 	if session.ID != "session-1" || repo.lastCancelUploadSession.UserID != "user-1" || repo.lastCancelUploadSession.SessionID != "session-1" {
 		t.Fatalf("session = %+v last = %+v", session, repo.lastCancelUploadSession)
+	}
+}
+
+func TestGetAttachmentUploadSessionDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	session, err := service.GetAttachmentUploadSession(context.Background(), " user-1 ", " session-1 ")
+	if err != nil {
+		t.Fatalf("GetAttachmentUploadSession returned error: %v", err)
+	}
+	if session.ID != "session-1" || repo.lastGetUploadSession.UserID != "user-1" || repo.lastGetUploadSession.SessionID != "session-1" {
+		t.Fatalf("session = %+v last = %+v", session, repo.lastGetUploadSession)
 	}
 }
 

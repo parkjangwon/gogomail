@@ -423,6 +423,16 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /attachments/upload-sessions/{id}:
+    get:
+      operationId: getAttachmentUploadSession
+      summary: Get a resumable attachment upload session
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/AttachmentUploadSession"
+        default:
+          $ref: "#/components/responses/Error"
     delete:
       operationId: cancelAttachmentUploadSession
       summary: Cancel a pending resumable attachment upload session

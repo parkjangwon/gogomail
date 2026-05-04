@@ -642,7 +642,7 @@ The platform hardening sprint completed the following:
 - `attachment-cleanup-worker` now expires stale resumable upload sessions during
   its normal bounded sweep, releasing reserved quota alongside stale direct
   upload cleanup.
-- Mail API now exposes resumable upload session create/cancel endpoints under
+- Mail API now exposes resumable upload session create/read/cancel endpoints under
   `/api/v1/attachments/upload-sessions`, reserving declared quota at session
   creation while keeping chunked upload capability disabled until upload/finalize
   routes land.

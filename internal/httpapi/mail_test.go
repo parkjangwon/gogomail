@@ -1081,6 +1081,28 @@ func TestCancelAttachmentUploadSessionHandler(t *testing.T) {
 	}
 }
 
+func TestGetAttachmentUploadSessionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/attachments/upload-sessions/session-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" || service.lastGetUploadSessionID != "session-1" {
+		t.Fatalf("get session request = user:%q session:%q", service.lastUserID, service.lastGetUploadSessionID)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment_upload_session"`) || !strings.Contains(rec.Body.String(), `"status":"pending"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1635,6 +1657,11 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			path:   "/api/v1/attachments/upload-sessions/session%0Abad?user_id=user-1",
 		},
 		{
+			name:   "upload session get crlf",
+			method: http.MethodGet,
+			path:   "/api/v1/attachments/upload-sessions/session%0Abad?user_id=user-1",
+		},
+		{
 			name:   "draft crlf",
 			method: http.MethodPatch,
 			path:   "/api/v1/drafts/draft%0Abad",
@@ -1663,8 +1690,8 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" {
-				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID)
+			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" || service.lastGetUploadSessionID != "" {
+				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q getUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID, service.lastGetUploadSessionID)
 			}
 		})
 	}
@@ -1707,6 +1734,7 @@ type fakeMessageService struct {
 	lastUploadSession         mailservice.CreateAttachmentUploadSessionRequest
 	lastCancelAttachmentID    string
 	lastCancelUploadSessionID string
+	lastGetUploadSessionID    string
 	lastPushDevice            maildb.UpsertPushDeviceRequest
 	lastAttachmentBody        string
 	attachmentErr             error
@@ -1906,6 +1934,12 @@ func (f *fakeMessageService) CancelAttachmentUploadSession(_ context.Context, us
 	f.lastUserID = userID
 	f.lastCancelUploadSessionID = sessionID
 	return maildb.AttachmentUploadSession{ID: sessionID, UserID: userID, Status: "canceled"}, nil
+}
+
+func (f *fakeMessageService) GetAttachmentUploadSession(_ context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error) {
+	f.lastUserID = userID
+	f.lastGetUploadSessionID = sessionID
+	return maildb.AttachmentUploadSession{ID: sessionID, UserID: userID, Status: "pending"}, nil
 }
 
 func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {

@@ -42,6 +42,11 @@ type CancelAttachmentUploadSessionRequest struct {
 	SessionID string
 }
 
+type GetAttachmentUploadSessionRequest struct {
+	UserID    string
+	SessionID string
+}
+
 type ExpireAttachmentUploadSessionsRequest struct {
 	Before time.Time
 	Limit  int
@@ -79,22 +84,30 @@ func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSess
 }
 
 func ValidateCancelAttachmentUploadSessionRequest(req CancelAttachmentUploadSessionRequest) error {
-	if strings.TrimSpace(req.UserID) == "" {
+	return validateAttachmentUploadSessionIdentity(req.UserID, req.SessionID)
+}
+
+func ValidateGetAttachmentUploadSessionRequest(req GetAttachmentUploadSessionRequest) error {
+	return validateAttachmentUploadSessionIdentity(req.UserID, req.SessionID)
+}
+
+func validateAttachmentUploadSessionIdentity(userID string, sessionID string) error {
+	if strings.TrimSpace(userID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
-	if strings.TrimSpace(req.SessionID) == "" {
+	if strings.TrimSpace(sessionID) == "" {
 		return fmt.Errorf("session_id is required")
 	}
-	if strings.ContainsAny(req.UserID, "\r\n") {
+	if strings.ContainsAny(userID, "\r\n") {
 		return fmt.Errorf("user_id must not contain newlines")
 	}
-	if strings.ContainsAny(req.SessionID, "\r\n") {
+	if strings.ContainsAny(sessionID, "\r\n") {
 		return fmt.Errorf("session_id must not contain newlines")
 	}
-	if len(strings.TrimSpace(req.UserID)) > 200 {
+	if len(strings.TrimSpace(userID)) > 200 {
 		return fmt.Errorf("user_id is too long")
 	}
-	if len(strings.TrimSpace(req.SessionID)) > 200 {
+	if len(strings.TrimSpace(sessionID)) > 200 {
 		return fmt.Errorf("session_id is too long")
 	}
 	return nil
@@ -274,6 +287,47 @@ RETURNING
 	}
 	if err := tx.Commit(); err != nil {
 		return AttachmentUploadSession{}, fmt.Errorf("commit attachment upload session cancel transaction: %w", err)
+	}
+	return session, nil
+}
+
+func (r *Repository) GetAttachmentUploadSession(ctx context.Context, req GetAttachmentUploadSessionRequest) (AttachmentUploadSession, error) {
+	if r.db == nil {
+		return AttachmentUploadSession{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateGetAttachmentUploadSessionRequest(req); err != nil {
+		return AttachmentUploadSession{}, err
+	}
+
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  upload_id,
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM attachment_upload_sessions
+WHERE user_id = $1
+  AND id = $2`
+
+	session, err := scanAttachmentUploadSession(r.db.QueryRowContext(ctx, query, strings.TrimSpace(req.UserID), strings.TrimSpace(req.SessionID)))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found", req.SessionID)
+		}
+		return AttachmentUploadSession{}, fmt.Errorf("get attachment upload session: %w", err)
 	}
 	return session, nil
 }
