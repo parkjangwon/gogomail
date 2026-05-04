@@ -172,6 +172,7 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 }
 
 func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
+	query = normalizeMessageSearchQuery(query)
 	if s.searchIDSource != nil && canUseSearchIDSource(query) {
 		return s.searchMessagesByExternalIDs(ctx, query)
 	}
@@ -258,6 +259,20 @@ func normalizedSearchSort(sort string) string {
 	default:
 		return ""
 	}
+}
+
+func normalizeMessageSearchQuery(query maildb.MessageSearchQuery) maildb.MessageSearchQuery {
+	query.UserID = strings.TrimSpace(query.UserID)
+	query.Query = strings.TrimSpace(query.Query)
+	query.FolderID = strings.TrimSpace(query.FolderID)
+	query.From = strings.TrimSpace(query.From)
+	query.Subject = strings.TrimSpace(query.Subject)
+	if sort := normalizedSearchSort(query.Sort); sort != "" {
+		query.Sort = sort
+	} else {
+		query.Sort = strings.TrimSpace(query.Sort)
+	}
+	return query
 }
 
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
