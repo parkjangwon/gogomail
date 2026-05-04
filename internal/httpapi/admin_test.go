@@ -587,6 +587,25 @@ func TestAdminGetAPIUsageExportHandoffReadinessHandlerDeep(t *testing.T) {
 	}
 }
 
+func TestAdminGetAPIUsageExportHandoffReadinessHandlerRejectsBadDeepQuery(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/handoff-readiness?deep=sure", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if service.lastAPIUsageExportBatchID != "" {
+		t.Fatalf("lastAPIUsageExportBatchID = %q", service.lastAPIUsageExportBatchID)
+	}
+}
+
 func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
 	t.Parallel()
 
