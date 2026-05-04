@@ -472,6 +472,7 @@ Implementation order:
 413. Mail search service queries now normalize user, text, folder, sender, subject, and sort inputs before Postgres or OpenSearch dispatch.
 414. Push-device list and delete service methods now trim user and device identifiers before repository work.
 415. Message delivery-status and reply source-thread service lookups now trim user, message, and source-message identifiers before repository work.
+416. Stale attachment-upload cleanup now validates its time window and limit at the service boundary before repository cleanup/object deletion work.
 
 ## Deferred until backend contracts stabilize
 

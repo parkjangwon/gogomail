@@ -830,10 +830,14 @@ func (s *Service) ExpireStaleAttachmentUploads(ctx context.Context, before time.
 	if !ok {
 		return nil, fmt.Errorf("attachment cleanup repository is required")
 	}
-	expired, err := repo.ExpireStaleAttachmentUploads(ctx, maildb.ExpireStaleAttachmentUploadsRequest{
+	req := maildb.ExpireStaleAttachmentUploadsRequest{
 		Before: before,
 		Limit:  limit,
-	})
+	}
+	if err := maildb.ValidateExpireStaleAttachmentUploadsRequest(req); err != nil {
+		return nil, err
+	}
+	expired, err := repo.ExpireStaleAttachmentUploads(ctx, req)
 	if err != nil {
 		return nil, err
 	}

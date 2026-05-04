@@ -835,6 +835,7 @@ type fakeRepository struct {
 	seenSuppressionRecipients      []string
 	lastDraft                      maildb.SaveDraftRequest
 	lastAttachmentUpload           maildb.CreateAttachmentUploadRequest
+	lastAttachmentCleanup          maildb.ExpireStaleAttachmentUploadsRequest
 	lastAttachmentUserID           string
 	lastAttachmentMessageID        string
 	lastAttachmentID               string
@@ -1170,7 +1171,8 @@ func (p *fakeIMAPEventPublisher) Publish(_ context.Context, event imapgw.Mailbox
 	return nil
 }
 
-func (f *fakeRepository) ExpireStaleAttachmentUploads(context.Context, maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error) {
+func (f *fakeRepository) ExpireStaleAttachmentUploads(_ context.Context, req maildb.ExpireStaleAttachmentUploadsRequest) ([]maildb.Attachment, error) {
+	f.lastAttachmentCleanup = req
 	return f.expiredAttachments, nil
 }
 
@@ -1195,6 +1197,26 @@ func TestExpireStaleAttachmentUploadsDeletesStoredObjects(t *testing.T) {
 	}
 	if _, err := store.Get(context.Background(), "uploads/user-1/upload-1/report.pdf"); err == nil {
 		t.Fatal("expired attachment object still exists")
+	}
+	if repo.lastAttachmentCleanup.Limit != 10 || repo.lastAttachmentCleanup.Before.IsZero() {
+		t.Fatalf("cleanup request = %+v", repo.lastAttachmentCleanup)
+	}
+}
+
+func TestExpireStaleAttachmentUploadsValidatesRequestBeforeRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if _, err := service.ExpireStaleAttachmentUploads(context.Background(), time.Time{}, 10); err == nil {
+		t.Fatal("ExpireStaleAttachmentUploads accepted zero before")
+	}
+	if _, err := service.ExpireStaleAttachmentUploads(context.Background(), time.Now(), -1); err == nil {
+		t.Fatal("ExpireStaleAttachmentUploads accepted negative limit")
+	}
+	if !repo.lastAttachmentCleanup.Before.IsZero() {
+		t.Fatalf("repository was called with %+v", repo.lastAttachmentCleanup)
 	}
 }
 
