@@ -328,6 +328,24 @@ func TestOpenAPIDraftDocumentsDeliveryAttemptDiagnostics(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsDKIMCreateInput(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	block := extractOpenAPIComponentBlock(t, string(raw), "schemas", "DKIMKeyCreateRequest")
+	for _, field := range []string{"domain_id", "selector", "private_key_pem", "public_key_dns"} {
+		if !strings.Contains(block, "        "+field+":") {
+			t.Fatalf("DKIMKeyCreateRequest schema must document CreateDKIMKeyInput field %q", field)
+		}
+	}
+	if strings.Contains(block, "        active:") {
+		t.Fatal("DKIMKeyCreateRequest schema must not document unsupported active input")
+	}
+}
+
 func TestOpenAPIDraftOperationsHaveStableOperationIDs(t *testing.T) {
 	t.Parallel()
 

@@ -4565,8 +4565,9 @@ components:
           type: string
         private_key_pem:
           type: string
-        active:
-          type: boolean
+        public_key_dns:
+          type: string
+          description: Optional DKIM TXT value. When omitted, the backend derives it from private_key_pem.
     TrustedRelayCreateRequest:
       type: object
       required: [cidr]
