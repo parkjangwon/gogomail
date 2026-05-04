@@ -190,6 +190,8 @@ guidance.
   oversized secrets before MAC generation.
 - API usage export HMAC and Ed25519 signature verification now rejects
   incorrectly sized signature hex before decoding.
+- Remote Ed25519 manifest signer responses now reject oversized bodies and
+  trailing JSON tokens before signature evidence is accepted.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
