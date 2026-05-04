@@ -84,11 +84,12 @@ Current state:
   filters before Postgres metadata hydration.
 - OpenSearch relevance search can return subject/from/body highlights in the
   existing Mail API `search_highlights` shape.
+- Optional OpenSearch integration coverage can validate bootstrap, indexing,
+  and folder-aware relevance search against a real backend when
+  `GOGOMAIL_TEST_OPENSEARCH_URL` is set.
 
 Next:
 
-- Audit the remaining fallback contract before making OpenSearch the general
-  Mail API search backend.
 - Add backend-specific relevance tuning and regression tests as the corpus grows.
 
 ### 3. IMAP gateway planning

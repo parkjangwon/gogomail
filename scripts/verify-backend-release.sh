@@ -4,6 +4,11 @@ set -eu
 cd "$(dirname "$0")/.."
 
 echo "==> go test ./..."
+if [ "${GOGOMAIL_TEST_OPENSEARCH_URL:-}" != "" ]; then
+	echo "==> OpenSearch integration tests enabled by GOGOMAIL_TEST_OPENSEARCH_URL"
+else
+	echo "==> OpenSearch integration tests skipped unless GOGOMAIL_TEST_OPENSEARCH_URL is set"
+fi
 go test ./...
 
 echo "==> go mod tidy -diff"
