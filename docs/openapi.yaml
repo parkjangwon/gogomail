@@ -27,6 +27,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Readiness"
+        "503":
+          $ref: "#/components/responses/Readiness"
   /info:
     get:
       operationId: getServiceInfo
@@ -3018,7 +3020,7 @@ components:
       properties:
         status:
           type: string
-          enum: [ok]
+          enum: [ok, degraded]
     ReadinessCheck:
       type: object
       required: [name, status]

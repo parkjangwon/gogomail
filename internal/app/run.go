@@ -1194,7 +1194,7 @@ func (p dkimKeyProvider) DKIMKey(ctx context.Context, job delivery.Job) (dkim.Ke
 
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {
 	mux := http.NewServeMux()
-	httpapi.RegisterHealthRoutes(mux)
+	var readinessChecks []httpapi.ReadinessCheckFunc
 
 	var tokenManager *auth.TokenManager
 	if modeIncludesMailAPI(mode) {
@@ -1203,6 +1203,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			return err
 		}
 		defer db.Close()
+		readinessChecks = append(readinessChecks, databaseReadinessCheck("mail_database", db))
 
 		repository := maildb.NewRepository(db)
 		service := mailservice.New(repository, storage.NewLocalStore(cfg.MailstoreRoot))
@@ -1228,6 +1229,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			return err
 		}
 		defer db.Close()
+		readinessChecks = append(readinessChecks, databaseReadinessCheck("admin_database", db))
 
 		var redisClient *redis.Client
 		var pressure backpressureStore
@@ -1238,6 +1240,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 				return err
 			}
 			defer redisClient.Close()
+			readinessChecks = append(readinessChecks, redisReadinessCheck("backpressure_redis", redisClient))
 			pressure = backpressure.NewRedisBackpressure(redisClient, backpressure.DefaultStateKey)
 		}
 
@@ -1262,7 +1265,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		defer db.Close()
 		meteringDB = db
+		readinessChecks = append(readinessChecks, databaseReadinessCheck("api_metering_database", db))
 	}
+	httpapi.RegisterHealthRoutesWithChecks(mux, readinessChecks...)
 
 	handler := apiMeteringHandler(mux, cfg, logger, meteringDB, tokenManager, cfg.AdminToken)
 	server := &http.Server{
@@ -1296,6 +1301,30 @@ func modeIncludesMailAPI(mode Mode) bool {
 
 func modeIncludesAdminAPI(mode Mode) bool {
 	return mode == ModeAdminAPI || mode == ModeAllInOne
+}
+
+func databaseReadinessCheck(name string, db *sql.DB) httpapi.ReadinessCheckFunc {
+	return func(ctx context.Context) httpapi.ReadinessCheck {
+		if db == nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: "database handle is not configured"}
+		}
+		if err := db.PingContext(ctx); err != nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
+		}
+		return httpapi.ReadinessCheck{Name: name, Status: "ok", Detail: "ping ok"}
+	}
+}
+
+func redisReadinessCheck(name string, client *redis.Client) httpapi.ReadinessCheckFunc {
+	return func(ctx context.Context) httpapi.ReadinessCheck {
+		if client == nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: "redis client is not configured"}
+		}
+		if err := client.Ping(ctx).Err(); err != nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
+		}
+		return httpapi.ReadinessCheck{Name: name, Status: "ok", Detail: "ping ok"}
+	}
 }
 
 func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger, outboxDB *sql.DB, tokenManager *auth.TokenManager, adminToken string) http.Handler {
