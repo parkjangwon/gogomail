@@ -534,6 +534,7 @@ Implementation order:
 475. API usage export manifest signer configuration now rejects CR/LF-bearing or oversized key IDs and remote signer tokens, and local HMAC signing rejects oversized secrets before MAC generation.
 476. API usage export HMAC and Ed25519 signature verification now rejects incorrectly sized signature hex before decoding.
 477. Remote Ed25519 manifest signer responses now reject oversized bodies and trailing JSON tokens before signature evidence is accepted.
+478. OpenSearch relevance response decoding now rejects oversized bodies and trailing JSON tokens before search hits are accepted.
 
 ## Deferred until backend contracts stabilize
 

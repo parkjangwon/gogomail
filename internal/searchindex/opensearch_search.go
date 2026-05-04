@@ -95,19 +95,8 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 		return nil, fmt.Errorf("search opensearch messages: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
-	var result struct {
-		Hits struct {
-			Hits []struct {
-				ID     string  `json:"_id"`
-				Score  float64 `json:"_score"`
-				Source struct {
-					MessageID string `json:"message_id"`
-				} `json:"_source"`
-				Highlight map[string][]string `json:"highlight"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxOpenSearchSearchResponseBytes)).Decode(&result); err != nil {
+	result, err := decodeOpenSearchSearchResponse(resp.Body)
+	if err != nil {
 		return nil, fmt.Errorf("decode opensearch search response: %w", err)
 	}
 	hits := make([]OpenSearchHit, 0, len(result.Hits.Hits))
@@ -129,6 +118,42 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 		})
 	}
 	return hits, nil
+}
+
+type openSearchSearchResponse struct {
+	Hits struct {
+		Hits []struct {
+			ID     string  `json:"_id"`
+			Score  float64 `json:"_score"`
+			Source struct {
+				MessageID string `json:"message_id"`
+			} `json:"_source"`
+			Highlight map[string][]string `json:"highlight"`
+		} `json:"hits"`
+	} `json:"hits"`
+}
+
+func decodeOpenSearchSearchResponse(body io.Reader) (openSearchSearchResponse, error) {
+	raw, err := io.ReadAll(io.LimitReader(body, maxOpenSearchSearchResponseBytes+1))
+	if err != nil {
+		return openSearchSearchResponse{}, err
+	}
+	if int64(len(raw)) > maxOpenSearchSearchResponseBytes {
+		return openSearchSearchResponse{}, fmt.Errorf("opensearch search response is too large")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	var result openSearchSearchResponse
+	if err := decoder.Decode(&result); err != nil {
+		return openSearchSearchResponse{}, err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return openSearchSearchResponse{}, fmt.Errorf("opensearch search response must contain a single JSON value")
+		}
+		return openSearchSearchResponse{}, err
+	}
+	return result, nil
 }
 
 func cleanOpenSearchHitID(value string) string {
@@ -158,9 +183,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 		})
 	}
 	if folderID := cleanOpenSearchSearchText(query.FolderID); folderID != "" {
-		must = append(must, map[string]any{
-			"term": map[string]any{"folder_id": folderID},
-		})
+		must = append(must, map[string]any{"term": map[string]any{"folder_id": folderID}})
 	}
 	if from := cleanOpenSearchSearchText(query.From); from != "" {
 		must = append(must, map[string]any{
@@ -173,9 +196,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 		})
 	}
 	if query.HasAttachment != nil {
-		must = append(must, map[string]any{
-			"term": map[string]any{"has_attachment": *query.HasAttachment},
-		})
+		must = append(must, map[string]any{"term": map[string]any{"has_attachment": *query.HasAttachment}})
 	}
 	payload := map[string]any{
 		"size": limit,
@@ -183,9 +204,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 			"message_id",
 		},
 		"query": map[string]any{
-			"bool": map[string]any{
-				"must": must,
-			},
+			"bool": map[string]any{"must": must},
 		},
 	}
 	if query.IncludeHighlights && strings.TrimSpace(query.Query) != "" {

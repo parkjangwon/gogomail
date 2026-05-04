@@ -84,7 +84,8 @@ guidance.
   responses.
 - OpenSearch relevance response decoding is capped before JSON parsing so
   oversized search backend responses cannot allocate unbounded highlight or hit
-  payloads in the Mail API path.
+  payloads in the Mail API path, and trailing JSON tokens are rejected before
+  search hits are accepted.
 - Shared EML text extraction and attachment metadata are bounded with UTF-8
   boundary preservation; attachment filenames are basename-normalized,
   control-character cleaned, and capped before reaching storage/API/search
