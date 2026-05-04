@@ -167,6 +167,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Password hash verification rejects oversized stored hashes, excessive PBKDF2
   iteration counts, and oversized salt/key metadata before expensive derivation
   or decoded allocation.
+- Mail API search control query values and direct multipart attachment
+  `draft_id` fields reject CR/LF-bearing or oversized values at the HTTP
+  boundary before service dispatch.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed
