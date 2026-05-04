@@ -83,3 +83,21 @@ func TestValidateCancelAttachmentUploadSessionRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateExpireAttachmentUploadSessionsRequest(t *testing.T) {
+	t.Parallel()
+
+	valid := ExpireAttachmentUploadSessionsRequest{
+		Before: time.Now(),
+		Limit:  10,
+	}
+	if err := ValidateExpireAttachmentUploadSessionsRequest(valid); err != nil {
+		t.Fatalf("ValidateExpireAttachmentUploadSessionsRequest returned error: %v", err)
+	}
+	if err := ValidateExpireAttachmentUploadSessionsRequest(ExpireAttachmentUploadSessionsRequest{Limit: 10}); err == nil {
+		t.Fatal("ValidateExpireAttachmentUploadSessionsRequest accepted zero before")
+	}
+	if err := ValidateExpireAttachmentUploadSessionsRequest(ExpireAttachmentUploadSessionsRequest{Before: time.Now(), Limit: -1}); err == nil {
+		t.Fatal("ValidateExpireAttachmentUploadSessionsRequest accepted negative limit")
+	}
+}

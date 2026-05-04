@@ -299,6 +299,65 @@ func TestPostgresCancelAttachmentUploadSessionReleasesQuota(t *testing.T) {
 	}
 }
 
+func TestPostgresExpireAttachmentUploadSessionsReleasesQuota(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	expiredCandidate, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "old.bin",
+		DeclaredSize: 128,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(-time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession old returned error: %v", err)
+	}
+	freshCandidate, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "fresh.bin",
+		DeclaredSize: 256,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession fresh returned error: %v", err)
+	}
+	var reserved int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&reserved); err != nil {
+		t.Fatalf("query reserved quota: %v", err)
+	}
+
+	expired, err := repo.ExpireAttachmentUploadSessions(ctx, ExpireAttachmentUploadSessionsRequest{
+		Before: time.Now(),
+		Limit:  10,
+	})
+	if err != nil {
+		t.Fatalf("ExpireAttachmentUploadSessions returned error: %v", err)
+	}
+	if len(expired) != 1 || expired[0].ID != expiredCandidate.ID || expired[0].Status != "expired" {
+		t.Fatalf("expired sessions = %+v", expired)
+	}
+	var released int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&released); err != nil {
+		t.Fatalf("query released quota: %v", err)
+	}
+	if released != reserved-128 {
+		t.Fatalf("released quota = %d, want %d", released, reserved-128)
+	}
+	var freshStatus string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM attachment_upload_sessions WHERE id = $1`, freshCandidate.ID).Scan(&freshStatus); err != nil {
+		t.Fatalf("query fresh status: %v", err)
+	}
+	if freshStatus != "pending" {
+		t.Fatalf("fresh status = %q, want pending", freshStatus)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 

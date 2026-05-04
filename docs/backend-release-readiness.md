@@ -38,6 +38,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   the shared quota ledger transactionally.
 - Repository support can cancel resumable upload sessions and release the
   declared quota reservation exactly once.
+- Repository support can expire stale resumable upload sessions in bounded
+  batches and release declared quota reservations.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin

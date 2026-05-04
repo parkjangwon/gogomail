@@ -589,6 +589,7 @@ Implementation order:
 530. `attachment_upload_sessions` migration prepares future resumable upload state with declared/received byte counters, lifecycle status, expiry, checksum, storage adapter metadata, and cleanup indexes.
 531. `maildb` can create resumable attachment upload sessions and reserve declared bytes in the shared quota ledger transactionally, with optional PostgreSQL integration coverage.
 532. `maildb` can cancel resumable attachment upload sessions and release declared quota reservations exactly once, rejecting repeated cancellation of already terminal sessions.
+533. `maildb` can expire stale resumable attachment upload sessions in bounded batches, marking them `expired` and releasing declared quota reservations.
 
 ## Deferred until backend contracts stabilize
 
