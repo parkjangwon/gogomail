@@ -614,6 +614,7 @@ Implementation order:
 555. Admin attachment cleanup candidate previews now include bounded stale upload-session rows alongside legacy attachment-upload rows, giving operators row-level visibility before cleanup releases quota reservations.
 556. Upload session body replacement now writes each retry to a distinct staged object path before repository metadata update, preserving the previously recorded body if the database update fails and best-effort cleaning the previous staged body after successful replacement.
 557. Admin API usage ledger retention runs can now dry-run or delete a bounded batch of immutable ledger rows only after reusing the retention-readiness gate, with destructive runs requiring explicit `confirm_ready`.
+558. Optional PostgreSQL integration coverage now verifies API usage retention runs preserve blocked candidates, keep dry-runs read-only, delete only the requested ready batch, and leave newer ledger rows intact.
 
 ## Deferred until backend contracts stabilize
 

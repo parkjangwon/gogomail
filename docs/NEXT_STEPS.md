@@ -371,6 +371,9 @@ Current state:
   receive candidate counts plus the covering completed export batch, artifact,
   digest, signature, and late-recorded-row evidence before any future
   archive/delete job can safely run.
+- Optional PostgreSQL integration coverage verifies bounded retention runs
+  preserve blocked candidates, keep dry-runs read-only, and delete only the
+  requested ready batch.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.

@@ -539,6 +539,84 @@ func TestPostgresFinalizeAttachmentUploadSessionRejectsUnstoredBody(t *testing.T
 	}
 }
 
+func TestPostgresRunAPIUsageLedgerRetentionRequiresReadinessAndDeletesBoundedRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	repo := NewRepository(db)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	windowStart := now.Add(-4 * time.Hour)
+	cutoff := now.Add(-time.Hour)
+	candidateTimes := []time.Time{
+		now.Add(-3 * time.Hour),
+		now.Add(-2 * time.Hour),
+		now.Add(-90 * time.Minute),
+	}
+	for i, eventAt := range candidateTimes {
+		insertPostgresAPIUsageLedgerEvent(t, db, fmt.Sprintf("retention-old-%d", i+1), eventAt, now.Add(-30*time.Minute), "tenant-1", "principal-1")
+	}
+	insertPostgresAPIUsageLedgerEvent(t, db, "retention-fresh", now.Add(-30*time.Minute), now.Add(-20*time.Minute), "tenant-1", "principal-1")
+
+	blocked, err := repo.RunAPIUsageLedgerRetention(ctx, APIUsageLedgerRetentionRunRequest{
+		Cutoff:       cutoff,
+		TenantID:     "tenant-1",
+		PrincipalID:  "principal-1",
+		Limit:        2,
+		DryRun:       false,
+		ConfirmReady: true,
+	})
+	if err != nil {
+		t.Fatalf("RunAPIUsageLedgerRetention blocked returned error: %v", err)
+	}
+	if blocked.Ready || blocked.DeletedCount != 0 || blocked.CandidateCount != 3 || blocked.LimitedCount != 2 {
+		t.Fatalf("blocked retention run = %+v", blocked)
+	}
+
+	insertPostgresAPIUsageExportEvidence(t, db, now, windowStart, cutoff, 3)
+	dryRun, err := repo.RunAPIUsageLedgerRetention(ctx, APIUsageLedgerRetentionRunRequest{
+		Cutoff:       cutoff,
+		TenantID:     "tenant-1",
+		PrincipalID:  "principal-1",
+		Limit:        2,
+		DryRun:       true,
+		ConfirmReady: false,
+	})
+	if err != nil {
+		t.Fatalf("RunAPIUsageLedgerRetention dry-run returned error: %v", err)
+	}
+	if !dryRun.Ready || dryRun.DeletedCount != 0 || dryRun.CandidateCount != 3 || dryRun.LimitedCount != 2 {
+		t.Fatalf("dry retention run = %+v", dryRun)
+	}
+
+	run, err := repo.RunAPIUsageLedgerRetention(ctx, APIUsageLedgerRetentionRunRequest{
+		Cutoff:       cutoff,
+		TenantID:     "tenant-1",
+		PrincipalID:  "principal-1",
+		Limit:        2,
+		DryRun:       false,
+		ConfirmReady: true,
+	})
+	if err != nil {
+		t.Fatalf("RunAPIUsageLedgerRetention returned error: %v", err)
+	}
+	if !run.Ready || run.DeletedCount != 2 || run.CandidateCount != 3 || run.LimitedCount != 2 {
+		t.Fatalf("retention run = %+v", run)
+	}
+
+	var oldRemaining, freshRemaining int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM api_usage_ledger WHERE event_timestamp < $1`, cutoff).Scan(&oldRemaining); err != nil {
+		t.Fatalf("query old remaining: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM api_usage_ledger WHERE event_id = 'retention-fresh'`).Scan(&freshRemaining); err != nil {
+		t.Fatalf("query fresh remaining: %v", err)
+	}
+	if oldRemaining != 1 || freshRemaining != 1 {
+		t.Fatalf("remaining old/fresh = %d/%d, want 1/1", oldRemaining, freshRemaining)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 
@@ -648,6 +726,75 @@ FROM domain, app_user`).Scan(&seed.companyID, &seed.domainID, &seed.userID, &see
 		t.Fatalf("seed postgres mail user: %v", err)
 	}
 	return seed
+}
+
+func insertPostgresAPIUsageLedgerEvent(t *testing.T, db *sql.DB, eventID string, eventAt time.Time, recordedAt time.Time, tenantID string, principalID string) {
+	t.Helper()
+
+	if _, err := db.ExecContext(context.Background(), `
+INSERT INTO api_usage_ledger (
+  event_id,
+  schema_version,
+  event_timestamp,
+  recorded_at,
+  method,
+  route,
+  status,
+  tenant_id,
+  principal_id,
+  auth_source,
+  request_count,
+  request_bytes,
+  response_bytes,
+  latency_ms,
+  payload
+) VALUES ($1, '2026-05-04.api-usage.v2', $2, $3, 'GET', '/api/v1/messages', 200, $4, $5, 'bearer', 1, 10, 20, 5, '{}'::jsonb)`, eventID, eventAt.UTC(), recordedAt.UTC(), tenantID, principalID); err != nil {
+		t.Fatalf("insert api usage ledger event %s: %v", eventID, err)
+	}
+}
+
+func insertPostgresAPIUsageExportEvidence(t *testing.T, db *sql.DB, completedAt time.Time, windowStart time.Time, windowEnd time.Time, eventCount int64) {
+	t.Helper()
+
+	const digest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	if _, err := db.ExecContext(context.Background(), `
+INSERT INTO api_usage_export_batches (
+  id, completed_at, status, export_format, tenant_id, principal_id, window_start, window_end,
+  event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max,
+  first_event_at, last_event_at, manifest
+) VALUES (
+  'retention-batch-1', $1, 'completed', 'ndjson', 'tenant-1', 'principal-1', $2, $3,
+  $4, $4, 30, 60, 15, 5, $2, $3, '{}'::jsonb
+)`, completedAt.UTC(), windowStart.UTC(), windowEnd.UTC(), eventCount); err != nil {
+		t.Fatalf("insert api usage export batch: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), `
+INSERT INTO api_usage_export_artifacts (
+  id, batch_id, object_key, content_type, byte_count, sha256_hex, event_count, metadata
+) VALUES (
+  'retention-artifact-1', 'retention-batch-1', 'exports/retention-batch-1.ndjson',
+  'application/x-ndjson', 100, $1, $2, '{}'::jsonb
+)`, digest, eventCount); err != nil {
+		t.Fatalf("insert api usage export artifact: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), `
+INSERT INTO api_usage_export_manifest_digests (
+  id, batch_id, schema_version, digest_algorithm, digest_hex, manifest
+) VALUES (
+  'retention-digest-1', 'retention-batch-1', '2026-05-04.api-usage-export-manifest.v1',
+  'sha256', $1, '{}'::jsonb
+)`, digest); err != nil {
+		t.Fatalf("insert api usage export digest: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), `
+INSERT INTO api_usage_export_manifest_signatures (
+  id, digest_id, batch_id, signer_backend, key_id, signature_algorithm, signed_digest_hex, signature_hex, metadata
+) VALUES (
+  'retention-signature-1', 'retention-digest-1', 'retention-batch-1', 'local-hmac', 'key-1',
+  'hmac-sha256', $1, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', '{}'::jsonb
+)`, digest); err != nil {
+		t.Fatalf("insert api usage export signature: %v", err)
+	}
 }
 
 func openMigratedPostgresTestDB(t *testing.T) *sql.DB {
