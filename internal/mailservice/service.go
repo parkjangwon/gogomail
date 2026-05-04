@@ -871,8 +871,12 @@ func (s *Service) CreateAttachmentUploadSession(ctx context.Context, req CreateA
 	if err := ValidateCreateAttachmentUploadSessionRequest(req); err != nil {
 		return maildb.AttachmentUploadSession{}, err
 	}
-	if !req.ExpiresAt.After(time.Now().UTC()) {
+	now := time.Now().UTC()
+	if !req.ExpiresAt.After(now) {
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("expires_at must be in the future")
+	}
+	if req.ExpiresAt.After(now.Add(MaxAttachmentUploadSessionTTL)) {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("expires_at must be within %s", MaxAttachmentUploadSessionTTL)
 	}
 	if err := s.enforceAttachmentPolicy(ctx, req.UserID, req.DeclaredSize); err != nil {
 		return maildb.AttachmentUploadSession{}, err

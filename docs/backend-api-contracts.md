@@ -171,10 +171,10 @@ upload clears its draft binding and refreshes the draft `has_attachment` cache
 in the same transaction.
 Clients can discover the current upload limits and supported modes with
 `GET /api/v1/attachments/capabilities`. The response records max attachment
-bytes, filename bytes, metadata reservation, direct multipart upload, pending
-upload cancellation, upload session create/cancel support, declared-size
-requirements, quota reservation semantics, and the fact that full
-resumable/chunked uploads are not yet supported.
+bytes, filename bytes, max upload session TTL seconds, metadata reservation,
+direct multipart upload, pending upload cancellation, upload session
+create/cancel support, declared-size requirements, quota reservation semantics,
+and the fact that full resumable/chunked uploads are not yet supported.
 OpenAPI documents the current maximum attachment and filename byte caps so
 generated clients can validate these limits without copying hidden constants.
 Resumable/chunked upload contracts follow ADR 0007 and remain disabled in
@@ -185,7 +185,7 @@ The Mail API exposes the first session lifecycle endpoints,
 session creation, user-scoped status reads, and user-scoped cancellation; chunk
 upload/finalization routes are not yet exposed, so `resumable_chunked_uploads`
 remains `false`. Session creation rejects non-future `expires_at` values at the
-service boundary.
+service boundary and rejects expiries beyond the advertised max session TTL.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

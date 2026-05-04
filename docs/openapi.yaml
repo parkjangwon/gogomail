@@ -2887,6 +2887,7 @@ components:
       required:
         - max_attachment_bytes
         - max_filename_bytes
+        - max_session_ttl_seconds
         - metadata_reservation
         - direct_multipart_upload
         - cancel_pending_uploads
@@ -2905,6 +2906,10 @@ components:
           type: integer
           minimum: 1
           maximum: 255
+        max_session_ttl_seconds:
+          type: integer
+          minimum: 1
+          maximum: 86400
         metadata_reservation:
           type: boolean
         direct_multipart_upload:
@@ -5096,6 +5101,7 @@ components:
         expires_at:
           type: string
           format: date-time
+          description: Must be in the future and within the advertised max session TTL when the session is created.
     DomainCreateRequest:
       type: object
       required: [company_id, name]

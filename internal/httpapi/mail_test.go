@@ -1121,6 +1121,7 @@ func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 		Capabilities struct {
 			MaxAttachmentBytes int64 `json:"max_attachment_bytes"`
 			MaxFilenameBytes   int   `json:"max_filename_bytes"`
+			MaxSessionTTL      int64 `json:"max_session_ttl_seconds"`
 		} `json:"attachment_upload_capabilities"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -1131,6 +1132,9 @@ func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 	}
 	if body.Capabilities.MaxFilenameBytes != mailservice.MaxAttachmentFilenameBytes {
 		t.Fatalf("max_filename_bytes = %d, want %d", body.Capabilities.MaxFilenameBytes, mailservice.MaxAttachmentFilenameBytes)
+	}
+	if body.Capabilities.MaxSessionTTL != int64(mailservice.MaxAttachmentUploadSessionTTL.Seconds()) {
+		t.Fatalf("max_session_ttl_seconds = %d, want %d", body.Capabilities.MaxSessionTTL, int64(mailservice.MaxAttachmentUploadSessionTTL.Seconds()))
 	}
 	for _, want := range []string{
 		`"attachment_upload_capabilities"`,

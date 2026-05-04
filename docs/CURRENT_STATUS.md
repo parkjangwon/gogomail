@@ -649,7 +649,8 @@ The platform hardening sprint completed the following:
   before quota reservation.
 - Attachment upload capabilities now distinguish upload session availability
   from full resumable chunk support so generated clients can adopt the staged
-  lifecycle without assuming chunk receive/finalize routes exist.
+  lifecycle without assuming chunk receive/finalize routes exist, and expose
+  the maximum upload session TTL.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

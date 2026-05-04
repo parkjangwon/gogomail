@@ -11,6 +11,7 @@ import (
 
 const MaxAttachmentFilenameBytes = 255
 const MaxAttachmentUploadBytes int64 = 25 << 20
+const MaxAttachmentUploadSessionTTL = 24 * time.Hour
 
 type CreateAttachmentUploadRequest struct {
 	UserID      string `json:"user_id"`
