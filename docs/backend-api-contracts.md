@@ -41,6 +41,7 @@ Successful collection responses keep a stable top-level plural key:
 - `{"users":[...]}`
 - `{"queues":[...]}`
 - `{"delivery_attempts":[...]}`
+- `{"push_notification_attempts":[...]}`
 - `{"suppression_list":[...]}`
 - `{"dkim_keys":[...]}`
 
@@ -186,6 +187,7 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
 - `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`
+- `GET /admin/v1/push-notification-attempts` returns `{"push_notification_attempts":[...]}`
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
 - `GET /admin/v1/trusted-relays` returns `{"trusted_relays":[...]}`

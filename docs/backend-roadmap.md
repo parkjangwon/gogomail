@@ -287,6 +287,7 @@ Implementation order:
 232. Mail API now supports user-scoped push device registration, listing, and soft deletion for APNs, FCM, and Web Push tokens; raw tokens are write-only while response envelopes expose only a short token suffix for diagnostics.
 233. The push notification worker now resolves bounded active device targets from PostgreSQL before invoking its sink, so future FCM/APNs/Web Push adapters receive explicit per-device targets without touching SMTP hot paths.
 234. Push notification candidates are now persisted to `push_notification_attempts` after worker sink enqueue succeeds, creating an operator audit trail for per-device notification fan-out before vendor delivery adapters are enabled.
+235. Admin API exposes `GET /admin/v1/push-notification-attempts` with limit, status, and user filters so operators can inspect notification fan-out without querying PostgreSQL directly.
 
 ## Deferred until backend contracts stabilize
 

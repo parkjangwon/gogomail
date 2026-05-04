@@ -104,6 +104,8 @@ Current state:
 - The worker records per-device candidate attempts to
   `push_notification_attempts` after sink enqueue succeeds, giving operators a
   trace before vendor adapters exist.
+- Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
+  status/user filters for inspecting candidate fan-out.
 - Spam and vendor FCM/APNs delivery are not wired.
 
 Next:
