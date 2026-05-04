@@ -457,7 +457,9 @@ API call metering can now emit durable usage events:
   gate for future archive/delete jobs; it does not mutate ledger rows.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
-  ledger filter window with fixed event/request/byte/latency totals.
+  ledger filter window with fixed event/request/byte/latency totals. The
+  request requires explicit RFC3339 `from` and `to` query parameters so
+  operators cannot accidentally checkpoint the entire ledger.
 - `GET /admin/v1/api-usage/export-batches` returns
   `{ "api_usage_export_batches": [...] }`, and
   `GET /admin/v1/api-usage/export-batches/{id}` returns one saved manifest.

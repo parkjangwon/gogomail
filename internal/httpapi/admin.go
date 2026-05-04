@@ -600,6 +600,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		if req.From.IsZero() || req.To.IsZero() {
+			writeError(w, http.StatusBadRequest, "from and to are required")
+			return
+		}
 		batch, err := service.CreateAPIUsageExportBatch(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

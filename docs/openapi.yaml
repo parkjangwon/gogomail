@@ -695,12 +695,14 @@ paths:
             type: string
         - name: from
           in: query
+          required: true
           schema:
             type: string
             format: date-time
           description: Inclusive RFC3339 event timestamp lower bound.
         - name: to
           in: query
+          required: true
           schema:
             type: string
             format: date-time
