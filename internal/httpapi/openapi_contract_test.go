@@ -376,6 +376,24 @@ func TestOpenAPIDraftDocumentsAPIUsageExportBatchRequiredWindow(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftKeepsThreadListParametersScoped(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["GET /threads"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /threads is missing")
+	}
+	if !strings.Contains(block, "#/components/parameters/Limit") {
+		t.Fatalf("GET /threads must document the limit parameter, got:\n%s", block)
+	}
+	for _, param := range []string{"tenant_id", "principal_id", "from", "to"} {
+		if openAPIOperationDocumentsParameter(block, param) {
+			t.Fatalf("GET /threads must not document API usage filter parameter %q", param)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsPathParameters(t *testing.T) {
 	t.Parallel()
 
