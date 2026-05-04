@@ -290,6 +290,8 @@ Current state:
   finalizing it into an attachment row.
 - Upload session body storage can reject checksum mismatches when clients send
   `X-Content-SHA256`.
+- Attachment upload capabilities advertise checksum precondition support for
+  upload session body storage.
 - Upload session finalization can convert a stored session body into the normal
   pending attachment row while preserving the original quota reservation.
 - Upload session cancellation deletes any staged session body after the
