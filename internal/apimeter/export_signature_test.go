@@ -2,6 +2,10 @@ package apimeter
 
 import (
 	"crypto/ed25519"
+	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -125,6 +129,77 @@ func TestEd25519ExportManifestSignerRejectsInvalidInput(t *testing.T) {
 				t.Fatal("SignExportManifestDigest returned nil error")
 			}
 		})
+	}
+}
+
+func TestRemoteEd25519ExportManifestSignerSignsAndVerifiesResponse(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("d", 64)
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize)))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s", r.Method)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer token-1" {
+			t.Fatalf("authorization = %q", got)
+		}
+		var req remoteEd25519SignRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if req.KeyID != "remote-key-1" || req.SignedDigestHex != digest || req.Algorithm != ExportManifestSignatureAlgorithmEd25519 {
+			t.Fatalf("request = %+v", req)
+		}
+		_ = json.NewEncoder(w).Encode(ExportManifestSignature{
+			Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+			KeyID:           req.KeyID,
+			SignedDigestHex: req.SignedDigestHex,
+			SignatureHex:    hex.EncodeToString(ed25519.Sign(privateKey, []byte(req.SignedDigestHex))),
+		})
+	}))
+	defer server.Close()
+
+	signature, err := (RemoteEd25519ExportManifestSigner{
+		Endpoint:  server.URL,
+		Token:     "token-1",
+		KeyID:     "remote-key-1",
+		PublicKey: publicKey,
+		Client:    server.Client(),
+	}).SignExportManifestDigest(digest)
+	if err != nil {
+		t.Fatalf("SignExportManifestDigest returned error: %v", err)
+	}
+	if signature.Algorithm != ExportManifestSignatureAlgorithmEd25519 || signature.KeyID != "remote-key-1" || len(signature.SignatureHex) != 128 {
+		t.Fatalf("signature = %+v", signature)
+	}
+}
+
+func TestRemoteEd25519ExportManifestSignerRejectsInvalidRemoteSignature(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("e", 64)
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize)))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(ExportManifestSignature{
+			Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+			KeyID:           "remote-key-1",
+			SignedDigestHex: digest,
+			SignatureHex:    strings.Repeat("f", 128),
+		})
+	}))
+	defer server.Close()
+
+	_, err := (RemoteEd25519ExportManifestSigner{
+		Endpoint:  server.URL,
+		KeyID:     "remote-key-1",
+		PublicKey: publicKey,
+		Client:    server.Client(),
+	}).SignExportManifestDigest(digest)
+	if err == nil || !strings.Contains(err.Error(), "invalid signature") {
+		t.Fatalf("err = %v", err)
 	}
 }
 

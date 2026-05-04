@@ -1,12 +1,17 @@
 package apimeter
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -142,6 +147,90 @@ func (v Ed25519ExportManifestSignatureVerifier) VerifyExportManifestSignature(si
 		return false, fmt.Errorf("ed25519 signature must be %d bytes", ed25519.SignatureSize)
 	}
 	return ed25519.Verify(v.PublicKey, []byte(digestHex), signatureBytes), nil
+}
+
+type RemoteEd25519ExportManifestSigner struct {
+	Endpoint  string
+	Token     string
+	KeyID     string
+	PublicKey ed25519.PublicKey
+	Client    *http.Client
+}
+
+func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex string) (ExportManifestSignature, error) {
+	digestHex = strings.ToLower(strings.TrimSpace(digestHex))
+	if !isLowerHexSHA256(digestHex) {
+		return ExportManifestSignature{}, fmt.Errorf("digest_hex must be 64 lowercase hex characters")
+	}
+	keyID := strings.TrimSpace(s.KeyID)
+	if keyID == "" {
+		return ExportManifestSignature{}, fmt.Errorf("key id is required")
+	}
+	endpoint := strings.TrimSpace(s.Endpoint)
+	if endpoint == "" {
+		return ExportManifestSignature{}, fmt.Errorf("remote signer endpoint is required")
+	}
+	body, err := json.Marshal(remoteEd25519SignRequest{
+		Algorithm:       ExportManifestSignatureAlgorithmEd25519,
+		KeyID:           keyID,
+		SignedDigestHex: digestHex,
+	})
+	if err != nil {
+		return ExportManifestSignature{}, fmt.Errorf("encode remote signer request: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return ExportManifestSignature{}, fmt.Errorf("create remote signer request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	if token := strings.TrimSpace(s.Token); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	client := s.Client
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ExportManifestSignature{}, fmt.Errorf("call remote signer: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return ExportManifestSignature{}, fmt.Errorf("remote signer returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var signature ExportManifestSignature
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&signature); err != nil {
+		return ExportManifestSignature{}, fmt.Errorf("decode remote signer response: %w", err)
+	}
+	signature.Algorithm = strings.TrimSpace(signature.Algorithm)
+	signature.KeyID = strings.TrimSpace(signature.KeyID)
+	signature.SignedDigestHex = strings.ToLower(strings.TrimSpace(signature.SignedDigestHex))
+	signature.SignatureHex = strings.ToLower(strings.TrimSpace(signature.SignatureHex))
+	if signature.KeyID != keyID {
+		return ExportManifestSignature{}, fmt.Errorf("remote signer returned key_id %q, want %q", signature.KeyID, keyID)
+	}
+	if signature.SignedDigestHex != digestHex {
+		return ExportManifestSignature{}, fmt.Errorf("remote signer returned signed_digest_hex that does not match request")
+	}
+	valid, err := (Ed25519ExportManifestSignatureVerifier{
+		KeyID:     keyID,
+		PublicKey: s.PublicKey,
+	}).VerifyExportManifestSignature(signature)
+	if err != nil {
+		return ExportManifestSignature{}, err
+	}
+	if !valid {
+		return ExportManifestSignature{}, fmt.Errorf("remote signer returned an invalid signature")
+	}
+	return signature, nil
+}
+
+type remoteEd25519SignRequest struct {
+	Algorithm       string `json:"algorithm"`
+	KeyID           string `json:"key_id"`
+	SignedDigestHex string `json:"signed_digest_hex"`
 }
 
 func isLowerHexSHA256(value string) bool {

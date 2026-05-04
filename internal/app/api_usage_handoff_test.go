@@ -149,6 +149,31 @@ func TestAdminServiceAPIUsageExportCapabilitiesLocalEd25519(t *testing.T) {
 	}
 }
 
+func TestAdminServiceAPIUsageExportCapabilitiesRemoteEd25519ProductionReady(t *testing.T) {
+	t.Parallel()
+
+	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize)))
+	service := adminService{
+		exportManifestSigner: apimeter.RemoteEd25519ExportManifestSigner{
+			KeyID:     "key-3",
+			Endpoint:  "https://signer.example.test/sign",
+			PublicKey: privateKey.Public().(ed25519.PublicKey),
+		},
+		exportManifestSignerBackend: "remote-ed25519",
+		exportManifestVerifier:      apimeter.Ed25519ExportManifestSignatureVerifier{KeyID: "key-3", PublicKey: privateKey.Public().(ed25519.PublicKey)},
+	}
+	view, err := service.GetAPIUsageExportCapabilities(t.Context())
+	if err != nil {
+		t.Fatalf("GetAPIUsageExportCapabilities returned error: %v", err)
+	}
+	if !view.SignerConfigured || !view.VerifierConfigured || !view.ProductionSignatureReady || !view.BillingReadySupported || !view.VerifiedBillingReadySupported {
+		t.Fatalf("capabilities = %+v", view)
+	}
+	if view.SignerKeyID != "key-3" || len(view.BlockingReasons) != 0 {
+		t.Fatalf("capabilities = %+v", view)
+	}
+}
+
 func TestAdminServiceAPIUsageExportCapabilitiesDisabled(t *testing.T) {
 	t.Parallel()
 

@@ -144,6 +144,19 @@ func TestAPIUsageExportManifestSignerConfig(t *testing.T) {
 	if verifier := apiUsageExportManifestVerifier(ed25519Enabled); verifier == nil {
 		t.Fatal("local-ed25519 verifier is nil")
 	}
+
+	remoteEd25519Enabled := config.Config{
+		APIUsageExportManifestSignerBackend: "remote-ed25519",
+		APIUsageExportManifestSignerKeyID:   "key-3",
+		APIUsageExportSignerURL:             "https://signer.example.test/sign",
+		APIUsageExportSignerPublicKey:       base64.StdEncoding.EncodeToString(publicKey),
+	}
+	if signer := apiUsageExportManifestSigner(remoteEd25519Enabled); signer == nil {
+		t.Fatal("remote-ed25519 signer is nil")
+	}
+	if verifier := apiUsageExportManifestVerifier(remoteEd25519Enabled); verifier == nil {
+		t.Fatal("remote-ed25519 verifier is nil")
+	}
 }
 
 func TestAPIMeteringHandlerWrapsSlogBackend(t *testing.T) {

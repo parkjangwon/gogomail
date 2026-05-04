@@ -116,9 +116,11 @@ guidance.
   batch plus registered artifacts, list/fetch digest records, and re-check the
   stored manifest against its canonical digest before billing handoff.
 - API usage export manifest digests can now be signed through disabled-by-
-  default local HMAC or local Ed25519 signers. Admin API exposes signature
-  create/list/detail and verification endpoints while keeping the signer
-  backend pluggable for future KMS integrations.
+  default local HMAC, local Ed25519, or remote Ed25519 signers. The remote
+  signer is intended for an external KMS-backed signing service and is verified
+  locally with a configured public key before persistence. Admin API exposes
+  signature create/list/detail and verification endpoints while keeping the
+  signer backend pluggable.
 - Admin API exposes API usage export handoff readiness by batch. The report
   summarizes artifact coverage, latest digest/signature state, operational
   readiness, and a separate billing readiness grade so local signers are not
@@ -129,8 +131,8 @@ guidance.
   metadata-only readiness fields stable.
 - Manifest signature verification now sits behind an
   `apimeter.ExportManifestSignatureVerifier` boundary parallel to signing. The
-  current wired verifiers are local-HMAC and local-Ed25519, leaving a clean
-  replacement point for KMS-backed production verification.
+  current wired verifiers are local-HMAC and Ed25519, supporting both local and
+  remote Ed25519 signer backends.
 - Admin API exposes API usage export capabilities so operators can see the
   configured signer backend, signer key ID, verifier availability, and whether
   production/verified billing readiness is supported before creating handoff
@@ -327,8 +329,8 @@ The platform hardening sprint completed the following:
   Admin API endpoints, preparing object-store handoff without adding a vendor
   dependency to the core service.
 - API usage export manifests now have canonical SHA-256 digest generation,
-  local-HMAC/local-Ed25519 signing, and verification Admin API endpoints,
-  tightening the audit trail before external KMS-backed signers are added.
+  local-HMAC/local-Ed25519/remote-Ed25519 signing, and verification Admin API
+  endpoints, tightening the audit trail before invoice-grade signer deployment.
 - API usage export artifact writing now has a local object-store adapter path
   through Admin API, including full-batch streaming, retry-friendly artifact
   registration, stored artifact download, and object body byte/SHA verification.
@@ -352,6 +354,7 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add external KMS-backed signing before using API usage batches for
-   invoices or hard limits.
+5. Deploy the remote-Ed25519 signer behind an approved KMS service, or add a
+   direct cloud KMS adapter, before using API usage batches for invoices or hard
+   limits.
 6. Frontend planning and API contract review before webmail implementation.
