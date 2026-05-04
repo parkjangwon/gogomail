@@ -411,7 +411,7 @@ func TestAdminAPIUsageLedgerHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger?limit=5&tenant_id=tenant-1&principal_id=principal-1&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger?limit=5&tenant_id=%20tenant-1%20&principal_id=%20principal-1%20&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -558,7 +558,7 @@ func TestAdminAPIUsageLedgerRetentionReadinessHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness?cutoff="+cutoff.Format(time.RFC3339)+"&tenant_id=tenant-1&principal_id=principal-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness?cutoff="+cutoff.Format(time.RFC3339)+"&tenant_id=%20tenant-1%20&principal_id=%20principal-1%20", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -629,7 +629,7 @@ func TestAdminCreateAPIUsageExportBatchHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches?tenant_id=tenant-1&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches?tenant_id=%20tenant-1%20&from=2026-05-04T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
