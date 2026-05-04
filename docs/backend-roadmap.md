@@ -600,6 +600,7 @@ Implementation order:
 541. Upload session finalization converts a ready stored session body into the normal pending attachment row without double-reserving quota and marks the session finalized.
 542. Upload session cancellation now deletes staged session bodies when present, keeping storage cleanup aligned with quota release.
 543. Upload session expiry now deletes staged session bodies when present, keeping worker-driven cleanup aligned with quota release.
+544. Optional PostgreSQL integration coverage now verifies upload session finalization creates an attachment row without double-reserving quota.
 
 ## Deferred until backend contracts stabilize
 

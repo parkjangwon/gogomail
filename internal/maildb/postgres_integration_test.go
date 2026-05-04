@@ -358,6 +358,64 @@ func TestPostgresExpireAttachmentUploadSessionsReleasesQuota(t *testing.T) {
 	}
 }
 
+func TestPostgresFinalizeAttachmentUploadSessionCreatesAttachmentWithoutDoubleQuota(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var before int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&before); err != nil {
+		t.Fatalf("query quota before: %v", err)
+	}
+	session, err := repo.CreateAttachmentUploadSession(ctx, CreateAttachmentUploadSessionRequest{
+		UserID:       seed.userID,
+		Filename:     "large.bin",
+		DeclaredSize: 512,
+		MIMEType:     "application/octet-stream",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUploadSession returned error: %v", err)
+	}
+	if _, err := repo.StoreAttachmentUploadSessionBody(ctx, StoreAttachmentUploadSessionBodyRequest{
+		UserID:         seed.userID,
+		SessionID:      session.ID,
+		ReceivedSize:   512,
+		StoragePath:    "upload-sessions/" + seed.userID + "/" + session.ID + "/body",
+		ChecksumSHA256: strings.Repeat("a", 64),
+	}); err != nil {
+		t.Fatalf("StoreAttachmentUploadSessionBody returned error: %v", err)
+	}
+	attachment, err := repo.FinalizeAttachmentUploadSession(ctx, FinalizeAttachmentUploadSessionRequest{
+		UserID:    seed.userID,
+		SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("FinalizeAttachmentUploadSession returned error: %v", err)
+	}
+	if attachment.ID == "" || attachment.UploadID != session.UploadID || attachment.Size != 512 || attachment.Status != "uploading" {
+		t.Fatalf("attachment = %+v session = %+v", attachment, session)
+	}
+	var after int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&after); err != nil {
+		t.Fatalf("query quota after: %v", err)
+	}
+	if after != before+512 {
+		t.Fatalf("quota after finalize = %d, want %d", after, before+512)
+	}
+	var sessionStatus string
+	var finalizedAt sql.NullTime
+	if err := db.QueryRowContext(ctx, `SELECT status, finalized_at FROM attachment_upload_sessions WHERE id = $1`, session.ID).Scan(&sessionStatus, &finalizedAt); err != nil {
+		t.Fatalf("query finalized session: %v", err)
+	}
+	if sessionStatus != "finalized" || !finalizedAt.Valid {
+		t.Fatalf("session status/finalized_at = %q/%v", sessionStatus, finalizedAt.Valid)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 

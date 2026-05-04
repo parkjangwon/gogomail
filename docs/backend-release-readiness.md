@@ -51,6 +51,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   received bytes and SHA-256.
 - Upload session finalization can create the normal pending attachment row from
   a ready stored session body without double-reserving quota.
+- Optional PostgreSQL integration coverage verifies upload session finalization
+  creates an attachment row while preserving the original quota reservation.
 - Upload session cancellation deletes staged session bodies when present,
   aligning storage cleanup with quota release.
 - Upload session expiry deletes staged session bodies when present, so cleanup
