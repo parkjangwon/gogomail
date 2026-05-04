@@ -13,6 +13,7 @@ const (
 	maxExportManifestSignerKeyIDBytes      = 200
 	maxExportManifestSignerCredentialBytes = 4096
 	maxWebhookTokenBytes                   = 4096
+	maxAttachmentCleanupBatchSize          = 1000
 )
 
 func (c Config) Validate() error {
@@ -79,8 +80,8 @@ func (c Config) Validate() error {
 	if c.AttachmentCleanupStaleAge <= 0 {
 		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE must be positive")
 	}
-	if c.AttachmentCleanupBatchSize <= 0 || c.AttachmentCleanupBatchSize > 1000 {
-		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE must be between 1 and 1000")
+	if c.AttachmentCleanupBatchSize <= 0 || c.AttachmentCleanupBatchSize > maxAttachmentCleanupBatchSize {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE must be between 1 and %d", maxAttachmentCleanupBatchSize)
 	}
 	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook"); err != nil {
 		return err
