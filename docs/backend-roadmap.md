@@ -353,6 +353,8 @@ Implementation order:
 295. Admin API now exposes server-side export artifact write and download endpoints, with retry-friendly artifact registration and best-effort object cleanup when metadata registration fails.
 296. API usage export artifact writing now streams full saved batch windows without the Admin API list cap, while export ordering indexes support stable `(event_timestamp, event_id)` scans.
 297. Admin API now exposes stored API usage artifact verification, recomputing byte count and SHA-256 from object storage before billing or warehouse handoff.
+298. API usage export manifest digests can now be signed through a disabled-by-default local-HMAC signer with explicit key IDs and persisted signature rows.
+299. Admin API now exposes manifest signature create/list/detail/verification endpoints, preserving a vendor-neutral shape for future KMS or asymmetric signer backends.
 
 ## Deferred until backend contracts stabilize
 

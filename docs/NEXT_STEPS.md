@@ -271,11 +271,16 @@ Current state:
   stored manifest digest. This gives operators a vendor-neutral integrity check
   over the saved batch plus registered artifact metadata before external
   signing, billing, or warehouse handoff.
+- Admin API can create/list/get local-HMAC signatures for manifest digests and
+  verify persisted signatures. The signer is disabled by default and configured
+  through `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=local-hmac`,
+  `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID`, and
+  `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET`.
 
 Next:
 
-- Add signing/KMS integration before invoices or hard Open API limits depend on
-  completed export batches.
+- Add external KMS/asymmetric signing before invoices or hard Open API limits
+  depend on completed export batches.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 

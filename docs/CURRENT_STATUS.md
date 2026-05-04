@@ -111,6 +111,10 @@ guidance.
   verification endpoints. Operators can generate SHA-256 digests over the saved
   batch plus registered artifacts, list/fetch digest records, and re-check the
   stored manifest against its canonical digest before billing handoff.
+- API usage export manifest digests can now be signed through a disabled-by-
+  default local HMAC signer. Admin API exposes signature create/list/detail and
+  verification endpoints while keeping the signer backend pluggable for future
+  KMS/asymmetric integrations.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -300,9 +304,9 @@ The platform hardening sprint completed the following:
 - API usage export artifact metadata is now persisted and inspectable through
   Admin API endpoints, preparing object-store handoff without adding a vendor
   dependency to the core service.
-- API usage export manifests now have canonical SHA-256 digest generation and
-  verification Admin API endpoints, tightening the audit trail before external
-  signing or object-store writers are added.
+- API usage export manifests now have canonical SHA-256 digest generation,
+  local-HMAC signing, and verification Admin API endpoints, tightening the audit
+  trail before external KMS/asymmetric signers are added.
 - API usage export artifact writing now has a local object-store adapter path
   through Admin API, including full-batch streaming, retry-friendly artifact
   registration, stored artifact download, and object body byte/SHA verification.
@@ -318,6 +322,6 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add signing/KMS integration before using API usage batches for invoices or
-   hard limits.
+5. Add external KMS/asymmetric signing before using API usage batches for
+   invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.
