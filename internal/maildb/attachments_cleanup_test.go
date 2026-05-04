@@ -24,3 +24,22 @@ func TestValidateExpireStaleAttachmentUploadsRequestRejectsNegativeLimit(t *test
 		t.Fatal("ValidateExpireStaleAttachmentUploadsRequest accepted negative limit")
 	}
 }
+
+func TestNormalizeAttachmentCleanupLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := map[int]int{
+		0:                                  AttachmentCleanupDefaultLimit,
+		-1:                                 AttachmentCleanupDefaultLimit,
+		25:                                 25,
+		AttachmentCleanupMaxLimit:          AttachmentCleanupMaxLimit,
+		AttachmentCleanupMaxLimit + 1:      AttachmentCleanupMaxLimit,
+		MessageListMaxLimit + 100:          MessageListMaxLimit + 100,
+		AttachmentCleanupDefaultLimit + 25: AttachmentCleanupDefaultLimit + 25,
+	}
+	for input, want := range tests {
+		if got := NormalizeAttachmentCleanupLimit(input); got != want {
+			t.Fatalf("NormalizeAttachmentCleanupLimit(%d) = %d, want %d", input, got, want)
+		}
+	}
+}

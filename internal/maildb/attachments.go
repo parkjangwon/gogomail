@@ -27,6 +27,11 @@ type ExpireStaleAttachmentUploadsRequest struct {
 	Limit  int
 }
 
+const (
+	AttachmentCleanupDefaultLimit = 100
+	AttachmentCleanupMaxLimit     = 1000
+)
+
 func ValidateExpireStaleAttachmentUploadsRequest(req ExpireStaleAttachmentUploadsRequest) error {
 	if req.Before.IsZero() {
 		return fmt.Errorf("before is required")
@@ -242,7 +247,7 @@ func (r *Repository) ExpireStaleAttachmentUploads(ctx context.Context, req Expir
 	if err := ValidateExpireStaleAttachmentUploadsRequest(req); err != nil {
 		return nil, err
 	}
-	limit := normalizeLimit(req.Limit)
+	limit := NormalizeAttachmentCleanupLimit(req.Limit)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -324,4 +329,14 @@ WHERE id = $1
 		return nil, fmt.Errorf("commit stale attachment cleanup transaction: %w", err)
 	}
 	return attachments, nil
+}
+
+func NormalizeAttachmentCleanupLimit(limit int) int {
+	if limit <= 0 {
+		return AttachmentCleanupDefaultLimit
+	}
+	if limit > AttachmentCleanupMaxLimit {
+		return AttachmentCleanupMaxLimit
+	}
+	return limit
 }
