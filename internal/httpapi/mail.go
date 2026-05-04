@@ -1191,15 +1191,31 @@ func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 }
 
 func bearerToken(w http.ResponseWriter, r *http.Request) (string, bool) {
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if len(authHeader) > maxHTTPAuthHeaderBytes {
-		writeError(w, http.StatusBadRequest, "Authorization is too long")
+	authHeader, ok := singleHTTPHeaderValue(w, r, "Authorization", maxHTTPAuthHeaderBytes)
+	if !ok {
 		return "", false
 	}
 	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
 		return strings.TrimSpace(authHeader[len("bearer "):]), true
 	}
 	return "", true
+}
+
+func singleHTTPHeaderValue(w http.ResponseWriter, r *http.Request, key string, maxBytes int) (string, bool) {
+	values := r.Header.Values(key)
+	if len(values) == 0 {
+		return "", true
+	}
+	if len(values) > 1 {
+		writeError(w, http.StatusBadRequest, key+" must not be repeated")
+		return "", false
+	}
+	value := strings.TrimSpace(values[0])
+	if len(value) > maxBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
 }
 
 func contentDispositionAttachment(filename string) string {

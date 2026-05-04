@@ -101,6 +101,10 @@ including health and service-info envelopes, also return
 - Admin API uses `Authorization: Bearer <token>` or `X-Admin-Token` when `GOGOMAIL_ADMIN_TOKEN` is configured.
 - Mail/Admin authentication headers are size-bounded before bearer parsing,
   JWT decoding, or admin-token comparison.
+- Auth-bearing HTTP requests reject repeated `Authorization` headers. Admin API
+  requests also reject repeated `X-Admin-Token` headers and requests that send
+  both `X-Admin-Token` and `Authorization`, avoiding ambiguous credential
+  precedence at the routing boundary.
 - Admin user creation accepts an optional pre-hashed `password_hash`, and
   `PATCH /admin/v1/users/{id}/password-hash` rotates an existing user's hash
   for local SMTP Submission authentication. Supported formats are the existing
