@@ -186,6 +186,9 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 		if id == "" {
 			continue
 		}
+		if _, ok := ranks[id]; ok {
+			continue
+		}
 		messageIDs = append(messageIDs, id)
 		ranks[id] = hit.Score
 		highlights[id] = hit.Highlights
