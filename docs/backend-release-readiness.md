@@ -31,6 +31,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - ADR 0007 captures the resumable/chunked upload boundary before implementation,
   keeping session state, quota reservation, staged chunks, final attachment
   rows, and cleanup responsibilities explicit.
+- `attachment_upload_sessions` migration prepares resumable upload state with
+  lifecycle status, expiry, declared/received byte counters, checksum, and
+  storage adapter metadata.
 - Stale attachment uploads have a repository/service cleanup path, partial
   index, and `attachment-cleanup-worker` mode for efficient lifecycle sweeps,
   with optional run-once execution for scheduler-driven deployments and Admin
