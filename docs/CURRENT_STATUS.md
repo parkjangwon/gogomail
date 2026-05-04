@@ -89,6 +89,11 @@ guidance.
   consumes `api.usage` events from `api.event`, upserts Postgres daily
   and monthly aggregates, and exposes `GET /admin/v1/api-usage/daily` plus
   `GET /admin/v1/api-usage/monthly` for operations.
+- API metering events now use `2026-05-04.api-usage.v2` payloads with
+  tenant/company/domain/user/API-key/principal/auth-source dimensions. The
+  worker stores those dimensions in the idempotency ledger and keys daily/monthly
+  aggregates by identity so usage from different tenants or principals does not
+  merge.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -267,6 +272,8 @@ The platform hardening sprint completed the following:
   event ID groundwork for future idempotent billing-grade aggregation.
 - API metering aggregation now has an `api_usage_events` idempotency ledger so
   duplicate `event_id` deliveries do not increment daily/monthly counters again.
+- API metering Admin API responses now expose tenant/company/domain/user/API-key,
+  principal, and auth-source dimensions for daily/monthly aggregates.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 
@@ -279,6 +286,6 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add billing-grade API metering dimensions/idempotency before using
+5. Add an immutable billing ledger/export path before using API usage
    aggregates for invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.
