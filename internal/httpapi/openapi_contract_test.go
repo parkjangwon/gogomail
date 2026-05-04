@@ -218,6 +218,21 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsAPIUsageLedgerFilters(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["GET /api-usage/ledger"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /api-usage/ledger is missing")
+	}
+	for _, param := range []string{"tenant_id", "principal_id", "from", "to"} {
+		if !strings.Contains(block, "name: "+param) {
+			t.Fatalf("GET /api-usage/ledger must document query parameter %q", param)
+		}
+	}
+}
+
 func TestOpenAPIDraftOperationsHaveStableOperationIDs(t *testing.T) {
 	t.Parallel()
 
