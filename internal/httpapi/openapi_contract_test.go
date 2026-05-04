@@ -184,6 +184,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /quota-reconciliation":                               "#/components/responses/QuotaReconciliationList",
 		"POST /quota-reconciliation/corrections":                  "#/components/responses/QuotaCorrection",
 		"GET /delivery-attempts":                                  "#/components/responses/DeliveryAttempts",
+		"GET /delivery-attempts/exhausted":                        "#/components/responses/ExhaustedAttempts",
 		"GET /push-notification-attempts":                         "#/components/responses/PushNotificationAttempts",
 		"GET /push-notification-stats":                            "#/components/responses/PushNotificationStats",
 		"GET /suppression-list":                                   "#/components/responses/SuppressionList",

@@ -371,6 +371,7 @@ Implementation order:
 312. Admin push notification attempt lists can now also be scoped by RFC3339 `since`, matching the stats endpoint so operators can drill from recent status counts into the corresponding attempt rows.
 313. Admin delivery attempt lists can now be filtered by delivery status, recipient domain, and RFC3339 `since`, giving operators a bounded recent-window view for retry, bounce, destination-domain, and exhaustion triage.
 314. OpenAPI now documents and tests the API usage ledger `tenant_id`, `principal_id`, `from`, and `to` filters accepted by the Admin API, preventing generated billing/export clients from losing runtime-supported query scope.
+315. OpenAPI now exposes exhausted delivery attempts through a reusable `ExhaustedAttempts` response component and contract test, keeping terminal retry triage envelopes aligned with generated-client response handling.
 
 ## Deferred until backend contracts stabilize
 

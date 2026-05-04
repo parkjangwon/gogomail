@@ -1044,17 +1044,7 @@ paths:
           description: Inclusive RFC3339 lower bound for exhausted attempt timestamps.
       responses:
         "200":
-          description: Exhausted delivery attempts
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [exhausted_attempts]
-                properties:
-                  exhausted_attempts:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/DeliveryAttempt"
+          $ref: "#/components/responses/ExhaustedAttempts"
         default:
           $ref: "#/components/responses/Error"
   /push-notification-attempts:
@@ -1715,6 +1705,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerRetentionReadinessEnvelope"
+    ExhaustedAttempts:
+      description: Exhausted delivery attempts envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ExhaustedAttemptsEnvelope"
     APIUsageExportArtifact:
       description: API usage export artifact envelope
       content:
