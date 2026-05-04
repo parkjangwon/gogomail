@@ -660,6 +660,10 @@ The platform hardening sprint completed the following:
 - Mail API can store a complete body for an upload session, persisting it under
   session-scoped storage and recording received bytes plus SHA-256 digest before
   finalize creates the normal attachment row.
+- Upload session body replacement writes retries to distinct staged object paths
+  before repository metadata updates, preserving the previously recorded body if
+  the DB update fails and best-effort deleting the previous staged body after a
+  successful replacement.
 - Upload session body storage can verify an optional client-provided
   `X-Content-SHA256` digest before recording the staged body.
 - Attachment upload capabilities now advertise upload session checksum

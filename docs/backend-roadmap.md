@@ -608,10 +608,11 @@ Implementation order:
 549. Attachment upload capabilities now advertise upload session checksum precondition support separately from body storage and finalization support.
 550. Optional PostgreSQL integration coverage now verifies upload session finalization rejects unstored bodies without changing quota or creating empty attachment rows.
 551. OpenAPI contract tests now lock the upload session body `X-Content-SHA256` header so generated clients keep the integrity precondition.
-552. Admin attachment cleanup run and dry-run responses now include stale upload-session candidate, limited, and expired counts, aligning operator previews with the background worker's full cleanup scope.
-553. Admin attachment cleanup candidate previews now include bounded stale upload-session rows alongside legacy attachment-upload rows, giving operators row-level visibility before cleanup releases quota reservations.
 552. Upload session body storage now explicitly rejects `Content-Range` requests while full range-aware chunk semantics remain disabled.
 553. Upload session finalization now verifies staged object existence, byte count, and SHA-256 before creating the attachment row.
+554. Admin attachment cleanup run and dry-run responses now include stale upload-session candidate, limited, and expired counts, aligning operator previews with the background worker's full cleanup scope.
+555. Admin attachment cleanup candidate previews now include bounded stale upload-session rows alongside legacy attachment-upload rows, giving operators row-level visibility before cleanup releases quota reservations.
+556. Upload session body replacement now writes each retry to a distinct staged object path before repository metadata update, preserving the previously recorded body if the database update fails and best-effort cleaning the previous staged body after successful replacement.
 
 ## Deferred until backend contracts stabilize
 

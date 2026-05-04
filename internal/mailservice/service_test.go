@@ -1135,6 +1135,7 @@ type fakeRepository struct {
 	lastBackfillMailboxID          string
 	lastBackfillLimit              int
 	recordErr                      error
+	storeUploadSessionBodyErr      error
 }
 
 func (f *fakeRepository) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
@@ -1446,6 +1447,9 @@ func (f *fakeRepository) GetAttachmentUploadSession(_ context.Context, req maild
 
 func (f *fakeRepository) StoreAttachmentUploadSessionBody(_ context.Context, req maildb.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
 	f.lastStoreUploadSessionBody = req
+	if f.storeUploadSessionBodyErr != nil {
+		return maildb.AttachmentUploadSession{}, f.storeUploadSessionBodyErr
+	}
 	if f.uploadSession.ID != "" {
 		f.uploadSession.ReceivedSize = req.ReceivedSize
 		f.uploadSession.StoragePath = req.StoragePath
@@ -2283,6 +2287,101 @@ func TestStoreAttachmentUploadSessionBodyWritesStorageAndRecordsDigest(t *testin
 	raw, _ := io.ReadAll(body)
 	if string(raw) != "content" {
 		t.Fatalf("stored body = %q", raw)
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyPreservesPreviousBodyOnRepositoryFailure(t *testing.T) {
+	t.Parallel()
+
+	oldChecksum := sha256.Sum256([]byte("oldbody"))
+	oldPath := "upload-sessions/user-1/session-1/bodies/old"
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:             "session-1",
+			UserID:         "user-1",
+			DeclaredSize:   7,
+			ReceivedSize:   7,
+			StoragePath:    oldPath,
+			ChecksumSHA256: hex.EncodeToString(oldChecksum[:]),
+			Status:         "uploading",
+			ExpiresAt:      time.Now().Add(time.Hour),
+		},
+		storeUploadSessionBodyErr: errors.New("database unavailable"),
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), oldPath, strings.NewReader("oldbody")); err != nil {
+		t.Fatalf("Put old body returned error: %v", err)
+	}
+	service := New(repo, store)
+	_, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+		Body:      strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("StoreAttachmentUploadSessionBody returned nil error for repository failure")
+	}
+	if repo.lastStoreUploadSessionBody.StoragePath == "" || repo.lastStoreUploadSessionBody.StoragePath == oldPath {
+		t.Fatalf("new body should be staged at a distinct path: %+v", repo.lastStoreUploadSessionBody)
+	}
+	if _, err := store.Get(context.Background(), repo.lastStoreUploadSessionBody.StoragePath); err == nil {
+		t.Fatalf("failed staged body still exists at %s", repo.lastStoreUploadSessionBody.StoragePath)
+	}
+	body, err := store.Get(context.Background(), oldPath)
+	if err != nil {
+		t.Fatalf("previous body was removed after repository failure: %v", err)
+	}
+	defer body.Close()
+	raw, _ := io.ReadAll(body)
+	if string(raw) != "oldbody" {
+		t.Fatalf("previous body = %q", raw)
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyDeletesPreviousBodyAfterReplacement(t *testing.T) {
+	t.Parallel()
+
+	oldChecksum := sha256.Sum256([]byte("oldbody"))
+	oldPath := "upload-sessions/user-1/session-1/bodies/old"
+	repo := &fakeRepository{
+		uploadSession: maildb.AttachmentUploadSession{
+			ID:             "session-1",
+			UserID:         "user-1",
+			DeclaredSize:   7,
+			ReceivedSize:   7,
+			StoragePath:    oldPath,
+			ChecksumSHA256: hex.EncodeToString(oldChecksum[:]),
+			Status:         "uploading",
+			ExpiresAt:      time.Now().Add(time.Hour),
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), oldPath, strings.NewReader("oldbody")); err != nil {
+		t.Fatalf("Put old body returned error: %v", err)
+	}
+	service := New(repo, store)
+	session, err := service.StoreAttachmentUploadSessionBody(context.Background(), StoreAttachmentUploadSessionBodyRequest{
+		UserID:    "user-1",
+		SessionID: "session-1",
+		Body:      strings.NewReader("content"),
+	})
+	if err != nil {
+		t.Fatalf("StoreAttachmentUploadSessionBody returned error: %v", err)
+	}
+	if session.StoragePath == oldPath || session.StoragePath == "" {
+		t.Fatalf("replacement storage path = %q", session.StoragePath)
+	}
+	if _, err := store.Get(context.Background(), oldPath); err == nil {
+		t.Fatal("previous body still exists after successful replacement")
+	}
+	body, err := store.Get(context.Background(), session.StoragePath)
+	if err != nil {
+		t.Fatalf("Get replacement body returned error: %v", err)
+	}
+	defer body.Close()
+	raw, _ := io.ReadAll(body)
+	if string(raw) != "content" {
+		t.Fatalf("replacement body = %q", raw)
 	}
 }
 

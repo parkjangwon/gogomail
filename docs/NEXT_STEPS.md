@@ -292,6 +292,9 @@ Current state:
   separately from `resumable_chunked_uploads` and include the max session TTL.
 - Upload session body storage can persist a complete body and checksum without
   finalizing it into an attachment row.
+- Upload session body replacement preserves the previously recorded staged body
+  if repository metadata recording fails, and removes the previous body after a
+  successful replacement on a best-effort basis.
 - Upload session body storage can reject checksum mismatches when clients send
   `X-Content-SHA256`.
 - Attachment upload capabilities advertise checksum precondition support for
