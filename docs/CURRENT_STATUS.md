@@ -213,6 +213,10 @@ guidance.
   require `confirm_ready=true`, reuse the readiness gate, and delete only a
   normalized batch of ready ledger rows, while dry-runs return the same envelope
   without mutation.
+- Optional PostgreSQL integration coverage verifies retention runs do not delete
+  blocked candidates, dry-runs do not mutate ready candidates, and destructive
+  ready runs delete only the requested bounded batch while preserving newer
+  ledger rows.
 - API usage exports now have persisted batch manifests/checkpoints. Admin API
   can create/list/get manifest rows and replay a saved manifest window as NDJSON
   by batch ID. Batch creation now requires explicit RFC3339 `from`/`to`
