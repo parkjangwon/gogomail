@@ -272,6 +272,26 @@ func TestPushDeviceReadAndDeleteNormalizeIDs(t *testing.T) {
 	}
 }
 
+func TestDeletePushDeviceRejectsUnsafeDeviceID(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	tests := []string{
+		"device-1\r\nbad",
+		strings.Repeat("x", maxServiceResourceIDBytes+1),
+	}
+	for _, id := range tests {
+		if err := service.DeletePushDevice(context.Background(), "user-1", id); err == nil {
+			t.Fatalf("DeletePushDevice accepted device ID %q", id)
+		}
+	}
+	if repo.lastDeletePushDeviceID != "" {
+		t.Fatalf("repository was called with device ID %q", repo.lastDeletePushDeviceID)
+	}
+}
+
 func TestMessageDeliveryStatusNormalizesIDs(t *testing.T) {
 	t.Parallel()
 

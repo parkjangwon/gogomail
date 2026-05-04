@@ -677,6 +677,9 @@ func (s *Service) DeletePushDevice(ctx context.Context, userID string, id string
 	}
 	userID = strings.TrimSpace(userID)
 	id = strings.TrimSpace(id)
+	if err := validateServiceResourceID("device_id", id); err != nil {
+		return err
+	}
 	return repo.DeletePushDevice(ctx, userID, id)
 }
 
