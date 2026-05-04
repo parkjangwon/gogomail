@@ -279,6 +279,9 @@ guidance.
 - Push notification candidate and provider-outcome diagnostics are capped at
   UTF-8 boundaries before Postgres storage, preserving internationalized
   subjects and vendor messages in Admin API views.
+- Push notification candidate recording rejects invalid-UTF-8, CR/LF-bearing,
+  or oversized message/user/device/company/domain IDs before SQL insert
+  dispatch, and rejects unsupported platforms at the recorder boundary.
 - The push worker marks attempts `queued` after a successful sink handoff while
   marking failed sink handoffs as `failed` with the sink error before returning
   the handler error for Redis stream retry.

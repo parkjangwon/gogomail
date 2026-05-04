@@ -30,15 +30,10 @@ func (r *PostgresRecorder) RecordCandidate(ctx context.Context, record Candidate
 	if r == nil || r.db == nil {
 		return CandidateRecordResult{}, fmt.Errorf("database handle is required")
 	}
-	record = normalizeCandidateRecord(record)
-	if record.MessageID == "" {
-		return CandidateRecordResult{}, fmt.Errorf("message_id is required")
-	}
-	if record.UserID == "" {
-		return CandidateRecordResult{}, fmt.Errorf("user_id is required")
-	}
-	if record.DeviceID == "" {
-		return CandidateRecordResult{}, fmt.Errorf("device_id is required")
+	var err error
+	record, err = normalizeCandidateRecord(record)
+	if err != nil {
+		return CandidateRecordResult{}, err
 	}
 	if record.Status == "" {
 		record.Status = "candidate"
@@ -131,7 +126,7 @@ RETURNING COALESCE(device_id::text, ''), user_id::text`,
 	return nil
 }
 
-func normalizeCandidateRecord(record CandidateRecord) CandidateRecord {
+func normalizeCandidateRecord(record CandidateRecord) (CandidateRecord, error) {
 	record.MessageID = strings.TrimSpace(record.MessageID)
 	record.RFCMessageID = strings.TrimSpace(record.RFCMessageID)
 	record.CompanyID = strings.TrimSpace(record.CompanyID)
@@ -145,7 +140,22 @@ func normalizeCandidateRecord(record CandidateRecord) CandidateRecord {
 	record.Status = strings.ToLower(strings.TrimSpace(record.Status))
 	record.Subject = cleanBoundedText(record.Subject, 500)
 	record.ErrorMessage = cleanBoundedText(record.ErrorMessage, 2000)
-	return record
+	for field, value := range map[string]string{
+		"message_id": record.MessageID,
+		"user_id":    record.UserID,
+		"device_id":  record.DeviceID,
+		"company_id": record.CompanyID,
+		"domain_id":  record.DomainID,
+	} {
+		required := field == "message_id" || field == "user_id" || field == "device_id"
+		if err := validatePushRecorderID(field, value, required); err != nil {
+			return CandidateRecord{}, err
+		}
+	}
+	if record.Platform != "" && !maildbAllowedPushPlatform(record.Platform) {
+		return CandidateRecord{}, fmt.Errorf("unsupported push notification platform")
+	}
+	return record, nil
 }
 
 func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
@@ -157,13 +167,26 @@ func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
 	if outcome.AttemptID == "" {
 		return AttemptOutcome{}, fmt.Errorf("attempt_id is required")
 	}
-	if strings.ContainsAny(outcome.AttemptID, "\r\n") || len(outcome.AttemptID) > maxPushAttemptIDBytes || !utf8.ValidString(outcome.AttemptID) {
-		return AttemptOutcome{}, fmt.Errorf("attempt_id is invalid")
+	if err := validatePushRecorderID("attempt_id", outcome.AttemptID, true); err != nil {
+		return AttemptOutcome{}, err
 	}
 	if !allowedOutcomeStatus(outcome.Status) {
 		return AttemptOutcome{}, fmt.Errorf("unsupported push notification outcome status")
 	}
 	return outcome, nil
+}
+
+func validatePushRecorderID(field string, value string, required bool) error {
+	if value == "" {
+		if required {
+			return fmt.Errorf("%s is required", field)
+		}
+		return nil
+	}
+	if strings.ContainsAny(value, "\r\n") || len(value) > maxPushAttemptIDBytes || !utf8.ValidString(value) {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	return nil
 }
 
 func cleanBoundedText(value string, maxBytes int) string {

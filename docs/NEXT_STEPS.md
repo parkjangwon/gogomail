@@ -214,6 +214,9 @@ Current state:
 - Candidate and provider-outcome diagnostics are capped at UTF-8 boundaries
   before storage so internationalized subjects and vendor messages remain valid
   in Admin API views.
+- Push notification candidate recording rejects invalid-UTF-8, CR/LF-bearing,
+  or oversized message/user/device/company/domain IDs before SQL insert
+  dispatch, and rejects unsupported platforms at the recorder boundary.
 - `internal/pushnotify.PostgresRecorder` can update an existing attempt with
   queued, delivered, failed, or invalid-token outcomes.
 - Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
