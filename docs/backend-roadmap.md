@@ -561,6 +561,7 @@ Implementation order:
 502. Push-device create/update validation now rejects invalid-UTF-8, CR/LF-bearing, or oversized user and token metadata before repository upsert, keeping raw provider tokens bounded at the storage boundary.
 503. Admin push-notification attempt and stats repository filters now reject invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL dispatch, aligning database access with HTTP query guardrails.
 504. Push notification outcome recording now rejects invalid-UTF-8, CR/LF-bearing, or oversized attempt IDs before SQL update dispatch, keeping future provider adapters from sending unsafe attempt keys into storage.
+505. Push notification candidate recording now rejects invalid-UTF-8, CR/LF-bearing, or oversized message/user/device/company/domain IDs before SQL insert dispatch, and rejects unsupported platforms at the recorder boundary.
 
 ## Deferred until backend contracts stabilize
 
