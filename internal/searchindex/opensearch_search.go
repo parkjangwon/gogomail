@@ -13,9 +13,12 @@ import (
 )
 
 type OpenSearchSearchQuery struct {
-	UserID string
-	Query  string
-	Limit  int
+	UserID        string
+	Query         string
+	From          string
+	Subject       string
+	HasAttachment *bool
+	Limit         int
 }
 
 type OpenSearchHit struct {
@@ -48,7 +51,7 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 		limit = 200
 	}
 
-	payload, err := json.Marshal(openSearchSearchPayload(userID, strings.TrimSpace(query.Query), limit))
+	payload, err := json.Marshal(openSearchSearchPayload(query, userID, limit))
 	if err != nil {
 		return nil, fmt.Errorf("marshal opensearch search request: %w", err)
 	}
@@ -105,16 +108,32 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 	return hits, nil
 }
 
-func openSearchSearchPayload(userID string, query string, limit int) map[string]any {
+func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit int) map[string]any {
 	must := []map[string]any{
 		{"term": map[string]any{"user_id": userID}},
 	}
-	if query != "" {
+	searchText := strings.TrimSpace(query.Query)
+	if searchText != "" {
 		must = append(must, map[string]any{
 			"multi_match": map[string]any{
-				"query":  query,
-				"fields": []string{"subject^2", "body_text"},
+				"query":  searchText,
+				"fields": []string{"subject^2", "from_name", "from_addr", "body_text"},
 			},
+		})
+	}
+	if from := strings.TrimSpace(query.From); from != "" {
+		must = append(must, map[string]any{
+			"wildcard": map[string]any{"from_addr": "*" + strings.ToLower(from) + "*"},
+		})
+	}
+	if subject := strings.TrimSpace(query.Subject); subject != "" {
+		must = append(must, map[string]any{
+			"match": map[string]any{"subject": subject},
+		})
+	}
+	if query.HasAttachment != nil {
+		must = append(must, map[string]any{
+			"term": map[string]any{"has_attachment": *query.HasAttachment},
 		})
 	}
 	return map[string]any{

@@ -202,12 +202,11 @@ func TestSearchMessagesFallsBackWhenExternalSearchCannotPreserveContract(t *test
 		hits: []searchindex.OpenSearchHit{{MessageID: "os-1", Score: 1}},
 	})
 
-	hasAttachment := true
 	got, err := service.SearchMessages(context.Background(), maildb.MessageSearchQuery{
-		UserID:        "user-1",
-		Query:         "hello",
-		HasAttachment: &hasAttachment,
-		Sort:          maildb.MessageSearchSortRelevance,
+		UserID:            "user-1",
+		Query:             "hello",
+		IncludeHighlights: true,
+		Sort:              maildb.MessageSearchSortRelevance,
 	})
 	if err != nil {
 		t.Fatalf("SearchMessages returned error: %v", err)
