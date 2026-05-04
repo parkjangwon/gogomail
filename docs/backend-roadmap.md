@@ -378,6 +378,7 @@ Implementation order:
 319. Shared EML parsing now caps total MIME parts through `ParseOptions.MaxParts` and reports `PartsTruncated`, preventing pathological part counts from forcing unbounded parser iteration on SMTP, Mail API, search indexing, and future IMAP hot paths.
 320. Delivery attempt lists now order by `attempted_at DESC, id DESC`, making admin retry/bounce views and user-scoped sent-message delivery status deterministic when multiple attempts share the same timestamp.
 321. Shared EML parsing now treats inline parts with filenames and non-text inline parts as attachment metadata without reading their bodies, improving `has_attachment` accuracy for MIME messages that do not use `Content-Disposition: attachment`.
+322. Outbound RFC 5322 text composition rejects CR/LF-bearing subject, display-name, email, and explicit Message-ID inputs before header serialization, tightening header-injection safety for send and draft-send paths.
 
 ## Deferred until backend contracts stabilize
 
