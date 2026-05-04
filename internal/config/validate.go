@@ -16,6 +16,7 @@ const (
 )
 
 func (c Config) Validate() error {
+	production := strings.EqualFold(strings.TrimSpace(c.Environment), "production")
 	if c.SubmissionAllowInsecureAuth && strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH must be false in production")
 	}
@@ -62,7 +63,7 @@ func (c Config) Validate() error {
 		return err
 	}
 	if strings.EqualFold(strings.TrimSpace(c.AttachmentScanBackend), "webhook") {
-		if err := validateHTTPURL("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", c.AttachmentScanWebhookURL); err != nil {
+		if err := validateWebhookURL("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", c.AttachmentScanWebhookURL, production); err != nil {
 			return err
 		}
 		if err := validateOptionalSecret("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", c.AttachmentScanWebhookToken); err != nil {
@@ -76,7 +77,7 @@ func (c Config) Validate() error {
 		return err
 	}
 	if strings.EqualFold(strings.TrimSpace(c.PushNotifyBackend), "webhook") {
-		if err := validateHTTPURL("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", c.PushNotifyWebhookURL); err != nil {
+		if err := validateWebhookURL("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", c.PushNotifyWebhookURL, production); err != nil {
 			return err
 		}
 		if err := validateOptionalSecret("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", c.PushNotifyWebhookToken); err != nil {
@@ -269,7 +270,7 @@ func validateHTTPSURL(name string, value string) error {
 	return nil
 }
 
-func validateHTTPURL(name string, value string) error {
+func validateWebhookURL(name string, value string, requireHTTPS bool) error {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return fmt.Errorf("%s is required", name)
@@ -283,6 +284,9 @@ func validateHTTPURL(name string, value string) error {
 	}
 	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return fmt.Errorf("%s must be an http or https URL", name)
+	}
+	if requireHTTPS && parsed.Scheme != "https" {
+		return fmt.Errorf("%s must be an https URL in production", name)
 	}
 	return nil
 }

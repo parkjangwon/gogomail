@@ -178,7 +178,7 @@ Current state:
   `push-notification-worker` over `mail.stored` with a replaceable sink and
   `slog` first adapter plus `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` for
   handing raw-token targets to an external push gateway with an optional
-  bounded bearer token.
+  bounded bearer token; webhook URLs must be HTTPS in production.
 - User-scoped push device storage now exists for `apns`, `fcm`, and `webpush`
   tokens through the Mail API. Responses expose only a token suffix; raw tokens
   remain write-only.

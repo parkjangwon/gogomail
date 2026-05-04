@@ -481,7 +481,8 @@ The platform hardening sprint completed the following:
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
-  token, and is wired only at SMTP receive/submission app boundaries.
+  token, requires HTTPS in production, and is wired only at SMTP
+  receive/submission app boundaries.
 - Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
   message IDs or recipient addresses cannot create oversized Redis keys.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same

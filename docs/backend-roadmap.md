@@ -552,6 +552,7 @@ Implementation order:
 493. Push notification workers can now use `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` to POST raw-token targets and candidate attempt IDs to an external push gateway while keeping first-party FCM/APNs/Web Push adapters outside the core.
 494. Attachment scanner webhooks can now send an optional bounded bearer token, with CR/LF-bearing or oversized token configuration rejected before SMTP hook wiring.
 495. Push notification webhooks can now send an optional bounded bearer token, with CR/LF-bearing or oversized token configuration rejected before worker sink wiring.
+496. Attachment scanner and push notification webhook URLs now must be HTTPS in production, while still allowing HTTP endpoints for local development and private test harnesses.
 
 ## Deferred until backend contracts stabilize
 
