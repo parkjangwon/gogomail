@@ -7,6 +7,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API exposes folder list/create/rename/delete, message list/detail, move/delete, flag updates, attachment list/download, draft save/update/delete, direct send, and draft send.
 - Mail API exposes thread list and thread-message read models for conversation-style webmail rendering.
 - Inbound and reply/forward outbound persistence assign thread IDs from RFC thread headers or source messages where possible.
+- Reply composition writes RFC thread headers into outgoing `.eml`, preserving conversation threading outside gogomail.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
 - Stale attachment uploads have a repository/service cleanup path and a partial index for efficient lifecycle sweeps.

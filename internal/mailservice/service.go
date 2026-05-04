@@ -65,6 +65,10 @@ type DomainPolicyRepository interface {
 	DomainPolicy(ctx context.Context, domainID string) (maildb.DomainPolicyView, error)
 }
 
+type SourceThreadRepository interface {
+	SourceThread(ctx context.Context, userID string, sourceMessageID string) (maildb.SourceThreadView, error)
+}
+
 type Service struct {
 	repository Repository
 	store      storage.Store
@@ -500,15 +504,21 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	if err := enforceOutboundRecipientPolicy(req, policy); err != nil {
 		return SendTextResult{}, err
 	}
+	sourceThread, err := s.sourceThread(ctx, req)
+	if err != nil {
+		return SendTextResult{}, err
+	}
 
 	from := outbound.Address{Name: sender.DisplayName, Email: sender.Address}
 	composed, err := outbound.ComposeText(outbound.TextMessage{
-		From:     from,
-		To:       req.To,
-		Cc:       req.Cc,
-		Bcc:      req.Bcc,
-		Subject:  req.Subject,
-		TextBody: req.TextBody,
+		From:       from,
+		To:         req.To,
+		Cc:         req.Cc,
+		Bcc:        req.Bcc,
+		Subject:    req.Subject,
+		TextBody:   req.TextBody,
+		InReplyTo:  sourceThread.MessageID,
+		References: sourceThread.References(),
 	})
 	if err != nil {
 		return SendTextResult{}, err
@@ -573,6 +583,21 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		DeliveryStatus: "pending",
 		BounceStatus:   "none",
 	}), nil
+}
+
+func (s *Service) sourceThread(ctx context.Context, req SendTextRequest) (maildb.SourceThreadView, error) {
+	intent, err := NormalizeComposeIntent(string(req.Intent))
+	if err != nil {
+		return maildb.SourceThreadView{}, err
+	}
+	if intent != ComposeIntentReply || strings.TrimSpace(req.SourceMessageID) == "" {
+		return maildb.SourceThreadView{}, nil
+	}
+	repo, ok := s.repository.(SourceThreadRepository)
+	if !ok {
+		return maildb.SourceThreadView{}, fmt.Errorf("source thread repository is required")
+	}
+	return repo.SourceThread(ctx, req.UserID, req.SourceMessageID)
 }
 
 func (s *Service) domainPolicy(ctx context.Context, domainID string) (maildb.DomainPolicyView, error) {

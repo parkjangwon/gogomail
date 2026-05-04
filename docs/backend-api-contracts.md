@@ -227,6 +227,9 @@ Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
 attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
 outbound messages inherit the source message thread when `source_message_id` is
 present, preserving conversation grouping without exposing cross-user messages.
+Reply composition also writes RFC `In-Reply-To` and `References` headers into
+the stored/sent `.eml`, allowing external MUAs and remote recipients to retain
+conversation threading.
 
 ## Deferred from this contract
 

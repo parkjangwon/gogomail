@@ -18,14 +18,16 @@ type Address struct {
 }
 
 type TextMessage struct {
-	From      Address
-	To        []Address
-	Cc        []Address
-	Bcc       []Address
-	Subject   string
-	TextBody  string
-	MessageID string
-	Date      time.Time
+	From       Address
+	To         []Address
+	Cc         []Address
+	Bcc        []Address
+	Subject    string
+	TextBody   string
+	MessageID  string
+	InReplyTo  string
+	References []string
+	Date       time.Time
 }
 
 type ComposedMessage struct {
@@ -77,6 +79,12 @@ func ComposeText(msg TextMessage) (ComposedMessage, error) {
 	writeHeader(&buf, "Subject", mime.QEncoding.Encode("utf-8", msg.Subject))
 	writeHeader(&buf, "Date", msg.Date.Format(time.RFC1123Z))
 	writeHeader(&buf, "Message-ID", msg.MessageID)
+	if inReplyTo := normalizeHeaderMessageID(msg.InReplyTo); inReplyTo != "" {
+		writeHeader(&buf, "In-Reply-To", inReplyTo)
+	}
+	if references := formatReferencesHeader(msg.References); references != "" {
+		writeHeader(&buf, "References", references)
+	}
 	writeHeader(&buf, "MIME-Version", "1.0")
 	writeHeader(&buf, "Content-Type", `text/plain; charset="utf-8"`)
 	writeHeader(&buf, "Content-Transfer-Encoding", "quoted-printable")
@@ -97,6 +105,38 @@ func ComposeText(msg TextMessage) (ComposedMessage, error) {
 		MessageID: msg.MessageID,
 		Size:      int64(len(raw)),
 	}, nil
+}
+
+func normalizeHeaderMessageID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.ContainsAny(value, "\r\n") {
+		return ""
+	}
+	if !strings.HasPrefix(value, "<") {
+		value = "<" + value
+	}
+	if !strings.HasSuffix(value, ">") {
+		value += ">"
+	}
+	return value
+}
+
+func formatReferencesHeader(values []string) string {
+	seen := make(map[string]struct{}, len(values))
+	refs := make([]string, 0, len(values))
+	for _, value := range values {
+		value = normalizeHeaderMessageID(value)
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		refs = append(refs, value)
+	}
+	return strings.Join(refs, " ")
 }
 
 func GenerateMessageID(domain string) string {

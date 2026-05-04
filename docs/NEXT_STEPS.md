@@ -25,11 +25,11 @@ Current state:
   `GET /api/v1/threads/{id}/messages`.
 - New inbound and reply/forward outbound rows inherit thread IDs from local
   `References`/`In-Reply-To`/source messages.
+- Reply composition writes RFC thread headers into outgoing `.eml`.
 - No full-text search API exists yet.
 
 Next:
 
-- Add outbound RFC `In-Reply-To`/`References` headers to composed reply mail.
 - Evaluate Postgres full-text search vs OpenSearch for subject/body search.
 - Add search endpoints and an indexing boundary.
 

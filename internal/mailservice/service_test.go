@@ -96,6 +96,7 @@ type fakeRepository struct {
 	attachments               []maildb.Attachment
 	suppressed                []string
 	domainPolicy              maildb.DomainPolicyView
+	sourceThread              maildb.SourceThreadView
 	seenSuppressionRecipients []string
 	lastDraft                 maildb.SaveDraftRequest
 	lastAttachmentUpload      maildb.CreateAttachmentUploadRequest
@@ -204,6 +205,10 @@ func (f *fakeRepository) DomainPolicy(context.Context, string) (maildb.DomainPol
 		return maildb.DomainPolicyView{DomainID: "domain-1", InboundMode: "inherit", OutboundMode: "inherit"}, nil
 	}
 	return f.domainPolicy, nil
+}
+
+func (f *fakeRepository) SourceThread(context.Context, string, string) (maildb.SourceThreadView, error) {
+	return f.sourceThread, nil
 }
 
 func (f *fakeRepository) SaveDraft(_ context.Context, req maildb.SaveDraftRequest) (maildb.MessageDetail, error) {
@@ -444,6 +449,47 @@ func TestSendTextMarksReplySourceAnswered(t *testing.T) {
 	}
 	if repo.lastFlagMessageID != "msg-original" || repo.lastFlag != "answered" {
 		t.Fatalf("flag = %q/%q", repo.lastFlagMessageID, repo.lastFlag)
+	}
+}
+
+func TestSendTextWritesReplyThreadHeaders(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		sourceThread: maildb.SourceThreadView{
+			MessageID: "<parent@example.com>",
+			InReplyTo: "<root@example.com>",
+			ThreadID:  "thread-1",
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:          "user-1",
+		Intent:          ComposeIntentReply,
+		SourceMessageID: "msg-parent",
+		To:              []outbound.Address{{Email: "sender@example.net"}},
+		Subject:         "Re: hello",
+		TextBody:        "body",
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+	body, err := store.Get(context.Background(), repo.lastOutgoing.StoragePath)
+	if err != nil {
+		t.Fatalf("Get stored message returned error: %v", err)
+	}
+	defer body.Close()
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	text := string(raw)
+	if !strings.Contains(text, "In-Reply-To: <parent@example.com>\r\n") {
+		t.Fatalf("raw missing In-Reply-To: %s", text)
+	}
+	if !strings.Contains(text, "References: <root@example.com> <parent@example.com>\r\n") {
+		t.Fatalf("raw missing References: %s", text)
 	}
 }
 
