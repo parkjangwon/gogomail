@@ -327,6 +327,62 @@ func TestParseEMLWithOptionsLimitsPartCount(t *testing.T) {
 	}
 }
 
+func TestParseEMLWithOptionsLimitsAddressMetadata(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: One <one@example.com>, Two <two@example.com>, Three <three@example.com>",
+		"Cc: Four <four@example.com>, Five <five@example.com>",
+		"Subject: many recipients",
+		"",
+		"body",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxAddresses: 2})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if len(parsed.To) != 2 {
+		t.Fatalf("To = %+v, want two capped addresses", parsed.To)
+	}
+	if len(parsed.Cc) != 2 {
+		t.Fatalf("Cc = %+v, want two capped addresses", parsed.Cc)
+	}
+	if !parsed.AddressesTruncated {
+		t.Fatal("AddressesTruncated = false, want true")
+	}
+}
+
+func TestParseEMLWithOptionsLimitsReferenceMetadata(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"Message-ID: <msg@example.com>",
+		"In-Reply-To: <parent@example.com>",
+		"References: <root@example.com> <parent@example.com> <extra@example.com>",
+		"From: sender@example.net",
+		"To: rcpt@example.com",
+		"Subject: Re: hello",
+		"",
+		"body",
+	}, "\r\n")
+
+	parsed, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxReferences: 2})
+	if err != nil {
+		t.Fatalf("ParseEMLWithOptions returned error: %v", err)
+	}
+	if got := strings.Join(parsed.References, ","); got != "<root@example.com>,<parent@example.com>" {
+		t.Fatalf("References = %q, want capped first two IDs", got)
+	}
+	if !parsed.ReferencesTruncated {
+		t.Fatal("ReferencesTruncated = false, want true")
+	}
+	if parsed.InReplyTo != "<parent@example.com>" {
+		t.Fatalf("InReplyTo = %q, want parent", parsed.InReplyTo)
+	}
+}
+
 func TestParseEMLWithOptionsLimitsHeaderBytes(t *testing.T) {
 	t.Parallel()
 

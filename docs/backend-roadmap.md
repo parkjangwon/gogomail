@@ -420,6 +420,7 @@ Implementation order:
 361. Push notification workers now treat queued-outcome recording failures after sink success as operational warnings instead of handler failures, reducing duplicate push risk from Redis event redelivery while preserving candidate audit rows.
 362. DSN composition can now include an optional sanitized `text/rfc822-headers` original-message header part, preparing RFC 3464 `RET=HDRS` bounce reports without exposing header injection.
 363. User-scoped sent-message delivery status now treats failed attempts with `4.x.x` enhanced status codes as retrying, so temporary SMTP failures do not appear as terminal failures in Mail API responses.
+364. Shared EML parsing now caps retained address-list and `References` metadata with explicit truncation flags, preventing oversized headers from expanding downstream storage, search, and threading metadata unboundedly.
 
 ## Deferred until backend contracts stabilize
 
