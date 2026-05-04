@@ -249,6 +249,30 @@ type APIUsageExportBatchView struct {
 	Manifest       json.RawMessage `json:"manifest"`
 }
 
+type APIUsageExportArtifactView struct {
+	ID             string          `json:"id"`
+	BatchID        string          `json:"batch_id"`
+	CreatedAt      time.Time       `json:"created_at"`
+	StorageBackend string          `json:"storage_backend"`
+	ObjectKey      string          `json:"object_key"`
+	ContentType    string          `json:"content_type"`
+	ByteCount      int64           `json:"byte_count"`
+	SHA256Hex      string          `json:"sha256_hex"`
+	EventCount     int64           `json:"event_count"`
+	Metadata       json.RawMessage `json:"metadata"`
+}
+
+type CreateAPIUsageExportArtifactRequest struct {
+	BatchID        string          `json:"-"`
+	StorageBackend string          `json:"storage_backend"`
+	ObjectKey      string          `json:"object_key"`
+	ContentType    string          `json:"content_type"`
+	ByteCount      int64           `json:"byte_count"`
+	SHA256Hex      string          `json:"sha256_hex"`
+	EventCount     int64           `json:"event_count"`
+	Metadata       json.RawMessage `json:"metadata"`
+}
+
 type DeliveryAttemptView struct {
 	ID              string    `json:"id"`
 	MessageID       string    `json:"message_id"`
@@ -2268,6 +2292,61 @@ WHERE id = $1`
 	}
 	applyExportBatchNullableTimes(&batch, completedAt, windowStart, windowEnd, firstEventAt, lastEventAt)
 	return batch, nil
+}
+
+func ValidateCreateAPIUsageExportArtifactRequest(req *CreateAPIUsageExportArtifactRequest) error {
+	req.BatchID = strings.TrimSpace(req.BatchID)
+	req.StorageBackend = strings.TrimSpace(req.StorageBackend)
+	if strings.ContainsAny(req.ObjectKey, "\r\n") {
+		return fmt.Errorf("object_key cannot contain line breaks")
+	}
+	req.ObjectKey = strings.TrimSpace(req.ObjectKey)
+	req.ContentType = strings.TrimSpace(req.ContentType)
+	req.SHA256Hex = strings.ToLower(strings.TrimSpace(req.SHA256Hex))
+	if req.BatchID == "" {
+		return fmt.Errorf("batch_id is required")
+	}
+	if req.StorageBackend == "" {
+		req.StorageBackend = "external"
+	}
+	if req.ObjectKey == "" {
+		return fmt.Errorf("object_key is required")
+	}
+	if req.ContentType == "" {
+		req.ContentType = "application/x-ndjson"
+	}
+	if req.ContentType != "application/x-ndjson" {
+		return fmt.Errorf("content_type must be application/x-ndjson")
+	}
+	if req.ByteCount < 0 {
+		return fmt.Errorf("byte_count must be nonnegative")
+	}
+	if req.EventCount < 0 {
+		return fmt.Errorf("event_count must be nonnegative")
+	}
+	if !isLowerHexSHA256(req.SHA256Hex) {
+		return fmt.Errorf("sha256_hex must be 64 lowercase hex characters")
+	}
+	if len(req.Metadata) == 0 {
+		req.Metadata = json.RawMessage(`{}`)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(req.Metadata, &metadata); err != nil {
+		return fmt.Errorf("metadata must be a JSON object: %w", err)
+	}
+	return nil
+}
+
+func isLowerHexSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func newAPIUsageExportBatchID() (string, error) {
