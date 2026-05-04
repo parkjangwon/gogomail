@@ -618,7 +618,8 @@ The platform hardening sprint completed the following:
   `POST /admin/v1/attachment-cleanup/candidates`.
 - Mail API exposes `DELETE /api/v1/attachments/{id}` so users can cancel
   unbound pending uploads immediately, releasing quota and removing any stored
-  upload object without waiting for stale cleanup.
+  upload object without waiting for stale cleanup. Draft binding and send
+  handoff ignore canceled/deleted uploads.
 - Mail API exposes `GET /api/v1/attachments/capabilities` so clients can
   discover upload limits, supported modes, and resumable-upload readiness
   without hard-coded constants.

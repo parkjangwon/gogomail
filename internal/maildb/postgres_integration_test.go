@@ -132,6 +132,59 @@ WHERE m.id = $1`, sentID).Scan(&hasAttachment, &queuedTopic, &queuedEvent, &queu
 	}
 }
 
+func TestPostgresCanceledDraftAttachmentCannotBeRebound(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	draft, err := repo.SaveDraft(ctx, SaveDraftRequest{
+		UserID:   seed.userID,
+		Intent:   "new",
+		From:     "alice@example.com",
+		Subject:  "canceled attachment",
+		TextBody: "hello",
+	})
+	if err != nil {
+		t.Fatalf("SaveDraft returned error: %v", err)
+	}
+	attachment, err := repo.CreateAttachmentUpload(ctx, CreateAttachmentUploadRequest{
+		UserID:      seed.userID,
+		DraftID:     draft.ID,
+		Filename:    "cancel.txt",
+		Size:        12,
+		MIMEType:    "text/plain",
+		StoragePath: "uploads/cancel.txt",
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachmentUpload returned error: %v", err)
+	}
+	if _, err := repo.CancelAttachmentUpload(ctx, seed.userID, attachment.ID); err != nil {
+		t.Fatalf("CancelAttachmentUpload returned error: %v", err)
+	}
+
+	if _, err := repo.SaveDraft(ctx, SaveDraftRequest{
+		UserID:        seed.userID,
+		DraftID:       draft.ID,
+		Intent:        "new",
+		From:          "alice@example.com",
+		Subject:       "canceled attachment",
+		TextBody:      "hello again",
+		AttachmentIDs: []string{attachment.ID},
+	}); err == nil {
+		t.Fatal("SaveDraft rebound a canceled attachment")
+	}
+	draftForSend, err := repo.GetDraftForSend(ctx, seed.userID, draft.ID)
+	if err != nil {
+		t.Fatalf("GetDraftForSend returned error: %v", err)
+	}
+	if len(draftForSend.AttachmentIDs) != 0 {
+		t.Fatalf("draft attachment IDs = %+v, want none", draftForSend.AttachmentIDs)
+	}
+}
+
 func TestPostgresIMAPUIDBackfillAndMoveInvalidation(t *testing.T) {
 	t.Parallel()
 
