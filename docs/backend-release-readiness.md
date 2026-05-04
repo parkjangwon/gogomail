@@ -60,6 +60,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
   MIME part-count cap with `PartsTruncated` signaling, and a large-body
   benchmark.
+- EML attachment metadata detection includes inline filename parts and non-text
+  inline parts without reading attachment bodies.
 - Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver, per-device candidate-attempt persistence, queued outcome updates after successful sink handoff, Admin API inspection/stats including user- and recent-window-scoped views, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.

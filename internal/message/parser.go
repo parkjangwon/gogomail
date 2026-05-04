@@ -99,7 +99,11 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 
 		switch header := part.Header.(type) {
 		case *gomail.InlineHeader:
-			if !opts.SkipTextBody && parsed.TextBody == "" && isTextPlain(header) {
+			filename, isInlineAttachment := inlineAttachmentMetadata(header)
+			if isInlineAttachment {
+				recordAttachment(&parsed, opts, filename)
+			}
+			if !isInlineAttachment && !opts.SkipTextBody && parsed.TextBody == "" && isTextPlain(header) {
 				body, truncated, err := readLimitedText(part.Body, opts.MaxTextBodyBytes)
 				if err != nil {
 					return ParsedMessage{}, fmt.Errorf("read text body: %w", err)
@@ -112,16 +116,37 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 			if err != nil {
 				filename = ""
 			}
-			parsed.HasAttachment = true
-			if len(parsed.Attachments) < opts.MaxAttachments {
-				parsed.Attachments = append(parsed.Attachments, Attachment{Filename: filename})
-			} else {
-				parsed.AttachmentsTruncated = true
-			}
+			recordAttachment(&parsed, opts, filename)
 		}
 	}
 
 	return parsed, nil
+}
+
+func recordAttachment(parsed *ParsedMessage, opts ParseOptions, filename string) {
+	parsed.HasAttachment = true
+	if len(parsed.Attachments) < opts.MaxAttachments {
+		parsed.Attachments = append(parsed.Attachments, Attachment{Filename: filename})
+	} else {
+		parsed.AttachmentsTruncated = true
+	}
+}
+
+func inlineAttachmentMetadata(header *gomail.InlineHeader) (string, bool) {
+	_, dispositionParams, dispositionErr := header.ContentDisposition()
+	if dispositionErr == nil {
+		if filename := strings.TrimSpace(dispositionParams["filename"]); filename != "" {
+			return filename, true
+		}
+	}
+	contentType, contentParams, contentErr := header.ContentType()
+	if contentErr != nil {
+		return "", false
+	}
+	if filename := strings.TrimSpace(contentParams["name"]); filename != "" {
+		return filename, true
+	}
+	return "", !strings.HasPrefix(strings.ToLower(contentType), "text/")
 }
 
 func firstMessageID(header gomail.Header, key string) string {

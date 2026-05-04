@@ -112,6 +112,72 @@ func TestParseEMLDetectsAttachments(t *testing.T) {
 	}
 }
 
+func TestParseEMLDetectsInlineFilenameAsAttachment(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: inline filename",
+		"Content-Type: multipart/mixed; boundary=frontier",
+		"",
+		"--frontier",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"see inline file",
+		"--frontier",
+		"Content-Type: text/plain",
+		"Content-Disposition: inline; filename=\"inline-note.txt\"",
+		"",
+		"inline file",
+		"--frontier--",
+	}, "\r\n")
+
+	parsed, err := ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if !parsed.HasAttachment {
+		t.Fatal("HasAttachment = false, want true")
+	}
+	if len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "inline-note.txt" {
+		t.Fatalf("Attachments = %+v", parsed.Attachments)
+	}
+}
+
+func TestParseEMLDetectsInlineNonTextPartAsAttachment(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: inline image",
+		"Content-Type: multipart/related; boundary=frontier",
+		"",
+		"--frontier",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"see inline image",
+		"--frontier",
+		"Content-Type: image/png",
+		"Content-Disposition: inline",
+		"",
+		"PNG",
+		"--frontier--",
+	}, "\r\n")
+
+	parsed, err := ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if !parsed.HasAttachment {
+		t.Fatal("HasAttachment = false, want true")
+	}
+	if len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "" {
+		t.Fatalf("Attachments = %+v", parsed.Attachments)
+	}
+}
+
 func TestParseEMLReadsSinglepartTextWithoutDate(t *testing.T) {
 	t.Parallel()
 

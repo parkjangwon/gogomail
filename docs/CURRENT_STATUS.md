@@ -322,6 +322,9 @@ The platform hardening sprint completed the following:
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
   `PartsTruncated` for pathological MIME part counts.
+- EML attachment detection records inline parts with filenames and non-text
+  inline parts from headers only, improving `has_attachment` accuracy without
+  reading attachment bodies.
 - Push notification worker boundary: `mail.stored` can be consumed by a
   dedicated notification worker with a replaceable sink and a bounded Postgres
   device-target resolver plus candidate-attempt persistence.
