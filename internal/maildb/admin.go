@@ -3679,7 +3679,7 @@ FROM delivery_attempts
 WHERE (NULLIF($2, '') IS NULL OR status = $2)
   AND ($3::timestamptz IS NULL OR attempted_at >= $3::timestamptz)
   AND (NULLIF($4, '') IS NULL OR recipient_domain = $4)
-ORDER BY attempted_at DESC
+ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
 	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, nullableTime(req.Since), req.RecipientDomain)
@@ -3785,7 +3785,7 @@ FROM delivery_attempts
 WHERE status = 'exhausted'
   AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
   AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)
-ORDER BY attempted_at DESC
+ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
 	rows, err := r.db.QueryContext(ctx, query, req.Limit, nullableTime(req.Since), req.RecipientDomain)

@@ -59,7 +59,7 @@ SELECT
   attempted_at
 FROM delivery_attempts
 WHERE message_id = $1
-ORDER BY attempted_at DESC
+ORDER BY attempted_at DESC, id DESC
 LIMIT 200`
 
 	rows, err := r.db.QueryContext(ctx, attemptsQuery, messageID)
