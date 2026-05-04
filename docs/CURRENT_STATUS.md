@@ -421,6 +421,8 @@ The platform hardening sprint completed the following:
   preserving 400 for bad multipart syntax.
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
   the HTTP boundary before service dispatch.
+- OpenAPI drift tests now pin attachment reservation/direct-upload HTTP 413
+  error responses for size-cap failures.
 
 Next focus areas:
 
