@@ -248,3 +248,32 @@ func TestComposeSanitizesAddressHeaders(t *testing.T) {
 		t.Fatalf("raw missing sanitized To address:\n%s", raw)
 	}
 }
+
+func TestComposeFoldsLongDSNFields(t *testing.T) {
+	t.Parallel()
+
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient:  "user@example.net",
+			Action:     "failed",
+			Status:     "5.1.1",
+			Diagnostic: "550 5.1.1 " + strings.Repeat("very-long-diagnostic ", 120),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	if !strings.Contains(raw, "Diagnostic-Code: smtp; 550 5.1.1") || !strings.Contains(raw, "\r\n very-long-diagnostic") {
+		t.Fatalf("raw missing folded diagnostic field:\n%s", raw)
+	}
+	if strings.Contains(raw, "\r\n -diagnostic") {
+		t.Fatalf("raw folded diagnostic in the middle of a word:\n%s", raw)
+	}
+	for _, line := range strings.Split(raw, "\r\n") {
+		if len(line) > maxHeaderLineBytes {
+			t.Fatalf("line length = %d, want <= %d: %q", len(line), maxHeaderLineBytes, line)
+		}
+	}
+}

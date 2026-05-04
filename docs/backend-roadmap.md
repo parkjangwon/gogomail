@@ -392,6 +392,7 @@ Implementation order:
 333. OpenAPI contract tests now guard documented query parameters for operational triage APIs, including delivery attempts, exhausted attempts, push attempts/stats, outbox events, and API usage export handoff readiness.
 334. Delivery enhanced-status extraction now recognizes RFC 3463 codes embedded in multiline SMTP replies and bracketed diagnostics while still requiring the code class to match the SMTP reply class.
 335. Shared EML parser coverage now pins RFC 2047 encoded-word decoding for subjects and address display names, protecting internationalized header behavior used by SMTP receive, Mail API, search indexing, and future IMAP.
+336. DSN composition now folds long header and `message/delivery-status` fields to keep generated bounce reports within RFC line-length limits while preserving injection sanitization.
 
 ## Deferred until backend contracts stabilize
 

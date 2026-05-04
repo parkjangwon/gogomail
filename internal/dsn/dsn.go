@@ -7,9 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gogomail/gogomail/internal/outbound"
 )
+
+const maxHeaderLineBytes = 998
 
 type RecipientStatus struct {
 	Recipient         string
@@ -130,7 +133,25 @@ func writeRecipientStatus(buf *bytes.Buffer, status RecipientStatus) error {
 }
 
 func writeHeader(buf *bytes.Buffer, key, value string) {
-	buf.WriteString(key + ": " + strings.ReplaceAll(strings.ReplaceAll(value, "\r", ""), "\n", "") + "\r\n")
+	value = strings.ReplaceAll(strings.ReplaceAll(value, "\r", ""), "\n", "")
+	prefix := key + ": "
+	if len(prefix)+len(value) <= maxHeaderLineBytes {
+		buf.WriteString(prefix + value + "\r\n")
+		return
+	}
+	buf.WriteString(prefix)
+	remainingLineBytes := maxHeaderLineBytes - len(prefix)
+	for len(value) > 0 {
+		chunk, rest := splitHeaderValue(value, remainingLineBytes)
+		buf.WriteString(chunk)
+		value = rest
+		if len(value) == 0 {
+			break
+		}
+		buf.WriteString("\r\n ")
+		remainingLineBytes = maxHeaderLineBytes - 1
+	}
+	buf.WriteString("\r\n")
 }
 
 func writeDSNField(buf *bytes.Buffer, key, value string) {
@@ -189,6 +210,27 @@ func sanitizeDSNValue(value string) string {
 	value = strings.ReplaceAll(value, "\r", " ")
 	value = strings.ReplaceAll(value, "\n", " ")
 	return strings.Join(strings.Fields(value), " ")
+}
+
+func splitHeaderValue(value string, maxBytes int) (string, string) {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value, ""
+	}
+	if cutAtSpace := strings.LastIndexAny(value[:maxBytes], " \t"); cutAtSpace > 0 {
+		return value[:cutAtSpace], strings.TrimLeft(value[cutAtSpace:], " \t")
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.ValidString(value[:cut]) {
+		cut--
+	}
+	if cut == 0 {
+		_, size := utf8.DecodeRuneInString(value)
+		if size <= 0 {
+			return value[:maxBytes], value[maxBytes:]
+		}
+		cut = size
+	}
+	return value[:cut], value[cut:]
 }
 
 func sanitizeRecipientAddressType(value string) string {
