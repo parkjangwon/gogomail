@@ -104,6 +104,36 @@ When resuming work from a scheduled or autonomous run, first rebuild context bef
 - Commit each autonomous improvement as a meaningful, reviewable unit.
 - After successful verification, push completed feature commits to `origin/main` unless the user explicitly says not to push.
 
+## Context continuity protocol
+
+The repository must carry enough project memory for future coding agents to keep
+the same philosophy, roadmap, and direction even when the active agent changes.
+
+Before starting meaningful work, read:
+
+- `AGENTS.md`
+- `docs/CURRENT_STATUS.md`
+- `docs/NEXT_STEPS.md`
+- `docs/backend-roadmap.md`
+- `docs/backend-api-contracts.md`
+- `docs/backend-release-readiness.md`
+- relevant files under `docs/adr/`
+- recent `git log --oneline`
+
+After finishing meaningful work, update documentation when applicable:
+
+- Update `docs/CURRENT_STATUS.md` when project phase, completed scope, or active direction changes.
+- Update `docs/NEXT_STEPS.md` when priorities change.
+- Update `docs/backend-roadmap.md` when a meaningful backend capability is completed.
+- Update `docs/backend-api-contracts.md` and `docs/openapi.yaml` when HTTP API behavior changes.
+- Add or update an ADR under `docs/adr/` when an architectural direction or boundary changes.
+- Use `docs/CHANGE_CHECKLIST.md` before the final commit/push.
+
+ADR-worthy changes include tenant/domain boundaries, SMTP core boundaries,
+queue/storage/auth/policy architecture, delivery routing, frontend start gate,
+spam integration strategy, API contract versioning, and release/deployment
+architecture.
+
 ## Frontend start gate
 
 Frontend implementation is planned, not forbidden. Continue backend contracts, API readiness, and frontend planning autonomously. However, before creating or substantially implementing actual frontend apps (`apps/shell`, `apps/webmail`, `apps/admin`, shared UI packages, or real Next.js screens), explicitly tell the user that frontend work is about to begin and wait for the user's frontend-specific guidance.

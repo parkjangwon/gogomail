@@ -20,6 +20,7 @@ Future coding agents should read these files before changing code:
 - `AGENTS.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/NEXT_STEPS.md`
+- `docs/CHANGE_CHECKLIST.md`
 - `docs/backend-roadmap.md`
 - `docs/backend-api-contracts.md`
 - `docs/backend-release-readiness.md`
@@ -37,6 +38,15 @@ Guardrails:
 - Do not build a spam engine into SMTP core.
 - Do not start frontend implementation without user guidance.
 - Commit feature-sized changes and push after successful verification.
+
+Agent work protocol:
+
+1. Rebuild context from the handoff documents and recent git history.
+2. Make feature-sized, reviewable changes.
+3. Update status/roadmap/API/ADR documents when the change affects them.
+4. Run the verification commands.
+5. Commit and push to `origin/main`.
+6. Report what changed, what passed, and whether the push completed.
 
 ## Backend modes
 
