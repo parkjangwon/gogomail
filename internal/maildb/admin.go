@@ -324,28 +324,35 @@ type APIUsageExportManifestSignatureVerificationView struct {
 }
 
 type APIUsageExportHandoffView struct {
-	BatchID                    string     `json:"batch_id"`
-	BatchStatus                string     `json:"batch_status"`
-	BatchCompleted             bool       `json:"batch_completed"`
-	EventCount                 int64      `json:"event_count"`
-	ArtifactCount              int64      `json:"artifact_count"`
-	ArtifactEventCount         int64      `json:"artifact_event_count"`
-	ArtifactByteCount          int64      `json:"artifact_byte_count"`
-	EventsCovered              bool       `json:"events_covered"`
-	ManifestDigestCount        int64      `json:"manifest_digest_count"`
-	LatestManifestDigestID     string     `json:"latest_manifest_digest_id,omitempty"`
-	LatestManifestDigestHex    string     `json:"latest_manifest_digest_hex,omitempty"`
-	LatestManifestDigestAt     *time.Time `json:"latest_manifest_digest_at,omitempty"`
-	LatestDigestSignatureCount int64      `json:"latest_digest_signature_count"`
-	LatestSignatureID          string     `json:"latest_signature_id,omitempty"`
-	LatestSignatureSigner      string     `json:"latest_signature_signer,omitempty"`
-	LatestSignatureKeyID       string     `json:"latest_signature_key_id,omitempty"`
-	LatestSignatureAt          *time.Time `json:"latest_signature_at,omitempty"`
-	Ready                      bool       `json:"ready"`
-	ReadinessGrade             string     `json:"readiness_grade"`
-	BillingReady               bool       `json:"billing_ready"`
-	MissingRequirements        []string   `json:"missing_requirements,omitempty"`
-	BillingBlockingReasons     []string   `json:"billing_blocking_reasons,omitempty"`
+	BatchID                       string                                           `json:"batch_id"`
+	BatchStatus                   string                                           `json:"batch_status"`
+	BatchCompleted                bool                                             `json:"batch_completed"`
+	EventCount                    int64                                            `json:"event_count"`
+	ArtifactCount                 int64                                            `json:"artifact_count"`
+	ArtifactEventCount            int64                                            `json:"artifact_event_count"`
+	ArtifactByteCount             int64                                            `json:"artifact_byte_count"`
+	EventsCovered                 bool                                             `json:"events_covered"`
+	ManifestDigestCount           int64                                            `json:"manifest_digest_count"`
+	LatestManifestDigestID        string                                           `json:"latest_manifest_digest_id,omitempty"`
+	LatestManifestDigestHex       string                                           `json:"latest_manifest_digest_hex,omitempty"`
+	LatestManifestDigestAt        *time.Time                                       `json:"latest_manifest_digest_at,omitempty"`
+	LatestDigestSignatureCount    int64                                            `json:"latest_digest_signature_count"`
+	LatestSignatureID             string                                           `json:"latest_signature_id,omitempty"`
+	LatestSignatureSigner         string                                           `json:"latest_signature_signer,omitempty"`
+	LatestSignatureKeyID          string                                           `json:"latest_signature_key_id,omitempty"`
+	LatestSignatureAt             *time.Time                                       `json:"latest_signature_at,omitempty"`
+	Ready                         bool                                             `json:"ready"`
+	ReadinessGrade                string                                           `json:"readiness_grade"`
+	BillingReady                  bool                                             `json:"billing_ready"`
+	MissingRequirements           []string                                         `json:"missing_requirements,omitempty"`
+	BillingBlockingReasons        []string                                         `json:"billing_blocking_reasons,omitempty"`
+	DeepVerification              bool                                             `json:"deep_verification"`
+	DeepReady                     bool                                             `json:"deep_ready,omitempty"`
+	DeepBlockingReasons           []string                                         `json:"deep_blocking_reasons,omitempty"`
+	DeepVerificationErrors        []string                                         `json:"deep_verification_errors,omitempty"`
+	ArtifactVerifications         []APIUsageExportArtifactVerificationView         `json:"artifact_verifications,omitempty"`
+	ManifestDigestVerification    *APIUsageExportManifestDigestVerificationView    `json:"manifest_digest_verification,omitempty"`
+	ManifestSignatureVerification *APIUsageExportManifestSignatureVerificationView `json:"manifest_signature_verification,omitempty"`
 }
 
 type CreateAPIUsageExportManifestSignatureRequest struct {
@@ -2557,6 +2564,10 @@ RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
 
 func (r *Repository) ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]APIUsageExportArtifactView, error) {
 	return r.listAPIUsageExportArtifacts(ctx, batchID, limit, false)
+}
+
+func (r *Repository) ListAllAPIUsageExportArtifacts(ctx context.Context, batchID string) ([]APIUsageExportArtifactView, error) {
+	return r.listAllAPIUsageExportArtifacts(ctx, batchID)
 }
 
 func (r *Repository) listAllAPIUsageExportArtifacts(ctx context.Context, batchID string) ([]APIUsageExportArtifactView, error) {

@@ -612,6 +612,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: deep
+          in: query
+          required: false
+          description: When true, stream and verify registered artifacts and verify the latest manifest digest/signature before returning the report.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportHandoffReadiness"
@@ -2812,6 +2819,7 @@ components:
         - ready
         - readiness_grade
         - billing_ready
+        - deep_verification
       properties:
         batch_id:
           type: string
@@ -2879,7 +2887,34 @@ components:
           type: array
           items:
             type: string
-            enum: [handoff_not_ready, production_manifest_signer_required]
+            enum: [handoff_not_ready, production_manifest_signer_required, deep_verification_required]
+        deep_verification:
+          type: boolean
+        deep_ready:
+          type: boolean
+        deep_blocking_reasons:
+          type: array
+          items:
+            type: string
+            enum:
+              - artifact_verification_error
+              - artifact_verification_failed
+              - manifest_digest_verification_error
+              - manifest_digest_verification_failed
+              - manifest_signature_verification_error
+              - manifest_signature_verification_failed
+        deep_verification_errors:
+          type: array
+          items:
+            type: string
+        artifact_verifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIUsageExportArtifactVerification"
+        manifest_digest_verification:
+          $ref: "#/components/schemas/APIUsageExportManifestDigestVerification"
+        manifest_signature_verification:
+          $ref: "#/components/schemas/APIUsageExportManifestSignatureVerification"
     APIUsageExportHandoffReadinessEnvelope:
       type: object
       required: [api_usage_export_handoff_readiness]

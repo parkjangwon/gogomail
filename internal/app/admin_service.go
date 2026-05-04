@@ -41,6 +41,100 @@ func (s adminService) UpdateBackpressure(ctx context.Context, req backpressure.S
 	return s.backpressure.SetState(ctx, req)
 }
 
+func (s adminService) GetAPIUsageExportHandoff(ctx context.Context, batchID string, deep bool) (maildb.APIUsageExportHandoffView, error) {
+	if s.Repository == nil {
+		return maildb.APIUsageExportHandoffView{}, fmt.Errorf("repository is required")
+	}
+	handoff, err := s.Repository.GetAPIUsageExportHandoff(ctx, batchID)
+	if err != nil {
+		return maildb.APIUsageExportHandoffView{}, err
+	}
+	if !deep {
+		return handoff, nil
+	}
+	s.applyAPIUsageExportDeepHandoff(ctx, &handoff)
+	return handoff, nil
+}
+
+func (s adminService) applyAPIUsageExportDeepHandoff(ctx context.Context, handoff *maildb.APIUsageExportHandoffView) {
+	handoff.DeepVerification = true
+	var blocking []string
+
+	artifacts, err := s.Repository.ListAllAPIUsageExportArtifacts(ctx, handoff.BatchID)
+	if err != nil {
+		handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("list artifacts: %v", err))
+		blocking = append(blocking, "artifact_verification_error")
+	} else {
+		for _, artifact := range artifacts {
+			verification, err := s.VerifyAPIUsageExportArtifact(ctx, handoff.BatchID, artifact.ID)
+			if err != nil {
+				handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("verify artifact %s: %v", artifact.ID, err))
+				blocking = append(blocking, "artifact_verification_error")
+				continue
+			}
+			handoff.ArtifactVerifications = append(handoff.ArtifactVerifications, verification)
+			if !verification.Valid {
+				blocking = append(blocking, "artifact_verification_failed")
+			}
+		}
+	}
+
+	if handoff.LatestManifestDigestID != "" {
+		verification, err := s.Repository.VerifyAPIUsageExportManifestDigest(ctx, handoff.BatchID, handoff.LatestManifestDigestID)
+		if err != nil {
+			handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("verify manifest digest %s: %v", handoff.LatestManifestDigestID, err))
+			blocking = append(blocking, "manifest_digest_verification_error")
+		} else {
+			handoff.ManifestDigestVerification = &verification
+			if !verification.Valid {
+				blocking = append(blocking, "manifest_digest_verification_failed")
+			}
+		}
+	}
+
+	if handoff.LatestManifestDigestID != "" && handoff.LatestSignatureID != "" {
+		verification, err := s.VerifyAPIUsageExportManifestSignature(ctx, handoff.BatchID, handoff.LatestManifestDigestID, handoff.LatestSignatureID)
+		if err != nil {
+			handoff.DeepVerificationErrors = append(handoff.DeepVerificationErrors, fmt.Sprintf("verify manifest signature %s: %v", handoff.LatestSignatureID, err))
+			blocking = append(blocking, "manifest_signature_verification_error")
+		} else {
+			handoff.ManifestSignatureVerification = &verification
+			if !verification.Valid {
+				blocking = append(blocking, "manifest_signature_verification_failed")
+			}
+		}
+	}
+
+	handoff.DeepBlockingReasons = uniqueStrings(blocking)
+	handoff.DeepReady = handoff.Ready && len(handoff.DeepBlockingReasons) == 0
+	if !handoff.DeepReady {
+		handoff.Ready = false
+		handoff.ReadinessGrade = "billing_blocked"
+		handoff.BillingReady = false
+		handoff.BillingBlockingReasons = uniqueStrings(append(handoff.BillingBlockingReasons, "deep_verification_required"))
+	}
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	unique := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		unique = append(unique, value)
+	}
+	return unique
+}
+
 func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID string, req maildb.WriteAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error) {
 	if s.Repository == nil {
 		return maildb.APIUsageExportArtifactView{}, fmt.Errorf("repository is required")
