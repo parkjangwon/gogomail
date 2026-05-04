@@ -111,7 +111,8 @@ Bulk mailbox mutations are bounded to 500 unique message IDs per request and onl
   - Body: `{"message_ids":["..."]}`
   - Response: `{"status":"ok","updated":2}`
 
-Bulk endpoints reject missing, blank, duplicate, or over-limit message IDs instead of silently ignoring ambiguous client intent.
+Bulk endpoints reject missing, blank, duplicate, over-limit, CR/LF-bearing, or
+oversized message IDs instead of silently ignoring ambiguous client intent.
 
 ## Compose requests
 

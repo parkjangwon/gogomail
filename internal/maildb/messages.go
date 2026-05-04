@@ -83,6 +83,8 @@ type BulkMessageDeleteRequest struct {
 	MessageIDs []string `json:"message_ids"`
 }
 
+const maxMailboxResourceIDBytes = 200
+
 func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
@@ -108,6 +110,9 @@ func ValidateBulkMessageMoveRequest(req BulkMessageMoveRequest) error {
 	}
 	if strings.TrimSpace(req.FolderID) == "" {
 		return fmt.Errorf("folder_id is required")
+	}
+	if err := validateMailboxResourceID("folder_id", req.FolderID); err != nil {
+		return err
 	}
 	if len(req.MessageIDs) == 0 {
 		return fmt.Errorf("message_ids is required")
@@ -138,10 +143,24 @@ func validateBulkMessageIDs(messageIDs []string) error {
 		if id == "" {
 			return fmt.Errorf("message id must not be blank")
 		}
+		if err := validateMailboxResourceID("message id", id); err != nil {
+			return err
+		}
 		if _, ok := seen[id]; ok {
 			return fmt.Errorf("message id %q is duplicated", id)
 		}
 		seen[id] = struct{}{}
+	}
+	return nil
+}
+
+func validateMailboxResourceID(field string, id string) error {
+	id = strings.TrimSpace(id)
+	if strings.ContainsAny(id, "\r\n") {
+		return fmt.Errorf("%s must not contain CR or LF", field)
+	}
+	if len(id) > maxMailboxResourceIDBytes {
+		return fmt.Errorf("%s is too long", field)
 	}
 	return nil
 }

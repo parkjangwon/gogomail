@@ -504,6 +504,7 @@ Implementation order:
 445. Draft save/update validation now enforces the same attachment-count cap as immediate send, preventing oversized compose payloads from reaching draft attachment binding.
 446. Compose request validation now rejects CR/LF-bearing recipient display names and emails before draft persistence or outbound header composition.
 447. Compose request validation now rejects CR/LF-bearing explicit sender hints and subjects before draft persistence or outbound header composition.
+448. Bulk mailbox mutation validation now rejects CR/LF-bearing or oversized message/folder identifiers before repository mutation and IMAP event fan-out.
 
 ## Deferred until backend contracts stabilize
 

@@ -1,6 +1,9 @@
 package maildb
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateBulkMessageFlagRequestRejectsDuplicateIDs(t *testing.T) {
 	t.Parallel()
@@ -13,6 +16,26 @@ func TestValidateBulkMessageFlagRequestRejectsDuplicateIDs(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("ValidateBulkMessageFlagRequest accepted duplicate message IDs")
+	}
+}
+
+func TestValidateBulkMessageFlagRequestRejectsUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := [][]string{
+		{"msg-1\r\nmsg-2"},
+		{strings.Repeat("x", maxMailboxResourceIDBytes+1)},
+	}
+	for _, ids := range tests {
+		err := ValidateBulkMessageFlagRequest(BulkMessageFlagRequest{
+			UserID:     "user-1",
+			MessageIDs: ids,
+			Flag:       "read",
+			Value:      true,
+		})
+		if err == nil {
+			t.Fatalf("ValidateBulkMessageFlagRequest accepted unsafe ids %+v", ids)
+		}
 	}
 }
 
@@ -30,6 +53,19 @@ func TestValidateBulkMessageMoveRequestRejectsTooManyIDs(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("ValidateBulkMessageMoveRequest accepted too many message IDs")
+	}
+}
+
+func TestValidateBulkMessageMoveRequestRejectsUnsafeFolderID(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateBulkMessageMoveRequest(BulkMessageMoveRequest{
+		UserID:     "user-1",
+		FolderID:   strings.Repeat("x", maxMailboxResourceIDBytes+1),
+		MessageIDs: []string{"msg-1"},
+	})
+	if err == nil {
+		t.Fatal("ValidateBulkMessageMoveRequest accepted oversized folder ID")
 	}
 }
 

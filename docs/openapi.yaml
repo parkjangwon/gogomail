@@ -4487,6 +4487,7 @@ components:
           maxItems: 500
           items:
             type: string
+            maxLength: 200
         flag:
           type: string
           enum: [read, starred, answered, forwarded]
@@ -4501,8 +4502,10 @@ components:
           maxItems: 500
           items:
             type: string
+            maxLength: 200
         folder_id:
           type: string
+          maxLength: 200
     BulkMessageDeleteRequest:
       type: object
       required: [message_ids]
@@ -4512,6 +4515,7 @@ components:
           maxItems: 500
           items:
             type: string
+            maxLength: 200
     ComposeAddress:
       type: object
       required: [email]
