@@ -1181,7 +1181,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/dkim-keys/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		id := strings.TrimSpace(r.PathValue("id"))
 		if id == "" {
 			writeError(w, http.StatusBadRequest, "id is required")
 			return
@@ -1194,7 +1194,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		id := strings.TrimSpace(r.PathValue("id"))
 		if id == "" {
 			writeError(w, http.StatusBadRequest, "id is required")
 			return
