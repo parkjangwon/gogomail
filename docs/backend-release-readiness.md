@@ -188,6 +188,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   CR/LF-bearing, or oversized values before service dispatch.
 - Mail API development `user_id` query fallback values are trimmed and reject
   CR/LF-bearing or oversized identifiers before service dispatch.
+- Mail API folder, thread, message, draft, attachment, and push-device path
+  identifiers reject blank, CR/LF-bearing, or oversized values before service
+  dispatch.
 - Mail API push-device registration normalizes user, platform, token, and label
   fields before validation/storage while responses keep raw tokens write-only.
 - Push-device list and delete service methods trim user and device identifiers
