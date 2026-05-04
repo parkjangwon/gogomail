@@ -52,10 +52,16 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_DELIVERY_ROUTE_BACKEND", c.DeliveryRouteBackend, "env", "postgres"); err != nil {
+		return err
+	}
 	if strings.TrimSpace(c.DeliverySmartHostTLSMode) != "" {
 		if err := validateEnum("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", c.DeliverySmartHostTLSMode, "opportunistic", "require", "disable"); err != nil {
 			return err
 		}
+	}
+	if strings.EqualFold(strings.TrimSpace(c.DeliveryRouteBackend), "postgres") && strings.TrimSpace(c.DeliverySmartHost) != "" {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_SMARTHOST cannot be combined with postgres delivery route backend")
 	}
 	if c.DeliverySmartHostPort < 0 || c.DeliverySmartHostPort > 65535 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMARTHOST_PORT must be between 0 and 65535")

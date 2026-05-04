@@ -442,7 +442,11 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	transport.Hello = cfg.DeliverySMTPHello
 	transport.Timeout = cfg.DeliveryTimeout
 	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
-	if router := deliveryRouterFromConfig(cfg); router != nil {
+	repository := maildb.NewRepository(db)
+	if strings.EqualFold(strings.TrimSpace(cfg.DeliveryRouteBackend), "postgres") {
+		transport.Router = postgresDeliveryRouter{repository: repository, fallbackTLSMode: delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)}
+		logger.Info("delivery worker using postgres delivery routes")
+	} else if router := deliveryRouterFromConfig(cfg); router != nil {
 		transport.Router = router
 		logger.Info("delivery worker using smart-host relay", "host", cfg.DeliverySmartHost, "port", cfg.DeliverySmartHostPort, "tls_mode", cfg.DeliverySmartHostTLSMode, "implicit_tls", cfg.DeliverySmartHostImplicitTLS, "auth_configured", strings.TrimSpace(cfg.DeliverySmartHostUsername) != "")
 	}
@@ -451,7 +455,6 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	retryPolicy.JitterRatio = cfg.DeliveryRetryJitterRatio
 	retryPolicy.MaxDelay = cfg.DeliveryRetryMaxDelay
 	if cfg.DKIMEnabled {
-		repository := maildb.NewRepository(db)
 		transport.Transformers = append(transport.Transformers, dkim.Transformer{
 			Signer: dkim.RFC6376Signer{KeyProvider: dkimKeyProvider{repository: repository}},
 		})
@@ -518,6 +521,43 @@ func deliveryRouterFromConfig(cfg config.Config) delivery.Router {
 			Password: cfg.DeliverySmartHostPassword,
 		},
 	}}
+}
+
+type deliveryRouteRepository interface {
+	DeliveryRouteForDomain(ctx context.Context, domain string) (maildb.DeliveryRouteView, error)
+}
+
+type postgresDeliveryRouter struct {
+	repository      deliveryRouteRepository
+	fallbackTLSMode delivery.DeliveryTLSMode
+}
+
+func (r postgresDeliveryRouter) Route(ctx context.Context, _ delivery.Job, domain string) (delivery.Route, error) {
+	if r.repository == nil {
+		return delivery.Route{TLSMode: r.fallbackTLSMode}, nil
+	}
+	route, err := r.repository.DeliveryRouteForDomain(ctx, domain)
+	if err != nil {
+		if errors.Is(err, maildb.ErrDeliveryRouteNotFound) {
+			return delivery.Route{TLSMode: r.fallbackTLSMode}, nil
+		}
+		return delivery.Route{}, err
+	}
+	return delivery.Route{
+		Farm:        outbound.Farm(route.Farm),
+		Domain:      domain,
+		Hosts:       route.Hosts,
+		Port:        route.Port,
+		Hello:       route.SMTPHello,
+		TLSMode:     delivery.DeliveryTLSMode(route.TLSMode),
+		ImplicitTLS: route.ImplicitTLS,
+		PoolName:    route.PoolName,
+		Auth: delivery.RouteAuth{
+			Identity: route.AuthIdentity,
+			Username: route.AuthUsername,
+			Password: route.AuthPassword,
+		},
+	}, nil
 }
 
 func deliveryFarmLimits(values map[string]int) map[outbound.Farm]int {

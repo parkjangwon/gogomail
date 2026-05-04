@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/gogomail/gogomail/internal/mail"
 )
+
+var ErrDeliveryRouteNotFound = errors.New("delivery route not found")
 
 type stringArray []string
 
@@ -145,6 +148,7 @@ type DeliveryRouteView struct {
 	PoolName      string    `json:"pool_name"`
 	AuthIdentity  string    `json:"auth_identity,omitempty"`
 	AuthUsername  string    `json:"auth_username,omitempty"`
+	AuthPassword  string    `json:"-"`
 	Status        string    `json:"status"`
 	Description   string    `json:"description"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -1254,6 +1258,80 @@ WHERE id = $1`, strings.TrimSpace(req.ID), strings.ToLower(strings.TrimSpace(req
 		return fmt.Errorf("delivery route %q not found", req.ID)
 	}
 	return nil
+}
+
+func (r *Repository) DeliveryRouteForDomain(ctx context.Context, domain string) (DeliveryRouteView, error) {
+	if r.db == nil {
+		return DeliveryRouteView{}, fmt.Errorf("database handle is required")
+	}
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	if !validAdminDomainName(domain) {
+		return DeliveryRouteView{}, fmt.Errorf("domain must be a domain name")
+	}
+
+	const query = `
+SELECT
+  id::text,
+  domain_pattern,
+  farm,
+  hosts,
+  port,
+  tls_mode,
+  implicit_tls,
+  smtp_hello,
+  pool_name,
+  auth_identity,
+  auth_username,
+  auth_password,
+  status,
+  description,
+  created_at,
+  updated_at
+FROM delivery_routes
+WHERE status = 'active'
+  AND (
+    domain_pattern = $1
+    OR domain_pattern = '*'
+    OR (
+      left(domain_pattern, 2) = '*.'
+      AND right($1, length(domain_pattern) - 1) = substring(domain_pattern from 2)
+    )
+  )
+ORDER BY
+  CASE
+    WHEN domain_pattern = $1 THEN 0
+    WHEN left(domain_pattern, 2) = '*.' THEN 1
+    ELSE 2
+  END,
+  length(domain_pattern) DESC,
+  created_at DESC
+LIMIT 1`
+
+	var route DeliveryRouteView
+	if err := r.db.QueryRowContext(ctx, query, domain).Scan(
+		&route.ID,
+		&route.DomainPattern,
+		&route.Farm,
+		(*stringArray)(&route.Hosts),
+		&route.Port,
+		&route.TLSMode,
+		&route.ImplicitTLS,
+		&route.SMTPHello,
+		&route.PoolName,
+		&route.AuthIdentity,
+		&route.AuthUsername,
+		&route.AuthPassword,
+		&route.Status,
+		&route.Description,
+		&route.CreatedAt,
+		&route.UpdatedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return DeliveryRouteView{}, ErrDeliveryRouteNotFound
+		}
+		return DeliveryRouteView{}, fmt.Errorf("get delivery route for domain: %w", err)
+	}
+	return route, nil
 }
 
 func (r *Repository) DeleteDeliveryRoute(ctx context.Context, id string) error {
