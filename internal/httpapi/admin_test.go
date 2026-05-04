@@ -539,6 +539,83 @@ func TestAdminExportAPIUsageExportBatchHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCreateAPIUsageExportArtifactHandler(t *testing.T) {
+	t.Parallel()
+
+	hash := strings.Repeat("a", 64)
+	service := &fakeAdminService{
+		apiUsageExportArtifact: maildb.APIUsageExportArtifactView{
+			ID:             "api-usage-artifact-1",
+			BatchID:        "api-usage-export-1",
+			StorageBackend: "s3",
+			ObjectKey:      "exports/api-usage-export-1.ndjson",
+			ContentType:    "application/x-ndjson",
+			ByteCount:      12,
+			SHA256Hex:      hash,
+			EventCount:     2,
+			Metadata:       json.RawMessage(`{"bucket":"billing"}`),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := strings.NewReader(`{"storage_backend":"s3","object_key":"exports/api-usage-export-1.ndjson","byte_count":12,"sha256_hex":"` + hash + `","event_count":2,"metadata":{"bucket":"billing"}}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts", body)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Artifact maildb.APIUsageExportArtifactView `json:"api_usage_export_artifact"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Artifact.ID != "api-usage-artifact-1" || service.lastCreateAPIUsageExportArtifact.BatchID != "api-usage-export-1" {
+		t.Fatalf("artifact = %+v last=%+v", response.Artifact, service.lastCreateAPIUsageExportArtifact)
+	}
+}
+
+func TestAdminListAPIUsageExportArtifactsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifacts: []maildb.APIUsageExportArtifactView{{
+			ID:             "api-usage-artifact-1",
+			BatchID:        "api-usage-export-1",
+			StorageBackend: "s3",
+			ObjectKey:      "exports/api-usage-export-1.ndjson",
+			ContentType:    "application/x-ndjson",
+			SHA256Hex:      strings.Repeat("a", 64),
+			Metadata:       json.RawMessage(`{}`),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts?limit=5", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Artifacts []maildb.APIUsageExportArtifactView `json:"api_usage_export_artifacts"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(response.Artifacts) != 1 || response.Artifacts[0].ID != "api-usage-artifact-1" {
+		t.Fatalf("artifacts = %+v", response.Artifacts)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastLimit != 5 {
+		t.Fatalf("last batch/limit = %q/%d", service.lastAPIUsageExportBatchID, service.lastLimit)
+	}
+}
+
 func TestAdminQuotaReconciliationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1548,58 +1625,61 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 }
 
 type fakeAdminService struct {
-	companies                      []maildb.CompanyView
-	domains                        []maildb.DomainView
-	dnsReport                      dnscheck.DomainReport
-	dnsChecks                      []maildb.DomainDNSCheckView
-	users                          []maildb.UserView
-	queueStats                     []maildb.QueueStat
-	quotaUsage                     []maildb.QuotaUsageView
-	apiUsageDaily                  []maildb.APIUsageDailyView
-	apiUsageMonthly                []maildb.APIUsageMonthlyView
-	apiUsageLedger                 []maildb.APIUsageLedgerView
-	apiUsageLedgerStats            maildb.APIUsageLedgerStatsView
-	apiUsageExportBatch            maildb.APIUsageExportBatchView
-	apiUsageExportBatches          []maildb.APIUsageExportBatchView
-	quotaReconciliation            []maildb.QuotaReconciliationView
-	quotaCorrection                maildb.QuotaCorrectionResult
-	attempts                       []maildb.DeliveryAttemptView
-	pushNotificationAttempts       []maildb.PushNotificationAttemptView
-	pushNotificationStats          maildb.PushNotificationStatsView
-	suppression                    []maildb.SuppressionEntry
-	trustedRelays                  []maildb.TrustedRelayView
-	deliveryRoutes                 []maildb.DeliveryRouteView
-	deliveryRouteResolution        maildb.DeliveryRouteResolveView
-	dkimKeys                       []maildb.DKIMKeyView
-	backpressureState              backpressure.State
-	createdDKIMKeyID               string
-	lastLimit                      int
-	lastCompanyID                  string
-	lastDomainID                   string
-	lastUserID                     string
-	lastDomainStatus               maildb.UpdateDomainStatusRequest
-	lastCompanyQuota               maildb.UpdateCompanyQuotaRequest
-	lastDomainQuota                maildb.UpdateDomainQuotaRequest
-	lastDomainPolicy               maildb.UpdateDomainPolicyRequest
-	lastCreateDomain               maildb.CreateDomainRequest
-	lastUserStatus                 maildb.UpdateUserStatusRequest
-	lastUserQuota                  maildb.UpdateUserQuotaRequest
-	lastQuotaCorrection            maildb.CorrectQuotaReconciliationRequest
-	lastAPIUsageLedgerList         maildb.APIUsageLedgerListRequest
-	lastAPIUsageExportBatchID      string
-	lastPushAttemptList            maildb.PushNotificationAttemptListRequest
-	lastCreateUser                 maildb.CreateUserRequest
-	lastCreateDKIMKey              maildb.CreateDKIMKeyInput
-	lastCreateTrustedRelay         maildb.CreateTrustedRelayRequest
-	lastCreateDeliveryRoute        maildb.CreateDeliveryRouteRequest
-	lastResolveDeliveryRouteDomain string
-	lastDeliveryRouteStatus        maildb.UpdateDeliveryRouteStatusRequest
-	lastBackpressureUpdate         backpressure.StateUpdate
-	lastDeactivateDKIMKeyID        string
-	lastRetryOutboxID              string
-	lastDeleteSuppressionID        string
-	lastDeleteTrustedRelayID       string
-	lastDeleteDeliveryRouteID      string
+	companies                        []maildb.CompanyView
+	domains                          []maildb.DomainView
+	dnsReport                        dnscheck.DomainReport
+	dnsChecks                        []maildb.DomainDNSCheckView
+	users                            []maildb.UserView
+	queueStats                       []maildb.QueueStat
+	quotaUsage                       []maildb.QuotaUsageView
+	apiUsageDaily                    []maildb.APIUsageDailyView
+	apiUsageMonthly                  []maildb.APIUsageMonthlyView
+	apiUsageLedger                   []maildb.APIUsageLedgerView
+	apiUsageLedgerStats              maildb.APIUsageLedgerStatsView
+	apiUsageExportBatch              maildb.APIUsageExportBatchView
+	apiUsageExportBatches            []maildb.APIUsageExportBatchView
+	apiUsageExportArtifact           maildb.APIUsageExportArtifactView
+	apiUsageExportArtifacts          []maildb.APIUsageExportArtifactView
+	quotaReconciliation              []maildb.QuotaReconciliationView
+	quotaCorrection                  maildb.QuotaCorrectionResult
+	attempts                         []maildb.DeliveryAttemptView
+	pushNotificationAttempts         []maildb.PushNotificationAttemptView
+	pushNotificationStats            maildb.PushNotificationStatsView
+	suppression                      []maildb.SuppressionEntry
+	trustedRelays                    []maildb.TrustedRelayView
+	deliveryRoutes                   []maildb.DeliveryRouteView
+	deliveryRouteResolution          maildb.DeliveryRouteResolveView
+	dkimKeys                         []maildb.DKIMKeyView
+	backpressureState                backpressure.State
+	createdDKIMKeyID                 string
+	lastLimit                        int
+	lastCompanyID                    string
+	lastDomainID                     string
+	lastUserID                       string
+	lastDomainStatus                 maildb.UpdateDomainStatusRequest
+	lastCompanyQuota                 maildb.UpdateCompanyQuotaRequest
+	lastDomainQuota                  maildb.UpdateDomainQuotaRequest
+	lastDomainPolicy                 maildb.UpdateDomainPolicyRequest
+	lastCreateDomain                 maildb.CreateDomainRequest
+	lastUserStatus                   maildb.UpdateUserStatusRequest
+	lastUserQuota                    maildb.UpdateUserQuotaRequest
+	lastQuotaCorrection              maildb.CorrectQuotaReconciliationRequest
+	lastAPIUsageLedgerList           maildb.APIUsageLedgerListRequest
+	lastAPIUsageExportBatchID        string
+	lastCreateAPIUsageExportArtifact maildb.CreateAPIUsageExportArtifactRequest
+	lastPushAttemptList              maildb.PushNotificationAttemptListRequest
+	lastCreateUser                   maildb.CreateUserRequest
+	lastCreateDKIMKey                maildb.CreateDKIMKeyInput
+	lastCreateTrustedRelay           maildb.CreateTrustedRelayRequest
+	lastCreateDeliveryRoute          maildb.CreateDeliveryRouteRequest
+	lastResolveDeliveryRouteDomain   string
+	lastDeliveryRouteStatus          maildb.UpdateDeliveryRouteStatusRequest
+	lastBackpressureUpdate           backpressure.StateUpdate
+	lastDeactivateDKIMKeyID          string
+	lastRetryOutboxID                string
+	lastDeleteSuppressionID          string
+	lastDeleteTrustedRelayID         string
+	lastDeleteDeliveryRouteID        string
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, limit int) ([]maildb.CompanyView, error) {
@@ -1766,6 +1846,17 @@ func (f *fakeAdminService) ListAPIUsageExportBatches(_ context.Context, limit in
 func (f *fakeAdminService) GetAPIUsageExportBatch(_ context.Context, id string) (maildb.APIUsageExportBatchView, error) {
 	f.lastAPIUsageExportBatchID = id
 	return f.apiUsageExportBatch, nil
+}
+
+func (f *fakeAdminService) CreateAPIUsageExportArtifact(_ context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error) {
+	f.lastCreateAPIUsageExportArtifact = req
+	return f.apiUsageExportArtifact, nil
+}
+
+func (f *fakeAdminService) ListAPIUsageExportArtifacts(_ context.Context, batchID string, limit int) ([]maildb.APIUsageExportArtifactView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastLimit = limit
+	return f.apiUsageExportArtifacts, nil
 }
 
 func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
