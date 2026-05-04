@@ -336,6 +336,7 @@ Implementation order:
 281. `mailservice` now exposes bounded IMAP UID backfill through the same service boundary, preparing future operator/bootstrap modes without coupling them directly to `maildb`.
 282. IMAP mailbox event publication from service mutations is now best-effort after successful database updates, preventing future IDLE fan-out failures from making committed mail writes look failed to clients.
 283. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.Store`, giving a future IMAP protocol listener a narrow adapter over service methods instead of direct repository access.
+284. Backend release readiness now records the IMAP backend boundary state: service adapter, UID backfill, user-scoped event broker, best-effort flag/move/delete events, and focused verification commands.
 
 ## Deferred until backend contracts stabilize
 
