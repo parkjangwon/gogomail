@@ -481,6 +481,7 @@ Implementation order:
 422. Delivery-status audit consumers now trim event, tenant, sender, recipient, farm, status, error, and timestamp fields and reject CR/LF-bearing message identifiers before audit-log persistence.
 423. Event routing now trims registered and payload event names and rejects CR/LF-bearing event names before worker dispatch.
 424. Redis stream event decoding now trims outbox id, partition key, and payload fields and rejects blank metadata before handler dispatch.
+425. Delivery outcome and exhausted outbox event payloads now trim message, tenant, farm, sender, recipient, error, and DSN metadata before event persistence.
 
 ## Deferred until backend contracts stabilize
 
