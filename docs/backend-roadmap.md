@@ -439,6 +439,7 @@ Implementation order:
 380. Attachment download responses now include a safe ASCII `filename` fallback plus RFC 5987-style UTF-8 `filename*` parameter, preserving internationalized attachment filenames for webmail clients without relaxing header-injection guards.
 381. Attachment downloads now sanitize the stored MIME type at the HTTP boundary, falling back to `application/octet-stream` for blank or newline-bearing values before response headers are written.
 382. OpenAPI now documents attachment download `Content-Disposition` and `Cache-Control: no-store` headers and drift-tests them alongside the binary response media type.
+383. API usage artifact downloads now sanitize stored content type and SHA-256 response headers before streaming export objects, preserving billing handoff integrity without trusting persisted header values blindly.
 
 ## Deferred until backend contracts stabilize
 

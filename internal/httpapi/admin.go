@@ -765,8 +765,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		defer body.Close()
-		w.Header().Set("Content-Type", artifact.ContentType)
-		w.Header().Set("X-Gogomail-Artifact-SHA256", artifact.SHA256Hex)
+		w.Header().Set("Content-Type", safeContentType(artifact.ContentType, "application/x-ndjson"))
+		if sha256Hex := safeSHA256Header(artifact.SHA256Hex); sha256Hex != "" {
+			w.Header().Set("X-Gogomail-Artifact-SHA256", sha256Hex)
+		}
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, body)
 	}))
@@ -1273,6 +1275,20 @@ func constantTimeTokenEqual(got string, want string) bool {
 	gotHash := sha256.Sum256([]byte(got))
 	wantHash := sha256.Sum256([]byte(want))
 	return subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) == 1
+}
+
+func safeSHA256Header(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) != 64 {
+		return ""
+	}
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') {
+			continue
+		}
+		return ""
+	}
+	return value
 }
 
 func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerListRequest, bool) {

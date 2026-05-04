@@ -431,6 +431,8 @@ The platform hardening sprint completed the following:
   unsafe stored MIME types before setting response headers.
 - OpenAPI now documents attachment download `Content-Disposition` and
   `Cache-Control: no-store` headers with drift coverage.
+- API usage artifact downloads now sanitize stored content type and SHA-256
+  response headers before streaming export objects.
 
 Next focus areas:
 
