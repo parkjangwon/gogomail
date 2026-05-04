@@ -380,6 +380,10 @@ API call metering can now emit durable usage events:
 - `GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download`
   streams the stored artifact as `application/x-ndjson` and returns the
   persisted SHA-256 in `X-Gogomail-Artifact-SHA256`.
+- `GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification`
+  returns `{ "api_usage_export_artifact_verification": ... }`, recomputing the
+  stored object byte count and SHA-256 and comparing them to persisted artifact
+  metadata.
 - `POST /admin/v1/api-usage/export-batches/{id}/manifest-digests` creates a
   canonical SHA-256 digest over the saved export batch and registered artifact
   metadata, returning `{ "api_usage_export_manifest_digest": ... }`.
