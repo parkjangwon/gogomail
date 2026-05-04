@@ -413,9 +413,12 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		mailboxID := strings.TrimSpace(r.PathValue("id"))
-		if userID == "" || mailboxID == "" {
-			writeError(w, http.StatusBadRequest, "user_id and mailbox id are required")
+		mailboxID, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if userID == "" {
+			writeError(w, http.StatusBadRequest, "user_id is required")
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -475,9 +478,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/outbox-events/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		event, err := service.GetOutboxEvent(r.Context(), id)
@@ -1204,7 +1206,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = strings.TrimSpace(r.PathValue("id"))
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
 		if err := service.UpdateDeliveryRouteStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1246,9 +1252,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/dkim-keys/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		if err := service.DeactivateDKIMKey(r.Context(), id); err != nil {
@@ -1259,9 +1264,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		result, err := service.VerifyDKIMKeyDNS(r.Context(), id)
@@ -1273,9 +1277,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		if err := service.RetryOutbox(r.Context(), id); err != nil {
@@ -1286,9 +1289,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/suppression-list/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		if err := service.DeleteSuppressionEntry(r.Context(), id); err != nil {
@@ -1299,9 +1301,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/trusted-relays/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		if err := service.DeleteTrustedRelay(r.Context(), id); err != nil {
@@ -1312,9 +1313,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/delivery-routes/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSpace(r.PathValue("id"))
-		if id == "" {
-			writeError(w, http.StatusBadRequest, "id is required")
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
 			return
 		}
 		if err := service.DeleteDeliveryRoute(r.Context(), id); err != nil {

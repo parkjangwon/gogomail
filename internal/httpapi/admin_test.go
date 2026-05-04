@@ -113,6 +113,37 @@ func TestAdminBackfillIMAPMailboxUIDsRejectsUnsafeUserID(t *testing.T) {
 	}
 }
 
+func TestAdminBackfillIMAPMailboxUIDsRejectsUnsafeMailboxID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/imap/mailboxes/inbox%0Abad/uid-backfill?user_id=user-1",
+		"/admin/v1/imap/mailboxes/" + strings.Repeat("m", maxAdminQueryFilterBytes+1) + "/uid-backfill?user_id=user-1",
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastIMAPBackfillUserID != "" || service.lastIMAPBackfillMailboxID != "" {
+				t.Fatalf("backfill request = %q/%q", service.lastIMAPBackfillUserID, service.lastIMAPBackfillMailboxID)
+			}
+		})
+	}
+}
+
 func TestAdminOutboxEventsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -252,6 +283,37 @@ func TestAdminOutboxEventDetailHandler(t *testing.T) {
 	}
 	if service.lastOutboxEventID != "outbox-1" {
 		t.Fatalf("lastOutboxEventID = %q", service.lastOutboxEventID)
+	}
+}
+
+func TestAdminOutboxEventDetailHandlerRejectsUnsafeID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/outbox-events/outbox%0Abad",
+		"/admin/v1/outbox-events/" + strings.Repeat("o", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastOutboxEventID != "" {
+				t.Fatalf("lastOutboxEventID = %q", service.lastOutboxEventID)
+			}
+		})
 	}
 }
 
@@ -3155,6 +3217,49 @@ func TestAdminVerifyDKIMKeyDNSHandlerTrimsID(t *testing.T) {
 	}
 }
 
+func TestAdminDKIMKeyPathIDsRejectUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{
+			name:   "delete crlf",
+			method: http.MethodDelete,
+			path:   "/admin/v1/dkim-keys/dkim%0Abad",
+		},
+		{
+			name:   "verify oversized",
+			method: http.MethodPost,
+			path:   "/admin/v1/dkim-keys/" + strings.Repeat("d", maxAdminQueryFilterBytes+1) + "/verify-dns",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDeactivateDKIMKeyID != "" || service.lastVerifyDKIMKeyID != "" {
+				t.Fatalf("last dkim ids = %q/%q", service.lastDeactivateDKIMKeyID, service.lastVerifyDKIMKeyID)
+			}
+		})
+	}
+}
+
 func TestAdminRetryOutboxHandler(t *testing.T) {
 	t.Parallel()
 
@@ -3193,6 +3298,37 @@ func TestAdminRetryOutboxHandlerRejectsBlankID(t *testing.T) {
 	}
 }
 
+func TestAdminRetryOutboxHandlerRejectsUnsafeID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/outbox/outbox%0Abad/retry",
+		"/admin/v1/outbox/" + strings.Repeat("o", maxAdminQueryFilterBytes+1) + "/retry",
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastRetryOutboxID != "" {
+				t.Fatalf("lastRetryOutboxID = %q", service.lastRetryOutboxID)
+			}
+		})
+	}
+}
+
 func TestAdminDeleteSuppressionHandler(t *testing.T) {
 	t.Parallel()
 
@@ -3209,6 +3345,37 @@ func TestAdminDeleteSuppressionHandler(t *testing.T) {
 	}
 	if service.lastDeleteSuppressionID != "suppression-1" {
 		t.Fatalf("lastDeleteSuppressionID = %q", service.lastDeleteSuppressionID)
+	}
+}
+
+func TestAdminDeleteSuppressionHandlerRejectsUnsafeID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/suppression-list/suppression%0Abad",
+		"/admin/v1/suppression-list/" + strings.Repeat("s", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodDelete, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDeleteSuppressionID != "" {
+				t.Fatalf("lastDeleteSuppressionID = %q", service.lastDeleteSuppressionID)
+			}
+		})
 	}
 }
 
@@ -3449,6 +3616,56 @@ func TestAdminDeleteTrustedRelayHandler(t *testing.T) {
 	}
 	if service.lastDeleteTrustedRelayID != "relay-1" {
 		t.Fatalf("lastDeleteTrustedRelayID = %q", service.lastDeleteTrustedRelayID)
+	}
+}
+
+func TestAdminDeliveryRouteAndTrustedRelayPathIDsRejectUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{
+			name:   "delivery route status crlf",
+			method: http.MethodPatch,
+			path:   "/admin/v1/delivery-routes/route%0Abad/status",
+			body:   `{"status":"disabled"}`,
+		},
+		{
+			name:   "delivery route delete oversized",
+			method: http.MethodDelete,
+			path:   "/admin/v1/delivery-routes/" + strings.Repeat("r", maxAdminQueryFilterBytes+1),
+		},
+		{
+			name:   "trusted relay delete crlf",
+			method: http.MethodDelete,
+			path:   "/admin/v1/trusted-relays/relay%0Abad",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDeliveryRouteStatus.ID != "" || service.lastDeleteDeliveryRouteID != "" || service.lastDeleteTrustedRelayID != "" {
+				t.Fatalf("last ids = %+v/%q/%q", service.lastDeliveryRouteStatus, service.lastDeleteDeliveryRouteID, service.lastDeleteTrustedRelayID)
+			}
+		})
 	}
 }
 
