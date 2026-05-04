@@ -94,6 +94,10 @@ guidance.
   worker stores those dimensions in the idempotency ledger and keys daily/monthly
   aggregates by identity so usage from different tenants or principals does not
   merge.
+- API metering now records immutable `api_usage_ledger` rows before aggregate
+  upserts. Admin API exposes bounded ledger list, NDJSON export, and stats
+  endpoints for billing/export preparation while keeping HTTP request handling
+  fail-open.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -274,6 +278,9 @@ The platform hardening sprint completed the following:
   duplicate `event_id` deliveries do not increment daily/monthly counters again.
 - API metering Admin API responses now expose tenant/company/domain/user/API-key,
   principal, and auth-source dimensions for daily/monthly aggregates.
+- API metering Admin API now exposes immutable ledger list/export/stats endpoints
+  so future billing and warehouse jobs can consume event-level usage instead of
+  operational aggregates.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 
@@ -286,6 +293,6 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Add an immutable billing ledger/export path before using API usage
-   aggregates for invoices or hard limits.
+5. Add API usage billing batch manifests/checkpoints before using ledger exports
+   for invoices or hard limits.
 6. Frontend planning and API contract review before webmail implementation.

@@ -348,6 +348,15 @@ API call metering can now emit durable usage events:
   operations dashboards.
 - `GET /admin/v1/api-usage/monthly` returns `{ "api_usage_monthly": [...] }`
   with the same dimensions rolled up by UTC month for plan and billing analysis.
+- The worker also records immutable rows in `api_usage_ledger` before updating
+  aggregate read models. `GET /admin/v1/api-usage/ledger` returns
+  `{ "api_usage_ledger": [...] }` and supports bounded `tenant_id`,
+  `principal_id`, `from`, `to`, and `limit` queries for export preparation.
+- `GET /admin/v1/api-usage/ledger/export` streams the same bounded ledger query
+  as `application/x-ndjson` for downstream billing or warehouse ingestion.
+- `GET /admin/v1/api-usage/ledger/stats` returns
+  `{ "api_usage_ledger_stats": ... }` with count, byte, latency, and first/last
+  event timestamps for export sanity checks.
 
 Message search starts with a small-deployment Postgres implementation:
 

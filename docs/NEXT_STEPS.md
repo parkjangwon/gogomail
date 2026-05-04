@@ -254,13 +254,16 @@ Current state:
 - Mail API metering can enrich identity from JWT claims, while Admin API
   metering can classify configured admin-token access without coupling
   `internal/apimeter` to `internal/auth`.
+- The worker records immutable `api_usage_ledger` rows before updating
+  aggregate read models. Admin API exposes bounded ledger list, NDJSON export,
+  and stats endpoints for export sanity checks without making request handling
+  synchronous.
 
 Next:
 
-- Add an immutable billing/export ledger before aggregates drive invoices or
-  hard Open API limits.
-- Add optional filters on Admin API usage endpoints for tenant/principal/date
-  windows once operator workflows need them.
+- Add billing batch manifests/checkpoints before ledger exports drive invoices
+  or hard Open API limits.
+- Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet
