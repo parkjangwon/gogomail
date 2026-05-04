@@ -88,7 +88,10 @@ GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT=2s
 active user devices from PostgreSQL, records one candidate attempt per device,
 and then invokes the configured sink. Device targets are bounded by
 `GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT` and malformed device IDs, tokens, or
-platforms are dropped before sink handoff.
+platforms are dropped before sink handoff. The webhook sink also normalizes and
+bounds message, recipient, subject, timestamp, and target metadata before JSON
+serialization, and drops direct-call targets with blank, CR/LF-bearing,
+oversized, or unsupported platform/token values.
 
 gogomail sends a JSON `POST` request:
 

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestWebhookSinkPostsNotificationTargets(t *testing.T) {
@@ -57,6 +58,74 @@ func TestWebhookSinkPostsNotificationTargets(t *testing.T) {
 	}
 	if got.Targets[0].AttemptID != "attempt-1" || got.Targets[0].Token != "raw-token" {
 		t.Fatalf("target = %+v", got.Targets[0])
+	}
+}
+
+func TestWebhookSinkBoundsPayloadFields(t *testing.T) {
+	t.Parallel()
+
+	var got webhookPayload
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer server.Close()
+
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	if err != nil {
+		t.Fatalf("NewWebhookSink returned error: %v", err)
+	}
+	err = sink.EnqueuePush(context.Background(), Notification{
+		MessageID:  strings.Repeat("m", maxWebhookIdentityBytes) + "\nextra",
+		UserID:     " user-1\ninjected ",
+		Recipient:  " user@example.net\r\nBcc: other@example.net ",
+		Subject:    strings.Repeat("\u20ac", maxWebhookSubjectBytes),
+		ReceivedAt: "2026-05-04T00:00:00Z\nlater",
+		Targets: []Target{
+			{
+				AttemptID: strings.Repeat("a", maxWebhookIdentityBytes) + "\nextra",
+				DeviceID:  " device-1 ",
+				Platform:  " FCM ",
+				Token:     "raw-token",
+				Label:     strings.Repeat("\u20ac", maxWebhookLabelBytes),
+			},
+			{
+				DeviceID: "device-2",
+				Platform: "fcm",
+				Token:    "bad\ntoken",
+			},
+			{
+				DeviceID: "device-3",
+				Platform: "unknown",
+				Token:    "raw-token",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("EnqueuePush returned error: %v", err)
+	}
+	if strings.ContainsAny(got.MessageID+got.UserID+got.Recipient+got.ReceivedAt, "\r\n") {
+		t.Fatalf("payload contains line break: %+v", got)
+	}
+	if len(got.MessageID) > maxWebhookIdentityBytes {
+		t.Fatalf("message_id length = %d, want <= %d", len(got.MessageID), maxWebhookIdentityBytes)
+	}
+	if len(got.Subject) > maxWebhookSubjectBytes || !utf8.ValidString(got.Subject) {
+		t.Fatalf("subject length/utf8 = %d/%v", len(got.Subject), utf8.ValidString(got.Subject))
+	}
+	if len(got.Targets) != 1 {
+		t.Fatalf("targets = %+v, want only valid target", got.Targets)
+	}
+	if got.Targets[0].DeviceID != "device-1" || got.Targets[0].Platform != "fcm" {
+		t.Fatalf("target = %+v", got.Targets[0])
+	}
+	if len(got.Targets[0].AttemptID) > maxWebhookIdentityBytes || strings.ContainsAny(got.Targets[0].AttemptID, "\r\n") {
+		t.Fatalf("attempt_id = %q", got.Targets[0].AttemptID)
+	}
+	if len(got.Targets[0].Label) > maxWebhookLabelBytes || !utf8.ValidString(got.Targets[0].Label) {
+		t.Fatalf("label length/utf8 = %d/%v", len(got.Targets[0].Label), utf8.ValidString(got.Targets[0].Label))
 	}
 }
 
