@@ -732,6 +732,45 @@ func TestAdminDownloadAPIUsageExportArtifactHandler(t *testing.T) {
 	}
 }
 
+func TestAdminVerifyAPIUsageExportArtifactHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		apiUsageExportArtifactVerification: maildb.APIUsageExportArtifactVerificationView{
+			BatchID:           "api-usage-export-1",
+			ArtifactID:        "api-usage-artifact-1",
+			ObjectKey:         "exports/api-usage/api-usage-export-1.ndjson",
+			ExpectedByteCount: 12,
+			ActualByteCount:   12,
+			ExpectedSHA256Hex: strings.Repeat("a", 64),
+			ActualSHA256Hex:   strings.Repeat("a", 64),
+			Valid:             true,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-batches/api-usage-export-1/artifacts/api-usage-artifact-1/verification", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		Verification maildb.APIUsageExportArtifactVerificationView `json:"api_usage_export_artifact_verification"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !response.Verification.Valid {
+		t.Fatalf("verification = %+v", response.Verification)
+	}
+	if service.lastAPIUsageExportBatchID != "api-usage-export-1" || service.lastAPIUsageExportArtifactID != "api-usage-artifact-1" {
+		t.Fatalf("last ids = %q/%q", service.lastAPIUsageExportBatchID, service.lastAPIUsageExportArtifactID)
+	}
+}
+
 func TestAdminCreateAPIUsageExportManifestDigestHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1904,6 +1943,7 @@ type fakeAdminService struct {
 	apiUsageExportArtifact                   maildb.APIUsageExportArtifactView
 	apiUsageExportArtifacts                  []maildb.APIUsageExportArtifactView
 	apiUsageExportArtifactBody               string
+	apiUsageExportArtifactVerification       maildb.APIUsageExportArtifactVerificationView
 	apiUsageExportManifestDigest             maildb.APIUsageExportManifestDigestView
 	apiUsageExportManifestDigests            []maildb.APIUsageExportManifestDigestView
 	apiUsageExportManifestDigestVerification maildb.APIUsageExportManifestDigestVerificationView
@@ -2145,6 +2185,12 @@ func (f *fakeAdminService) OpenAPIUsageExportArtifact(_ context.Context, batchID
 	f.lastAPIUsageExportBatchID = batchID
 	f.lastAPIUsageExportArtifactID = artifactID
 	return f.apiUsageExportArtifact, io.NopCloser(strings.NewReader(f.apiUsageExportArtifactBody)), nil
+}
+
+func (f *fakeAdminService) VerifyAPIUsageExportArtifact(_ context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactVerificationView, error) {
+	f.lastAPIUsageExportBatchID = batchID
+	f.lastAPIUsageExportArtifactID = artifactID
+	return f.apiUsageExportArtifactVerification, nil
 }
 
 func (f *fakeAdminService) CreateAPIUsageExportManifestDigest(_ context.Context, batchID string) (maildb.APIUsageExportManifestDigestView, error) {
