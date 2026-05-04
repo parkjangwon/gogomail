@@ -645,6 +645,7 @@ Implementation order:
 585. Admin API usage daily/monthly aggregate reads now support bounded tenant, company, domain, user, API-key, principal, auth-source, method, route, status, and time-window filters, making aggregate billing/incident triage possible without global scans.
 586. Admin quota usage pressure reads now support scope, domain, over-limit, and over-allocation filters, letting operators isolate quota hot spots without scanning every company/domain/user row client-side.
 587. Attachment upload-session staged object paths are now validated as relative `upload-sessions/` keys before repository persistence and before service-side storage reads/deletes, hardening finalize/cancel/expiry flows against corrupted stored paths.
+588. Mailservice now validates DB-returned message and attachment storage paths before body reads or cleanup deletes, preventing corrupted rows from sending absolute, traversal, newline, backslash-bearing, or blank required object keys to storage adapters.
 
 ## Deferred until backend contracts stabilize
 

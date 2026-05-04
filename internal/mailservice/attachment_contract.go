@@ -169,3 +169,14 @@ func validateAttachmentStoragePath(storagePath string) error {
 	}
 	return nil
 }
+
+func requireStoredObjectPath(name string, storagePath string) (string, error) {
+	storagePath = strings.TrimSpace(storagePath)
+	if storagePath == "" {
+		return "", fmt.Errorf("%s storage path is required", name)
+	}
+	if err := validateAttachmentStoragePath(storagePath); err != nil {
+		return "", fmt.Errorf("%s %w", name, err)
+	}
+	return storagePath, nil
+}

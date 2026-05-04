@@ -410,7 +410,11 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	}
 	detail.Attachments = attachments
 
-	body, err := s.store.Get(ctx, detail.StoragePath)
+	storagePath, err := requireStoredObjectPath("message body", detail.StoragePath)
+	if err != nil {
+		return maildb.MessageDetail{}, err
+	}
+	body, err := s.store.Get(ctx, storagePath)
 	if err != nil {
 		return maildb.MessageDetail{}, fmt.Errorf("open message body: %w", err)
 	}
@@ -441,11 +445,12 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 	if err != nil {
 		return imapgw.Message{}, err
 	}
-	if strings.TrimSpace(stored.StoragePath) == "" {
-		return imapgw.Message{}, fmt.Errorf("imap message storage path is required")
+	storagePath, err := requireStoredObjectPath("imap message body", stored.StoragePath)
+	if err != nil {
+		return imapgw.Message{}, err
 	}
 
-	body, err := s.store.Get(ctx, stored.StoragePath)
+	body, err := s.store.Get(ctx, storagePath)
 	if err != nil {
 		return imapgw.Message{}, fmt.Errorf("open imap message body: %w", err)
 	}
@@ -909,7 +914,11 @@ func (s *Service) CancelAttachmentUpload(ctx context.Context, userID string, att
 		return maildb.Attachment{}, err
 	}
 	if s.store != nil && strings.TrimSpace(attachment.StoragePath) != "" {
-		if err := s.store.Delete(ctx, attachment.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		storagePath, err := requireStoredObjectPath("attachment body", attachment.StoragePath)
+		if err != nil {
+			return attachment, err
+		}
+		if err := s.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return attachment, fmt.Errorf("delete canceled attachment object: %w", err)
 		}
 	}
@@ -1315,7 +1324,11 @@ func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID s
 	if err != nil {
 		return AttachmentDownload{}, err
 	}
-	body, err := s.store.Get(ctx, attachment.StoragePath)
+	storagePath, err := requireStoredObjectPath("attachment body", attachment.StoragePath)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	body, err := s.store.Get(ctx, storagePath)
 	if err != nil {
 		return AttachmentDownload{}, fmt.Errorf("open attachment body: %w", err)
 	}
@@ -1344,7 +1357,12 @@ func (s *Service) ExpireStaleAttachmentUploads(ctx context.Context, before time.
 	var deleteErrors []error
 	for _, attachment := range expired {
 		if strings.TrimSpace(attachment.StoragePath) != "" {
-			if err := s.store.Delete(ctx, attachment.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			storagePath, err := requireStoredObjectPath("attachment body", attachment.StoragePath)
+			if err != nil {
+				deleteErrors = append(deleteErrors, fmt.Errorf("%s: %w", attachment.ID, err))
+				continue
+			}
+			if err := s.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
 				deleteErrors = append(deleteErrors, fmt.Errorf("%s: %w", attachment.ID, err))
 			}
 		}
