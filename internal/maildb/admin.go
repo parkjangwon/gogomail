@@ -2423,22 +2423,13 @@ func (r *Repository) listAPIUsageExportArtifacts(ctx context.Context, batchID st
 	if batchID == "" {
 		return nil, fmt.Errorf("batch_id is required")
 	}
-	query := `
-SELECT id, batch_id, created_at, storage_backend, object_key, content_type,
-  byte_count, sha256_hex, event_count, metadata
-FROM api_usage_export_artifacts
-WHERE batch_id = $1
-ORDER BY created_at DESC, id DESC
-`
-	var rows *sql.Rows
-	var err error
-	if unbounded {
-		rows, err = r.db.QueryContext(ctx, query, batchID)
-	} else {
+	query := apiUsageExportArtifactsQuery(unbounded)
+	args := []any{batchID}
+	if !unbounded {
 		limit = normalizeLimit(limit)
-		query += `LIMIT $2`
-		rows, err = r.db.QueryContext(ctx, query, batchID, limit)
+		args = append(args, limit)
 	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage export artifacts: %w", err)
 	}
@@ -2467,6 +2458,20 @@ ORDER BY created_at DESC, id DESC
 		return nil, fmt.Errorf("iterate api usage export artifacts: %w", err)
 	}
 	return artifacts, nil
+}
+
+func apiUsageExportArtifactsQuery(unbounded bool) string {
+	query := `
+SELECT id, batch_id, created_at, storage_backend, object_key, content_type,
+  byte_count, sha256_hex, event_count, metadata
+FROM api_usage_export_artifacts
+WHERE batch_id = $1
+ORDER BY created_at DESC, id DESC
+`
+	if !unbounded {
+		query += `LIMIT $2`
+	}
+	return query
 }
 
 func (r *Repository) GetAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (APIUsageExportArtifactView, error) {
