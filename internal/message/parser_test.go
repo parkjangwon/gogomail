@@ -327,6 +327,23 @@ func TestParseEMLWithOptionsLimitsPartCount(t *testing.T) {
 	}
 }
 
+func TestParseEMLWithOptionsLimitsHeaderBytes(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: " + strings.Repeat("x", 128),
+		"",
+		"body",
+	}, "\r\n")
+
+	_, err := ParseEMLWithOptions(strings.NewReader(raw), ParseOptions{MaxHeaderBytes: 64})
+	if err == nil {
+		t.Fatal("ParseEMLWithOptions error = nil, want header limit rejection")
+	}
+}
+
 func TestFallbackMessageIDIsDeterministicAndRecipientOrderIndependent(t *testing.T) {
 	t.Parallel()
 

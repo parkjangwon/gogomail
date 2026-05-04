@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	gomessage "github.com/emersion/go-message"
 	gomail "github.com/emersion/go-message/mail"
 )
 
@@ -24,6 +25,7 @@ type Attachment struct {
 
 type ParseOptions struct {
 	MaxTextBodyBytes int64
+	MaxHeaderBytes   int64
 	SkipTextBody     bool
 	MaxAttachments   int
 	MaxParts         int
@@ -54,10 +56,11 @@ func ParseEML(r io.Reader) (ParsedMessage, error) {
 func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) {
 	opts = normalizeParseOptions(opts)
 
-	reader, err := gomail.CreateReader(r)
-	if err != nil {
+	entity, err := gomessage.ReadWithOptions(r, &gomessage.ReadOptions{MaxHeaderBytes: opts.MaxHeaderBytes})
+	if err != nil && !gomessage.IsUnknownCharset(err) {
 		return ParsedMessage{}, fmt.Errorf("create mail reader: %w", err)
 	}
+	reader := gomail.NewReader(entity)
 	defer reader.Close()
 
 	parsed := ParsedMessage{}
@@ -175,6 +178,9 @@ func messageIDList(header gomail.Header, key string) []string {
 func normalizeParseOptions(opts ParseOptions) ParseOptions {
 	if opts.MaxTextBodyBytes <= 0 {
 		opts.MaxTextBodyBytes = 1 << 20
+	}
+	if opts.MaxHeaderBytes <= 0 {
+		opts.MaxHeaderBytes = 1 << 20
 	}
 	if opts.MaxAttachments <= 0 {
 		opts.MaxAttachments = 1000
