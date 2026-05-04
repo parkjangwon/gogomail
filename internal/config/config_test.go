@@ -49,6 +49,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "")
@@ -205,6 +206,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AttachmentCleanupBatchSize != 100 {
 		t.Fatalf("AttachmentCleanupBatchSize = %d, want 100", cfg.AttachmentCleanupBatchSize)
 	}
+	if cfg.AttachmentCleanupRunOnce {
+		t.Fatal("AttachmentCleanupRunOnce = true, want false")
+	}
 	if cfg.RcptRateLimitPerMinute != 60 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 60", cfg.RcptRateLimitPerMinute)
 	}
@@ -342,6 +346,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL", "15m")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "48h")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "250")
+	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE", "true")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "https://push.internal/send")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "push-token")
@@ -488,6 +493,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AttachmentCleanupBatchSize != 250 {
 		t.Fatalf("AttachmentCleanupBatchSize = %d, want 250", cfg.AttachmentCleanupBatchSize)
+	}
+	if !cfg.AttachmentCleanupRunOnce {
+		t.Fatal("AttachmentCleanupRunOnce = false, want true")
 	}
 	if cfg.RcptRateLimitPerMinute != 5 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 5", cfg.RcptRateLimitPerMinute)

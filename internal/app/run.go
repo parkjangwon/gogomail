@@ -111,6 +111,10 @@ func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *
 	defer db.Close()
 
 	service := mailservice.New(maildb.NewRepository(db), storage.NewLocalStore(cfg.MailstoreRoot))
+	if cfg.AttachmentCleanupRunOnce {
+		_, err := cleanupStaleAttachmentUploadsOnce(ctx, service, time.Now, cfg.AttachmentCleanupStaleAge, cfg.AttachmentCleanupBatchSize, logger)
+		return err
+	}
 	return runAttachmentCleanupLoop(ctx, service, cfg.AttachmentCleanupInterval, cfg.AttachmentCleanupStaleAge, cfg.AttachmentCleanupBatchSize, logger)
 }
 

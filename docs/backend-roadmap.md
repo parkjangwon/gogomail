@@ -570,6 +570,7 @@ Implementation order:
 511. Admin push-notification stats now supports a platform filter limited to `apns`, `fcm`, and `webpush`, letting operators isolate provider-platform fan-out failures without querying raw attempts first.
 512. Admin push-notification stats now supports a bounded `device_id` filter, letting operators summarize one device's push lifecycle before drilling into individual attempt records.
 513. `attachment-cleanup-worker` now runs stale attachment-upload cleanup as a configurable operational mode, expiring old `uploading` rows in bounded batches and deleting their stored objects through the mail service.
+514. Attachment cleanup can run once and exit via `GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE=true`, supporting CronJob or timer-driven deployments without requiring a long-running worker.
 
 ## Deferred until backend contracts stabilize
 
