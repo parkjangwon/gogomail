@@ -119,18 +119,18 @@ func Handler(next http.Handler, sink Sink, opts ...Option) http.Handler {
 
 func authSourceFromRequest(r *http.Request) string {
 	if r == nil {
-		return "anonymous"
+		return AuthSourceAnonymous
 	}
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r.Header.Get("Authorization"))), "bearer ") {
-		return "bearer"
+		return AuthSourceBearer
 	}
 	if strings.TrimSpace(r.Header.Get("X-Admin-Token")) != "" {
-		return "admin_token"
+		return AuthSourceAdminToken
 	}
 	if strings.TrimSpace(r.URL.Query().Get("user_id")) != "" {
-		return "query_user_id"
+		return AuthSourceQueryUserID
 	}
-	return "anonymous"
+	return AuthSourceAnonymous
 }
 
 func recordFailOpen(sink Sink, timeout time.Duration, event Event) {

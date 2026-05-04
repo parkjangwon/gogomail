@@ -209,11 +209,3 @@ func DecodeUsageEvent(payload json.RawMessage) (UsageEvent, error) {
 		RequestCount:  1,
 	}, nil
 }
-
-func normalizeAuthSource(source string) string {
-	source = strings.TrimSpace(source)
-	if source == "" {
-		return "unknown"
-	}
-	return source
-}
