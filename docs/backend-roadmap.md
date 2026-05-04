@@ -430,6 +430,7 @@ Implementation order:
 371. Push notification workers now mark candidate attempts `failed` with the sink error when sink handoff fails, preserving operator diagnostics while still returning the handler error for Redis stream retry.
 372. Push notification target resolution now drops malformed targets with blank device IDs, blank tokens, or unsupported platforms before sink handoff, keeping future vendor adapters behind a cleaner boundary.
 373. API metering admin-token identity classification now compares SHA-256 digests of trimmed token values, matching the hardened Admin API authorization path while preserving bearer and `X-Admin-Token` classification.
+374. API usage ledger retention-readiness now rejects future cutoff timestamps at the HTTP boundary, preventing operators from marking still-open accounting windows ready for future archive/delete jobs.
 
 ## Deferred until backend contracts stabilize
 

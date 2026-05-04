@@ -1308,6 +1308,10 @@ func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "cutoff is required")
 		return maildb.APIUsageLedgerRetentionRequest{}, false
 	}
+	if cutoff.After(time.Now().UTC()) {
+		writeError(w, http.StatusBadRequest, "cutoff must not be in the future")
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
 	return maildb.APIUsageLedgerRetentionRequest{
 		Cutoff:      cutoff,
 		TenantID:    r.URL.Query().Get("tenant_id"),

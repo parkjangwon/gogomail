@@ -536,7 +536,7 @@ func TestAdminAPIUsageLedgerStatsHandler(t *testing.T) {
 func TestAdminAPIUsageLedgerRetentionReadinessHandler(t *testing.T) {
 	t.Parallel()
 
-	cutoff := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
 	service := &fakeAdminService{
 		apiUsageLedgerRetentionReadiness: maildb.APIUsageLedgerRetentionReadinessView{
 			Cutoff:                cutoff,
@@ -552,7 +552,7 @@ func TestAdminAPIUsageLedgerRetentionReadinessHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness?cutoff=2026-05-05T00:00:00Z&tenant_id=tenant-1&principal_id=principal-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness?cutoff="+cutoff.Format(time.RFC3339)+"&tenant_id=tenant-1&principal_id=principal-1", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -585,6 +585,25 @@ func TestAdminAPIUsageLedgerRetentionReadinessRequiresCutoff(t *testing.T) {
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestAdminAPIUsageLedgerRetentionReadinessRejectsFutureCutoff(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "")
+
+	cutoff := time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/ledger/retention-readiness?cutoff="+cutoff, nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "cutoff must not be in the future") {
+		t.Fatalf("body = %s", rr.Body.String())
 	}
 }
 
