@@ -91,7 +91,7 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 	if storageBackend == "" {
 		storageBackend = "local"
 	}
-	return s.CreateAPIUsageExportArtifact(ctx, maildb.CreateAPIUsageExportArtifactRequest{
+	artifact, err := s.CreateAPIUsageExportArtifact(ctx, maildb.CreateAPIUsageExportArtifactRequest{
 		BatchID:        batch.ID,
 		StorageBackend: storageBackend,
 		ObjectKey:      result.ObjectKey,
@@ -101,6 +101,15 @@ func (s adminService) WriteAPIUsageExportArtifact(ctx context.Context, batchID s
 		EventCount:     eventCount,
 		Metadata:       result.Metadata,
 	})
+	if err != nil {
+		if deleter, ok := s.exportStore.(interface {
+			Delete(context.Context, string) error
+		}); ok {
+			_ = deleter.Delete(ctx, result.ObjectKey)
+		}
+		return maildb.APIUsageExportArtifactView{}, err
+	}
+	return artifact, nil
 }
 
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
