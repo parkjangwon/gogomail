@@ -1958,8 +1958,22 @@ LIMIT $1`
 }
 
 func (r *Repository) ListAPIUsageLedger(ctx context.Context, req APIUsageLedgerListRequest) ([]APIUsageLedgerView, error) {
+	var usages []APIUsageLedgerView
+	if err := r.StreamAPIUsageLedger(ctx, req, func(usage APIUsageLedgerView) error {
+		usages = append(usages, usage)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return usages, nil
+}
+
+func (r *Repository) StreamAPIUsageLedger(ctx context.Context, req APIUsageLedgerListRequest, yield func(APIUsageLedgerView) error) error {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return fmt.Errorf("database handle is required")
+	}
+	if yield == nil {
+		return fmt.Errorf("api usage ledger yield function is required")
 	}
 	limit := normalizeLimit(req.Limit)
 
@@ -2013,11 +2027,10 @@ LIMIT $%d`, len(args))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list api usage ledger: %w", err)
+		return fmt.Errorf("stream api usage ledger: %w", err)
 	}
 	defer rows.Close()
 
-	var usages []APIUsageLedgerView
 	for rows.Next() {
 		var usage APIUsageLedgerView
 		if err := rows.Scan(
@@ -2041,14 +2054,16 @@ LIMIT $%d`, len(args))
 			&usage.LatencyMS,
 			&usage.Payload,
 		); err != nil {
-			return nil, fmt.Errorf("scan api usage ledger: %w", err)
+			return fmt.Errorf("scan api usage ledger: %w", err)
 		}
-		usages = append(usages, usage)
+		if err := yield(usage); err != nil {
+			return fmt.Errorf("yield api usage ledger: %w", err)
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate api usage ledger: %w", err)
+		return fmt.Errorf("iterate api usage ledger: %w", err)
 	}
-	return usages, nil
+	return nil
 }
 
 func (r *Repository) GetAPIUsageLedgerStats(ctx context.Context, req APIUsageLedgerListRequest) (APIUsageLedgerStatsView, error) {
