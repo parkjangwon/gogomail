@@ -57,33 +57,6 @@ func TestNormalizeCandidateRecordBoundsDiagnosticsAtUTF8Boundary(t *testing.T) {
 	}
 }
 
-func TestNormalizeAttemptOutcome(t *testing.T) {
-	t.Parallel()
-
-	outcome, err := normalizeAttemptOutcome(AttemptOutcome{
-		AttemptID:         " attempt-1 ",
-		Status:            " INVALID_TOKEN ",
-		ErrorMessage:      strings.Repeat("e", 2100),
-		ProviderMessageID: strings.Repeat("m", 600),
-		ProviderStatus:    strings.Repeat("s", 600),
-	})
-	if err != nil {
-		t.Fatalf("normalizeAttemptOutcome returned error: %v", err)
-	}
-	if outcome.AttemptID != "attempt-1" || outcome.Status != "invalid_token" {
-		t.Fatalf("outcome = %+v", outcome)
-	}
-	if len(outcome.ErrorMessage) != 2000 {
-		t.Fatalf("ErrorMessage length = %d, want 2000", len(outcome.ErrorMessage))
-	}
-	if len(outcome.ProviderMessageID) != 500 {
-		t.Fatalf("ProviderMessageID length = %d, want 500", len(outcome.ProviderMessageID))
-	}
-	if len(outcome.ProviderStatus) != 500 {
-		t.Fatalf("ProviderStatus length = %d, want 500", len(outcome.ProviderStatus))
-	}
-}
-
 func TestNormalizeCandidateRecordRejectsUnsafeIDs(t *testing.T) {
 	t.Parallel()
 
@@ -101,58 +74,6 @@ func TestNormalizeCandidateRecordRejectsUnsafeIDs(t *testing.T) {
 			t.Parallel()
 			if _, err := normalizeCandidateRecord(record); err == nil {
 				t.Fatalf("normalizeCandidateRecord accepted %+v", record)
-			}
-		})
-	}
-}
-
-func TestNormalizeAttemptOutcomeBoundsDiagnosticsAtUTF8Boundary(t *testing.T) {
-	t.Parallel()
-
-	outcome, err := normalizeAttemptOutcome(AttemptOutcome{
-		AttemptID:         "attempt-1",
-		Status:            "failed",
-		ErrorMessage:      strings.Repeat("한", 668),
-		ProviderMessageID: strings.Repeat("메", 168),
-		ProviderStatus:    strings.Repeat("상", 168),
-	})
-	if err != nil {
-		t.Fatalf("normalizeAttemptOutcome returned error: %v", err)
-	}
-	if len(outcome.ErrorMessage) > 2000 || !utf8.ValidString(outcome.ErrorMessage) {
-		t.Fatalf("ErrorMessage length/utf8 = %d/%v", len(outcome.ErrorMessage), utf8.ValidString(outcome.ErrorMessage))
-	}
-	if len(outcome.ProviderMessageID) > 500 || !utf8.ValidString(outcome.ProviderMessageID) {
-		t.Fatalf("ProviderMessageID length/utf8 = %d/%v", len(outcome.ProviderMessageID), utf8.ValidString(outcome.ProviderMessageID))
-	}
-	if len(outcome.ProviderStatus) > 500 || !utf8.ValidString(outcome.ProviderStatus) {
-		t.Fatalf("ProviderStatus length/utf8 = %d/%v", len(outcome.ProviderStatus), utf8.ValidString(outcome.ProviderStatus))
-	}
-}
-
-func TestNormalizeAttemptOutcomeRejectsInvalidStatus(t *testing.T) {
-	t.Parallel()
-
-	_, err := normalizeAttemptOutcome(AttemptOutcome{AttemptID: "attempt-1", Status: "candidate"})
-	if err == nil {
-		t.Fatal("normalizeAttemptOutcome accepted candidate status")
-	}
-}
-
-func TestNormalizeAttemptOutcomeRejectsUnsafeAttemptID(t *testing.T) {
-	t.Parallel()
-
-	for _, attemptID := range []string{
-		"attempt-1\nbad",
-		strings.Repeat("a", maxPushAttemptIDBytes+1),
-		string([]byte{0xff}),
-	} {
-		attemptID := attemptID
-		t.Run(attemptID, func(t *testing.T) {
-			t.Parallel()
-			_, err := normalizeAttemptOutcome(AttemptOutcome{AttemptID: attemptID, Status: "failed"})
-			if err == nil {
-				t.Fatalf("normalizeAttemptOutcome accepted attempt id %q", attemptID)
 			}
 		})
 	}

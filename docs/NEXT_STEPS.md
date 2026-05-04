@@ -225,6 +225,9 @@ Current state:
   dispatch, and rejects unsupported platforms at the recorder boundary.
 - Existing attempts can be updated with queued, delivered, failed, or
   invalid-token outcomes through the internal recorder or the Admin API.
+- Internal push worker outcome updates and authenticated Admin outcome updates
+  share the same `maildb` storage path, reducing drift before vendor gateway
+  callbacks are wired more deeply.
 - Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
   oversized attempt IDs before SQL update dispatch.
 - Invalid-token outcomes soft-delete the matching user push device in the same

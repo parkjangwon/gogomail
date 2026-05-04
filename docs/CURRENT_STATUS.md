@@ -293,6 +293,10 @@ guidance.
   the handler error for Redis stream retry.
 - Existing push attempts can be updated to queued, delivered, failed, or
   invalid-token outcomes through the internal recorder or Admin API.
+- The push worker's internal outcome recorder now delegates to the same
+  `maildb` outcome update path used by the Admin API, keeping provider status
+  validation, diagnostic bounds, timestamp updates, and invalid-token device
+  deletion in one storage boundary.
 - Push notification outcome recording rejects invalid-UTF-8, CR/LF-bearing, or
   oversized attempt IDs before SQL update dispatch.
 - Invalid-token outcomes automatically soft-delete the affected push device in

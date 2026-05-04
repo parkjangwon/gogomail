@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/gogomail/gogomail/internal/maildb"
 )
 
 type PostgresRecorder struct {
@@ -74,56 +76,13 @@ func (r *PostgresRecorder) RecordOutcome(ctx context.Context, outcome AttemptOut
 	if r == nil || r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
-	normalized, err := normalizeAttemptOutcome(outcome)
-	if err != nil {
-		return err
-	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin push notification outcome transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	var deviceID string
-	var userID string
-	if err := tx.QueryRowContext(
-		ctx,
-		`UPDATE push_notification_attempts
-SET status = $2,
-    error_message = $3,
-    provider_message_id = $4,
-    provider_status = $5,
-    attempted_at = now()
-WHERE id = $1::uuid
-RETURNING COALESCE(device_id::text, ''), user_id::text`,
-		normalized.AttemptID,
-		normalized.Status,
-		normalized.ErrorMessage,
-		normalized.ProviderMessageID,
-		normalized.ProviderStatus,
-	).Scan(&deviceID, &userID); err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("push notification attempt %q not found", normalized.AttemptID)
-		}
-		return fmt.Errorf("record push notification outcome: %w", err)
-	}
-
-	if normalized.Status == "invalid_token" && strings.TrimSpace(deviceID) != "" {
-		if _, err := tx.ExecContext(
-			ctx,
-			`UPDATE push_devices SET status = 'deleted', updated_at = now() WHERE id = $1::uuid AND user_id = $2::uuid`,
-			deviceID,
-			userID,
-		); err != nil {
-			return fmt.Errorf("delete invalid push device: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit push notification outcome: %w", err)
-	}
-	return nil
+	return maildb.NewRepository(r.db).UpdatePushNotificationOutcome(ctx, maildb.UpdatePushNotificationOutcomeRequest{
+		AttemptID:         outcome.AttemptID,
+		Status:            outcome.Status,
+		ErrorMessage:      outcome.ErrorMessage,
+		ProviderMessageID: outcome.ProviderMessageID,
+		ProviderStatus:    outcome.ProviderStatus,
+	})
 }
 
 func normalizeCandidateRecord(record CandidateRecord) (CandidateRecord, error) {
@@ -158,24 +117,6 @@ func normalizeCandidateRecord(record CandidateRecord) (CandidateRecord, error) {
 	return record, nil
 }
 
-func normalizeAttemptOutcome(outcome AttemptOutcome) (AttemptOutcome, error) {
-	outcome.AttemptID = strings.TrimSpace(outcome.AttemptID)
-	outcome.Status = strings.ToLower(strings.TrimSpace(outcome.Status))
-	outcome.ErrorMessage = cleanBoundedText(outcome.ErrorMessage, 2000)
-	outcome.ProviderMessageID = cleanBoundedText(outcome.ProviderMessageID, 500)
-	outcome.ProviderStatus = cleanBoundedText(outcome.ProviderStatus, 500)
-	if outcome.AttemptID == "" {
-		return AttemptOutcome{}, fmt.Errorf("attempt_id is required")
-	}
-	if err := validatePushRecorderID("attempt_id", outcome.AttemptID, true); err != nil {
-		return AttemptOutcome{}, err
-	}
-	if !allowedOutcomeStatus(outcome.Status) {
-		return AttemptOutcome{}, fmt.Errorf("unsupported push notification outcome status")
-	}
-	return outcome, nil
-}
-
 func validatePushRecorderID(field string, value string, required bool) error {
 	if value == "" {
 		if required {
@@ -202,13 +143,4 @@ func cleanBoundedText(value string, maxBytes int) string {
 		cut = i
 	}
 	return value[:cut]
-}
-
-func allowedOutcomeStatus(status string) bool {
-	switch status {
-	case "queued", "delivered", "failed", "invalid_token":
-		return true
-	default:
-		return false
-	}
 }
