@@ -16,6 +16,7 @@ import (
 const (
 	maxOpenSearchHighlightFragments     = 3
 	maxOpenSearchHighlightFragmentBytes = 512
+	maxOpenSearchSearchTextBytes        = 1000
 )
 
 type OpenSearchSearchQuery struct {
@@ -132,7 +133,7 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	must := []map[string]any{
 		{"term": map[string]any{"user_id": userID}},
 	}
-	searchText := strings.TrimSpace(query.Query)
+	searchText := cleanOpenSearchSearchText(query.Query)
 	if searchText != "" {
 		must = append(must, map[string]any{
 			"multi_match": map[string]any{
@@ -146,19 +147,19 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 			},
 		})
 	}
-	if folderID := strings.TrimSpace(query.FolderID); folderID != "" {
+	if folderID := cleanOpenSearchSearchText(query.FolderID); folderID != "" {
 		must = append(must, map[string]any{
 			"term": map[string]any{"folder_id": folderID},
 		})
 	}
-	if from := strings.TrimSpace(query.From); from != "" {
+	if from := cleanOpenSearchSearchText(query.From); from != "" {
 		must = append(must, map[string]any{
-			"wildcard": map[string]any{"from_addr_lc": "*" + strings.ToLower(from) + "*"},
+			"wildcard": map[string]any{"from_addr_lc": "*" + escapeOpenSearchWildcard(strings.ToLower(from)) + "*"},
 		})
 	}
-	if subject := strings.TrimSpace(query.Subject); subject != "" {
+	if subject := cleanOpenSearchSearchText(query.Subject); subject != "" {
 		must = append(must, map[string]any{
-			"wildcard": map[string]any{"subject_lc": "*" + strings.ToLower(subject) + "*"},
+			"wildcard": map[string]any{"subject_lc": "*" + escapeOpenSearchWildcard(strings.ToLower(subject)) + "*"},
 		})
 	}
 	if query.HasAttachment != nil {
@@ -190,6 +191,22 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 		}
 	}
 	return payload
+}
+
+func cleanOpenSearchSearchText(value string) string {
+	return truncateUTF8Bytes(strings.ToValidUTF8(strings.TrimSpace(value), ""), maxOpenSearchSearchTextBytes)
+}
+
+func escapeOpenSearchWildcard(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		switch r {
+		case '*', '?', '\\':
+			b.WriteRune('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func openSearchHighlightsFromResponse(values map[string][]string) OpenSearchHighlights {

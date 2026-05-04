@@ -76,6 +76,9 @@ guidance.
 - The OpenSearch indexing adapter bounds UTF-8 metadata fields and reference
   arrays before JSON document submission, keeping direct adapter calls aligned
   with worker/parser metadata limits.
+- OpenSearch relevance queries bound UTF-8 search/filter text and escape
+  wildcard metacharacters in sender/subject filters so client-supplied `*` or
+  `?` remain literal substring filters.
 - Shared EML text extraction and attachment metadata are bounded with UTF-8
   boundary preservation; attachment filenames are basename-normalized,
   control-character cleaned, and capped before reaching storage/API/search
