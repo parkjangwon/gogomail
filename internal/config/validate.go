@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+const (
+	maxExportManifestSignerKeyIDBytes      = 200
+	maxExportManifestSignerCredentialBytes = 4096
+)
+
 func (c Config) Validate() error {
 	if c.SubmissionAllowInsecureAuth && strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH must be false in production")
@@ -90,15 +95,18 @@ func (c Config) Validate() error {
 	}
 	switch strings.ToLower(strings.TrimSpace(c.APIUsageExportManifestSignerBackend)) {
 	case "local-hmac":
-		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
-			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for local-hmac signer")
+		if err := validateExportManifestSignerKeyID(c.APIUsageExportManifestSignerKeyID, "local-hmac"); err != nil {
+			return err
 		}
 		if c.APIUsageExportManifestSignerSecret == "" {
 			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET is required for local-hmac signer")
 		}
+		if len(c.APIUsageExportManifestSignerSecret) > maxExportManifestSignerCredentialBytes {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_SECRET is too long")
+		}
 	case "local-ed25519":
-		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
-			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for local-ed25519 signer")
+		if err := validateExportManifestSignerKeyID(c.APIUsageExportManifestSignerKeyID, "local-ed25519"); err != nil {
+			return err
 		}
 		privateKey, err := decodeBase64Key("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY", c.APIUsageExportSignerPrivateKey, ed25519.PrivateKeySize)
 		if err != nil {
@@ -112,14 +120,21 @@ func (c Config) Validate() error {
 			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY must match GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY")
 		}
 	case "remote-ed25519":
-		if strings.TrimSpace(c.APIUsageExportManifestSignerKeyID) == "" {
-			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for remote-ed25519 signer")
+		if err := validateExportManifestSignerKeyID(c.APIUsageExportManifestSignerKeyID, "remote-ed25519"); err != nil {
+			return err
 		}
 		if err := validateHTTPSURL("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_URL", c.APIUsageExportSignerURL); err != nil {
 			return err
 		}
 		if _, err := decodeBase64Key("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY", c.APIUsageExportSignerPublicKey, ed25519.PublicKeySize); err != nil {
 			return err
+		}
+		token := strings.TrimSpace(c.APIUsageExportSignerToken)
+		if strings.ContainsAny(token, "\r\n") {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_TOKEN cannot contain line breaks")
+		}
+		if len(token) > maxExportManifestSignerCredentialBytes {
+			return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_TOKEN is too long")
 		}
 	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
@@ -224,6 +239,20 @@ func validateHTTPSURL(name string, value string) error {
 	}
 	if parsed.Scheme != "https" || parsed.Host == "" {
 		return fmt.Errorf("%s must be an https URL", name)
+	}
+	return nil
+}
+
+func validateExportManifestSignerKeyID(value string, backend string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is required for %s signer", backend)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID cannot contain line breaks")
+	}
+	if len(value) > maxExportManifestSignerKeyIDBytes {
+		return fmt.Errorf("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_KEY_ID is too long")
 	}
 	return nil
 }

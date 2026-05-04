@@ -174,6 +174,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and encoded recipients before base64 decoding DSN recipient metadata.
 - API usage export Ed25519 signer/verifier key configuration rejects oversized
   base64 public/private keys before decoding.
+- API usage export manifest signer configuration rejects CR/LF-bearing or
+  oversized key IDs and remote signer tokens, and local HMAC signing rejects
+  oversized secrets before MAC generation.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch.
 - Admin API DKIM key deactivate and DNS-verify path identifiers are trimmed

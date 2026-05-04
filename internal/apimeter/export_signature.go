@@ -18,6 +18,8 @@ const (
 	ExportManifestSignatureAlgorithmHMACSHA256 = "hmac-sha256"
 	ExportManifestSignatureAlgorithmEd25519    = "ed25519"
 	maxExportManifestSignatureKeyIDBytes       = 200
+	maxExportManifestSigningSecretBytes        = 4096
+	maxRemoteSignerTokenBytes                  = 4096
 )
 
 type ExportManifestSigner interface {
@@ -51,6 +53,9 @@ func (s HMACExportManifestSigner) SignExportManifestDigest(digestHex string) (Ex
 	}
 	if len(s.Secret) == 0 {
 		return ExportManifestSignature{}, fmt.Errorf("signing secret is required")
+	}
+	if len(s.Secret) > maxExportManifestSigningSecretBytes {
+		return ExportManifestSignature{}, fmt.Errorf("signing secret must be at most %d bytes", maxExportManifestSigningSecretBytes)
 	}
 	mac := hmac.New(sha256.New, s.Secret)
 	_, _ = mac.Write([]byte(digestHex))
@@ -186,6 +191,12 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	if token := strings.TrimSpace(s.Token); token != "" {
+		if strings.ContainsAny(token, "\r\n") {
+			return ExportManifestSignature{}, fmt.Errorf("remote signer token cannot contain line breaks")
+		}
+		if len(token) > maxRemoteSignerTokenBytes {
+			return ExportManifestSignature{}, fmt.Errorf("remote signer token must be at most %d bytes", maxRemoteSignerTokenBytes)
+		}
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	client := s.Client

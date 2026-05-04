@@ -531,6 +531,7 @@ Implementation order:
 472. Mail API search control query values and direct multipart attachment `draft_id` fields now reject CR/LF-bearing or oversized values at the HTTP boundary before service dispatch.
 473. VERP return-path parsing now rejects oversized addresses, local parts, tokens, and encoded recipients before base64 decoding DSN recipient metadata.
 474. API usage export Ed25519 signer/verifier key configuration now rejects oversized base64 public/private keys before decoding.
+475. API usage export manifest signer configuration now rejects CR/LF-bearing or oversized key IDs and remote signer tokens, and local HMAC signing rejects oversized secrets before MAC generation.
 
 ## Deferred until backend contracts stabilize
 

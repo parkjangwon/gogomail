@@ -215,6 +215,7 @@ func TestHMACExportManifestSignerRejectsInvalidInput(t *testing.T) {
 		{name: "key line break", signer: HMACExportManifestSigner{KeyID: "key-1\nbad", Secret: []byte("secret")}, digest: strings.Repeat("a", 64)},
 		{name: "key too long", signer: HMACExportManifestSigner{KeyID: strings.Repeat("k", maxExportManifestSignatureKeyIDBytes+1), Secret: []byte("secret")}, digest: strings.Repeat("a", 64)},
 		{name: "missing secret", signer: HMACExportManifestSigner{KeyID: "key-1"}, digest: strings.Repeat("a", 64)},
+		{name: "secret too long", signer: HMACExportManifestSigner{KeyID: "key-1", Secret: []byte(strings.Repeat("s", maxExportManifestSigningSecretBytes+1))}, digest: strings.Repeat("a", 64)},
 		{name: "bad digest", signer: HMACExportManifestSigner{KeyID: "key-1", Secret: []byte("secret")}, digest: "nope"},
 	}
 	for _, tc := range tests {
@@ -223,6 +224,35 @@ func TestHMACExportManifestSignerRejectsInvalidInput(t *testing.T) {
 
 			if _, err := tc.signer.SignExportManifestDigest(tc.digest); err == nil {
 				t.Fatal("SignExportManifestDigest returned nil error")
+			}
+		})
+	}
+}
+
+func TestRemoteEd25519ExportManifestSignerRejectsUnsafeTokenBeforeRequest(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("a", 64)
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	for _, tc := range []struct {
+		name  string
+		token string
+	}{
+		{name: "line_break", token: "token\nbad"},
+		{name: "too_long", token: strings.Repeat("t", maxRemoteSignerTokenBytes+1)},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := (RemoteEd25519ExportManifestSigner{
+				Endpoint:  "https://signer.example.test/sign",
+				Token:     tc.token,
+				KeyID:     "remote-key-1",
+				PublicKey: publicKey,
+			}).SignExportManifestDigest(digest)
+			if err == nil || !strings.Contains(err.Error(), "token") {
+				t.Fatalf("err = %v, want token validation error", err)
 			}
 		})
 	}
