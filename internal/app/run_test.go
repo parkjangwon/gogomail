@@ -106,6 +106,28 @@ func TestAPIMeteringHandlerDefaultsToOriginalHandler(t *testing.T) {
 	}
 }
 
+func TestAPIUsageExportManifestSignerConfig(t *testing.T) {
+	disabled := config.Config{APIUsageExportManifestSignerBackend: "disabled"}
+	if signer := apiUsageExportManifestSigner(disabled); signer != nil {
+		t.Fatalf("disabled signer = %#v", signer)
+	}
+	if secret := apiUsageExportManifestVerifySecret(disabled); secret != nil {
+		t.Fatalf("disabled verify secret = %q", string(secret))
+	}
+
+	enabled := config.Config{
+		APIUsageExportManifestSignerBackend: "local-hmac",
+		APIUsageExportManifestSignerKeyID:   "key-1",
+		APIUsageExportManifestSignerSecret:  "secret",
+	}
+	if signer := apiUsageExportManifestSigner(enabled); signer == nil {
+		t.Fatal("local-hmac signer is nil")
+	}
+	if secret := string(apiUsageExportManifestVerifySecret(enabled)); secret != "secret" {
+		t.Fatalf("verify secret = %q", secret)
+	}
+}
+
 func TestAPIMeteringHandlerWrapsSlogBackend(t *testing.T) {
 	t.Parallel()
 
