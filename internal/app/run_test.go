@@ -111,8 +111,8 @@ func TestAPIUsageExportManifestSignerConfig(t *testing.T) {
 	if signer := apiUsageExportManifestSigner(disabled); signer != nil {
 		t.Fatalf("disabled signer = %#v", signer)
 	}
-	if secret := apiUsageExportManifestVerifySecret(disabled); secret != nil {
-		t.Fatalf("disabled verify secret = %q", string(secret))
+	if verifier := apiUsageExportManifestVerifier(disabled); verifier != nil {
+		t.Fatalf("disabled verifier = %#v", verifier)
 	}
 
 	enabled := config.Config{
@@ -123,8 +123,8 @@ func TestAPIUsageExportManifestSignerConfig(t *testing.T) {
 	if signer := apiUsageExportManifestSigner(enabled); signer == nil {
 		t.Fatal("local-hmac signer is nil")
 	}
-	if secret := string(apiUsageExportManifestVerifySecret(enabled)); secret != "secret" {
-		t.Fatalf("verify secret = %q", secret)
+	if verifier := apiUsageExportManifestVerifier(enabled); verifier == nil {
+		t.Fatal("local-hmac verifier is nil")
 	}
 }
 

@@ -14,6 +14,10 @@ type ExportManifestSigner interface {
 	SignExportManifestDigest(digestHex string) (ExportManifestSignature, error)
 }
 
+type ExportManifestSignatureVerifier interface {
+	VerifyExportManifestSignature(signature ExportManifestSignature) (bool, error)
+}
+
 type ExportManifestSignature struct {
 	Algorithm       string `json:"algorithm"`
 	KeyID           string `json:"key_id"`
@@ -46,6 +50,14 @@ func (s HMACExportManifestSigner) SignExportManifestDigest(digestHex string) (Ex
 		SignedDigestHex: digestHex,
 		SignatureHex:    hex.EncodeToString(mac.Sum(nil)),
 	}, nil
+}
+
+type HMACExportManifestSignatureVerifier struct {
+	Secret []byte
+}
+
+func (v HMACExportManifestSignatureVerifier) VerifyExportManifestSignature(signature ExportManifestSignature) (bool, error) {
+	return VerifyExportManifestSignature(signature, v.Secret)
 }
 
 func VerifyExportManifestSignature(signature ExportManifestSignature, secret []byte) (bool, error) {

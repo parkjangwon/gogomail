@@ -25,7 +25,7 @@ type adminService struct {
 	exportStore                 apimeter.ExportArtifactStore
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
-	exportManifestVerifySecret  []byte
+	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
 }
 
 func (s adminService) GetBackpressure(ctx context.Context) (backpressure.State, error) {
@@ -104,7 +104,7 @@ func (s adminService) applyAPIUsageExportDeepHandoff(ctx context.Context, handof
 	}
 
 	if handoff.LatestManifestDigestID != "" && handoff.LatestSignatureID != "" {
-		if handoff.LatestSignatureSigner != "" && handoff.LatestSignatureSigner != "local-hmac" {
+		if s.exportManifestVerifier == nil {
 			blocking = append(blocking, "manifest_signature_verifier_unavailable")
 		} else {
 			verification, err := s.VerifyAPIUsageExportManifestSignature(ctx, handoff.BatchID, handoff.LatestManifestDigestID, handoff.LatestSignatureID)
@@ -327,8 +327,8 @@ func (s adminService) CreateAPIUsageExportManifestSignature(ctx context.Context,
 }
 
 func (s adminService) VerifyAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string, signatureID string) (maildb.APIUsageExportManifestSignatureVerificationView, error) {
-	if len(s.exportManifestVerifySecret) == 0 {
-		return maildb.APIUsageExportManifestSignatureVerificationView{}, fmt.Errorf("api usage export manifest verification secret is not configured")
+	if s.exportManifestVerifier == nil {
+		return maildb.APIUsageExportManifestSignatureVerificationView{}, fmt.Errorf("api usage export manifest signature verifier is not configured")
 	}
 	digest, err := s.GetAPIUsageExportManifestDigest(ctx, batchID, digestID)
 	if err != nil {
@@ -338,12 +338,12 @@ func (s adminService) VerifyAPIUsageExportManifestSignature(ctx context.Context,
 	if err != nil {
 		return maildb.APIUsageExportManifestSignatureVerificationView{}, err
 	}
-	valid, err := apimeter.VerifyExportManifestSignature(apimeter.ExportManifestSignature{
+	valid, err := s.exportManifestVerifier.VerifyExportManifestSignature(apimeter.ExportManifestSignature{
 		Algorithm:       signature.SignatureAlgorithm,
 		KeyID:           signature.KeyID,
 		SignedDigestHex: signature.SignedDigestHex,
 		SignatureHex:    signature.SignatureHex,
-	}, s.exportManifestVerifySecret)
+	})
 	if err != nil {
 		return maildb.APIUsageExportManifestSignatureVerificationView{}, err
 	}
