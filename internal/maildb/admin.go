@@ -558,6 +558,7 @@ type PushNotificationAttemptView struct {
 
 type PushNotificationAttemptListRequest struct {
 	Limit             int
+	MessageID         string
 	Status            string
 	UserID            string
 	Platform          string
@@ -3971,17 +3972,18 @@ SELECT
   provider_status,
   attempted_at
 FROM push_notification_attempts
-WHERE (NULLIF($2, '') IS NULL OR status = $2)
-  AND (NULLIF($3, '')::uuid IS NULL OR user_id = NULLIF($3, '')::uuid)
-  AND ($4::timestamptz IS NULL OR attempted_at >= $4::timestamptz)
-  AND (NULLIF($5, '') IS NULL OR platform = $5)
-  AND (NULLIF($6, '')::uuid IS NULL OR device_id = NULLIF($6, '')::uuid)
-  AND (NULLIF($7, '') IS NULL OR provider_status = $7)
-  AND (NULLIF($8, '') IS NULL OR provider_message_id = $8)
+WHERE (NULLIF($2, '')::uuid IS NULL OR message_id = NULLIF($2, '')::uuid)
+  AND (NULLIF($3, '') IS NULL OR status = $3)
+  AND (NULLIF($4, '')::uuid IS NULL OR user_id = NULLIF($4, '')::uuid)
+  AND ($5::timestamptz IS NULL OR attempted_at >= $5::timestamptz)
+  AND (NULLIF($6, '') IS NULL OR platform = $6)
+  AND (NULLIF($7, '')::uuid IS NULL OR device_id = NULLIF($7, '')::uuid)
+  AND (NULLIF($8, '') IS NULL OR provider_status = $8)
+  AND (NULLIF($9, '') IS NULL OR provider_message_id = $9)
 ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, req.UserID, nullableTime(req.Since), req.Platform, req.DeviceID, req.ProviderStatus, req.ProviderMessageID)
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.MessageID, req.Status, req.UserID, nullableTime(req.Since), req.Platform, req.DeviceID, req.ProviderStatus, req.ProviderMessageID)
 	if err != nil {
 		return nil, fmt.Errorf("list push notification attempts: %w", err)
 	}
@@ -4080,6 +4082,7 @@ WHERE id = $1::uuid`
 
 func normalizePushNotificationAttemptListRequest(req PushNotificationAttemptListRequest) (PushNotificationAttemptListRequest, error) {
 	req.Limit = normalizeLimit(req.Limit)
+	req.MessageID = strings.TrimSpace(req.MessageID)
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.Platform = strings.ToLower(strings.TrimSpace(req.Platform))
@@ -4090,6 +4093,7 @@ func normalizePushNotificationAttemptListRequest(req PushNotificationAttemptList
 		req.Since = req.Since.UTC()
 	}
 	for field, value := range map[string]string{
+		"message_id":          req.MessageID,
 		"status":              req.Status,
 		"user_id":             req.UserID,
 		"platform":            req.Platform,

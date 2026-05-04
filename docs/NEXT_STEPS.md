@@ -203,8 +203,8 @@ Current state:
   `failed` with the sink error before the handler returns an error for stream
   retry.
 - Admin API exposes `GET /admin/v1/push-notification-attempts` with bounded
-  status/user/platform/device/provider-status/provider-message/since filters
-  for inspecting candidate fan-out and vendor outcomes.
+  message/status/user/platform/device/provider-status/provider-message/since
+  filters for inspecting candidate fan-out and vendor outcomes.
 - Admin API exposes `GET /admin/v1/push-notification-attempts/{id}` for
   single-attempt troubleshooting.
 - Admin API exposes

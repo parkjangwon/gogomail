@@ -92,6 +92,7 @@ func TestNormalizePushNotificationAttemptListRequestRejectsUnsafeFilters(t *test
 	t.Parallel()
 
 	tests := []PushNotificationAttemptListRequest{
+		{MessageID: "message-1\nbad"},
 		{Status: "queued\nbad"},
 		{UserID: strings.Repeat("u", maxPushNotificationFilterBytes+1)},
 		{DeviceID: string([]byte{0xff})},
@@ -115,6 +116,7 @@ func TestNormalizePushNotificationAttemptListRequestNormalizesValues(t *testing.
 
 	got, err := normalizePushNotificationAttemptListRequest(PushNotificationAttemptListRequest{
 		Limit:             -1,
+		MessageID:         " message-1 ",
 		Status:            " QUEUED ",
 		UserID:            " user-1 ",
 		Platform:          " FCM ",
@@ -125,7 +127,7 @@ func TestNormalizePushNotificationAttemptListRequestNormalizesValues(t *testing.
 	if err != nil {
 		t.Fatalf("normalizePushNotificationAttemptListRequest returned error: %v", err)
 	}
-	if got.Limit <= 0 || got.Status != "queued" || got.UserID != "user-1" || got.Platform != "fcm" || got.DeviceID != "device-1" || got.ProviderStatus != "accepted" || got.ProviderMessageID != "provider-message-1" {
+	if got.Limit <= 0 || got.MessageID != "message-1" || got.Status != "queued" || got.UserID != "user-1" || got.Platform != "fcm" || got.DeviceID != "device-1" || got.ProviderStatus != "accepted" || got.ProviderMessageID != "provider-message-1" {
 		t.Fatalf("normalized request = %+v", got)
 	}
 }
