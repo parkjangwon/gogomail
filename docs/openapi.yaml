@@ -1257,6 +1257,12 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: platform
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [apns, fcm, webpush]
         - name: since
           in: query
           required: false

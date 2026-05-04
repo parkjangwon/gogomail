@@ -156,11 +156,12 @@ func TestNormalizePushNotificationStatsRequest(t *testing.T) {
 	req, err := normalizePushNotificationStatsRequest(PushNotificationStatsRequest{
 		MessageID: " message-1 ",
 		UserID:    " user-1 ",
+		Platform:  " FCM ",
 	})
 	if err != nil {
 		t.Fatalf("normalizePushNotificationStatsRequest returned error: %v", err)
 	}
-	if req.MessageID != "message-1" || req.UserID != "user-1" {
+	if req.MessageID != "message-1" || req.UserID != "user-1" || req.Platform != "fcm" {
 		t.Fatalf("normalized request = %+v", req)
 	}
 }
@@ -175,6 +176,8 @@ func TestNormalizePushNotificationStatsRequestRejectsUnsafeFilters(t *testing.T)
 		{UserID: "user-1\nbad"},
 		{UserID: strings.Repeat("u", maxPushNotificationFilterBytes+1)},
 		{UserID: string([]byte{0xff})},
+		{Platform: "pager"},
+		{Platform: "fcm\nbad"},
 	} {
 		req := req
 		t.Run(req.MessageID+req.UserID, func(t *testing.T) {
