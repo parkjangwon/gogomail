@@ -81,6 +81,14 @@ from billing readiness: local-HMAC signed batches can be operationally ready for
 warehouse handoff checks, but remain billing-blocked until a production signer
 such as KMS-backed asymmetric signing is configured.
 
+When operators explicitly request deep verification, the report may stream
+registered artifacts from object storage, verify artifact byte/SHA metadata,
+verify the latest manifest digest, check that the latest digest manifest still
+covers the current registered artifact metadata, and verify the latest
+signature when a verifier for that signer backend exists. These deep checks add
+`deep_ready` and `verified_billing_ready` evidence without changing the
+metadata-only readiness fields.
+
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the
 Postgres backend when operators want persisted aggregates.

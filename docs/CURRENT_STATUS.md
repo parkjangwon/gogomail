@@ -119,6 +119,10 @@ guidance.
   summarizes artifact coverage, latest digest/signature state, operational
   readiness, and a separate billing readiness grade so local-HMAC signed batches
   are not mistaken for invoice-grade exports.
+- Handoff readiness can now opt into `deep=true`, which streams registered
+  artifacts from object storage for byte/SHA verification and verifies the
+  latest manifest digest/signature in one operator report while keeping
+  metadata-only readiness fields stable.
 - Push notification enqueue now has an async worker boundary:
   `push-notification-worker` consumes `mail.stored` events, resolves active
   user devices from PostgreSQL, and can emit disabled-by-default `slog`
@@ -318,6 +322,10 @@ The platform hardening sprint completed the following:
   shows whether a batch has artifact coverage, a latest manifest digest, and a
   signature for that digest while keeping local-HMAC signatures billing-blocked
   until production signing is wired.
+- API usage export handoff readiness can now run an explicit deep verification
+  mode for release/warehouse checks, returning artifact, digest, and signature
+  verification evidence plus `verified_billing_ready` without turning the
+  default readiness read into an object-store streaming operation.
 - Attachment policy hardening: domain outbound policy can cap individual
   attachment upload sizes.
 

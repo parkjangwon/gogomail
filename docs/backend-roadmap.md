@@ -356,6 +356,7 @@ Implementation order:
 298. API usage export manifest digests can now be signed through a disabled-by-default local-HMAC signer with explicit key IDs and persisted signature rows.
 299. Admin API now exposes manifest signature create/list/detail/verification endpoints, preserving a vendor-neutral shape for future KMS or asymmetric signer backends.
 300. Admin API now exposes API usage export handoff readiness for a saved batch, summarizing artifact coverage, latest manifest digest/signature state, operational readiness, and billing readiness without creating new export artifacts or signatures.
+301. API usage export handoff readiness now supports explicit deep verification that streams artifacts, checks manifest artifact coverage, verifies digest/signature evidence, and returns `verified_billing_ready` separately from metadata-only billing readiness.
 
 ## Deferred until backend contracts stabilize
 
