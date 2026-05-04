@@ -1024,12 +1024,12 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		attempts, err := service.ListPushNotificationAttempts(r.Context(), maildb.PushNotificationAttemptListRequest{
 			Limit:             limit,
-			Status:            r.URL.Query().Get("status"),
-			UserID:            r.URL.Query().Get("user_id"),
-			Platform:          r.URL.Query().Get("platform"),
-			DeviceID:          r.URL.Query().Get("device_id"),
-			ProviderStatus:    r.URL.Query().Get("provider_status"),
-			ProviderMessageID: r.URL.Query().Get("provider_message_id"),
+			Status:            strings.TrimSpace(r.URL.Query().Get("status")),
+			UserID:            strings.TrimSpace(r.URL.Query().Get("user_id")),
+			Platform:          strings.TrimSpace(r.URL.Query().Get("platform")),
+			DeviceID:          strings.TrimSpace(r.URL.Query().Get("device_id")),
+			ProviderStatus:    strings.TrimSpace(r.URL.Query().Get("provider_status")),
+			ProviderMessageID: strings.TrimSpace(r.URL.Query().Get("provider_message_id")),
 			Since:             since,
 		})
 		if err != nil {
@@ -1045,7 +1045,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		stats, err := service.GetPushNotificationStats(r.Context(), maildb.PushNotificationStatsRequest{
-			UserID: r.URL.Query().Get("user_id"),
+			UserID: strings.TrimSpace(r.URL.Query().Get("user_id")),
 			Since:  since,
 		})
 		if err != nil {
