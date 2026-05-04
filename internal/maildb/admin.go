@@ -342,7 +342,10 @@ type APIUsageExportHandoffView struct {
 	LatestSignatureKeyID       string     `json:"latest_signature_key_id,omitempty"`
 	LatestSignatureAt          *time.Time `json:"latest_signature_at,omitempty"`
 	Ready                      bool       `json:"ready"`
+	ReadinessGrade             string     `json:"readiness_grade"`
+	BillingReady               bool       `json:"billing_ready"`
 	MissingRequirements        []string   `json:"missing_requirements,omitempty"`
+	BillingBlockingReasons     []string   `json:"billing_blocking_reasons,omitempty"`
 }
 
 type CreateAPIUsageExportManifestSignatureRequest struct {
@@ -2829,6 +2832,18 @@ func applyAPIUsageExportHandoffReadiness(view *APIUsageExportHandoffView) {
 	}
 	view.MissingRequirements = missing
 	view.Ready = len(missing) == 0
+	view.ReadinessGrade = "billing_blocked"
+	if !view.Ready {
+		view.BillingBlockingReasons = []string{"handoff_not_ready"}
+		return
+	}
+	if view.LatestSignatureSigner == "" || view.LatestSignatureSigner == "local-hmac" {
+		view.ReadinessGrade = "operational"
+		view.BillingBlockingReasons = []string{"production_manifest_signer_required"}
+		return
+	}
+	view.ReadinessGrade = "billing_candidate"
+	view.BillingReady = true
 }
 
 func (r *Repository) CreateAPIUsageExportManifestSignature(ctx context.Context, req CreateAPIUsageExportManifestSignatureRequest) (APIUsageExportManifestSignatureView, error) {
