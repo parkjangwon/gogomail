@@ -166,7 +166,8 @@ successful cancellation is user-scoped, only applies to unbound `uploading`
 attachments, marks the row `deleted`, releases the reserved quota, and removes
 the stored object when one exists. Draft binding, draft attachment reads, and
 draft-send handoff only consider `uploading` attachments, so canceled uploads
-cannot be rebound to drafts or moved onto sent messages.
+cannot be rebound to drafts or moved onto sent messages. Canceling a draft-bound
+upload refreshes the draft `has_attachment` cache in the same transaction.
 Clients can discover the current upload limits and supported modes with
 `GET /api/v1/attachments/capabilities`. The response records max attachment
 bytes, filename bytes, metadata reservation, direct multipart upload, pending
