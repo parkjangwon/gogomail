@@ -16,6 +16,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -59,6 +60,45 @@ func TestDKIMKeyProviderMapsRepositoryKey(t *testing.T) {
 	}
 	if key.Domain != "example.com" || key.Selector != "s1" || key.PrivateKeyPEM != "private" {
 		t.Fatalf("key = %+v", key)
+	}
+}
+
+func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
+	t.Parallel()
+
+	runtime := newIMAPGatewayRuntime(nil, nil)
+	if runtime.service == nil {
+		t.Fatal("service is nil")
+	}
+	if runtime.events == nil {
+		t.Fatal("mailbox event broker is nil")
+	}
+	if _, err := runtime.store.ListMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: "user-1"}); err == nil || !strings.Contains(err.Error(), "imap mailbox repository is required") {
+		t.Fatalf("store adapter was not wired through service boundary: %v", err)
+	}
+
+	events, cancel, err := runtime.service.SubscribeIMAPMailbox(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailbox returned error: %v", err)
+	}
+	defer cancel()
+
+	if err := runtime.events.Publish(context.Background(), imapgw.MailboxEvent{
+		Type:      imapgw.MailboxEventExists,
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		Messages:  1,
+	}); err != nil {
+		t.Fatalf("Publish returned error: %v", err)
+	}
+
+	select {
+	case event := <-events:
+		if event.Type != imapgw.MailboxEventExists || event.Messages != 1 {
+			t.Fatalf("event = %+v", event)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for mailbox event")
 	}
 }
 

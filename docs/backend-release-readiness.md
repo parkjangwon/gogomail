@@ -154,6 +154,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   mailbox event broker for future session fan-out. The broker is scoped by
   user+mailbox, and service-side flag/move/delete mutations publish best-effort
   `flags`/`expunge` events for UID-visible messages.
+- `gogomail --mode=imap` now starts an IMAP gateway scaffold that wires the
+  service-backed IMAP store adapter and process-local mailbox event broker
+  without advertising or enabling a TCP IMAP listener.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event

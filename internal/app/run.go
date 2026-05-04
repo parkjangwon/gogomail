@@ -31,6 +31,7 @@ import (
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/imapnotify"
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -80,6 +81,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runOutboxRelay(ctx, cfg, logger)
 	case ModeEventWorker:
 		return runEventWorker(ctx, cfg, logger)
+	case ModeIMAP:
+		return runIMAPGateway(ctx, cfg, logger)
 	case ModeSearchIndexWorker:
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:
@@ -122,6 +125,40 @@ type apiUsageRetentionResult struct {
 	DeletedCount   int64
 	Ready          bool
 	DryRun         bool
+}
+
+type imapGatewayRuntime struct {
+	service *mailservice.Service
+	store   mailservice.IMAPStoreAdapter
+	events  *imapgw.MailboxEventBroker
+}
+
+func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store) imapGatewayRuntime {
+	events := imapgw.NewMailboxEventBroker(32)
+	service := mailservice.New(repository, store).WithIMAPMailboxEvents(events)
+	return imapGatewayRuntime{
+		service: service,
+		store:   mailservice.NewIMAPStoreAdapter(service),
+		events:  events,
+	}
+}
+
+func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	runtime := newIMAPGatewayRuntime(maildb.NewRepository(db), storage.NewLocalStore(cfg.MailstoreRoot))
+	logger.Info(
+		"imap gateway scaffold ready",
+		"mode", ModeIMAP,
+		"mailbox_event_broker", runtime.events != nil,
+		"store_adapter", "service",
+		"protocol_listener", "deferred",
+	)
+	return waitForShutdown(ctx, logger, ModeIMAP)
 }
 
 func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

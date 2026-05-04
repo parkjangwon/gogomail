@@ -427,8 +427,8 @@ guidance.
 - Built-in spam scoring or pattern filtering.
 - IMAP/POP3 protocol servers. A dependency-light `internal/imapgw` boundary now
   records native IMAP gateway DTOs, mailbox helpers, and flag semantics; durable
-  UIDVALIDITY/UIDNEXT/MODSEQ storage and first `maildb` mailbox/message adapters
-  exist, but no TCP protocol server is enabled.
+  UIDVALIDITY/UIDNEXT/MODSEQ storage, first `maildb` mailbox/message adapters,
+  and an `imap` gateway scaffold exist, but no TCP protocol server is enabled.
 - OpenSearch as the default/mandatory search backend.
 - Kafka migration.
 - etcd/Vault production control plane.
@@ -580,6 +580,9 @@ The platform hardening sprint completed the following:
 - `mailservice` has an `IMAPStoreAdapter` that satisfies `imapgw.Store`, so a
   future protocol listener can depend on the gateway interface while still
   routing through service methods.
+- `gogomail --mode=imap` initializes the service-backed IMAP store adapter and
+  a process-local mailbox event broker for future IDLE/session fan-out without
+  enabling a TCP protocol listener yet.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
   `PartsTruncated` for pathological MIME part counts, plus address/reference
