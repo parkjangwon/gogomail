@@ -262,6 +262,8 @@ guidance.
   workers run with unusable Redis Stream options.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing event names before worker dispatch.
+- Redis stream event decoding trims outbox id, partition key, and payload
+  fields and rejects blank metadata before handler dispatch.
 - Admin API exposes a bounded IMAP mailbox UID backfill endpoint for future
   IMAP bootstrap/operator runs without enabling an IMAP protocol listener.
 - Push notification workers no longer redeliver a Redis event solely because

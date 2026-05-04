@@ -16,9 +16,9 @@ func TestDecodeRedisMessage(t *testing.T) {
 	msg, err := decodeRedisMessage("mail.event", redis.XMessage{
 		ID: "1-0",
 		Values: map[string]any{
-			"outbox_id":     "outbox-1",
-			"partition_key": "message-1",
-			"payload":       `{"event":"mail.stored"}`,
+			"outbox_id":     " outbox-1 ",
+			"partition_key": []byte(" message-1 "),
+			"payload":       ` {"event":"mail.stored"} `,
 		},
 	})
 	if err != nil {
@@ -32,6 +32,12 @@ func TestDecodeRedisMessage(t *testing.T) {
 	}
 	if msg.OutboxID != "outbox-1" {
 		t.Fatalf("OutboxID = %q, want outbox-1", msg.OutboxID)
+	}
+	if msg.PartitionKey != "message-1" {
+		t.Fatalf("PartitionKey = %q, want message-1", msg.PartitionKey)
+	}
+	if string(msg.Payload) != `{"event":"mail.stored"}` {
+		t.Fatalf("Payload = %q", string(msg.Payload))
 	}
 }
 
@@ -48,6 +54,22 @@ func TestDecodeRedisMessageRejectsInvalidPayload(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("decodeRedisMessage accepted invalid payload")
+	}
+}
+
+func TestDecodeRedisMessageRejectsBlankMetadata(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodeRedisMessage("mail.event", redis.XMessage{
+		ID: "1-0",
+		Values: map[string]any{
+			"outbox_id":     "   ",
+			"partition_key": "message-1",
+			"payload":       `{"event":"mail.stored"}`,
+		},
+	})
+	if err == nil {
+		t.Fatal("decodeRedisMessage accepted blank outbox_id")
 	}
 }
 
