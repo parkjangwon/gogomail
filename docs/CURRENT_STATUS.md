@@ -195,7 +195,8 @@ The platform hardening sprint completed the following:
   filters before Postgres metadata hydration; sender and subject filtering use
   lower-cased keyword fields to preserve case-insensitive filter behavior.
 - OpenSearch relevance search can return subject/from/body highlights and map
-  them into the existing Mail API `search_highlights` response field.
+  them into the existing Mail API `search_highlights` response field with
+  bounded UTF-8-safe fragments.
 - Optional OpenSearch integration coverage can create a disposable index and
   verify indexing plus folder-aware relevance search when
   `GOGOMAIL_TEST_OPENSEARCH_URL` is available.
