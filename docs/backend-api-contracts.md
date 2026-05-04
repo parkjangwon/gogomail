@@ -152,6 +152,13 @@ Delivery routes accept an exact domain, wildcard suffix such as
 the route-level port, TLS mode, implicit TLS flag, pool name, and optional SMTP
 AUTH identity/username/password keep gateway policy out of SMTP protocol core.
 
+Domain onboarding and deliverability checks include DNS verification:
+
+- `GET /admin/v1/domains/{id}/dns-check`
+
+The response is wrapped as `{"dns_check":{...}}` and reports MX, SPF, DMARC,
+and active DKIM TXT status values as `ok`, `missing`, `mismatch`, or `error`.
+
 ## Deferred from this contract
 
 - Next.js/frontend screens and shells.
