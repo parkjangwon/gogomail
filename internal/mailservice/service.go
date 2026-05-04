@@ -146,6 +146,9 @@ func (s *Service) ListMessages(ctx context.Context, userID string, limit int) ([
 func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
+	if err := validateServiceResourceID("folder_id", folderID); err != nil {
+		return nil, err
+	}
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return s.repository.ListMessagesInFolder(ctx, userID, folderID, limit)
 }
@@ -153,6 +156,11 @@ func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folde
 func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
+	if folderID != "" {
+		if err := validateServiceResourceID("folder_id", folderID); err != nil {
+			return nil, err
+		}
+	}
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor)
 }
@@ -178,6 +186,9 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 	}
 	userID = strings.TrimSpace(userID)
 	threadID = strings.TrimSpace(threadID)
+	if err := validateServiceResourceID("thread_id", threadID); err != nil {
+		return nil, err
+	}
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.ListThreadMessages(ctx, userID, threadID, limit)
 }
