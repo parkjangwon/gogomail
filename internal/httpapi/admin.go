@@ -307,7 +307,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		users, err := service.ListUsers(r.Context(), strings.TrimSpace(r.URL.Query().Get("domain_id")), limit)
+		domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+		if !ok {
+			return
+		}
+		users, err := service.ListUsers(r.Context(), domainID, limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -387,7 +391,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/imap/mailboxes/{id}/uid-backfill", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
 		mailboxID := strings.TrimSpace(r.PathValue("id"))
 		if userID == "" || mailboxID == "" {
 			writeError(w, http.StatusBadRequest, "user_id and mailbox id are required")
@@ -1187,7 +1194,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-routes/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		result, err := service.ResolveDeliveryRoute(r.Context(), strings.TrimSpace(r.URL.Query().Get("domain")))
+		domain, ok := parseBoundedAdminQuery(w, r, "domain")
+		if !ok {
+			return
+		}
+		result, err := service.ResolveDeliveryRoute(r.Context(), domain)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1216,7 +1227,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		keys, err := service.ListDKIMKeys(r.Context(), strings.TrimSpace(r.URL.Query().Get("domain_id")), limit)
+		domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+		if !ok {
+			return
+		}
+		keys, err := service.ListDKIMKeys(r.Context(), domainID, limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
