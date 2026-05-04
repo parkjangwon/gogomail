@@ -307,9 +307,12 @@ Implementation order:
 252. EML parser tests now assert the bounded text reader stops after the max+1 truncation probe, and benchmarks cover truncated large-body reads for hot-path regression tracking.
 253. API metering outbox events now include `schema_version=2026-05-04.api-usage.v1` and deterministic `event_id` values, while the aggregate consumer rejects unsupported schema versions.
 254. API metering aggregation now claims `event_id` values in `api_usage_events` before daily/monthly upserts, preventing replayed usage events from double-counting operational totals.
-255. `internal/searchindex` now has an OpenSearch writer adapter behind the existing indexing interface, using idempotent document IDs based on gogomail message IDs.
-256. `search-index-worker` can select the OpenSearch writer with explicit endpoint/index configuration while preserving the existing Postgres read-side search contract.
-257. The OpenSearch writer can bootstrap a strict message index mapping for identity fields, tenant/user filters, subject/body text, timestamps, and bounded body metadata.
+255. API metering events now use `schema_version=2026-05-04.api-usage.v2` with tenant/company/domain/user/API-key/principal/auth-source dimensions, while the worker remains backward-compatible with v1 events.
+256. API metering daily/monthly aggregates are keyed by identity dimensions so usage from different tenants, principals, API keys, or auth sources does not merge into the same operational total.
+257. API metering can enrich Mail API usage from JWT claims and classify configured Admin API token access without coupling the metering package to the auth package.
+258. `internal/searchindex` now has an OpenSearch writer adapter behind the existing indexing interface, using idempotent document IDs based on gogomail message IDs.
+259. `search-index-worker` can select the OpenSearch writer with explicit endpoint/index configuration while preserving the existing Postgres read-side search contract.
+260. The OpenSearch writer can bootstrap a strict message index mapping for identity fields, tenant/user filters, subject/body text, timestamps, and bounded body metadata.
 258. `search-index-worker` can optionally bootstrap the OpenSearch index mapping on startup through `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP=true`.
 259. OpenSearch query-side groundwork can search user-scoped indexed documents and return ranked gogomail message IDs for later metadata hydration.
 260. `maildb` can hydrate ordered search message IDs into active `MessageSummary` rows, preparing OpenSearch read-side results to preserve the existing Mail API response envelope.

@@ -23,13 +23,19 @@ API usage aggregation is handled by a separate `api-metering-worker` component.
 It consumes `api.usage` events from the `api.event` stream and writes daily and
 monthly Postgres aggregates into `api_usage_daily` and `api_usage_monthly`.
 
-The first aggregate dimensions are:
+The aggregate dimensions are:
 
 - day
 - method
 - route
 - status
-- user ID when available
+- tenant ID
+- company ID
+- domain ID
+- user ID
+- API key ID
+- principal ID
+- auth source
 
 The aggregate tracks request count, request bytes, response bytes, total
 latency, maximum latency, and first/last seen timestamps. Admin API exposes the
@@ -43,11 +49,13 @@ Postgres backend when operators want persisted aggregates.
 ## Consequences
 
 - API handlers do not take a synchronous dependency on aggregate writes.
-- Redis Stream redelivery may double-count events after worker failure; the
-  aggregate is eventually useful for operations, not a financial ledger.
-- Future billing-grade metering should add immutable event IDs or a dedicated
-  usage ledger before money movement depends on it.
+- Redis Stream redelivery of the same deterministic event ID does not
+  double-count aggregates, because the worker claims `api_usage_events` before
+  upserting daily/monthly totals.
+- Aggregates remain operational read models, not a financial ledger. Future
+  billing-grade metering should add an immutable billing/export ledger before
+  money movement depends on it.
 - Route cardinality must stay bounded by stable HTTP route patterns rather than
   raw URLs.
-- Additional tenant dimensions such as company, domain, API key, and plan can be
-  added without changing the middleware/worker separation.
+- Additional plan or product-policy dimensions can be added without changing the
+  middleware/worker separation.

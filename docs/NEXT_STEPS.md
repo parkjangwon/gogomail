@@ -246,12 +246,21 @@ Current state:
   billing-grade yet.
 - `api_usage_events` records claimed event IDs before aggregate upserts, so
   replayed usage events do not double-count daily/monthly operational totals.
+- New `2026-05-04.api-usage.v2` usage events carry
+  tenant/company/domain/user/API-key/principal/auth-source dimensions. The
+  idempotency ledger persists those dimensions, and daily/monthly aggregate
+  primary keys include them so cross-tenant or cross-principal usage does not
+  merge.
+- Mail API metering can enrich identity from JWT claims, while Admin API
+  metering can classify configured admin-token access without coupling
+  `internal/apimeter` to `internal/auth`.
 
 Next:
 
-- Add async enrichment keyed by company/domain/user/api-key.
-- Add billing-grade ledger semantics before aggregates drive invoices or hard
-  Open API limits.
+- Add an immutable billing/export ledger before aggregates drive invoices or
+  hard Open API limits.
+- Add optional filters on Admin API usage endpoints for tenant/principal/date
+  windows once operator workflows need them.
 - Avoid synchronous writes on hot API paths.
 
 ## Do not do yet
