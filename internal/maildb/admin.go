@@ -458,17 +458,20 @@ type APIUsageExportHandoffView struct {
 }
 
 type APIUsageExportCapabilityView struct {
-	ExportFormat                  string   `json:"export_format"`
-	ArtifactContentType           string   `json:"artifact_content_type"`
-	ManifestDigestAlgorithm       string   `json:"manifest_digest_algorithm"`
-	SignerBackend                 string   `json:"signer_backend"`
-	SignerConfigured              bool     `json:"signer_configured"`
-	SignerKeyID                   string   `json:"signer_key_id,omitempty"`
-	VerifierConfigured            bool     `json:"verifier_configured"`
-	ProductionSignatureReady      bool     `json:"production_signature_ready"`
-	BillingReadySupported         bool     `json:"billing_ready_supported"`
-	VerifiedBillingReadySupported bool     `json:"verified_billing_ready_supported"`
-	BlockingReasons               []string `json:"blocking_reasons,omitempty"`
+	ExportFormat                                string   `json:"export_format"`
+	ArtifactContentType                         string   `json:"artifact_content_type"`
+	ManifestDigestAlgorithm                     string   `json:"manifest_digest_algorithm"`
+	SignerBackend                               string   `json:"signer_backend"`
+	SignerConfigured                            bool     `json:"signer_configured"`
+	SignerKeyID                                 string   `json:"signer_key_id,omitempty"`
+	VerifierConfigured                          bool     `json:"verifier_configured"`
+	ProductionSignatureReady                    bool     `json:"production_signature_ready"`
+	BillingReadySupported                       bool     `json:"billing_ready_supported"`
+	VerifiedBillingReadySupported               bool     `json:"verified_billing_ready_supported"`
+	RetentionRunsSupported                      bool     `json:"retention_runs_supported"`
+	RetentionWorkerSupported                    bool     `json:"retention_worker_supported"`
+	RetentionWorkerDestructiveRequiresRemoteKey bool     `json:"retention_worker_destructive_requires_remote_key"`
+	BlockingReasons                             []string `json:"blocking_reasons,omitempty"`
 }
 
 type CreateAPIUsageExportManifestSignatureRequest struct {

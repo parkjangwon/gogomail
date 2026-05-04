@@ -1592,17 +1592,20 @@ func TestAdminGetAPIUsageExportCapabilitiesHandler(t *testing.T) {
 
 	service := &fakeAdminService{
 		apiUsageExportCapabilities: maildb.APIUsageExportCapabilityView{
-			ExportFormat:                  "ndjson",
-			ArtifactContentType:           "application/x-ndjson",
-			ManifestDigestAlgorithm:       "sha256",
-			SignerBackend:                 "local-hmac",
-			SignerConfigured:              true,
-			SignerKeyID:                   "key-1",
-			VerifierConfigured:            true,
-			ProductionSignatureReady:      false,
-			BillingReadySupported:         false,
-			VerifiedBillingReadySupported: false,
-			BlockingReasons:               []string{"production_manifest_signer_required"},
+			ExportFormat:                                "ndjson",
+			ArtifactContentType:                         "application/x-ndjson",
+			ManifestDigestAlgorithm:                     "sha256",
+			SignerBackend:                               "local-hmac",
+			SignerConfigured:                            true,
+			SignerKeyID:                                 "key-1",
+			VerifierConfigured:                          true,
+			ProductionSignatureReady:                    false,
+			BillingReadySupported:                       false,
+			VerifiedBillingReadySupported:               false,
+			RetentionRunsSupported:                      true,
+			RetentionWorkerSupported:                    true,
+			RetentionWorkerDestructiveRequiresRemoteKey: true,
+			BlockingReasons:                             []string{"production_manifest_signer_required"},
 		},
 	}
 	mux := http.NewServeMux()
@@ -1621,7 +1624,7 @@ func TestAdminGetAPIUsageExportCapabilitiesHandler(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if body.Capabilities.SignerBackend != "local-hmac" || body.Capabilities.ProductionSignatureReady {
+	if body.Capabilities.SignerBackend != "local-hmac" || body.Capabilities.ProductionSignatureReady || !body.Capabilities.RetentionWorkerDestructiveRequiresRemoteKey {
 		t.Fatalf("capabilities = %+v", body.Capabilities)
 	}
 	if !service.lastAPIUsageExportCapabilities {

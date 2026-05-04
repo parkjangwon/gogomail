@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after API usage retention worker signer guard)
+Last updated: 2026-05-05 (updated after API usage retention capability advertisement)
 
 ## Current phase
 
@@ -227,6 +227,8 @@ guidance.
 - Destructive API usage retention worker runs require both explicit
   `confirm_ready` configuration and a production-oriented `remote-ed25519`
   export manifest signer backend.
+- API usage export capabilities now advertise retention-run support, retention
+  worker support, and the remote-key requirement for destructive worker runs.
 - Admin API exposes bounded audit-log list/detail reads with category, action,
   result, target-type, company/domain/user, and recent-window filters so stored
   operational audit records can be inspected through the release API surface.

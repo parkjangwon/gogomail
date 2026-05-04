@@ -103,15 +103,18 @@ func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.API
 	}
 	productionReady := apiUsageExportManifestSignerProductionReady(backend)
 	view := maildb.APIUsageExportCapabilityView{
-		ExportFormat:                  "ndjson",
-		ArtifactContentType:           apimeter.ExportArtifactContentTypeNDJSON,
-		ManifestDigestAlgorithm:       "sha256",
-		SignerBackend:                 backend,
-		SignerConfigured:              s.exportManifestSigner != nil,
-		VerifierConfigured:            s.exportManifestVerifier != nil,
-		ProductionSignatureReady:      s.exportManifestSigner != nil && s.exportManifestVerifier != nil && productionReady,
-		BillingReadySupported:         s.exportManifestSigner != nil && productionReady,
-		VerifiedBillingReadySupported: s.exportManifestSigner != nil && s.exportManifestVerifier != nil && productionReady,
+		ExportFormat:                                "ndjson",
+		ArtifactContentType:                         apimeter.ExportArtifactContentTypeNDJSON,
+		ManifestDigestAlgorithm:                     "sha256",
+		SignerBackend:                               backend,
+		SignerConfigured:                            s.exportManifestSigner != nil,
+		VerifierConfigured:                          s.exportManifestVerifier != nil,
+		ProductionSignatureReady:                    s.exportManifestSigner != nil && s.exportManifestVerifier != nil && productionReady,
+		BillingReadySupported:                       s.exportManifestSigner != nil && productionReady,
+		VerifiedBillingReadySupported:               s.exportManifestSigner != nil && s.exportManifestVerifier != nil && productionReady,
+		RetentionRunsSupported:                      true,
+		RetentionWorkerSupported:                    true,
+		RetentionWorkerDestructiveRequiresRemoteKey: true,
 	}
 	if keyID, ok := exportManifestSignerKeyID(s.exportManifestSigner); ok {
 		view.SignerKeyID = keyID
