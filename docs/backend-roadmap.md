@@ -345,6 +345,8 @@ Implementation order:
 287. API usage ledger schema now enforces status, positive request count, nonnegative byte/latency, and JSON object payload constraints at the database boundary.
 288. API usage export batches now persist manifest checkpoints with fixed filter windows and event/request/byte/latency totals, so downstream billing or warehouse exports can replay a known ledger slice by batch ID.
 289. Admin API now exposes API usage export batch create/list/detail endpoints plus saved-batch NDJSON replay, keeping export checkpointing explicit and bounded.
+290. API usage export batches can now register external artifact metadata with object key, SHA-256, byte count, event count, and JSON metadata while staying vendor-neutral.
+291. Admin API now exposes API usage export artifact create/list/detail endpoints, and artifact rows are deduplicated per batch by object key and SHA-256 for idempotent handoff.
 
 ## Deferred until backend contracts stabilize
 

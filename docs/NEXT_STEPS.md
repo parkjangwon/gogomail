@@ -261,11 +261,14 @@ Current state:
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.
+- Admin API can register and list external export artifacts for each batch,
+  including object key, SHA-256, byte count, event count, and metadata. Artifact
+  rows are deduplicated per batch by object key and SHA-256.
 
 Next:
 
-- Add signed export artifacts or external object-storage handoff for completed
-  billing batches before invoices or hard Open API limits depend on them.
+- Add signed artifact manifests or object-store writer adapters before invoices
+  or hard Open API limits depend on completed export batches.
 - Decide retention/archival policy for immutable API usage ledger rows.
 - Avoid synchronous writes on hot API paths.
 

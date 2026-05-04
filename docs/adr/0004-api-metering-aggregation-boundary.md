@@ -51,6 +51,11 @@ Operators can also create persisted export batch manifests over a bounded
 ledger window. A saved batch fixes the filter window and totals, and can be
 replayed as NDJSON by batch ID.
 
+External export jobs can register artifact metadata against a batch, including
+object key, SHA-256, byte count, event count, and JSON metadata. This keeps the
+core boundary vendor-neutral while still making completed export handoff
+auditable.
+
 The HTTP middleware remains fail-open. The worker is disabled by default through
 `GOGOMAIL_API_METERING_AGGREGATE_BACKEND=disabled` and can be enabled with the
 Postgres backend when operators want persisted aggregates.
@@ -63,8 +68,8 @@ Postgres backend when operators want persisted aggregates.
   upserting daily/monthly totals.
 - Aggregates remain operational read models, not a financial ledger. Future
   money movement should use the immutable ledger plus explicit billing batch
-  manifests/checkpoints and signed/exported artifacts rather than daily/monthly
-  aggregates alone.
+  manifests/checkpoints and signed artifact manifests or object-store writer
+  adapters rather than daily/monthly aggregates alone.
 - Route cardinality must stay bounded by stable HTTP route patterns rather than
   raw URLs.
 - Additional plan or product-policy dimensions can be added without changing the
