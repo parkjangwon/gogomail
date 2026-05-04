@@ -1047,6 +1047,9 @@ func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key stri
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {
+	if err := requireJSONContentType(r); err != nil {
+		return err
+	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, maxJSONBodyBytes+1))
 	if err != nil {
 		return err
@@ -1065,6 +1068,21 @@ func decodeJSONBody(r *http.Request, dst any) error {
 			return errors.New("body must contain a single JSON value")
 		}
 		return err
+	}
+	return nil
+}
+
+func requireJSONContentType(r *http.Request) error {
+	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	if contentType == "" {
+		return errors.New("content-type must be application/json")
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return errors.New("content-type must be application/json")
+	}
+	if !strings.EqualFold(mediaType, "application/json") {
+		return errors.New("content-type must be application/json")
 	}
 	return nil
 }

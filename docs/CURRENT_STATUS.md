@@ -917,6 +917,10 @@ The platform hardening sprint completed the following:
 - Mail and Admin API JSON request handlers now reject trailing JSON tokens and
   unknown object fields before service dispatch, and common JSON request
   decoding is capped at 1 MiB before parsing.
+- Mail and Admin API JSON mutation bodies now require `Content-Type:
+  application/json`, accepting normal media-type parameters such as
+  `charset=utf-8` but rejecting missing or non-JSON content types before
+  dispatch.
 - Mail JWT and Admin token authentication now reject repeated credential
   headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials
   before dispatch.

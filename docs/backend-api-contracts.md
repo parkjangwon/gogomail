@@ -274,9 +274,11 @@ Legacy `candidates` entries describe stale `attachments` rows, while
 same cleanup sweep.
 
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
-Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of
-silently dispatching the first decoded object. JSON object request bodies also
-reject unknown fields as HTTP 400 `bad_request` so generated-client and
+Handlers require `Content-Type: application/json`, accepting normal media-type
+parameters such as `charset=utf-8`, and reject missing, malformed, or non-JSON
+content types as HTTP 400 `bad_request`. They also reject trailing JSON tokens
+instead of silently dispatching the first decoded object. JSON object request
+bodies reject unknown fields as HTTP 400 `bad_request` so generated-client and
 OpenAPI drift is visible before service dispatch.
 
 Attachment downloads set private `no-store` responses and include both a safe

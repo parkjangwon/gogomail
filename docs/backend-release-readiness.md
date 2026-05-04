@@ -110,6 +110,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail and Admin API JSON request bodies reject trailing JSON tokens and
   unknown object fields instead of accepting drifted payloads, and shared JSON
   decoding is capped at 1 MiB before parsing.
+- Mail and Admin API JSON mutation bodies require `Content-Type:
+  application/json`, while allowing normal media-type parameters such as
+  `charset=utf-8`.
 - Mail JWT and Admin token authentication reject repeated credential headers,
   and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before
   dispatch.
