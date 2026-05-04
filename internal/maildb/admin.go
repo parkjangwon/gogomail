@@ -2495,6 +2495,84 @@ RETURNING id, batch_id, created_at, schema_version, digest_algorithm, digest_hex
 	return view, nil
 }
 
+func (r *Repository) ListAPIUsageExportManifestDigests(ctx context.Context, batchID string, limit int) ([]APIUsageExportManifestDigestView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	batchID = strings.TrimSpace(batchID)
+	if batchID == "" {
+		return nil, fmt.Errorf("batch_id is required")
+	}
+	limit = normalizeLimit(limit)
+	const query = `
+SELECT id, batch_id, created_at, schema_version, digest_algorithm, digest_hex, manifest
+FROM api_usage_export_manifest_digests
+WHERE batch_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, query, batchID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list api usage export manifest digests: %w", err)
+	}
+	defer rows.Close()
+
+	var digests []APIUsageExportManifestDigestView
+	for rows.Next() {
+		var digest APIUsageExportManifestDigestView
+		if err := rows.Scan(
+			&digest.ID,
+			&digest.BatchID,
+			&digest.CreatedAt,
+			&digest.SchemaVersion,
+			&digest.DigestAlgorithm,
+			&digest.DigestHex,
+			&digest.Manifest,
+		); err != nil {
+			return nil, fmt.Errorf("scan api usage export manifest digest: %w", err)
+		}
+		digests = append(digests, digest)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api usage export manifest digests: %w", err)
+	}
+	return digests, nil
+}
+
+func (r *Repository) GetAPIUsageExportManifestDigest(ctx context.Context, batchID string, digestID string) (APIUsageExportManifestDigestView, error) {
+	if r.db == nil {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("database handle is required")
+	}
+	batchID = strings.TrimSpace(batchID)
+	digestID = strings.TrimSpace(digestID)
+	if batchID == "" {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("batch_id is required")
+	}
+	if digestID == "" {
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("digest_id is required")
+	}
+	const query = `
+SELECT id, batch_id, created_at, schema_version, digest_algorithm, digest_hex, manifest
+FROM api_usage_export_manifest_digests
+WHERE batch_id = $1
+  AND id = $2`
+	var digest APIUsageExportManifestDigestView
+	if err := r.db.QueryRowContext(ctx, query, batchID, digestID).Scan(
+		&digest.ID,
+		&digest.BatchID,
+		&digest.CreatedAt,
+		&digest.SchemaVersion,
+		&digest.DigestAlgorithm,
+		&digest.DigestHex,
+		&digest.Manifest,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return APIUsageExportManifestDigestView{}, fmt.Errorf("api usage export manifest digest not found")
+		}
+		return APIUsageExportManifestDigestView{}, fmt.Errorf("get api usage export manifest digest: %w", err)
+	}
+	return digest, nil
+}
+
 func apiUsageExportManifest(batch APIUsageExportBatchView, artifacts []APIUsageExportArtifactView) apimeter.ExportManifest {
 	ordered := append([]APIUsageExportArtifactView(nil), artifacts...)
 	sort.Slice(ordered, func(i, j int) bool {
