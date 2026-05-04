@@ -602,6 +602,22 @@ paths:
           $ref: "#/components/responses/APIUsageExportBatch"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/export:
+    get:
+      operationId: exportAdminAPIUsageExportBatch
+      summary: Export API usage ledger events from a saved batch manifest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageLedgerExport"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
