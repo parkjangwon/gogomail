@@ -421,6 +421,7 @@ Implementation order:
 362. DSN composition can now include an optional sanitized `text/rfc822-headers` original-message header part, preparing RFC 3464 `RET=HDRS` bounce reports without exposing header injection.
 363. User-scoped sent-message delivery status now treats failed attempts with `4.x.x` enhanced status codes as retrying, so temporary SMTP failures do not appear as terminal failures in Mail API responses.
 364. Shared EML parsing now caps retained address-list and `References` metadata with explicit truncation flags, preventing oversized headers from expanding downstream storage, search, and threading metadata unboundedly.
+365. Admin token checks now compare SHA-256 digests of trimmed token values, keeping the authorization comparison fixed-length while preserving existing bearer and `X-Admin-Token` behavior.
 
 ## Deferred until backend contracts stabilize
 

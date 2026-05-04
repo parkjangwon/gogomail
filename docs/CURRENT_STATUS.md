@@ -212,6 +212,8 @@ guidance.
   generated-client readiness. Non-JSON download/export responses are guarded so
   NDJSON streams and binary attachments are not modeled as JSON envelopes. All
   schemas are kept in sync with Go types.
+- Admin token authorization compares fixed-length SHA-256 digests of trimmed
+  token values for both bearer tokens and `X-Admin-Token`.
 - Redis event consumers acknowledge malformed stream entries after logging
   decode failures, preventing poison messages from pinning worker progress while
   preserving retry behavior for handler failures.
