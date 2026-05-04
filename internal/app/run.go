@@ -487,15 +487,25 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		return err
 	}
 
-	logger.Info(
-		"search index worker started",
+	logger.Info("search index worker started", searchIndexWorkerLogFields(cfg)...)
+	return consumer.Run(ctx)
+}
+
+func searchIndexWorkerLogFields(cfg config.Config) []any {
+	fields := []any{
 		"stream", cfg.EventStream,
 		"group", cfg.SearchIndexConsumerGroup,
 		"consumer", cfg.SearchIndexConsumerName,
-		"backend", cfg.SearchIndexBackend,
+		"backend", strings.ToLower(strings.TrimSpace(cfg.SearchIndexBackend)),
 		"max_body_bytes", cfg.SearchIndexMaxBodyBytes,
-	)
-	return consumer.Run(ctx)
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
+		fields = append(fields,
+			"opensearch_index", strings.TrimSpace(cfg.SearchIndexOpenSearchIndex),
+			"opensearch_bootstrap", cfg.SearchIndexOpenSearchBootstrap,
+		)
+	}
+	return fields
 }
 
 func searchIndexerForConfig(cfg config.Config, repository *maildb.Repository) (searchindex.Indexer, error) {

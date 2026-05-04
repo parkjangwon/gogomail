@@ -86,6 +86,48 @@ func TestSearchIDSourceForConfigSkipsNonOpenSearchBackends(t *testing.T) {
 	}
 }
 
+func TestSearchIndexWorkerLogFieldsIncludeOpenSearchDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	fields := searchIndexWorkerLogFields(config.Config{
+		EventStream:                    "gogomail.events",
+		SearchIndexBackend:             " OpenSearch ",
+		SearchIndexConsumerGroup:       "group-1",
+		SearchIndexConsumerName:        "consumer-1",
+		SearchIndexMaxBodyBytes:        1024,
+		SearchIndexOpenSearchIndex:     "gogomail-messages",
+		SearchIndexOpenSearchBootstrap: true,
+		SearchIndexOpenSearchEndpoint:  "https://search.example.com",
+		SearchIndexOpenSearchUsername:  "admin",
+		SearchIndexOpenSearchPassword:  "secret",
+	})
+	got := fieldsMap(fields)
+	if got["backend"] != "opensearch" {
+		t.Fatalf("backend = %#v", got["backend"])
+	}
+	if got["opensearch_index"] != "gogomail-messages" || got["opensearch_bootstrap"] != true {
+		t.Fatalf("opensearch fields = %#v", got)
+	}
+	if _, ok := got["SearchIndexOpenSearchPassword"]; ok {
+		t.Fatalf("password leaked into log fields: %#v", got)
+	}
+	if _, ok := got["opensearch_endpoint"]; ok {
+		t.Fatalf("endpoint leaked into log fields: %#v", got)
+	}
+}
+
+func fieldsMap(fields []any) map[string]any {
+	out := make(map[string]any, len(fields)/2)
+	for i := 0; i+1 < len(fields); i += 2 {
+		key, ok := fields[i].(string)
+		if !ok {
+			continue
+		}
+		out[key] = fields[i+1]
+	}
+	return out
+}
+
 type fakeBootstrapIndexer struct {
 	called bool
 }
