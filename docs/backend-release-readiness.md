@@ -12,7 +12,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
 - OpenSearch has a first writer adapter behind `internal/searchindex`, and the
   search index worker can select it with explicit endpoint/index configuration;
-  API read-side search remains on the current contract until a query adapter is
+  the worker can optionally bootstrap the index mapping on startup. API
+  read-side search remains on the current contract until a query adapter is
   added.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.

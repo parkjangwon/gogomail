@@ -461,6 +461,9 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	if err != nil {
 		return err
 	}
+	if err := maybeBootstrapSearchIndex(ctx, cfg, indexer); err != nil {
+		return err
+	}
 	router := eventstream.NewRouter()
 	if err := router.Register("mail.stored", searchindex.NewHandler(
 		searchindex.NewStorageStoreReader(storage.NewLocalStore(cfg.MailstoreRoot)),
@@ -509,6 +512,24 @@ func searchIndexerForConfig(cfg config.Config, repository *maildb.Repository) (s
 	default:
 		return nil, fmt.Errorf("unsupported search index backend %q", cfg.SearchIndexBackend)
 	}
+}
+
+type searchIndexBootstrapper interface {
+	EnsureIndex(ctx context.Context) error
+}
+
+func maybeBootstrapSearchIndex(ctx context.Context, cfg config.Config, indexer any) error {
+	if !cfg.SearchIndexOpenSearchBootstrap {
+		return nil
+	}
+	if !strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
+		return nil
+	}
+	bootstrapper, ok := indexer.(searchIndexBootstrapper)
+	if !ok {
+		return fmt.Errorf("search index backend %q does not support bootstrap", cfg.SearchIndexBackend)
+	}
+	return bootstrapper.EnsureIndex(ctx)
 }
 
 func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
