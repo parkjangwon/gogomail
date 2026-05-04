@@ -214,6 +214,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}
 	if cfg.routeCounters != nil {
 		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+			if !rejectUnknownQueryKeys(w, r) {
+				return
+			}
 			writeJSON(w, http.StatusOK, map[string]any{"route_counters": cfg.routeCounters.Snapshot()})
 		}))
 	}
@@ -242,6 +245,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -313,6 +319,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -326,6 +335,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -339,6 +351,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-check", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -505,6 +520,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/users/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -594,6 +612,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		stats, err := service.ListQueueStats(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -637,6 +658,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/outbox-events", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "since", "topic", "partition_key", "status") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -672,6 +696,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/outbox-events/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -685,6 +712,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "category", "action", "result", "target_type", "company_id", "domain_id", "user_id", "since") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -702,6 +732,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs/integrity", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "since") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -722,6 +755,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -735,6 +771,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		backpressureService, ok := service.(AdminBackpressureService)
 		if !ok {
 			writeError(w, http.StatusNotFound, "backpressure backend is not configured")
@@ -770,6 +809,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/quota-usage", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "scope", "domain_id", "over_limit", "over_allocated") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -849,6 +891,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/attachment-upload-sessions", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "draft_id", "status") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1481,6 +1526,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1510,6 +1558,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "since", "status", "recipient_domain", "message_id", "farm", "sender") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1555,6 +1606,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "since", "status", "recipient_domain", "message_id", "farm", "sender") {
+			return
+		}
 		since, ok := parseOptionalRFC3339Query(w, r, "since")
 		if !ok {
 			return
@@ -1595,6 +1649,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts/exhausted", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "since", "recipient_domain", "message_id", "farm", "sender") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1635,6 +1692,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/push-notification-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "since", "status", "user_id", "message_id", "platform", "device_id", "provider_status", "provider_message_id") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1690,6 +1750,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/push-notification-attempts/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1723,6 +1786,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/push-notification-stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "since", "user_id", "message_id", "platform", "device_id") {
+			return
+		}
 		since, ok := parseOptionalRFC3339Query(w, r, "since")
 		if !ok {
 			return
@@ -1758,6 +1824,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/suppression-list", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "email", "reason") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1793,6 +1862,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/trusted-relays", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "cidr", "description") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1839,6 +1911,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-routes", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "status", "farm", "domain_pattern") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -1890,6 +1965,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-routes/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "domain") {
+			return
+		}
 		domain, ok := parseBoundedAdminQuery(w, r, "domain")
 		if !ok {
 			return
@@ -1923,6 +2001,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "status") {
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return

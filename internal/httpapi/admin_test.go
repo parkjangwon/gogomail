@@ -3916,6 +3916,192 @@ func TestAdminUsersHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminOperationalGetHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		path       string
+		dispatched func(*fakeAdminService) bool
+	}{
+		{
+			name: "company detail",
+			path: "/admin/v1/companies/company-1?expand=domains",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastCompanyID != ""
+			},
+		},
+		{
+			name: "domain detail",
+			path: "/admin/v1/domains/domain-1?include_stats=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDomainID != ""
+			},
+		},
+		{
+			name: "queue",
+			path: "/admin/v1/queue?limit=5",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastLimit != 0
+			},
+		},
+		{
+			name: "outbox list",
+			path: "/admin/v1/outbox-events?topic=mail.event&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastOutboxEventList.Topic != ""
+			},
+		},
+		{
+			name: "outbox detail",
+			path: "/admin/v1/outbox-events/outbox-1?include_payload=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastOutboxEventID != ""
+			},
+		},
+		{
+			name: "audit list",
+			path: "/admin/v1/audit-logs?category=admin&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAuditLogList.Category != ""
+			},
+		},
+		{
+			name: "audit integrity",
+			path: "/admin/v1/audit-logs/integrity?deep=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAuditLogIntegrity.Limit != 0
+			},
+		},
+		{
+			name: "audit detail",
+			path: "/admin/v1/audit-logs/audit-1?include_detail=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAuditLogID != ""
+			},
+		},
+		{
+			name: "quota usage",
+			path: "/admin/v1/quota-usage?scope=domain&company_id=company-1",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastQuotaUsageList.Scope != ""
+			},
+		},
+		{
+			name: "attachment upload sessions",
+			path: "/admin/v1/attachment-upload-sessions?user_id=user-1&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastAttachmentUploadSessionList.UserID != ""
+			},
+		},
+		{
+			name: "quota reconciliation",
+			path: "/admin/v1/quota-reconciliation?scope=user",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastLimit != 0
+			},
+		},
+		{
+			name: "delivery attempts",
+			path: "/admin/v1/delivery-attempts?message_id=msg-1&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeliveryAttemptList.MessageID != ""
+			},
+		},
+		{
+			name: "delivery attempt stats",
+			path: "/admin/v1/delivery-attempts/stats?message_id=msg-1&limit=5",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeliveryAttemptStats.MessageID != ""
+			},
+		},
+		{
+			name: "exhausted attempts",
+			path: "/admin/v1/delivery-attempts/exhausted?message_id=msg-1&status=failed",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastExhaustedAttemptList.MessageID != ""
+			},
+		},
+		{
+			name: "push attempts",
+			path: "/admin/v1/push-notification-attempts?message_id=msg-1&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastPushAttemptList.MessageID != ""
+			},
+		},
+		{
+			name: "push attempt detail",
+			path: "/admin/v1/push-notification-attempts/attempt-1?include_device=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastPushOutcome.AttemptID != ""
+			},
+		},
+		{
+			name: "push stats",
+			path: "/admin/v1/push-notification-stats?message_id=msg-1&limit=5",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastPushNotificationStats.MessageID != ""
+			},
+		},
+		{
+			name: "suppression list",
+			path: "/admin/v1/suppression-list?domain_id=domain-1&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastSuppressionList.DomainID != ""
+			},
+		},
+		{
+			name: "trusted relays",
+			path: "/admin/v1/trusted-relays?cidr=192.0.2.0/24&status=active",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastTrustedRelayList.CIDR != ""
+			},
+		},
+		{
+			name: "delivery routes",
+			path: "/admin/v1/delivery-routes?status=active&cursor=opaque",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeliveryRouteList.Status != ""
+			},
+		},
+		{
+			name: "delivery route resolve",
+			path: "/admin/v1/delivery-routes/resolve?domain=example.net&dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastResolveDeliveryRouteDomain != ""
+			},
+		},
+		{
+			name: "dkim keys",
+			path: "/admin/v1/dkim-keys?domain_id=domain-1&selector=mail",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDKIMKeyList.DomainID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminGetUserHandler(t *testing.T) {
 	t.Parallel()
 

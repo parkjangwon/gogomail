@@ -481,6 +481,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   manifest-digest, and manifest-signature routes reject unknown query parameter
   names before dispatch, including unexpected query strings on detail,
   download, verification, and mutation routes with no query controls.
+- Admin queue, outbox, audit, backpressure, quota, attachment-session,
+  delivery-attempt, push-notification, suppression-list, trusted-relay,
+  delivery-route, and DKIM read routes reject unknown query parameter names
+  before dispatch.
 - HTTP list endpoints now enforce the documented `1 <= limit <= 200` boundary before reaching repository pagination, so generated clients can rely on the OpenAPI limit bounds.
 - `docs/smtp-release-runbook.md` now records operator-facing SMTP soak, STARTTLS, SMTPS, trusted relay, and outbound DSN/bounce smoke procedures.
 - `docs/api-usage-export-runbook.md` records the operator-facing API usage export, deep handoff verification, signer capability, and retention-readiness sequence.
