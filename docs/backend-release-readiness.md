@@ -376,6 +376,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   paths before calling the storage adapter, failing closed on absolute,
   traversal, newline, backslash-bearing, or empty stored keys where a body is
   required.
+- Local storage enforces the same strict object-key contract at the adapter
+  boundary, rejecting absolute, traversal, newline, backslash-bearing,
+  duplicate-separator, dot-segment, and otherwise non-canonical keys before
+  reads, writes, or deletes.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
 - Draft search service queries normalize user, text, sender, subject, and list

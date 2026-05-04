@@ -3,10 +3,11 @@ package mailservice
 import (
 	"fmt"
 	"io"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 const MaxAttachmentFilenameBytes = 255
@@ -149,23 +150,8 @@ func validateAttachmentStoragePath(storagePath string) error {
 	if storagePath == "" {
 		return nil
 	}
-	if strings.ContainsAny(storagePath, "\r\n") {
-		return fmt.Errorf("storage_path must not contain newlines")
-	}
-	if strings.Contains(storagePath, `\`) {
-		return fmt.Errorf("storage_path must use forward slash separators")
-	}
-	if strings.HasPrefix(storagePath, "/") {
-		return fmt.Errorf("storage_path must be relative")
-	}
-	for _, segment := range strings.Split(storagePath, "/") {
-		if segment == "." || segment == ".." || strings.TrimSpace(segment) == "" {
-			return fmt.Errorf("storage_path contains an invalid segment")
-		}
-	}
-	cleaned := path.Clean(storagePath)
-	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
-		return fmt.Errorf("storage_path must not escape the storage root")
+	if _, err := storage.ValidateObjectPath(storagePath); err != nil {
+		return fmt.Errorf("storage_path is invalid: %w", err)
 	}
 	return nil
 }
