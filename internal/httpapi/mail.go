@@ -105,7 +105,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		folder, err := service.RenameFolder(r.Context(), userID, r.PathValue("id"), req.Name)
+		folder, err := service.RenameFolder(r.Context(), userID, pathValue(r, "id"), req.Name)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -119,7 +119,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if err := service.DeleteFolder(r.Context(), userID, r.PathValue("id")); err != nil {
+		if err := service.DeleteFolder(r.Context(), userID, pathValue(r, "id")); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -169,7 +169,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 
-		messageID := r.PathValue("id")
+		messageID := pathValue(r, "id")
 		message, err := service.GetMessage(r.Context(), userID, messageID)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
@@ -253,7 +253,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		messages, err := service.ListThreadMessages(r.Context(), userID, r.PathValue("id"), limit)
+		messages, err := service.ListThreadMessages(r.Context(), userID, pathValue(r, "id"), limit)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -266,7 +266,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		status, err := service.MessageDeliveryStatus(r.Context(), userID, r.PathValue("id"))
+		status, err := service.MessageDeliveryStatus(r.Context(), userID, pathValue(r, "id"))
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -290,7 +290,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if err := service.SetMessageFlag(r.Context(), userID, r.PathValue("id"), req.Flag, req.Value); err != nil {
+		if err := service.SetMessageFlag(r.Context(), userID, pathValue(r, "id"), req.Flag, req.Value); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -336,7 +336,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if err := service.MoveMessage(r.Context(), userID, r.PathValue("id"), req.FolderID); err != nil {
+		if err := service.MoveMessage(r.Context(), userID, pathValue(r, "id"), req.FolderID); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -372,7 +372,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if err := service.DeleteMessage(r.Context(), userID, r.PathValue("id")); err != nil {
+		if err := service.DeleteMessage(r.Context(), userID, pathValue(r, "id")); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -434,7 +434,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.DraftID = r.PathValue("id")
+		req.DraftID = pathValue(r, "id")
 		if tokenManager != nil {
 			claims, ok := claimsFromRequest(w, r, tokenManager)
 			if !ok {
@@ -455,7 +455,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		if err := service.DeleteDraft(r.Context(), userID, r.PathValue("id")); err != nil {
+		if err := service.DeleteDraft(r.Context(), userID, pathValue(r, "id")); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -467,7 +467,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		result, err := service.SendDraft(r.Context(), userID, r.PathValue("id"))
+		result, err := service.SendDraft(r.Context(), userID, pathValue(r, "id"))
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -481,7 +481,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		attachments, err := service.ListAttachments(r.Context(), userID, r.PathValue("id"))
+		attachments, err := service.ListAttachments(r.Context(), userID, pathValue(r, "id"))
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -545,7 +545,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		attachment, err := service.UploadAttachment(r.Context(), mailservice.UploadAttachmentRequest{
 			UserID:   userID,
-			DraftID:  r.FormValue("draft_id"),
+			DraftID:  strings.TrimSpace(r.FormValue("draft_id")),
 			Filename: header.Filename,
 			Size:     header.Size,
 			MIMEType: mimeType,
@@ -563,7 +563,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		download, err := service.OpenAttachment(r.Context(), userID, r.PathValue("id"), r.PathValue("attachment_id"))
+		download, err := service.OpenAttachment(r.Context(), userID, pathValue(r, "id"), pathValue(r, "attachment_id"))
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -623,7 +623,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		id := strings.TrimSpace(r.PathValue("id"))
+		id := pathValue(r, "id")
 		if err := service.DeletePushDevice(r.Context(), userID, id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -701,6 +701,10 @@ func parseBoolQueryDefaultFalse(w http.ResponseWriter, r *http.Request, key stri
 		return false, true
 	}
 	return *value, true
+}
+
+func pathValue(r *http.Request, key string) string {
+	return strings.TrimSpace(r.PathValue(key))
 }
 
 func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {

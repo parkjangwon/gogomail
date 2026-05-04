@@ -853,7 +853,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	if err := writer.WriteField("draft_id", "draft-1"); err != nil {
+	if err := writer.WriteField("draft_id", " draft-1 "); err != nil {
 		t.Fatalf("WriteField returned error: %v", err)
 	}
 	part, err := writer.CreateFormFile("file", "report.pdf")
@@ -1031,7 +1031,7 @@ func TestMessageDeliveryStatusHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/delivery-status?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/%20msg-1%20/delivery-status?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
