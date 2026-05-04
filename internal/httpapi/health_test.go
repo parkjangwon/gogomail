@@ -8,6 +8,24 @@ import (
 	"testing"
 )
 
+func TestLiveHandlerIncludesNoSniffHeader(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterHealthRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/health/live", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+}
+
 func TestInfoHandler(t *testing.T) {
 	t.Parallel()
 
@@ -20,6 +38,9 @@ func TestInfoHandler(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
 	}
 	var body InfoResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -48,6 +69,9 @@ func TestReadyHandlerIncludesChecks(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
 	}
 	var body ReadinessResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -81,6 +105,9 @@ func TestReadyHandlerReportsRuntimeCheckFailure(t *testing.T) {
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
 	}
 	var body ReadinessResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {

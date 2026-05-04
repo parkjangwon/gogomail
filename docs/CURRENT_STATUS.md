@@ -921,6 +921,9 @@ The platform hardening sprint completed the following:
 - API error responses now use `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`, with the reusable OpenAPI error response
   documenting both headers for generated clients.
+- Successful Mail/Admin JSON, health, and service-info responses now return
+  `X-Content-Type-Options: nosniff`, aligning browser-visible envelopes with
+  error, NDJSON, and download response hardening.
 - Attachment download responses now emit both ASCII fallback and UTF-8
   `filename*` `Content-Disposition` parameters for internationalized filenames,
   with stored filenames bounded before response headers are written.
@@ -943,6 +946,8 @@ The platform hardening sprint completed the following:
 - Attachment downloads, usage NDJSON exports, and stored export artifact
   downloads now return `X-Content-Type-Options: nosniff`, with OpenAPI drift
   coverage.
+- Successful JSON responses now return `X-Content-Type-Options: nosniff` across
+  Mail, Admin, health, and service-info routes.
 - Mailservice now validates DB-returned message and attachment storage object
   paths before body reads or deletes, preventing corrupted rows from reaching
   the storage adapter with absolute, traversal, newline, or backslash-bearing
