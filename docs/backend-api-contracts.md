@@ -360,7 +360,9 @@ received-message documents to OpenSearch with
 `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`, and
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; API read-side search still uses the
-current backend contract until an OpenSearch query adapter is added.
+current backend contract until an OpenSearch query adapter is added. The
+OpenSearch writer includes a strict bootstrap mapping for the indexed document
+shape so deployments can create the index before enabling the worker.
 
 ## Deferred from this contract
 

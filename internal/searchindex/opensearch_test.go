@@ -85,6 +85,46 @@ func TestOpenSearchIndexerReportsServerError(t *testing.T) {
 	}
 }
 
+func TestOpenSearchIndexerEnsuresIndexMapping(t *testing.T) {
+	t.Parallel()
+
+	var method, path string
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	indexer, err := NewOpenSearchIndexer(OpenSearchOptions{
+		Endpoint: server.URL,
+		Index:    "gogomail-messages",
+		Client:   server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchIndexer returned error: %v", err)
+	}
+	if err := indexer.EnsureIndex(context.Background()); err != nil {
+		t.Fatalf("EnsureIndex returned error: %v", err)
+	}
+
+	if method != http.MethodPut || path != "/gogomail-messages" {
+		t.Fatalf("request = %s %s, want PUT /gogomail-messages", method, path)
+	}
+	mappings := payload["mappings"].(map[string]any)
+	properties := mappings["properties"].(map[string]any)
+	if properties["body_text"].(map[string]any)["type"] != "text" {
+		t.Fatalf("body_text mapping = %#v", properties["body_text"])
+	}
+	if properties["message_id"].(map[string]any)["type"] != "keyword" {
+		t.Fatalf("message_id mapping = %#v", properties["message_id"])
+	}
+}
+
 func TestOpenSearchIndexerRequiresOptions(t *testing.T) {
 	t.Parallel()
 
