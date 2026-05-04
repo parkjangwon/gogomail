@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+const (
+	maxAuditScalarBytes = 512
+	maxAuditDetailBytes = 16 << 10
+)
+
 type Log struct {
 	CompanyID  string
 	DomainID   string
@@ -28,17 +33,38 @@ func (l Log) normalized() (Log, error) {
 	if l.Category == "" {
 		return Log{}, fmt.Errorf("audit category is required")
 	}
+	if err := validateAuditText("audit category", l.Category, maxAuditScalarBytes); err != nil {
+		return Log{}, err
+	}
 	if l.Action == "" {
 		return Log{}, fmt.Errorf("audit action is required")
+	}
+	if err := validateAuditText("audit action", l.Action, maxAuditScalarBytes); err != nil {
+		return Log{}, err
 	}
 	if l.TargetType == "" {
 		l.TargetType = ""
 	}
+	if err := validateAuditText("audit target type", l.TargetType, maxAuditScalarBytes); err != nil {
+		return Log{}, err
+	}
 	if l.Result == "" {
 		return Log{}, fmt.Errorf("audit result is required")
 	}
+	if err := validateAuditText("audit result", l.Result, maxAuditScalarBytes); err != nil {
+		return Log{}, err
+	}
+	if err := validateAuditText("audit ip address", l.IPAddress, maxAuditScalarBytes); err != nil {
+		return Log{}, err
+	}
+	if err := validateAuditText("audit user agent", l.UserAgent, maxAuditScalarBytes); err != nil {
+		return Log{}, err
+	}
 	if len(l.Detail) == 0 {
 		l.Detail = json.RawMessage(`{}`)
+	}
+	if len(l.Detail) > maxAuditDetailBytes {
+		return Log{}, fmt.Errorf("audit detail is too large")
 	}
 	if !json.Valid(l.Detail) {
 		return Log{}, fmt.Errorf("audit detail must be valid json")
@@ -49,6 +75,13 @@ func (l Log) normalized() (Log, error) {
 		l.CreatedAt = l.CreatedAt.UTC()
 	}
 	return l, nil
+}
+
+func validateAuditText(name string, value string, maxBytes int) error {
+	if len(value) > maxBytes {
+		return fmt.Errorf("%s is too long", name)
+	}
+	return nil
 }
 
 func ComputeHash(prevHash string, log Log) (string, error) {

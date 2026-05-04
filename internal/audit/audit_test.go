@@ -47,6 +47,52 @@ func TestInsertTxRejectsNilTransaction(t *testing.T) {
 	}
 }
 
+func TestComputeHashRejectsOversizedAuditFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		log  Log
+		want string
+	}{
+		{
+			name: "category",
+			log:  Log{Category: strings.Repeat("c", maxAuditScalarBytes+1), Action: "mail.received", Result: "success"},
+			want: "audit category is too long",
+		},
+		{
+			name: "action",
+			log:  Log{Category: "mail", Action: strings.Repeat("a", maxAuditScalarBytes+1), Result: "success"},
+			want: "audit action is too long",
+		},
+		{
+			name: "result",
+			log:  Log{Category: "mail", Action: "mail.received", Result: strings.Repeat("r", maxAuditScalarBytes+1)},
+			want: "audit result is too long",
+		},
+		{
+			name: "user agent",
+			log:  Log{Category: "mail", Action: "mail.received", Result: "success", UserAgent: strings.Repeat("u", maxAuditScalarBytes+1)},
+			want: "audit user agent is too long",
+		},
+		{
+			name: "detail",
+			log:  Log{Category: "mail", Action: "mail.received", Result: "success", Detail: json.RawMessage(`{"value":"` + strings.Repeat("d", maxAuditDetailBytes) + `"}`)},
+			want: "audit detail is too large",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ComputeHash("", tt.log); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("ComputeHash error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestMailStoredAuditLog(t *testing.T) {
 	t.Parallel()
 
