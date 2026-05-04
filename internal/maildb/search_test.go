@@ -45,12 +45,23 @@ func TestMessageSearchSQLWeightsMetadataAboveBody(t *testing.T) {
 		"setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A')",
 		"setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A')",
 		"setweight(to_tsvector('simple', coalesce(messages.from_name, '')), 'B')",
-		"setweight(to_tsvector('simple', coalesce(messages.draft_text_body, '')), 'C')",
 		"setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D')",
 	} {
 		if !strings.Contains(query, want) {
 			t.Fatalf("query does not include weighted search vector %q:\n%s", want, query)
 		}
+	}
+}
+
+func TestMessageSearchSQLExcludesDraftRows(t *testing.T) {
+	t.Parallel()
+
+	query := messageSearchSQL(MessageSearchSortRelevance)
+	if !strings.Contains(query, "messages.status = 'active'") {
+		t.Fatalf("query does not restrict search to active messages:\n%s", query)
+	}
+	if strings.Contains(query, "draft_text_body") {
+		t.Fatalf("query includes draft text despite active-message search contract:\n%s", query)
 	}
 }
 

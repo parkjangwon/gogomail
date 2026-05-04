@@ -253,7 +253,7 @@ Implementation order:
 204. Mail API exposes thread list and thread-message read models using `COALESCE(thread_id, id)` so existing unthreaded mail renders as conversations while future RFC References/In-Reply-To assignment can improve grouping.
 205. Message parsing and persistence now use RFC `In-Reply-To`/`References` and reply/forward source messages to assign `thread_id`, improving conversation grouping while preserving user-scoped tenant isolation.
 206. Reply composition now writes RFC `In-Reply-To` and `References` headers into outgoing `.eml` messages using the source message thread, preserving conversation threading for remote recipients and future IMAP clients.
-207. Mail API exposes a small-deployment search endpoint backed by Postgres FTS over message metadata and draft text, while full received-body indexing remains reserved for the future index worker/OpenSearch boundary.
+207. Mail API exposes a small-deployment search endpoint backed by Postgres FTS over active-message metadata, while full received-body indexing remains reserved for the future index worker/OpenSearch boundary.
 208. Quota roadmap is hierarchical and SaaS-oriented: company owns the contracted storage pool, domains receive allocations within the company pool, and users receive unified personal storage usable across mailbox, attachments, future Drive, and other user-owned storage. Domain default user quota changes should update default-following users while preserving custom user overrides.
 
 204. Mailbox quota is enforced atomically at SMTP receive, Submission MTA, and Mail API delete flows using a PostgreSQL row-level lock on the user row; the SMTP layer returns RFC-correct 452 4.2.2 when the mailbox is full.
@@ -364,8 +364,9 @@ Implementation order:
 305. Admin API now exposes API usage ledger retention readiness, a read-only cutoff report that blocks future archive/delete work unless candidate ledger rows are covered by a completed export batch with matching tenant/principal filters, no later-recorded candidate rows, and artifact/digest/signature evidence.
 306. API usage export now has an operator runbook covering capability checks, saved export batches, artifact/digest/signature verification, deep handoff readiness, and retention-readiness gates.
 307. API usage export manifest signing now supports a `remote-ed25519` backend that calls an HTTPS signer endpoint, verifies the returned Ed25519 signature locally with the configured public key, and can satisfy production signature readiness without coupling gogomail to a vendor KMS SDK.
-308. Postgres and OpenSearch relevance search now share metadata-first weighting, boosting subject and sender matches above draft/body text with regression coverage on both backend query shapes.
+308. Postgres and OpenSearch relevance search now share metadata-first weighting, boosting subject and sender matches above indexed body text with regression coverage on both backend query shapes.
 309. The shared event worker now handles `mail.stored` events with an IMAP UID assignment handler, ensuring received active messages get mailbox-local UIDs asynchronously after SMTP storage commits.
+310. `GET /api/v1/search` now explicitly stays scoped to active messages; draft search is deferred to a future dedicated contract so Postgres and OpenSearch relevance behavior remain aligned.
 
 ## Deferred until backend contracts stabilize
 

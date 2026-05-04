@@ -454,12 +454,13 @@ Message search starts with a small-deployment Postgres implementation:
 
 - `GET /api/v1/search`
 
-The current backend searches message metadata (`subject`, `from_addr`,
-`from_name`), `draft_text_body`, and indexed received-message body text using a
-simple Postgres FTS expression and bounded list limits. Search clients can opt
-into `sort=relevance`, `include_rank=true`, and `include_highlights=true` while
-newest-first ordering remains the default. `search-index-worker` can also write
-received-message documents to OpenSearch with
+The current backend searches active-message metadata (`subject`, `from_addr`,
+`from_name`) and indexed received-message body text using a simple Postgres FTS
+expression and bounded list limits. Draft rows are intentionally excluded from
+`GET /api/v1/search` until an explicit draft search contract and indexing path
+are added. Search clients can opt into `sort=relevance`, `include_rank=true`,
+and `include_highlights=true` while newest-first ordering remains the default.
+`search-index-worker` can also write received-message documents to OpenSearch with
 `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`,
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT`, and
 `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX`; OpenSearch writer/searcher calls use
@@ -475,7 +476,7 @@ responses are returned. Indexed OpenSearch documents include folder, parsed
 sender, lower-cased sender/subject, and attachment-presence fields for filter
 parity work, and OpenSearch relevance searches can apply folder, from, subject,
 and attachment filters before hydration. Relevance tuning is metadata-first:
-subject and sender matches are boosted above draft/body text on both Postgres
+subject and sender matches are boosted above indexed body text on both Postgres
 and OpenSearch paths. OpenSearch highlights map into the existing
 `search_highlights` response shape after fragment count and byte-size bounding.
 Newest-first search remains on the Postgres path so the default response

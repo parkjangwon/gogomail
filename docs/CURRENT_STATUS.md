@@ -46,8 +46,8 @@ guidance.
   source messages exist.
 - Reply composition writes RFC `In-Reply-To`/`References` headers into outgoing
   `.eml` messages.
-- Mail API exposes a first Postgres-backed search endpoint for message metadata
-  and draft text, with an FTS index for small deployments.
+- Mail API exposes a first Postgres-backed search endpoint for active message
+  metadata, with an FTS index for small deployments.
 - Received-message body search now has an asynchronous indexing boundary:
   `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects,
   extracts bounded text through the shared parser, and upserts Postgres search
@@ -55,7 +55,7 @@ guidance.
 - Search responses can now opt into relevance sorting, rank scores, and bounded
   Postgres headline snippets while preserving date-sorted results by default.
 - Postgres and OpenSearch relevance search now share a metadata-first tuning
-  intent: subject and sender matches rank above draft/body text matches.
+  intent: subject and sender matches rank above indexed body text matches.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain
@@ -354,8 +354,8 @@ The platform hardening sprint completed the following:
 
 Next focus areas:
 
-1. Add backend-specific search relevance tuning/regression fixtures and decide
-   how drafts should participate in non-Postgres search.
+1. Keep draft search separate from `GET /api/v1/search` until an explicit draft
+   search contract and indexing path are added.
 2. Extend the quota ledger to future Drive writes and large share-link objects.
 3. Wire mailbox event publication from append/flag/move/delete paths behind the
    IMAP gateway boundary.
