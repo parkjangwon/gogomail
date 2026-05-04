@@ -4538,6 +4538,7 @@ components:
           description: Development fallback when bearer auth is disabled.
         draft_id:
           type: string
+          maxLength: 200
         intent:
           type: string
           enum: [new, reply, forward]
@@ -4578,6 +4579,7 @@ components:
       properties:
         draft_id:
           type: string
+          maxLength: 200
         filename:
           type: string
         size:

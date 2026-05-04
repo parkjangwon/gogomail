@@ -33,6 +33,11 @@ func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) er
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
+	if strings.TrimSpace(req.DraftID) != "" {
+		if err := validateServiceResourceID("draft_id", req.DraftID); err != nil {
+			return err
+		}
+	}
 	filename := strings.TrimSpace(req.Filename)
 	if filename == "" {
 		return fmt.Errorf("filename is required")

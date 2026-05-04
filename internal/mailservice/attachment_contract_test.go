@@ -1,6 +1,9 @@
 package mailservice
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateCreateAttachmentUploadRequestRejectsPathFilename(t *testing.T) {
 	t.Parallel()
@@ -13,6 +16,27 @@ func TestValidateCreateAttachmentUploadRequestRejectsPathFilename(t *testing.T) 
 	})
 	if err == nil {
 		t.Fatal("ValidateCreateAttachmentUploadRequest accepted path filename")
+	}
+}
+
+func TestValidateCreateAttachmentUploadRequestRejectsUnsafeDraftID(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"draft-1\r\nbad",
+		strings.Repeat("x", maxServiceResourceIDBytes+1),
+	}
+	for _, draftID := range tests {
+		err := ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
+			UserID:   "user-1",
+			DraftID:  draftID,
+			Filename: "report.pdf",
+			Size:     10,
+			MIMEType: "application/pdf",
+		})
+		if err == nil {
+			t.Fatalf("ValidateCreateAttachmentUploadRequest accepted draft_id %q", draftID)
+		}
 	}
 }
 

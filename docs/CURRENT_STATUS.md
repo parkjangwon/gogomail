@@ -494,7 +494,8 @@ The platform hardening sprint completed the following:
   preserving 400 for bad multipart syntax.
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
-  storage, and repository work.
+  storage, and repository work, and reject CR/LF-bearing or oversized draft
+  identifiers before quota reservation or object writes.
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work.
 - Attachment list/download and draft-delete service methods trim user, message,
