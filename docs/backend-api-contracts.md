@@ -289,7 +289,8 @@ downloads all return `Cache-Control: no-store` because usage exports are
 sensitive operational/billing data. Attachment downloads, usage NDJSON exports,
 and stored usage artifact downloads also return `X-Content-Type-Options:
 nosniff` so browsers do not reinterpret streamed bytes as another content type.
-Successful JSON envelopes return the same `nosniff` header for consistent
+Successful Mail/Admin JSON envelopes also return `Cache-Control: no-store`;
+successful JSON envelopes return the same `nosniff` header for consistent
 browser behavior across Mail, Admin, health, and service-info routes.
 
 ## Push devices

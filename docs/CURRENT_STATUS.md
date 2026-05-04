@@ -924,6 +924,9 @@ The platform hardening sprint completed the following:
 - Successful Mail/Admin JSON, health, and service-info responses now return
   `X-Content-Type-Options: nosniff`, aligning browser-visible envelopes with
   error, NDJSON, and download response hardening.
+- Successful Mail/Admin JSON responses now return `Cache-Control: no-store`
+  through the shared writer so sensitive message, audit, usage, and control
+  envelopes are not cached.
 - Attachment download responses now emit both ASCII fallback and UTF-8
   `filename*` `Content-Disposition` parameters for internationalized filenames,
   with stored filenames bounded before response headers are written.
@@ -948,6 +951,8 @@ The platform hardening sprint completed the following:
   coverage.
 - Successful JSON responses now return `X-Content-Type-Options: nosniff` across
   Mail, Admin, health, and service-info routes.
+- Successful Mail/Admin JSON envelopes now use `Cache-Control: no-store` through
+  the shared writer.
 - Mailservice now validates DB-returned message and attachment storage object
   paths before body reads or deletes, preventing corrupted rows from reaching
   the storage adapter with absolute, traversal, newline, or backslash-bearing

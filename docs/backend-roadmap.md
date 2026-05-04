@@ -680,6 +680,7 @@ Implementation order:
 620. Mail and Admin API scalar query parameters now reject duplicate values before dispatch, preventing HTTP parameter pollution ambiguity for user IDs, limits, booleans, timestamps, and operational filters.
 621. Direct multipart attachment uploads now reject repeated `draft_id` or `file` parts and no longer accept `draft_id` from the URL query string, preventing ambiguous form metadata before storage writes.
 622. Successful Mail/Admin JSON, health, and service-info responses now return `X-Content-Type-Options: nosniff`, aligning browser-facing API envelopes with error, NDJSON, and download response hardening.
+623. Successful Mail/Admin JSON envelopes now return `Cache-Control: no-store` through the shared writer, preventing sensitive message, audit, usage, and control responses from being cached.
 
 ## Deferred until backend contracts stabilize
 
