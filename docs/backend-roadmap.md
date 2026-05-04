@@ -630,6 +630,7 @@ Implementation order:
 570. `gogomail --mode=all-in-one` now registers Mail API and Admin API routes in one HTTP process, making the documented single-node mode usable for local release smoke tests.
 571. Admin user creation and password-hash rotation now accept validated `password_hash` values, giving operators a supported path to create and maintain SMTP Submission-capable local users without direct database writes.
 572. Admin user read models now expose `password_configured`, giving operators safe visibility into Submission login readiness without returning password hashes.
+573. Admin user listing now supports a bounded `password_configured=true|false` filter, letting operators find Submission-ready or not-yet-configured local users without direct database queries.
 
 ## Deferred until backend contracts stabilize
 

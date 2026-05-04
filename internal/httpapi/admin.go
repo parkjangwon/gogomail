@@ -40,7 +40,7 @@ type AdminService interface {
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
 	UpdateDomainPolicy(ctx context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error)
-	ListUsers(ctx context.Context, domainID string, limit int) ([]maildb.UserView, error)
+	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, error)
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
@@ -375,7 +375,15 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		users, err := service.ListUsers(r.Context(), domainID, limit)
+		passwordConfigured, ok := parseOptionalBoolQuery(w, r, "password_configured")
+		if !ok {
+			return
+		}
+		users, err := service.ListUsers(r.Context(), maildb.UserListRequest{
+			DomainID:           domainID,
+			PasswordConfigured: passwordConfigured,
+			Limit:              limit,
+		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

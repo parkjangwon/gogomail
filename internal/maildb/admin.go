@@ -735,6 +735,12 @@ type UserView struct {
 	CreatedAt          time.Time `json:"created_at"`
 }
 
+type UserListRequest struct {
+	DomainID           string
+	PasswordConfigured *bool
+	Limit              int
+}
+
 type DomainPolicyView struct {
 	DomainID                string    `json:"domain_id"`
 	InboundMode             string    `json:"inbound_mode"`
@@ -1610,11 +1616,11 @@ func normalizeAdminStatus(status string) string {
 	return strings.ToLower(strings.TrimSpace(status))
 }
 
-func (r *Repository) ListUsers(ctx context.Context, domainID string, limit int) ([]UserView, error) {
+func (r *Repository) ListUsers(ctx context.Context, req UserListRequest) ([]UserView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	limit := normalizeLimit(req.Limit)
 
 	const query = `
 SELECT
@@ -1631,10 +1637,11 @@ SELECT
   created_at
 FROM users
 WHERE ($1 = '' OR domain_id::text = $1)
+  AND ($2::boolean IS NULL OR (COALESCE(password_hash, '') <> '') = $2)
 ORDER BY created_at DESC
-LIMIT $2`
+LIMIT $3`
 
-	rows, err := r.db.QueryContext(ctx, query, domainID, limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), req.PasswordConfigured, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
