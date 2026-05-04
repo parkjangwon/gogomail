@@ -259,7 +259,9 @@ same cleanup sweep.
 
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of
-silently dispatching the first decoded object.
+silently dispatching the first decoded object. JSON object request bodies also
+reject unknown fields as HTTP 400 `bad_request` so generated-client and
+OpenAPI drift is visible before service dispatch.
 
 Attachment downloads set private `no-store` responses and include both a safe
 ASCII `filename` fallback and a UTF-8 `filename*` parameter in
