@@ -95,7 +95,7 @@ type AdminService interface {
 	GetPushNotificationAttempt(ctx context.Context, id string) (maildb.PushNotificationAttemptView, error)
 	UpdatePushNotificationOutcome(ctx context.Context, req maildb.UpdatePushNotificationOutcomeRequest) error
 	GetPushNotificationStats(ctx context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error)
-	ListSuppressionEntries(ctx context.Context, limit int) ([]maildb.SuppressionEntry, error)
+	ListSuppressionEntries(ctx context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error)
 	ListTrustedRelays(ctx context.Context, limit int) ([]maildb.TrustedRelayView, error)
 	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
 	DeleteTrustedRelay(ctx context.Context, id string) error
@@ -1458,7 +1458,29 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		entries, err := service.ListSuppressionEntries(r.Context(), limit)
+		domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+		if !ok {
+			return
+		}
+		email, ok := parseBoundedAdminQuery(w, r, "email")
+		if !ok {
+			return
+		}
+		reason, ok := parseBoundedAdminQuery(w, r, "reason")
+		if !ok {
+			return
+		}
+		listReq := maildb.SuppressionEntryListRequest{
+			Limit:    limit,
+			DomainID: domainID,
+			Email:    email,
+			Reason:   reason,
+		}
+		if err := maildb.ValidateSuppressionEntryListRequest(listReq); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		entries, err := service.ListSuppressionEntries(r.Context(), listReq)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

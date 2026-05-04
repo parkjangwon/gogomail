@@ -414,7 +414,10 @@ Admin operational read models also keep explicit envelope keys:
   attempts, while optional `user_id` scopes both active-device and
   attempt-status totals to one user. Text filters use the same bounded
   validation; `platform` is limited to `apns`, `fcm`, or `webpush`.
-- `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
+- `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}` with
+  optional `domain_id`, `email`, and `reason` filters for bounce-suppression
+  triage. Text filters reject CR/LF-bearing or oversized values before service
+  dispatch.
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`; optional
   `domain_id` rejects CR/LF-bearing or oversized values before service
   dispatch, and optional `status=active|inactive` scopes key lifecycle triage.

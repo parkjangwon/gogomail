@@ -3898,7 +3898,7 @@ func TestAdminSuppressionListHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/suppression-list?limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/suppression-list?domain_id=%20domain-1%20&email=%20user@example.net%20&reason=%20hard_bounce%20&limit=5", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -3907,6 +3907,41 @@ func TestAdminSuppressionListHandler(t *testing.T) {
 	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+	if service.lastSuppressionList.DomainID != "domain-1" || service.lastSuppressionList.Email != "user@example.net" || service.lastSuppressionList.Reason != "hard_bounce" {
+		t.Fatalf("lastSuppressionList = %+v", service.lastSuppressionList)
+	}
+}
+
+func TestAdminSuppressionListHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/suppression-list?domain_id=domain%0Abad",
+		"/admin/v1/suppression-list?email=user%0D@example.net",
+		"/admin/v1/suppression-list?reason=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+	}
+
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastSuppressionList.Limit != 0 {
+				t.Fatalf("lastSuppressionList = %+v", service.lastSuppressionList)
+			}
+		})
 	}
 }
 
@@ -4571,6 +4606,7 @@ type fakeAdminService struct {
 	lastAuditLogList                            maildb.AuditLogListRequest
 	lastAuditLogID                              string
 	lastAuditLogIntegrity                       maildb.AuditLogIntegrityRequest
+	lastSuppressionList                         maildb.SuppressionEntryListRequest
 	lastCompanyID                               string
 	lastDomainID                                string
 	lastUserID                                  string
@@ -5050,8 +5086,9 @@ func (f *fakeAdminService) GetPushNotificationStats(_ context.Context, req maild
 	return f.pushNotificationStats, nil
 }
 
-func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, limit int) ([]maildb.SuppressionEntry, error) {
-	f.lastLimit = limit
+func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error) {
+	f.lastSuppressionList = req
+	f.lastLimit = req.Limit
 	return f.suppression, nil
 }
 

@@ -648,6 +648,13 @@ type SuppressionEntry struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+type SuppressionEntryListRequest struct {
+	Limit    int
+	DomainID string
+	Email    string
+	Reason   string
+}
+
 type DomainStatsView struct {
 	DomainID          string `json:"domain_id"`
 	ActiveUsers       int64  `json:"active_users"`
@@ -4719,11 +4726,14 @@ func cleanAdminBoundedText(value string, maxBytes int) string {
 	return value[:cut]
 }
 
-func (r *Repository) ListSuppressionEntries(ctx context.Context, limit int) ([]SuppressionEntry, error) {
+func (r *Repository) ListSuppressionEntries(ctx context.Context, req SuppressionEntryListRequest) ([]SuppressionEntry, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit = normalizeLimit(limit)
+	if err := ValidateSuppressionEntryListRequest(req); err != nil {
+		return nil, err
+	}
+	limit := normalizeLimit(req.Limit)
 
 	const query = `
 SELECT
@@ -4734,10 +4744,13 @@ SELECT
   COALESCE(source_message_id::text, ''),
   created_at
 FROM suppression_list
+WHERE ($1 = '' OR domain_id::text = $1)
+  AND ($2 = '' OR email = $2)
+  AND ($3 = '' OR reason = $3)
 ORDER BY created_at DESC
-LIMIT $1`
+LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Email), strings.TrimSpace(req.Reason), limit)
 	if err != nil {
 		return nil, fmt.Errorf("list suppression entries: %w", err)
 	}
@@ -4762,6 +4775,19 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate suppression entries: %w", err)
 	}
 	return entries, nil
+}
+
+func ValidateSuppressionEntryListRequest(req SuppressionEntryListRequest) error {
+	for field, value := range map[string]string{
+		"domain_id": req.DomainID,
+		"email":     req.Email,
+		"reason":    req.Reason,
+	} {
+		if err := validatePushNotificationFilter(field, strings.TrimSpace(value)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Repository) ListTrustedRelays(ctx context.Context, limit int) ([]TrustedRelayView, error) {

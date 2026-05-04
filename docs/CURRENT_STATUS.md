@@ -40,6 +40,8 @@ guidance.
   checks/history, backpressure inspection/update, domain policy, per-domain
   stats, DKIM DNS verification, delivery route runtime counters, and exhausted
   delivery attempts with recipient-domain and recent-window filters.
+- Suppression-list reads can filter by domain, email, and reason for targeted
+  bounce triage without direct database access.
 - Queue stats include ready, delayed, stale-processing, oldest-ready, and
   next-available metadata so operators can distinguish backlog from scheduled
   retry delay.
