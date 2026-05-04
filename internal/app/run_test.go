@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -92,9 +94,44 @@ func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
 	}
 }
 
+func TestAPIMeteringHandlerDefaultsToOriginalHandler(t *testing.T) {
+	t.Parallel()
+
+	next := &sentinelHTTPHandler{}
+	handler := apiMeteringHandler(next, config.Config{APIMeteringBackend: "none"}, nil)
+	if handler != next {
+		t.Fatal("apiMeteringHandler wrapped handler when backend is none")
+	}
+}
+
+func TestAPIMeteringHandlerWrapsSlogBackend(t *testing.T) {
+	t.Parallel()
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+	handler := apiMeteringHandler(next, config.Config{
+		APIMeteringBackend: "slog",
+		APIMeteringTimeout: 100 * time.Millisecond,
+	}, nil)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+	}
+}
+
 type fakeDKIMKeyRepository struct {
 	key          maildb.DKIMKey
 	lastDomainID string
+}
+
+type sentinelHTTPHandler struct{}
+
+func (*sentinelHTTPHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (r fakeDKIMKeyRepository) ActiveDKIMKey(_ context.Context, domainID string) (maildb.DKIMKey, error) {

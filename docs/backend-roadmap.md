@@ -268,6 +268,11 @@ Implementation order:
 213. Hierarchical quota ledger first implementation: Admin API exposes company quota read/update, user records track `quota_source=default|custom`, domain quota updates can propagate `default_user_quota` to default-following users, and mail write/delete transactions atomically adjust company, domain, and user ledgers.
 214. API metering is a planned platform capability: collect company/domain/user/api-key, route, method, status, latency, response size, and timestamp asynchronously for SaaS billing, rate-limit policy, abuse detection, and operations dashboards without adding synchronous hot-path writes.
 215. Attachment uploads now participate in the hierarchical quota ledger: upload metadata creation reserves bytes from company/domain/user counters, stale upload cleanup releases those bytes, stored objects are deleted after DB cleanup, and Mail API quota exhaustion is surfaced as HTTP 507 `insufficient_storage`.
+216. Admin quota read models now expose remaining capacity, child allocated quota, allocatable quota, and over-allocation flags so operators can see company/domain/user pressure before writes fail.
+217. Admin API exposes a read-only quota reconciliation report (`GET /admin/v1/quota-reconciliation`) comparing company/domain/user ledger counters against active message bytes plus uploading/stored attachment bytes.
+218. Received-message body search has an asynchronous indexing boundary: `search-index-worker` consumes `mail.stored`, reads raw `.eml` from storage, extracts bounded plain text through `internal/message`, and upserts `message_search_documents`.
+219. Postgres-backed search includes indexed received body text while preserving the existing `GET /api/v1/search` response envelope; OpenSearch, highlighting, and ranking remain behind the same future search contract.
+220. API metering has a disabled-by-default HTTP middleware boundary with async fail-open recording and a `slog` sink, preparing future durable usage aggregation without synchronous enforcement.
 
 ## Deferred until backend contracts stabilize
 

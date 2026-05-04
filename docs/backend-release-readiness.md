@@ -9,6 +9,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Inbound and reply/forward outbound persistence assign thread IDs from RFC thread headers or source messages where possible.
 - Reply composition writes RFC thread headers into outgoing `.eml`, preserving conversation threading outside gogomail.
 - Mail API exposes a small-deployment Postgres-backed search endpoint for metadata and draft text, with full body indexing deferred to the indexing worker boundary.
+- Received-message body indexing now has a first worker boundary: `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects, extracts bounded plain text, writes Postgres search documents, and lets the existing search endpoint include received body text without changing its response envelope.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
 - Stale attachment uploads have a repository/service cleanup path and a partial index for efficient lifecycle sweeps.
@@ -27,8 +28,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API now exposes delivery route list/create/status/delete operations backed by PostgreSQL, preparing gateway and smart-host policy for auditable runtime administration without coupling it to SMTP core.
 - Admin API can dry-run delivery route resolution for a recipient domain, improving runtime route observability without triggering SMTP delivery.
 - Admin API exposes a quota usage pressure read model for company, domain, and user limits so operators can spot backpressure risks before SMTP or Mail API writes start failing.
+- Admin quota read models expose remaining capacity, child allocation, allocatable capacity, and over-allocation flags.
+- Admin API exposes a read-only quota reconciliation report for detecting ledger drift against message and attachment source rows.
 - Quota product direction is captured in ADR 0003 and partially implemented: company contracted storage pool, domain allocations, user unified storage allowance, `default|custom` user quota source, domain default user quota propagation, and atomic company/domain/user ledger updates for mail storage writes/deletes plus attachment upload/cleanup.
 - API metering is recorded as a planned SaaS platform boundary: usage should be collected asynchronously for future billing/rate-limit/abuse analytics, while enforcement remains policy-driven and disabled by default in the MVP.
+- API metering has a disabled-by-default fail-open middleware boundary with a `slog` sink for early operational visibility.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.
 - DKIM key creation derives the public DNS TXT record from the private key when omitted, reducing operator DNS setup errors while preserving private-key omission from admin list responses.
 - Admin API exposes domain DNS verification for MX, SPF, DMARC, and active DKIM TXT records, and each check is persisted with an audit log entry for domain onboarding traceability before frontend implementation.

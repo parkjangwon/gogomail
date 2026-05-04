@@ -385,6 +385,17 @@ paths:
           $ref: "#/components/responses/QuotaUsageList"
         default:
           $ref: "#/components/responses/Error"
+  /quota-reconciliation:
+    get:
+      operationId: listAdminQuotaReconciliation
+      summary: Admin quota ledger reconciliation report
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaReconciliationList"
+        default:
+          $ref: "#/components/responses/Error"
   /delivery-attempts:
     get:
       operationId: listAdminDeliveryAttempts
@@ -976,6 +987,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QuotaUsageListEnvelope"
+    QuotaReconciliationList:
+      description: Quota ledger reconciliation report envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaReconciliationListEnvelope"
     DeliveryAttempts:
       description: Delivery attempts envelope
       content:
@@ -1611,7 +1628,7 @@ components:
           $ref: "#/components/schemas/BackpressureState"
     QuotaUsage:
       type: object
-      required: [scope, id, name, quota_used, quota_limit, usage_ratio, over_limit, updated_at]
+      required: [scope, id, name, quota_used, quota_limit, quota_remaining, allocated_quota, allocatable_quota, usage_ratio, allocation_ratio, over_limit, over_allocated, updated_at]
       properties:
         scope:
           type: string
@@ -1630,11 +1647,29 @@ components:
           type: integer
           format: int64
           minimum: 1
+        quota_remaining:
+          type: integer
+          format: int64
+          minimum: 0
+        allocated_quota:
+          type: integer
+          format: int64
+          minimum: 0
+        allocatable_quota:
+          type: integer
+          format: int64
+          minimum: 0
         usage_ratio:
           type: number
           format: double
           minimum: 0
+        allocation_ratio:
+          type: number
+          format: double
+          minimum: 0
         over_limit:
+          type: boolean
+        over_allocated:
           type: boolean
         updated_at:
           type: string
@@ -1647,6 +1682,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QuotaUsage"
+    QuotaReconciliation:
+      type: object
+      required: [scope, id, name, ledger_used, actual_used, delta, in_sync, checked_at]
+      properties:
+        scope:
+          type: string
+          enum: [company, domain, user]
+        id:
+          type: string
+        domain_id:
+          type: string
+        name:
+          type: string
+        ledger_used:
+          type: integer
+          format: int64
+          minimum: 0
+        actual_used:
+          type: integer
+          format: int64
+          minimum: 0
+        delta:
+          type: integer
+          format: int64
+          description: ledger_used minus actual_used.
+        in_sync:
+          type: boolean
+        checked_at:
+          type: string
+          format: date-time
+    QuotaReconciliationListEnvelope:
+      type: object
+      required: [quota_reconciliation]
+      properties:
+        quota_reconciliation:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaReconciliation"
     DeliveryAttempt:
       type: object
       required: [id, message_id, rfc_message_id, farm, recipient, recipient_domain, status, error_message, attempted_at]
@@ -1914,7 +1987,7 @@ components:
           format: int64
     Company:
       type: object
-      required: [id, name, status, quota_used, created_at]
+      required: [id, name, status, quota_used, quota_remaining, allocated_domain_quota, allocatable_domain_quota, over_allocated, created_at]
       properties:
         id:
           type: string
@@ -1931,6 +2004,20 @@ components:
           type: integer
           format: int64
           minimum: 0
+        quota_remaining:
+          type: integer
+          format: int64
+          minimum: 0
+        allocated_domain_quota:
+          type: integer
+          format: int64
+          minimum: 0
+        allocatable_domain_quota:
+          type: integer
+          format: int64
+          minimum: 0
+        over_allocated:
+          type: boolean
         created_at:
           type: string
           format: date-time
@@ -1950,7 +2037,7 @@ components:
           $ref: "#/components/schemas/Company"
     Domain:
       type: object
-      required: [id, company_id, name, name_ace, status, quota_used, created_at]
+      required: [id, company_id, name, name_ace, status, quota_used, quota_remaining, allocated_user_quota, allocatable_user_quota, over_allocated, created_at]
       properties:
         id:
           type: string
@@ -1971,10 +2058,24 @@ components:
           type: integer
           format: int64
           minimum: 0
+        quota_remaining:
+          type: integer
+          format: int64
+          minimum: 0
         default_user_quota:
           type: integer
           format: int64
           minimum: 0
+        allocated_user_quota:
+          type: integer
+          format: int64
+          minimum: 0
+        allocatable_user_quota:
+          type: integer
+          format: int64
+          minimum: 0
+        over_allocated:
+          type: boolean
         last_dns_check_status:
           type: string
           enum: [ok, missing, mismatch, error]
@@ -2093,7 +2194,7 @@ components:
           $ref: "#/components/schemas/DomainPolicy"
     User:
       type: object
-      required: [id, domain_id, username, display_name, role, status, quota_used, quota_source, created_at]
+      required: [id, domain_id, username, display_name, role, status, quota_used, quota_remaining, quota_source, created_at]
       properties:
         id:
           type: string
@@ -2113,6 +2214,10 @@ components:
           format: int64
           minimum: 0
         quota_limit:
+          type: integer
+          format: int64
+          minimum: 0
+        quota_remaining:
           type: integer
           format: int64
           minimum: 0

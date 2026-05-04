@@ -99,13 +99,17 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 
 	service := &fakeAdminService{
 		quotaUsage: []maildb.QuotaUsageView{{
-			Scope:      "domain",
-			ID:         "domain-1",
-			DomainID:   "domain-1",
-			Name:       "example.com",
-			QuotaUsed:  900,
-			QuotaLimit: 1000,
-			UsageRatio: 0.9,
+			Scope:            "domain",
+			ID:               "domain-1",
+			DomainID:         "domain-1",
+			Name:             "example.com",
+			QuotaUsed:        900,
+			QuotaLimit:       1000,
+			QuotaRemaining:   100,
+			AllocatedQuota:   700,
+			AllocatableQuota: 300,
+			UsageRatio:       0.9,
+			AllocationRatio:  0.7,
 		}},
 	}
 	mux := http.NewServeMux()
@@ -127,8 +131,50 @@ func TestAdminQuotaUsageHandler(t *testing.T) {
 	if len(body.QuotaUsage) != 1 || body.QuotaUsage[0].Name != "example.com" {
 		t.Fatalf("quota_usage = %+v", body.QuotaUsage)
 	}
+	if body.QuotaUsage[0].QuotaRemaining != 100 || body.QuotaUsage[0].AllocatableQuota != 300 {
+		t.Fatalf("quota capacity fields = %+v", body.QuotaUsage[0])
+	}
 	if service.lastLimit != 5 {
 		t.Fatalf("lastLimit = %d, want 5", service.lastLimit)
+	}
+}
+
+func TestAdminQuotaReconciliationHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		quotaReconciliation: []maildb.QuotaReconciliationView{{
+			Scope:      "user",
+			ID:         "user-1",
+			DomainID:   "domain-1",
+			Name:       "admin@example.com",
+			LedgerUsed: 1200,
+			ActualUsed: 1000,
+			Delta:      200,
+			InSync:     false,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/quota-reconciliation?limit=7", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		QuotaReconciliation []maildb.QuotaReconciliationView `json:"quota_reconciliation"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.QuotaReconciliation) != 1 || body.QuotaReconciliation[0].Delta != 200 {
+		t.Fatalf("quota_reconciliation = %+v", body.QuotaReconciliation)
+	}
+	if service.lastLimit != 7 {
+		t.Fatalf("lastLimit = %d, want 7", service.lastLimit)
 	}
 }
 
@@ -1005,6 +1051,7 @@ type fakeAdminService struct {
 	users                          []maildb.UserView
 	queueStats                     []maildb.QueueStat
 	quotaUsage                     []maildb.QuotaUsageView
+	quotaReconciliation            []maildb.QuotaReconciliationView
 	attempts                       []maildb.DeliveryAttemptView
 	suppression                    []maildb.SuppressionEntry
 	trustedRelays                  []maildb.TrustedRelayView
@@ -1165,6 +1212,11 @@ func (f *fakeAdminService) UpdateBackpressure(_ context.Context, req backpressur
 func (f *fakeAdminService) ListQuotaUsage(_ context.Context, limit int) ([]maildb.QuotaUsageView, error) {
 	f.lastLimit = limit
 	return f.quotaUsage, nil
+}
+
+func (f *fakeAdminService) ListQuotaReconciliation(_ context.Context, limit int) ([]maildb.QuotaReconciliationView, error) {
+	f.lastLimit = limit
+	return f.quotaReconciliation, nil
 }
 
 func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, limit int) ([]maildb.DeliveryAttemptView, error) {

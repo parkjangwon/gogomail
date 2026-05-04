@@ -111,24 +111,33 @@ type QueueStat struct {
 }
 
 type CompanyView struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	QuotaUsed  int64     `json:"quota_used"`
-	QuotaLimit int64     `json:"quota_limit,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID                     string    `json:"id"`
+	Name                   string    `json:"name"`
+	Status                 string    `json:"status"`
+	QuotaUsed              int64     `json:"quota_used"`
+	QuotaLimit             int64     `json:"quota_limit,omitempty"`
+	QuotaRemaining         int64     `json:"quota_remaining"`
+	AllocatedDomainQuota   int64     `json:"allocated_domain_quota"`
+	AllocatableDomainQuota int64     `json:"allocatable_domain_quota"`
+	OverAllocated          bool      `json:"over_allocated"`
+	CreatedAt              time.Time `json:"created_at"`
 }
 
 type QuotaUsageView struct {
-	Scope      string    `json:"scope"`
-	ID         string    `json:"id"`
-	DomainID   string    `json:"domain_id,omitempty"`
-	Name       string    `json:"name"`
-	QuotaUsed  int64     `json:"quota_used"`
-	QuotaLimit int64     `json:"quota_limit"`
-	UsageRatio float64   `json:"usage_ratio"`
-	OverLimit  bool      `json:"over_limit"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	Scope            string    `json:"scope"`
+	ID               string    `json:"id"`
+	DomainID         string    `json:"domain_id,omitempty"`
+	Name             string    `json:"name"`
+	QuotaUsed        int64     `json:"quota_used"`
+	QuotaLimit       int64     `json:"quota_limit"`
+	QuotaRemaining   int64     `json:"quota_remaining"`
+	AllocatedQuota   int64     `json:"allocated_quota"`
+	AllocatableQuota int64     `json:"allocatable_quota"`
+	UsageRatio       float64   `json:"usage_ratio"`
+	AllocationRatio  float64   `json:"allocation_ratio"`
+	OverLimit        bool      `json:"over_limit"`
+	OverAllocated    bool      `json:"over_allocated"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type DeliveryAttemptView struct {
@@ -207,30 +216,35 @@ type DomainDNSCheckView struct {
 }
 
 type DomainView struct {
-	ID                 string     `json:"id"`
-	CompanyID          string     `json:"company_id"`
-	Name               string     `json:"name"`
-	NameACE            string     `json:"name_ace"`
-	Status             string     `json:"status"`
-	QuotaUsed          int64      `json:"quota_used"`
-	QuotaLimit         int64      `json:"quota_limit,omitempty"`
-	DefaultUserQuota   int64      `json:"default_user_quota,omitempty"`
-	LastDNSCheckStatus string     `json:"last_dns_check_status,omitempty"`
-	LastDNSCheckedAt   *time.Time `json:"last_dns_checked_at,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
+	ID                   string     `json:"id"`
+	CompanyID            string     `json:"company_id"`
+	Name                 string     `json:"name"`
+	NameACE              string     `json:"name_ace"`
+	Status               string     `json:"status"`
+	QuotaUsed            int64      `json:"quota_used"`
+	QuotaLimit           int64      `json:"quota_limit,omitempty"`
+	QuotaRemaining       int64      `json:"quota_remaining"`
+	DefaultUserQuota     int64      `json:"default_user_quota,omitempty"`
+	AllocatedUserQuota   int64      `json:"allocated_user_quota"`
+	AllocatableUserQuota int64      `json:"allocatable_user_quota"`
+	OverAllocated        bool       `json:"over_allocated"`
+	LastDNSCheckStatus   string     `json:"last_dns_check_status,omitempty"`
+	LastDNSCheckedAt     *time.Time `json:"last_dns_checked_at,omitempty"`
+	CreatedAt            time.Time  `json:"created_at"`
 }
 
 type UserView struct {
-	ID          string    `json:"id"`
-	DomainID    string    `json:"domain_id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
-	Role        string    `json:"role"`
-	Status      string    `json:"status"`
-	QuotaUsed   int64     `json:"quota_used"`
-	QuotaLimit  int64     `json:"quota_limit,omitempty"`
-	QuotaSource string    `json:"quota_source"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID             string    `json:"id"`
+	DomainID       string    `json:"domain_id"`
+	Username       string    `json:"username"`
+	DisplayName    string    `json:"display_name"`
+	Role           string    `json:"role"`
+	Status         string    `json:"status"`
+	QuotaUsed      int64     `json:"quota_used"`
+	QuotaLimit     int64     `json:"quota_limit,omitempty"`
+	QuotaRemaining int64     `json:"quota_remaining"`
+	QuotaSource    string    `json:"quota_source"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type DomainPolicyView struct {
@@ -845,7 +859,20 @@ func (r *Repository) ListCompanies(ctx context.Context, limit int) ([]CompanyVie
 	limit = normalizeLimit(limit)
 
 	rows, err := r.db.QueryContext(ctx, `
-SELECT id::text, name, status, quota_used, COALESCE(quota_limit, 0), created_at
+SELECT
+  id::text,
+  name,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  COALESCE((
+    SELECT SUM(child.quota_limit)
+    FROM domains child
+    WHERE child.company_id = companies.id
+      AND child.quota_limit IS NOT NULL
+      AND child.quota_limit > 0
+  ), 0) AS allocated_domain_quota,
+  created_at
 FROM companies
 ORDER BY created_at DESC
 LIMIT $1`, limit)
@@ -857,9 +884,20 @@ LIMIT $1`, limit)
 	var companies []CompanyView
 	for rows.Next() {
 		var company CompanyView
-		if err := rows.Scan(&company.ID, &company.Name, &company.Status, &company.QuotaUsed, &company.QuotaLimit, &company.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&company.ID,
+			&company.Name,
+			&company.Status,
+			&company.QuotaUsed,
+			&company.QuotaLimit,
+			&company.AllocatedDomainQuota,
+			&company.CreatedAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan company: %w", err)
 		}
+		company.QuotaRemaining = quotaRemaining(company.QuotaUsed, company.QuotaLimit)
+		company.AllocatableDomainQuota = quotaRemaining(company.AllocatedDomainQuota, company.QuotaLimit)
+		company.OverAllocated = company.QuotaLimit > 0 && company.AllocatedDomainQuota > company.QuotaLimit
 		companies = append(companies, company)
 	}
 	if err := rows.Err(); err != nil {
@@ -879,14 +917,38 @@ func (r *Repository) GetCompany(ctx context.Context, id string) (CompanyView, er
 
 	var company CompanyView
 	if err := r.db.QueryRowContext(ctx, `
-SELECT id::text, name, status, quota_used, COALESCE(quota_limit, 0), created_at
+SELECT
+  id::text,
+  name,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  COALESCE((
+    SELECT SUM(child.quota_limit)
+    FROM domains child
+    WHERE child.company_id = companies.id
+      AND child.quota_limit IS NOT NULL
+      AND child.quota_limit > 0
+  ), 0) AS allocated_domain_quota,
+  created_at
 FROM companies
-WHERE id = $1`, id).Scan(&company.ID, &company.Name, &company.Status, &company.QuotaUsed, &company.QuotaLimit, &company.CreatedAt); err != nil {
+WHERE id = $1`, id).Scan(
+		&company.ID,
+		&company.Name,
+		&company.Status,
+		&company.QuotaUsed,
+		&company.QuotaLimit,
+		&company.AllocatedDomainQuota,
+		&company.CreatedAt,
+	); err != nil {
 		if err == sql.ErrNoRows {
 			return CompanyView{}, fmt.Errorf("company %q not found", id)
 		}
 		return CompanyView{}, fmt.Errorf("get company: %w", err)
 	}
+	company.QuotaRemaining = quotaRemaining(company.QuotaUsed, company.QuotaLimit)
+	company.AllocatableDomainQuota = quotaRemaining(company.AllocatedDomainQuota, company.QuotaLimit)
+	company.OverAllocated = company.QuotaLimit > 0 && company.AllocatedDomainQuota > company.QuotaLimit
 	return company, nil
 }
 
@@ -1049,6 +1111,7 @@ LIMIT $2`
 		); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
+		user.QuotaRemaining = quotaRemaining(user.QuotaUsed, user.QuotaLimit)
 		users = append(users, user)
 	}
 	if err := rows.Err(); err != nil {
@@ -1100,6 +1163,7 @@ LIMIT 1`
 		}
 		return UserView{}, fmt.Errorf("get user: %w", err)
 	}
+	user.QuotaRemaining = quotaRemaining(user.QuotaUsed, user.QuotaLimit)
 	return user, nil
 }
 
@@ -1119,6 +1183,13 @@ SELECT
   d.quota_used,
   COALESCE(d.quota_limit, 0),
   COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0),
+  COALESCE((
+    SELECT SUM(child.quota_limit)
+    FROM users child
+    WHERE child.domain_id = d.id
+      AND child.quota_limit IS NOT NULL
+      AND child.quota_limit > 0
+  ), 0) AS allocated_user_quota,
   COALESCE(latest.status, ''),
   latest.checked_at,
   d.created_at
@@ -1152,12 +1223,16 @@ LIMIT $1`
 			&domain.QuotaUsed,
 			&domain.QuotaLimit,
 			&domain.DefaultUserQuota,
+			&domain.AllocatedUserQuota,
 			&domain.LastDNSCheckStatus,
 			&lastDNSCheckedAt,
 			&domain.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan domain: %w", err)
 		}
+		domain.QuotaRemaining = quotaRemaining(domain.QuotaUsed, domain.QuotaLimit)
+		domain.AllocatableUserQuota = quotaRemaining(domain.AllocatedUserQuota, domain.QuotaLimit)
+		domain.OverAllocated = domain.QuotaLimit > 0 && domain.AllocatedUserQuota > domain.QuotaLimit
 		if lastDNSCheckedAt.Valid {
 			domain.LastDNSCheckedAt = &lastDNSCheckedAt.Time
 		}
@@ -1188,6 +1263,13 @@ SELECT
   d.quota_used,
   COALESCE(d.quota_limit, 0),
   COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0),
+  COALESCE((
+    SELECT SUM(child.quota_limit)
+    FROM users child
+    WHERE child.domain_id = d.id
+      AND child.quota_limit IS NOT NULL
+      AND child.quota_limit > 0
+  ), 0) AS allocated_user_quota,
   COALESCE(latest.status, ''),
   latest.checked_at,
   d.created_at
@@ -1213,6 +1295,7 @@ LIMIT 1`
 		&domain.QuotaUsed,
 		&domain.QuotaLimit,
 		&domain.DefaultUserQuota,
+		&domain.AllocatedUserQuota,
 		&domain.LastDNSCheckStatus,
 		&lastDNSCheckedAt,
 		&domain.CreatedAt,
@@ -1225,6 +1308,9 @@ LIMIT 1`
 	if lastDNSCheckedAt.Valid {
 		domain.LastDNSCheckedAt = &lastDNSCheckedAt.Time
 	}
+	domain.QuotaRemaining = quotaRemaining(domain.QuotaUsed, domain.QuotaLimit)
+	domain.AllocatableUserQuota = quotaRemaining(domain.AllocatedUserQuota, domain.QuotaLimit)
+	domain.OverAllocated = domain.QuotaLimit > 0 && domain.AllocatedUserQuota > domain.QuotaLimit
 	return domain, nil
 }
 
@@ -1443,7 +1529,7 @@ func (r *Repository) ListQuotaUsage(ctx context.Context, limit int) ([]QuotaUsag
 	limit = normalizeLimit(limit)
 
 	const query = `
-SELECT scope, id, domain_id, name, quota_used, quota_limit, updated_at
+SELECT scope, id, domain_id, name, quota_used, quota_limit, allocated_quota, updated_at
 FROM (
   SELECT
     'company' AS scope,
@@ -1452,6 +1538,13 @@ FROM (
     name AS name,
     quota_used,
     quota_limit,
+    COALESCE((
+      SELECT SUM(child.quota_limit)
+      FROM domains child
+      WHERE child.company_id = companies.id
+        AND child.quota_limit IS NOT NULL
+        AND child.quota_limit > 0
+    ), 0) AS allocated_quota,
     updated_at
   FROM companies
   WHERE quota_limit IS NOT NULL AND quota_limit > 0
@@ -1463,6 +1556,13 @@ FROM (
     name AS name,
     quota_used,
     quota_limit,
+    COALESCE((
+      SELECT SUM(child.quota_limit)
+      FROM users child
+      WHERE child.domain_id = domains.id
+        AND child.quota_limit IS NOT NULL
+        AND child.quota_limit > 0
+    ), 0) AS allocated_quota,
     updated_at
   FROM domains
   WHERE quota_limit IS NOT NULL AND quota_limit > 0
@@ -1474,6 +1574,7 @@ FROM (
     users.username || '@' || domains.name_ace AS name,
     users.quota_used,
     users.quota_limit,
+    0::bigint AS allocated_quota,
     users.updated_at
   FROM users
   JOIN domains ON domains.id = users.domain_id
@@ -1498,12 +1599,17 @@ LIMIT $1`
 			&usage.Name,
 			&usage.QuotaUsed,
 			&usage.QuotaLimit,
+			&usage.AllocatedQuota,
 			&usage.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan quota usage: %w", err)
 		}
+		usage.QuotaRemaining = quotaRemaining(usage.QuotaUsed, usage.QuotaLimit)
+		usage.AllocatableQuota = quotaRemaining(usage.AllocatedQuota, usage.QuotaLimit)
 		usage.UsageRatio = quotaUsageRatio(usage.QuotaUsed, usage.QuotaLimit)
+		usage.AllocationRatio = quotaUsageRatio(usage.AllocatedQuota, usage.QuotaLimit)
 		usage.OverLimit = usage.QuotaLimit > 0 && usage.QuotaUsed >= usage.QuotaLimit
+		usage.OverAllocated = usage.QuotaLimit > 0 && usage.AllocatedQuota > usage.QuotaLimit
 		usages = append(usages, usage)
 	}
 	if err := rows.Err(); err != nil {
@@ -1520,6 +1626,17 @@ func quotaUsageRatio(used int64, limit int64) float64 {
 		return 0
 	}
 	return float64(used) / float64(limit)
+}
+
+func quotaRemaining(used int64, limit int64) int64 {
+	if limit <= 0 {
+		return 0
+	}
+	remaining := limit - used
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 func (r *Repository) ListDeliveryAttempts(ctx context.Context, limit int) ([]DeliveryAttemptView, error) {

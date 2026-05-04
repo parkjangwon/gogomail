@@ -48,6 +48,10 @@ guidance.
   `.eml` messages.
 - Mail API exposes a first Postgres-backed search endpoint for message metadata
   and draft text, with an FTS index for small deployments.
+- Received-message body search now has an asynchronous indexing boundary:
+  `search-index-worker` consumes `mail.stored`, reads stored `.eml` objects,
+  extracts bounded text through the shared parser, and upserts Postgres search
+  documents used by the existing search endpoint.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Per-domain inbound policy enforced at SMTP receive and Submission MTA (max
@@ -60,12 +64,19 @@ guidance.
 - Attachment upload metadata creation reserves bytes from the same
   company/domain/user quota ledger, stale upload cleanup releases them, and the
   Mail API returns HTTP 507 `insufficient_storage` for quota exhaustion.
+- Admin quota views now expose runtime remaining capacity, child-allocation
+  usage, allocatable capacity, and over-allocation indicators for
+  company/domain/user operations.
+- Admin API exposes a read-only quota reconciliation report comparing ledger
+  counters with message and attachment source rows.
 - Product quota direction is company pool → domain allocation → user unified
   storage allowance. User quota should cover mailbox, attachments, future Drive,
   and other user-owned storage features.
 - API metering direction is agreed for future SaaS operations: collect usage
   dimensions early through an async middleware/event boundary, but keep
   billing/rate-limit enforcement policy-driven and disabled by default.
+- API metering has a first disabled-by-default middleware boundary with a
+  `slog` sink for low-risk operational visibility.
 - DKIM key DNS verification workflow with `dns_verified_at` persistence.
 - Delivery route runtime counters (`RouteCounters`) with Admin API exposure.
 - Retry exhaustion hook: `mail.delivery_exhausted` outbox event emitted and
@@ -118,11 +129,18 @@ The platform hardening sprint completed the following:
   aggregate quota enforcement for mail writes/deletes.
 - Attachment upload quota integration: upload metadata reserves quota, stale
   upload cleanup releases quota, and API quota exhaustion maps to 507.
+- Search indexing boundary: bounded received body extraction runs in
+  `search-index-worker` and stores Postgres search documents outside SMTP hot
+  paths.
+- Quota operations read models: capacity fields and reconciliation reporting
+  show ledger pressure and drift without mutating counters.
+- API metering boundary: HTTP middleware can emit fail-open usage events and is
+  disabled by default.
 
 Next focus areas:
 
-1. Search indexing boundary for received message bodies and future OpenSearch.
-2. Add quota reconciliation jobs for messages/attachments and extend the ledger
+1. Add OpenSearch adapter behind the search indexing boundary.
+2. Add quota reconciliation correction jobs for messages/attachments and extend the ledger
    to future Drive writes.
 3. IMAP gateway design and implementation planning.
 4. Search result highlighting/ranking once indexing boundary exists.

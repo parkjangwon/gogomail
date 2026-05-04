@@ -50,18 +50,23 @@ SELECT
   COALESCE((flags->>'read')::boolean, false) AS read,
   COALESCE((flags->>'starred')::boolean, false) AS starred
 FROM messages
-WHERE user_id = $1
-  AND status = 'active'
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = messages.id
+ AND msd.user_id = messages.user_id
+WHERE messages.user_id = $1
+  AND messages.status = 'active'
   AND ($2 = '' OR (
     to_tsvector(
       'simple',
       coalesce(subject, '') || ' ' ||
       coalesce(from_addr, '') || ' ' ||
       coalesce(from_name, '') || ' ' ||
-      coalesce(draft_text_body, '')
+      coalesce(draft_text_body, '') || ' ' ||
+      coalesce(msd.body_text, '')
     ) @@ plainto_tsquery('simple', $2)
     OR subject ILIKE '%' || $2 || '%'
     OR from_addr ILIKE '%' || $2 || '%'
+    OR msd.body_text ILIKE '%' || $2 || '%'
   ))
   AND ($3 = '' OR folder_id::text = $3)
   AND ($4 = '' OR from_addr ILIKE '%' || $4 || '%')

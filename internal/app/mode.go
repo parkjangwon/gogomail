@@ -9,31 +9,33 @@ import (
 type Mode string
 
 const (
-	ModeAllInOne       Mode = "all-in-one"
-	ModeEdgeMTA        Mode = "edge-mta"
-	ModeInboundMTA     Mode = "inbound-mta"
-	ModeOutboundMTA    Mode = "outbound-mta"
-	ModeDeliveryWorker Mode = "delivery-worker"
-	ModeBatchWorker    Mode = "batch-worker"
-	ModeOutboxRelay    Mode = "outbox-relay"
-	ModeEventWorker    Mode = "event-worker"
-	ModeAuthServer     Mode = "auth-server"
-	ModeMailAPI        Mode = "mail-api"
-	ModeAdminAPI       Mode = "admin-api"
+	ModeAllInOne          Mode = "all-in-one"
+	ModeEdgeMTA           Mode = "edge-mta"
+	ModeInboundMTA        Mode = "inbound-mta"
+	ModeOutboundMTA       Mode = "outbound-mta"
+	ModeDeliveryWorker    Mode = "delivery-worker"
+	ModeSearchIndexWorker Mode = "search-index-worker"
+	ModeBatchWorker       Mode = "batch-worker"
+	ModeOutboxRelay       Mode = "outbox-relay"
+	ModeEventWorker       Mode = "event-worker"
+	ModeAuthServer        Mode = "auth-server"
+	ModeMailAPI           Mode = "mail-api"
+	ModeAdminAPI          Mode = "admin-api"
 )
 
 var knownModes = map[Mode]struct{}{
-	ModeAllInOne:       {},
-	ModeEdgeMTA:        {},
-	ModeInboundMTA:     {},
-	ModeOutboundMTA:    {},
-	ModeDeliveryWorker: {},
-	ModeBatchWorker:    {},
-	ModeOutboxRelay:    {},
-	ModeEventWorker:    {},
-	ModeAuthServer:     {},
-	ModeMailAPI:        {},
-	ModeAdminAPI:       {},
+	ModeAllInOne:          {},
+	ModeEdgeMTA:           {},
+	ModeInboundMTA:        {},
+	ModeOutboundMTA:       {},
+	ModeDeliveryWorker:    {},
+	ModeSearchIndexWorker: {},
+	ModeBatchWorker:       {},
+	ModeOutboxRelay:       {},
+	ModeEventWorker:       {},
+	ModeAuthServer:        {},
+	ModeMailAPI:           {},
+	ModeAdminAPI:          {},
 }
 
 func ParseMode(raw string) (Mode, error) {

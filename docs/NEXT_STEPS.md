@@ -26,6 +26,10 @@ Current state:
   quota ledgers in one transaction.
 - Attachment upload metadata creation and stale upload cleanup also reserve and
   release bytes through the same company/domain/user quota ledger.
+- Admin quota usage/detail views expose remaining capacity, child allocation,
+  allocatable capacity, and over-allocation indicators.
+- Admin API exposes a read-only quota reconciliation report comparing ledger
+  counters with active message rows and reserved/stored attachment rows.
 - User quota source is tracked as `default|custom`.
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.
@@ -35,9 +39,8 @@ Next:
 
 - Extend the same ledger service to future Drive writes and large-attachment
   share-link objects.
-- Add operator views that show remaining allocatable company/domain capacity.
-- Add reconciliation jobs that compare ledger counters against message and
-  attachment storage rows.
+- Add operator-controlled reconciliation correction jobs that can apply
+  reviewed ledger fixes safely.
 
 ### 2. Message threading and search
 
@@ -51,10 +54,15 @@ Current state:
 - Reply composition writes RFC thread headers into outgoing `.eml`.
 - Mail API exposes `GET /api/v1/search` backed by a small-deployment Postgres
   FTS index over metadata and draft text.
+- Received-message body indexing has an asynchronous boundary:
+  `search-index-worker` consumes `mail.stored`, reads stored `.eml`, extracts
+  bounded plain text through `internal/message`, and upserts
+  `message_search_documents`.
+- Postgres search includes indexed received body text without changing the
+  existing search response envelope.
 
 Next:
 
-- Add indexing boundary for received message body text extraction.
 - Add OpenSearch adapter behind the same search contract.
 - Add highlighting/ranking fields when index-worker exists.
 
@@ -121,12 +129,13 @@ Current state:
 
 - Product direction is agreed: collect API usage from the beginning, keep
   billing/rate-limit enforcement policy-driven and off by default.
+- A disabled-by-default API metering middleware boundary exists with async,
+  fail-open event capture and a `slog` sink.
 
 Next:
 
-- Add a lightweight metering middleware boundary that emits asynchronous usage
-  events keyed by company/domain/user/api-key, route, method, status, latency,
-  response size, and timestamp.
+- Add a durable outbox/event sink for API metering and async enrichment keyed by
+  company/domain/user/api-key.
 - Aggregate daily/monthly usage for future SaaS plans, Open API limits, abuse
   detection, and operations dashboards.
 - Avoid synchronous writes on hot API paths.

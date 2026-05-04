@@ -56,6 +56,7 @@ go run ./cmd/gogomail --mode=edge-mta
 go run ./cmd/gogomail --mode=inbound-mta
 go run ./cmd/gogomail --mode=outbound-mta
 go run ./cmd/gogomail --mode=delivery-worker
+go run ./cmd/gogomail --mode=search-index-worker
 go run ./cmd/gogomail --mode=auth-server
 go run ./cmd/gogomail --mode=mail-api
 go run ./cmd/gogomail --mode=admin-api

@@ -50,6 +50,8 @@ type Config struct {
 	RateLimitBackend             string
 	BackpressureBackend          string
 	MetricsBackend               string
+	APIMeteringBackend           string
+	APIMeteringTimeout           time.Duration
 	RcptRateLimitPerMinute       int
 	OutboxRelayBatchSize         int
 	OutboxRelayPollInterval      time.Duration
@@ -59,6 +61,12 @@ type Config struct {
 	EventConsumerName            string
 	EventConsumerCount           int
 	EventConsumerBlock           time.Duration
+	SearchIndexBackend           string
+	SearchIndexMaxBodyBytes      int64
+	SearchIndexConsumerGroup     string
+	SearchIndexConsumerName      string
+	SearchIndexConsumerCount     int
+	SearchIndexConsumerBlock     time.Duration
 	DeliveryStream               string
 	DeliveryConsumerGroup        string
 	DeliveryConsumerName         string
@@ -132,6 +140,8 @@ func Load() Config {
 		RateLimitBackend:             envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:          envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:               envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
+		APIMeteringBackend:           envOrDefault("GOGOMAIL_API_METERING_BACKEND", "none"),
+		APIMeteringTimeout:           durationEnvOrDefault("GOGOMAIL_API_METERING_TIMEOUT", 100*time.Millisecond),
 		RcptRateLimitPerMinute:       intEnvOrDefault("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE", 60),
 		OutboxRelayBatchSize:         intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", 100),
 		OutboxRelayPollInterval:      durationEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", time.Second),
@@ -141,6 +151,12 @@ func Load() Config {
 		EventConsumerName:            envOrDefault("GOGOMAIL_EVENT_CONSUMER_NAME", "event-worker-1"),
 		EventConsumerCount:           intEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_COUNT", 100),
 		EventConsumerBlock:           durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_BLOCK", time.Second),
+		SearchIndexBackend:           envOrDefault("GOGOMAIL_SEARCH_INDEX_BACKEND", "disabled"),
+		SearchIndexMaxBodyBytes:      int64EnvOrDefault("GOGOMAIL_SEARCH_INDEX_MAX_BODY_BYTES", 1024*1024),
+		SearchIndexConsumerGroup:     envOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_GROUP", "gogomail.search-index-worker"),
+		SearchIndexConsumerName:      envOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_NAME", "search-index-worker-1"),
+		SearchIndexConsumerCount:     intEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT", 50),
+		SearchIndexConsumerBlock:     durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK", time.Second),
 		DeliveryStream:               envOrDefault("GOGOMAIL_DELIVERY_STREAM", "mail.outbound.general"),
 		DeliveryConsumerGroup:        envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "gogomail.delivery-worker"),
 		DeliveryConsumerName:         envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-worker-1"),

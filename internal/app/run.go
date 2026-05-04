@@ -12,6 +12,7 @@ import (
 	gosmtp "github.com/emersion/go-smtp"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
@@ -30,6 +31,7 @@ import (
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/outbox"
 	"github.com/gogomail/gogomail/internal/ratelimit"
+	"github.com/gogomail/gogomail/internal/searchindex"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -69,6 +71,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runOutboxRelay(ctx, cfg, logger)
 	case ModeEventWorker:
 		return runEventWorker(ctx, cfg, logger)
+	case ModeSearchIndexWorker:
+		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
@@ -186,24 +190,24 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	}
 
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
-		Store:               storage.NewLocalStore(cfg.MailstoreRoot),
-		Resolver:            resolver,
-		Recorder:            recorder,
-		Deduplicator:        deduplicator,
-		RateLimiter:         rateLimiter,
-		Backpressure:        pressure,
-		AuthVerifier:        authVerifier,
-		RelayAuthorizer:     relayAuthorizer,
-		DomainPolicyLookup:  maildbRepo,
-		Metrics:             smtpMetrics(cfg, logger),
-		AddReceivedHeader:   cfg.SMTPAddReceivedHeader,
-		ReceivedDomain:      cfg.SMTPDomain,
-		RequireAuth:         cfg.SMTPRequireAuth,
-		SupportSMTPUTF8:     cfg.SMTPSupportSMTPUTF8,
-		SupportRequireTLS:   cfg.SMTPSupportRequireTLS,
-		SupportDSN:          cfg.SMTPSupportDSN,
-		SupportBinaryMIME:   cfg.SMTPSupportBinaryMIME,
-		Hooks:               hooks,
+		Store:              storage.NewLocalStore(cfg.MailstoreRoot),
+		Resolver:           resolver,
+		Recorder:           recorder,
+		Deduplicator:       deduplicator,
+		RateLimiter:        rateLimiter,
+		Backpressure:       pressure,
+		AuthVerifier:       authVerifier,
+		RelayAuthorizer:    relayAuthorizer,
+		DomainPolicyLookup: maildbRepo,
+		Metrics:            smtpMetrics(cfg, logger),
+		AddReceivedHeader:  cfg.SMTPAddReceivedHeader,
+		ReceivedDomain:     cfg.SMTPDomain,
+		RequireAuth:        cfg.SMTPRequireAuth,
+		SupportSMTPUTF8:    cfg.SMTPSupportSMTPUTF8,
+		SupportRequireTLS:  cfg.SMTPSupportRequireTLS,
+		SupportDSN:         cfg.SMTPSupportDSN,
+		SupportBinaryMIME:  cfg.SMTPSupportBinaryMIME,
+		Hooks:              hooks,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SMTPMaxRecipients,
 			MaxMessageBytes:         cfg.SMTPMaxMessageBytes,
@@ -235,16 +239,16 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 	repository := maildb.NewRepository(db)
 	receiver := smtpd.NewSubmissionReceiver(smtpd.SubmissionOptions{
-		Store:               storage.NewLocalStore(cfg.MailstoreRoot),
-		Authenticator:       repository,
-		Recorder:            repository,
-		DomainPolicyLookup:  repository,
-		AddReceivedHeader:   cfg.SubmissionAddReceivedHeader,
-		ReceivedDomain:      cfg.SMTPDomain,
-		SupportSMTPUTF8:     cfg.SubmissionSupportSMTPUTF8,
-		SupportRequireTLS:   cfg.SubmissionSupportRequireTLS,
-		SupportDSN:          cfg.SubmissionSupportDSN,
-		SupportBinaryMIME:   cfg.SubmissionSupportBinaryMIME,
+		Store:              storage.NewLocalStore(cfg.MailstoreRoot),
+		Authenticator:      repository,
+		Recorder:           repository,
+		DomainPolicyLookup: repository,
+		AddReceivedHeader:  cfg.SubmissionAddReceivedHeader,
+		ReceivedDomain:     cfg.SMTPDomain,
+		SupportSMTPUTF8:    cfg.SubmissionSupportSMTPUTF8,
+		SupportRequireTLS:  cfg.SubmissionSupportRequireTLS,
+		SupportDSN:         cfg.SubmissionSupportDSN,
+		SupportBinaryMIME:  cfg.SubmissionSupportBinaryMIME,
 		Policy: smtpd.ReceivePolicy{
 			MaxRecipientsPerMessage: cfg.SubmissionMaxRecipients,
 			MaxMessageBytes:         cfg.SubmissionMaxMessageBytes,
@@ -423,6 +427,59 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"consumer", cfg.EventConsumerName,
 		"count", cfg.EventConsumerCount,
 		"block", cfg.EventConsumerBlock.String(),
+	)
+	return consumer.Run(ctx)
+}
+
+func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	if strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "disabled") {
+		return waitForShutdown(ctx, logger, ModeSearchIndexWorker)
+	}
+
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	repository := maildb.NewRepository(db)
+	router := eventstream.NewRouter()
+	if err := router.Register("mail.stored", searchindex.NewHandler(
+		searchindex.NewStorageStoreReader(storage.NewLocalStore(cfg.MailstoreRoot)),
+		searchindex.NewPostgresIndexer(repository),
+		searchindex.HandlerOptions{MaxTextBodyBytes: cfg.SearchIndexMaxBodyBytes},
+	)); err != nil {
+		return err
+	}
+
+	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
+		Client:   redisClient,
+		Stream:   cfg.EventStream,
+		Group:    cfg.SearchIndexConsumerGroup,
+		Consumer: cfg.SearchIndexConsumerName,
+		Count:    int64(cfg.SearchIndexConsumerCount),
+		Block:    cfg.SearchIndexConsumerBlock,
+		Handler:  router,
+		Logger:   logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"search index worker started",
+		"stream", cfg.EventStream,
+		"group", cfg.SearchIndexConsumerGroup,
+		"consumer", cfg.SearchIndexConsumerName,
+		"backend", cfg.SearchIndexBackend,
+		"max_body_bytes", cfg.SearchIndexMaxBodyBytes,
 	)
 	return consumer.Run(ctx)
 }
@@ -652,9 +709,10 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		logger.Info("admin api routes registered")
 	}
 
+	handler := apiMeteringHandler(mux, cfg, logger)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -674,6 +732,20 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			return nil
 		}
 		return err
+	}
+}
+
+func apiMeteringHandler(next http.Handler, cfg config.Config, logger *slog.Logger) http.Handler {
+	switch strings.ToLower(strings.TrimSpace(cfg.APIMeteringBackend)) {
+	case "", "none":
+		return next
+	case "slog":
+		if logger != nil {
+			logger.Info("api metering enabled", "backend", "slog", "timeout", cfg.APIMeteringTimeout.String())
+		}
+		return apimeter.Handler(next, apimeter.SlogSink{Logger: logger}, apimeter.WithTimeout(cfg.APIMeteringTimeout))
+	default:
+		return next
 	}
 }
 

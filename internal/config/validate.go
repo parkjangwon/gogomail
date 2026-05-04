@@ -49,11 +49,29 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_METRICS_BACKEND", c.MetricsBackend, "none", "slog"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_API_METERING_BACKEND", c.APIMeteringBackend, "none", "slog"); err != nil {
+		return err
+	}
+	if c.APIMeteringTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_API_METERING_TIMEOUT must be positive")
+	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_TLS_MODE", c.DeliveryTLSMode, "opportunistic", "require", "disable"); err != nil {
 		return err
 	}
 	if err := validateEnum("GOGOMAIL_DELIVERY_ROUTE_BACKEND", c.DeliveryRouteBackend, "env", "postgres"); err != nil {
 		return err
+	}
+	if err := validateEnum("GOGOMAIL_SEARCH_INDEX_BACKEND", c.SearchIndexBackend, "disabled", "postgres"); err != nil {
+		return err
+	}
+	if c.SearchIndexMaxBodyBytes <= 0 {
+		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_MAX_BODY_BYTES must be positive")
+	}
+	if c.SearchIndexConsumerCount <= 0 {
+		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT must be positive")
+	}
+	if c.SearchIndexConsumerBlock <= 0 {
+		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK must be positive")
 	}
 	if strings.TrimSpace(c.DeliverySmartHostTLSMode) != "" {
 		if err := validateEnum("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", c.DeliverySmartHostTLSMode, "opportunistic", "require", "disable"); err != nil {

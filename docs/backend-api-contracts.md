@@ -159,6 +159,7 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/queue` returns `{"queues":[...]}`
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}`
+- `GET /admin/v1/quota-reconciliation` returns `{"quota_reconciliation":[...]}`
 - `GET /admin/v1/delivery-attempts` returns `{"delivery_attempts":[...]}`
 - `GET /admin/v1/suppression-list` returns `{"suppression_list":[...]}`
 - `GET /admin/v1/dkim-keys` returns `{"dkim_keys":[...]}`
@@ -258,6 +259,25 @@ present, preserving conversation grouping without exposing cross-user messages.
 Reply composition also writes RFC `In-Reply-To` and `References` headers into
 the stored/sent `.eml`, allowing external MUAs and remote recipients to retain
 conversation threading.
+
+Search indexing now has a backend boundary for received-message body text:
+
+- `gogomail --mode=search-index-worker` can consume `mail.stored` events with
+  `GOGOMAIL_SEARCH_INDEX_BACKEND=postgres`.
+- The worker reads the already-stored raw `.eml`, extracts bounded plain text
+  through the shared parser, and upserts `message_search_documents`.
+- `GET /api/v1/search` includes indexed received body text in the existing
+  response shape. Highlighting/ranking fields remain deferred until the
+  generated-client contract is intentionally expanded.
+
+Quota reconciliation is exposed as a read-only admin report:
+
+- `GET /admin/v1/quota-reconciliation`
+- The report compares company/domain/user ledger counters with current
+  source-of-truth message and attachment rows and returns `ledger_used`,
+  `actual_used`, `delta`, and `in_sync`.
+- This endpoint does not mutate ledgers; correction jobs remain a future
+  operator-controlled step.
 
 Message search starts with a small-deployment Postgres implementation:
 
