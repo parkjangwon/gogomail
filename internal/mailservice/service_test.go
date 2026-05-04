@@ -1993,6 +1993,37 @@ func TestCancelAttachmentUploadDeletesStoredObject(t *testing.T) {
 	}
 }
 
+func TestCancelAttachmentUploadValidatesResourceIDs(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	tests := []struct {
+		name         string
+		userID       string
+		attachmentID string
+	}{
+		{name: "unsafe user", userID: "user\n1", attachmentID: "att-1"},
+		{name: "unsafe attachment", userID: "user-1", attachmentID: "att\n1"},
+		{name: "oversized user", userID: strings.Repeat("u", maxServiceResourceIDBytes+1), attachmentID: "att-1"},
+		{name: "oversized attachment", userID: "user-1", attachmentID: strings.Repeat("a", maxServiceResourceIDBytes+1)},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := service.CancelAttachmentUpload(context.Background(), tt.userID, tt.attachmentID); err == nil {
+				t.Fatal("CancelAttachmentUpload accepted unsafe resource IDs")
+			}
+			if repo.lastCancelAttachmentID != "" {
+				t.Fatalf("repository was called with attachment %q", repo.lastCancelAttachmentID)
+			}
+		})
+	}
+}
+
 func TestUploadAttachmentWritesStorageAndRecordsMetadata(t *testing.T) {
 	t.Parallel()
 

@@ -581,6 +581,7 @@ Implementation order:
 522. Mail API now exposes attachment upload capability discovery with current limits and supported modes, including an explicit `resumable_chunked_uploads=false` until that contract lands.
 523. Draft attachment binding and send handoff now require `uploading` attachments, preventing canceled or deleted uploads from being rebound to drafts or moved onto sent messages.
 524. Canceling a draft-bound attachment upload now refreshes the draft `has_attachment` cache in the same transaction as quota release.
+525. Pending attachment upload cancellation now validates user and attachment identifiers at the service boundary, with HTTP regression coverage for unsafe cancel path IDs.
 
 ## Deferred until backend contracts stabilize
 

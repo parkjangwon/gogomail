@@ -1552,6 +1552,11 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			path:   "/api/v1/messages/msg-1/attachments/att%0Abad/download?user_id=user-1",
 		},
 		{
+			name:   "attachment cancel crlf",
+			method: http.MethodDelete,
+			path:   "/api/v1/attachments/att%0Abad?user_id=user-1",
+		},
+		{
 			name:   "draft crlf",
 			method: http.MethodPatch,
 			path:   "/api/v1/drafts/draft%0Abad",
@@ -1580,8 +1585,8 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" {
-				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID)
+			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" {
+				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID)
 			}
 		})
 	}
