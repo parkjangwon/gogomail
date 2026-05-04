@@ -1732,7 +1732,7 @@ func TestAdminUpdateCompanyQuotaHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/company-1/quota", bytes.NewReader([]byte(`{"quota_limit":8192}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/companies/%20company-1%20/quota", bytes.NewReader([]byte(`{"quota_limit":8192}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1988,7 +1988,7 @@ func TestAdminUpdateDomainStatusHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/domain-1/status", bytes.NewReader([]byte(`{"status":"suspended"}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/%20domain-1%20/status", bytes.NewReader([]byte(`{"status":"suspended"}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2007,7 +2007,7 @@ func TestAdminUpdateDomainQuotaHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/domain-1/quota", bytes.NewReader([]byte(`{"quota_limit":2048}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/%20domain-1%20/quota", bytes.NewReader([]byte(`{"quota_limit":2048}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2026,7 +2026,7 @@ func TestAdminUpdateDomainPolicyHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/domain-1/policy", bytes.NewReader([]byte(`{
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/domains/%20domain-1%20/policy", bytes.NewReader([]byte(`{
 		"inbound_mode": "monitor",
 		"outbound_mode": "enforce",
 		"max_recipients_per_message": 50,
@@ -2134,7 +2134,7 @@ func TestAdminUpdateUserStatusHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/user-1/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/%20user-1%20/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2153,7 +2153,7 @@ func TestAdminUpdateUserQuotaHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/user-1/quota", bytes.NewReader([]byte(`{"quota_limit":4096}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/users/%20user-1%20/quota", bytes.NewReader([]byte(`{"quota_limit":4096}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 

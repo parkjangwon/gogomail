@@ -158,6 +158,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before service dispatch and response envelopes.
 - Admin API suppression-list and trusted-relay delete path identifiers are
   trimmed before service dispatch and response envelopes.
+- Admin API company, domain, and user quota/status/policy mutation path
+  identifiers are trimmed before service dispatch and response envelopes.
 - Admin API outbox event topic, partition key, and status filters are trimmed
   before operational queue inspection.
 - Admin API delivery-attempt status and recipient-domain filters are trimmed

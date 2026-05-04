@@ -156,7 +156,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		if err := service.UpdateCompanyQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -261,7 +261,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		if err := service.UpdateDomainStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -277,7 +277,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		if err := service.UpdateDomainQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -293,7 +293,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		policy, err := service.UpdateDomainPolicy(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -353,7 +353,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		if err := service.UpdateUserStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -369,7 +369,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		if err := service.UpdateUserQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
