@@ -119,6 +119,33 @@ func TestOpenSearchSearcherRequiresUserID(t *testing.T) {
 	}
 }
 
+func TestOpenSearchSearcherBoundsResponseBody(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"hits":{"hits":[`))
+		_, _ = w.Write([]byte(strings.Repeat(" ", int(maxOpenSearchSearchResponseBytes)+1)))
+	}))
+	defer server.Close()
+
+	searcher, err := NewOpenSearchSearcher(OpenSearchOptions{
+		Endpoint: server.URL,
+		Index:    "gogomail-messages",
+		Client:   server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchSearcher returned error: %v", err)
+	}
+	_, err = searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{
+		UserID: "user-1",
+		Query:  "hello",
+	})
+	if err == nil || !strings.Contains(err.Error(), "decode opensearch search response") {
+		t.Fatalf("error = %v, want decode error", err)
+	}
+}
+
 func TestOpenSearchSearcherCleansHitMessageIDs(t *testing.T) {
 	t.Parallel()
 

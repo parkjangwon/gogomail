@@ -18,6 +18,7 @@ const (
 	maxOpenSearchHighlightFragmentBytes = 512
 	maxOpenSearchSearchTextBytes        = 1000
 	maxOpenSearchHitIDBytes             = 500
+	maxOpenSearchSearchResponseBytes    = int64(4 << 20)
 )
 
 type OpenSearchSearchQuery struct {
@@ -106,7 +107,7 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 			} `json:"hits"`
 		} `json:"hits"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxOpenSearchSearchResponseBytes)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode opensearch search response: %w", err)
 	}
 	hits := make([]OpenSearchHit, 0, len(result.Hits.Hits))
