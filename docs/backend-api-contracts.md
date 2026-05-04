@@ -179,6 +179,7 @@ RFC3339 `before` cutoff and accepts an optional `limit` capped at 1000 plus
 `dry_run` for preview-only runs. Future cutoffs are rejected. Successful
 responses return
 `{"attachment_cleanup_run":{"dry_run":...,"candidate_count":...,"limited_count":...,"expired_count":...,"before":"...","limit":...}}`.
+Negative limits are rejected at the HTTP boundary as `bad_request`.
 
 Mail and Admin API JSON request bodies must contain exactly one JSON value.
 Handlers reject trailing JSON tokens as HTTP 400 `bad_request` instead of

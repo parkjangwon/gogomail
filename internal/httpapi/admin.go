@@ -569,6 +569,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "before must not be in the future")
 			return
 		}
+		if req.Limit < 0 {
+			writeError(w, http.StatusBadRequest, "limit must not be negative")
+			return
+		}
 		counts, err := service.CountStaleAttachmentUploads(r.Context(), before, req.Limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
