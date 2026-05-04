@@ -148,6 +148,10 @@ guidance.
 - Admin API-usage export batch creation now persists a hash-chain audit row in
   the same transaction as the batch, recording tenant/principal scope, export
   window, event/request counts, bytes, latency totals, and export format.
+- Admin API-usage export artifact creation/upsert now persists a hash-chain
+  audit row in the same transaction as the artifact row, recording object key,
+  storage backend, content type, byte/event counts, and SHA-256 digest without
+  copying artifact metadata into the audit detail.
 - Admin user creation and password-hash rotation can persist a validated
   `password_hash`, giving operators a path to create and maintain SMTP
   Submission-capable local users without storing raw production passwords

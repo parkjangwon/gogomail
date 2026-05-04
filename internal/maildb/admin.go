@@ -4338,6 +4338,11 @@ func (r *Repository) CreateAPIUsageExportArtifact(ctx context.Context, req Creat
 	if err != nil {
 		return APIUsageExportArtifactView{}, err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return APIUsageExportArtifactView{}, fmt.Errorf("begin api usage export artifact transaction: %w", err)
+	}
+	defer tx.Rollback()
 	const query = `
 INSERT INTO api_usage_export_artifacts (
   id,
@@ -4356,7 +4361,7 @@ WHERE api_usage_export_artifacts.sha256_hex = EXCLUDED.sha256_hex
 RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
   byte_count, sha256_hex, event_count, metadata`
 	var artifact APIUsageExportArtifactView
-	if err := r.db.QueryRowContext(
+	if err := tx.QueryRowContext(
 		ctx,
 		query,
 		id,
@@ -4382,7 +4387,41 @@ RETURNING id, batch_id, created_at, storage_backend, object_key, content_type,
 	); err != nil {
 		return APIUsageExportArtifactView{}, fmt.Errorf("create api usage export artifact: %w", err)
 	}
+	detail, err := apiUsageExportArtifactAuditDetail(artifact)
+	if err != nil {
+		return APIUsageExportArtifactView{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "api_usage_export.artifact_create",
+		TargetType: "api_usage_export_artifact",
+		TargetID:   artifact.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return APIUsageExportArtifactView{}, fmt.Errorf("record api usage export artifact audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return APIUsageExportArtifactView{}, fmt.Errorf("commit api usage export artifact transaction: %w", err)
+	}
 	return artifact, nil
+}
+
+func apiUsageExportArtifactAuditDetail(artifact APIUsageExportArtifactView) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"artifact_id":     artifact.ID,
+		"batch_id":        artifact.BatchID,
+		"storage_backend": artifact.StorageBackend,
+		"object_key":      artifact.ObjectKey,
+		"content_type":    artifact.ContentType,
+		"byte_count":      artifact.ByteCount,
+		"sha256_hex":      artifact.SHA256Hex,
+		"event_count":     artifact.EventCount,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal api usage export artifact audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]APIUsageExportArtifactView, error) {
