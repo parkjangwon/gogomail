@@ -1355,6 +1355,27 @@ paths:
             type: string
             maxLength: 1024
           description: Lower-cased recipient domain to inspect one destination domain.
+        - name: message_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Internal message identifier for one queued or delivered message.
+        - name: farm
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Outbound delivery farm name to inspect route/farm health.
+        - name: sender
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Envelope sender address to inspect sender-specific delivery behavior.
         - name: since
           in: query
           required: false
@@ -1386,6 +1407,27 @@ paths:
             type: string
             maxLength: 1024
           description: Lower-cased recipient domain to inspect one destination domain.
+        - name: message_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Internal message identifier for one queued or delivered message.
+        - name: farm
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Outbound delivery farm name to inspect route/farm health.
+        - name: sender
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Envelope sender address to inspect sender-specific delivery behavior.
         - name: since
           in: query
           required: false
@@ -1411,6 +1453,27 @@ paths:
             type: string
             maxLength: 1024
           description: Lower-cased recipient domain to inspect one destination domain.
+        - name: message_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Internal message identifier for one exhausted message.
+        - name: farm
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Outbound delivery farm name to inspect route/farm health.
+        - name: sender
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 1024
+          description: Envelope sender address to inspect sender-specific delivery behavior.
         - name: since
           in: query
           required: false

@@ -522,12 +522,18 @@ type DeliveryAttemptListRequest struct {
 	Limit           int
 	Status          string
 	RecipientDomain string
+	MessageID       string
+	Farm            string
+	Sender          string
 	Since           time.Time
 }
 
 type DeliveryAttemptStatsRequest struct {
 	Status          string
 	RecipientDomain string
+	MessageID       string
+	Farm            string
+	Sender          string
 	Since           time.Time
 }
 
@@ -577,6 +583,9 @@ func scanDeliveryAttempt(scanner deliveryAttemptScanner, attempt *DeliveryAttemp
 type ExhaustedAttemptListRequest struct {
 	Limit           int
 	RecipientDomain string
+	MessageID       string
+	Farm            string
+	Sender          string
 	Since           time.Time
 }
 
@@ -4312,13 +4321,18 @@ func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttem
 		return nil, fmt.Errorf("database handle is required")
 	}
 	req.Limit = normalizeLimit(req.Limit)
-	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
-	req.RecipientDomain = strings.ToLower(strings.Trim(strings.TrimSpace(req.RecipientDomain), "."))
+	filters, err := normalizeDeliveryAttemptFilters(deliveryAttemptFilters{
+		Status:          req.Status,
+		RecipientDomain: req.RecipientDomain,
+		MessageID:       req.MessageID,
+		Farm:            req.Farm,
+		Sender:          req.Sender,
+	})
+	if err != nil {
+		return nil, err
+	}
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
-	}
-	if req.Status != "" && !allowedDeliveryAttemptStatus(req.Status) {
-		return nil, fmt.Errorf("unsupported delivery attempt status")
 	}
 
 	const query = `
@@ -4342,10 +4356,13 @@ FROM delivery_attempts
 WHERE (NULLIF($2, '') IS NULL OR status = $2)
   AND ($3::timestamptz IS NULL OR attempted_at >= $3::timestamptz)
   AND (NULLIF($4, '') IS NULL OR recipient_domain = $4)
+  AND (NULLIF($5, '') IS NULL OR message_id::text = $5)
+  AND (NULLIF($6, '') IS NULL OR farm = $6)
+  AND (NULLIF($7, '') IS NULL OR lower(sender) = $7)
 ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Status, nullableTime(req.Since), req.RecipientDomain)
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, filters.Status, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender)
 	if err != nil {
 		return nil, fmt.Errorf("list delivery attempts: %w", err)
 	}
@@ -4365,6 +4382,47 @@ LIMIT $1`
 	return attempts, nil
 }
 
+type deliveryAttemptFilters struct {
+	Status          string
+	RecipientDomain string
+	MessageID       string
+	Farm            string
+	Sender          string
+}
+
+func normalizeDeliveryAttemptFilters(filters deliveryAttemptFilters) (deliveryAttemptFilters, error) {
+	filters.Status = strings.ToLower(strings.TrimSpace(filters.Status))
+	if filters.Status != "" && !allowedDeliveryAttemptStatus(filters.Status) {
+		return deliveryAttemptFilters{}, fmt.Errorf("unsupported delivery attempt status")
+	}
+	var err error
+	if filters.RecipientDomain, err = normalizeDeliveryAttemptTextFilter("recipient_domain", filters.RecipientDomain, true); err != nil {
+		return deliveryAttemptFilters{}, err
+	}
+	filters.RecipientDomain = strings.Trim(filters.RecipientDomain, ".")
+	if filters.MessageID, err = normalizeDeliveryAttemptTextFilter("message_id", filters.MessageID, false); err != nil {
+		return deliveryAttemptFilters{}, err
+	}
+	if filters.Farm, err = normalizeDeliveryAttemptTextFilter("farm", filters.Farm, true); err != nil {
+		return deliveryAttemptFilters{}, err
+	}
+	if filters.Sender, err = normalizeDeliveryAttemptTextFilter("sender", filters.Sender, true); err != nil {
+		return deliveryAttemptFilters{}, err
+	}
+	return filters, nil
+}
+
+func normalizeDeliveryAttemptTextFilter(name string, value string, lower bool) (string, error) {
+	value = strings.TrimSpace(value)
+	if lower {
+		value = strings.ToLower(value)
+	}
+	if err := validatePushNotificationFilter(name, value); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
 func allowedDeliveryAttemptStatus(status string) bool {
 	switch status {
 	case "delivered", "failed", "bounced", "exhausted":
@@ -4378,13 +4436,18 @@ func (r *Repository) GetDeliveryAttemptStats(ctx context.Context, req DeliveryAt
 	if r.db == nil {
 		return DeliveryAttemptStatsView{}, fmt.Errorf("database handle is required")
 	}
-	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
-	req.RecipientDomain = strings.ToLower(strings.Trim(strings.TrimSpace(req.RecipientDomain), "."))
+	filters, err := normalizeDeliveryAttemptFilters(deliveryAttemptFilters{
+		Status:          req.Status,
+		RecipientDomain: req.RecipientDomain,
+		MessageID:       req.MessageID,
+		Farm:            req.Farm,
+		Sender:          req.Sender,
+	})
+	if err != nil {
+		return DeliveryAttemptStatsView{}, err
+	}
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
-	}
-	if req.Status != "" && !allowedDeliveryAttemptStatus(req.Status) {
-		return DeliveryAttemptStatsView{}, fmt.Errorf("unsupported delivery attempt status")
 	}
 
 	const query = `
@@ -4399,10 +4462,13 @@ SELECT
 FROM delivery_attempts
 WHERE (NULLIF($1, '') IS NULL OR status = $1)
   AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
-  AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)`
+  AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)
+  AND (NULLIF($4, '') IS NULL OR message_id::text = $4)
+  AND (NULLIF($5, '') IS NULL OR farm = $5)
+  AND (NULLIF($6, '') IS NULL OR lower(sender) = $6)`
 
 	var stats DeliveryAttemptStatsView
-	if err := r.db.QueryRowContext(ctx, query, req.Status, nullableTime(req.Since), req.RecipientDomain).Scan(
+	if err := r.db.QueryRowContext(ctx, query, filters.Status, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender).Scan(
 		&stats.TotalAttempts,
 		&stats.UniqueMessages,
 		&stats.UniqueRecipients,
@@ -4421,7 +4487,18 @@ func (r *Repository) ListExhaustedAttempts(ctx context.Context, req ExhaustedAtt
 		return nil, fmt.Errorf("database handle is required")
 	}
 	req.Limit = normalizeLimit(req.Limit)
-	req.RecipientDomain = strings.ToLower(strings.Trim(strings.TrimSpace(req.RecipientDomain), "."))
+	filters, err := normalizeDeliveryAttemptFilters(deliveryAttemptFilters{
+		RecipientDomain: req.RecipientDomain,
+		MessageID:       req.MessageID,
+		Farm:            req.Farm,
+		Sender:          req.Sender,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !req.Since.IsZero() {
+		req.Since = req.Since.UTC()
+	}
 
 	const query = `
 SELECT
@@ -4444,10 +4521,13 @@ FROM delivery_attempts
 WHERE status = 'exhausted'
   AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
   AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)
+  AND (NULLIF($4, '') IS NULL OR message_id::text = $4)
+  AND (NULLIF($5, '') IS NULL OR farm = $5)
+  AND (NULLIF($6, '') IS NULL OR lower(sender) = $6)
 ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, nullableTime(req.Since), req.RecipientDomain)
+	rows, err := r.db.QueryContext(ctx, query, req.Limit, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender)
 	if err != nil {
 		return nil, fmt.Errorf("list exhausted delivery attempts: %w", err)
 	}

@@ -40,6 +40,9 @@ guidance.
   checks/history, backpressure inspection/update, domain policy, per-domain
   stats, DKIM DNS verification, delivery route runtime counters, and exhausted
   delivery attempts with recipient-domain and recent-window filters.
+- Delivery-attempt list, stats, and exhausted-attempt reads can filter by
+  message id, farm, sender, recipient domain, and recent time window for
+  targeted retry/bounce incident triage.
 - Domain listing can filter by company, lifecycle status, and latest DNS-check
   status for onboarding and tenant triage.
 - Company listing can filter by lifecycle status for tenant-level suspension
