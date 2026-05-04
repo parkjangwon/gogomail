@@ -200,6 +200,8 @@ guidance.
 - Admin delivery attempt stats summarize total attempts, unique messages,
   unique recipients, and delivered/failed/bounced/exhausted buckets with the
   same status, recipient-domain, and recent-window filters.
+- Admin delivery-route status/delete handlers trim route IDs at the HTTP
+  boundary before operator mutations are passed to the service layer.
 - User-scoped sent-message delivery status treats failed attempts with RFC 3463
   `4.x.x` enhanced status codes as retrying rather than terminal failed.
 - DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).

@@ -2620,7 +2620,7 @@ func TestAdminUpdateDeliveryRouteStatusHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/delivery-routes/route-1/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/delivery-routes/%20route-1%20/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -2639,7 +2639,7 @@ func TestAdminDeleteDeliveryRouteHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/delivery-routes/route-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/delivery-routes/%20route-1%20", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 

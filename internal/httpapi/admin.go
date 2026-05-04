@@ -1098,7 +1098,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		req.ID = r.PathValue("id")
+		req.ID = strings.TrimSpace(r.PathValue("id"))
 		if err := service.UpdateDeliveryRouteStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1202,7 +1202,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/delivery-routes/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		id := strings.TrimSpace(r.PathValue("id"))
 		if id == "" {
 			writeError(w, http.StatusBadRequest, "id is required")
 			return
