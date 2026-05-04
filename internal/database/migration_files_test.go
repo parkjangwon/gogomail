@@ -1,0 +1,52 @@
+package database
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestMigrationFilenamesUseUniqueVersions(t *testing.T) {
+	t.Parallel()
+
+	matches, err := filepath.Glob(filepath.Join("..", "..", "migrations", "*.sql"))
+	if err != nil {
+		t.Fatalf("glob migrations: %v", err)
+	}
+	if len(matches) == 0 {
+		t.Fatal("no migration files found")
+	}
+
+	seen := make(map[string]string, len(matches))
+	for _, path := range matches {
+		name := filepath.Base(path)
+		version, _, ok := strings.Cut(name, "_")
+		if !ok || version == "" {
+			t.Fatalf("migration %s must start with a numeric version prefix", name)
+		}
+		if previous := seen[version]; previous != "" {
+			t.Fatalf("migration version %s is duplicated by %s and %s", version, previous, name)
+		}
+		seen[version] = name
+	}
+}
+
+func TestRecentMigrationsDeclareGooseSections(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{
+		"0042_push_notification_provider_outcomes.sql",
+		"0043_delivery_attempt_diagnostics.sql",
+		"0044_message_search_index.sql",
+	} {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
+		if err != nil {
+			t.Fatalf("read migration %s: %v", name, err)
+		}
+		text := string(raw)
+		if !strings.Contains(text, "-- +goose Up") || !strings.Contains(text, "-- +goose Down") {
+			t.Fatalf("migration %s must declare goose Up and Down sections", name)
+		}
+	}
+}
