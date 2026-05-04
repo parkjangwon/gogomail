@@ -619,6 +619,7 @@ Implementation order:
 559. Admin API now exposes list/detail reads for API usage ledger retention-run audit rows, making blocked, dry-run, and destructive ledger purge attempts inspectable after execution.
 560. Quota reconciliation corrections now record bounded audit-log detail for dry-run and applied attempts, including before/after drift counts and samples in the same correction transaction.
 561. Admin API now exposes bounded audit-log list/detail reads with operational filters, making persisted audit records inspectable without direct database access.
+562. Domain DNS check and quota reconciliation correction audit records now reuse the shared audit hash-chain writer, avoiding empty-hash audit rows in operator-visible trails.
 
 ## Deferred until backend contracts stabilize
 

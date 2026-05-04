@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/audit"
 )
 
 type QuotaReconciliationView struct {
@@ -232,7 +234,7 @@ func recordQuotaCorrectionAudit(ctx context.Context, tx *sql.Tx, req CorrectQuot
 		return err
 	}
 	targetType := req.Scope
-	var targetID any
+	var targetID string
 	if req.Scope == "all" {
 		targetType = "quota_reconciliation"
 	} else {
@@ -242,14 +244,14 @@ func recordQuotaCorrectionAudit(ctx context.Context, tx *sql.Tx, req CorrectQuot
 	if req.DryRun {
 		result = "dry_run"
 	}
-	if _, err := tx.ExecContext(ctx, `
-INSERT INTO audit_logs (category, action, target_type, target_id, result, detail)
-VALUES ('admin', 'quota.reconciliation_correction', $1, $2, $3, $4::jsonb)`,
-		targetType,
-		targetID,
-		result,
-		string(detail),
-	); err != nil {
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		Category:   "admin",
+		Action:     "quota.reconciliation_correction",
+		TargetType: targetType,
+		TargetID:   targetID,
+		Result:     result,
+		Detail:     detail,
+	}); err != nil {
 		return fmt.Errorf("record quota reconciliation correction audit: %w", err)
 	}
 	return nil
