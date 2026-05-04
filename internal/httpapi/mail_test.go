@@ -1021,6 +1021,34 @@ func TestDownloadAttachmentHandlerUsesUTF8FilenameParameter(t *testing.T) {
 	}
 }
 
+func TestDownloadAttachmentHandlerBoundsFilenameHeader(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		download: mailservice.AttachmentDownload{
+			Attachment: maildb.Attachment{ID: "att-1", Filename: strings.Repeat("a", 220) + ".pdf", MIMEType: "application/pdf", Size: 7},
+			Body:       io.NopCloser(strings.NewReader("content")),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	got := rec.Header().Get("Content-Disposition")
+	if strings.Contains(got, strings.Repeat("a", 181)) {
+		t.Fatalf("Content-Disposition was not bounded: %q", got)
+	}
+	if !strings.Contains(got, `filename="`+strings.Repeat("a", 180)+`"`) {
+		t.Fatalf("Content-Disposition = %q", got)
+	}
+}
+
 func TestDownloadAttachmentHandlerFallsBackForUnsafeMIMEType(t *testing.T) {
 	t.Parallel()
 

@@ -768,8 +768,22 @@ func contentDispositionAttachment(filename string) string {
 	if utf8Name == "" {
 		utf8Name = "attachment"
 	}
+	utf8Name = truncateRunes(utf8Name, 180)
 	asciiName := asciiAttachmentFilename(utf8Name)
 	return `attachment; filename="` + asciiName + `"; filename*=UTF-8''` + url.PathEscape(utf8Name)
+}
+
+func truncateRunes(value string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	for i := range value {
+		if max == 0 {
+			return value[:i]
+		}
+		max--
+	}
+	return value
 }
 
 func asciiAttachmentFilename(filename string) string {

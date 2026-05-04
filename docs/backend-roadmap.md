@@ -454,6 +454,7 @@ Implementation order:
 395. API metering request identity extraction now trims tenant/company/domain/user/API-key/principal dimensions and treats blank bearer headers as anonymous unless another auth signal is present.
 396. JWT verification now rejects tokens whose `iat` is more than one minute in the future, reducing acceptance of misissued bearer tokens while allowing modest clock skew.
 397. Attachment and API usage artifact downloads now parse stored media types before writing `Content-Type`, falling back to safe defaults for malformed MIME values.
+398. Attachment download `Content-Disposition` filenames are now bounded before header emission, preserving UTF-8 filename support without allowing oversized stored names to bloat responses.
 
 ## Deferred until backend contracts stabilize
 
