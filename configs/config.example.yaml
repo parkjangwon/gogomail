@@ -18,7 +18,14 @@ delivery_smarthost_tls_mode: ""
 delivery_smarthost_implicit_tls: false
 delivery_smarthost_username: ""
 metrics_backend: none
+attachment_scan_backend: none
+attachment_scan_webhook_url: ""
+attachment_scan_webhook_token: ""
+attachment_scan_timeout: 2s
 push_notification_backend: none
+push_notification_webhook_url: ""
+push_notification_webhook_token: ""
+push_notification_webhook_timeout: 2s
 push_notification_consumer_group: gogomail.push-notification-worker
 push_notification_consumer_name: push-notification-worker-1
 push_notification_consumer_count: 50

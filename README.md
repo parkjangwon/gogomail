@@ -70,10 +70,25 @@ go run ./cmd/gogomail --mode=admin-api
 ```
 
 `push-notification-worker` stays disabled until
-`GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` is set. In that mode it consumes
-`mail.stored`, resolves active user devices from PostgreSQL, and logs bounded
-notification candidates; vendor push delivery adapters are intentionally not
-enabled by default.
+`GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` or
+`GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook` is set. The worker consumes
+`mail.stored`, resolves active user devices from PostgreSQL, and writes
+candidate attempt rows before sink handoff. The `slog` backend logs bounded
+notification candidates. The `webhook` backend POSTs raw-token targets and
+attempt IDs to an external push gateway. First-party FCM/APNs/Web Push delivery
+adapters are intentionally not enabled by default.
+
+Webhook push handoff:
+
+```bash
+GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webhook
+GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL=https://push-gateway.example/send
+GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN='optional-bearer-token'
+GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT=2s
+```
+
+Production webhook URLs must use HTTPS. Local development and private test
+harnesses may use HTTP.
 
 ## Verify
 
@@ -181,6 +196,19 @@ GOGOMAIL_SMTP_SUPPORT_REQUIRETLS=false
 GOGOMAIL_SMTP_SUPPORT_DSN=false
 GOGOMAIL_SMTP_SUPPORT_BINARYMIME=false
 ```
+
+Optional attachment scanner webhook:
+
+```bash
+GOGOMAIL_ATTACHMENT_SCAN_BACKEND=webhook
+GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL=https://scanner.example/scan
+GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN='optional-bearer-token'
+GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT=2s
+```
+
+The scanner hook runs only for parsed messages with attachments and remains
+disabled by default. Production webhook URLs must use HTTPS. The same scanner
+configuration is available to `edge-mta`, `inbound-mta`, and `outbound-mta`.
 
 Accepted messages are stored as raw `.eml` files under:
 
