@@ -3198,7 +3198,7 @@ func TestAdminCreateUserHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	body := []byte(`{"domain_id":"domain-1","username":"admin","display_name":"Admin","address":"admin@example.com"}`)
+	body := []byte(`{"domain_id":"domain-1","username":"admin","display_name":"Admin","address":"admin@example.com","password_hash":"plain:dev-password"}`)
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/users", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -3206,7 +3206,7 @@ func TestAdminCreateUserHandler(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastCreateUser.Username != "admin" || service.lastCreateUser.Address != "admin@example.com" {
+	if service.lastCreateUser.Username != "admin" || service.lastCreateUser.Address != "admin@example.com" || service.lastCreateUser.PasswordHash != "plain:dev-password" {
 		t.Fatalf("lastCreateUser = %+v", service.lastCreateUser)
 	}
 }

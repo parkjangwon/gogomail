@@ -94,6 +94,59 @@ func VerifyPasswordHash(password string, encoded string) bool {
 	return hmac.Equal(got, want)
 }
 
+func ValidatePasswordHash(encoded string) error {
+	encoded = strings.TrimSpace(encoded)
+	if encoded == "" {
+		return fmt.Errorf("password_hash is required")
+	}
+	if strings.ContainsAny(encoded, "\r\n") {
+		return fmt.Errorf("password_hash must not contain CR or LF")
+	}
+	if len(encoded) > maxPasswordHashBytes {
+		return fmt.Errorf("password_hash is too long")
+	}
+	if strings.HasPrefix(encoded, "plain:") {
+		if strings.TrimPrefix(encoded, "plain:") == "" {
+			return fmt.Errorf("plain password_hash must include a password")
+		}
+		return nil
+	}
+	if strings.HasPrefix(encoded, "sha256:") {
+		digest := strings.TrimPrefix(encoded, "sha256:")
+		if len(digest) != legacySHA256DigestBytes {
+			return fmt.Errorf("sha256 password_hash digest must be %d hex characters", legacySHA256DigestBytes)
+		}
+		if _, err := hex.DecodeString(digest); err != nil {
+			return fmt.Errorf("sha256 password_hash digest must be hex")
+		}
+		return nil
+	}
+
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 4 || parts[0] != PBKDF2SHA256Prefix {
+		return fmt.Errorf("unsupported password_hash format")
+	}
+	iterations, err := strconv.Atoi(parts[1])
+	if err != nil || iterations <= 0 || iterations > maxPBKDF2Iterations {
+		return fmt.Errorf("password_hash iterations must be between 1 and %d", maxPBKDF2Iterations)
+	}
+	if len(parts[2]) > maxPBKDF2SaltPartBytes {
+		return fmt.Errorf("password_hash salt is too long")
+	}
+	if len(parts[3]) > maxPBKDF2KeyPartBytes {
+		return fmt.Errorf("password_hash key is too long")
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[2])
+	if err != nil || len(salt) < 16 || len(salt) > maxPBKDF2SaltBytes {
+		return fmt.Errorf("password_hash salt is invalid")
+	}
+	key, err := base64.RawStdEncoding.DecodeString(parts[3])
+	if err != nil || len(key) == 0 || len(key) > maxPBKDF2KeyBytes {
+		return fmt.Errorf("password_hash key is invalid")
+	}
+	return nil
+}
+
 func derivePBKDF2SHA256(password string, salt []byte, iterations int) ([]byte, error) {
 	return pbkdf2KeySHA256(password, salt, iterations, 32)
 }

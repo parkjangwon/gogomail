@@ -44,6 +44,49 @@ func TestVerifyPasswordHashSupportsLegacySHA256(t *testing.T) {
 	}
 }
 
+func TestValidatePasswordHashAcceptsSupportedFormats(t *testing.T) {
+	t.Parallel()
+
+	pbkdf2, err := HashPasswordPBKDF2SHA256("secret", []byte("1234567890123456"), 1_000)
+	if err != nil {
+		t.Fatalf("HashPasswordPBKDF2SHA256 returned error: %v", err)
+	}
+	sha := sha256.Sum256([]byte("pass"))
+	for _, encoded := range []string{
+		pbkdf2,
+		"sha256:" + hex.EncodeToString(sha[:]),
+		"plain:dev-password",
+	} {
+		if err := ValidatePasswordHash(encoded); err != nil {
+			t.Fatalf("ValidatePasswordHash(%q) returned error: %v", encoded, err)
+		}
+	}
+}
+
+func TestValidatePasswordHashRejectsUnsafeFormats(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"",
+		"plain:",
+		"plain:pass\nbad",
+		"sha256:" + strings.Repeat("a", legacySHA256DigestBytes-1),
+		"sha256:" + strings.Repeat("z", legacySHA256DigestBytes),
+		PBKDF2SHA256Prefix + "$1000001$" + base64.RawStdEncoding.EncodeToString([]byte("1234567890123456")) + "$" + base64.RawStdEncoding.EncodeToString([]byte("12345678901234567890123456789012")),
+		"bcrypt:unsupported",
+	}
+	for _, encoded := range tests {
+		encoded := encoded
+		t.Run(encoded, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidatePasswordHash(encoded); err == nil {
+				t.Fatalf("ValidatePasswordHash(%q) returned nil", encoded)
+			}
+		})
+	}
+}
+
 func TestHashPasswordPBKDF2SHA256RejectsUnsafeCostAndSalt(t *testing.T) {
 	t.Parallel()
 

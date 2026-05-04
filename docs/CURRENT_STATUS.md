@@ -102,6 +102,9 @@ guidance.
 - `gogomail --mode=all-in-one` serves Mail API and Admin API routes from the
   same HTTP process, keeping single-node/local release smoke tests aligned with
   the documented backend mode.
+- Admin user creation can persist an optional validated `password_hash`, giving
+  operators a path to create SMTP Submission-capable local users without
+  storing raw production passwords through the API.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
 - Mail API attachment reservation/direct upload applies enforced domain

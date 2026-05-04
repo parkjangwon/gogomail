@@ -428,6 +428,36 @@ func TestValidateCreateUserRequestRejectsMismatchedPrimaryAddress(t *testing.T) 
 	}
 }
 
+func TestValidateCreateUserRequestAcceptsPasswordHash(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateUserRequest(CreateUserRequest{
+		DomainID:     "domain-1",
+		Username:     "admin",
+		DisplayName:  "Admin",
+		Address:      "admin@example.com",
+		PasswordHash: "plain:dev-password",
+	})
+	if err != nil {
+		t.Fatalf("ValidateCreateUserRequest returned error: %v", err)
+	}
+}
+
+func TestValidateCreateUserRequestRejectsUnsafePasswordHash(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCreateUserRequest(CreateUserRequest{
+		DomainID:     "domain-1",
+		Username:     "admin",
+		DisplayName:  "Admin",
+		Address:      "admin@example.com",
+		PasswordHash: "plain:dev\nbad",
+	})
+	if err == nil {
+		t.Fatal("ValidateCreateUserRequest accepted unsafe password hash")
+	}
+}
+
 func TestNormalizeAdminStatusTrimsAndLowers(t *testing.T) {
 	t.Parallel()
 
