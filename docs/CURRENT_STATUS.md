@@ -39,6 +39,8 @@ guidance.
   inspection/update, and domain policy.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, plus user-scoped sent-message delivery/bounce status.
+- Mail API send/draft-send applies domain outbound policy in enforce mode for
+  recipient-count and composed-message-size guardrails.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests.
 - Backend release verification script and SMTP release runbook.
@@ -72,8 +74,8 @@ Focus on turning the backend into a releasable webmail service platform:
 
 1. Apply quota and policy enforcement at SMTP, Submission, Mail API, and
    delivery boundaries.
-2. Apply runtime quota/policy enforcement at SMTP, Submission, Mail API, and
-   delivery boundaries.
+2. Continue runtime quota/policy enforcement at SMTP, Submission, attachment,
+   and delivery boundaries.
 3. Strengthen domain onboarding with DKIM verification workflows and admin
    remediation UX contracts.
 4. Improve Admin API observability with route counters, richer queue pressure,

@@ -95,6 +95,7 @@ type fakeRepository struct {
 	detail                    maildb.MessageDetail
 	attachments               []maildb.Attachment
 	suppressed                []string
+	domainPolicy              maildb.DomainPolicyView
 	seenSuppressionRecipients []string
 	lastDraft                 maildb.SaveDraftRequest
 	lastAttachmentUpload      maildb.CreateAttachmentUploadRequest
@@ -196,6 +197,13 @@ func (f *fakeRepository) RecordOutgoing(_ context.Context, msg maildb.OutgoingMe
 func (f *fakeRepository) SuppressedRecipients(_ context.Context, _ string, recipients []string) ([]string, error) {
 	f.seenSuppressionRecipients = append([]string(nil), recipients...)
 	return f.suppressed, nil
+}
+
+func (f *fakeRepository) DomainPolicy(context.Context, string) (maildb.DomainPolicyView, error) {
+	if f.domainPolicy.DomainID == "" {
+		return maildb.DomainPolicyView{DomainID: "domain-1", InboundMode: "inherit", OutboundMode: "inherit"}, nil
+	}
+	return f.domainPolicy, nil
 }
 
 func (f *fakeRepository) SaveDraft(_ context.Context, req maildb.SaveDraftRequest) (maildb.MessageDetail, error) {
@@ -346,6 +354,75 @@ func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
 	want := []string{"user@example.net", "other@example.net"}
 	if strings.Join(repo.seenSuppressionRecipients, ",") != strings.Join(want, ",") {
 		t.Fatalf("suppression recipients = %v, want %v", repo.seenSuppressionRecipients, want)
+	}
+}
+
+func TestSendTextRejectsOutboundPolicyRecipientLimit(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{
+		domainPolicy: maildb.DomainPolicyView{
+			DomainID:                "domain-1",
+			InboundMode:             "inherit",
+			OutboundMode:            "enforce",
+			MaxRecipientsPerMessage: 1,
+		},
+	}, storage.NewLocalStore(t.TempDir()))
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "one@example.net"}, {Email: "two@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err == nil || !strings.Contains(err.Error(), "max_recipients_per_message") {
+		t.Fatalf("SendText error = %v, want max_recipients_per_message", err)
+	}
+}
+
+func TestSendTextRejectsOutboundPolicyMessageSize(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{
+		domainPolicy: maildb.DomainPolicyView{
+			DomainID:        "domain-1",
+			InboundMode:     "inherit",
+			OutboundMode:    "enforce",
+			MaxMessageBytes: 10,
+		},
+	}, storage.NewLocalStore(t.TempDir()))
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "one@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err == nil || !strings.Contains(err.Error(), "max_message_bytes") {
+		t.Fatalf("SendText error = %v, want max_message_bytes", err)
+	}
+}
+
+func TestSendTextDoesNotBlockMonitorPolicy(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{
+		domainPolicy: maildb.DomainPolicyView{
+			DomainID:                "domain-1",
+			InboundMode:             "inherit",
+			OutboundMode:            "monitor",
+			MaxRecipientsPerMessage: 1,
+			MaxMessageBytes:         10,
+		},
+	}, storage.NewLocalStore(t.TempDir()))
+
+	if _, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "one@example.net"}, {Email: "two@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	}); err != nil {
+		t.Fatalf("SendText returned error: %v", err)
 	}
 }
 

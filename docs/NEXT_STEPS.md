@@ -35,11 +35,13 @@ Next:
 Current state:
 
 - Domain policy admin contract exists through domain settings.
+- Domain policy read helper exists.
+- Mail API send/draft-send enforces outbound recipient-count and composed-size
+  guardrails when `outbound_mode=enforce`.
 
 Next:
 
-- Define policy read helpers.
-- Apply policy at SMTP, Submission, Mail API, and delivery boundaries without
+- Apply policy at SMTP receive/submission and delivery boundaries without
   hard-coding optional product features into protocol core.
 - Keep policy values typed and testable.
 

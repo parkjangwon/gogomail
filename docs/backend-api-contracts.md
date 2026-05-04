@@ -125,7 +125,11 @@ Domain policy updates store a backend-only operational model under
 `domains.settings.policy` with `inherit|monitor|enforce` inbound/outbound modes
 and optional max-recipient/max-message-byte guardrail hints. SMTP core should
 continue to treat these as policy-boundary data until explicit runtime wiring is
-added.
+added. Mail API send/draft-send now reads the outbound domain policy after
+resolving the authenticated sender. In `outbound_mode=enforce`, it rejects
+messages whose unique recipient count exceeds `max_recipients_per_message` or
+whose composed RFC 5322 message size exceeds `max_message_bytes`. `monitor` and
+`inherit` remain non-blocking.
 
 Admin operational read models also keep explicit envelope keys:
 

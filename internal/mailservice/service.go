@@ -61,6 +61,10 @@ type DeliveryStatusRepository interface {
 	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
 }
 
+type DomainPolicyRepository interface {
+	DomainPolicy(ctx context.Context, domainID string) (maildb.DomainPolicyView, error)
+}
+
 type Service struct {
 	repository Repository
 	store      storage.Store
@@ -469,6 +473,13 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	if len(suppressed) > 0 {
 		return SendTextResult{}, fmt.Errorf("suppressed recipients: %s", strings.Join(suppressed, ", "))
 	}
+	policy, err := s.domainPolicy(ctx, sender.DomainID)
+	if err != nil {
+		return SendTextResult{}, err
+	}
+	if err := enforceOutboundRecipientPolicy(req, policy); err != nil {
+		return SendTextResult{}, err
+	}
 
 	from := outbound.Address{Name: sender.DisplayName, Email: sender.Address}
 	composed, err := outbound.ComposeText(outbound.TextMessage{
@@ -480,6 +491,9 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		TextBody: req.TextBody,
 	})
 	if err != nil {
+		return SendTextResult{}, err
+	}
+	if err := enforceOutboundSizePolicy(composed.Size, policy); err != nil {
 		return SendTextResult{}, err
 	}
 
@@ -539,6 +553,35 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		DeliveryStatus: "pending",
 		BounceStatus:   "none",
 	}), nil
+}
+
+func (s *Service) domainPolicy(ctx context.Context, domainID string) (maildb.DomainPolicyView, error) {
+	repo, ok := s.repository.(DomainPolicyRepository)
+	if !ok {
+		return maildb.DomainPolicyView{DomainID: domainID, InboundMode: "inherit", OutboundMode: "inherit"}, nil
+	}
+	return repo.DomainPolicy(ctx, domainID)
+}
+
+func enforceOutboundRecipientPolicy(req SendTextRequest, policy maildb.DomainPolicyView) error {
+	if policy.OutboundMode != "enforce" || policy.MaxRecipientsPerMessage <= 0 {
+		return nil
+	}
+	recipientCount := len(recipientEmails(req))
+	if recipientCount > policy.MaxRecipientsPerMessage {
+		return fmt.Errorf("domain outbound policy max_recipients_per_message exceeded: %d > %d", recipientCount, policy.MaxRecipientsPerMessage)
+	}
+	return nil
+}
+
+func enforceOutboundSizePolicy(size int64, policy maildb.DomainPolicyView) error {
+	if policy.OutboundMode != "enforce" || policy.MaxMessageBytes <= 0 {
+		return nil
+	}
+	if size > policy.MaxMessageBytes {
+		return fmt.Errorf("domain outbound policy max_message_bytes exceeded: %d > %d", size, policy.MaxMessageBytes)
+	}
+	return nil
 }
 
 func (s *Service) markSourceMessageAfterSend(ctx context.Context, req SendTextRequest) error {
