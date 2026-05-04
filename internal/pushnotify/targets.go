@@ -8,7 +8,12 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
-const DefaultTargetLimit = 200
+const (
+	DefaultTargetLimit      = 200
+	maxPushTargetIDBytes    = 200
+	maxPushTargetTokenBytes = 4096
+	maxPushTargetLabelBytes = 200
+)
 
 type DeviceRepository interface {
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
@@ -44,22 +49,25 @@ func (r *DeviceResolver) ResolvePushTargets(ctx context.Context, event Event) ([
 		deviceID := strings.TrimSpace(device.ID)
 		platform := strings.ToLower(strings.TrimSpace(device.Platform))
 		token := strings.TrimSpace(device.Token)
-		if invalidPushTargetValue(deviceID) || invalidPushTargetValue(platform) || invalidPushTargetValue(token) || !maildbAllowedPushPlatform(platform) {
+		if invalidPushTargetValue(deviceID, maxPushTargetIDBytes) ||
+			invalidPushTargetValue(platform, maxPushTargetIDBytes) ||
+			invalidPushTargetValue(token, maxPushTargetTokenBytes) ||
+			!maildbAllowedPushPlatform(platform) {
 			continue
 		}
 		targets = append(targets, Target{
 			DeviceID:    deviceID,
 			Platform:    platform,
 			Token:       token,
-			TokenSuffix: pushTokenSuffix(token, device.TokenSuffix),
-			Label:       strings.TrimSpace(device.Label),
+			TokenSuffix: cleanPushTargetText(pushTokenSuffix(token, device.TokenSuffix), maxPushTargetLabelBytes),
+			Label:       cleanPushTargetText(device.Label, maxPushTargetLabelBytes),
 		})
 	}
 	return targets, nil
 }
 
-func invalidPushTargetValue(value string) bool {
-	return value == "" || strings.ContainsAny(value, "\r\n")
+func invalidPushTargetValue(value string, maxBytes int) bool {
+	return value == "" || strings.ContainsAny(value, "\r\n") || len(value) > maxBytes
 }
 
 func pushTokenSuffix(token string, existing string) string {
@@ -73,6 +81,23 @@ func pushTokenSuffix(token string, existing string) string {
 		return string(runes)
 	}
 	return string(runes[len(runes)-suffixRunes:])
+}
+
+func cleanPushTargetText(value string, maxBytes int) string {
+	value = strings.ToValidUTF8(strings.TrimSpace(value), "")
+	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+	value = strings.Join(strings.Fields(value), " ")
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	cut := 0
+	for i := range value {
+		if i > maxBytes {
+			return value[:cut]
+		}
+		cut = i
+	}
+	return value[:cut]
 }
 
 func maildbAllowedPushPlatform(platform string) bool {
