@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -91,8 +92,52 @@ func TestGetMessageDoesNotRewriteReadFlag(t *testing.T) {
 	}
 }
 
+func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	path := "mailstore/c/d/u/maildir/2026/05/imap.eml"
+	raw := "Subject: raw\r\n\r\nbody"
+	if err := store.Put(context.Background(), path, strings.NewReader(raw)); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+
+	service := New(&fakeRepository{
+		imapMessage: maildb.IMAPStoredMessage{
+			Summary: imapgw.MessageSummary{
+				ID:        "msg-1",
+				MailboxID: "inbox",
+				UID:       12,
+			},
+			StoragePath: path,
+		},
+	}, store)
+
+	msg, err := service.FetchIMAPMessage(context.Background(), imapgw.FetchMessageRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		UID:       12,
+	})
+	if err != nil {
+		t.Fatalf("FetchIMAPMessage returned error: %v", err)
+	}
+	defer msg.Body.Close()
+
+	got, err := io.ReadAll(msg.Body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if string(got) != raw {
+		t.Fatalf("body = %q, want raw stored body", string(got))
+	}
+	if msg.Summary.UID != 12 || msg.Summary.ID != "msg-1" {
+		t.Fatalf("summary = %#v, want repository summary", msg.Summary)
+	}
+}
+
 type fakeRepository struct {
 	detail                    maildb.MessageDetail
+	imapMessage               maildb.IMAPStoredMessage
 	attachments               []maildb.Attachment
 	suppressed                []string
 	domainPolicy              maildb.DomainPolicyView
@@ -141,6 +186,10 @@ func (f *fakeRepository) DeleteFolder(context.Context, string, string) error {
 
 func (f *fakeRepository) GetMessage(context.Context, string, string) (maildb.MessageDetail, error) {
 	return f.detail, nil
+}
+
+func (f *fakeRepository) GetIMAPMessage(context.Context, string, string, imapgw.UID) (maildb.IMAPStoredMessage, error) {
+	return f.imapMessage, nil
 }
 
 func (f *fakeRepository) SetMessageFlag(_ context.Context, _ string, messageID string, flag string, _ bool) error {

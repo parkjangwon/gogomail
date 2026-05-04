@@ -15,6 +15,11 @@ import (
 type IMAPUIDState = imapgw.UIDState
 type IMAPMessageUID = imapgw.MessageUID
 
+type IMAPStoredMessage struct {
+	Summary     imapgw.MessageSummary
+	StoragePath string
+}
+
 func (r *Repository) ListIMAPMailboxes(ctx context.Context, userID string) ([]imapgw.Mailbox, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -209,6 +214,89 @@ LIMIT $4`
 		return messages[i].UID < messages[j].UID
 	})
 	return messages, nil
+}
+
+func (r *Repository) GetIMAPMessage(ctx context.Context, userID string, mailboxID string, uid imapgw.UID) (IMAPStoredMessage, error) {
+	if r.db == nil {
+		return IMAPStoredMessage{}, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	if userID == "" {
+		return IMAPStoredMessage{}, fmt.Errorf("user_id is required")
+	}
+	if mailboxID == "" {
+		return IMAPStoredMessage{}, fmt.Errorf("mailbox_id is required")
+	}
+	if uid == 0 {
+		return IMAPStoredMessage{}, fmt.Errorf("uid is required")
+	}
+
+	const query = `
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  m.status,
+  m.storage_path,
+  i.uid,
+  i.modseq
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.user_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND i.uid = $3
+  AND m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+LIMIT 1`
+
+	var row imapMessageRow
+	var storagePath string
+	var messageUID IMAPMessageUID
+	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID, int64(uid)).Scan(
+		&row.ID,
+		&row.MailboxID,
+		&row.RFCMessageID,
+		&row.Subject,
+		&row.FromAddr,
+		&row.FromName,
+		&row.InternalDate,
+		&row.Size,
+		&row.Read,
+		&row.Starred,
+		&row.Answered,
+		&row.Forwarded,
+		&row.Draft,
+		&row.Status,
+		&storagePath,
+		&messageUID.UID,
+		&messageUID.ModSeq,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return IMAPStoredMessage{}, fmt.Errorf("imap message uid %d not found", uid)
+		}
+		return IMAPStoredMessage{}, fmt.Errorf("get imap message: %w", err)
+	}
+	messageUID.MessageID = imapgw.MessageID(row.ID)
+	messageUID.MailboxID = imapgw.MailboxID(row.MailboxID)
+	if err := imapgw.ValidateMessageUID(messageUID); err != nil {
+		return IMAPStoredMessage{}, err
+	}
+	return IMAPStoredMessage{
+		Summary:     imapMessageFromRow(row, messageUID),
+		StoragePath: strings.TrimSpace(storagePath),
+	}, nil
 }
 
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {

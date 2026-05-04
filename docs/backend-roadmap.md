@@ -298,6 +298,7 @@ Implementation order:
 243. `maildb` can ensure mailbox IMAP UID state and assign stable message UIDs transactionally, preparing an adapter for `internal/imapgw` without starting an IMAP TCP server.
 244. `maildb` now exposes first IMAP mailbox adapter methods that list/get folders as `internal/imapgw.Mailbox` DTOs while ensuring UIDVALIDITY/UIDNEXT state.
 245. `maildb` can list mailbox messages as `internal/imapgw.MessageSummary` DTOs, assigning missing mailbox-local UIDs and mapping envelope/flag fields for future IMAP FETCH/LIST flows.
+246. IMAP fetch groundwork can resolve active messages by mailbox UID and stream the raw stored `.eml` body through `mailservice` without parsing or copying it into memory.
 
 ## Deferred until backend contracts stabilize
 

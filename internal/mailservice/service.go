@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -172,6 +173,32 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	}
 	detail.TextBody = parsed.TextBody
 	return detail, nil
+}
+
+func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageRequest) (imapgw.Message, error) {
+	repo, ok := s.repository.(interface {
+		GetIMAPMessage(context.Context, string, string, imapgw.UID) (maildb.IMAPStoredMessage, error)
+	})
+	if !ok {
+		return imapgw.Message{}, fmt.Errorf("imap message repository is required")
+	}
+	if s.store == nil {
+		return imapgw.Message{}, fmt.Errorf("message storage is required")
+	}
+
+	stored, err := repo.GetIMAPMessage(ctx, string(req.UserID), string(req.MailboxID), req.UID)
+	if err != nil {
+		return imapgw.Message{}, err
+	}
+	if strings.TrimSpace(stored.StoragePath) == "" {
+		return imapgw.Message{}, fmt.Errorf("imap message storage path is required")
+	}
+
+	body, err := s.store.Get(ctx, stored.StoragePath)
+	if err != nil {
+		return imapgw.Message{}, fmt.Errorf("open imap message body: %w", err)
+	}
+	return imapgw.Message{Summary: stored.Summary, Body: body}, nil
 }
 
 func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
