@@ -415,6 +415,8 @@ API call metering can now emit durable usage events:
 - Negative request byte, response byte, and latency values from durable usage
   events are clamped to zero before ledger/aggregate storage; request count
   defaults to one when absent or nonpositive.
+- API metering outbox payload creation also clamps negative byte and latency
+  values to zero before deterministic event IDs are generated.
 - Durable usage events must include nonblank `method` and `route` fields and an
   HTTP-like status code from 100 through 999 before they can enter ledger or
   aggregate storage.

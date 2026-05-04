@@ -67,6 +67,7 @@ func apiUsagePayload(event Event) map[string]any {
 	if timestamp.IsZero() {
 		timestamp = time.Now().UTC()
 	}
+	requestBytes, responseBytes, latencyMS := normalizedEventMetrics(event)
 	identity := event.Identity.Normalize()
 	if identity.UserID == "" && event.UserID != "" {
 		identity.UserID = strings.TrimSpace(event.UserID)
@@ -82,9 +83,9 @@ func apiUsagePayload(event Event) map[string]any {
 		"method":         strings.TrimSpace(event.Method),
 		"route":          strings.TrimSpace(event.RoutePattern),
 		"status":         event.Status,
-		"request_bytes":  event.RequestBytes,
-		"response_bytes": event.ResponseBytes,
-		"latency_ms":     event.Latency.Milliseconds(),
+		"request_bytes":  requestBytes,
+		"response_bytes": responseBytes,
+		"latency_ms":     latencyMS,
 		"timestamp":      timestamp.UTC().Format(time.RFC3339Nano),
 		"tenant_id":      identity.TenantID,
 		"company_id":     identity.CompanyID,
@@ -101,6 +102,7 @@ func apiUsageEventID(event Event, timestamp time.Time, identity Identity) string
 		return id
 	}
 	identity = identity.Normalize()
+	requestBytes, responseBytes, latencyMS := normalizedEventMetrics(event)
 	parts := []string{
 		timestamp.UTC().Format(time.RFC3339Nano),
 		strings.TrimSpace(event.Method),
@@ -113,10 +115,26 @@ func apiUsageEventID(event Event, timestamp time.Time, identity Identity) string
 		identity.APIKeyID,
 		identity.PrincipalID,
 		identity.AuthSource,
-		fmt.Sprint(event.RequestBytes),
-		fmt.Sprint(event.ResponseBytes),
-		fmt.Sprint(event.Latency.Milliseconds()),
+		fmt.Sprint(requestBytes),
+		fmt.Sprint(responseBytes),
+		fmt.Sprint(latencyMS),
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return "api-usage-" + hex.EncodeToString(sum[:16])
+}
+
+func normalizedEventMetrics(event Event) (int64, int64, int64) {
+	requestBytes := event.RequestBytes
+	if requestBytes < 0 {
+		requestBytes = 0
+	}
+	responseBytes := event.ResponseBytes
+	if responseBytes < 0 {
+		responseBytes = 0
+	}
+	latencyMS := event.Latency.Milliseconds()
+	if latencyMS < 0 {
+		latencyMS = 0
+	}
+	return requestBytes, responseBytes, latencyMS
 }
