@@ -61,6 +61,23 @@ type DomainReport struct {
 	DKIM   []RecordCheck `json:"dkim"`
 }
 
+func (r DomainReport) SummaryStatus() Status {
+	status := StatusOK
+	for _, check := range append([]RecordCheck{r.MX, r.SPF, r.DMARC}, r.DKIM...) {
+		switch check.Status {
+		case StatusError:
+			return StatusError
+		case StatusMismatch:
+			status = StatusMismatch
+		case StatusMissing:
+			if status == StatusOK {
+				status = StatusMissing
+			}
+		}
+	}
+	return status
+}
+
 type Verifier struct {
 	DNS DNSResolver
 }

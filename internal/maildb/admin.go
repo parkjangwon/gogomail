@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -917,7 +918,49 @@ func (r *Repository) VerifyDomainDNS(ctx context.Context, id string) (dnscheck.D
 	if name == "" {
 		name = domain.Name
 	}
-	return dnscheck.Verifier{}.VerifyDomain(ctx, name, expectations), nil
+	report := dnscheck.Verifier{}.VerifyDomain(ctx, name, expectations)
+	if err := r.recordDomainDNSCheck(ctx, domain, report); err != nil {
+		return dnscheck.DomainReport{}, err
+	}
+	return report, nil
+}
+
+func (r *Repository) recordDomainDNSCheck(ctx context.Context, domain DomainView, report dnscheck.DomainReport) error {
+	reportJSON, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("marshal domain dns check report: %w", err)
+	}
+	status := string(report.SummaryStatus())
+
+	var checkID string
+	if err := r.db.QueryRowContext(ctx, `
+INSERT INTO domain_dns_checks (domain_id, status, report)
+VALUES ($1, $2, $3)
+RETURNING id::text`, domain.ID, status, reportJSON).Scan(&checkID); err != nil {
+		return fmt.Errorf("record domain dns check: %w", err)
+	}
+
+	detailJSON, err := json.Marshal(map[string]any{
+		"dns_check_id": checkID,
+		"domain":       report.Domain,
+		"status":       status,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal domain dns check audit detail: %w", err)
+	}
+	if _, err := r.db.ExecContext(ctx, `
+INSERT INTO audit_logs (
+  company_id, domain_id, category, action, target_type, target_id, result, detail
+)
+VALUES ($1, $2, 'admin', 'domain.dns_check', 'domain', $2, $3, $4)`,
+		domain.CompanyID,
+		domain.ID,
+		status,
+		detailJSON,
+	); err != nil {
+		return fmt.Errorf("record domain dns check audit: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) ListQueueStats(ctx context.Context) ([]QueueStat, error) {
