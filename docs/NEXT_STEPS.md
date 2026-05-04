@@ -196,6 +196,9 @@ Current state:
 - Candidate recording returns an attempt id to the worker sink, giving future
   vendor adapters a stable row to update with delivered/failed/invalid-token
   outcomes.
+- Candidate and provider-outcome diagnostics are capped at UTF-8 boundaries
+  before storage so internationalized subjects and vendor messages remain valid
+  in Admin API views.
 - `internal/pushnotify.PostgresRecorder` can update an existing attempt with
   queued, delivered, failed, or invalid-token outcomes.
 - Invalid-token outcomes soft-delete the matching user push device in the same
