@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/eventstream"
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -19,12 +20,22 @@ type UIDEnsurer interface {
 	EnsureIMAPMessageUID(ctx context.Context, userID string, mailboxID string, messageID string) (maildb.IMAPMessageUID, error)
 }
 
+type MailboxEventPublisher interface {
+	Publish(ctx context.Context, event imapgw.MailboxEvent) error
+}
+
 type MailStoredHandler struct {
 	uidEnsurer UIDEnsurer
+	events     MailboxEventPublisher
 }
 
 func NewMailStoredHandler(uidEnsurer UIDEnsurer) *MailStoredHandler {
 	return &MailStoredHandler{uidEnsurer: uidEnsurer}
+}
+
+func (h *MailStoredHandler) WithMailboxEvents(events MailboxEventPublisher) *MailStoredHandler {
+	h.events = events
+	return h
 }
 
 func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
@@ -35,8 +46,19 @@ func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Mes
 	if err != nil {
 		return err
 	}
-	if _, err := h.uidEnsurer.EnsureIMAPMessageUID(ctx, event.UserID, event.FolderID, event.MessageID); err != nil {
+	uid, err := h.uidEnsurer.EnsureIMAPMessageUID(ctx, event.UserID, event.FolderID, event.MessageID)
+	if err != nil {
 		return fmt.Errorf("ensure imap uid for stored message %q: %w", event.MessageID, err)
+	}
+	if h.events != nil {
+		if err := h.events.Publish(ctx, imapgw.MailboxEvent{
+			Type:      imapgw.MailboxEventExists,
+			UserID:    imapgw.UserID(event.UserID),
+			MailboxID: uid.MailboxID,
+			UID:       uid.UID,
+		}); err != nil {
+			return fmt.Errorf("publish imap exists for stored message %q: %w", event.MessageID, err)
+		}
 	}
 	return nil
 }

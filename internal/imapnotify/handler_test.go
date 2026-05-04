@@ -31,6 +31,31 @@ func TestMailStoredHandlerEnsuresIMAPMessageUID(t *testing.T) {
 	}
 }
 
+func TestMailStoredHandlerPublishesExistsAfterUIDAssignment(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{}
+	events := &fakeMailboxEventPublisher{}
+	handler := NewMailStoredHandler(ensurer).WithMailboxEvents(events)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(events.events) != 1 {
+		t.Fatalf("events = %+v, want one EXISTS event", events.events)
+	}
+	event := events.events[0]
+	if event.Type != imapgw.MailboxEventExists || event.UserID != "user-1" || event.MailboxID != "inbox-1" || event.UID != 1 {
+		t.Fatalf("event = %+v", event)
+	}
+}
+
 func TestDecodeMailStoredEventRejectsUnsupportedSchema(t *testing.T) {
 	t.Parallel()
 
@@ -76,4 +101,13 @@ func (f *fakeUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string, 
 		UID:       imapgw.UID(1),
 		ModSeq:    1,
 	}, nil
+}
+
+type fakeMailboxEventPublisher struct {
+	events []imapgw.MailboxEvent
+}
+
+func (f *fakeMailboxEventPublisher) Publish(_ context.Context, event imapgw.MailboxEvent) error {
+	f.events = append(f.events, event)
+	return nil
 }
