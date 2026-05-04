@@ -585,6 +585,7 @@ Implementation order:
 526. Pending attachment cancellation now clears any draft binding while marking the upload deleted, avoiding stale draft links in deleted attachment rows.
 527. OpenAPI attachment status documentation now matches persisted API values (`uploading`, `stored`, `deleted`) and rejects the obsolete `active` enum in contract tests.
 528. Attachment upload capabilities now lock the runtime byte-limit constants to the HTTP response and OpenAPI schema through regression tests for generated clients.
+529. ADR 0007 defines resumable/chunked attachment uploads as explicit upload sessions with quota reservation, adapter-owned staged chunks, final attachment rows after assembly, and bounded cleanup.
 
 ## Deferred until backend contracts stabilize
 

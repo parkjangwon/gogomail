@@ -260,6 +260,9 @@ Current state:
   reserved quota and deleting any stored upload object.
 - Mail API exposes attachment upload capabilities so clients can discover
   current limits and supported modes without hard-coding them.
+- ADR 0007 defines the resumable/chunked attachment upload boundary: explicit
+  upload sessions, quota reservation at session creation, adapter-owned staged
+  chunks, normal attachment rows after finalization, and bounded cleanup.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments.
@@ -269,7 +272,8 @@ Current state:
 
 Next:
 
-- Add resumable/chunked upload contracts for large attachment workflows.
+- Add the resumable/chunked upload session table and Mail API session contract
+  described by ADR 0007.
 
 ### 6. OpenAPI/client readiness
 

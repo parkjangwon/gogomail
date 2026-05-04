@@ -176,6 +176,9 @@ upload cancellation, declared-size requirements, quota reservation semantics,
 and the fact that resumable/chunked uploads are not yet supported.
 OpenAPI documents the current maximum attachment and filename byte caps so
 generated clients can validate these limits without copying hidden constants.
+Resumable/chunked upload contracts will follow ADR 0007 and remain disabled in
+capabilities until explicit upload sessions, adapter-owned staged chunks,
+finalization, cancellation, and cleanup are implemented.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart
