@@ -168,6 +168,38 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 }
 
+func TestListMethodsNormalizeLimits(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	_, _ = service.ListMessages(context.Background(), "user-1", 0)
+	if repo.lastListMessagesLimit != maildb.MessageListDefaultLimit {
+		t.Fatalf("list messages limit = %d", repo.lastListMessagesLimit)
+	}
+	_, _ = service.ListMessagesInFolder(context.Background(), "user-1", "inbox", 500)
+	if repo.lastListMessagesInFolderLimit != maildb.MessageListMaxLimit {
+		t.Fatalf("list messages in folder limit = %d", repo.lastListMessagesInFolderLimit)
+	}
+	_, _ = service.ListMessagesPage(context.Background(), "user-1", "inbox", -1, maildb.MessageListCursor{})
+	if repo.lastPageLimit != maildb.MessageListDefaultLimit {
+		t.Fatalf("page limit = %d", repo.lastPageLimit)
+	}
+	_, _ = service.ListThreads(context.Background(), "user-1", 999)
+	if repo.lastListThreadsLimit != maildb.MessageListMaxLimit {
+		t.Fatalf("list threads limit = %d", repo.lastListThreadsLimit)
+	}
+	_, _ = service.ListThreadMessages(context.Background(), "user-1", "thread-1", 0)
+	if repo.lastThreadMessagesLimit != maildb.MessageListDefaultLimit {
+		t.Fatalf("thread messages limit = %d", repo.lastThreadMessagesLimit)
+	}
+	_, _ = service.ListPushDevices(context.Background(), "user-1", 500)
+	if repo.lastListPushDeviceLimit != maildb.MessageListMaxLimit {
+		t.Fatalf("push devices limit = %d", repo.lastListPushDeviceLimit)
+	}
+}
+
 func TestUpsertPushDeviceNormalizesRequest(t *testing.T) {
 	t.Parallel()
 
@@ -849,13 +881,18 @@ type fakeRepository struct {
 	lastDeleteFolderUserID         string
 	lastDeleteFolderID             string
 	lastListMessagesUserID         string
+	lastListMessagesLimit          int
 	lastListMessagesInFolderUserID string
 	lastListMessagesFolderID       string
+	lastListMessagesInFolderLimit  int
 	lastPageUserID                 string
 	lastPageFolderID               string
+	lastPageLimit                  int
 	lastListThreadsUserID          string
+	lastListThreadsLimit           int
 	lastThreadMessagesUserID       string
 	lastThreadID                   string
+	lastThreadMessagesLimit        int
 	lastGetMessageUserID           string
 	lastGetMessageID               string
 	lastSearchQuery                maildb.MessageSearchQuery
@@ -877,6 +914,7 @@ type fakeRepository struct {
 	lastOutgoing                   maildb.OutgoingMessage
 	lastPushDevice                 maildb.UpsertPushDeviceRequest
 	lastListPushDeviceUserID       string
+	lastListPushDeviceLimit        int
 	lastDeletePushDeviceUserID     string
 	lastDeletePushDeviceID         string
 	lastDeliveryStatusUserID       string
@@ -893,20 +931,23 @@ type fakeRepository struct {
 	recordErr                      error
 }
 
-func (f *fakeRepository) ListMessages(_ context.Context, userID string, _ int) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
 	f.lastListMessagesUserID = userID
+	f.lastListMessagesLimit = limit
 	return nil, nil
 }
 
-func (f *fakeRepository) ListMessagesInFolder(_ context.Context, userID string, folderID string, _ int) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessagesInFolder(_ context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error) {
 	f.lastListMessagesInFolderUserID = userID
 	f.lastListMessagesFolderID = folderID
+	f.lastListMessagesInFolderLimit = limit
 	return nil, nil
 }
 
-func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, folderID string, _ int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	f.lastPageUserID = userID
 	f.lastPageFolderID = folderID
+	f.lastPageLimit = limit
 	f.lastPageCursor = cursor
 	return []maildb.MessageSummary{{ID: "msg-page"}}, nil
 }
@@ -921,14 +962,16 @@ func (f *fakeRepository) ListMessagesByIDs(_ context.Context, _ string, ids []st
 	return f.messagesByID, nil
 }
 
-func (f *fakeRepository) ListThreads(_ context.Context, userID string, _ int) ([]maildb.ThreadSummary, error) {
+func (f *fakeRepository) ListThreads(_ context.Context, userID string, limit int) ([]maildb.ThreadSummary, error) {
 	f.lastListThreadsUserID = userID
+	f.lastListThreadsLimit = limit
 	return nil, nil
 }
 
-func (f *fakeRepository) ListThreadMessages(_ context.Context, userID string, threadID string, _ int) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListThreadMessages(_ context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
 	f.lastThreadMessagesUserID = userID
 	f.lastThreadID = threadID
+	f.lastThreadMessagesLimit = limit
 	return nil, nil
 }
 
@@ -1034,8 +1077,9 @@ func (f *fakeRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMe
 	return int64(len(req.MessageIDs)), nil
 }
 
-func (f *fakeRepository) ListPushDevices(_ context.Context, userID string, _ int) ([]maildb.PushDevice, error) {
+func (f *fakeRepository) ListPushDevices(_ context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
 	f.lastListPushDeviceUserID = userID
+	f.lastListPushDeviceLimit = limit
 	return nil, nil
 }
 
