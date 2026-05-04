@@ -128,6 +128,38 @@ func TestDecodeQueuedMessageRejectsStoragePathLineBreak(t *testing.T) {
 	}
 }
 
+func TestDecodeQueuedMessageRejectsOversizedMessageIdentity(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"` + strings.Repeat("m", maxQueuedMessageIDBytes+1) + `",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"storage_path":"mailstore/msg.eml",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "oversized message identity") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want oversized message identity", err)
+	}
+}
+
+func TestDecodeQueuedMessageRejectsOversizedStoragePath(t *testing.T) {
+	t.Parallel()
+
+	_, err := DecodeQueuedMessage([]byte(`{
+		"event":"mail.queued",
+		"message_id":"msg-1",
+		"from":{"email":"sender@example.com"},
+		"to":[{"email":"recipient@example.net"}],
+		"storage_path":"` + strings.Repeat("s", maxQueuedStoragePathBytes+1) + `",
+		"farm":"general"
+	}`))
+	if err == nil || !strings.Contains(err.Error(), "oversized storage_path") {
+		t.Fatalf("DecodeQueuedMessage error = %v, want oversized storage_path", err)
+	}
+}
+
 func TestDecodeQueuedMessageCanonicalizesDSNNotifyOrder(t *testing.T) {
 	t.Parallel()
 

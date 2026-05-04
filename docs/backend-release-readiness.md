@@ -113,6 +113,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   message IDs before immutable audit log construction.
 - Delivery status audit event decoding rejects CR/LF-bearing or oversized
   message IDs before immutable audit log construction.
+- Delivery `mail.queued` decoding rejects oversized message identities and
+  storage paths before SMTP transport or message storage access.
 - Redis outbox publishing trims event id, topic, partition key, and payload
   metadata and rejects invalid topics or non-JSON payloads before stream writes.
 - EML parser hot-path guardrails include bounded-read truncation coverage, a
