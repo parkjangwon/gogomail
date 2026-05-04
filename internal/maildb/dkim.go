@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/dkim"
 )
 
 type DKIMKey struct {
@@ -141,6 +143,14 @@ func (r *Repository) CreateDKIMKey(ctx context.Context, input CreateDKIMKeyInput
 	if strings.TrimSpace(input.PrivateKeyPEM) == "" {
 		return "", fmt.Errorf("private_key_pem is required")
 	}
+	publicKeyDNS := strings.TrimSpace(input.PublicKeyDNS)
+	if publicKeyDNS == "" {
+		derived, err := dkim.PublicKeyDNSFromPrivateKeyPEM(input.PrivateKeyPEM)
+		if err != nil {
+			return "", err
+		}
+		publicKeyDNS = derived
+	}
 
 	const query = `
 INSERT INTO dkim_keys (domain_id, selector, private_key_pem, public_key_dns, status)
@@ -160,7 +170,7 @@ RETURNING id::text`
 		strings.TrimSpace(input.DomainID),
 		strings.TrimSpace(input.Selector),
 		input.PrivateKeyPEM,
-		strings.TrimSpace(input.PublicKeyDNS),
+		publicKeyDNS,
 	).Scan(&id); err != nil {
 		return "", fmt.Errorf("create dkim key: %w", err)
 	}

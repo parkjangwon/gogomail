@@ -38,6 +38,24 @@ func TestTransformerDelegatesToSigner(t *testing.T) {
 	}
 }
 
+func TestPublicKeyDNSFromPrivateKeyPEM(t *testing.T) {
+	t.Parallel()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("GenerateKey returned error: %v", err)
+	}
+	raw := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+
+	record, err := PublicKeyDNSFromPrivateKeyPEM(string(raw))
+	if err != nil {
+		t.Fatalf("PublicKeyDNSFromPrivateKeyPEM returned error: %v", err)
+	}
+	if !strings.HasPrefix(record, "v=DKIM1; k=rsa; p=") {
+		t.Fatalf("record = %q", record)
+	}
+}
+
 func TestTransformerClosesInputOnSignerError(t *testing.T) {
 	t.Parallel()
 

@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -150,6 +151,18 @@ func parsePrivateKeyPEM(raw string) (crypto.Signer, error) {
 	default:
 		return nil, fmt.Errorf("unsupported dkim private key type %T", parsed)
 	}
+}
+
+func PublicKeyDNSFromPrivateKeyPEM(raw string) (string, error) {
+	signer, err := parsePrivateKeyPEM(raw)
+	if err != nil {
+		return "", err
+	}
+	encoded, err := x509.MarshalPKIXPublicKey(signer.Public())
+	if err != nil {
+		return "", fmt.Errorf("marshal dkim public key: %w", err)
+	}
+	return "v=DKIM1; k=rsa; p=" + base64.StdEncoding.EncodeToString(encoded), nil
 }
 
 func headerKeysOrDefault(keys []string) []string {
