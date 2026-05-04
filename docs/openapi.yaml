@@ -654,6 +654,26 @@ paths:
           $ref: "#/components/responses/APIUsageExportArtifact"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}/artifacts/{artifact_id}:
+    get:
+      operationId: getAdminAPIUsageExportArtifact
+      summary: API usage export artifact detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportArtifact"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
