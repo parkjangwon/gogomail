@@ -283,6 +283,9 @@ func normalizeMessageSearchQuery(query maildb.MessageSearchQuery) maildb.Message
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return maildb.MessageDetail{}, err
+	}
 	detail, err := s.repository.GetMessage(ctx, userID, messageID)
 	if err != nil {
 		return maildb.MessageDetail{}, err
@@ -485,6 +488,9 @@ func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, mess
 	}
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return maildb.MessageDeliveryStatusView{}, err
+	}
 	return repo.MessageDeliveryStatus(ctx, userID, messageID)
 }
 
@@ -503,6 +509,9 @@ func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID s
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
 	flag = strings.TrimSpace(flag)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return err
+	}
 	if err := s.repository.SetMessageFlag(ctx, userID, messageID, flag, value); err != nil {
 		return err
 	}
@@ -527,6 +536,12 @@ func (s *Service) MoveMessage(ctx context.Context, userID string, messageID stri
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
 	folderID = strings.TrimSpace(folderID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return err
+	}
+	if err := validateServiceResourceID("folder_id", folderID); err != nil {
+		return err
+	}
 	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
 	if err != nil {
 		return err
@@ -558,6 +573,9 @@ func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMo
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return err
+	}
 	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
 	if err != nil {
 		return err
@@ -683,6 +701,9 @@ func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string
 func (s *Service) ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return nil, err
+	}
 	return s.repository.ListAttachments(ctx, userID, messageID)
 }
 
@@ -831,6 +852,12 @@ func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID s
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
 	attachmentID = strings.TrimSpace(attachmentID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return AttachmentDownload{}, err
+	}
+	if err := validateServiceResourceID("attachment_id", attachmentID); err != nil {
+		return AttachmentDownload{}, err
+	}
 	attachment, err := s.repository.GetAttachment(ctx, userID, messageID, attachmentID)
 	if err != nil {
 		return AttachmentDownload{}, err
@@ -1085,6 +1112,22 @@ func normalizeStringList(values []string) []string {
 		values[i] = strings.TrimSpace(values[i])
 	}
 	return values
+}
+
+const maxServiceResourceIDBytes = 200
+
+func validateServiceResourceID(field string, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("%s is required", field)
+	}
+	if strings.ContainsAny(id, "\r\n") {
+		return fmt.Errorf("%s must not contain CR or LF", field)
+	}
+	if len(id) > maxServiceResourceIDBytes {
+		return fmt.Errorf("%s is too long", field)
+	}
+	return nil
 }
 
 func normalizeBulkMessageFlagRequest(req maildb.BulkMessageFlagRequest) maildb.BulkMessageFlagRequest {

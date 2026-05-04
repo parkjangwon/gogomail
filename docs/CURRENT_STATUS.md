@@ -498,7 +498,9 @@ The platform hardening sprint completed the following:
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work.
 - Attachment list/download and draft-delete service methods trim user, message,
-  attachment, and draft identifiers before repository/storage work.
+  attachment, and draft identifiers before repository/storage work; attachment
+  reads reject blank, CR/LF-bearing, or oversized message/attachment
+  identifiers before repository/storage dispatch.
 - Mail API path identifiers and direct-upload `draft_id` fields are trimmed at
   the HTTP boundary before service dispatch.
 - Mail API search query, folder, sender, and subject filters are trimmed at the
@@ -510,7 +512,9 @@ The platform hardening sprint completed the following:
   into draft storage, and from/subject plus recipient display names/emails
   reject CR/LF before draft persistence or outbound header composition.
 - Single-message flag, move, and delete service methods trim user/message/flag
-  and folder identifiers before repository mutation and IMAP event fan-out.
+  and folder identifiers before repository mutation and IMAP event fan-out, and
+  reject blank, CR/LF-bearing, or oversized message/folder identifiers before
+  repository or IMAP UID lookup work.
 - Bulk flag, move, and delete service methods also trim user/message/flag and
   folder identifiers before repository mutation, IMAP UID lookup, and mailbox
   event fan-out; bulk message and folder identifiers reject CR/LF and oversized
