@@ -90,6 +90,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and search metadata without bound.
 - EML attachment metadata detection includes inline filename parts and non-text
   inline parts without reading attachment bodies.
+- The audit `mail.stored` consumer trims event, tenant, recipient, subject,
+  storage, and timestamp fields and rejects CR/LF-bearing message identifiers
+  before audit-log persistence.
 - Push notification enqueue has a disabled-by-default worker boundary over committed `mail.stored` events with a bounded Postgres device resolver that drops malformed targets before sink handoff, per-device candidate-attempt persistence, queued outcome updates after successful sink handoff, failed outcome updates after sink errors, Admin API inspection/stats including user- and recent-window-scoped views, replaceable sink, and `slog` first adapter; Mail API device-token registration/list/delete exists with write-only raw tokens, while vendor push delivery is still out of scope.
 - Domain outbound policy can cap individual attachment uploads with `max_attachment_bytes`, enforced before quota reservation or object storage writes.
 - Attachment scanner integration has a disabled-by-default hook adapter outside SMTP core.

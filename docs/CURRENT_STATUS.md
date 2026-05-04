@@ -205,6 +205,9 @@ guidance.
 - Audit, search indexing, and push notification consumers reject unsupported
   explicit `mail.stored` schema versions while accepting versionless legacy
   events.
+- The audit `mail.stored` consumer trims event, tenant, recipient, subject,
+  storage, and timestamp fields and rejects CR/LF-bearing message identifiers
+  before audit-log persistence.
 - Mail API now has user-scoped push device registration/list/delete contracts
   for `apns`, `fcm`, and `webpush`; raw device tokens are accepted only on
   write and are not returned in API JSON responses.
