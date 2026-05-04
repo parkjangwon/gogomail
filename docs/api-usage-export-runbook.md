@@ -173,6 +173,8 @@ gogomail --mode=api-usage-retention-worker
 For a one-shot CronJob-style deployment, set
 `GOGOMAIL_API_USAGE_RETENTION_RUN_ONCE=true`. For destructive retention, set
 `GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false` and
-`GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true`; the worker still rechecks
-readiness and persists every blocked, dry-run, or destructive attempt in
-`api_usage_ledger_retention_runs`.
+`GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true`; config validation also
+requires `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=remote-ed25519` so
+scheduled destructive purges cannot run under local-only signing evidence. The
+worker still rechecks readiness and persists every blocked, dry-run, or
+destructive attempt in `api_usage_ledger_retention_runs`.

@@ -240,6 +240,10 @@ func TestValidateRejectsInvalidAPIUsageRetentionSettings(t *testing.T) {
 			cfg.APIUsageRetentionDryRun = false
 			cfg.APIUsageRetentionConfirmReady = false
 		}},
+		{name: "destructive without production signer", mutate: func(cfg *Config) {
+			cfg.APIUsageRetentionDryRun = false
+			cfg.APIUsageRetentionConfirmReady = true
+		}},
 		{name: "tenant newline", mutate: func(cfg *Config) { cfg.APIUsageRetentionTenantID = "tenant\nbad" }},
 		{name: "principal too large", mutate: func(cfg *Config) { cfg.APIUsageRetentionPrincipalID = strings.Repeat("p", 1025) }},
 	}

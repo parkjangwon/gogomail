@@ -386,7 +386,8 @@ Current state:
   rows after blocked, dry-run, or destructive attempts.
 - `api-usage-retention-worker` can run the same bounded retention path on an
   interval or once-and-exit. It is dry-run by default and requires explicit
-  `confirm_ready` configuration before destructive runs.
+  `confirm_ready` plus a `remote-ed25519` export manifest signer before
+  destructive runs.
 - Admin API can create and list API usage export batch manifests, fetch a saved
   manifest by ID, and replay that manifest window as NDJSON. Batch manifests fix
   the filtered ledger totals used for downstream billing/warehouse jobs.
