@@ -1003,6 +1003,40 @@ func TestUploadAttachmentHandler(t *testing.T) {
 	}
 }
 
+func TestCreateAttachmentUploadSessionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	expiresAt := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments/upload-sessions?user_id=user-1", strings.NewReader(`{
+		"draft_id":" draft-1 ",
+		"filename":"large.bin",
+		"declared_size":42,
+		"mime_type":"application/octet-stream",
+		"expires_at":"`+expiresAt.Format(time.RFC3339)+`"
+	}`))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUploadSession.UserID != "user-1" ||
+		service.lastUploadSession.DraftID != " draft-1 " ||
+		service.lastUploadSession.Filename != "large.bin" ||
+		service.lastUploadSession.DeclaredSize != 42 ||
+		service.lastUploadSession.MIMEType != "application/octet-stream" ||
+		!service.lastUploadSession.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("lastUploadSession = %+v", service.lastUploadSession)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment_upload_session"`) || !strings.Contains(rec.Body.String(), `"status":"pending"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
 func TestCancelAttachmentUploadHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1021,6 +1055,28 @@ func TestCancelAttachmentUploadHandler(t *testing.T) {
 		t.Fatalf("cancel request = user:%q attachment:%q", service.lastUserID, service.lastCancelAttachmentID)
 	}
 	if !strings.Contains(rec.Body.String(), `"attachment"`) || !strings.Contains(rec.Body.String(), `"status":"deleted"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestCancelAttachmentUploadSessionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/attachments/upload-sessions/session-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" || service.lastCancelUploadSessionID != "session-1" {
+		t.Fatalf("cancel session request = user:%q session:%q", service.lastUserID, service.lastCancelUploadSessionID)
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment_upload_session"`) || !strings.Contains(rec.Body.String(), `"status":"canceled"`) {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
@@ -1572,6 +1628,11 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			path:   "/api/v1/attachments/att%0Abad?user_id=user-1",
 		},
 		{
+			name:   "upload session cancel crlf",
+			method: http.MethodDelete,
+			path:   "/api/v1/attachments/upload-sessions/session%0Abad?user_id=user-1",
+		},
+		{
 			name:   "draft crlf",
 			method: http.MethodPatch,
 			path:   "/api/v1/drafts/draft%0Abad",
@@ -1600,8 +1661,8 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 			}
-			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" {
-				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID)
+			if service.lastFolderID != "" || service.lastThreadID != "" || service.lastMessageID != "" || service.lastDraft.DraftID != "" || service.lastDeletedDraftID != "" || service.lastDeletePushDeviceID != "" || service.lastCancelAttachmentID != "" || service.lastCancelUploadSessionID != "" {
+				t.Fatalf("service dispatched: folder=%q thread=%q message=%q draft=%q deletedDraft=%q push=%q cancelAttachment=%q cancelUploadSession=%q", service.lastFolderID, service.lastThreadID, service.lastMessageID, service.lastDraft.DraftID, service.lastDeletedDraftID, service.lastDeletePushDeviceID, service.lastCancelAttachmentID, service.lastCancelUploadSessionID)
 			}
 		})
 	}
@@ -1628,40 +1689,42 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 }
 
 type fakeMessageService struct {
-	folders                []maildb.Folder
-	createdFolder          maildb.Folder
-	list                   []maildb.MessageSummary
-	threads                []maildb.ThreadSummary
-	attachments            []maildb.Attachment
-	pushDevices            []maildb.PushDevice
-	download               mailservice.AttachmentDownload
-	detail                 maildb.MessageDetail
-	sendResult             mailservice.SendTextResult
-	deliveryStatus         maildb.MessageDeliveryStatusView
-	lastSend               mailservice.SendTextRequest
-	lastDraft              mailservice.SaveDraftRequest
-	lastAttachmentUpload   mailservice.CreateAttachmentUploadRequest
-	lastCancelAttachmentID string
-	lastPushDevice         maildb.UpsertPushDeviceRequest
-	lastAttachmentBody     string
-	attachmentErr          error
-	lastUserID             string
-	lastFolderName         string
-	lastDeletedFolderID    string
-	lastMessageID          string
-	lastFolderID           string
-	lastThreadID           string
-	lastMoveFolderID       string
-	lastDeletedID          string
-	lastDeletedDraftID     string
-	lastDeletePushDeviceID string
-	lastFlag               string
-	lastFlagValue          bool
-	lastBulkFlag           maildb.BulkMessageFlagRequest
-	lastBulkMove           maildb.BulkMessageMoveRequest
-	lastBulkDelete         maildb.BulkMessageDeleteRequest
-	lastSearch             maildb.MessageSearchQuery
-	lastLimit              int
+	folders                   []maildb.Folder
+	createdFolder             maildb.Folder
+	list                      []maildb.MessageSummary
+	threads                   []maildb.ThreadSummary
+	attachments               []maildb.Attachment
+	pushDevices               []maildb.PushDevice
+	download                  mailservice.AttachmentDownload
+	detail                    maildb.MessageDetail
+	sendResult                mailservice.SendTextResult
+	deliveryStatus            maildb.MessageDeliveryStatusView
+	lastSend                  mailservice.SendTextRequest
+	lastDraft                 mailservice.SaveDraftRequest
+	lastAttachmentUpload      mailservice.CreateAttachmentUploadRequest
+	lastUploadSession         mailservice.CreateAttachmentUploadSessionRequest
+	lastCancelAttachmentID    string
+	lastCancelUploadSessionID string
+	lastPushDevice            maildb.UpsertPushDeviceRequest
+	lastAttachmentBody        string
+	attachmentErr             error
+	lastUserID                string
+	lastFolderName            string
+	lastDeletedFolderID       string
+	lastMessageID             string
+	lastFolderID              string
+	lastThreadID              string
+	lastMoveFolderID          string
+	lastDeletedID             string
+	lastDeletedDraftID        string
+	lastDeletePushDeviceID    string
+	lastFlag                  string
+	lastFlagValue             bool
+	lastBulkFlag              maildb.BulkMessageFlagRequest
+	lastBulkMove              maildb.BulkMessageMoveRequest
+	lastBulkDelete            maildb.BulkMessageDeleteRequest
+	lastSearch                maildb.MessageSearchQuery
+	lastLimit                 int
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -1830,6 +1893,17 @@ func (f *fakeMessageService) CancelAttachmentUpload(_ context.Context, userID st
 	f.lastUserID = userID
 	f.lastCancelAttachmentID = attachmentID
 	return maildb.Attachment{ID: attachmentID, Status: "deleted"}, nil
+}
+
+func (f *fakeMessageService) CreateAttachmentUploadSession(_ context.Context, req mailservice.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error) {
+	f.lastUploadSession = req
+	return maildb.AttachmentUploadSession{ID: "session-1", UserID: req.UserID, DraftID: req.DraftID, Filename: req.Filename, DeclaredSize: req.DeclaredSize, MIMEType: req.MIMEType, Status: "pending", ExpiresAt: req.ExpiresAt}, nil
+}
+
+func (f *fakeMessageService) CancelAttachmentUploadSession(_ context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error) {
+	f.lastUserID = userID
+	f.lastCancelUploadSessionID = sessionID
+	return maildb.AttachmentUploadSession{ID: sessionID, UserID: userID, Status: "canceled"}, nil
 }
 
 func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {

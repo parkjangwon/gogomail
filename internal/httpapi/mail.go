@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/mail"
@@ -53,6 +54,8 @@ type MessageService interface {
 	CreateAttachmentUpload(ctx context.Context, req mailservice.CreateAttachmentUploadRequest) (maildb.Attachment, error)
 	UploadAttachment(ctx context.Context, req mailservice.UploadAttachmentRequest) (maildb.Attachment, error)
 	CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error)
+	CreateAttachmentUploadSession(ctx context.Context, req mailservice.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
+	CancelAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
@@ -644,6 +647,39 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
 	})
 
+	mux.HandleFunc("POST /api/v1/attachments/upload-sessions", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			DraftID      string    `json:"draft_id"`
+			Filename     string    `json:"filename"`
+			DeclaredSize int64     `json:"declared_size"`
+			MIMEType     string    `json:"mime_type"`
+			ExpiresAt    time.Time `json:"expires_at"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		session, err := service.CreateAttachmentUploadSession(r.Context(), mailservice.CreateAttachmentUploadSessionRequest{
+			UserID:       userID,
+			DraftID:      req.DraftID,
+			Filename:     req.Filename,
+			DeclaredSize: req.DeclaredSize,
+			MIMEType:     req.MIMEType,
+			ExpiresAt:    req.ExpiresAt,
+		})
+		if err != nil {
+			writeMailServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"attachment_upload_session": session})
+	})
+
 	mux.HandleFunc("GET /api/v1/attachments/capabilities", func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := userIDFromRequest(w, r, tokenManager); !ok {
 			return
@@ -677,6 +713,23 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"attachment": attachment})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/attachments/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		sessionID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		session, err := service.CancelAttachmentUploadSession(r.Context(), userID, sessionID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_session": session})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {

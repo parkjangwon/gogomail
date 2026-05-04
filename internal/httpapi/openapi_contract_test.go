@@ -59,6 +59,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"PATCH /drafts/{id}",
 		"POST /attachments",
 		"POST /attachments/upload",
+		"POST /attachments/upload-sessions",
 		"POST /push-devices",
 		"PATCH /companies/{id}/quota",
 		"POST /domains",
@@ -179,8 +180,10 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /drafts/{id}/send":                               "#/components/responses/SendQueued",
 		"POST /attachments":                                    "#/components/responses/Attachment",
 		"POST /attachments/upload":                             "#/components/responses/Attachment",
+		"POST /attachments/upload-sessions":                    "#/components/responses/AttachmentUploadSession",
 		"GET /attachments/capabilities":                        "#/components/responses/AttachmentUploadCapabilities",
 		"DELETE /attachments/{id}":                             "#/components/responses/Attachment",
+		"DELETE /attachments/upload-sessions/{id}":             "#/components/responses/AttachmentUploadSession",
 		"GET /messages/{id}/attachments":                       "#/components/responses/AttachmentList",
 		"GET /push-devices":                                    "#/components/responses/PushDeviceList",
 		"POST /push-devices":                                   "#/components/responses/PushDevice",
@@ -283,7 +286,7 @@ func TestOpenAPIDraftDocumentsAttachmentUploadSizeErrors(t *testing.T) {
 	t.Parallel()
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
-	for _, route := range []string{"POST /attachments", "POST /attachments/upload"} {
+	for _, route := range []string{"POST /attachments", "POST /attachments/upload", "POST /attachments/upload-sessions"} {
 		block, ok := operations[route]
 		if !ok {
 			t.Fatalf("OpenAPI operation %s is missing", route)
@@ -662,6 +665,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"SendQueuedEnvelope":                                  "message",
 		"AttachmentListEnvelope":                              "attachments",
 		"AttachmentEnvelope":                                  "attachment",
+		"AttachmentUploadSessionEnvelope":                     "attachment_upload_session",
 		"AttachmentUploadCapabilitiesEnvelope":                "attachment_upload_capabilities",
 		"PushDeviceListEnvelope":                              "push_devices",
 		"PushDeviceEnvelope":                                  "push_device",
