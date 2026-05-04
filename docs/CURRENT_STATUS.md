@@ -639,6 +639,9 @@ The platform hardening sprint completed the following:
 - `mailservice` now owns resumable upload session create/cancel/expire methods,
   preserving attachment validation, max-size checks, and domain attachment
   policy enforcement above the repository boundary.
+- `attachment-cleanup-worker` now expires stale resumable upload sessions during
+  its normal bounded sweep, releasing reserved quota alongside stale direct
+  upload cleanup.
 - Attachment list/download and draft-delete service methods trim user, message,
   attachment, and draft identifiers before repository/storage work; attachment
   reads reject blank, CR/LF-bearing, or oversized message/attachment

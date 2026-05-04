@@ -278,15 +278,16 @@ Current state:
   max-size checks, and domain outbound attachment policy enforcement.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
-  deployments.
+  deployments, and now expires stale resumable upload sessions in the same
+  bounded sweep.
 - Admin API can preview counts, list bounded candidates, and run stale upload
   cleanup on demand with an explicit non-future cutoff for operator-controlled
   maintenance.
 
 Next:
 
-- Add the Mail API session contract and cleanup worker wiring described by ADR
-  0007 on top of `attachment_upload_sessions`.
+- Add the Mail API session contract described by ADR 0007 on top of
+  `attachment_upload_sessions`.
 
 ### 6. OpenAPI/client readiness
 

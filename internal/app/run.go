@@ -101,6 +101,12 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 
 type attachmentCleanupRunner interface {
 	ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
+	ExpireAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error)
+}
+
+type attachmentCleanupResult struct {
+	ExpiredUploads  int
+	ExpiredSessions int
 }
 
 func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
@@ -152,19 +158,27 @@ func runAttachmentCleanupLoop(ctx context.Context, cleaner attachmentCleanupRunn
 	}
 }
 
-func cleanupStaleAttachmentUploadsOnce(ctx context.Context, cleaner attachmentCleanupRunner, now func() time.Time, staleAge time.Duration, batchSize int, logger *slog.Logger) (int, error) {
+func cleanupStaleAttachmentUploadsOnce(ctx context.Context, cleaner attachmentCleanupRunner, now func() time.Time, staleAge time.Duration, batchSize int, logger *slog.Logger) (attachmentCleanupResult, error) {
 	if now == nil {
 		now = time.Now
 	}
 	before := now().UTC().Add(-staleAge)
 	expired, err := cleaner.ExpireStaleAttachmentUploads(ctx, before, batchSize)
 	if err != nil {
-		return 0, err
+		return attachmentCleanupResult{}, err
+	}
+	expiredSessions, err := cleaner.ExpireAttachmentUploadSessions(ctx, before, batchSize)
+	if err != nil {
+		return attachmentCleanupResult{}, err
+	}
+	result := attachmentCleanupResult{
+		ExpiredUploads:  len(expired),
+		ExpiredSessions: len(expiredSessions),
 	}
 	if logger != nil {
-		logger.Info("attachment cleanup completed", "expired", len(expired), "before", before.Format(time.RFC3339), "limit", batchSize)
+		logger.Info("attachment cleanup completed", "expired", result.ExpiredUploads, "expired_sessions", result.ExpiredSessions, "before", before.Format(time.RFC3339), "limit", batchSize)
 	}
-	return len(expired), nil
+	return result, nil
 }
 
 type receiveMTAOptions struct {

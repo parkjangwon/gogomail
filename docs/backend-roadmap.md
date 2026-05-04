@@ -591,6 +591,7 @@ Implementation order:
 532. `maildb` can cancel resumable attachment upload sessions and release declared quota reservations exactly once, rejecting repeated cancellation of already terminal sessions.
 533. `maildb` can expire stale resumable attachment upload sessions in bounded batches, marking them `expired` and releasing declared quota reservations.
 534. `mailservice` exposes resumable upload session create/cancel/expire methods over the repository boundary while preserving metadata validation, max-size checks, and domain attachment policy enforcement.
+535. `attachment-cleanup-worker` now expires stale resumable attachment upload sessions during the normal bounded cleanup sweep so abandoned sessions release reserved quota without a separate worker.
 
 ## Deferred until backend contracts stabilize
 
