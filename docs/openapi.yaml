@@ -587,6 +587,21 @@ paths:
           $ref: "#/components/responses/APIUsageExportBatch"
         default:
           $ref: "#/components/responses/Error"
+  /api-usage/export-batches/{id}:
+    get:
+      operationId: getAdminAPIUsageExportBatch
+      summary: Admin API usage export batch manifest detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/APIUsageExportBatch"
+        default:
+          $ref: "#/components/responses/Error"
   /quota-reconciliation:
     get:
       operationId: listAdminQuotaReconciliation
