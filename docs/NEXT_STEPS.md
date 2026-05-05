@@ -374,12 +374,15 @@ Current state:
 - Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/parent` for moving
   active Drive files/folders into another folder or back to root with cycle
   prevention.
+- `drive_upload_sessions` now defines the database and validation boundary for
+  resumable Drive uploads, including declared/received sizes, lifecycle status,
+  storage metadata, and expiration indexes.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session contracts so clients can reserve quota, retry large
-  objects, and surface resumable upload state.
+- Add Drive upload-session repository/service/API methods so clients can
+  reserve quota, retry large objects, and surface resumable upload state.
 
 ### 2. Message threading and search
 

@@ -305,6 +305,10 @@ guidance.
 - Drive nodes can now be moved through
   `PATCH /api/v1/drive/nodes/{id}/parent`, validating destination folders,
   root moves, and active-subtree cycle prevention at the repository boundary.
+- Drive upload sessions now have a PostgreSQL metadata boundary and
+  `internal/drive` validation contract for upload IDs, parent folders,
+  declared size, MIME type, storage backend, lifecycle status, and bounded
+  expiration before HTTP upload-session routes are exposed.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

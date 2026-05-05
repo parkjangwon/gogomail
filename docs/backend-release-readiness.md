@@ -76,6 +76,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive active file/folder moves are exposed through a bounded Mail API route
   that validates destination folders, root moves, and active-subtree cycle
   prevention before updating parent metadata.
+- Drive upload-session storage now has a dedicated migration and validation
+  contract for resumable uploads, preparing quota-reserving Drive upload APIs
+  without binding the HTTP layer to a single storage backend.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

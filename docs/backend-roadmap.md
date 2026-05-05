@@ -1829,6 +1829,10 @@ Implementation order:
 987. Mail API now exposes `GET /api/v1/drive/nodes/{id}` with bounded status
      filtering, giving production Drive clients a stable single-node metadata
      refresh path after edits and selections.
+988. Drive upload sessions now have a PostgreSQL metadata table and
+     `internal/drive` validation contract for upload identity, parent folder,
+     declared size, MIME type, storage backend, lifecycle status, and bounded
+     expiration before resumable Drive upload APIs are exposed.
 
 ## Deferred until backend contracts stabilize
 
