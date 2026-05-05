@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP CHILDREN capability support)
+Last updated: 2026-05-05 (updated after IMAP LIST child attributes)
 
 ## Current phase
 
@@ -826,9 +826,10 @@ The platform hardening sprint completed the following:
 - IMAP `LIST` filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
 - IMAP `CAPABILITY` advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`; `LIST`
-  includes `\HasNoChildren` plus RFC 6154 special-use attributes for system
-  folders such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged when
-  those folder roles are present in storage metadata, and extended
+  includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy attributes
+  plus RFC 6154 special-use attributes for system folders such as Drafts, Sent,
+  Trash, Junk, Archive, All, and Flagged when those folder roles are present in
+  storage metadata, and extended
   `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
