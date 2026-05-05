@@ -882,6 +882,9 @@ Implementation order:
      the requested byte window.
 719. IMAP `SEARCH` and `UID SEARCH` now support common flag criteria: `SEEN`,
      `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, and `UNANSWERED`.
+720. IMAP `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
+     `BODY.PEEK[HEADER.FIELDS (...)]`, returning bounded header literals with
+     only the requested fields and continuations.
 
 ## Deferred until backend contracts stabilize
 
