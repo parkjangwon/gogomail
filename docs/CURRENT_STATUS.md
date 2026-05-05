@@ -2009,6 +2009,9 @@ The platform hardening sprint completed the following:
   quota-accounted metadata with caller-provided destination folder/name, exposes
   `copy_nodes` in webmail capabilities, and removes the copied object if DB
   metadata creation fails.
+- Drive file copy cleanup now records a pending cleanup-failure row if metadata
+  creation fails after object copy and the copied object cannot be deleted,
+  keeping object-storage drift visible to operator retry/resolve tooling.
 
 Next focus areas:
 

@@ -1555,6 +1555,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify frontend contracts for error envelope parsing, upload endpoint naming, and draft send response handling.
 - Verify webmail clients use `HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download` for attachment metadata previews when they need object-backed size/header checks before streaming bytes.
 - Verify Drive copy UX calls `POST /api/v1/drive/nodes/{id}/copy` only for files until recursive folder copy is explicitly implemented and advertised.
+- Verify Drive cleanup-failure operations include node-less copied-object cleanup rows caused by failed copy metadata creation.
 
 ## Intentionally out of scope for this release slice
 

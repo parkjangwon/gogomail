@@ -73,6 +73,26 @@ func TestRecordObjectCleanupFailureIgnoresUnstructuredErrors(t *testing.T) {
 	}
 }
 
+func TestRecordCopiedObjectCleanupFailureUsesCopiedObjectContext(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingCleanupFailureRecorder{}
+	service := NewService(nil, nil).WithObjectCleanupFailureRecorder(recorder)
+	err := service.recordCopiedObjectCleanupFailure(context.Background(), "user-1", "s3", "drive/users/user-1/objects/copy-1", errors.New("delete copied object failed"))
+	if err != nil {
+		t.Fatalf("recordCopiedObjectCleanupFailure returned error: %v", err)
+	}
+	if recorder.calls != 1 {
+		t.Fatalf("recorder calls = %d, want 1", recorder.calls)
+	}
+	if recorder.failure.UserID != "user-1" || recorder.failure.NodeID != "" || recorder.failure.StorageBackend != "s3" || recorder.failure.StoragePath != "drive/users/user-1/objects/copy-1" {
+		t.Fatalf("recorded copied failure = %+v, want copied object context without node id", recorder.failure)
+	}
+	if recorder.failure.LastError != "delete copied object failed" {
+		t.Fatalf("last error = %q", recorder.failure.LastError)
+	}
+}
+
 func TestRetryObjectCleanupFailuresDeletesAndResolvesPendingObjects(t *testing.T) {
 	t.Parallel()
 

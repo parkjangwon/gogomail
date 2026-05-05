@@ -1372,6 +1372,8 @@ Current state:
   `POST /api/v1/drive/nodes/{id}/copy`, using storage `Copy` for local/NFS,
   MinIO, and S3-compatible backends while keeping folder recursive copy as a
   later expansion.
+- Drive copy cleanup failures are now written to the existing cleanup-failure
+  queue when a copied object cannot be deleted after metadata creation fails.
 
 Next:
 
