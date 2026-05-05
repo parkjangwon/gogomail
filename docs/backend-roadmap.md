@@ -1627,6 +1627,9 @@ Implementation order:
      reject CR/LF-bearing or oversized user and mailbox identifiers before
      repository mutation dispatch or mailbox event publication, extending the
      direct-call guardrails beyond APPEND.
+937. IMAP service-backed read/list/subscription/backfill operations now reject
+     CR/LF-bearing or oversized user and mailbox identifiers before repository
+     reads, storage opens, event subscriptions, or UID backfill work.
 
 ## Deferred until backend contracts stabilize
 

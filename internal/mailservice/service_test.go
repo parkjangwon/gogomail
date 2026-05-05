@@ -627,6 +627,103 @@ func TestListIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestIMAPReadServicesRejectUnsafeIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		call   func(*Service) error
+		called func(*fakeRepository) bool
+	}{
+		{
+			name: "fetch unsafe mailbox",
+			call: func(service *Service) error {
+				_, err := service.FetchIMAPMessage(context.Background(), imapgw.FetchMessageRequest{
+					UserID:    "user-1",
+					MailboxID: "inbox\nbad",
+					UID:       12,
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMessageUserID != "" },
+		},
+		{
+			name: "list mailboxes unsafe user",
+			call: func(service *Service) error {
+				_, err := service.ListIMAPMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: "user-1\r\nbad"})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMailboxUserID != "" },
+		},
+		{
+			name: "list subscribed unsafe user",
+			call: func(service *Service) error {
+				_, err := service.ListSubscribedIMAPMailboxes(context.Background(), imapgw.ListMailboxesRequest{
+					UserID: imapgw.UserID(strings.Repeat("u", maxServiceResourceIDBytes+1)),
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMailboxUserID != "" },
+		},
+		{
+			name: "get mailbox unsafe mailbox",
+			call: func(service *Service) error {
+				_, err := service.GetIMAPMailbox(context.Background(), "user-1", "inbox\r\nbad")
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMailboxUserID != "" },
+		},
+		{
+			name: "subscribe mailbox unsafe user",
+			call: func(service *Service) error {
+				_, err := service.SubscribeIMAPMailboxName(context.Background(), "user-1\nbad", "inbox")
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMailboxUserID != "" },
+		},
+		{
+			name: "unsubscribe mailbox unsafe mailbox",
+			call: func(service *Service) error {
+				return service.UnsubscribeIMAPMailboxName(context.Background(), "user-1", "inbox\nbad")
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMailboxUserID != "" },
+		},
+		{
+			name: "list messages unsafe mailbox",
+			call: func(service *Service) error {
+				_, err := service.ListIMAPMessages(context.Background(), imapgw.ListMessagesRequest{
+					UserID:    "user-1",
+					MailboxID: imapgw.MailboxID(strings.Repeat("m", maxServiceResourceIDBytes+1)),
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMessageUserID != "" },
+		},
+		{
+			name: "backfill unsafe user",
+			call: func(service *Service) error {
+				_, err := service.BackfillIMAPMailboxUIDs(context.Background(), "user-1\r\nbad", "inbox", 10)
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastBackfillUserID != "" },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := storage.NewLocalStore(t.TempDir())
+			repo := &fakeRepository{}
+			service := New(repo, store)
+			if err := tc.call(service); err == nil {
+				t.Fatal("IMAP read service accepted unsafe identifier")
+			}
+			if tc.called(repo) {
+				t.Fatal("repository was called before identifier validation")
+			}
+		})
+	}
+}
+
 func TestSubscribeIMAPMailboxUsesEventBroker(t *testing.T) {
 	t.Parallel()
 
@@ -1909,7 +2006,7 @@ func (f *fakeRepository) RenameFolder(_ context.Context, userID string, folderID
 	f.lastRenameFolderUserID = userID
 	f.lastRenameFolderID = folderID
 	f.lastRenameFolderName = name
-	return maildb.Folder{}, nil
+	return maildb.Folder{ID: strings.ToLower(name) + "-id", Name: name, FullPath: name, Type: "user"}, nil
 }
 
 func (f *fakeRepository) DeleteFolder(_ context.Context, userID string, folderID string) error {
