@@ -96,6 +96,9 @@ Current state:
 - S3-compatible object key escaping preserves literal `+` characters as `%2B`
   in segment-escaped request paths, keeping object identity and SigV4 canonical
   request paths aligned for AWS S3, MinIO, and strict compatible providers.
+- S3-compatible uploads set a deterministic `Content-Length` for seekable PUT
+  bodies without buffering the object in memory, improving compatibility for
+  file-backed mail and attachment writes while keeping hot paths streaming-first.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default `gogomail` bucket for local S3-compatible runs.
