@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -83,6 +84,36 @@ func TestValidateRejectsInvalidOpenSearchIndexName(t *testing.T) {
 
 			if err := cfg.Validate(); err == nil {
 				t.Fatal("Validate accepted invalid opensearch index name")
+			}
+		})
+	}
+}
+
+func TestValidateRejectsUnsafeOpenSearchCredentials(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(*Config)
+	}{
+		{name: "username newline", edit: func(cfg *Config) { cfg.SearchIndexOpenSearchUsername = "admin\nbad" }},
+		{name: "username oversized", edit: func(cfg *Config) {
+			cfg.SearchIndexOpenSearchUsername = strings.Repeat("u", maxOpenSearchCredentialBytes+1)
+		}},
+		{name: "password newline", edit: func(cfg *Config) { cfg.SearchIndexOpenSearchPassword = "secret\nbad" }},
+		{name: "password oversized", edit: func(cfg *Config) {
+			cfg.SearchIndexOpenSearchPassword = strings.Repeat("p", maxOpenSearchCredentialBytes+1)
+		}},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.SearchIndexBackend = "opensearch"
+			cfg.SearchIndexOpenSearchEndpoint = "https://search.example.com"
+			cfg.SearchIndexOpenSearchIndex = "gogomail-messages"
+			tt.edit(&cfg)
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate accepted unsafe opensearch credentials")
 			}
 		})
 	}

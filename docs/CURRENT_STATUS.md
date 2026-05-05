@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after OpenSearch credential guardrails)
+Last updated: 2026-05-05 (updated after OpenSearch credential config validation)
 
 ## Current phase
 
@@ -103,6 +103,9 @@ guidance.
 - OpenSearch writer/searcher construction now trims usernames while preserving
   password bytes, and rejects CR/LF-bearing or oversized endpoint credentials
   before BasicAuth request headers can be generated.
+- OpenSearch username/password configuration is also CR/LF-rejected and
+  size-bounded during startup config validation when the OpenSearch backend is
+  selected, surfacing credential formatting mistakes before worker/search setup.
 - OpenSearch relevance response decoding is capped before JSON parsing so
   oversized search backend responses cannot allocate unbounded highlight or hit
   payloads in the Mail API path, and trailing JSON tokens are rejected before
