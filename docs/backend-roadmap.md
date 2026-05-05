@@ -2289,6 +2289,10 @@ Implementation order:
       `.vcf` body constraints, plus `internal/carddavgw` metadata validators for
       address-book names/descriptions, contact object names/UIDs, strong ETags,
       object-size limits, and sync-token derivation.
+1100. CardDAV address-book repository methods now create/list/get collections
+      behind active user/domain/company scope, normalize names, bound list
+      limits, and insert durable `addressbook-created` change rows in the same
+      transaction as collection creation.
 
 ## Deferred until backend contracts stabilize
 
@@ -2302,9 +2306,10 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV repository methods, bounded vCard semantic validation,
-  REPORT/sync behavior, auth, and native-client compatibility beyond the
-  initial path/href and storage metadata boundary
+- Contacts/CardDAV contact-object repository methods, bounded vCard semantic
+  validation, REPORT/sync behavior, auth, and native-client compatibility
+  beyond the initial path/href, storage metadata, and address-book repository
+  boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
