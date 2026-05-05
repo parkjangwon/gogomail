@@ -1013,9 +1013,10 @@ The platform hardening sprint completed the following:
 - IMAP `LSUB` preserves subscribed mailbox names even when the mailbox no
   longer exists, returning missing names with `\Noselect`, and handles the RFC
   3501 `%` hierarchy case by returning subscribed parent levels.
-- IMAP `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`, and
-  `LSUB` now decode RFC 3501 modified UTF-7 mailbox arguments at the protocol
-  boundary, reject raw 8-bit or malformed modified UTF-7 forms, and keep
+- IMAP mailbox-taking commands now decode RFC 3501 modified UTF-7 at the
+  protocol boundary for `SELECT`, `EXAMINE`, `STATUS`, `APPEND`, `COPY`,
+  `MOVE`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`,
+  and `LSUB`, reject raw 8-bit or malformed modified UTF-7 forms, and keep
   internal service/storage mailbox names as UTF-8.
 - IMAP advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
   field/value parameter lists before returning gogomail server identity.
