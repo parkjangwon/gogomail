@@ -130,7 +130,7 @@ func TestParseReportCollectsPropertiesHrefsAndSyncToken(t *testing.T) {
   <D:sync-token>sync-abc</D:sync-token>
   <D:sync-level>1</D:sync-level>
   <D:limit><D:nresults>25</D:nresults></D:limit>
-  <D:prop><D:getetag/><C:address-data><C:prop name="FN"/><C:prop name="EMAIL"/></C:address-data></D:prop>
+  <D:prop><D:getetag/><C:address-data content-type="text/vcard" version="4.0"><C:prop name="FN"/><C:prop name="EMAIL"/></C:address-data></D:prop>
 </D:sync-collection>`
 	req, err := ParseReport(strings.NewReader(body))
 	if err != nil {
@@ -284,6 +284,8 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad address-data prop":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><C:filter/><D:prop><C:address-data><C:prop name="bad name"/></C:address-data></D:prop></C:addressbook-query>`,
+		"bad address-data type":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><C:filter/><D:prop><C:address-data content-type="application/vcard"/></D:prop></C:addressbook-query>`,
+		"bad address-data ver":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><C:filter/><D:prop><C:address-data version="3.0"/></D:prop></C:addressbook-query>`,
 		"param filter no parent": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:param-filter name="TYPE"><C:text-match>home</C:text-match></C:param-filter></C:filter></C:addressbook-query>`,
 		"param filter no name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter><C:text-match>home</C:text-match></C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,
 		"param filter mixed":     `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter name="TYPE"><C:is-not-defined/><C:text-match>home</C:text-match></C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,

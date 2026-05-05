@@ -2363,6 +2363,10 @@ Implementation order:
       selectors such as `<C:prop name="FN"/>`, projecting returned contact data
       while preserving structural BEGIN/VERSION/END lines and omitting
       unrequested contact properties.
+1114. CardDAV REPORT `address-data` parsing now validates requested
+      `content-type` and `version` attributes against the advertised supported
+      `text/vcard` 4.0 data type, rejecting unsupported formats before handler
+      execution.
 
 ## Deferred until backend contracts stabilize
 

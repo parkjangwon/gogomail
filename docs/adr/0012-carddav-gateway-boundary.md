@@ -58,7 +58,9 @@ multiple top-level `prop-filter` predicates plus per-property text/parameter
 predicates with RFC 6352 `test=anyof|allof` semantics. Sync execution can return
 full snapshots or bounded change rows since a stored sync token. REPORT
 `address-data` can project returned vCards to requested property names while
-preserving structural BEGIN/VERSION/END lines.
+preserving structural BEGIN/VERSION/END lines, and requested address-data
+content types/versions are validated against the advertised `text/vcard` 4.0
+support before handler execution.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
