@@ -143,6 +143,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		return err
 	}
 	state := imapConnState{}
+	_, state.tlsActive = conn.(*tls.Conn)
 	defer state.closeSubscription()
 	for {
 		line, err := reader.ReadString('\n')
@@ -276,6 +277,10 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
 			return false, err
 		}
+		if !s.authAllowed(state) {
+			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
+			return false, err
+		}
 		if len(fields) != 4 {
 			_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
 			return false, err
@@ -291,6 +296,10 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 	case "AUTHENTICATE":
 		if state.session != nil {
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+			return false, err
+		}
+		if !s.authAllowed(state) {
+			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n")
 			return false, err
 		}
 		if (len(fields) != 3 && len(fields) != 4) || strings.ToUpper(fields[2]) != "PLAIN" {
@@ -1811,9 +1820,23 @@ func (s *Server) imapCapabilities(state *imapConnState) []string {
 		capabilities = append(capabilities, "STARTTLS")
 	}
 	if state == nil || state.session == nil {
-		capabilities = append(capabilities, "SASL-IR", "AUTH=PLAIN")
+		if s.authAllowed(state) {
+			capabilities = append(capabilities, "SASL-IR", "AUTH=PLAIN")
+		} else {
+			capabilities = append(capabilities, "LOGINDISABLED")
+		}
 	}
 	return capabilities
+}
+
+func (s *Server) authAllowed(state *imapConnState) bool {
+	if s == nil {
+		return false
+	}
+	if s.options.AllowInsecureAuth {
+		return true
+	}
+	return state != nil && state.tlsActive
 }
 
 func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {

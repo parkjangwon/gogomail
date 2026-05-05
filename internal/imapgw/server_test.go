@@ -176,16 +176,22 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT STARTTLS SASL-IR AUTH=PLAIN\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT STARTTLS LOGINDISABLED\r\n" {
 		t.Fatalf("pre-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK CAPABILITY completed\r\n" {
 		t.Fatalf("pre-tls capability completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a2 STARTTLS\r\n")); err != nil {
+	if _, err := client.Write([]byte("a2 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write pre-tls login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n" {
+		t.Fatalf("pre-tls login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 STARTTLS\r\n")); err != nil {
 		t.Fatalf("write starttls: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK Begin TLS negotiation now\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK Begin TLS negotiation now\r\n" {
 		t.Fatalf("starttls line = %q err = %v", line, err)
 	}
 	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
@@ -193,16 +199,16 @@ func TestServerHandlesStartTLS(t *testing.T) {
 		t.Fatalf("client handshake: %v", err)
 	}
 	reader = bufio.NewReader(tlsClient)
-	if _, err := tlsClient.Write([]byte("a3 CAPABILITY\r\n")); err != nil {
+	if _, err := tlsClient.Write([]byte("a4 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write tls capability: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("post-tls capability = %q err = %v", line, err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK CAPABILITY completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK CAPABILITY completed\r\n" {
 		t.Fatalf("post-tls capability completion = %q err = %v", line, err)
 	}
-	if _, err := tlsClient.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := tlsClient.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

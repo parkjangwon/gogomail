@@ -865,6 +865,8 @@ The platform hardening sprint completed the following:
   while `\Deleted` semantics remain deferred.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
+- IMAP advertises `LOGINDISABLED` and rejects plaintext `LOGIN`/`AUTHENTICATE`
+  with `[PRIVACYREQUIRED]` when insecure auth is disabled before STARTTLS.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
