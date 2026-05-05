@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV PUT If-Match star semantics)
+Last updated: 2026-05-06 (updated after CalDAV PUT ETag precondition checks)
 
 ## Current phase
 
@@ -2203,6 +2203,9 @@ The platform hardening sprint completed the following:
 - CalDAV calendar object `PUT` now treats `If-Match: *` as an existing-resource
   precondition, returning HTTP 412 when the target `.ics` object does not yet
   exist instead of accidentally creating it.
+- CalDAV calendar object `PUT` now evaluates specific `If-Match` and
+  `If-None-Match` ETag preconditions before body reads or storage mutation,
+  returning HTTP 412 for stale overwrite or no-overwrite requests.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

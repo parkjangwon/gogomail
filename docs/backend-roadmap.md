@@ -2155,6 +2155,10 @@ Implementation order:
       existing-resource precondition, returning HTTP 412 for missing objects
       rather than creating a new `.ics` resource through an overwrite-only
       request.
+1067. CalDAV calendar object `PUT` now evaluates specific ETag preconditions
+      before body reads: stale `If-Match` values and matching
+      `If-None-Match` values fail with HTTP 412 before iCalendar parsing or
+      repository mutation.
 
 ## Deferred until backend contracts stabilize
 
