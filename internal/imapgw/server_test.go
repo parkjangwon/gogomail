@@ -432,6 +432,52 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerValidatesSelectedNoArgSyntaxBeforeSelectedState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 CHECK extra\r\na3 IDLE extra\r\na4 CLOSE extra\r\na5 UNSELECT extra\r\na6 EXPUNGE 1:*\r\na7 CHECK\r\na8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write selected no-arg commands: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"a2 BAD CHECK does not accept arguments\r\n",
+		"a3 BAD IDLE does not accept arguments\r\n",
+		"a4 BAD CLOSE does not accept arguments\r\n",
+		"a5 BAD UNSELECT does not accept arguments\r\n",
+		"a6 BAD EXPUNGE does not accept arguments\r\n",
+		"a7 NO mailbox must be selected\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a8 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected no-arg response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected no-arg response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStartTLS(t *testing.T) {
 	t.Parallel()
 

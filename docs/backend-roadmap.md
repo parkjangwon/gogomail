@@ -1349,6 +1349,9 @@ Implementation order:
      `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
      before returning `NO mailbox must be selected` for valid commands issued
      outside selected state.
+860. IMAP selected-state no-argument commands now reject extra arguments on
+     `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
+     selected-mailbox state errors for well-formed commands.
 
 ## Deferred until backend contracts stabilize
 

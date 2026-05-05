@@ -40,6 +40,9 @@ Current state:
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
+- Authenticated selected-state no-argument commands validate extra arguments
+  on `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
+  selected-mailbox state errors.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
