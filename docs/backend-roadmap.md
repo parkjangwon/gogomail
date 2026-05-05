@@ -893,6 +893,8 @@ Implementation order:
      criteria parsing.
 723. IMAP `SEARCH` and `UID SEARCH` now support basic `FROM` and `SUBJECT`
      substring criteria over selected-mailbox message summaries.
+724. IMAP now supports authenticated `NAMESPACE`, advertising a personal
+     namespace with `/` hierarchy delimiter for client mailbox discovery.
 
 ## Deferred until backend contracts stabilize
 

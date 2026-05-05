@@ -354,6 +354,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   over message `INTERNALDATE`.
 - IMAP `SEARCH`/`UID SEARCH` now supports basic `FROM` and `SUBJECT` substring
   criteria over selected-mailbox summaries.
+- IMAP now supports authenticated `NAMESPACE`, exposing the personal namespace
+  and `/` hierarchy delimiter.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

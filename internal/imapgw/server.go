@@ -210,6 +210,20 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
 		return false, err
+	case "NAMESPACE":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD NAMESPACE does not accept arguments\r\n")
+			return false, err
+		}
+		if _, err := writer.WriteString(`* NAMESPACE (("" "/")) NIL NIL` + "\r\n"); err != nil {
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " OK NAMESPACE completed\r\n")
+		return false, err
 	case "LOGIN":
 		if state.session != nil {
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
