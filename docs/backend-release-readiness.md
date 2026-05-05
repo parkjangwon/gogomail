@@ -127,6 +127,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP flag-list parsing for `APPEND`, `STORE`, and `UID STORE` now rejects
   unparenthesized or unbalanced lists before backend mutation, preserving
   stricter protocol syntax for client compatibility.
+- IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
+  `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
+  mailbox did not permit them instead of dispatching unsupported mutations to
+  storage.
 - IMAP message sequence sets reject values above the selected mailbox size with
   tagged `BAD` responses, preserving RFC 3501 bounds behavior for sequence
   arguments.

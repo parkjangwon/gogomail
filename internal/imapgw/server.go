@@ -240,6 +240,7 @@ type imapConnState struct {
 	session          *Session
 	selectedMailbox  MailboxID
 	selectedMessages uint32
+	permanentFlags   map[string]struct{}
 	readOnly         bool
 	condstoreAware   bool
 	savedSearch      []imapSearchSavedMessage
@@ -459,6 +460,11 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
+		if state.readOnly {
+			state.permanentFlags = nil
+		} else {
+			state.permanentFlags = imapPermanentFlagSet(mailboxState.PermanentFlags)
+		}
 		state.savedSearch = nil
 		if condstore {
 			state.condstoreAware = true
@@ -607,6 +613,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
+		state.permanentFlags = nil
 		state.readOnly = false
 		state.savedSearch = nil
 		state.closeSubscription()
@@ -851,6 +858,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 	if state.selectedMailbox == mailbox.ID {
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
+		state.permanentFlags = nil
 		state.readOnly = false
 		state.closeSubscription()
 	}
@@ -3091,6 +3099,7 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 	}
 	state.selectedMailbox = ""
 	state.selectedMessages = 0
+	state.permanentFlags = nil
 	state.readOnly = false
 	state.closeSubscription()
 	_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
@@ -5324,13 +5333,17 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE mode is unsupported\r\n")
 		return false, err
 	}
-	flags, ok := imapStoreFlags(strings.Join(storeFields[1:], " "))
+	flags, requestedFlags, ok := imapStoreFlagsWithNames(strings.Join(storeFields[1:], " "))
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE flags are unsupported\r\n")
 		return false, err
 	}
 	if state.readOnly {
 		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+		return false, err
+	}
+	if !imapPermanentFlagsAllow(state.permanentFlags, requestedFlags) {
+		_, err := writer.WriteString(tag + " NO UID STORE flags are not permitted\r\n")
 		return false, err
 	}
 	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "UID STORE")
@@ -5364,13 +5377,17 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD STORE mode is unsupported\r\n")
 		return false, err
 	}
-	flags, ok := imapStoreFlags(strings.Join(storeFields[1:], " "))
+	flags, requestedFlags, ok := imapStoreFlagsWithNames(strings.Join(storeFields[1:], " "))
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD STORE flags are unsupported\r\n")
 		return false, err
 	}
 	if state.readOnly {
 		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+		return false, err
+	}
+	if !imapPermanentFlagsAllow(state.permanentFlags, requestedFlags) {
+		_, err := writer.WriteString(tag + " NO STORE flags are not permitted\r\n")
 		return false, err
 	}
 	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
@@ -5548,39 +5565,61 @@ func imapStoreMode(value string) (StoreFlagsMode, bool, bool) {
 }
 
 func imapStoreFlags(value string) (MessageFlags, bool) {
+	flags, _, ok := imapStoreFlagsWithNames(value)
+	return flags, ok
+}
+
+func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 	var flags MessageFlags
-	ok := false
 	trimmed := strings.TrimSpace(value)
 	if trimmed != "()" && (!strings.HasPrefix(trimmed, "(") || !strings.HasSuffix(trimmed, ")")) {
-		return MessageFlags{}, false
+		return MessageFlags{}, nil, false
 	}
 	inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "("), ")")
 	tokens := strings.Fields(inner)
 	if len(tokens) == 0 {
-		return flags, trimmed == "()"
+		return flags, nil, trimmed == "()"
 	}
+	names := make([]string, 0, len(tokens))
 	for _, raw := range tokens {
-		switch CanonicalIMAPFlag(raw) {
+		name := CanonicalIMAPFlag(raw)
+		switch name {
 		case FlagSeen:
 			flags.Read = true
-			ok = true
 		case FlagFlagged:
 			flags.Starred = true
-			ok = true
 		case FlagAnswered:
 			flags.Answered = true
-			ok = true
 		case FlagDraft:
 			flags.Draft = true
-			ok = true
 		case FlagDeleted:
 			flags.Deleted = true
-			ok = true
 		default:
-			return MessageFlags{}, false
+			return MessageFlags{}, nil, false
+		}
+		names = append(names, name)
+	}
+	return flags, names, true
+}
+
+func imapPermanentFlagSet(flags []string) map[string]struct{} {
+	permitted := make(map[string]struct{}, len(flags))
+	for _, raw := range flags {
+		switch name := CanonicalIMAPFlag(raw); name {
+		case FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted:
+			permitted[name] = struct{}{}
 		}
 	}
-	return flags, ok
+	return permitted
+}
+
+func imapPermanentFlagsAllow(permitted map[string]struct{}, requested []string) bool {
+	for _, flag := range requested {
+		if _, ok := permitted[flag]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func imapMessageFlagsEmpty(flags MessageFlags) bool {

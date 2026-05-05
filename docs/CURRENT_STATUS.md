@@ -209,6 +209,10 @@ guidance.
   unparenthesized or unbalanced flag lists instead of silently trimming stray
   parentheses, keeping flag mutation syntax closer to RFC-shaped client
   expectations.
+- IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
+  `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
+  mailbox did not permit them instead of dispatching unsupported mutations to
+  storage.
 - IMAP message sequence sets now explicitly reject sequence numbers above the
   selected mailbox size with tagged `BAD` responses, preserving RFC 3501 bounds
   behavior for `FETCH`, `STORE`, `COPY`, and `MOVE` sequence arguments.

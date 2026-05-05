@@ -6632,6 +6632,67 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHonorsSelectedPermanentFlagsForStore(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &limitedPermanentFlagsBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID STORE 7 +FLAGS (\\Seen)\r\na4 UID STORE 7 +FLAGS (\\Deleted)\r\na5 STORE 1 +FLAGS (\\Deleted)\r\n")); err != nil {
+		t.Fatalf("write uid store: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen))\r\n",
+		"a3 OK UID STORE completed\r\n",
+		"a4 NO UID STORE flags are not permitted\r\n",
+		"a5 NO STORE flags are not permitted\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid store response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid store response = %q, want %q", line, expected)
+		}
+	}
+	if backendImpl.storeCalls != 1 {
+		t.Fatalf("StoreFlags calls = %d, want 1", backendImpl.storeCalls)
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStoreAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -8826,6 +8887,23 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 		return summaries, &StoreModifiedError{UIDs: modified, Summaries: summaries}
 	}
 	return summaries, nil
+}
+
+type limitedPermanentFlagsBackend struct {
+	fakeBackend
+	storeCalls int
+}
+
+func (limitedPermanentFlagsBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
+		PermanentFlags: []string{FlagSeen},
+	}, nil
+}
+
+func (b *limitedPermanentFlagsBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
+	b.storeCalls++
+	return []MessageSummary{{ID: "message-7", UID: req.UIDs[0], SequenceNumber: 1, Flags: req.Flags}}, nil
 }
 
 type emptyFlagStoreBackend struct {
