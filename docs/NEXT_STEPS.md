@@ -411,6 +411,8 @@ Current state:
   now produce an RFC-shaped `[TRYCREATE]` response code, and quota rejection
   produces `[OVERQUOTA]`. APPEND commands without a synchronizing literal are
   now syntax `BAD` responses rather than unsupported-command responses.
+  Successful append results include the new message sequence number for precise
+  selected-mailbox `EXISTS` event counts.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder

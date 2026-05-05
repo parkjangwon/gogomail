@@ -961,7 +961,8 @@ The platform hardening sprint completed the following:
   `[TRYCREATE]` when the destination mailbox is missing or `[OVERQUOTA]` when
   the quota ledger rejects the append. Commands without an RFC-shaped literal
   are rejected as syntax `BAD` responses instead of being reported as
-  unsupported.
+  unsupported. Successful append results include the appended message sequence
+  number, which is used as the precise `EXISTS` event count when available.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

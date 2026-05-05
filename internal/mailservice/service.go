@@ -774,11 +774,19 @@ func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw
 			UserID:    imapgw.UserID(userID),
 			MailboxID: summary.MailboxID,
 			UID:       summary.UID,
+			Messages:  imapEventMessageCount(eventType, summary),
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func imapEventMessageCount(eventType imapgw.MailboxEventType, summary imapgw.MessageSummary) uint32 {
+	if eventType == imapgw.MailboxEventExists {
+		return summary.SequenceNumber
+	}
+	return 0
 }
 
 func (s *Service) publishIMAPMessageUIDEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, messageIDs []string) error {

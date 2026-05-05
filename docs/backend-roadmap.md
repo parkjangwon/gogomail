@@ -1102,6 +1102,10 @@ Implementation order:
      syntax `BAD` response instead of reporting the command as unsupported,
      reflecting that APPEND is implemented but requires an RFC-shaped literal
      payload.
+791. IMAP `APPEND` persistence now returns the appended message sequence number
+     and uses it as the `EXISTS` event message count when available, giving
+     selected-mailbox IDLE/NOOP listeners a precise mailbox size instead of
+     only an inferred increment.
 
 ## Deferred until backend contracts stabilize
 
