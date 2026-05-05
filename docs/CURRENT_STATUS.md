@@ -818,6 +818,8 @@ The platform hardening sprint completed the following:
   attributes from message summaries for mailbox list rendering.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
+- IMAP `FETCH`/`UID FETCH` can stream bounded header-only literals for
+  `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
