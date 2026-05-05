@@ -845,6 +845,9 @@ Implementation order:
 706. IMAP `STATUS` now validates requested status data items and returns only
      the requested RFC-shaped fields, including `RECENT`, instead of always
      emitting a fixed mailbox metadata set.
+707. IMAP `LIST` now applies basic mailbox pattern matching for exact names,
+     `*`, and `%`, and matches against sanitized wire names before emitting
+     quoted mailbox responses.
 
 ## Deferred until backend contracts stabilize
 

@@ -256,6 +256,8 @@ Current state:
   clears selected state while leaving EXPUNGE/`\Deleted` semantics deferred.
 - `STATUS` now validates requested status data items and returns only the
   requested mailbox metadata fields.
+- `LIST` now filters mailbox responses with exact, `*`, and `%` patterns over
+  sanitized wire names.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
