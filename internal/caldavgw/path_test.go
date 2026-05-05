@@ -80,6 +80,9 @@ func TestParseResourceHrefRejectsQueryAndFragment(t *testing.T) {
 	for _, value := range []string{
 		"https://calendar.example.test/caldav/calendars/user-1/work/event-1.ics?download=1",
 		"https://calendar.example.test/caldav/calendars/user-1/work/event-1.ics#part",
+		"mailto:user@example.test",
+		"file:/caldav/calendars/user-1/work/event-1.ics",
+		"https://user:pass@calendar.example.test/caldav/calendars/user-1/work/event-1.ics",
 	} {
 		value := value
 		t.Run(value, func(t *testing.T) {

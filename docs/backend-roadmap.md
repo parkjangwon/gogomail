@@ -2217,10 +2217,11 @@ Implementation order:
       `Depth: infinity` before reading XML request bodies, keeping unsupported
       WebDAV traversal semantics out of calendar-query, calendar-multiget,
       sync-collection, and free-busy-query hot paths.
-1083. CalDAV `calendar-multiget` now accepts absolute URI hrefs from native
-      clients by normalizing only the URI path through the existing CalDAV
-      parser and same-user/same-collection scope checks, while rejecting query,
-      fragment, opaque, or unsafe href forms.
+1083. CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs from
+      native clients by normalizing only the URI path through the existing
+      CalDAV parser and same-user/same-collection scope checks, while rejecting
+      userinfo-bearing authorities, query, fragment, opaque, non-HTTP(S), or
+      unsafe href forms.
 1084. IMAP RFC 2971 `ID` parameter-list parsing now rejects quote and backslash
       atom-special characters inside unquoted ID tokens, keeping raw ID
       argument parsing aligned with RFC 3501 atom/quoted-string boundaries

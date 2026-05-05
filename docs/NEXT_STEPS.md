@@ -1550,9 +1550,10 @@ Current state:
   before reading XML request bodies, keeping unsupported WebDAV traversal
   semantics out of calendar-query, calendar-multiget, sync-collection, and
   free-busy-query work.
-- CalDAV `calendar-multiget` now accepts absolute URI hrefs by normalizing the
-  URI path through the existing CalDAV path parser and preserving same-user /
-  same-collection scope checks; query, fragment, opaque, and unsafe hrefs stay
+- CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs by
+  normalizing the URI path through the existing CalDAV path parser and
+  preserving same-user / same-collection scope checks; userinfo-bearing
+  authorities, query, fragment, opaque, non-HTTP(S), and unsafe hrefs stay
   rejected as per-resource misses.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.

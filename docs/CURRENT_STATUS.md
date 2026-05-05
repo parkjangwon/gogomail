@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP ID atom-special hardening)
+Last updated: 2026-05-06 (updated after CalDAV absolute href authority validation)
 
 ## Current phase
 
@@ -2262,10 +2262,10 @@ The platform hardening sprint completed the following:
 - CalDAV `REPORT` now validates malformed and `Depth: infinity` headers before
   reading XML bodies, applying one shared Depth gate across calendar-query,
   calendar-multiget, sync-collection, and free-busy-query handling.
-- CalDAV `calendar-multiget` now accepts absolute URI `<D:href>` values by
-  evaluating only their canonical path component through the same user and
-  collection scope checks, while rejecting query, fragment, opaque, or unsafe
-  href forms.
+- CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI `<D:href>` values
+  by evaluating only their canonical path component through the same user and
+  collection scope checks, while rejecting userinfo-bearing authorities, query,
+  fragment, opaque, non-HTTP(S), or unsafe href forms.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
