@@ -1138,7 +1138,7 @@ func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *te
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
+	if _, err := client.Write([]byte("a2 APPEND inbox (\\Seen \\Flagged) \"05-May-2026 12:34:56 +0900\" {11}\r\n")); err != nil {
 		t.Fatalf("write append literal command: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
@@ -1152,6 +1152,13 @@ func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *te
 	}
 	if backendImpl.request.UserID != "user-1" || backendImpl.request.MailboxID != "inbox" || backendImpl.body != "hello world" || backendImpl.request.Size != 11 {
 		t.Fatalf("append request = user %q mailbox %q size %d body %q", backendImpl.request.UserID, backendImpl.request.MailboxID, backendImpl.request.Size, backendImpl.body)
+	}
+	if !backendImpl.request.Flags.Read || !backendImpl.request.Flags.Starred {
+		t.Fatalf("append flags = %#v, want seen and flagged", backendImpl.request.Flags)
+	}
+	wantDate := time.Date(2026, 5, 5, 12, 34, 56, 0, time.FixedZone("", 9*60*60))
+	if !backendImpl.request.InternalDate.Equal(wantDate) {
+		t.Fatalf("append internal date = %s, want %s", backendImpl.request.InternalDate, wantDate)
 	}
 	if _, err := client.Write([]byte("a3 NOOP\r\n")); err != nil {
 		t.Fatalf("write noop after append: %v", err)
@@ -3339,6 +3346,28 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if got, want := fields, []string{"a1", "LOGIN", "user@example.com", literal}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("literal fields = %#v, want %#v", got, want)
+	}
+}
+
+func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
+	t.Parallel()
+
+	flags, internalDate, ok := imapAppendOptions([]string{`(\Seen`, `\Deleted)`, "5-May-2026 12:34:56 +0900"})
+	if !ok {
+		t.Fatal("imapAppendOptions rejected valid options")
+	}
+	if !flags.Read || !flags.Deleted {
+		t.Fatalf("flags = %#v, want seen and deleted", flags)
+	}
+	wantDate := time.Date(2026, 5, 5, 12, 34, 56, 0, time.FixedZone("", 9*60*60))
+	if !internalDate.Equal(wantDate) {
+		t.Fatalf("internal date = %s, want %s", internalDate, wantDate)
+	}
+	if _, _, ok := imapAppendOptions([]string{`(\Bad)`}); ok {
+		t.Fatal("imapAppendOptions accepted unsupported flag")
+	}
+	if _, _, ok := imapAppendOptions([]string{"bad-date"}); ok {
+		t.Fatal("imapAppendOptions accepted unsupported date")
 	}
 }
 
