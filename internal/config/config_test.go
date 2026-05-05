@@ -860,6 +860,16 @@ func TestLoadFallsBackForInvalidInt64Environment(t *testing.T) {
 	}
 }
 
+func TestLoadPreservesS3AccessKeyIDWhitespaceForValidation(t *testing.T) {
+	t.Setenv("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", " access ")
+
+	cfg := Load()
+
+	if cfg.StorageS3AccessKeyID != " access " {
+		t.Fatalf("StorageS3AccessKeyID = %q, want raw env value", cfg.StorageS3AccessKeyID)
+	}
+}
+
 func TestLoadFallsBackForInvalidDurationCSVEnvironment(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "5m,definitely-bad,1h")
 
