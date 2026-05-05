@@ -80,6 +80,8 @@ Current state:
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
 - `APPEND`, `STORE`, and `UID STORE` flag-list parsing rejects unparenthesized
   or unbalanced flag lists instead of silently trimming stray parentheses.
+- IMAP sequence sets with numbers beyond the selected mailbox size now produce
+  empty matches instead of `BAD`, while zero and malformed values still fail.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in
