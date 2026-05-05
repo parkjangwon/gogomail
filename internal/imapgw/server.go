@@ -4900,7 +4900,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 	if unchangedSince > 0 {
 		state.condstoreAware = true
 	}
-	if len(uids) == 0 {
+	if len(uids) == 0 || ((mode == StoreFlagsAdd || mode == StoreFlagsRemove) && imapMessageFlagsEmpty(flags)) {
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
@@ -5070,7 +5070,13 @@ func imapStoreMode(value string) (StoreFlagsMode, bool, bool) {
 func imapStoreFlags(value string) (MessageFlags, bool) {
 	var flags MessageFlags
 	ok := false
-	for _, raw := range strings.Fields(strings.Trim(value, "()")) {
+	trimmed := strings.TrimSpace(value)
+	inner := strings.Trim(trimmed, "()")
+	tokens := strings.Fields(inner)
+	if len(tokens) == 0 {
+		return flags, trimmed == "()"
+	}
+	for _, raw := range tokens {
 		switch CanonicalIMAPFlag(raw) {
 		case FlagSeen:
 			flags.Read = true
@@ -5092,6 +5098,16 @@ func imapStoreFlags(value string) (MessageFlags, bool) {
 		}
 	}
 	return flags, ok
+}
+
+func imapMessageFlagsEmpty(flags MessageFlags) bool {
+	return !flags.Read &&
+		!flags.Starred &&
+		!flags.Answered &&
+		!flags.Forwarded &&
+		!flags.Draft &&
+		!flags.Deleted &&
+		strings.TrimSpace(flags.Status) == ""
 }
 
 func imapMailboxDisplayName(mailbox Mailbox) string {

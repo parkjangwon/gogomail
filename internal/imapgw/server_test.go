@@ -5175,6 +5175,66 @@ func TestServerHandlesStoreAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesEmptyStoreFlagLists(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &emptyFlagStoreBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 STORE 1 FLAGS ()\r\na4 UID STORE 7 +FLAGS ()\r\n")); err != nil {
+		t.Fatalf("write empty flag-list stores: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS ())\r\n",
+		"a3 OK STORE completed\r\n",
+		"a4 OK UID STORE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read empty flag-list store response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("empty flag-list store response = %q, want %q", line, expected)
+		}
+	}
+	if backendImpl.calls != 1 || backendImpl.lastMode != StoreFlagsReplace || !imapMessageFlagsEmpty(backendImpl.lastFlags) {
+		t.Fatalf("empty flag-list backend calls=%d mode=%q flags=%#v", backendImpl.calls, backendImpl.lastMode, backendImpl.lastFlags)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerStoreIncludesModSeqForCondstoreAwareSession(t *testing.T) {
 	t.Parallel()
 
@@ -5537,6 +5597,12 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	}
 	if _, _, ok := imapAppendOptions([]string{"bad-date"}); ok {
 		t.Fatal("imapAppendOptions accepted unsupported date")
+	}
+	if flags, _, ok := imapAppendOptions([]string{"()"}); !ok || !imapMessageFlagsEmpty(flags) {
+		t.Fatalf("imapAppendOptions empty flag-list = %#v, %v; want empty accepted", flags, ok)
+	}
+	if flags, ok := imapStoreFlags("()"); !ok || !imapMessageFlagsEmpty(flags) {
+		t.Fatalf("imapStoreFlags empty flag-list = %#v, %v; want empty accepted", flags, ok)
 	}
 }
 
@@ -7077,6 +7143,27 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 		return summaries, &StoreModifiedError{UIDs: modified, Summaries: summaries}
 	}
 	return summaries, nil
+}
+
+type emptyFlagStoreBackend struct {
+	fakeBackend
+
+	calls     int
+	lastMode  StoreFlagsMode
+	lastFlags MessageFlags
+}
+
+func (b *emptyFlagStoreBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
+	b.calls++
+	b.lastMode = req.Mode
+	b.lastFlags = req.Flags
+	return []MessageSummary{{
+		ID:             "message-7",
+		UID:            7,
+		SequenceNumber: 1,
+		Flags:          req.Flags,
+		ModSeq:         27,
+	}}, nil
 }
 
 type staleStoreBackend struct {

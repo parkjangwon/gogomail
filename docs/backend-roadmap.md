@@ -1275,6 +1275,9 @@ Implementation order:
      command literals such as `APPEND ... {n+}` without an extra continuation
      round trip, while preserving synchronizing literal framing for
      conservative clients.
+839. IMAP empty flag-lists are accepted where RFC-shaped clients can send them:
+     `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears
+     supported flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
 
 ## Deferred until backend contracts stabilize
 

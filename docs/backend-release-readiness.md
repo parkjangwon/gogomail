@@ -551,6 +551,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP advertises `LITERAL+` and accepts bounded non-synchronizing command
   literals such as `APPEND ... {n+}` without an extra continuation round trip,
   while preserving synchronizing literal framing for conservative clients.
+- IMAP accepts empty flag-lists where RFC-shaped clients can send them:
+  `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
+  flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.
