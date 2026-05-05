@@ -146,6 +146,9 @@ func TestParseMIMEStructureCountsMessageRFC822Lines(t *testing.T) {
 	if child.Size != int64(len("line one\r\nline two")) || child.Lines != 2 {
 		t.Fatalf("message/rfc822 child size/lines = %d/%d, want nested body bytes and two lines", child.Size, child.Lines)
 	}
+	if root.Envelope.Subject != "Nested" {
+		t.Fatalf("message/rfc822 envelope subject = %q, want Nested", root.Envelope.Subject)
+	}
 }
 
 func TestParseMIMEStructureLimitsPartCount(t *testing.T) {

@@ -5,7 +5,9 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
+	netmail "net/mail"
 	"strings"
+	"time"
 
 	gomessage "github.com/emersion/go-message"
 )
@@ -33,7 +35,21 @@ type MIMEPart struct {
 	DispositionParams map[string]string
 	Size              int64
 	Lines             int64
+	Envelope          MIMEEnvelope
 	Parts             []MIMEPart
+}
+
+type MIMEEnvelope struct {
+	Date      time.Time
+	Subject   string
+	From      []Address
+	Sender    []Address
+	ReplyTo   []Address
+	To        []Address
+	Cc        []Address
+	Bcc       []Address
+	InReplyTo string
+	MessageID string
 }
 
 type mimeStructureState struct {
@@ -131,6 +147,7 @@ func parseMIMEPartStructure(header mimeHeader, body io.Reader, state *mimeStruct
 			part.Lines = counter.Lines()
 			return part, nil
 		}
+		part.Envelope = mimeEnvelopeFromHeader(&entity.Header, state.opts)
 		childPart, err := parseMIMEPartStructure(&entity.Header, entity.Body, state, depth+1)
 		if err != nil {
 			return MIMEPart{}, err
@@ -184,6 +201,58 @@ func mimePartFromHeader(header mimeHeader, opts MIMEStructureOptions) MIMEPart {
 		}
 	}
 	return part
+}
+
+func mimeEnvelopeFromHeader(header mimeHeader, opts MIMEStructureOptions) MIMEEnvelope {
+	if header == nil {
+		return MIMEEnvelope{}
+	}
+	var envelope MIMEEnvelope
+	if date, err := netmail.ParseDate(header.Get("Date")); err == nil {
+		envelope.Date = date
+	}
+	if subject := strings.TrimSpace(header.Get("Subject")); subject != "" && len(subject) <= opts.MaxMetadataBytes {
+		if decoded, err := new(mime.WordDecoder).DecodeHeader(subject); err == nil {
+			subject = decoded
+		}
+		envelope.Subject, _ = sanitizeHeaderMetadata(subject, opts.MaxMetadataBytes, false)
+	}
+	envelope.From = mimeEnvelopeAddressList(header, "From", opts)
+	envelope.Sender = mimeEnvelopeAddressList(header, "Sender", opts)
+	envelope.ReplyTo = mimeEnvelopeAddressList(header, "Reply-To", opts)
+	envelope.To = mimeEnvelopeAddressList(header, "To", opts)
+	envelope.Cc = mimeEnvelopeAddressList(header, "Cc", opts)
+	envelope.Bcc = mimeEnvelopeAddressList(header, "Bcc", opts)
+	envelope.InReplyTo = normalizeMessageID(header.Get("In-Reply-To"))
+	envelope.MessageID = normalizeMessageID(header.Get("Message-ID"))
+	return envelope
+}
+
+func mimeEnvelopeAddressList(header mimeHeader, key string, opts MIMEStructureOptions) []Address {
+	raw := strings.TrimSpace(header.Get(key))
+	if raw == "" || len(raw) > opts.MaxMetadataBytes*32 {
+		return nil
+	}
+	addrs, err := netmail.ParseAddressList(raw)
+	if err != nil {
+		return nil
+	}
+	limit := 1000
+	if len(addrs) < limit {
+		limit = len(addrs)
+	}
+	out := make([]Address, 0, limit)
+	for _, addr := range addrs[:limit] {
+		if addr == nil {
+			continue
+		}
+		name, _ := sanitizeHeaderMetadata(addr.Name, opts.MaxMetadataBytes, false)
+		address, _ := sanitizeHeaderMetadata(strings.ToLower(addr.Address), opts.MaxMetadataBytes, false)
+		if address != "" {
+			out = append(out, Address{Name: name, Address: address})
+		}
+	}
+	return out
 }
 
 func mimeMediaTypeParts(value string) (string, string, bool) {

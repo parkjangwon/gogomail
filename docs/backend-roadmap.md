@@ -982,9 +982,9 @@ Implementation order:
      literal streaming, so common preview/header fetch batches keep rich
      structure responses.
 757. IMAP `BODYSTRUCTURE` now emits RFC 3501-shaped `message/rfc822` body
-     fields, including an encapsulated envelope placeholder, parsed nested body
-     structure, and line counts, instead of serializing attached messages as
-     generic basic parts.
+     fields, including encapsulated message header-derived envelope metadata,
+     parsed nested body structure, and line counts, instead of serializing
+     attached messages as generic basic parts.
 758. IMAP `FETCH`/`UID FETCH` can now return RFC 3501-shaped
      `BODY[n.HEADER]` and `BODY[n.TEXT]` literals for `message/rfc822` parts,
      including forwarded-message attachments inside multipart messages.
@@ -996,8 +996,9 @@ Implementation order:
      inside top-level `message/rfc822` parts, including nested part MIME
      headers such as `BODY[1.2]` and `BODY[1.2.MIME]`.
 761. The shared MIME-structure parser now descends into `message/rfc822` parts
-     while counting the encapsulated message bytes/lines, so forwarded-message
-     attachments expose nested body metadata without retaining payloads.
+     while counting the encapsulated message bytes/lines and capturing bounded
+     envelope metadata, so forwarded-message attachments expose nested body
+     metadata without retaining payloads.
 762. IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
      namespace command so client discovery matches the supported command
      surface.
