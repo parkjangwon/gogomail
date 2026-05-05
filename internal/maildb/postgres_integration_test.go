@@ -1060,6 +1060,83 @@ WHERE user_id = $1::uuid
 	}
 }
 
+func TestPostgresIMAPMoveMessagesAllowsSameMailbox(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var firstID, secondID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-first@example.com>',
+   'same move first', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+   100, 'mail/same-move-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-second@example.com>',
+   'same move second', 'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz,
+   100, 'mail/same-move-second.eml')
+RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&firstID); err != nil {
+		t.Fatalf("insert first same-mailbox move message: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM messages
+WHERE user_id = $1::uuid
+  AND folder_id = $2::uuid
+  AND subject = 'same move second'`, seed.userID, seed.inboxID).Scan(&secondID); err != nil {
+		t.Fatalf("select second same-mailbox move message: %v", err)
+	}
+	firstUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	secondUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+
+	moved, err := repo.MoveIMAPMessages(ctx, seed.userID, seed.inboxID, seed.inboxID, []imapgw.UID{firstUID.UID})
+	if err != nil {
+		t.Fatalf("MoveIMAPMessages same mailbox returned error: %v", err)
+	}
+	if len(moved) != 1 || moved[0].Source.ID != imapgw.MessageID(firstID) || moved[0].Source.UID != firstUID.UID || moved[0].Source.SequenceNumber != 1 {
+		t.Fatalf("same-mailbox move source = %#v, want original first UID", moved)
+	}
+	if moved[0].Destination.ID == moved[0].Source.ID || moved[0].Destination.MailboxID != imapgw.MailboxID(seed.inboxID) || moved[0].Destination.UID != 3 || moved[0].Destination.SequenceNumber != 2 {
+		t.Fatalf("same-mailbox move destination = %#v, want fresh inbox UID 3 at sequence 2", moved[0].Destination)
+	}
+	if moved[0].SourceHighestModSeq != firstUID.ModSeq+2 {
+		t.Fatalf("same-mailbox source highest modseq = %d, want %d", moved[0].SourceHighestModSeq, firstUID.ModSeq+2)
+	}
+	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, firstUID.UID); err == nil {
+		t.Fatal("GetIMAPMessage found original UID after same-mailbox move")
+	}
+	remaining, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, secondUID.UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage remaining second returned error: %v", err)
+	}
+	if remaining.Summary.SequenceNumber != 1 {
+		t.Fatalf("remaining second sequence = %d, want 1 after original expunge", remaining.Summary.SequenceNumber)
+	}
+	var activeCount int
+	if err := db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM messages
+WHERE user_id = $1::uuid
+  AND folder_id = $2::uuid
+  AND status = 'active'`, seed.userID, seed.inboxID).Scan(&activeCount); err != nil {
+		t.Fatalf("count active same-mailbox messages: %v", err)
+	}
+	if activeCount != 2 {
+		t.Fatalf("active same-mailbox messages = %d, want 2 after move", activeCount)
+	}
+}
+
 func TestPostgresIMAPCopyMessagesAssignsFreshUIDsAndCopiesAttachments(t *testing.T) {
 	t.Parallel()
 

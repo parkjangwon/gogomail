@@ -2090,10 +2090,6 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	if destMailbox.ID == state.selectedMailbox {
-		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
-		return false, writeErr
-	}
 	summaries, err := s.options.Backend.MoveMessages(context.Background(), MoveMessagesRequest{
 		UserID:          state.session.UserID,
 		SourceMailboxID: state.selectedMailbox,
@@ -2110,6 +2106,12 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 	}
 	if copyUID := imapMoveCopyUIDResponse(destMailbox.UIDValidity, uids, summaries); copyUID != "" {
 		if _, err := writer.WriteString("* OK [" + copyUID + "] " + completionCommand + " UID mapping\r\n"); err != nil {
+			return false, err
+		}
+	}
+	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
+		state.selectedMessages += uint32(len(summaries))
+		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
 	}

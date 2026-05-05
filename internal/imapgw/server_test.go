@@ -1437,6 +1437,64 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 	}
 }
 
+func TestServerAllowsMoveToSelectedMailbox(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: sameMailboxMoveBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID MOVE 7 INBOX\r\n")); err != nil {
+		t.Fatalf("write same-mailbox move: %v", err)
+	}
+	want := []string{
+		"* OK [COPYUID 1 7 9] UID MOVE UID mapping\r\n",
+		"* 3 EXISTS\r\n",
+		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
+		"* 1 EXPUNGE\r\n",
+		"a3 OK UID MOVE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read same-mailbox move response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("same-mailbox move response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *testing.T) {
 	t.Parallel()
 
@@ -5626,6 +5684,18 @@ func (missingDestinationBackend) GetMailbox(_ context.Context, _ UserID, mailbox
 		return Mailbox{}, ErrMailboxNotFound
 	}
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
+}
+
+type sameMailboxMoveBackend struct {
+	fakeBackend
+}
+
+func (sameMailboxMoveBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MoveMessageResult, error) {
+	return []MoveMessageResult{{
+		Source:              MessageSummary{ID: "message-7", MailboxID: "inbox", UID: 7, SequenceNumber: 1},
+		Destination:         MessageSummary{ID: "message-copy-9", MailboxID: "inbox", UID: 9, SequenceNumber: 3},
+		SourceHighestModSeq: 19,
+	}}, nil
 }
 
 func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MoveMessageResult, error) {

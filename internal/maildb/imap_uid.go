@@ -957,7 +957,7 @@ func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, source
 		return nil, fmt.Errorf("dest_mailbox_id is required")
 	}
 	if sourceMailboxID == destMailboxID {
-		return nil, fmt.Errorf("source and destination mailbox must differ")
+		return r.moveIMAPMessagesWithinMailbox(ctx, userID, sourceMailboxID, uids)
 	}
 	if len(uids) == 0 {
 		return nil, nil
@@ -1215,6 +1215,333 @@ WHERE mailbox_id = $1::uuid
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit imap move transaction: %w", err)
+	}
+	return results, nil
+}
+
+func (r *Repository) moveIMAPMessagesWithinMailbox(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {
+	if len(uids) == 0 {
+		return nil, nil
+	}
+	if len(uids) > 500 {
+		return nil, fmt.Errorf("too many uids")
+	}
+	for _, uid := range uids {
+		if uid == 0 {
+			return nil, fmt.Errorf("uid must not be zero")
+		}
+	}
+	rawUIDs, err := json.Marshal(uids)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap same-mailbox move uids: %w", err)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin imap same-mailbox move transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const ensureState = `
+INSERT INTO imap_mailbox_state (mailbox_id, user_id)
+SELECT id, user_id
+FROM folders
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+ON CONFLICT (mailbox_id) DO NOTHING`
+	if _, err := tx.ExecContext(ctx, ensureState, mailboxID, userID); err != nil {
+		return nil, fmt.Errorf("ensure imap same-mailbox move state: %w", err)
+	}
+
+	const query = `
+WITH input AS (
+  SELECT value::bigint AS uid, ordinality
+  FROM jsonb_array_elements_text($3::jsonb) WITH ORDINALITY
+),
+locked_state AS (
+  SELECT mailbox_id, user_id, uidnext, highest_modseq
+  FROM imap_mailbox_state
+  WHERE mailbox_id = $2::uuid
+    AND user_id = $1::uuid
+  FOR UPDATE
+),
+source AS (
+  SELECT
+    gen_random_uuid() AS new_id,
+    m.id AS source_id,
+    m.tenant_id,
+    m.domain_id,
+    m.user_id,
+    m.rfc_message_id,
+    m.in_reply_to,
+    m.thread_id,
+    m.subject,
+    m.from_addr,
+    m.from_name,
+    m.to_addrs,
+    m.cc_addrs,
+    m.bcc_addrs,
+    m.received_at,
+    m.sent_at,
+    m.draft_updated_at,
+    m.created_at,
+    m.size,
+    m.has_attachment,
+    m.flags,
+    m.spam_score,
+    m.storage_path,
+    m.dek_encrypted,
+    m.legal_hold,
+    m.compose_intent,
+    m.source_message_id,
+    m.draft_text_body,
+    i.uid AS source_uid,
+    i.modseq AS source_modseq,
+    (
+      SELECT COUNT(*)
+      FROM imap_message_uid seq
+      WHERE seq.user_id = $1::uuid
+        AND seq.mailbox_id = $2::uuid
+        AND seq.uid <= i.uid
+    ) AS source_sequence_number,
+    row_number() OVER (ORDER BY input.ordinality) AS rn,
+    COUNT(*) OVER () AS moved_count
+  FROM input
+  JOIN imap_message_uid i
+    ON i.uid = input.uid
+   AND i.user_id = $1::uuid
+   AND i.mailbox_id = $2::uuid
+  JOIN messages m
+    ON m.id = i.message_id
+   AND m.user_id = $1::uuid
+   AND m.folder_id = $2::uuid
+   AND m.status = 'active'
+),
+inserted_messages AS (
+  INSERT INTO messages (
+    id,
+    tenant_id,
+    domain_id,
+    user_id,
+    folder_id,
+    rfc_message_id,
+    in_reply_to,
+    thread_id,
+    subject,
+    from_addr,
+    from_name,
+    to_addrs,
+    cc_addrs,
+    bcc_addrs,
+    received_at,
+    sent_at,
+    size,
+    has_attachment,
+    flags,
+    spam_score,
+    storage_path,
+    dek_encrypted,
+    status,
+    legal_hold,
+    compose_intent,
+    source_message_id,
+    draft_text_body
+  )
+  SELECT
+    new_id,
+    tenant_id,
+    domain_id,
+    user_id,
+    $2::uuid,
+    rfc_message_id,
+    in_reply_to,
+    thread_id,
+    subject,
+    from_addr,
+    from_name,
+    to_addrs,
+    cc_addrs,
+    bcc_addrs,
+    received_at,
+    sent_at,
+    size,
+    has_attachment,
+    flags,
+    spam_score,
+    storage_path,
+    dek_encrypted,
+    'active',
+    legal_hold,
+    compose_intent,
+    source_message_id,
+    draft_text_body
+  FROM source
+  RETURNING id
+),
+inserted_attachments AS (
+  INSERT INTO attachments (
+    message_id,
+    user_id,
+    draft_id,
+    upload_id,
+    storage_path,
+    filename,
+    size,
+    mime_type,
+    status
+  )
+  SELECT
+    source.new_id,
+    COALESCE(a.user_id, $1::uuid),
+    NULL,
+    'imap-move/' || source.new_id::text || '/' || a.id::text,
+    a.storage_path,
+    a.filename,
+    a.size,
+    a.mime_type,
+    a.status
+  FROM source
+  JOIN attachments a ON a.message_id = source.source_id
+  RETURNING 1
+),
+inserted_uids AS (
+  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+  SELECT
+    source.new_id,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + source.rn - 1,
+    locked_state.highest_modseq + source.rn
+  FROM source
+  CROSS JOIN locked_state
+  RETURNING message_id, mailbox_id, user_id, uid, modseq
+),
+deleted_messages AS (
+  UPDATE messages
+  SET status = 'deleted',
+      updated_at = now()
+  WHERE user_id = $1::uuid
+    AND id IN (SELECT source_id FROM source)
+    AND status = 'active'
+  RETURNING id
+),
+deleted_uids AS (
+  DELETE FROM imap_message_uid
+  WHERE user_id = $1::uuid
+    AND message_id IN (SELECT source_id FROM source)
+  RETURNING 1
+),
+updated_state AS (
+  UPDATE imap_mailbox_state
+  SET uidnext = uidnext + (SELECT COUNT(*) FROM source),
+      highest_modseq = highest_modseq + (SELECT COUNT(*) FROM source),
+      updated_at = CASE WHEN EXISTS (SELECT 1 FROM source) THEN now() ELSE updated_at END
+  WHERE mailbox_id = $2::uuid
+    AND user_id = $1::uuid
+  RETURNING highest_modseq
+)
+SELECT
+  source.source_id::text,
+  $2::text AS source_mailbox_id,
+  COALESCE(source.rfc_message_id, ''),
+  source.subject,
+  source.from_addr,
+  source.from_name,
+  COALESCE(source.received_at, source.sent_at, source.draft_updated_at, source.created_at) AS source_internal_date,
+  source.size,
+  COALESCE((source.flags->>'read')::boolean, false) AS source_read,
+  COALESCE((source.flags->>'starred')::boolean, false) AS source_starred,
+  COALESCE((source.flags->>'answered')::boolean, false) AS source_answered,
+  COALESCE((source.flags->>'forwarded')::boolean, false) AS source_forwarded,
+  COALESCE((source.flags->>'draft')::boolean, false) AS source_draft,
+  COALESCE((source.flags->>'imap_deleted')::boolean, false) AS source_deleted,
+  'active' AS source_status,
+  source.source_uid,
+  source.source_modseq,
+  source.source_sequence_number,
+  source.new_id::text,
+  $2::text AS dest_mailbox_id,
+  inserted_uids.uid,
+  inserted_uids.modseq,
+  (SELECT highest_modseq FROM updated_state) AS source_highest_modseq,
+  (SELECT COUNT(*) FROM inserted_attachments) AS attachment_copy_count
+FROM source
+JOIN inserted_messages ON inserted_messages.id = source.new_id
+JOIN inserted_uids ON inserted_uids.message_id = source.new_id
+WHERE EXISTS (SELECT 1 FROM deleted_messages)
+  AND EXISTS (SELECT 1 FROM deleted_uids)
+ORDER BY source.rn`
+	rows, err := tx.QueryContext(ctx, query, userID, mailboxID, string(rawUIDs))
+	if err != nil {
+		return nil, fmt.Errorf("move imap messages within mailbox: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]imapgw.MoveMessageResult, 0, len(uids))
+	for rows.Next() {
+		var sourceRow imapMessageRow
+		var sourceUID IMAPMessageUID
+		var sourceSequenceNumber int64
+		var destMessageID string
+		var destMailboxID string
+		var destUID IMAPMessageUID
+		var sourceHighestModSeq uint64
+		var attachmentCopyCount int64
+		if err := rows.Scan(
+			&sourceRow.ID,
+			&sourceRow.MailboxID,
+			&sourceRow.RFCMessageID,
+			&sourceRow.Subject,
+			&sourceRow.FromAddr,
+			&sourceRow.FromName,
+			&sourceRow.InternalDate,
+			&sourceRow.Size,
+			&sourceRow.Read,
+			&sourceRow.Starred,
+			&sourceRow.Answered,
+			&sourceRow.Forwarded,
+			&sourceRow.Draft,
+			&sourceRow.Deleted,
+			&sourceRow.Status,
+			&sourceUID.UID,
+			&sourceUID.ModSeq,
+			&sourceSequenceNumber,
+			&destMessageID,
+			&destMailboxID,
+			&destUID.UID,
+			&destUID.ModSeq,
+			&sourceHighestModSeq,
+			&attachmentCopyCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan same-mailbox moved imap message: %w", err)
+		}
+		_ = attachmentCopyCount
+		sourceUID.MessageID = imapgw.MessageID(sourceRow.ID)
+		sourceUID.MailboxID = imapgw.MailboxID(sourceRow.MailboxID)
+		source := imapMessageFromRow(sourceRow, sourceUID)
+		if sourceSequenceNumber <= 0 || sourceSequenceNumber > math.MaxUint32 {
+			return nil, fmt.Errorf("imap same-mailbox move source sequence number is unavailable")
+		}
+		source.SequenceNumber = uint32(sourceSequenceNumber)
+
+		destUID.MessageID = imapgw.MessageID(destMessageID)
+		destUID.MailboxID = imapgw.MailboxID(destMailboxID)
+		destRow := sourceRow
+		destRow.ID = destMessageID
+		destRow.MailboxID = destMailboxID
+		destination := imapMessageFromRow(destRow, destUID)
+		destSequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, mailboxID, destUID.UID)
+		if err != nil {
+			return nil, err
+		}
+		destination.SequenceNumber = destSequenceNumber
+		results = append(results, imapgw.MoveMessageResult{Source: source, Destination: destination, SourceHighestModSeq: sourceHighestModSeq})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate same-mailbox moved imap messages: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit imap same-mailbox move transaction: %w", err)
 	}
 	return results, nil
 }
