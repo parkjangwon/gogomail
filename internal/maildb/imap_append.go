@@ -164,10 +164,21 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 
 	const insert = `
 WITH locked_state AS (
-  SELECT mailbox_id, user_id, uidvalidity, uidnext, highest_modseq
-  FROM imap_mailbox_state
-  WHERE mailbox_id = $4::uuid
-    AND user_id = $3::uuid
+  SELECT s.mailbox_id, s.user_id, s.uidvalidity, s.uidnext, s.highest_modseq
+  FROM imap_mailbox_state s
+  JOIN folders f
+    ON f.id = s.mailbox_id
+   AND f.user_id = s.user_id
+  JOIN users u
+    ON u.id = s.user_id
+   AND u.domain_id = $2::uuid
+   AND u.status = 'active'
+  JOIN domains d
+    ON d.id = u.domain_id
+   AND d.company_id = $1::uuid
+   AND d.status = 'active'
+  WHERE s.mailbox_id = $4::uuid
+    AND s.user_id = $3::uuid
   FOR UPDATE
 ),
 inserted_message AS (
