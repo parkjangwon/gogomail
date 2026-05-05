@@ -862,6 +862,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   adapter boundary and signs streaming `PUT`, `GET`, and `DELETE` requests with
   AWS SigV4, keeping AWS S3 and MinIO-style deployments behind the existing
   storage interface.
+- S3-compatible storage preserves single escaping for virtual-hosted and
+  path-style object URLs, including keys with spaces or other URL-sensitive
+  characters, before SigV4 canonical request signing.
 - S3-compatible storage status-error diagnostics collapse backend response
   bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing object
   store errors from leaking into readiness or storage operation diagnostics.

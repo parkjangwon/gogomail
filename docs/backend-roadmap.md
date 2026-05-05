@@ -1152,6 +1152,9 @@ Implementation order:
      `docs/storage-backends.md`, and `deploy/docker-compose.dev.yml` includes a
      `minio-init` one-shot service that creates the default local `gogomail`
      bucket for MinIO-backed runs.
+806. S3-compatible storage URL generation now has regression coverage for
+     virtual-hosted-style requests with URL-sensitive object keys, preventing
+     double-escaped paths before SigV4 canonical request signing.
 
 ## Deferred until backend contracts stabilize
 
