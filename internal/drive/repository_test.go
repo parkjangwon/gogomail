@@ -105,6 +105,55 @@ func TestValidateCreateFileFromObjectRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateListNodesRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateListNodesRequest(ListNodesRequest{
+		UserID:   " user-1 ",
+		ParentID: " parent-1 ",
+		Status:   " Trashed ",
+		Limit:    500,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListNodesRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed {
+		t.Fatalf("request = %+v, want trimmed status-normalized request", req)
+	}
+	if req.Limit != 200 {
+		t.Fatalf("Limit = %d, want max cap 200", req.Limit)
+	}
+
+	defaulted, err := ValidateListNodesRequest(ListNodesRequest{UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("ValidateListNodesRequest default returned error: %v", err)
+	}
+	if defaulted.Status != NodeStatusActive || defaulted.Limit != 50 {
+		t.Fatalf("defaulted request = %+v, want active/50", defaulted)
+	}
+}
+
+func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ListNodesRequest{
+		{Status: NodeStatusActive},
+		{UserID: "user\n1", Status: NodeStatusActive},
+		{UserID: "user-1", ParentID: "parent\n1", Status: NodeStatusActive},
+		{UserID: "user-1", Status: "archived"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.Status, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateListNodesRequest(tc); err == nil {
+				t.Fatalf("ValidateListNodesRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestCreateFileFromObjectRequiresStore(t *testing.T) {
 	t.Parallel()
 

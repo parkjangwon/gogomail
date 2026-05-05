@@ -1761,6 +1761,10 @@ Implementation order:
      storage backend/path/checksum metadata, verifies the object through the
      shared storage `Stat` contract, and increments the company/domain/user
      quota ledger in the same transaction as the `drive_nodes` file insert.
+971. Drive now has an internal node-list repository read model for bounded
+     active/trashed/deleted folder contents with folder-first stable ordering,
+     preparing future Drive list views before any HTTP API or frontend surface
+     is exposed.
 
 ## Deferred until backend contracts stabilize
 
