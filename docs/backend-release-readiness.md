@@ -330,7 +330,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   automatically, avoiding `bucket.localhost`/`bucket.127.0.0.1` drift for local
   S3-compatible stores even when `GOGOMAIL_STORAGE_BACKEND=s3` is used.
   S3 request paths preserve literal `+` characters as `%2B` so object identity
-  and SigV4 canonical paths do not drift for plus-bearing mail object keys.
+  and SigV4 canonical paths do not drift for plus-bearing mail object keys or
+  plus-bearing endpoint base paths.
   Endpoint base paths reject encoded path separators such as `%2F` and `%5C`;
   bucket names must start and end with a letter or digit, matching AWS S3 naming
   rules before adapter construction. Seekable PUT

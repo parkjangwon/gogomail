@@ -84,7 +84,9 @@ MinIO or other local compatible stores do not accidentally receive
 backend is used.
 Object keys are path-escaped segment by segment so literal `+` characters stay
 encoded as `%2B`, preserving object identity and SigV4 canonical paths across
-AWS S3, MinIO, and strict compatible providers.
+AWS S3, MinIO, and strict compatible providers. Endpoint base paths use the
+same segment escaping, so reverse-proxy paths such as `/base+proxy` keep their
+literal plus signs in canonical request paths.
 For file-backed or otherwise seekable upload bodies, gogomail sets a precise
 `Content-Length` without buffering the object in memory, improving PUT
 compatibility while preserving streaming-first storage paths.
