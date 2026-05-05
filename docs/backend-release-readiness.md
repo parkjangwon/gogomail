@@ -79,6 +79,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive can now permanently mark trashed file/folder metadata deleted while
   releasing file bytes from the unified quota ledger and returning object
   references for backend-specific cleanup workers.
+- Drive now has a storage-object cleanup helper for permanent-delete results,
+  giving cleanup workers a validated, cancellation-aware, de-duplicated path
+  to remove bytes across configured local/NFS, MinIO, or S3-compatible stores.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
