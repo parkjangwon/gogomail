@@ -338,7 +338,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `NOOP` now drains queued mailbox events into untagged `EXISTS` and flag
   `FETCH` updates for selected mailboxes.
 - IMAP now advertises and accepts `IDLE`, entering continuation mode and
-  draining queued selected-mailbox events on `DONE`.
+  streaming selected-mailbox events while the client waits for `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now return
   selected-mailbox sequence numbers or UIDs for basic client indexing flows.
 - IMAP `FETCH`/`UID FETCH` now streams bounded partial full-body literals for

@@ -900,21 +900,20 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 		t.Fatalf("idle continuation = %q err = %v", line, err)
 	}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 4}
+	if err := client.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* 4 EXISTS\r\n" {
+		t.Fatalf("live idle event = %q err = %v", line, err)
+	}
+	if err := client.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear read deadline: %v", err)
+	}
 	if _, err := client.Write([]byte("DONE\r\n")); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
-	want := []string{
-		"* 4 EXISTS\r\n",
-		"a3 OK IDLE completed\r\n",
-	}
-	for _, expected := range want {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("read idle response: %v", err)
-		}
-		if line != expected {
-			t.Fatalf("idle response = %q, want %q", line, expected)
-		}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK IDLE completed\r\n" {
+		t.Fatalf("idle completion = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)

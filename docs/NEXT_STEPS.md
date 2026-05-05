@@ -273,9 +273,9 @@ Current state:
 - `UID STORE` now accepts bounded UID sets/ranges so clients can mutate flags in
   batches instead of issuing one command per message.
 - `NOOP` now drains queued selected-mailbox events as untagged `EXISTS` and flag
-  `FETCH` updates, giving clients a polling path before full IDLE support.
-- `IDLE` is now advertised and accepted, with queued selected-mailbox events
-  drained when the client sends `DONE`.
+  `FETCH` updates, giving clients a polling path alongside live IDLE.
+- `IDLE` is now advertised and accepted, streaming selected-mailbox events while
+  the client is waiting and completing when the client sends `DONE`.
 - `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now work over the
   selected mailbox message list.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
@@ -315,8 +315,8 @@ Current state:
 
 Next:
 
-- Extend IMAP IDLE to stream events while the connection is waiting, instead of
-  draining only when `DONE` arrives.
+- Wire committed `mail.stored` event-worker notifications into the runtime IMAP
+  mailbox event broker so newly delivered mail reaches live IDLE sessions.
 - Add richer MIME-tree `BODYSTRUCTURE` support for higher-fidelity client
   previews.
 
