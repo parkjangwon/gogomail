@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV filter composition)
+Last updated: 2026-05-06 (updated after CardDAV privilege discovery)
 
 ## Current phase
 
@@ -85,6 +85,11 @@ public/client-ready.
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,
 contact-object, REPORT, and sync responses.
+CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
+`current-user-privilege-set`: readable resources advertise `DAV:read`, and
+contact objects additionally advertise `DAV:write-content` because object
+`PUT`/`DELETE` semantics exist. Collection/property/ACL write privileges remain
+unadvertised until their exact WebDAV semantics are implemented.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
