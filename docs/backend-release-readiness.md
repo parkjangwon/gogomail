@@ -59,6 +59,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   0009 defines the metadata/storage/quota boundary, `drive_nodes` persists
   user-scoped file/folder metadata and lifecycle state, and `internal/drive`
   validates node names, types, and statuses before future repository/API code.
+- Drive has a first internal folder-create repository mutation that derives
+  tenant scope from active user metadata and validates parent folder state
+  before insert, preparing the backend module without opening a frontend or
+  HTTP API surface yet.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
