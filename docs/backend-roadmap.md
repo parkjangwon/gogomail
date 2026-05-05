@@ -1787,6 +1787,10 @@ Implementation order:
      permanent-delete with backend object cleanup, returning both committed
      metadata/quota state and cleanup progress so future HTTP handlers and
      workers can expose retryable storage cleanup failures cleanly.
+977. Drive now has canonical object path builders for staged uploads,
+     committed node objects, and user cleanup prefixes under
+     `drive/users/{user_id}/...`, with path-segment-safe ID validation before
+     storage paths are emitted.
 
 ## Deferred until backend contracts stabilize
 

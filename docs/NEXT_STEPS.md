@@ -343,6 +343,9 @@ Current state:
 - `internal/drive.Service.PermanentDeleteNode` now composes repository
   permanent-delete with backend object cleanup and returns cleanup progress
   alongside the committed metadata/quota result.
+- Drive object path builders now standardize staged uploads, committed node
+  objects, and user cleanup prefixes under `drive/users/{user_id}/...`, with
+  path-segment-safe ID checks before storage paths are emitted.
 
 Next:
 

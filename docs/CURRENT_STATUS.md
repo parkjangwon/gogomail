@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive service delete workflow)
+Last updated: 2026-05-06 (updated after Drive object path layout)
 
 ## Current phase
 
@@ -264,6 +264,10 @@ guidance.
 - Drive now has a small internal service layer that composes repository
   permanent-delete with backend object cleanup, preserving cleanup progress on
   post-transaction storage failures for future retry/reconciliation handling.
+- Drive now has canonical object path builders for staged uploads, committed
+  node objects, and user prefixes under `drive/users/{user_id}/...`, with
+  path-segment-safe ID validation so future cleanup and prefix operations stay
+  tenant/user scoped.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
