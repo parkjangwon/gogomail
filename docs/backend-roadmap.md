@@ -1474,6 +1474,10 @@ Implementation order:
 893. IMAP parenthesized `SEARCH`/`UID SEARCH` groups now reject empty `()`
      groups instead of treating them as match-all, while preserving valid
      `(ALL)` groups.
+894. IMAP `SEARCH`/`UID SEARCH` `MODSEQ` numeric thresholds now reject
+     malformed values that still contain quote characters after command
+     parsing, preventing broken `MODSEQ 20"` style inputs from being silently
+     normalized.
 
 ## Deferred until backend contracts stabilize
 

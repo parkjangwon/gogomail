@@ -2326,7 +2326,10 @@ func parseIMAPSearchModSeq(criteria []string) (uint64, int, bool) {
 }
 
 func parseIMAPModSeqValue(value string) (uint64, bool) {
-	modseq, err := strconv.ParseUint(strings.Trim(value, `"`), 10, 64)
+	if strings.Contains(value, `"`) {
+		return 0, false
+	}
+	modseq, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64)
 	if err != nil {
 		return 0, false
 	}
