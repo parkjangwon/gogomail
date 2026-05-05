@@ -304,11 +304,24 @@ Current state:
 - Domain quota updates can apply a new default user quota to default-following
   users while preserving custom overrides.
 - ADR 0003 defines company → domain → user unified storage pool semantics.
+- ADR 0009 defines the Drive metadata boundary: Drive nodes are PostgreSQL
+  metadata scoped by company/domain/user, object bytes stay behind the shared
+  storage interface, and future Drive file writes must consume the same unified
+  user quota ledger as mailbox and attachments.
+- The `drive_nodes` migration establishes folder/file metadata, active sibling
+  uniqueness, storage object references for files, and active/trashed/deleted
+  lifecycle state without starting frontend implementation.
+- `internal/drive` validates Drive node names, types, and statuses before
+  future repository/API code can persist path-bearing, control-character, or
+  unsupported lifecycle values.
 
 Next:
 
 - Extend the same ledger service to future Drive writes and large-attachment
   share-link objects.
+- Add the first Drive repository/service create-folder and file-finalize flows
+  against `drive_nodes`, using storage `Stat` and the hierarchical quota
+  ledger before exposing HTTP API routes.
 
 ### 2. Message threading and search
 

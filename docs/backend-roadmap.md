@@ -1747,6 +1747,11 @@ Implementation order:
      Drive folder deletion, attachment lifecycle, and reconciliation jobs a
      cursor-driven cleanup path that stays portable across local/NFS, MinIO,
      AWS S3, and strict S3-compatible backends.
+968. Drive backend groundwork now has ADR 0009, a `drive_nodes` PostgreSQL
+     metadata table, and internal node validation for file/folder names, node
+     types, and lifecycle status. Drive bytes remain in the shared storage
+     interface, while metadata, folder hierarchy, active sibling uniqueness,
+     and trash/delete lifecycle live in the database/service boundary.
 
 ## Deferred until backend contracts stabilize
 
