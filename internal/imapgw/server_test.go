@@ -1478,6 +1478,7 @@ func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 2}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 3}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}
 	if _, err := client.Write([]byte("a3 NOOP\r\n")); err != nil {

@@ -323,7 +323,8 @@ Current state:
 - Non-UID `STORE` now supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses for those requests.
 - `NOOP` now drains queued selected-mailbox events as untagged `EXISTS` and flag
-  `FETCH` updates, giving clients a polling path alongside live IDLE.
+  `FETCH` updates, giving clients a polling path alongside live IDLE and
+  suppressing stale or duplicate exact-count `EXISTS` events.
 - `IDLE` is now advertised and accepted, streaming selected-mailbox events while
   the client is waiting and completing when the client sends `DONE`.
 - `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now work over the

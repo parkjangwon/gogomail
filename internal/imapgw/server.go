@@ -802,6 +802,9 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 	switch event.Type {
 	case MailboxEventExists:
 		if event.Messages > 0 {
+			if event.Messages <= state.selectedMessages {
+				return nil
+			}
 			state.selectedMessages = event.Messages
 		} else {
 			state.selectedMessages++
