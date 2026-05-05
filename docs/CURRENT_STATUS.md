@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after smart-host credential validation)
+Last updated: 2026-05-05 (updated after delivery-route metadata bounds)
 
 ## Current phase
 
@@ -56,6 +56,9 @@ guidance.
   and disabled-account triage.
 - Delivery-route listing can filter by status, farm, and domain pattern for
   targeted route audits.
+- Admin delivery-route creation now rejects oversized farm, SMTP hello, pool,
+  description, and relay auth identity/username/password metadata before route
+  storage or audit work.
 - Suppression-list reads can filter by domain, email, and reason for targeted
   bounce triage without direct database access.
 - Queue stats include ready, delayed, stale-processing, oldest-ready, and

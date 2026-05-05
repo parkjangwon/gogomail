@@ -348,6 +348,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   or oversized auth username, password, and identity values during startup
   config validation, matching the Admin delivery-route guardrails before
   delivery worker startup.
+- Admin delivery-route creation rejects oversized farm, SMTP hello, pool,
+  description, and relay auth identity/username/password metadata before route
+  storage or audit work.
 - Admin domain/user create validation rejects malformed domains, unsafe usernames, invalid ACE names, and mismatched primary address ownership.
 - SMTP receive/submission paths now include TCP-level protocol integration coverage for inbound delivery, AUTH PLAIN submission, policy rejection, and SMTPS.
 - Authenticated Submission applies enforcing per-domain recipient caps during
