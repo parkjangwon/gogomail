@@ -2,31 +2,37 @@ package smtpd
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/emersion/go-msgauth/authres"
 )
 
+const (
+	maxAuthservIDBytes          = 255
+	maxAuthenticationValueBytes = 512
+)
+
 func FormatAuthenticationResults(results AuthenticationResults) string {
-	authservID := strings.TrimSpace(results.AuthservID)
+	authservID := sanitizeAuthenticationResultText(results.AuthservID, maxAuthservIDBytes)
 	if authservID == "" {
 		authservID = "localhost"
 	}
 	formatted := authres.Format(authservID, []authres.Result{
 		&authres.SPFResult{
 			Value:  authResultValue(results.SPF.Result),
-			Reason: results.SPF.Reason,
-			From:   results.SPF.Identifier,
+			Reason: sanitizeAuthenticationResultText(results.SPF.Reason, maxAuthenticationValueBytes),
+			From:   sanitizeAuthenticationResultText(results.SPF.Identifier, maxAuthenticationValueBytes),
 		},
 		&authres.DKIMResult{
 			Value:      authResultValue(results.DKIM.Result),
-			Reason:     results.DKIM.Reason,
-			Domain:     results.DKIM.Domain,
-			Identifier: results.DKIM.Identifier,
+			Reason:     sanitizeAuthenticationResultText(results.DKIM.Reason, maxAuthenticationValueBytes),
+			Domain:     sanitizeAuthenticationResultText(results.DKIM.Domain, maxAuthenticationValueBytes),
+			Identifier: sanitizeAuthenticationResultText(results.DKIM.Identifier, maxAuthenticationValueBytes),
 		},
 		&authres.DMARCResult{
 			Value:  authResultValue(results.DMARC.Result),
-			Reason: results.DMARC.Reason,
-			From:   results.DMARC.Domain,
+			Reason: sanitizeAuthenticationResultText(results.DMARC.Reason, maxAuthenticationValueBytes),
+			From:   sanitizeAuthenticationResultText(results.DMARC.Domain, maxAuthenticationValueBytes),
 		},
 	})
 	return foldHeaderLine("Authentication-Results: " + formatted)
@@ -47,6 +53,25 @@ func authResultValue(result AuthResult) authres.ResultValue {
 	default:
 		return authres.ResultNone
 	}
+}
+
+func sanitizeAuthenticationResultText(value string, maxBytes int) string {
+	value = strings.TrimSpace(value)
+	value = strings.Map(func(r rune) rune {
+		if r == '\r' || r == '\n' || r == '\t' || r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, value)
+	value = strings.Join(strings.Fields(value), " ")
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.ValidString(value[:cut]) {
+		cut--
+	}
+	return strings.TrimSpace(value[:cut])
 }
 
 func foldHeaderLine(line string) string {

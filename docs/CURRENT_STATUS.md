@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after health/info bodyless request guardrails)
+Last updated: 2026-05-05 (updated after Authentication-Results header hardening)
 
 ## Current phase
 
@@ -493,6 +493,9 @@ guidance.
 - User-scoped sent-message delivery status treats terminal `exhausted`
   attempts as failed so retry budgets do not remain visible as pending forever.
 - DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).
+- Authentication-Results trace header formatting now strips control characters
+  and bounds verifier metadata before formatting SPF/DKIM/DMARC results,
+  preventing DNS/library diagnostics from injecting or bloating stored headers.
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses, and outbound delivery now fails closed with a permanent SMTPUTF8
   error when the remote MTA does not advertise SMTPUTF8.

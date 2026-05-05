@@ -41,3 +41,65 @@ func TestFormatAuthenticationResultsDefaultsAuthservID(t *testing.T) {
 		t.Fatalf("header = %q, want localhost default", header)
 	}
 }
+
+func TestFormatAuthenticationResultsSanitizesControlCharacters(t *testing.T) {
+	header := FormatAuthenticationResults(AuthenticationResults{
+		AuthservID: "mx.example.com\r\nInjected: bad",
+		SPF: AuthCheckResult{
+			Result:     AuthResultFail,
+			Reason:     "dns\r\nInjected: bad\x00\tlookup failed",
+			Identifier: "sender@example.net\r\nInjected: bad",
+		},
+		DKIM: AuthCheckResult{
+			Result:     AuthResultTemporary,
+			Reason:     "body hash\r\nInjected: bad",
+			Domain:     "example.net\r\nInjected: bad",
+			Identifier: "@example.net\r\nInjected: bad",
+		},
+		DMARC: AuthCheckResult{
+			Result: AuthResultPermanent,
+			Reason: "policy\r\nInjected: bad",
+			Domain: "example.net\r\nInjected: bad",
+		},
+	})
+	for _, bad := range []string{
+		"\r\nInjected:",
+		"\x00",
+		"\t",
+	} {
+		if strings.Contains(header, bad) {
+			t.Fatalf("header contains unsanitized %q:\n%s", bad, header)
+		}
+	}
+	unfolded := strings.ReplaceAll(header, "\r\n\t", " ")
+	unfolded = strings.ReplaceAll(unfolded, "\r\n ", " ")
+	if !strings.Contains(unfolded, "dns Injected: bad lookup failed") {
+		t.Fatalf("header missing sanitized reason:\n%s", header)
+	}
+}
+
+func TestFormatAuthenticationResultsBoundsLongValues(t *testing.T) {
+	longReason := strings.Repeat("a", maxAuthenticationValueBytes+200)
+	header := FormatAuthenticationResults(AuthenticationResults{
+		AuthservID: strings.Repeat("m", maxAuthservIDBytes+200),
+		SPF: AuthCheckResult{
+			Result:     AuthResultTemporary,
+			Reason:     longReason,
+			Identifier: "sender@example.net",
+		},
+	})
+	unfolded := strings.ReplaceAll(header, "\r\n\t", "")
+	unfolded = strings.ReplaceAll(unfolded, "\r\n ", "")
+	if strings.Contains(unfolded, strings.Repeat("a", maxAuthenticationValueBytes+1)) {
+		t.Fatalf("header contains unbounded reason:\n%s", header)
+	}
+	if strings.Contains(unfolded, strings.Repeat("m", maxAuthservIDBytes+1)) {
+		t.Fatalf("header contains unbounded authserv-id:\n%s", header)
+	}
+	if !strings.Contains(unfolded, "reason="+strings.Repeat("a", maxAuthenticationValueBytes)) {
+		t.Fatalf("header missing bounded reason:\n%s", header)
+	}
+	if !strings.HasSuffix(header, "\r\n") {
+		t.Fatalf("header missing CRLF terminator: %q", header)
+	}
+}
