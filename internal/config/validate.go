@@ -167,6 +167,12 @@ func (c Config) Validate() error {
 	if c.PushNotifyConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT must be positive")
 	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_GROUP", c.PushNotifyConsumerGroup, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", c.PushNotifyConsumerName, 1024); err != nil {
+		return err
+	}
 	if c.PushNotifyConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_BLOCK must be positive")
 	}
@@ -186,6 +192,15 @@ func (c Config) Validate() error {
 		return fmt.Errorf("GOGOMAIL_API_METERING_TIMEOUT must be positive")
 	}
 	if err := validateEnum("GOGOMAIL_API_METERING_AGGREGATE_BACKEND", c.APIMeteringAggregateBackend, "disabled", "postgres"); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_API_METERING_STREAM", c.APIMeteringStream, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_API_METERING_CONSUMER_GROUP", c.APIMeteringConsumerGroup, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_API_METERING_CONSUMER_NAME", c.APIMeteringConsumerName, 1024); err != nil {
 		return err
 	}
 	if c.APIMeteringConsumerCount <= 0 {
@@ -300,11 +315,26 @@ func (c Config) Validate() error {
 	if c.SearchIndexConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT must be positive")
 	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_SEARCH_INDEX_CONSUMER_GROUP", c.SearchIndexConsumerGroup, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_SEARCH_INDEX_CONSUMER_NAME", c.SearchIndexConsumerName, 1024); err != nil {
+		return err
+	}
 	if c.SearchIndexConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK must be positive")
 	}
 	if c.EventConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_COUNT must be positive")
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_EVENT_STREAM", c.EventStream, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_EVENT_CONSUMER_GROUP", c.EventConsumerGroup, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_EVENT_CONSUMER_NAME", c.EventConsumerName, 1024); err != nil {
+		return err
 	}
 	if c.EventConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_BLOCK must be positive")
@@ -371,6 +401,15 @@ func (c Config) Validate() error {
 	}
 	if c.DeliveryConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_COUNT must be positive")
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_DELIVERY_STREAM", c.DeliveryStream, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_DELIVERY_CONSUMER_GROUP", c.DeliveryConsumerGroup, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_DELIVERY_CONSUMER_NAME", c.DeliveryConsumerName, 1024); err != nil {
+		return err
 	}
 	if c.DeliveryConsumerBlock <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_BLOCK must be positive")
@@ -504,6 +543,14 @@ func validateBoundedNoCRLF(name string, value string, maxBytes int) error {
 		return fmt.Errorf("%s is too long", name)
 	}
 	return nil
+}
+
+func validateRequiredBoundedNoCRLF(name string, value string, maxBytes int) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	return validateBoundedNoCRLF(name, value, maxBytes)
 }
 
 func validateExportManifestSignerKeyID(value string, backend string) error {

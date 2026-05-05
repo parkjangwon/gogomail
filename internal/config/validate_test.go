@@ -419,6 +419,39 @@ func TestValidateRejectsNonpositiveEventAndDeliveryConsumerSettings(t *testing.T
 	}
 }
 
+func TestValidateRejectsUnsafeRedisConsumerIdentifiers(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "event stream blank", mutate: func(cfg *Config) { cfg.EventStream = " " }},
+		{name: "event stream newline", mutate: func(cfg *Config) { cfg.EventStream = "mail.event\nbad" }},
+		{name: "event group blank", mutate: func(cfg *Config) { cfg.EventConsumerGroup = "" }},
+		{name: "event consumer newline", mutate: func(cfg *Config) { cfg.EventConsumerName = "worker\nbad" }},
+		{name: "search group blank", mutate: func(cfg *Config) { cfg.SearchIndexConsumerGroup = " " }},
+		{name: "search consumer newline", mutate: func(cfg *Config) { cfg.SearchIndexConsumerName = "search\nbad" }},
+		{name: "api stream blank", mutate: func(cfg *Config) { cfg.APIMeteringStream = "" }},
+		{name: "api group newline", mutate: func(cfg *Config) { cfg.APIMeteringConsumerGroup = "api\nbad" }},
+		{name: "api consumer oversized", mutate: func(cfg *Config) { cfg.APIMeteringConsumerName = strings.Repeat("a", 1025) }},
+		{name: "push group blank", mutate: func(cfg *Config) { cfg.PushNotifyConsumerGroup = "" }},
+		{name: "push consumer newline", mutate: func(cfg *Config) { cfg.PushNotifyConsumerName = "push\nbad" }},
+		{name: "delivery stream blank", mutate: func(cfg *Config) { cfg.DeliveryStream = "" }},
+		{name: "delivery group newline", mutate: func(cfg *Config) { cfg.DeliveryConsumerGroup = "delivery\nbad" }},
+		{name: "delivery consumer oversized", mutate: func(cfg *Config) { cfg.DeliveryConsumerName = strings.Repeat("d", 1025) }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want unsafe Redis consumer identifier rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNegativeConsumerClaimIdle(t *testing.T) {
 	tests := []struct {
 		name   string

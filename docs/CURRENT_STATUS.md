@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Mail API read flag IMAP event fan-out)
+Last updated: 2026-05-05 (updated after Redis worker identifier validation)
 
 ## Current phase
 
@@ -540,6 +540,10 @@ guidance.
   recovery for at-least-once event processing. Startup validation now also
   rejects nonpositive event and delivery consumer count/block settings before
   workers run with unusable Redis Stream options.
+- Redis worker stream, group, and consumer-name settings for event,
+  search-index, API-metering, push-notification, and delivery workers are now
+  required, CR/LF-rejected, and size-bounded during startup config validation,
+  surfacing worker identity mistakes before consumer construction.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing or oversized event names before worker dispatch.
 - Redis stream event decoding rejects CR/LF-bearing or oversized outbox IDs,
