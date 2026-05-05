@@ -420,12 +420,15 @@ Current state:
   status, and limit filters for operator cleanup-drift inspection.
 - Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`
   for audited operator closure after external cleanup verification.
+- Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`
+  for audited one-shot retry of pending Drive object cleanup failures, with
+  scanned/deleted/resolved/failed counts suitable for an operator console.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive cleanup-failure retry actions and broader node inventory once the
-  Drive admin module expands.
+- Add broader Drive node inventory and admin search once the Drive admin module
+  expands.
 
 ### 2. Message threading and search
 

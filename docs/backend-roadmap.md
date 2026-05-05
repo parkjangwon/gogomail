@@ -1892,6 +1892,9 @@ Implementation order:
 1005. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`
       for audited operator closure of pending Drive cleanup failures after
       external object cleanup verification.
+1006. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`
+      for audited bounded retry of pending Drive object cleanup failures, with
+      scanned/deleted/resolved/failed counts for operator consoles.
 
 ## Deferred until backend contracts stabilize
 

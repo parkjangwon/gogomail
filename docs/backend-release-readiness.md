@@ -173,6 +173,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   inspect pending/resolved Drive object cleanup drift with bounded filters.
 - Admin API exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve` for
   audited manual closure of Drive cleanup drift after external verification.
+- Admin API exposes `POST /admin/v1/drive-cleanup-failures/retry-runs` for
+  audited bounded retry of pending Drive cleanup drift, returning
+  scanned/deleted/resolved/failed counts that an operator console can render
+  without tailing worker logs.
 - Mail API exposes cursor-paginated thread list and thread-message read models for conversation-style webmail rendering, and draft search uses the same opaque cursor envelope for compose-scale draft lists.
 - `gogomail --mode=all-in-one` registers Mail API and Admin API routes in the
   same HTTP process for small-deployment and local release smoke coverage.

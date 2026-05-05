@@ -45,6 +45,7 @@ type adminService struct {
 		ExpireUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 		ListObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error)
 		ResolveObjectCleanupFailure(ctx context.Context, req drive.ResolveObjectCleanupFailureRequest) (drive.ObjectCleanupFailure, error)
+		RetryObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
 	}
 	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
@@ -385,6 +386,68 @@ func (s adminService) ResolveDriveObjectCleanupFailure(ctx context.Context, id s
 		}
 	}
 	return resolved, nil
+}
+
+func (s adminService) RetryDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error) {
+	if s.drive == nil {
+		return drive.RetryObjectCleanupFailuresResult{}, fmt.Errorf("drive service is not configured")
+	}
+	req.Status = drive.ObjectCleanupFailureStatusPending
+	req, err := drive.ValidateListObjectCleanupFailuresRequest(req)
+	if err != nil {
+		return drive.RetryObjectCleanupFailuresResult{}, err
+	}
+	result, err := s.drive.RetryObjectCleanupFailures(ctx, req)
+	if err != nil && !driveCleanupRetryHasProgress(result) {
+		return drive.RetryObjectCleanupFailuresResult{}, err
+	}
+	if s.audit != nil {
+		detail, detailErr := driveCleanupRetryAuditDetail(req, result)
+		if detailErr != nil {
+			return drive.RetryObjectCleanupFailuresResult{}, detailErr
+		}
+		auditResult := "completed"
+		if result.Failed > 0 {
+			auditResult = "partial"
+		}
+		if insertErr := s.audit.Insert(ctx, audit.Log{
+			Category:   "admin",
+			Action:     "drive_cleanup_failure.retry_run",
+			TargetType: "drive_cleanup_failure",
+			Result:     auditResult,
+			Detail:     detail,
+		}); insertErr != nil {
+			return drive.RetryObjectCleanupFailuresResult{}, fmt.Errorf("record drive cleanup failure retry audit: %w", insertErr)
+		}
+	}
+	return result, nil
+}
+
+func driveCleanupRetryHasProgress(result drive.RetryObjectCleanupFailuresResult) bool {
+	return result.Scanned > 0 || result.Deleted > 0 || result.Resolved > 0 || result.Failed > 0
+}
+
+func driveCleanupRetryAuditDetail(req drive.ListObjectCleanupFailuresRequest, result drive.RetryObjectCleanupFailuresResult) (json.RawMessage, error) {
+	detail := struct {
+		UserID   string `json:"user_id,omitempty"`
+		Limit    int    `json:"limit"`
+		Scanned  int    `json:"scanned"`
+		Deleted  int    `json:"deleted"`
+		Resolved int    `json:"resolved"`
+		Failed   int    `json:"failed"`
+	}{
+		UserID:   req.UserID,
+		Limit:    req.Limit,
+		Scanned:  result.Scanned,
+		Deleted:  result.Deleted,
+		Resolved: result.Resolved,
+		Failed:   result.Failed,
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return nil, fmt.Errorf("marshal drive cleanup retry audit detail: %w", err)
+	}
+	return raw, nil
 }
 
 func driveCleanupFailureAuditDetail(failure drive.ObjectCleanupFailure) (json.RawMessage, error) {

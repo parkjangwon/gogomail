@@ -412,6 +412,10 @@ cleanup drift.
 `POST /admin/v1/drive-cleanup-failures/{id}/resolve` marks a pending cleanup
 failure resolved after an operator has verified or performed external object
 cleanup and returns `{"drive_cleanup_failure":{...}}`.
+`POST /admin/v1/drive-cleanup-failures/retry-runs` accepts optional `user_id`
+and `limit` fields, retries pending object cleanup failures once through the
+configured storage backends, and returns `{"drive_cleanup_retry_run":{...}}`
+with scanned, deleted, resolved, and failed counts for operator consoles.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

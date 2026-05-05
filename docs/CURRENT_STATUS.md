@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive file finalize API)
+Last updated: 2026-05-06 (updated after Drive cleanup-failure retry API)
 
 ## Current phase
 
@@ -366,6 +366,9 @@ guidance.
 - Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`,
   allowing audited operator closure after external Drive object cleanup
   verification.
+- Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`,
+  letting operators trigger audited bounded retries for pending Drive object
+  cleanup drift and inspect scanned/deleted/resolved/failed run counts.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

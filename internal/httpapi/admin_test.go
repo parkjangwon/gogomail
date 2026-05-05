@@ -87,7 +87,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures {
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -969,6 +969,67 @@ func TestAdminResolveDriveCleanupFailureHandler(t *testing.T) {
 	}
 	if service.lastResolveDriveCleanupFailureID != "failure-1" {
 		t.Fatalf("lastResolveDriveCleanupFailureID = %q", service.lastResolveDriveCleanupFailureID)
+	}
+}
+
+func TestAdminRetryDriveCleanupFailuresHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		driveCleanupRetryResult: drive.RetryObjectCleanupFailuresResult{Scanned: 3, Deleted: 2, Resolved: 2, Failed: 1},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/drive-cleanup-failures/retry-runs", strings.NewReader(`{
+		"user_id":" user-1 ",
+		"limit":5
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{`"drive_cleanup_retry_run"`, `"user_id":"user-1"`, `"limit":5`, `"scanned":3`, `"deleted":2`, `"resolved":2`, `"failed":1`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body = %s, want %s", rec.Body.String(), want)
+		}
+	}
+	if service.lastDriveCleanupFailureRetry.UserID != "user-1" ||
+		service.lastDriveCleanupFailureRetry.Status != drive.ObjectCleanupFailureStatusPending ||
+		service.lastDriveCleanupFailureRetry.Limit != 5 {
+		t.Fatalf("lastDriveCleanupFailureRetry = %+v", service.lastDriveCleanupFailureRetry)
+	}
+}
+
+func TestAdminRetryDriveCleanupFailuresHandlerRejectsUnsafeRequests(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"{\"user_id\":\"user\\nbad\"}",
+	}
+	for _, body := range tests {
+		body := body
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, "/admin/v1/drive-cleanup-failures/retry-runs", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDriveCleanupFailureRetry.Limit != 0 {
+				t.Fatalf("retry was called: %+v", service.lastDriveCleanupFailureRetry)
+			}
+		})
 	}
 }
 
@@ -6338,6 +6399,7 @@ type fakeAdminService struct {
 	expiredDriveUploadSessions                  []drive.UploadSession
 	driveCleanupFailures                        []drive.ObjectCleanupFailure
 	resolvedDriveCleanupFailure                 drive.ObjectCleanupFailure
+	driveCleanupRetryResult                     drive.RetryObjectCleanupFailuresResult
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -6394,6 +6456,7 @@ type fakeAdminService struct {
 	lastDriveUploadCleanupLimit                 int
 	lastDriveCleanupFailureList                 drive.ListObjectCleanupFailuresRequest
 	lastResolveDriveCleanupFailureID            string
+	lastDriveCleanupFailureRetry                drive.ListObjectCleanupFailuresRequest
 	lastAPIUsageDailyList                       maildb.APIUsageAggregateListRequest
 	lastAPIUsageMonthlyList                     maildb.APIUsageAggregateListRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
@@ -6684,6 +6747,11 @@ func (f *fakeAdminService) ListDriveObjectCleanupFailures(_ context.Context, req
 func (f *fakeAdminService) ResolveDriveObjectCleanupFailure(_ context.Context, id string) (drive.ObjectCleanupFailure, error) {
 	f.lastResolveDriveCleanupFailureID = id
 	return f.resolvedDriveCleanupFailure, nil
+}
+
+func (f *fakeAdminService) RetryDriveObjectCleanupFailures(_ context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error) {
+	f.lastDriveCleanupFailureRetry = req
+	return f.driveCleanupRetryResult, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error) {
