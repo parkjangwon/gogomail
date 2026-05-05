@@ -96,6 +96,7 @@ func (h *BounceHandler) handleFailureEvent(ctx context.Context, event bounceEven
 	}
 
 	now := h.now().UTC()
+	originalHeaders, originalMessage := h.returnedContentForEvent(ctx, event)
 	composed, err := Compose(Report{
 		ReportingMTA: h.reportingMTA,
 		OriginalID:   event.DSN.EnvelopeID,
@@ -114,7 +115,8 @@ func (h *BounceHandler) handleFailureEvent(ctx context.Context, event bounceEven
 			FinalLogID:        event.MessageID,
 			LastAttemptAt:     event.AttemptedAt,
 		}},
-		OriginalHeaders: h.originalHeadersForEvent(ctx, event),
+		OriginalHeaders: originalHeaders,
+		OriginalMessage: originalMessage,
 	})
 	if err != nil {
 		return err
@@ -427,7 +429,28 @@ func normalizeBounceNotify(values []string) ([]string, error) {
 	return normalized, nil
 }
 
-const maxOriginalHeaderReadBytes = 64 * 1024
+const (
+	maxOriginalHeaderReadBytes  = 64 * 1024
+	maxOriginalMessageReadBytes = 256 * 1024
+)
+
+func (h *BounceHandler) returnedContentForEvent(ctx context.Context, event bounceEvent) ([]OriginalHeader, []byte) {
+	switch event.DSN.Return {
+	case "HDRS":
+		return h.originalHeadersForEvent(ctx, event), nil
+	case "FULL":
+		if strings.TrimSpace(event.StoragePath) == "" {
+			return nil, nil
+		}
+		message, err := readOriginalMessage(ctx, h.store, event.StoragePath)
+		if err != nil {
+			return nil, nil
+		}
+		return nil, message
+	default:
+		return nil, nil
+	}
+}
 
 func (h *BounceHandler) originalHeadersForEvent(ctx context.Context, event bounceEvent) []OriginalHeader {
 	if event.DSN.Return != "HDRS" || strings.TrimSpace(event.StoragePath) == "" {
@@ -438,6 +461,32 @@ func (h *BounceHandler) originalHeadersForEvent(ctx context.Context, event bounc
 		return nil
 	}
 	return headers
+}
+
+func readOriginalMessage(ctx context.Context, store storage.Store, storagePath string) ([]byte, error) {
+	if store == nil {
+		return nil, fmt.Errorf("dsn storage is required")
+	}
+	if !validBounceStoragePath(storagePath) {
+		return nil, fmt.Errorf("invalid storage_path")
+	}
+	body, err := store.Get(ctx, storagePath)
+	if err != nil {
+		return nil, fmt.Errorf("read original message: %w", err)
+	}
+	defer body.Close()
+
+	raw, err := io.ReadAll(io.LimitReader(body, maxOriginalMessageReadBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read original message: %w", err)
+	}
+	if len(raw) > maxOriginalMessageReadBytes {
+		return nil, fmt.Errorf("original message exceeds %d bytes", maxOriginalMessageReadBytes)
+	}
+	if _, err := netmail.ReadMessage(bytes.NewReader(raw)); err != nil {
+		return nil, fmt.Errorf("parse original message: %w", err)
+	}
+	return raw, nil
 }
 
 func readOriginalHeaders(ctx context.Context, store storage.Store, storagePath string) ([]OriginalHeader, error) {

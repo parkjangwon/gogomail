@@ -311,6 +311,38 @@ func TestComposeIncludesOptionalOriginalHeadersPart(t *testing.T) {
 	}
 }
 
+func TestComposeIncludesOptionalOriginalMessagePart(t *testing.T) {
+	t.Parallel()
+
+	original := []byte("From: Sender <sender@example.com>\r\nSubject: Original\r\n\r\nbody")
+	composed, err := Compose(Report{
+		ReportingMTA: "mx.example.com",
+		Recipients: []RecipientStatus{{
+			Recipient: "user@example.net",
+			Action:    "failed",
+			Status:    "5.1.1",
+		}},
+		OriginalMessage: original,
+	})
+	if err != nil {
+		t.Fatalf("Compose() error = %v", err)
+	}
+	raw := string(composed.Raw)
+	for _, want := range []string{
+		"Content-Type: message/rfc822",
+		"From: Sender <sender@example.com>",
+		"Subject: Original",
+		"\r\n\r\nbody\r\n--gogomail-dsn-",
+	} {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("DSN raw missing %q:\n%s", want, raw)
+		}
+	}
+	if strings.Contains(raw, "Content-Type: text/rfc822-headers") {
+		t.Fatalf("raw contains header-only returned content part:\n%s", raw)
+	}
+}
+
 func TestComposeRejectsInvalidOriginalHeaderName(t *testing.T) {
 	t.Parallel()
 
