@@ -51,6 +51,9 @@ func writeHealth(w http.ResponseWriter, r *http.Request) {
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
@@ -60,6 +63,9 @@ func writeHealth(w http.ResponseWriter, r *http.Request) {
 func writeReadyWithChecks(checks []ReadinessCheckFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
 		response := ReadinessResponse{
@@ -105,6 +111,9 @@ func StaticReadinessCheck(name string, detail string) ReadinessCheckFunc {
 
 func writeInfo(w http.ResponseWriter, r *http.Request) {
 	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

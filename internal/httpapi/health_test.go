@@ -173,6 +173,32 @@ func TestHealthAndInfoHandlersRejectPayloadMetadata(t *testing.T) {
 	}
 }
 
+func TestHealthAndInfoHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/health/live?unexpected=true",
+		"/health/ready?unexpected=true",
+		"/api/v1/info?unexpected=true",
+	} {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			mux := http.NewServeMux()
+			RegisterHealthRoutes(mux)
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestContentDispositionAttachmentSanitizesFilename(t *testing.T) {
 	t.Parallel()
 
