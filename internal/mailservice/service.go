@@ -488,6 +488,19 @@ func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mail
 	return repo.GetIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
 }
 
+func (s *Service) CreateIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
+	user := strings.TrimSpace(string(userID))
+	name := strings.Trim(strings.TrimSpace(string(mailboxID)), "/")
+	folder, err := s.CreateFolder(ctx, maildb.CreateFolderRequest{
+		UserID: user,
+		Name:   name,
+	})
+	if err != nil {
+		return imapgw.Mailbox{}, err
+	}
+	return s.GetIMAPMailbox(ctx, imapgw.UserID(user), imapgw.MailboxID(folder.ID))
+}
+
 func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
 		ListIMAPMessages(context.Context, string, string, int, imapgw.UID) ([]imapgw.MessageSummary, error)

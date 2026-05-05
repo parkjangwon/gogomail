@@ -382,7 +382,9 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleList(writer, tag, fields, state, false)
 	case "LSUB":
 		return s.handleList(writer, tag, fields, state, true)
-	case "CREATE", "DELETE", "RENAME":
+	case "CREATE":
+		return s.handleCreate(writer, tag, fields, state)
+	case "DELETE", "RENAME":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
@@ -563,6 +565,23 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		}
 	}
 	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if len(fields) != 3 {
+		_, err := writer.WriteString(tag + " BAD CREATE requires mailbox name\r\n")
+		return false, err
+	}
+	if _, err := s.options.Backend.CreateMailbox(context.Background(), state.session.UserID, MailboxID(fields[2])); err != nil {
+		_, writeErr := writer.WriteString(tag + " NO CREATE failed\r\n")
+		return false, writeErr
+	}
+	_, err := writer.WriteString(tag + " OK CREATE completed\r\n")
 	return false, err
 }
 

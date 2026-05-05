@@ -1459,7 +1459,7 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 	want := []string{
 		"a1 NO authentication required\r\n",
 		"a2 OK LOGIN completed\r\n",
-		"a3 NO CREATE is not supported\r\n",
+		"a3 OK CREATE completed\r\n",
 		"a4 NO DELETE is not supported\r\n",
 		"a5 NO RENAME is not supported\r\n",
 	}
@@ -3667,6 +3667,10 @@ func (fakeBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailb
 
 func (fakeBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
+}
+
+func (fakeBackend) CreateMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
+	return Mailbox{ID: "projects", Name: "Projects", UIDValidity: 2, UIDNext: 1}, nil
 }
 
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {

@@ -33,6 +33,9 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 	if mailbox, err := adapter.GetMailbox(context.Background(), "user-1", "inbox"); err != nil || mailbox.ID != "inbox" {
 		t.Fatalf("GetMailbox = %#v, %v", mailbox, err)
 	}
+	if mailbox, err := adapter.CreateMailbox(context.Background(), "user-1", "Archive"); err != nil || mailbox.ID != "inbox" {
+		t.Fatalf("CreateMailbox = %#v, %v", mailbox, err)
+	}
 	if messages, err := adapter.ListMessages(context.Background(), imapgw.ListMessagesRequest{UserID: "user-1", MailboxID: "inbox"}); err != nil || len(messages) != 1 {
 		t.Fatalf("ListMessages = %#v, %v", messages, err)
 	}

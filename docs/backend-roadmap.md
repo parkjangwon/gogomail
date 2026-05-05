@@ -948,9 +948,11 @@ Implementation order:
      them to the same service-backed flag mutation boundary as `UID STORE`.
 744. IMAP non-UID `STORE` now supports `.SILENT` flag mutation modes and
      suppresses untagged flag echo responses for those requests.
-745. IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
-     explicit unsupported `NO` responses while mailbox CRUD semantics remain
-     deferred.
+745. IMAP `CREATE` now delegates to the service folder boundary for
+     authenticated flat user-mailbox creation, returning RFC-shaped completion
+     while preserving the existing folder-name validation rules. `DELETE` and
+     `RENAME` remain explicit unsupported `NO` responses until destructive and
+     rename mailbox semantics are reviewed.
 746. IMAP `SELECT` and `EXAMINE` now emit RFC-shaped untagged `RECENT` counts
      alongside `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
 747. IMAP `FETCH` and `UID FETCH` now support conservative single-part text
@@ -1038,6 +1040,9 @@ Implementation order:
      source UIDs remain stable, destination copies receive fresh mailbox-local
      UIDs, copied rows pass through quota accounting, and destructive
      MOVE/EXPUNGE behavior remains explicitly deferred.
+775. IMAP `CREATE` now has protocol and service adapter coverage over the
+     existing folder creation boundary, improving standards-shaped mailbox
+     management compatibility without starting destructive mailbox CRUD.
 
 ## Deferred until backend contracts stabilize
 
