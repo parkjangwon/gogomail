@@ -371,13 +371,15 @@ Current state:
   and SHA-256 for the finalize request.
 - Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/name` for validated
   active file/folder renames using the Drive normalized-name rules.
+- Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/parent` for moving
+  active Drive files/folders into another folder or back to root with cycle
+  prevention.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive move/reparent and upload-session contracts so clients can organize
-  folders, reserve quota, retry large objects, and surface resumable upload
-  state.
+- Add Drive upload-session contracts so clients can reserve quota, retry large
+  objects, and surface resumable upload state.
 
 ### 2. Message threading and search
 

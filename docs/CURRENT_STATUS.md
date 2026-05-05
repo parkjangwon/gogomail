@@ -301,6 +301,9 @@ guidance.
 - Drive nodes can now be renamed through `PATCH /api/v1/drive/nodes/{id}/name`,
   keeping active file/folder metadata aligned with normalized-name validation
   and sibling uniqueness before future production Drive UI work begins.
+- Drive nodes can now be moved through
+  `PATCH /api/v1/drive/nodes/{id}/parent`, validating destination folders,
+  root moves, and active-subtree cycle prevention at the repository boundary.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

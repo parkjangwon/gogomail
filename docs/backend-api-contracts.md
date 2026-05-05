@@ -177,6 +177,10 @@ or development `user_id` fallback path as webmail mail routes:
 - `PATCH /api/v1/drive/nodes/{id}/name` renames an active file or folder from
   `{"name"}` and returns `{"drive_node":{...}}`; backend validation reuses the
   Drive node-name normalization and active sibling uniqueness rules.
+- `PATCH /api/v1/drive/nodes/{id}/parent` moves an active file or folder from
+  `{"parent_id"}` and returns `{"drive_node":{...}}`; an omitted or empty
+  `parent_id` moves the node to the Drive root, and repository checks prevent
+  moves into the node's own active subtree.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

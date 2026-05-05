@@ -73,6 +73,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive active file/folder renames are exposed through a bounded Mail API route
   that reuses repository-side name normalization and active sibling uniqueness,
   giving future webmail Drive views a basic production editing operation.
+- Drive active file/folder moves are exposed through a bounded Mail API route
+  that validates destination folders, root moves, and active-subtree cycle
+  prevention before updating parent metadata.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

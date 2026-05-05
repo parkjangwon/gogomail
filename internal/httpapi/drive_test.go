@@ -222,6 +222,35 @@ func TestDriveRenameNodeHandler(t *testing.T) {
 	}
 }
 
+func TestDriveMoveNodeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{node: drive.Node{ID: "node-1", UserID: "user-1", ParentID: "parent-1", Name: "Report.pdf"}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/parent?user_id=user-1", strings.NewReader(`{"parent_id":"parent-1"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.moveReq.UserID != "user-1" || service.moveReq.NodeID != "node-1" || service.moveReq.ParentID != "parent-1" {
+		t.Fatalf("move request = %+v, want request body/user/node", service.moveReq)
+	}
+	var body struct {
+		Node drive.Node `json:"drive_node"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Node.ParentID != "parent-1" {
+		t.Fatalf("node = %+v", body.Node)
+	}
+}
+
 func TestDriveHandlersRejectBadRequests(t *testing.T) {
 	t.Parallel()
 
@@ -235,6 +264,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
 		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},
 		{name: "rename invalid json", req: httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/name?user_id=user-1", strings.NewReader(`{`))},
+		{name: "move invalid json", req: httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/parent?user_id=user-1", strings.NewReader(`{`))},
 		{name: "trash body rejected", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/trash?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "delete unsafe id", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/nodes/node%0A1?user_id=user-1", nil)},
 	}
@@ -269,6 +299,7 @@ type fakeDriveService struct {
 	trashReq   drive.TrashNodeRequest
 	restoreReq drive.RestoreNodeRequest
 	renameReq  drive.RenameNodeRequest
+	moveReq    drive.MoveNodeRequest
 	deleteReq  drive.PermanentDeleteNodeRequest
 }
 
@@ -322,6 +353,14 @@ func (f *fakeDriveService) RestoreNode(_ context.Context, req drive.RestoreNodeR
 
 func (f *fakeDriveService) RenameNode(_ context.Context, req drive.RenameNodeRequest) (drive.Node, error) {
 	f.renameReq = req
+	if f.err != nil {
+		return drive.Node{}, f.err
+	}
+	return f.node, nil
+}
+
+func (f *fakeDriveService) MoveNode(_ context.Context, req drive.MoveNodeRequest) (drive.Node, error) {
+	f.moveReq = req
 	if f.err != nil {
 		return drive.Node{}, f.err
 	}

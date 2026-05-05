@@ -16,6 +16,7 @@ type DriveService interface {
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
+	MoveNode(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
 	PermanentDeleteNode(ctx context.Context, req drive.PermanentDeleteNodeRequest) (drive.PermanentDeleteServiceResult, error)
 }
 
@@ -208,6 +209,30 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		node, err := service.RenameNode(r.Context(), drive.RenameNodeRequest{UserID: userID, NodeID: nodeID, Name: req.Name})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_node": node})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/drive/nodes/{id}/parent", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			ParentID string `json:"parent_id"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		node, err := service.MoveNode(r.Context(), drive.MoveNodeRequest{UserID: userID, NodeID: nodeID, ParentID: req.ParentID})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

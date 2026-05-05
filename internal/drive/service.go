@@ -117,6 +117,13 @@ func (s *Service) RenameNode(ctx context.Context, req RenameNodeRequest) (Node, 
 	return s.repo.RenameNode(ctx, req)
 }
 
+func (s *Service) MoveNode(ctx context.Context, req MoveNodeRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.MoveNode(ctx, req)
+}
+
 func (s *Service) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNodeRequest) (PermanentDeleteServiceResult, error) {
 	if s == nil || s.repo == nil {
 		return PermanentDeleteServiceResult{}, fmt.Errorf("drive repository is required")
