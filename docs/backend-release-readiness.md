@@ -219,6 +219,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis-backed event/search/API-metering/push/delivery workers reclaim idle
   pending stream messages with configurable claim-idle windows so crashed
   consumers do not strand at-least-once work indefinitely.
+- Redis stream consumers move repeatedly handler-failing messages into a
+  durable Redis dead-letter stream before acknowledging the original event,
+  preventing one poison event from pinning a worker forever while still
+  allowing normal transient retries first.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing or oversized event names before worker dispatch.
 - Redis stream event decoding trims outbox id, partition key, and payload

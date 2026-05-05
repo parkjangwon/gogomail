@@ -696,6 +696,7 @@ Implementation order:
 636. Admin queue, outbox, audit, backpressure, quota, attachment-session, delivery-attempt, push-notification, suppression-list, trusted-relay, delivery-route, and DKIM read routes now reject unknown query parameter names before dispatch, extending generated-client typo detection across operator read surfaces.
 637. Mail API read and bodyless mutation routes now reject request bodies and `Content-Type` headers before dispatch, preventing ignored JSON or multipart metadata on resource reads, deletes, draft-send, upload-session finalization, capability discovery, downloads, and push-device list/delete operations.
 638. Admin GET/DELETE routes and bodyless Admin POST commands now reject request bodies and `Content-Type` headers before dispatch, preventing ignored payloads on operator reads, deletes, route verification, retry, IMAP UID backfill, API-usage export-batch creation, and manifest digest/signature creation.
+639. Redis stream consumers now inspect Redis pending delivery counts and move repeatedly handler-failing messages into a durable dead-letter stream before acknowledging the original event, preventing one poison event from pinning event/search/API-metering/push/delivery workers forever while still allowing transient handler retries first.
 
 ## Deferred until backend contracts stabilize
 
