@@ -503,9 +503,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   missing, and publish best-effort destination `EXISTS` events.
 - IMAP `MOVE` and `UID MOVE` now resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
-  messages transactionally, remove source mailbox UID rows, emit RFC-shaped
-  source `EXPUNGE` responses, return `[TRYCREATE]` when the destination mailbox
-  is missing, and publish best-effort source expunge events.
+  messages transactionally, reassign mailbox UID rows to fresh destination
+  UIDs, return UIDPLUS `[COPYUID ...]` mappings when destination UIDs are
+  available, emit RFC-shaped source `EXPUNGE` responses, return `[TRYCREATE]`
+  when the destination mailbox is missing, and publish best-effort source
+  expunge events.
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
   optional flag-list, optional internal date-time, literal body, and size after
   bounded literal framing. The boundary now returns UIDPLUS-ready append

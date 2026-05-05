@@ -40,6 +40,11 @@ type MoveMessagesRequest struct {
 	UIDs            []UID
 }
 
+type MoveMessageResult struct {
+	Source      MessageSummary
+	Destination MessageSummary
+}
+
 type CopyMessagesRequest struct {
 	UserID          UserID
 	SourceMailboxID MailboxID
@@ -73,7 +78,7 @@ type MailboxEvent struct {
 type MailboxSessionStore interface {
 	SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error)
 	CopyMessages(ctx context.Context, req CopyMessagesRequest) ([]MessageSummary, error)
-	MoveMessages(ctx context.Context, req MoveMessagesRequest) ([]MessageSummary, error)
+	MoveMessages(ctx context.Context, req MoveMessagesRequest) ([]MoveMessageResult, error)
 	Expunge(ctx context.Context, req ExpungeRequest) ([]MessageSummary, error)
 	Subscribe(ctx context.Context, userID UserID, mailboxID MailboxID) (<-chan MailboxEvent, func(), error)
 }

@@ -971,8 +971,11 @@ WHERE user_id = $1::uuid
 	if err != nil {
 		t.Fatalf("MoveIMAPMessages returned error: %v", err)
 	}
-	if len(moved) != 1 || moved[0].ID != imapgw.MessageID(secondID) || moved[0].UID != secondUID.UID || moved[0].SequenceNumber != 2 {
-		t.Fatalf("moved summaries = %#v, want second UID with source sequence 2", moved)
+	if len(moved) != 1 || moved[0].Source.ID != imapgw.MessageID(secondID) || moved[0].Source.UID != secondUID.UID || moved[0].Source.SequenceNumber != 2 {
+		t.Fatalf("moved results = %#v, want second source UID with sequence 2", moved)
+	}
+	if moved[0].Destination.ID != imapgw.MessageID(secondID) || moved[0].Destination.MailboxID != imapgw.MailboxID(seed.sentID) || moved[0].Destination.UID != 1 || moved[0].Destination.SequenceNumber != 1 {
+		t.Fatalf("destination move result = %#v, want sent UID 1 with sequence 1", moved[0].Destination)
 	}
 	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, secondUID.UID); err == nil {
 		t.Fatal("GetIMAPMessage found moved message in source mailbox")
@@ -989,7 +992,7 @@ WHERE user_id = $1::uuid
 		t.Fatalf("EnsureIMAPMessageUID destination returned error: %v", err)
 	}
 	if freshUID.UID != 1 || freshUID.MailboxID != imapgw.MailboxID(seed.sentID) {
-		t.Fatalf("destination UID = %#v, want fresh sent UID 1", freshUID)
+		t.Fatalf("destination UID = %#v, want moved sent UID 1", freshUID)
 	}
 	var folderID string
 	if err := db.QueryRowContext(ctx, `SELECT folder_id::text FROM messages WHERE id = $1::uuid`, secondID).Scan(&folderID); err != nil {

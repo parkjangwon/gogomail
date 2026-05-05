@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP ENABLE CONDSTORE support)
+Last updated: 2026-05-05 (updated after IMAP UIDPLUS MOVE COPYUID support)
 
 ## Current phase
 
@@ -981,9 +981,10 @@ The platform hardening sprint completed the following:
   publish best-effort destination `EXISTS` events through the service boundary.
 - IMAP `MOVE` and `UID MOVE` resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
-  messages transactionally, remove source mailbox UID rows, emit RFC-shaped
-  source `EXPUNGE` responses, and return `[TRYCREATE]` when the destination
-  mailbox is missing.
+  messages transactionally, reassign mailbox UID rows to fresh destination
+  UIDs, return UIDPLUS `[COPYUID ...]` mappings when destination UIDs are
+  available, emit RFC-shaped source `EXPUNGE` responses, and return
+  `[TRYCREATE]` when the destination mailbox is missing.
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
   optional flag-list, optional internal date-time, literal body, and size after
   bounded literal framing. The boundary now returns UIDPLUS-ready append

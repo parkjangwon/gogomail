@@ -730,9 +730,9 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 	return summaries, nil
 }
 
-func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesRequest) ([]imapgw.MessageSummary, error) {
+func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesRequest) ([]imapgw.MoveMessageResult, error) {
 	repo, ok := s.repository.(interface {
-		MoveIMAPMessages(context.Context, string, string, string, []imapgw.UID) ([]imapgw.MessageSummary, error)
+		MoveIMAPMessages(context.Context, string, string, string, []imapgw.UID) ([]imapgw.MoveMessageResult, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("imap move repository is required")
@@ -740,12 +740,12 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 	userID := strings.TrimSpace(string(req.UserID))
 	sourceMailboxID := strings.TrimSpace(string(req.SourceMailboxID))
 	destMailboxID := strings.TrimSpace(string(req.DestMailboxID))
-	summaries, err := repo.MoveIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
+	results, err := repo.MoveIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, summaries)
-	return summaries, nil
+	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, imapMoveSourceSummaries(results))
+	return results, nil
 }
 
 func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeRequest) ([]imapgw.MessageSummary, error) {
@@ -763,6 +763,14 @@ func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeReq
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, summaries)
 	return summaries, nil
+}
+
+func imapMoveSourceSummaries(results []imapgw.MoveMessageResult) []imapgw.MessageSummary {
+	summaries := make([]imapgw.MessageSummary, 0, len(results))
+	for _, result := range results {
+		summaries = append(summaries, result.Source)
+	}
+	return summaries
 }
 
 func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, summaries []imapgw.MessageSummary) error {

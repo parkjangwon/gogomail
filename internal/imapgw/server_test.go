@@ -1300,8 +1300,10 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 		t.Fatalf("write unsupported mutation commands: %v", err)
 	}
 	want := []string{
+		"* OK [COPYUID 2 7 9] MOVE UID mapping\r\n",
 		"* 1 EXPUNGE\r\n",
 		"a3 OK MOVE completed\r\n",
+		"* OK [COPYUID 2 7 9] UID MOVE UID mapping\r\n",
 		"* 1 EXPUNGE\r\n",
 		"a4 OK UID MOVE completed\r\n",
 		"a5 BAD APPEND requires mailbox and literal\r\n",
@@ -5162,8 +5164,11 @@ func (missingDestinationBackend) GetMailbox(_ context.Context, _ UserID, mailbox
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
 }
 
-func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-7", MailboxID: "inbox", UID: 7, SequenceNumber: 1}}, nil
+func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MoveMessageResult, error) {
+	return []MoveMessageResult{{
+		Source:      MessageSummary{ID: "message-7", MailboxID: "inbox", UID: 7, SequenceNumber: 1},
+		Destination: MessageSummary{ID: "message-7", MailboxID: "archive", UID: 9, SequenceNumber: 1},
+	}}, nil
 }
 
 func (fakeBackend) Expunge(context.Context, ExpungeRequest) ([]MessageSummary, error) {

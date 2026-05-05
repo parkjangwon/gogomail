@@ -74,7 +74,7 @@ func (a IMAPStoreAdapter) CopyMessages(ctx context.Context, req imapgw.CopyMessa
 	return a.service.CopyIMAPMessages(ctx, req)
 }
 
-func (a IMAPStoreAdapter) MoveMessages(ctx context.Context, req imapgw.MoveMessagesRequest) ([]imapgw.MessageSummary, error) {
+func (a IMAPStoreAdapter) MoveMessages(ctx context.Context, req imapgw.MoveMessagesRequest) ([]imapgw.MoveMessageResult, error) {
 	return a.service.MoveIMAPMessages(ctx, req)
 }
 
