@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -124,6 +125,43 @@ func TestS3StoreRejectsNilPutBody(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "storage body is required") {
 		t.Fatalf("Put err = %v, want nil body rejection", err)
 	}
+}
+
+func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      &http.Client{Transport: failingRoundTripper{t: t}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := store.Put(ctx, "messages/msg-1.eml", strings.NewReader("hello")); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Put err = %v, want context.Canceled", err)
+	}
+	if _, err := store.Get(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Get err = %v, want context.Canceled", err)
+	}
+	if err := store.Delete(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Delete err = %v, want context.Canceled", err)
+	}
+}
+
+type failingRoundTripper struct {
+	t *testing.T
+}
+
+func (rt failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	rt.t.Fatal("RoundTrip called for canceled S3 request")
+	return nil, nil
 }
 
 func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {

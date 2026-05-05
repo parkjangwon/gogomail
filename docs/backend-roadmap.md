@@ -1557,6 +1557,10 @@ Implementation order:
      ranges with visible message UIDs even when the range does not contain `*`,
      so sparse requests such as `UID FETCH 1:999` skip missing UIDs instead of
      failing the whole command.
+919. S3-compatible storage requests now reject canceled contexts before
+     object-key validation, SigV4 signing, or HTTP dispatch, aligning
+     cancellation behavior with local/NFS storage and avoiding wasted request
+     work.
 
 ## Deferred until backend contracts stabilize
 
