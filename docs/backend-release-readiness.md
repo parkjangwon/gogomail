@@ -1197,6 +1197,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
   field/value parameter lists before returning a bounded server identity
   response for compatibility diagnostics.
+- IMAP RFC 2971 `ID` parameter-list parsing now rejects quote and backslash
+  atom-special characters inside unquoted ID tokens, preserving valid escaped
+  quoted-special strings while closing malformed raw-token cases.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` now delete only messages marked with the

@@ -2221,6 +2221,10 @@ Implementation order:
       clients by normalizing only the URI path through the existing CalDAV
       parser and same-user/same-collection scope checks, while rejecting query,
       fragment, opaque, or unsafe href forms.
+1084. IMAP RFC 2971 `ID` parameter-list parsing now rejects quote and backslash
+      atom-special characters inside unquoted ID tokens, keeping raw ID
+      argument parsing aligned with RFC 3501 atom/quoted-string boundaries
+      while preserving escaped quoted-special characters inside quoted strings.
 
 ## Deferred until backend contracts stabilize
 
