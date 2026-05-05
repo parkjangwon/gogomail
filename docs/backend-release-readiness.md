@@ -324,7 +324,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   emitting selected-mailbox response data, avoiding ambiguous partial selection
   state when subscription setup fails.
 - IMAP `CHECK` and `CLOSE` now provide safe selected-mailbox lifecycle handling,
-  with `CLOSE` clearing selected state without expunging messages.
+  with `CLOSE` silently expunging `\Deleted` messages for writable selections
+  before clearing selected state, while read-only selections only clear state.
 - IMAP `STATUS` now validates requested status data items and emits only those
   requested fields, including `RECENT`.
 - IMAP mailbox lookup now resolves wire names such as `INBOX` and

@@ -810,7 +810,8 @@ The platform hardening sprint completed the following:
   emitting selected-mailbox response data, avoiding ambiguous partial selection
   state when subscription setup fails.
 - IMAP `CHECK` and `CLOSE` support selected-mailbox lifecycle handling; `CLOSE`
-  clears selected state without expunging messages.
+  silently expunges `\Deleted` messages for writable selections before clearing
+  selected state, while read-only selections only clear state.
 - IMAP `STATUS` validates requested status data items and returns only the
   requested mailbox metadata fields.
 - IMAP mailbox lookup resolves wire names such as `INBOX` and `Archive/2026`

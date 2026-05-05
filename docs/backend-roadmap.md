@@ -840,7 +840,7 @@ Implementation order:
      mailbox is selected read-only.
 705. IMAP `CHECK` and `CLOSE` now cover the selected-mailbox lifecycle: `CHECK`
      completes as a safe synchronization no-op, and `CLOSE` clears selected
-     state without expunging because `\Deleted` semantics remain unsupported.
+     state without expunging while `\Deleted` semantics remain unsupported.
 706. IMAP `STATUS` now validates requested status data items and returns only
      the requested RFC-shaped fields, including `RECENT`, instead of always
      emitting a fixed mailbox metadata set.
@@ -1059,6 +1059,10 @@ Implementation order:
      response codes for `COPY` and `UID COPY` when the repository returns
      destination UIDs, improving client synchronization without guessing copied
      message identities.
+780. IMAP `CLOSE` now follows RFC selected-mailbox semantics by silently
+     expunging `\Deleted` messages for writable selections before clearing
+     selected state, while `EXAMINE` read-only selections close without
+     destructive work or untagged `EXPUNGE` responses.
 
 ## Deferred until backend contracts stabilize
 
