@@ -1532,6 +1532,9 @@ Implementation order:
 910. IMAP `FETCH`/`UID FETCH` macros now remain valid only as standalone macro
      arguments, rejecting malformed list usage such as `FETCH 1 (FAST)` or
      `UID FETCH 7 (FLAGS FAST)`.
+911. IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` now requires the RFC-shaped
+     parenthesized modifier form and rejects malformed over-closed values such
+     as `(UNCHANGEDSINCE 27))`.
 
 ## Deferred until backend contracts stabilize
 

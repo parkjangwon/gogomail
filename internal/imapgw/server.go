@@ -5492,28 +5492,23 @@ func imapStoreUnchangedSince(fields []string) (uint64, []string, bool) {
 	if len(fields) == 0 {
 		return 0, fields, true
 	}
-	if !strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
+	first := strings.ToUpper(strings.TrimSpace(fields[0]))
+	if !strings.Contains(first, "UNCHANGEDSINCE") && !strings.HasPrefix(first, "(") {
 		return 0, fields, true
 	}
-	end := -1
-	for i, field := range fields {
-		if strings.HasSuffix(strings.TrimSpace(field), ")") {
-			end = i
-			break
-		}
-	}
-	if end < 0 {
+	if first != "(UNCHANGEDSINCE" || len(fields) < 2 {
 		return 0, nil, false
 	}
-	tokens := imapFetchNormalizedTokens(fields[:end+1])
-	if len(tokens) != 2 || !strings.EqualFold(tokens[0], "UNCHANGEDSINCE") {
+	valueToken := strings.TrimSpace(fields[1])
+	if !strings.HasSuffix(valueToken, ")") || strings.HasSuffix(valueToken, "))") {
 		return 0, nil, false
 	}
-	threshold, ok := parseIMAPModSeqValue(tokens[1])
+	value := strings.TrimSpace(strings.TrimSuffix(valueToken, ")"))
+	threshold, ok := parseIMAPModSeqValue(value)
 	if !ok {
 		return 0, nil, false
 	}
-	return threshold, fields[end+1:], true
+	return threshold, fields[2:], true
 }
 
 func imapSequenceNumber(summary MessageSummary) (uint32, bool) {
