@@ -2174,6 +2174,10 @@ Implementation order:
       `If-Unmodified-Since` against stored object update time before reading
       request bodies or mutating repository state, returning HTTP 412 for stale
       timestamp-based overwrite/delete preconditions.
+1072. S3-compatible `GetRange` now bounds the returned reader to the validated
+      requested byte length even when a provider returns an oversized
+      `206 Partial Content` body, aligning remote range reads with local/NFS
+      semantics for Drive, attachment, and IMAP partial-read callers.
 
 ## Deferred until backend contracts stabilize
 
