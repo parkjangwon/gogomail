@@ -399,11 +399,37 @@ func TestParseReportCollectsCalendarQueryTimeRange(t *testing.T) {
 	if req.TimeRange == nil {
 		t.Fatal("TimeRange = nil")
 	}
+	if req.Component != ComponentVEVENT {
+		t.Fatalf("component = %q, want %q", req.Component, ComponentVEVENT)
+	}
 	if got := req.TimeRange.Start.Format("20060102T150405Z"); got != "20260506T000000Z" {
 		t.Fatalf("start = %s", got)
 	}
 	if got := req.TimeRange.End.Format("20060102T150405Z"); got != "20260507T000000Z" {
 		t.Fatalf("end = %s", got)
+	}
+}
+
+func TestParseReportCollectsCalendarQueryComponentFilter(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VTODO"/>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if req.Component != ComponentVTODO {
+		t.Fatalf("component = %q, want %q", req.Component, ComponentVTODO)
+	}
+	if req.TimeRange != nil {
+		t.Fatalf("time range = %+v, want nil", req.TimeRange)
 	}
 }
 

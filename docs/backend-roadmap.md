@@ -2128,6 +2128,12 @@ Implementation order:
       `calendar-query`, `calendar-multiget`, `free-busy-query`, and
       `sync-collection`. Future scheduling/timezone reports remain
       unadvertised until their full RFC semantics and backend boundaries exist.
+1061. CalDAV `REPORT calendar-query` now applies simple top-level
+      `comp-filter` component selection using stored object `component_type`
+      metadata before time-range/body matching, so requests for `VTODO`,
+      `VEVENT`, `VJOURNAL`, or `VFREEBUSY` do not return unrelated object
+      types and do not require reparsing every `.ics` body for component
+      filtering.
 
 ## Deferred until backend contracts stabilize
 

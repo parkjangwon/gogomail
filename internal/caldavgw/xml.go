@@ -496,12 +496,20 @@ type ReportRequest struct {
 	TimeRange  *TimeRange
 	TimeRanges int
 	HasFilter  bool
+	Component  string
 }
 
 type TimeRange struct {
 	Start time.Time
 	End   time.Time
 }
+
+type ReportFilter struct {
+	TimeRange *TimeRange
+	Component string
+}
+
+const unsupportedCalendarQueryComponent = "__unsupported__"
 
 func ParseReport(r io.Reader) (ReportRequest, error) {
 	body, err := readBoundedXMLBody(r)
@@ -571,11 +579,12 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				req.Limit = limit
 			case sameXMLName(tok.Name, CalDAVNamespace, "filter"):
 				req.HasFilter = true
-				timeRange, err := parseFilterElement(dec, tok.Name)
+				filter, err := parseFilterElement(dec, tok.Name)
 				if err != nil {
 					return ReportRequest{}, err
 				}
-				req.TimeRange = timeRange
+				req.TimeRange = filter.TimeRange
+				req.Component = filter.Component
 			case sameXMLName(tok.Name, CalDAVNamespace, "time-range"):
 				timeRange, err := parseTimeRangeElement(dec, tok)
 				if err != nil {
@@ -717,38 +726,117 @@ func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
 	}
 }
 
-func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (*TimeRange, error) {
-	var found *TimeRange
+func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, error) {
+	var found ReportFilter
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
-			return nil, fmt.Errorf("unterminated filter element")
+			return ReportFilter{}, fmt.Errorf("unterminated filter element")
 		}
 		if err != nil {
-			return nil, fmt.Errorf("decode filter element: %w", err)
+			return ReportFilter{}, fmt.Errorf("decode filter element: %w", err)
 		}
 		switch tok := tok.(type) {
 		case xml.StartElement:
-			if sameXMLName(tok.Name, CalDAVNamespace, "time-range") {
+			switch {
+			case sameXMLName(tok.Name, CalDAVNamespace, "time-range"):
 				timeRange, err := parseTimeRangeElement(dec, tok)
 				if err != nil {
-					return nil, err
+					return ReportFilter{}, err
 				}
-				found = &timeRange
-				continue
-			}
-			nested, err := parseFilterElement(dec, tok.Name)
-			if err != nil {
-				return nil, err
-			}
-			if nested != nil {
-				found = nested
+				found.TimeRange = &timeRange
+			case sameXMLName(tok.Name, CalDAVNamespace, "comp-filter"):
+				nested, err := parseCompFilterElement(dec, tok, "")
+				if err != nil {
+					return ReportFilter{}, err
+				}
+				found = mergeReportFilters(found, nested)
+			default:
+				nested, err := parseFilterElement(dec, tok.Name)
+				if err != nil {
+					return ReportFilter{}, err
+				}
+				found = mergeReportFilters(found, nested)
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, filterName) {
 				return found, nil
 			}
 		}
+	}
+}
+
+func parseCompFilterElement(dec *xml.Decoder, start xml.StartElement, parentComponent string) (ReportFilter, error) {
+	component := strings.ToUpper(strings.TrimSpace(xmlAttr(start, "name")))
+	var found ReportFilter
+	if parentComponent == "VCALENDAR" && component != "" {
+		if isSupportedCalendarComponent(component) {
+			found.Component = component
+		} else {
+			found.Component = unsupportedCalendarQueryComponent
+		}
+	}
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return ReportFilter{}, fmt.Errorf("unterminated comp-filter element")
+		}
+		if err != nil {
+			return ReportFilter{}, fmt.Errorf("decode comp-filter element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, CalDAVNamespace, "time-range"):
+				timeRange, err := parseTimeRangeElement(dec, tok)
+				if err != nil {
+					return ReportFilter{}, err
+				}
+				found.TimeRange = &timeRange
+			case sameXMLName(tok.Name, CalDAVNamespace, "comp-filter"):
+				nested, err := parseCompFilterElement(dec, tok, component)
+				if err != nil {
+					return ReportFilter{}, err
+				}
+				found = mergeReportFilters(found, nested)
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return ReportFilter{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, start.Name) {
+				return found, nil
+			}
+		}
+	}
+}
+
+func mergeReportFilters(left ReportFilter, right ReportFilter) ReportFilter {
+	if right.TimeRange != nil {
+		left.TimeRange = right.TimeRange
+	}
+	if right.Component != "" {
+		left.Component = right.Component
+	}
+	return left
+}
+
+func xmlAttr(start xml.StartElement, local string) string {
+	for _, attr := range start.Attr {
+		if attr.Name.Local == local {
+			return attr.Value
+		}
+	}
+	return ""
+}
+
+func isSupportedCalendarComponent(component string) bool {
+	switch strings.ToUpper(strings.TrimSpace(component)) {
+	case ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY:
+		return true
+	default:
+		return false
 	}
 }
 

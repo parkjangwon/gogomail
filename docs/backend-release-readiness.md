@@ -264,6 +264,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV collection `PROPFIND` now returns WebDAV `supported-report-set` for
   only the implemented REPORT handlers: `calendar-query`, `calendar-multiget`,
   `free-busy-query`, and `sync-collection`.
+- CalDAV `REPORT calendar-query` now applies simple top-level component
+  filters through stored `component_type` metadata before time-range matching,
+  keeping common client component queries more accurate and cheaper.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
