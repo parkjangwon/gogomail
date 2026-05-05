@@ -247,6 +247,9 @@ Current state:
   streaming.
 - `UID FETCH` accepts bounded numeric UID sets/ranges and recognizes
   `BODY.PEEK[]` as a body fetch request for read-without-side-effect clients.
+- Non-UID `FETCH` accepts bounded message sequence sets, including `*`, and
+  resolves them through the selected mailbox list before streaming the same
+  metadata/body responses.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

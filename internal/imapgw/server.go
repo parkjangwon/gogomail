@@ -165,9 +165,10 @@ func (s *Server) ServeConn(conn net.Conn) error {
 }
 
 type imapConnState struct {
-	session         *Session
-	selectedMailbox MailboxID
-	pendingAuthTag  string
+	session          *Session
+	selectedMailbox  MailboxID
+	selectedMessages uint32
+	pendingAuthTag   string
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
@@ -254,6 +255,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			return false, err
 		}
 		state.selectedMailbox = MailboxID(fields[2])
+		state.selectedMessages = mailboxState.Messages
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
 		return false, err
 	case "LIST":
@@ -298,6 +300,8 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return false, err
 	case "UID":
 		return s.handleUIDLine(writer, tag, fields, state)
+	case "FETCH":
+		return s.handleFetch(writer, tag, fields, state)
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -378,8 +382,67 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
 		return false, err
 	}
+	return s.writeFetchResponses(writer, tag, fields[4:], state, uids, "UID FETCH")
+}
 
-	requestsBody := imapFetchRequestsBody(fields[4:])
+func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) < 4 {
+		_, err := writer.WriteString(tag + " BAD FETCH requires sequence set and data items\r\n")
+		return false, err
+	}
+	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
+		return false, err
+	}
+	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO FETCH failed\r\n")
+		return false, writeErr
+	}
+	return s.writeFetchResponses(writer, tag, fields[3:], state, uids, "FETCH")
+}
+
+func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnState, sequenceNumbers []uint32) ([]UID, error) {
+	messages, err := s.options.Backend.ListMessages(ctx, ListMessagesRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		Limit:     int(state.selectedMessages),
+	})
+	if err != nil {
+		return nil, err
+	}
+	bySequence := make(map[uint32]UID, len(messages))
+	for i, summary := range messages {
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		if summary.UID != 0 {
+			bySequence[sequenceNumber] = summary.UID
+		}
+	}
+	uids := make([]UID, 0, len(sequenceNumbers))
+	for _, sequenceNumber := range sequenceNumbers {
+		uid, ok := bySequence[sequenceNumber]
+		if !ok {
+			return nil, fmt.Errorf("sequence number %d not found", sequenceNumber)
+		}
+		uids = append(uids, uid)
+	}
+	return uids, nil
+}
+
+func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
+	requestsBody := imapFetchRequestsBody(items)
 	for _, uid := range uids {
 		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
 			UserID:    state.session.UserID,
@@ -433,7 +496,7 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 			return false, err
 		}
 	}
-	_, err := writer.WriteString(tag + " OK UID FETCH completed\r\n")
+	_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
 }
 
@@ -485,6 +548,78 @@ func parseIMAPUIDSetNumber(value string) (UID, bool) {
 		return 0, false
 	}
 	return UID(uid64), true
+}
+
+func parseIMAPSequenceSet(value string, maxSequence uint32) ([]uint32, bool) {
+	if maxSequence == 0 {
+		return nil, false
+	}
+	uids, ok := parseIMAPBoundedNumberSet(value, maxSequence, true)
+	if !ok {
+		return nil, false
+	}
+	out := make([]uint32, len(uids))
+	for i, uid := range uids {
+		out[i] = uint32(uid)
+	}
+	return out, true
+}
+
+func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([]UID, bool) {
+	const maxSetItems = 500
+
+	seen := make(map[UID]struct{})
+	values := make([]UID, 0, 1)
+	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
+		part := strings.TrimSpace(rawPart)
+		if part == "" {
+			return nil, false
+		}
+		startText, endText, hasRange := strings.Cut(part, ":")
+		start, ok := parseIMAPSetNumber(startText, maxValue, allowStar)
+		if !ok {
+			return nil, false
+		}
+		end := start
+		if hasRange {
+			end, ok = parseIMAPSetNumber(endText, maxValue, allowStar)
+			if !ok {
+				return nil, false
+			}
+		}
+		if start > end {
+			start, end = end, start
+		}
+		for value := start; value <= end; value++ {
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			values = append(values, value)
+			if len(values) > maxSetItems {
+				return nil, false
+			}
+			if value == UID(maxValue) {
+				break
+			}
+		}
+	}
+	return values, len(values) > 0
+}
+
+func parseIMAPSetNumber(value string, maxValue uint32, allowStar bool) (UID, bool) {
+	value = strings.TrimSpace(value)
+	if value == "*" {
+		if allowStar && maxValue > 0 {
+			return UID(maxValue), true
+		}
+		return 0, false
+	}
+	parsed, ok := parseIMAPUIDSetNumber(value)
+	if !ok || parsed > UID(maxValue) {
+		return 0, false
+	}
+	return parsed, true
 }
 
 func imapFetchRequestsBody(items []string) bool {
