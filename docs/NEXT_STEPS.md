@@ -1422,6 +1422,9 @@ Current state:
 - CalDAV WebDAV response groundwork now has a reusable `multistatus` builder
   with per-property `propstat` statuses and discovery properties for
   principals, calendar homes, calendar collections, and calendar objects.
+- CalDAV now has an internal `OPTIONS`/`PROPFIND` discovery handler boundary
+  with user/path scope enforcement, safe depth handling, DAV capability headers,
+  and multistatus responses over a pluggable discovery store.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1431,10 +1434,10 @@ Current state:
 
 Next:
 
-- Continue CalDAV with `OPTIONS`/`PROPFIND` discovery handlers wired to the XML
-  parser, repository, and multistatus builder, then add stricter REPORT
-  filter/href/time-range validation before advertising client-ready
-  compatibility.
+- Continue CalDAV by wiring the discovery handler to the PostgreSQL repository
+  and `caldav` runtime listener behind explicit config/TLS/auth review, then
+  add stricter REPORT filter/href/time-range validation before advertising
+  client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

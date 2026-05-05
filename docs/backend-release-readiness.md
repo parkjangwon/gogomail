@@ -195,6 +195,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   with per-property `propstat` statuses and discovery properties for
   principals, calendar collections, and calendar objects before protocol
   handlers are advertised.
+- CalDAV has an internal `OPTIONS`/`PROPFIND` discovery handler boundary with
+  DAV capability headers, safe depth rejection for `Depth: infinity`,
+  authenticated user/path scoping, and multistatus rendering over a pluggable
+  discovery store. The public listener still remains gated until auth/TLS and
+  repository wiring are reviewed.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
