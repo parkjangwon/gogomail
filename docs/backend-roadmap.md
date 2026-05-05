@@ -2151,6 +2151,10 @@ Implementation order:
       headers at the protocol boundary, accepting `text/calendar` with
       parameters and rejecting incompatible media types with HTTP 415 before
       bounded iCalendar parsing.
+1066. CalDAV calendar object `PUT` now enforces `If-Match: *` as an
+      existing-resource precondition, returning HTTP 412 for missing objects
+      rather than creating a new `.ics` resource through an overwrite-only
+      request.
 
 ## Deferred until backend contracts stabilize
 

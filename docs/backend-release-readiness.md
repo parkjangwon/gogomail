@@ -279,6 +279,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar object `PUT` now rejects explicit unsupported media types
   with HTTP 415 before parsing or storage mutation, while accepting
   `text/calendar` parameters and omitted content types for compatibility.
+- CalDAV calendar object `PUT` now treats `If-Match: *` as overwrite-only and
+  returns HTTP 412 when no current resource exists.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

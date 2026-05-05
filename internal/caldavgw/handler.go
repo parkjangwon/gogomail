@@ -271,6 +271,10 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	}
 	observedETag := strings.TrimSpace(r.Header.Get("If-Match"))
 	if observedETag == "*" {
+		if !existed {
+			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+			return
+		}
 		observedETag = ""
 	} else if observedETag != "" && !existed {
 		http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
