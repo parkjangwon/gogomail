@@ -108,6 +108,11 @@ func (c Config) Validate() error {
 		if err := validateBoundedNoCRLF("GOGOMAIL_STORAGE_S3_PREFIX", c.StorageS3Prefix, 1024); err != nil {
 			return err
 		}
+		if strings.Trim(strings.TrimSpace(c.StorageS3Prefix), "/") != "" {
+			if _, err := storage.ValidateObjectPath(strings.Trim(strings.TrimSpace(c.StorageS3Prefix), "/")); err != nil {
+				return fmt.Errorf("GOGOMAIL_STORAGE_S3_PREFIX: %w", err)
+			}
+		}
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", c.StorageS3AccessKeyID, 4096); err != nil {
 			return err
 		}
