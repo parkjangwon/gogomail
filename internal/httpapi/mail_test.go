@@ -157,6 +157,13 @@ func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
 			},
 		},
 		{
+			name: "mailbox overview",
+			path: "/api/v1/mailbox/overview?user_id=user-1&include_folders=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
 			name: "messages",
 			path: "/api/v1/messages?user_id=user-1&folder_id=folder-1&unexpected=true",
 			dispatched: func(service *fakeMessageService) bool {
@@ -296,6 +303,42 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	}
 	if service.lastUserID != "" {
 		t.Fatalf("capability read should not dispatch service calls, lastUserID = %q", service.lastUserID)
+	}
+}
+
+func TestMailboxOverviewHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		folders: []maildb.Folder{
+			{ID: "inbox-id", SystemType: "inbox", Total: 7, Unread: 3, Starred: 1, TotalSize: 700},
+			{ID: "sent-id", SystemType: "sent", Total: 2, Unread: 0, Starred: 1, TotalSize: 200},
+			{ID: "project-id", Total: 5, Unread: 2, Starred: 0, TotalSize: 500},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/mailbox/overview?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body mailboxOverviewEnvelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	got := body.MailboxOverview
+	if got.TotalMessages != 14 || got.UnreadMessages != 5 || got.StarredMessages != 2 || got.TotalSizeBytes != 1400 {
+		t.Fatalf("overview = %#v", got)
+	}
+	if got.SystemFolders["inbox"] != "inbox-id" || got.SystemFolders["sent"] != "sent-id" {
+		t.Fatalf("system folders = %#v", got.SystemFolders)
+	}
+	if service.lastUserID != "user-1" {
+		t.Fatalf("lastUserID = %q", service.lastUserID)
 	}
 }
 

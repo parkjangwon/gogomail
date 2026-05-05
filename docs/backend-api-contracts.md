@@ -54,6 +54,7 @@ Successful resource responses keep a stable singular key:
 - `{"message":{...}}`
 - `{"webmail_capabilities":{...}}`
 - `{"admin_console_capabilities":{...}}`
+- `{"mailbox_overview":{...}}`
 - `{"delivery_status":{...}}`
 - `{"draft":{...}}`
 - `{"attachment":{...}}`
@@ -185,6 +186,12 @@ Folder-scoped message lists and thread-message reads apply the same resource ID
 checks before repository work. Mail API message-list `folder_id` and search
 text/filter query parameters reject CR/LF-bearing or oversized values at the
 HTTP boundary before service dispatch.
+`GET /api/v1/mailbox/overview` reuses the user-scoped folder read model to
+return `{"mailbox_overview":{...}}` with aggregate total, unread, starred, and
+stored-size counters plus a `system_folders` map from system type to folder id.
+It is intended for production webmail chrome and dashboard bootstrap flows that
+need stable badge counts without issuing separate folder-list aggregation logic
+in every client.
 
 ## Mailbox bulk actions
 
