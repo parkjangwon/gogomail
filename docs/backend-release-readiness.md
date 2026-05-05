@@ -1085,6 +1085,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP authenticated `UID` dispatch validates state-independent subcommand
   syntax before selected-mailbox errors, keeping arity and mailbox-name
   diagnostics visible to clients even before `SELECT`/`EXAMINE`.
+- IMAP authentication commands validate malformed `LOGIN` arity and unsupported
+  `AUTHENTICATE` mechanisms before plaintext privacy-required failures, keeping
+  auth handshake diagnostics precise without weakening TLS-required policy.
 
 ## Must verify before release cut
 

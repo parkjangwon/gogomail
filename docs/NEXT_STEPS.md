@@ -48,6 +48,9 @@ Current state:
 - Authenticated `UID` dispatch validates subcommand arity and destination
   mailbox-name syntax before selected-mailbox state for `FETCH`, `STORE`,
   `EXPUNGE`, `COPY`, and `MOVE`.
+- `LOGIN` and `AUTHENTICATE` validate malformed argument shape or unsupported
+  mechanisms before plaintext `[PRIVACYREQUIRED]` responses on TLS-required
+  listeners.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

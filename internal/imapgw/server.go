@@ -353,12 +353,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
 			return false, err
 		}
-		if !s.authAllowed(state) {
-			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
-			return false, err
-		}
 		if len(fields) != 4 {
 			_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
+			return false, err
+		}
+		if !s.authAllowed(state) {
+			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
 			return false, err
 		}
 		authSession, err := s.options.Backend.Authenticate(context.Background(), fields[2], fields[3])
@@ -374,12 +374,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
 			return false, err
 		}
-		if !s.authAllowed(state) {
-			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n")
-			return false, err
-		}
 		if (len(fields) != 3 && len(fields) != 4) || strings.ToUpper(fields[2]) != "PLAIN" {
 			_, err := writer.WriteString(tag + " BAD AUTHENTICATE mechanism is unsupported\r\n")
+			return false, err
+		}
+		if !s.authAllowed(state) {
+			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n")
 			return false, err
 		}
 		if len(fields) == 4 {
