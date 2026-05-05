@@ -175,7 +175,18 @@ func newIMAPServer(opts imapServerOptions) (*imapgw.Server, error) {
 	})
 }
 
+func newIMAPMailboxEventRouter(uidEnsurer imapnotify.UIDEnsurer, events imapnotify.MailboxEventPublisher) (*eventstream.Router, error) {
+	router := eventstream.NewRouter()
+	if err := router.Register("mail.stored", imapnotify.NewMailStoredHandler(uidEnsurer).WithMailboxEvents(events)); err != nil {
+		return nil, err
+	}
+	return router, nil
+}
+
 func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
@@ -188,6 +199,34 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	repository := maildb.NewRepository(db)
 	runtime := newIMAPGatewayRuntime(repository, store, repository)
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	if err := redisClient.Ping(runCtx).Err(); err != nil {
+		_ = redisClient.Close()
+		return err
+	}
+	defer redisClient.Close()
+
+	router, err := newIMAPMailboxEventRouter(repository, runtime.events)
+	if err != nil {
+		return err
+	}
+	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
+		Client:           redisClient,
+		Stream:           cfg.EventStream,
+		Group:            cfg.IMAPNotifyConsumerGroup,
+		Consumer:         cfg.IMAPNotifyConsumerName,
+		Count:            int64(cfg.IMAPNotifyConsumerCount),
+		Block:            cfg.IMAPNotifyConsumerBlock,
+		ClaimIdle:        cfg.IMAPNotifyConsumerClaimIdle,
+		MaxDeliveries:    cfg.IMAPNotifyConsumerMaxDeliveries,
+		DeadLetterStream: cfg.IMAPNotifyConsumerDeadLetterStream,
+		Handler:          router,
+		Logger:           logger,
+	})
+	if err != nil {
+		return err
+	}
+
 	serverOptions, err := imapServerOptionsForConfig(cfg, runtime.backend)
 	if err != nil {
 		return err
@@ -200,7 +239,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() {
 		logger.Info(
 			"imap server listening",
@@ -213,20 +252,44 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		)
 		errCh <- server.Serve(listener)
 	}()
+	go func() {
+		logger.Info(
+			"imap mailbox notification consumer started",
+			"stream", cfg.EventStream,
+			"group", cfg.IMAPNotifyConsumerGroup,
+			"consumer", cfg.IMAPNotifyConsumerName,
+			"count", cfg.IMAPNotifyConsumerCount,
+			"block", cfg.IMAPNotifyConsumerBlock.String(),
+			"max_deliveries", cfg.IMAPNotifyConsumerMaxDeliveries,
+			"dead_letter_stream", cfg.IMAPNotifyConsumerDeadLetterStream,
+		)
+		errCh <- consumer.Run(runCtx)
+	}()
 
 	select {
 	case <-ctx.Done():
+		cancel()
 		_ = listener.Close()
-		err := <-errCh
-		if errors.Is(err, imapgw.ErrServerClosed) {
-			return nil
+		_ = redisClient.Close()
+		for range 2 {
+			err := <-errCh
+			if err != nil && !errors.Is(err, imapgw.ErrServerClosed) {
+				return err
+			}
 		}
-		return err
+		return nil
 	case err := <-errCh:
-		if errors.Is(err, imapgw.ErrServerClosed) {
-			return nil
+		cancel()
+		_ = listener.Close()
+		_ = redisClient.Close()
+		otherErr := <-errCh
+		if err == nil || errors.Is(err, imapgw.ErrServerClosed) {
+			err = otherErr
 		}
-		return err
+		if err != nil && !errors.Is(err, imapgw.ErrServerClosed) {
+			return err
+		}
+		return nil
 	}
 }
 

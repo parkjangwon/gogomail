@@ -16,6 +16,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -228,6 +229,41 @@ func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
 	}
 }
 
+func TestNewIMAPMailboxEventRouterPublishesStoredMailToBroker(t *testing.T) {
+	t.Parallel()
+
+	broker := imapgw.NewMailboxEventBroker(1)
+	events, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancel()
+
+	router, err := newIMAPMailboxEventRouter(fakeIMAPUIDEnsurer{}, broker)
+	if err != nil {
+		t.Fatalf("newIMAPMailboxEventRouter returned error: %v", err)
+	}
+	err = router.HandleEvent(context.Background(), eventstream.Message{Payload: []byte(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+
+	select {
+	case event := <-events:
+		if event.Type != imapgw.MailboxEventExists || event.UserID != "user-1" || event.MailboxID != "inbox" || event.UID != 42 {
+			t.Fatalf("event = %+v", event)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for IMAP mailbox event")
+	}
+}
+
 func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
 	t.Parallel()
 
@@ -243,6 +279,17 @@ func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
 	if opts.Addr != ":1143" || opts.Backend == nil || opts.TLSConfig != nil || !opts.AllowInsecureAuth {
 		t.Fatalf("options = %+v", opts)
 	}
+}
+
+type fakeIMAPUIDEnsurer struct{}
+
+func (fakeIMAPUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string, mailboxID string, messageID string) (maildb.IMAPMessageUID, error) {
+	return maildb.IMAPMessageUID{
+		MessageID: imapgw.MessageID(messageID),
+		MailboxID: imapgw.MailboxID(mailboxID),
+		UID:       imapgw.UID(42),
+		ModSeq:    1,
+	}, nil
 }
 
 func TestNewIMAPServerBuildsProtocolShell(t *testing.T) {
