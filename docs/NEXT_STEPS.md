@@ -280,6 +280,8 @@ Current state:
   selected mailbox message list.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
+- `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN` and
+  `FLAGGED` for standard client unread/starred views.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

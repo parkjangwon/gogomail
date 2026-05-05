@@ -595,6 +595,12 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 	if len(criteria) == 1 && strings.ToUpper(criteria[0]) == "ALL" {
 		return imapSearchAllResults(messages, uidMode), true
 	}
+	if len(criteria) == 1 {
+		switch strings.ToUpper(criteria[0]) {
+		case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED":
+			return imapSearchFlagResults(messages, uidMode, strings.ToUpper(criteria[0])), true
+		}
+	}
 	if len(criteria) == 2 && strings.ToUpper(criteria[0]) == "UID" {
 		uids, ok := parseIMAPUIDSet(criteria[1])
 		if !ok {
@@ -622,6 +628,44 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 		return results, true
 	}
 	return nil, false
+}
+
+func imapSearchFlagResults(messages []MessageSummary, uidMode bool, criterion string) []uint32 {
+	results := make([]uint32, 0, len(messages))
+	for i, summary := range messages {
+		if !imapMessageMatchesFlagSearch(summary, criterion) {
+			continue
+		}
+		if uidMode {
+			results = append(results, uint32(summary.UID))
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		results = append(results, sequenceNumber)
+	}
+	return results
+}
+
+func imapMessageMatchesFlagSearch(summary MessageSummary, criterion string) bool {
+	switch criterion {
+	case "SEEN":
+		return summary.Flags.Read
+	case "UNSEEN":
+		return !summary.Flags.Read
+	case "FLAGGED":
+		return summary.Flags.Starred
+	case "UNFLAGGED":
+		return !summary.Flags.Starred
+	case "ANSWERED":
+		return summary.Flags.Answered
+	case "UNANSWERED":
+		return !summary.Flags.Answered
+	default:
+		return false
+	}
 }
 
 func imapSearchAllResults(messages []MessageSummary, uidMode bool) []uint32 {
