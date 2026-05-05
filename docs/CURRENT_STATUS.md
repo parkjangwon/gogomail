@@ -944,12 +944,13 @@ The platform hardening sprint completed the following:
   mailbox, validate the destination mailbox, duplicate active message metadata
   and attachment rows transactionally, assign fresh destination mailbox UIDs,
   return UIDPLUS `[COPYUID ...]` response codes when destination UIDs are
-  available, and publish best-effort destination `EXISTS` events through the
-  service boundary.
+  available, return `[TRYCREATE]` when the destination mailbox is missing, and
+  publish best-effort destination `EXISTS` events through the service boundary.
 - IMAP `MOVE` and `UID MOVE` resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
-  messages transactionally, remove source mailbox UID rows, and emit RFC-shaped
-  source `EXPUNGE` responses.
+  messages transactionally, remove source mailbox UID rows, emit RFC-shaped
+  source `EXPUNGE` responses, and return `[TRYCREATE]` when the destination
+  mailbox is missing.
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
   optional flag-list, optional internal date-time, literal body, and size after
   bounded literal framing. The boundary now returns UIDPLUS-ready append

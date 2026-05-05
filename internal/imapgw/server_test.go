@@ -1392,6 +1392,62 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 	}
 }
 
+func TestServerCopyAndMoveMissingDestinationReturnsTryCreate(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := missingDestinationBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 COPY 1 Missing\r\na4 UID MOVE 7 Missing\r\n")); err != nil {
+		t.Fatalf("write missing destination commands: %v", err)
+	}
+	want := []string{
+		"a3 NO [TRYCREATE] COPY destination mailbox does not exist\r\n",
+		"a4 NO [TRYCREATE] UID MOVE destination mailbox does not exist\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read missing destination response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("missing destination response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	t.Parallel()
 
@@ -4229,6 +4285,17 @@ func (b *copyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) (
 		b.nextUID++
 	}
 	return summaries, nil
+}
+
+type missingDestinationBackend struct {
+	fakeBackend
+}
+
+func (missingDestinationBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
+	if strings.EqualFold(strings.TrimSpace(string(mailboxID)), "missing") {
+		return Mailbox{}, ErrMailboxNotFound
+	}
+	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
 }
 
 func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {

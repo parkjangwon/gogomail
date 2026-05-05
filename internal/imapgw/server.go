@@ -1853,6 +1853,10 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
 	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
 	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] " + completionCommand + " destination mailbox does not exist\r\n")
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
@@ -1863,6 +1867,10 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		UIDs:            uids,
 	})
 	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] " + completionCommand + " destination mailbox does not exist\r\n")
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
@@ -1883,6 +1891,10 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
 	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
 	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] " + completionCommand + " destination mailbox does not exist\r\n")
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
@@ -1897,6 +1909,10 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		UIDs:            uids,
 	})
 	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] " + completionCommand + " destination mailbox does not exist\r\n")
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}

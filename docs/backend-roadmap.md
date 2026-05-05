@@ -1106,6 +1106,10 @@ Implementation order:
      and uses it as the `EXISTS` event message count when available, giving
      selected-mailbox IDLE/NOOP listeners a precise mailbox size instead of
      only an inferred increment.
+792. IMAP `COPY`, `UID COPY`, `MOVE`, and `UID MOVE` now map missing
+     destination mailboxes to RFC-shaped `NO [TRYCREATE]` responses, matching
+     the APPEND behavior and improving retry/create flows in standards-aware
+     clients.
 
 ## Deferred until backend contracts stabilize
 
