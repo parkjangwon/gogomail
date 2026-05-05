@@ -401,6 +401,24 @@ func TestHandlerReportAddressBookQueryHonorsFilterComposition(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookQueryHonorsLimit(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"/></C:filter>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := strings.Count(rec.Body.String(), "<D:response>"); count != 1 {
+		t.Fatalf("response count = %d, body = %s", count, rec.Body.String())
+	}
+}
+
 func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	t.Parallel()
 

@@ -389,6 +389,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   advertised `text/vcard` 4.0 support before handler execution.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
   `version="4.0"` attributes.
+  `addressbook-query` execution honors bounded `limit/nresults` response caps.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

@@ -2371,6 +2371,9 @@ Implementation order:
       `content-type="text/vcard"` and `version="4.0"` attributes, keeping
       returned contact data aligned with the advertised supported address-data
       type.
+1116. CardDAV `addressbook-query` execution now honors bounded
+      `limit/nresults` values by capping returned matching responses before
+      building the multistatus body.
 
 ## Deferred until backend contracts stabilize
 
