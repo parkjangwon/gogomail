@@ -147,7 +147,7 @@ func TestOpenSearchIndexerReportsServerError(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "bad index", http.StatusBadGateway)
+		http.Error(w, "bad index\ntrace-id: 123", http.StatusBadGateway)
 	}))
 	defer server.Close()
 
@@ -161,8 +161,8 @@ func TestOpenSearchIndexerReportsServerError(t *testing.T) {
 	}
 
 	err = indexer.IndexMessage(context.Background(), Document{MessageID: "msg-1"})
-	if err == nil || !strings.Contains(err.Error(), "502") {
-		t.Fatalf("error = %v, want status error", err)
+	if err == nil || !strings.Contains(err.Error(), "502") || !strings.Contains(err.Error(), "bad index trace-id: 123") || strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("error = %q, want sanitized status error", err)
 	}
 }
 

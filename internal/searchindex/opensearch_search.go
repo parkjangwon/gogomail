@@ -91,8 +91,7 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return nil, fmt.Errorf("search opensearch messages: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("search opensearch messages: status %d: %s", resp.StatusCode, openSearchErrorBodyPreview(resp.Body))
 	}
 
 	result, err := decodeOpenSearchSearchResponse(resp.Body)
