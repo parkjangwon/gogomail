@@ -1148,6 +1148,10 @@ Implementation order:
 804. IMAP now advertises `SPECIAL-USE` and accepts RFC 6154 extended
      `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms, filtering special
      role discovery requests while keeping normal `LIST` output compatible.
+805. Development storage portability is now documented in
+     `docs/storage-backends.md`, and `deploy/docker-compose.dev.yml` includes a
+     `minio-init` one-shot service that creates the default local `gogomail`
+     bucket for MinIO-backed runs.
 
 ## Deferred until backend contracts stabilize
 

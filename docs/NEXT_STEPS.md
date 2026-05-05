@@ -13,7 +13,8 @@ Before changing code, read:
 5. `docs/backend-release-readiness.md`
 6. `DESIGN.md`
 7. `docs/openapi.yaml`
-8. recent `git log --oneline`
+8. `docs/storage-backends.md`
+9. recent `git log --oneline`
 
 ## Immediate backend priorities
 
@@ -29,6 +30,9 @@ Current state:
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
   prefix, credential, and session-token settings.
+- `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
+  configuration, and the development compose stack includes `minio-init` to
+  create the default `gogomail` bucket for local S3-compatible runs.
 
 Next:
 
