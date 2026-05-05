@@ -245,6 +245,8 @@ Current state:
   raw message fetch boundary. Untagged `FETCH` responses now use message
   sequence numbers, and `RFC822.SIZE` metadata requests do not trigger body
   streaming.
+- `UID FETCH` accepts bounded numeric UID sets/ranges and recognizes
+  `BODY.PEEK[]` as a body fetch request for read-without-side-effect clients.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

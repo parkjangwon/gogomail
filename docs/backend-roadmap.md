@@ -830,6 +830,9 @@ Implementation order:
 701. IMAP `AUTHENTICATE PLAIN` now supports the standard continuation flow with
      SASL PLAIN base64 decoding, cancellation handling, and post-auth
      capability state updates.
+702. IMAP `UID FETCH` now accepts bounded numeric UID sets and ranges, including
+     comma-separated and reverse range forms, and treats `BODY.PEEK[]` as a body
+     fetch request without changing the stored flag state.
 
 ## Deferred until backend contracts stabilize
 

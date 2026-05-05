@@ -306,6 +306,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses use IMAP sequence
   numbers, and `RFC822.SIZE` alone is not treated as a body-fetch request.
+- `UID FETCH` now accepts bounded numeric UID sets/ranges and recognizes
+  `BODY.PEEK[]`, improving compatibility with clients that batch mailbox reads
+  and avoid implicit read-flag side effects.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
