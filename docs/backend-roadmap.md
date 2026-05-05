@@ -711,6 +711,7 @@ Implementation order:
 651. Health and service-info GET routes now reject request bodies and `Content-Type` headers before returning probe or contract metadata responses, keeping unauthenticated release probes aligned with bodyless HTTP read semantics.
 652. Authentication-Results trace header formatting now strips control characters and bounds authserv-id, reason, domain, and identifier metadata before formatting SPF/DKIM/DMARC results, preventing verifier diagnostics from injecting or bloating stored headers.
 653. Health and service-info GET routes now reject unknown query parameter names, making release probe and metadata endpoint typos visible as HTTP 400 instead of silently ignored inputs.
+654. Runtime config validation now restricts `GOGOMAIL_ENV` to `development`, `test`, or `production`, preventing environment typos from silently bypassing production-only safety gates.
 
 ## Deferred until backend contracts stabilize
 
