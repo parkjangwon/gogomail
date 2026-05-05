@@ -694,6 +694,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   object bodies. S3-compatible storage implements this through signed `HEAD`
   requests, giving future Drive and lifecycle workers a portable size/existence
   primitive across local, MinIO, and AWS S3 deployments.
+- Shared storage object path, prefix, and list-cursor validation now rejects
+  invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping object
+  keys, logs, URL escaping, and SigV4 canonical paths text-stable.
 - Local/NFS and S3-compatible storage expose a shared object `Copy` contract.
   Local/NFS copies reuse atomic temporary-file commits, and S3-compatible
   copies use signed server-side copy requests with escaped `x-amz-copy-source`

@@ -2230,6 +2230,10 @@ Implementation order:
       atom validator, rejecting literal markers, response specials, wildcard
       specials, quoted specials, and controls consistently with command/tag
       atom handling.
+1086. Shared storage object path, prefix, and list-cursor validation now rejects
+      invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping
+      object keys, S3 URLs, SigV4 canonical paths, logs, and cleanup cursors
+      text-stable across backends.
 
 ## Deferred until backend contracts stabilize
 

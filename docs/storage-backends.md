@@ -3,6 +3,9 @@
 gogomail stores raw `.eml` objects, attachments, exports, and readiness probes
 through the shared storage interface. Deployments can switch backends by
 configuration without changing stored object keys.
+Object paths, prefixes, and list cursors are validated as bounded valid UTF-8
+text before adapter use, keeping local/NFS paths, S3 URLs, SigV4 canonical
+paths, logs, and cleanup cursors unambiguous across backends.
 
 The shared interface supports `Put`, `Get`, `GetRange`, `Stat`, `Copy`,
 `Move`, `List`, and `Delete`.

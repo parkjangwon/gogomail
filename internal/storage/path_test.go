@@ -15,6 +15,7 @@ func TestValidateObjectPathRejectsUnsafeKeys(t *testing.T) {
 		"/var/mail/message.eml",
 		`mailstore\message.eml`,
 		"mailstore/message\n.eml",
+		"mailstore/message-\xff.eml",
 		"mailstore/../message.eml",
 		"mailstore/./message.eml",
 		"mailstore//message.eml",
@@ -103,6 +104,7 @@ func TestValidateObjectPrefixRejectsUnsafePrefixes(t *testing.T) {
 		"/drive/user-1",
 		`drive\user-1`,
 		"drive/user\n1",
+		"drive/user-\xff",
 		"drive/../user-1",
 		"drive//user-1",
 		"drive/   /user-1",
@@ -121,6 +123,9 @@ func TestValidateListCursorRejectsUnsafeCursor(t *testing.T) {
 	}
 	if _, err := ValidateListCursor(strings.Repeat("x", MaxListCursorBytes+1)); err == nil {
 		t.Fatal("ValidateListCursor accepted oversized cursor")
+	}
+	if _, err := ValidateListCursor("cursor-\xff"); err == nil {
+		t.Fatal("ValidateListCursor accepted invalid UTF-8 cursor")
 	}
 }
 

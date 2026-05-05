@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP ID atom validation reuse)
+Last updated: 2026-05-06 (updated after storage UTF-8 key validation)
 
 ## Current phase
 

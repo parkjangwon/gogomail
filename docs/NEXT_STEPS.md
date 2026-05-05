@@ -217,7 +217,8 @@ Current state:
   probe responses from allocating unbounded memory during health checks.
 - The storage interface is backend-neutral (`Put`, `Get`, `Stat`, `Copy`,
   `Move`, `List`, `Delete`) and object paths share strict canonical key
-  validation before adapter use.
+  validation before adapter use, including valid UTF-8 object paths, prefixes,
+  and list cursors.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
