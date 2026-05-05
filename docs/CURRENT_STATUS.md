@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV MKCALENDAR handling)
+Last updated: 2026-05-06 (updated after CalDAV calendar collection delete)
 
 ## Current phase
 
@@ -2135,6 +2135,11 @@ The platform hardening sprint completed the following:
   missing homes, and unsafe non-UUID path ids, and advertises `MKCALENDAR` again
   only because handler semantics now exist. Human-readable slug calendar paths
   remain future path-alias work.
+- CalDAV now handles `DELETE` on authenticated calendar collection paths,
+  soft-deleting the collection and active child objects in one repository
+  transaction while rejecting calendar-home or cross-user deletes. Durable
+  tombstone/change-log support is still needed before incremental sync can
+  report collection/object deletions to stale-token clients.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

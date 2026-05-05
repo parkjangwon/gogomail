@@ -28,6 +28,10 @@ type CalendarCreator interface {
 	CreateCalendarAtPath(ctx context.Context, req CreateCalendarAtPathRequest) (Calendar, error)
 }
 
+type CalendarDeleter interface {
+	DeleteCalendar(ctx context.Context, req DeleteCalendarRequest) (Calendar, error)
+}
+
 type UserResolver func(*http.Request) (string, error)
 
 type Handler struct {
@@ -216,8 +220,16 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r)
+	userID, resource, ok := h.resolveResourceRequest(w, r)
 	if !ok {
+		return
+	}
+	if resource.Kind == ResourceCalendarCollection {
+		h.deleteCalendarCollection(w, r, userID, resource)
+		return
+	}
+	if resource.Kind != ResourceCalendarObject {
+		http.Error(w, "DELETE requires a calendar collection or object path", http.StatusForbidden)
 		return
 	}
 	store, ok := h.Store.(ObjectStore)
@@ -244,7 +256,34 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath) {
+	store, ok := h.Store.(CalendarDeleter)
+	if !ok {
+		http.Error(w, "caldav calendar deleter is not configured", http.StatusNotImplemented)
+		return
+	}
+	if _, err := store.DeleteCalendar(r.Context(), DeleteCalendarRequest{UserID: userID, CalendarID: resource.CalendarID}); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
+	userID, resource, ok := h.resolveResourceRequest(w, r)
+	if !ok {
+		return "", ResourcePath{}, false
+	}
+	if resource.Kind != ResourceCalendarObject {
+		http.Error(w, "caldav object path is required", http.StatusNotFound)
+		return "", ResourcePath{}, false
+	}
+	return userID, resource, true
+}
+
+func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
 	if h.Store == nil {
 		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
 		return "", ResourcePath{}, false
@@ -259,8 +298,8 @@ func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (
 		return "", ResourcePath{}, false
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
-	if err != nil || resource.Kind != ResourceCalendarObject {
-		http.Error(w, "caldav object path is required", http.StatusNotFound)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return "", ResourcePath{}, false
 	}
 	if resource.UserID != userID {

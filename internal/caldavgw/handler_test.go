@@ -535,6 +535,49 @@ func TestHandlerDeleteCalendarObject(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteCalendarCollectionDeletesObjects(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 0 {
+		t.Fatalf("calendars after delete = %+v", store.calendars)
+	}
+	if len(store.objects) != 0 {
+		t.Fatalf("objects after delete = %+v", store.objects)
+	}
+}
+
+func TestHandlerDeleteCalendarCollectionRejectsCrossUser(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-2"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerDeleteRejectsCalendarHome(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerDeleteRejectsETagMismatch(t *testing.T) {
 	t.Parallel()
 
@@ -734,6 +777,28 @@ func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectReq
 		}
 	}
 	return CalendarObject{}, errFakeNotFound
+}
+
+func (s *fakeDiscoveryStore) DeleteCalendar(_ context.Context, req DeleteCalendarRequest) (Calendar, error) {
+	validated, err := ValidateDeleteCalendarRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	for i, calendar := range s.calendars {
+		if calendar.UserID == validated.UserID && calendar.ID == validated.CalendarID {
+			s.calendars = append(s.calendars[:i], s.calendars[i+1:]...)
+			objects := s.objects[:0]
+			for _, object := range s.objects {
+				if object.UserID == validated.UserID && object.CalendarID == validated.CalendarID {
+					continue
+				}
+				objects = append(objects, object)
+			}
+			s.objects = objects
+			return calendar, nil
+		}
+	}
+	return Calendar{}, errFakeNotFound
 }
 
 type fakeNotFoundError struct{}

@@ -2093,6 +2093,12 @@ Implementation order:
       and returning `201 Created` with `Location`. The `Allow` header advertises
       `MKCALENDAR` again only after those semantics exist; human-readable slug
       aliases remain future compatibility work.
+1055. CalDAV now implements `DELETE` for authenticated calendar collection
+      paths, soft-deleting the collection and its active child objects in one
+      repository transaction while keeping calendar-home and cross-user deletes
+      forbidden. Incremental sync tombstones/change logs remain the next
+      compatibility step before stale-token clients can receive deletion
+      deltas.
 
 ## Deferred until backend contracts stabilize
 

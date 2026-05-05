@@ -190,6 +190,19 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 	if deleted.ObjectName != "event.ics" || !strings.HasPrefix(syncToken, "sync-") {
 		t.Fatalf("delete request = %+v token = %q", deleted, syncToken)
 	}
+	deleteCalendar, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{
+		UserID:     " user-1 ",
+		CalendarID: " calendar-1 ",
+	})
+	if err != nil {
+		t.Fatalf("ValidateDeleteCalendarRequest returned error: %v", err)
+	}
+	if deleteCalendar.UserID != "user-1" || deleteCalendar.CalendarID != "calendar-1" {
+		t.Fatalf("delete calendar request = %+v", deleteCalendar)
+	}
+	if _, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{UserID: "user-1"}); err == nil {
+		t.Fatal("ValidateDeleteCalendarRequest accepted missing calendar id")
+	}
 }
 
 func TestValidateCalendarObjectName(t *testing.T) {

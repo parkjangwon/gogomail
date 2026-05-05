@@ -1465,6 +1465,9 @@ Current state:
   for display name, description, and CalendarServer/Apple calendar color, and
   successful creates return `201 Created` plus `Location`; slug-style path
   aliases remain future compatibility work.
+- CalDAV now handles `DELETE` on authenticated calendar collection paths,
+  deleting the collection and active child objects through one repository
+  transaction while keeping calendar-home and cross-user deletes forbidden.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
