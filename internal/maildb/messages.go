@@ -58,6 +58,7 @@ type Folder struct {
 	Total      int64  `json:"total"`
 	Unread     int64  `json:"unread"`
 	Starred    int64  `json:"starred"`
+	TotalSize  int64  `json:"-"`
 }
 
 type CreateFolderRequest struct {
@@ -295,14 +296,16 @@ SELECT
   f.order_index,
   COALESCE(c.total, 0) AS total,
   COALESCE(c.unread, 0) AS unread,
-  COALESCE(c.starred, 0) AS starred
+  COALESCE(c.starred, 0) AS starred,
+  COALESCE(c.total_size, 0) AS total_size
 FROM folders f
 LEFT JOIN (
   SELECT
     folder_id,
     COUNT(*) AS total,
     COUNT(*) FILTER (WHERE COALESCE((flags->>'read')::boolean, false) = false) AS unread,
-    COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred
+    COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred,
+    SUM(size) AS total_size
   FROM messages
   WHERE user_id = $1
     AND status = 'active'
@@ -331,6 +334,7 @@ ORDER BY type DESC, order_index ASC, full_path ASC`
 			&folder.Total,
 			&folder.Unread,
 			&folder.Starred,
+			&folder.TotalSize,
 		); err != nil {
 			return nil, fmt.Errorf("scan folder: %w", err)
 		}

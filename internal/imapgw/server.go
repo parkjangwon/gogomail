@@ -3908,7 +3908,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
@@ -4418,7 +4418,7 @@ func imapStatusItems(items []string) ([]string, bool) {
 		for _, token := range strings.Fields(strings.Trim(raw, "()")) {
 			item := strings.ToUpper(strings.TrimSpace(token))
 			switch item {
-			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ":
+			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ", "SIZE":
 				out = append(out, item)
 			default:
 				return nil, false
@@ -4453,6 +4453,8 @@ func imapStatusData(mailbox Mailbox, items []string) string {
 			parts = append(parts, "UNSEEN", strconv.FormatUint(uint64(mailbox.Unseen), 10))
 		case "HIGHESTMODSEQ":
 			parts = append(parts, "HIGHESTMODSEQ", strconv.FormatUint(mailbox.HighestModSeq, 10))
+		case "SIZE":
+			parts = append(parts, "SIZE", strconv.FormatInt(mailbox.Size, 10))
 		}
 	}
 	return strings.Join(parts, " ")
