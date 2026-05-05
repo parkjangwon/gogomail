@@ -2051,6 +2051,11 @@ The platform hardening sprint completed the following:
 - CalDAV work has started with ADR 0010, a `caldav` runtime scaffold, and an
   `internal/caldavgw` boundary for RFC/WebDAV standards, DAV tokens, principal
   paths, calendar-home paths, calendar collections, and `.ics` object paths.
+- CalDAV storage groundwork now has PostgreSQL `caldav_calendars` and
+  `caldav_calendar_objects` tables with user-scoped active uniqueness, ETag,
+  sync-token, component, and bounded `.ics` body constraints. `internal/caldavgw`
+  also validates calendar metadata, component types, object UIDs, strong ETags,
+  and sync-token derivation before WebDAV handlers are exposed.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
