@@ -5467,13 +5467,20 @@ func imapTokenBoundary(value string, start int, end int) bool {
 
 func imapMailboxWireName(value string) string {
 	value = strings.ToValidUTF8(value, "")
-	value = strings.Map(func(r rune) rune {
+	var b strings.Builder
+	lastSanitizedSpace := false
+	for _, r := range value {
 		if r < 0x20 || r == 0x7f {
-			return ' '
+			if !lastSanitizedSpace {
+				b.WriteRune(' ')
+				lastSanitizedSpace = true
+			}
+			continue
 		}
-		return r
-	}, value)
-	return strings.Join(strings.Fields(value), " ")
+		b.WriteRune(r)
+		lastSanitizedSpace = false
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func imapEncodeMailboxName(value string) string {

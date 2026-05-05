@@ -3468,6 +3468,54 @@ func TestServerListUsesModifiedUTF7MailboxNames(t *testing.T) {
 	}
 }
 
+func TestServerListPreservesMailboxNameSpacing(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: spacedMailboxBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
+		t.Fatalf("write spaced list: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren) \"/\" \"Project  Q2\"\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"Archive 2026\"\r\n",
+		"a2 OK LIST completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read spaced list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("spaced list response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerListReportsMailboxChildren(t *testing.T) {
 	t.Parallel()
 
@@ -8194,6 +8242,17 @@ type unicodeMailboxBackend struct {
 func (unicodeMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
 	return []Mailbox{
 		{ID: "unicode", Name: "~peter/mail/台北/日本語", UIDValidity: 1, UIDNext: 1},
+	}, nil
+}
+
+type spacedMailboxBackend struct {
+	fakeBackend
+}
+
+func (spacedMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
+	return []Mailbox{
+		{ID: "project-q2", Name: "Project  Q2", UIDValidity: 1, UIDNext: 1},
+		{ID: "archive", Name: "Archive\r\n2026", UIDValidity: 2, UIDNext: 1},
 	}, nil
 }
 
