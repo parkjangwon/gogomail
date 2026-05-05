@@ -302,6 +302,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `AUTHENTICATE PLAIN` now supports the standard continuation response and
   SASL PLAIN credential decoding, so the advertised `AUTH=PLAIN` mechanism has
   a real protocol implementation.
+- IMAP advertises `SASL-IR` before authentication and accepts
+  `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
+  round trips.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses use IMAP sequence
