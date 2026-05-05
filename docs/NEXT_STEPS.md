@@ -419,8 +419,8 @@ Current state:
   mailbox.
 - `LSUB` retains subscribed names after mailbox deletion with `\Noselect` and
   covers the RFC 3501 `%` hierarchy parent response case.
-- IMAP now advertises and supports `ID`, returning a bounded gogomail server
-  identity response.
+- IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
+  field/value parameter lists before returning gogomail server identity.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
 - `EXPUNGE` and `UID EXPUNGE` now delete only messages marked with the

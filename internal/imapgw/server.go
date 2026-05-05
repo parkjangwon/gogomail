@@ -250,13 +250,14 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 }
 
 func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, literal *string, state *imapConnState) (bool, error) {
+	trimmedLine := strings.TrimRight(line, "\r\n")
 	if state.pendingIdleTag != "" {
-		return s.handleIdleDone(writer, strings.TrimRight(line, "\r\n"), state)
+		return s.handleIdleDone(writer, trimmedLine, state)
 	}
 	if state.pendingAuthTag != "" {
-		return s.handleAuthenticatePlainResponse(writer, strings.TrimRight(line, "\r\n"), state)
+		return s.handleAuthenticatePlainResponse(writer, trimmedLine, state)
 	}
-	fields, parseErr := parseIMAPFieldsWithLiteral(strings.TrimRight(line, "\r\n"), literal)
+	fields, parseErr := parseIMAPFieldsWithLiteral(trimmedLine, literal)
 	if parseErr != nil {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
@@ -283,7 +284,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
 		return false, err
 	case "ID":
-		if len(fields) < 3 {
+		if !imapIDArgumentsValid(imapCommandArgumentString(trimmedLine)) {
 			_, err := writer.WriteString(tag + " BAD ID requires NIL or parameter list\r\n")
 			return false, err
 		}
@@ -4122,6 +4123,107 @@ func imapLooksLikeLiteral(field string) bool {
 
 func imapLooksLikeLiteralPrefix(field string) bool {
 	return len(field) >= 2 && field[0] == '{'
+}
+
+func imapCommandArgumentString(line string) string {
+	line = strings.TrimSpace(line)
+	first := strings.IndexAny(line, " \t")
+	if first < 0 {
+		return ""
+	}
+	rest := strings.TrimLeft(line[first:], " \t")
+	second := strings.IndexAny(rest, " \t")
+	if second < 0 {
+		return ""
+	}
+	return strings.TrimSpace(rest[second:])
+}
+
+func imapIDArgumentsValid(argument string) bool {
+	argument = strings.TrimSpace(argument)
+	if strings.EqualFold(argument, "NIL") {
+		return true
+	}
+	if len(argument) < 2 || argument[0] != '(' || argument[len(argument)-1] != ')' {
+		return false
+	}
+	tokens, ok := imapIDListTokens(argument[1 : len(argument)-1])
+	if !ok || len(tokens)%2 != 0 || len(tokens)/2 > 30 {
+		return false
+	}
+	seenFields := make(map[string]struct{}, len(tokens)/2)
+	for i := 0; i < len(tokens); i += 2 {
+		field := tokens[i]
+		value := tokens[i+1]
+		if strings.EqualFold(field, "NIL") || len(field) == 0 || len(field) > 30 || len(value) > 1024 {
+			return false
+		}
+		key := strings.ToLower(field)
+		if _, ok := seenFields[key]; ok {
+			return false
+		}
+		seenFields[key] = struct{}{}
+	}
+	return true
+}
+
+func imapIDListTokens(value string) ([]string, bool) {
+	tokens := make([]string, 0, 8)
+	for i := 0; i < len(value); {
+		for i < len(value) && (value[i] == ' ' || value[i] == '\t') {
+			i++
+		}
+		if i >= len(value) {
+			break
+		}
+		if value[i] == '"' {
+			token, next, ok := imapParseQuotedToken(value, i)
+			if !ok {
+				return nil, false
+			}
+			tokens = append(tokens, token)
+			i = next
+			continue
+		}
+		start := i
+		for i < len(value) && value[i] != ' ' && value[i] != '\t' {
+			if value[i] == '(' || value[i] == ')' || value[i] < 0x20 || value[i] == 0x7f {
+				return nil, false
+			}
+			i++
+		}
+		token := value[start:i]
+		if token == "" || imapLooksLikeLiteralPrefix(token) {
+			return nil, false
+		}
+		tokens = append(tokens, token)
+	}
+	return tokens, true
+}
+
+func imapParseQuotedToken(value string, start int) (string, int, bool) {
+	i := start + 1
+	var b strings.Builder
+	for i < len(value) {
+		switch value[i] {
+		case '\\':
+			i++
+			if i >= len(value) {
+				return "", 0, false
+			}
+			b.WriteByte(value[i])
+			i++
+		case '"':
+			return b.String(), i + 1, true
+		default:
+			if value[i] < 0x20 || value[i] == 0x7f {
+				return "", 0, false
+			}
+			b.WriteByte(value[i])
+			i++
+		}
+	}
+	return "", 0, false
 }
 
 func imapRemainingFieldsAreSpace(value string) bool {

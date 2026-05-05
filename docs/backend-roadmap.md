@@ -1183,6 +1183,10 @@ Implementation order:
      through the service/repository boundary, and `LSUB` returns the saved set
      while retaining deleted mailbox names with `\Noselect` and honoring the
      RFC 3501 `%` hierarchy parent response case.
+815. IMAP `ID` now validates RFC 2971-shaped `NIL` or bounded field/value
+     parameter lists, rejecting duplicate fields, oversized field names or
+     values, and malformed argument shapes before returning gogomail server
+     identity.
 
 ## Deferred until backend contracts stabilize
 
