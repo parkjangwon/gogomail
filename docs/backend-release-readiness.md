@@ -1060,6 +1060,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `scripts/verify-backend-release.sh` runs the standard backend release checks (`go test ./...`, `go mod tidy -diff`, optional PostgreSQL integration tests when `GOGOMAIL_TEST_DATABASE_URL` is set, optional OpenSearch integration coverage when `GOGOMAIL_TEST_OPENSEARCH_URL` is set, and a clean-worktree gate that fails on pending repository changes).
 - PostgreSQL-backed integration tests can be enabled with `GOGOMAIL_TEST_DATABASE_URL` to run migrations in a temporary schema and exercise draft-to-send/outbox/retry behavior plus IMAP UID backfill/move invalidation against real SQL.
 - OpenSearch integration tests can be enabled with `GOGOMAIL_TEST_OPENSEARCH_URL` to create a disposable index and verify bootstrap mapping, idempotent indexing, folder-aware relevance filters, and query-side hydration IDs against a real backend.
+- IMAP read-only selected-state mutation handling now preserves
+  command-specific tagged `BAD` responses for malformed `STORE`/`MOVE` and UID
+  mutation commands before returning read-only `NO` responses for valid
+  mutations.
 
 ## Must verify before release cut
 

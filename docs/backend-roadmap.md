@@ -1323,6 +1323,10 @@ Implementation order:
 852. IMAP command parsing now rejects control characters inside unquoted atoms,
      matching the existing quoted-string control-character guardrail before
      command dispatch.
+853. IMAP read-only selected-state mutation handling now validates malformed
+     `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE` commands before
+     returning `NO mailbox is read-only` for valid mutation attempts, keeping
+     syntax errors precise for standards-aware clients.
 
 ## Deferred until backend contracts stabilize
 
