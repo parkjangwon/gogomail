@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP APPEND internaldate compatibility hardening)
+Last updated: 2026-05-05 (updated after IMAP APPEND service identifier validation hardening)
 
 ## Current phase
 
@@ -1264,7 +1264,9 @@ The platform hardening sprint completed the following:
   unsupported. Successful append results include the appended message sequence
   number, which is used as the precise `EXISTS` event count when available.
   APPEND internaldate parsing accepts RFC 3501 space-padded one-digit date-days
-  such as `" 5-May-2026 ..."`.
+  such as `" 5-May-2026 ..."`. The service boundary now rejects CR/LF-bearing
+  or oversized APPEND user and mailbox identifiers before repository lookup,
+  spooling, parsing, storage, or quota work.
 - IMAP empty flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are treated as successful no-ops.

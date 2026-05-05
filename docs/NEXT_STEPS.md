@@ -751,6 +751,9 @@ Current state:
   Successful append results include the new message sequence number for precise
   selected-mailbox `EXISTS` event counts. APPEND internaldate parsing accepts
   RFC 3501 space-padded one-digit date-days such as `" 5-May-2026 ..."`.
+  Service-level APPEND rejects CR/LF-bearing or oversized user/mailbox
+  identifiers before repository lookup, spooling, parsing, storage, or quota
+  work.
 - Empty IMAP flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
