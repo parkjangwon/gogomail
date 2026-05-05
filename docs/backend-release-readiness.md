@@ -169,6 +169,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before relying on the worker loop.
 - Admin API exposes `POST /admin/v1/drive-upload-cleanup/runs` so operators can
   trigger explicit audited Drive upload-session expiry with candidate counts.
+- Admin API exposes `GET /admin/v1/drive-cleanup-failures` so operators can
+  inspect pending/resolved Drive object cleanup drift with bounded filters.
 - Mail API exposes cursor-paginated thread list and thread-message read models for conversation-style webmail rendering, and draft search uses the same opaque cursor envelope for compose-scale draft lists.
 - `gogomail --mode=all-in-one` registers Mail API and Admin API routes in the
   same HTTP process for small-deployment and local release smoke coverage.

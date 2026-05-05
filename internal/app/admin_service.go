@@ -43,6 +43,7 @@ type adminService struct {
 		CountStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) (drive.StaleUploadSessionCount, error)
 		ListStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 		ExpireUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
+		ListObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error)
 	}
 	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
@@ -341,6 +342,17 @@ func (s adminService) RunDriveUploadSessionCleanup(ctx context.Context, before t
 		}
 	}
 	return expired, nil
+}
+
+func (s adminService) ListDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error) {
+	if s.drive == nil {
+		return nil, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateListObjectCleanupFailuresRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return s.drive.ListObjectCleanupFailures(ctx, req)
 }
 
 func driveSessionAuditIDs(sessions []drive.UploadSession) []string {

@@ -405,6 +405,10 @@ candidate rows plus total/limited counts.
 to expire stale Drive upload sessions once and returns
 `{"drive_upload_cleanup_run":{...}}` with candidate counts and expired session
 rows.
+`GET /admin/v1/drive-cleanup-failures` returns
+`{"drive_cleanup_failures":[...]}` with bounded `user_id`, lifecycle `status`,
+and `limit` filters so operators can inspect pending or resolved backend object
+cleanup drift.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

@@ -261,6 +261,29 @@ func TestAdminServiceRunDriveUploadCleanupRecordsAudit(t *testing.T) {
 	}
 }
 
+func TestAdminServiceListDriveObjectCleanupFailuresDelegatesToDrive(t *testing.T) {
+	t.Parallel()
+
+	driveStore := &fakeAdminDrive{
+		failures: []drive.ObjectCleanupFailure{{ID: "failure-1", UserID: "user-1", Status: drive.ObjectCleanupFailureStatusPending}},
+	}
+	service := adminService{drive: driveStore}
+	failures, err := service.ListDriveObjectCleanupFailures(t.Context(), drive.ListObjectCleanupFailuresRequest{
+		UserID: " user-1 ",
+		Status: " pending ",
+		Limit:  5,
+	})
+	if err != nil {
+		t.Fatalf("ListDriveObjectCleanupFailures returned error: %v", err)
+	}
+	if len(failures) != 1 || failures[0].ID != "failure-1" {
+		t.Fatalf("failures = %+v", failures)
+	}
+	if driveStore.lastFailureReq.UserID != "user-1" || driveStore.lastFailureReq.Status != drive.ObjectCleanupFailureStatusPending || driveStore.lastFailureReq.Limit != 5 {
+		t.Fatalf("lastFailureReq = %+v", driveStore.lastFailureReq)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -334,8 +357,10 @@ type fakeAdminAttachmentCleanup struct {
 type fakeAdminDrive struct {
 	sessions       []drive.UploadSession
 	count          drive.StaleUploadSessionCount
+	failures       []drive.ObjectCleanupFailure
 	lastReq        drive.ListUploadSessionsRequest
 	lastCleanupReq drive.ExpireUploadSessionsRequest
+	lastFailureReq drive.ListObjectCleanupFailuresRequest
 }
 
 func (f *fakeAdminDrive) ListUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
@@ -356,6 +381,11 @@ func (f *fakeAdminDrive) ListStaleUploadSessions(_ context.Context, req drive.Ex
 func (f *fakeAdminDrive) ExpireUploadSessions(_ context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error) {
 	f.lastCleanupReq = req
 	return f.sessions, nil
+}
+
+func (f *fakeAdminDrive) ListObjectCleanupFailures(_ context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error) {
+	f.lastFailureReq = req
+	return f.failures, nil
 }
 
 func (f *fakeAdminAttachmentCleanup) ExpireStaleAttachmentUploads(context.Context, time.Time, int) ([]maildb.Attachment, error) {
