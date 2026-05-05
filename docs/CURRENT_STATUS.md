@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP selected no-arg syntax ordering)
+Last updated: 2026-05-05 (updated after IMAP STARTTLS syntax ordering)
 
 ## Current phase
 
@@ -1498,6 +1498,9 @@ The platform hardening sprint completed the following:
 - Authenticated selected-state no-argument commands now reject extra arguments
   on `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
   selected-mailbox state errors for well-formed commands.
+- IMAP `STARTTLS` now rejects extra arguments before TLS availability or
+  authentication-state checks, preserving no-argument command syntax diagnostics
+  during capability probing.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
