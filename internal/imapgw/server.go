@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -137,7 +138,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	if err := writer.Flush(); err != nil {
 		return err
 	}
-	var session *Session
+	state := imapConnState{}
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -149,7 +150,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		if len(line) > 8192 {
 			return fmt.Errorf("imap command line is too long")
 		}
-		done, err := s.handleLine(writer, line, &session)
+		done, err := s.handleLine(writer, line, &state)
 		if err != nil {
 			return err
 		}
@@ -162,7 +163,12 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 }
 
-func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session) (bool, error) {
+type imapConnState struct {
+	session         *Session
+	selectedMailbox MailboxID
+}
+
+func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
 	fields := strings.Fields(strings.TrimRight(line, "\r\n"))
 	if len(fields) < 2 {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
@@ -181,7 +187,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
 		return false, err
 	case "LOGIN":
-		if *session != nil {
+		if state.session != nil {
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
 			return false, err
 		}
@@ -194,11 +200,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 			_, writeErr := writer.WriteString(tag + " NO LOGIN failed\r\n")
 			return false, writeErr
 		}
-		*session = &authSession
+		state.session = &authSession
 		_, err = writer.WriteString(tag + " OK LOGIN completed\r\n")
 		return false, err
 	case "SELECT":
-		if *session == nil {
+		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
@@ -206,30 +212,31 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 			_, err := writer.WriteString(tag + " BAD SELECT requires a mailbox atom\r\n")
 			return false, err
 		}
-		state, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
-			UserID:    (*session).UserID,
+		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
+			UserID:    state.session.UserID,
 			MailboxID: MailboxID(fields[2]),
 		})
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
 			return false, writeErr
 		}
-		if _, err := writer.WriteString("* FLAGS " + imapFlagList(state.PermanentFlags) + "\r\n"); err != nil {
+		if _, err := writer.WriteString("* FLAGS " + imapFlagList(mailboxState.PermanentFlags) + "\r\n"); err != nil {
 			return false, err
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.Messages)); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", mailboxState.Messages)); err != nil {
 			return false, err
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", state.UIDValidity)); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", mailboxState.UIDValidity)); err != nil {
 			return false, err
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", state.UIDNext)); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
 			return false, err
 		}
+		state.selectedMailbox = MailboxID(fields[2])
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
 		return false, err
 	case "LIST":
-		if *session == nil {
+		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
@@ -237,7 +244,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 			_, err := writer.WriteString(tag + " BAD LIST requires reference and mailbox pattern atoms\r\n")
 			return false, err
 		}
-		mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: (*session).UserID})
+		mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO LIST failed\r\n")
 			return false, writeErr
@@ -249,6 +256,8 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 		}
 		_, err = writer.WriteString(tag + " OK LIST completed\r\n")
 		return false, err
+	case "UID":
+		return s.handleUIDLine(writer, tag, fields, state)
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -259,6 +268,47 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) < 4 || strings.ToUpper(fields[2]) != "FETCH" {
+		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		return false, err
+	}
+	uid64, err := strconv.ParseUint(fields[3], 10, 32)
+	if err != nil || uid64 == 0 {
+		_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID\r\n")
+		return false, err
+	}
+	message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		UID:       UID(uid64),
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
+		return false, writeErr
+	}
+	if message.Body != nil {
+		_ = message.Body.Close()
+	}
+	summary := message.Summary
+	if summary.UID == 0 {
+		summary.UID = UID(uid64)
+	}
+	if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d)\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size)); err != nil {
+		return false, err
+	}
+	_, err = writer.WriteString(tag + " OK UID FETCH completed\r\n")
+	return false, err
 }
 
 func imapMailboxDisplayName(mailbox Mailbox) string {

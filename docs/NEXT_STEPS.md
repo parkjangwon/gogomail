@@ -229,9 +229,12 @@ Current state:
   metadata from the service-backed mailbox state.
 - Authenticated IMAP `LIST` now maps to the service-backed mailbox list and
   returns sanitized quoted mailbox names with hierarchy delimiters.
+- Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
+  RFC822 size metadata from the service-backed message fetch boundary.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
   IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`, and
-  `LOGOUT`, while FETCH, STORE, IDLE, MOVE, and EXPUNGE remain deferred.
+  metadata `UID FETCH`, and `LOGOUT`, while body/header FETCH, STORE, IDLE,
+  MOVE, and EXPUNGE remain deferred.
 
 Next:
 
