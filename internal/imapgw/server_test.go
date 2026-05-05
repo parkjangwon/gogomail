@@ -1113,6 +1113,58 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 	}
 }
 
+func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
+		t.Fatalf("write append literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello world\r\n")); err != nil {
+		t.Fatalf("write append literal body: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 NO APPEND is not supported\r\n" {
+		t.Fatalf("append response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop after append: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK NOOP completed\r\n" {
+		t.Fatalf("noop after append = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesCopyCommands(t *testing.T) {
 	t.Parallel()
 
@@ -3272,6 +3324,17 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6}"); err == nil {
 		t.Fatal("parseIMAPFields accepted unsupported literal")
+	}
+	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6+}"); err == nil {
+		t.Fatal("parseIMAPFields accepted non-synchronizing literal")
+	}
+	literal := "secret value"
+	fields, err := parseIMAPFieldsWithLiteral("a1 LOGIN user@example.com {12}", &literal)
+	if err != nil {
+		t.Fatalf("parseIMAPFieldsWithLiteral returned error: %v", err)
+	}
+	if got, want := fields, []string{"a1", "LOGIN", "user@example.com", literal}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("literal fields = %#v, want %#v", got, want)
 	}
 }
 

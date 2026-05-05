@@ -961,7 +961,10 @@ The platform hardening sprint completed the following:
 - IMAP advertises `LOGINDISABLED` and rejects plaintext `LOGIN`/`AUTHENTICATE`
   with `[PRIVACYREQUIRED]` when insecure auth is disabled before STARTTLS.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
-  literal tokens are rejected instead of being treated as ordinary atoms.
+  non-synchronizing literal tokens are rejected instead of being treated as
+  ordinary atoms. Bounded synchronizing command literals are consumed with a
+  continuation response so future `APPEND` support can preserve connection
+  framing.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
   cancellation, and SASL PLAIN credential decoding over the existing protocol
   auth adapter.
