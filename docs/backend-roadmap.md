@@ -1667,6 +1667,11 @@ Implementation order:
      copy, cleaning staged temp objects and avoiding partial object commits,
      aligning local/NFS cancellation semantics with S3-compatible request
      cancellation.
+948. Mail API now exposes `GET /api/v1/webmail/capabilities`, giving future
+     production webmail clients a stable bootstrap contract for backend
+     version, available/planned modules including future Drive, list and bulk
+     limits, supported message flags, compose/search capabilities, attachment
+     upload modes, and push-device platforms.
 
 ## Deferred until backend contracts stabilize
 

@@ -1051,6 +1051,11 @@ Next:
 - Keep `docs/openapi.yaml` synchronized with every HTTP route change.
 - Consider generating a TypeScript client from the OpenAPI spec for future
   frontend use.
+- Mail API now exposes `GET /api/v1/webmail/capabilities` as a production
+  webmail bootstrap surface for contract version, module status, list limits,
+  supported flags/actions, compose/search limits, attachment upload modes, and
+  push-device platforms. Future webmail and Drive module APIs should extend
+  this discovery shape instead of forcing frontend hard-coded constants.
 
 ### 7. Frontend planning
 

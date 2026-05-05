@@ -84,6 +84,7 @@ type BulkMessageDeleteRequest struct {
 	MessageIDs []string `json:"message_ids"`
 }
 
+const BulkMessageMaxIDs = 500
 const maxMailboxResourceIDBytes = 200
 const maxFolderNameBytes = 200
 
@@ -94,7 +95,7 @@ func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 	if len(req.MessageIDs) == 0 {
 		return fmt.Errorf("message_ids is required")
 	}
-	if len(req.MessageIDs) > 500 {
+	if len(req.MessageIDs) > BulkMessageMaxIDs {
 		return fmt.Errorf("too many message_ids")
 	}
 	if err := validateBulkMessageIDs(req.MessageIDs); err != nil {
@@ -119,7 +120,7 @@ func ValidateBulkMessageMoveRequest(req BulkMessageMoveRequest) error {
 	if len(req.MessageIDs) == 0 {
 		return fmt.Errorf("message_ids is required")
 	}
-	if len(req.MessageIDs) > 500 {
+	if len(req.MessageIDs) > BulkMessageMaxIDs {
 		return fmt.Errorf("too many message_ids")
 	}
 	return validateBulkMessageIDs(req.MessageIDs)
@@ -132,7 +133,7 @@ func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
 	if len(req.MessageIDs) == 0 {
 		return fmt.Errorf("message_ids is required")
 	}
-	if len(req.MessageIDs) > 500 {
+	if len(req.MessageIDs) > BulkMessageMaxIDs {
 		return fmt.Errorf("too many message_ids")
 	}
 	return validateBulkMessageIDs(req.MessageIDs)

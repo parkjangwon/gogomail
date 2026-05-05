@@ -81,7 +81,153 @@ type MessageService interface {
 	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
 }
 
+type webmailCapabilitiesEnvelope struct {
+	WebmailCapabilities webmailCapabilities `json:"webmail_capabilities"`
+}
+
+type webmailCapabilities struct {
+	ContractVersion       string                        `json:"contract_version"`
+	Modules               map[string]string             `json:"modules"`
+	MaxListLimit          int                           `json:"max_list_limit"`
+	SupportedMessageFlags []string                      `json:"supported_message_flags"`
+	BulkActions           webmailBulkActionCapabilities `json:"bulk_actions"`
+	MailboxActions        webmailMailboxCapabilities    `json:"mailbox_actions"`
+	Compose               webmailComposeCapabilities    `json:"compose"`
+	Search                webmailSearchCapabilities     `json:"search"`
+	Attachments           webmailAttachmentCapabilities `json:"attachments"`
+	PushNotifications     webmailPushCapabilities       `json:"push_notifications"`
+}
+
+type webmailBulkActionCapabilities struct {
+	MaxMessageIDs int  `json:"max_message_ids"`
+	Flags         bool `json:"flags"`
+	Move          bool `json:"move"`
+	Delete        bool `json:"delete"`
+}
+
+type webmailMailboxCapabilities struct {
+	Folders bool `json:"folders"`
+	Threads bool `json:"threads"`
+	Drafts  bool `json:"drafts"`
+}
+
+type webmailComposeCapabilities struct {
+	Intents              []string `json:"intents"`
+	MaxRecipients        int      `json:"max_recipients"`
+	MaxSubjectBytes      int      `json:"max_subject_bytes"`
+	MaxTextBodyBytes     int      `json:"max_text_body_bytes"`
+	MaxAttachmentIDs     int      `json:"max_attachment_ids"`
+	ReplyForwardSources  bool     `json:"reply_forward_sources"`
+	DomainPolicyEnforced bool     `json:"domain_policy_enforced"`
+}
+
+type webmailSearchCapabilities struct {
+	Messages       bool     `json:"messages"`
+	Drafts         bool     `json:"drafts"`
+	Filters        []string `json:"filters"`
+	Highlights     bool     `json:"highlights"`
+	OpaqueCursors  bool     `json:"opaque_cursors"`
+	MaxQueryBytes  int      `json:"max_query_bytes"`
+	MaxFilterBytes int      `json:"max_filter_bytes"`
+}
+
+type webmailAttachmentCapabilities struct {
+	MaxAttachmentBytes      int64 `json:"max_attachment_bytes"`
+	MaxFilenameBytes        int   `json:"max_filename_bytes"`
+	MetadataReservation     bool  `json:"metadata_reservation"`
+	DirectMultipartUpload   bool  `json:"direct_multipart_upload"`
+	UploadSessions          bool  `json:"upload_sessions"`
+	UploadSessionBody       bool  `json:"upload_session_body"`
+	UploadSessionChecksum   bool  `json:"upload_session_checksum"`
+	FinalizeUploadSessions  bool  `json:"finalize_upload_sessions"`
+	CancelPendingUploads    bool  `json:"cancel_pending_uploads"`
+	CancelUploadSessions    bool  `json:"cancel_upload_sessions"`
+	ResumableChunkedUploads bool  `json:"resumable_chunked_uploads"`
+	QuotaReservedOnMetadata bool  `json:"quota_reserved_on_metadata"`
+	RequiresDeclaredSize    bool  `json:"requires_declared_size"`
+	MaxSessionTTLSeconds    int64 `json:"max_session_ttl_seconds"`
+}
+
+type webmailPushCapabilities struct {
+	Devices   bool     `json:"devices"`
+	Platforms []string `json:"platforms"`
+}
+
+func currentWebmailCapabilities() webmailCapabilities {
+	return webmailCapabilities{
+		ContractVersion: BackendContractVersion,
+		Modules: map[string]string{
+			"mail":  "available",
+			"drive": "planned",
+		},
+		MaxListLimit:          maildb.MessageListMaxLimit,
+		SupportedMessageFlags: []string{"read", "starred", "answered", "forwarded"},
+		BulkActions: webmailBulkActionCapabilities{
+			MaxMessageIDs: maildb.BulkMessageMaxIDs,
+			Flags:         true,
+			Move:          true,
+			Delete:        true,
+		},
+		MailboxActions: webmailMailboxCapabilities{
+			Folders: true,
+			Threads: true,
+			Drafts:  true,
+		},
+		Compose: webmailComposeCapabilities{
+			Intents:              []string{string(mailservice.ComposeIntentNew), string(mailservice.ComposeIntentReply), string(mailservice.ComposeIntentForward)},
+			MaxRecipients:        mailservice.MaxComposeRecipients,
+			MaxSubjectBytes:      mailservice.MaxComposeSubjectBytes,
+			MaxTextBodyBytes:     mailservice.MaxComposeTextBodyBytes,
+			MaxAttachmentIDs:     mailservice.MaxComposeAttachments,
+			ReplyForwardSources:  true,
+			DomainPolicyEnforced: true,
+		},
+		Search: webmailSearchCapabilities{
+			Messages:       true,
+			Drafts:         true,
+			Filters:        []string{"q", "folder_id", "from", "subject", "has_attachment", "since", "before"},
+			Highlights:     true,
+			OpaqueCursors:  true,
+			MaxQueryBytes:  maxHTTPQueryBytes,
+			MaxFilterBytes: maxHTTPQueryBytes,
+		},
+		Attachments: webmailAttachmentCapabilities{
+			MaxAttachmentBytes:      mailservice.MaxAttachmentUploadBytes,
+			MaxFilenameBytes:        mailservice.MaxAttachmentFilenameBytes,
+			MetadataReservation:     true,
+			DirectMultipartUpload:   true,
+			UploadSessions:          true,
+			UploadSessionBody:       true,
+			UploadSessionChecksum:   true,
+			FinalizeUploadSessions:  true,
+			CancelPendingUploads:    true,
+			CancelUploadSessions:    true,
+			ResumableChunkedUploads: false,
+			QuotaReservedOnMetadata: true,
+			RequiresDeclaredSize:    true,
+			MaxSessionTTLSeconds:    int64(mailservice.MaxAttachmentUploadSessionTTL.Seconds()),
+		},
+		PushNotifications: webmailPushCapabilities{
+			Devices:   true,
+			Platforms: []string{"apns", "fcm", "webpush"},
+		},
+	}
+}
+
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
+	mux.HandleFunc("GET /api/v1/webmail/capabilities", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		if _, ok := userIDFromRequest(w, r, tokenManager); !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, webmailCapabilitiesEnvelope{WebmailCapabilities: currentWebmailCapabilities()})
+	})
+
 	mux.HandleFunc("GET /api/v1/folders", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return

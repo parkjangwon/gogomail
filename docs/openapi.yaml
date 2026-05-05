@@ -37,6 +37,17 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Info"
+  /webmail/capabilities:
+    get:
+      operationId: getWebmailCapabilities
+      summary: Discover webmail frontend capabilities and limits
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/WebmailCapabilities"
+        default:
+          $ref: "#/components/responses/Error"
   /folders:
     get:
       operationId: listFolders
@@ -2390,6 +2401,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/BulkUpdateEnvelope"
+    WebmailCapabilities:
+      description: Webmail frontend capability envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WebmailCapabilitiesEnvelope"
     FolderList:
       description: Folder list envelope
       content:
@@ -3645,6 +3662,136 @@ components:
       properties:
         attachment_upload_capabilities:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
+    WebmailCapabilities:
+      type: object
+      required:
+        - contract_version
+        - modules
+        - max_list_limit
+        - supported_message_flags
+        - bulk_actions
+        - mailbox_actions
+        - compose
+        - search
+        - attachments
+        - push_notifications
+      properties:
+        contract_version:
+          type: string
+        modules:
+          type: object
+          required: [mail, drive]
+          properties:
+            mail:
+              type: string
+              enum: [available]
+            drive:
+              type: string
+              enum: [planned]
+        max_list_limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+        supported_message_flags:
+          type: array
+          items:
+            type: string
+            enum: [read, starred, answered, forwarded]
+        bulk_actions:
+          type: object
+          required: [max_message_ids, flags, move, delete]
+          properties:
+            max_message_ids:
+              type: integer
+              minimum: 1
+              maximum: 500
+            flags:
+              type: boolean
+            move:
+              type: boolean
+            delete:
+              type: boolean
+        mailbox_actions:
+          type: object
+          required: [folders, threads, drafts]
+          properties:
+            folders:
+              type: boolean
+            threads:
+              type: boolean
+            drafts:
+              type: boolean
+        compose:
+          type: object
+          required: [intents, max_recipients, max_subject_bytes, max_text_body_bytes, max_attachment_ids, reply_forward_sources, domain_policy_enforced]
+          properties:
+            intents:
+              type: array
+              items:
+                type: string
+                enum: [new, reply, forward]
+            max_recipients:
+              type: integer
+              minimum: 1
+              maximum: 200
+            max_subject_bytes:
+              type: integer
+              minimum: 1
+              maximum: 998
+            max_text_body_bytes:
+              type: integer
+              minimum: 1
+              maximum: 4194304
+            max_attachment_ids:
+              type: integer
+              minimum: 0
+              maximum: 100
+            reply_forward_sources:
+              type: boolean
+            domain_policy_enforced:
+              type: boolean
+        search:
+          type: object
+          required: [messages, drafts, filters, highlights, opaque_cursors, max_query_bytes, max_filter_bytes]
+          properties:
+            messages:
+              type: boolean
+            drafts:
+              type: boolean
+            filters:
+              type: array
+              items:
+                type: string
+                enum: [q, folder_id, from, subject, has_attachment, since, before]
+            highlights:
+              type: boolean
+            opaque_cursors:
+              type: boolean
+            max_query_bytes:
+              type: integer
+              maximum: 1024
+            max_filter_bytes:
+              type: integer
+              maximum: 1024
+        attachments:
+          $ref: "#/components/schemas/AttachmentUploadCapabilities"
+        push_notifications:
+          type: object
+          required: [devices, platforms]
+          properties:
+            devices:
+              type: boolean
+            platforms:
+              type: array
+              items:
+                type: string
+                enum: [apns, fcm, webpush]
+    WebmailCapabilitiesEnvelope:
+      type: object
+      required: [webmail_capabilities]
+      properties:
+        webmail_capabilities:
+          $ref: "#/components/schemas/WebmailCapabilities"
     PushDevice:
       type: object
       required: [id, platform, status, created_at, updated_at]
