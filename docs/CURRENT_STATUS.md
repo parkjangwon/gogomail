@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP LIST-STATUS support)
+Last updated: 2026-05-05 (updated after IMAP ESEARCH support)
 
 ## Current phase
 
@@ -854,6 +854,10 @@ The platform hardening sprint completed the following:
 - IMAP `SEARCH`/`UID SEARCH` can match RFC 4551-shaped `MODSEQ` criteria,
   including optional metadata entry/type arguments, and append the highest
   matched mod-sequence to non-empty SEARCH responses.
+- IMAP `CAPABILITY` advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)` and
+  `UID SEARCH RETURN (...)` can return `MIN`, `MAX`, compact `ALL`, `COUNT`,
+  UID indicators, and CONDSTORE `MODSEQ` data in single untagged `ESEARCH`
+  responses.
 - IMAP `FETCH`/`UID FETCH` supports RFC 4551-shaped `CHANGEDSINCE` modifiers,
   returning only messages with greater per-message mod-sequences and
   implicitly including `MODSEQ` response attributes.

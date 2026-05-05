@@ -1073,7 +1073,12 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
 		return false, err
 	}
-	criteria, charsetOK := imapSearchCriteria(fields[2:])
+	returnOptions, searchFields, ok := imapSearchReturnOptions(fields[2:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD SEARCH return options are unsupported\r\n")
+		return false, err
+	}
+	criteria, charsetOK := imapSearchCriteria(searchFields)
 	if !charsetOK {
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n")
 		return false, err
@@ -1104,8 +1109,14 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
 		return false, err
 	}
-	if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(results, highestModSeq, requestsModSeq) + "\r\n"); err != nil {
-		return false, err
+	if returnOptions.extended {
+		if _, err := writer.WriteString(imapESearchResponse(tag, results, uidMode, returnOptions.options, highestModSeq, requestsModSeq) + "\r\n"); err != nil {
+			return false, err
+		}
+	} else {
+		if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(imapSearchResultValues(results), highestModSeq, requestsModSeq) + "\r\n"); err != nil {
+			return false, err
+		}
 	}
 	completion := "SEARCH"
 	if uidMode {
@@ -1113,6 +1124,65 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	}
 	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
 	return false, err
+}
+
+type imapSearchReturnSpec struct {
+	extended bool
+	options  []string
+}
+
+func imapSearchReturnOptions(fields []string) (imapSearchReturnSpec, []string, bool) {
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "RETURN") {
+		return imapSearchReturnSpec{}, fields, true
+	}
+	if len(fields) < 2 {
+		return imapSearchReturnSpec{}, nil, false
+	}
+	optionFields, rest, ok := imapConsumeParenthesizedFields(fields[1:])
+	if !ok {
+		return imapSearchReturnSpec{}, nil, false
+	}
+	tokens := imapFetchNormalizedTokens(optionFields)
+	if len(tokens) == 0 {
+		tokens = []string{"ALL"}
+	}
+	seen := make(map[string]struct{}, len(tokens))
+	options := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		option := strings.ToUpper(token)
+		switch option {
+		case "MIN", "MAX", "ALL", "COUNT":
+		default:
+			return imapSearchReturnSpec{}, nil, false
+		}
+		if _, ok := seen[option]; ok {
+			return imapSearchReturnSpec{}, nil, false
+		}
+		seen[option] = struct{}{}
+		options = append(options, option)
+	}
+	return imapSearchReturnSpec{extended: true, options: options}, rest, true
+}
+
+func imapConsumeParenthesizedFields(fields []string) ([]string, []string, bool) {
+	if len(fields) == 0 {
+		return nil, nil, false
+	}
+	depth := 0
+	for i, field := range fields {
+		if i == 0 && !strings.HasPrefix(strings.TrimSpace(field), "(") {
+			return nil, nil, false
+		}
+		depth += strings.Count(field, "(")
+		depth -= strings.Count(field, ")")
+		if depth == 0 {
+			return fields[:i+1], fields[i+1:], true
+		}
+		if depth < 0 {
+			return nil, nil, false
+		}
+	}
+	return nil, nil, false
 }
 
 func imapSearchCriteria(criteria []string) ([]string, bool) {
@@ -1150,7 +1220,12 @@ func imapNormalizeSearchCriteria(criteria []string) []string {
 	return normalized
 }
 
-func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool, requestsModSeq bool) ([]uint32, uint64, bool, error) {
+type imapSearchMatch struct {
+	value  uint32
+	modSeq uint64
+}
+
+func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool, requestsModSeq bool) ([]imapSearchMatch, uint64, bool, error) {
 	if len(criteria) == 0 {
 		return nil, 0, false, nil
 	}
@@ -1165,7 +1240,7 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		}
 		i += consumed
 	}
-	results := make([]uint32, 0, len(messages))
+	results := make([]imapSearchMatch, 0, len(messages))
 	var highestModSeq uint64
 	for i, summary := range messages {
 		matches, err := s.imapMessageMatchesSearchPredicates(ctx, state, summary, i, predicates)
@@ -1178,11 +1253,13 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		if requestsModSeq && summary.ModSeq > highestModSeq {
 			highestModSeq = summary.ModSeq
 		}
+		var value uint32
 		if uidMode {
-			results = append(results, uint32(summary.UID))
-			continue
+			value = uint32(summary.UID)
+		} else {
+			value = imapSearchSequenceNumber(summary, i)
 		}
-		results = append(results, imapSearchSequenceNumber(summary, i))
+		results = append(results, imapSearchMatch{value: value, modSeq: summary.ModSeq})
 	}
 	if len(results) == 0 {
 		highestModSeq = 0
@@ -1797,6 +1874,139 @@ func imapSearchResultSuffix(results []uint32, highestModSeq uint64, includeModSe
 		suffix += fmt.Sprintf(" (MODSEQ %d)", highestModSeq)
 	}
 	return suffix
+}
+
+func imapSearchResultValues(results []imapSearchMatch) []uint32 {
+	values := make([]uint32, 0, len(results))
+	for _, result := range results {
+		values = append(values, result.value)
+	}
+	return values
+}
+
+func imapESearchResponse(tag string, results []imapSearchMatch, uidMode bool, options []string, highestModSeq uint64, includeModSeq bool) string {
+	parts := []string{"* ESEARCH", "(TAG " + imapQuotedString(tag) + ")"}
+	if uidMode {
+		parts = append(parts, "UID")
+	}
+	values := imapSearchResultValues(results)
+	for _, option := range options {
+		switch option {
+		case "MIN":
+			if len(values) > 0 {
+				parts = append(parts, "MIN", strconv.FormatUint(uint64(imapMinSearchResult(values)), 10))
+			}
+		case "MAX":
+			if len(values) > 0 {
+				parts = append(parts, "MAX", strconv.FormatUint(uint64(imapMaxSearchResult(values)), 10))
+			}
+		case "ALL":
+			if len(values) > 0 {
+				parts = append(parts, "ALL", imapSearchSequenceSet(values))
+			}
+		case "COUNT":
+			parts = append(parts, "COUNT", strconv.FormatUint(uint64(len(values)), 10))
+		}
+	}
+	if includeModSeq {
+		if modSeq := imapESearchModSeq(results, options, highestModSeq); modSeq > 0 {
+			parts = append(parts, "MODSEQ", strconv.FormatUint(modSeq, 10))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func imapMinSearchResult(values []uint32) uint32 {
+	minValue := values[0]
+	for _, value := range values[1:] {
+		if value < minValue {
+			minValue = value
+		}
+	}
+	return minValue
+}
+
+func imapMaxSearchResult(values []uint32) uint32 {
+	maxValue := values[0]
+	for _, value := range values[1:] {
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+	return maxValue
+}
+
+func imapSearchSequenceSet(values []uint32) string {
+	if len(values) == 0 {
+		return ""
+	}
+	compact := append([]uint32(nil), values...)
+	sort.Slice(compact, func(i, j int) bool {
+		return compact[i] < compact[j]
+	})
+	parts := make([]string, 0, len(compact))
+	start := compact[0]
+	prev := compact[0]
+	for _, value := range compact[1:] {
+		if value == prev {
+			continue
+		}
+		if value == prev+1 {
+			prev = value
+			continue
+		}
+		parts = append(parts, imapSearchSequenceRange(start, prev))
+		start = value
+		prev = value
+	}
+	parts = append(parts, imapSearchSequenceRange(start, prev))
+	return strings.Join(parts, ",")
+}
+
+func imapSearchSequenceRange(start uint32, end uint32) string {
+	if start == end {
+		return strconv.FormatUint(uint64(start), 10)
+	}
+	return strconv.FormatUint(uint64(start), 10) + ":" + strconv.FormatUint(uint64(end), 10)
+}
+
+func imapESearchModSeq(results []imapSearchMatch, options []string, highestModSeq uint64) uint64 {
+	if len(results) == 0 {
+		return 0
+	}
+	if len(options) == 1 && options[0] == "MIN" {
+		return imapSearchResultModSeq(results, imapMinSearchResult(imapSearchResultValues(results)))
+	}
+	if len(options) == 1 && options[0] == "MAX" {
+		return imapSearchResultModSeq(results, imapMaxSearchResult(imapSearchResultValues(results)))
+	}
+	if len(options) == 2 && imapSearchReturnHas(options, "MIN") && imapSearchReturnHas(options, "MAX") {
+		minModSeq := imapSearchResultModSeq(results, imapMinSearchResult(imapSearchResultValues(results)))
+		maxModSeq := imapSearchResultModSeq(results, imapMaxSearchResult(imapSearchResultValues(results)))
+		if maxModSeq > minModSeq {
+			return maxModSeq
+		}
+		return minModSeq
+	}
+	return highestModSeq
+}
+
+func imapSearchReturnHas(options []string, want string) bool {
+	for _, option := range options {
+		if option == want {
+			return true
+		}
+	}
+	return false
+}
+
+func imapSearchResultModSeq(results []imapSearchMatch, value uint32) uint64 {
+	for _, result := range results {
+		if result.value == value {
+			return result.modSeq
+		}
+	}
+	return 0
 }
 
 func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -3522,7 +3732,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
