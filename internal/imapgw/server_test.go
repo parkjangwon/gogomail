@@ -1116,7 +1116,8 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	backendImpl := &appendBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -1148,6 +1149,9 @@ func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *te
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 NO APPEND is not supported\r\n" {
 		t.Fatalf("append response = %q err = %v", line, err)
+	}
+	if backendImpl.request.UserID != "user-1" || backendImpl.request.MailboxID != "inbox" || backendImpl.body != "hello world" || backendImpl.request.Size != 11 {
+		t.Fatalf("append request = user %q mailbox %q size %d body %q", backendImpl.request.UserID, backendImpl.request.MailboxID, backendImpl.request.Size, backendImpl.body)
 	}
 	if _, err := client.Write([]byte("a3 NOOP\r\n")); err != nil {
 		t.Fatalf("write noop after append: %v", err)
@@ -3976,6 +3980,25 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}})
 	}
 	return summaries, nil
+}
+
+func (fakeBackend) AppendMessage(context.Context, AppendMessageRequest) (MessageSummary, error) {
+	return MessageSummary{}, ErrUnsupportedAppend
+}
+
+type appendBackend struct {
+	fakeBackend
+	request AppendMessageRequest
+	body    string
+}
+
+func (b *appendBackend) AppendMessage(_ context.Context, req AppendMessageRequest) (MessageSummary, error) {
+	b.request = req
+	if req.Body != nil {
+		data, _ := io.ReadAll(req.Body)
+		b.body = string(data)
+	}
+	return MessageSummary{}, ErrUnsupportedAppend
 }
 
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

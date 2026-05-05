@@ -49,6 +49,10 @@ func (a IMAPStoreAdapter) StoreFlags(ctx context.Context, req imapgw.StoreFlagsR
 	return a.service.StoreIMAPFlags(ctx, req)
 }
 
+func (a IMAPStoreAdapter) AppendMessage(ctx context.Context, req imapgw.AppendMessageRequest) (imapgw.MessageSummary, error) {
+	return a.service.AppendIMAPMessage(ctx, req)
+}
+
 func (a IMAPStoreAdapter) SelectMailbox(ctx context.Context, req imapgw.SelectMailboxRequest) (imapgw.MailboxState, error) {
 	mailbox, err := a.service.GetIMAPMailbox(ctx, req.UserID, req.MailboxID)
 	if err != nil {

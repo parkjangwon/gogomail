@@ -558,8 +558,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		_, err := writer.WriteString(tag + " NO APPEND is not supported\r\n")
-		return false, err
+		return s.handleAppend(writer, tag, fields, literal, state)
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -1724,6 +1723,40 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		return false, writeErr
 	}
 	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(fields[3]), "MOVE")
+}
+
+func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string, literal *string, state *imapConnState) (bool, error) {
+	if literal == nil {
+		_, err := writer.WriteString(tag + " NO APPEND is not supported\r\n")
+		return false, err
+	}
+	if len(fields) < 4 {
+		_, err := writer.WriteString(tag + " BAD APPEND requires mailbox and literal\r\n")
+		return false, err
+	}
+	body := *literal
+	summary, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
+		UserID:    state.session.UserID,
+		MailboxID: MailboxID(fields[2]),
+		Size:      int64(len(body)),
+		Body:      strings.NewReader(body),
+	})
+	if err != nil {
+		if errors.Is(err, ErrUnsupportedAppend) {
+			_, writeErr := writer.WriteString(tag + " NO APPEND is not supported\r\n")
+			return false, writeErr
+		}
+		_, writeErr := writer.WriteString(tag + " NO APPEND failed\r\n")
+		return false, writeErr
+	}
+	if summary.MailboxID == state.selectedMailbox {
+		state.selectedMessages++
+		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
+			return false, err
+		}
+	}
+	_, err = writer.WriteString(tag + " OK APPEND completed\r\n")
+	return false, err
 }
 
 func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnState) (bool, error) {

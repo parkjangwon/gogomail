@@ -6,6 +6,7 @@ import (
 )
 
 var ErrUnsupportedMailboxMutation = errors.New("imap mailbox mutation is not supported")
+var ErrUnsupportedAppend = errors.New("imap append is not supported")
 
 type Session struct {
 	UserID      UserID
