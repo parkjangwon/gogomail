@@ -404,12 +404,14 @@ Current state:
   pending/uploading/failed Drive upload sessions expired in bounded batches,
   and the Drive service deletes stored session bodies from the configured
   backend after metadata expiry.
+- `drive-cleanup-worker` now expires stale Drive upload sessions on each tick
+  before retrying pending permanent-delete object cleanup failures.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Wire Drive upload-session expiry into the cleanup worker so abandoned
-  pending/uploading sessions are handled outside request paths.
+- Add Drive upload-session cleanup counts to future admin/operator visibility
+  once Drive admin APIs are introduced.
 
 ### 2. Message threading and search
 

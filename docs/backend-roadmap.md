@@ -1869,6 +1869,9 @@ Implementation order:
      stale pending/uploading/failed sessions expired and deleting stored
      session body objects from the configured storage backend after metadata
      expiry.
+999. `drive-cleanup-worker` now runs Drive upload-session expiry before
+     permanent-delete object cleanup retries on each tick, keeping abandoned
+     session bodies and object cleanup drift out of request paths.
 
 ## Deferred until backend contracts stabilize
 

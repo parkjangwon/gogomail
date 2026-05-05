@@ -109,6 +109,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session expiry can now run through bounded repository/service
   paths, marking stale writable sessions expired and deleting stored session
   bodies through the configured storage backend.
+- `drive-cleanup-worker` now runs upload-session expiry before object cleanup
+  failure retries, giving operators a single Drive cleanup mode for abandoned
+  session bodies and permanent-delete drift.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

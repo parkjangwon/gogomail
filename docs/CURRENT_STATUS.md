@@ -345,6 +345,9 @@ guidance.
 - Drive upload sessions can now be expired in bounded repository batches, and
   the Drive service deletes stored session bodies from the configured backend
   after rows are marked expired.
+- `drive-cleanup-worker` now expires stale Drive upload sessions on each run
+  before retrying permanent-delete object cleanup failures, keeping abandoned
+  upload-session objects out of request paths.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
