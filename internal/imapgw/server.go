@@ -354,6 +354,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		if _, err := writer.WriteString(fmt.Sprintf("* %d RECENT\r\n", mailboxState.Recent)); err != nil {
 			return false, err
 		}
+		if unseenSequence := s.firstUnseenSequenceNumber(context.Background(), state.session.UserID, mailboxState); unseenSequence > 0 {
+			if _, err := writer.WriteString(fmt.Sprintf("* OK [UNSEEN %d] Message %d is first unseen\r\n", unseenSequence, unseenSequence)); err != nil {
+				return false, err
+			}
+		}
 		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", mailboxState.UIDValidity)); err != nil {
 			return false, err
 		}
@@ -727,6 +732,31 @@ func (s *Server) drainMailboxEvents(writer *bufio.Writer, state *imapConnState) 
 			return nil
 		}
 	}
+}
+
+func (s *Server) firstUnseenSequenceNumber(ctx context.Context, userID UserID, mailbox MailboxState) uint32 {
+	if s == nil || s.options.Backend == nil || mailbox.Unseen == 0 || mailbox.Messages == 0 {
+		return 0
+	}
+	messages, err := s.options.Backend.ListMessages(ctx, ListMessagesRequest{
+		UserID:    userID,
+		MailboxID: mailbox.ID,
+		Limit:     int(mailbox.Messages),
+	})
+	if err != nil {
+		return 0
+	}
+	for i, summary := range messages {
+		if summary.Flags.Read {
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		return sequenceNumber
+	}
+	return 0
 }
 
 func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, event MailboxEvent) error {

@@ -1063,6 +1063,9 @@ Implementation order:
      expunging `\Deleted` messages for writable selections before clearing
      selected state, while `EXAMINE` read-only selections close without
      destructive work or untagged `EXPUNGE` responses.
+781. IMAP `SELECT` and `EXAMINE` now emit optional RFC-shaped `[UNSEEN n]`
+     response codes by resolving the first unread message sequence number from
+     mailbox summaries instead of confusing unseen counts with sequence numbers.
 
 ## Deferred until backend contracts stabilize
 

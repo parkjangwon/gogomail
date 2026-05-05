@@ -336,7 +336,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts
-  alongside `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
+  alongside `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints,
+  `UIDVALIDITY`, and `UIDNEXT`.
 - IMAP `UID STORE` now supports `.SILENT` mutation modes while applying the same
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`

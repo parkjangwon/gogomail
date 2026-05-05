@@ -274,7 +274,8 @@ Current state:
 - `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes so clients can
   distinguish writable and read-only flag state.
 - `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts alongside
-  `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
+  `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
+  and `UIDNEXT`.
 - `UID STORE` now supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses for those requests.
 - `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
