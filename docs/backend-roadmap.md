@@ -995,270 +995,274 @@ Implementation order:
 760. IMAP `FETCH`/`UID FETCH` can now follow multipart body-part numbering
      inside top-level `message/rfc822` parts, including nested part MIME
      headers such as `BODY[1.2]` and `BODY[1.2.MIME]`.
-761. Malformed encapsulated `message/rfc822` literals now degrade gracefully for
+761. IMAP literal-fetch regression coverage now includes multipart messages
+     that attach a `message/rfc822` whose encapsulated body is itself
+     multipart, guarding forwarded-message paths such as `BODY[2.2]` and
+     `BODY[2.2.MIME]`.
+762. Malformed encapsulated `message/rfc822` literals now degrade gracefully for
      nested section fetches, returning an empty header section and raw text
      bytes instead of failing the whole IMAP `FETCH`.
-762. The shared MIME-structure parser now descends into `message/rfc822` parts
+763. The shared MIME-structure parser now descends into `message/rfc822` parts
      while counting the encapsulated message bytes/lines and capturing bounded
      envelope metadata, so forwarded-message attachments expose nested body
      metadata without retaining payloads.
-763. IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
+764. IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
      namespace command so client discovery matches the supported command
      surface.
-764. IMAP `SEARCH` and `UID SEARCH` now accept `CHARSET US-ASCII` and
+765. IMAP `SEARCH` and `UID SEARCH` now accept `CHARSET US-ASCII` and
      `CHARSET UTF-8` prefixes and return an RFC-shaped `[BADCHARSET]` response
      for unsupported search charsets.
-765. IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
+766. IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
      separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
      that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
-766. IMAP `SEARCH` and `UID SEARCH` now support `RECENT`, `OLD`, and `NEW`,
+767. IMAP `SEARCH` and `UID SEARCH` now support `RECENT`, `OLD`, and `NEW`,
      returning no recent/new matches while durable recent-state semantics remain
      deferred and treating active messages as old.
-767. IMAP `SEARCH` and `UID SEARCH` now support `KEYWORD` and `UNKEYWORD`
+768. IMAP `SEARCH` and `UID SEARCH` now support `KEYWORD` and `UNKEYWORD`
      criteria with validated keyword atoms, returning no custom-keyword matches
      until durable user keyword storage exists and treating active messages as
      unkeyworded.
-768. IMAP `SEARCH` and `UID SEARCH` now accept sequence-set criteria such as
+769. IMAP `SEARCH` and `UID SEARCH` now accept sequence-set criteria such as
      `2:*`, letting clients intersect standard search predicates with selected
      mailbox sequence ranges.
-769. IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
+770. IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
      `\Noselect` and `/` delimiter metadata for clients that probe namespace
      delimiters through LIST-compatible commands.
-770. IMAP `SEARCH` and `UID SEARCH` now accept parenthesized search-key groups,
+771. IMAP `SEARCH` and `UID SEARCH` now accept parenthesized search-key groups,
      combining grouped predicates with RFC default AND semantics and allowing
      grouped operands inside `OR`.
-771. IMAP `FETCH` and `UID FETCH` now support bounded partial section literals
+772. IMAP `FETCH` and `UID FETCH` now support bounded partial section literals
      for common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]`
      requests.
-772. IMAP `FETCH` and `UID FETCH` now support bounded top-level multipart
+773. IMAP `FETCH` and `UID FETCH` now support bounded top-level multipart
      body-section literals such as `BODY[1]` and `BODY[2]`, allowing clients
      to read individual MIME parts without fetching the full message.
-773. IMAP `FETCH` and `UID FETCH` now stream actual multipart child MIME
+774. IMAP `FETCH` and `UID FETCH` now stream actual multipart child MIME
      headers for `BODY[n.MIME]` and `BODY.PEEK[n.MIME]` requests when the
      selected part exists.
-774. IMAP `FETCH` and `UID FETCH` now support bounded nested multipart
+775. IMAP `FETCH` and `UID FETCH` now support bounded nested multipart
      body-section literals such as `BODY[1.2]` with a capped MIME part path
      depth.
-775. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
+776. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
      `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
      `BODY[HEADER.FIELDS.NOT (...)]`, and
      `BODY.PEEK[HEADER.FIELDS.NOT (...)]` literals.
-776. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
+777. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
      multipart body-section literals such as `BODY.PEEK[2]<4.4>`.
-777. IMAP mailbox lookup now resolves wire names such as `INBOX` and
+778. IMAP mailbox lookup now resolves wire names such as `INBOX` and
      `Archive/2026` to the stored mailbox ID before selected-mailbox state is
      used by follow-up commands.
-778. IMAP `EXAMINE` now passes read-only selection intent through the backend
+779. IMAP `EXAMINE` now passes read-only selection intent through the backend
      `SelectMailboxRequest`, letting service adapters distinguish read-only
      sessions from writable `SELECT`.
-779. IMAP `SELECT` and `EXAMINE` now establish mailbox event subscriptions
+780. IMAP `SELECT` and `EXAMINE` now establish mailbox event subscriptions
      before emitting selected-mailbox response data, avoiding ambiguous partial
      selection state when subscription setup fails.
-780. IMAP `COPY` and `UID COPY` now have protocol, service, and PostgreSQL
+781. IMAP `COPY` and `UID COPY` now have protocol, service, and PostgreSQL
      repository coverage for standards-shaped cross-mailbox copy semantics:
      source UIDs remain stable, destination copies receive fresh mailbox-local
      UIDs, and copied rows pass through quota accounting.
-781. IMAP `CREATE`, `DELETE`, and `RENAME` now have protocol and service
+782. IMAP `CREATE`, `DELETE`, and `RENAME` now have protocol and service
      adapter coverage over the existing folder CRUD boundary, improving
      standards-shaped mailbox management compatibility while keeping hierarchy
      semantics constrained by the current flat folder model.
-782. IMAP `\Deleted` is now a first-class protocol flag in the gateway and
+783. IMAP `\Deleted` is now a first-class protocol flag in the gateway and
      repository flag store, giving `EXPUNGE` a standards-shaped marker without
      conflating it with gogomail's soft-delete message status.
-783. IMAP `EXPUNGE` and `UID EXPUNGE` now have protocol, service, repository,
+784. IMAP `EXPUNGE` and `UID EXPUNGE` now have protocol, service, repository,
      and optional PostgreSQL integration coverage for deleting only
      `\Deleted`-marked active messages while preserving sequence-number wire
      semantics.
-784. IMAP `MOVE` and `UID MOVE` now have protocol, service, repository, and
+785. IMAP `MOVE` and `UID MOVE` now have protocol, service, repository, and
      optional PostgreSQL integration coverage for RFC-shaped source expunge
      semantics: source sequence sets resolve through the selected mailbox,
      destination mailboxes are validated, active messages move folders
      transactionally, source UID rows are removed, and destination mailboxes
      assign fresh local UIDs.
-785. IMAP now advertises `UIDPLUS` and returns RFC 4315-style `[COPYUID ...]`
+786. IMAP now advertises `UIDPLUS` and returns RFC 4315-style `[COPYUID ...]`
      response codes for `COPY` and `UID COPY` when the repository returns
      destination UIDs, improving client synchronization without guessing copied
      message identities.
-786. IMAP `CLOSE` now follows RFC selected-mailbox semantics by silently
+787. IMAP `CLOSE` now follows RFC selected-mailbox semantics by silently
      expunging `\Deleted` messages for writable selections before clearing
      selected state, while `EXAMINE` read-only selections close without
      destructive work or untagged `EXPUNGE` responses.
-787. IMAP `SELECT` and `EXAMINE` now emit optional RFC-shaped `[UNSEEN n]`
+788. IMAP `SELECT` and `EXAMINE` now emit optional RFC-shaped `[UNSEEN n]`
      response codes by resolving the first unread message sequence number from
      mailbox summaries instead of confusing unseen counts with sequence numbers.
-788. IMAP command reading now consumes bounded synchronizing literals with a
+789. IMAP command reading now consumes bounded synchronizing literals with a
      continuation response, preserves the literal as the final parsed command
      field, rejects unsupported non-synchronizing literals, and keeps the
      connection framed even while `APPEND` storage remains deferred.
-789. IMAP `APPEND` now has a protocol-to-backend request boundary carrying the
+790. IMAP `APPEND` now has a protocol-to-backend request boundary carrying the
      destination mailbox, literal body reader, and size, with the service adapter
      returning an explicit unsupported error until repository/storage append
      semantics are implemented.
-790. IMAP `APPEND` request parsing now accepts RFC-shaped optional flag lists and
+791. IMAP `APPEND` request parsing now accepts RFC-shaped optional flag lists and
      internal date-time values before the literal, preserving client-supplied
      initial flags and INTERNALDATE metadata in the backend request boundary.
-791. IMAP `APPEND` success responses now have a UIDPLUS-ready result boundary
+792. IMAP `APPEND` success responses now have a UIDPLUS-ready result boundary
      carrying UIDVALIDITY and the assigned message UID, allowing successful
      backend storage to emit `[APPENDUID uidvalidity uid]` as required for
      strong client synchronization.
-792. `mailservice` now routes IMAP `APPEND` through an append-capable
+793. `mailservice` now routes IMAP `APPEND` through an append-capable
      repository boundary when present, trims authenticated user/mailbox ids, and
      publishes best-effort destination `EXISTS` events for successful append
      results while preserving explicit unsupported responses for deployments
      without repository-backed APPEND storage.
-793. IMAP `APPEND` now has a service-backed storage path: the service spools
+794. IMAP `APPEND` now has a service-backed storage path: the service spools
      and size-checks synchronizing literals, parses RFC message metadata,
      stores the raw `.eml` through the configured storage backend, and the
      `maildb` repository inserts message metadata, quota ledger increments,
      `mail.stored` outbox work, mailbox-local UID assignment, and UIDVALIDITY in
      one transaction.
-794. IMAP `APPEND` now maps missing destination mailboxes to an RFC-shaped
+795. IMAP `APPEND` now maps missing destination mailboxes to an RFC-shaped
      `NO [TRYCREATE]` response code, improving compatibility with clients that
      can create the target mailbox and retry the append.
-795. IMAP `APPEND` now maps quota-ledger `mailbox full` failures to a
+796. IMAP `APPEND` now maps quota-ledger `mailbox full` failures to a
      client-visible `NO [OVERQUOTA]` response code, so standards-aware clients
      can distinguish quota exhaustion from generic append failures.
-796. IMAP `APPEND` now rejects commands without a synchronizing literal as a
+797. IMAP `APPEND` now rejects commands without a synchronizing literal as a
      syntax `BAD` response instead of reporting the command as unsupported,
      reflecting that APPEND is implemented but requires an RFC-shaped literal
      payload.
-797. IMAP `APPEND` persistence now returns the appended message sequence number
+798. IMAP `APPEND` persistence now returns the appended message sequence number
      and uses it as the `EXISTS` event message count when available, giving
      selected-mailbox IDLE/NOOP listeners a precise mailbox size instead of
      only an inferred increment.
-798. IMAP `COPY`, `UID COPY`, `MOVE`, and `UID MOVE` now map missing
+799. IMAP `COPY`, `UID COPY`, `MOVE`, and `UID MOVE` now map missing
      destination mailboxes to RFC-shaped `NO [TRYCREATE]` responses, matching
      the APPEND behavior and improving retry/create flows in standards-aware
      clients.
-799. IMAP selected-mailbox event draining now suppresses stale or duplicate
+800. IMAP selected-mailbox event draining now suppresses stale or duplicate
      `EXISTS` events when an exact message count is present, reducing noisy
      follow-up NOOP/IDLE updates after commands that already reported the same
      mailbox size.
-800. IMAP mailbox DTOs now carry durable `highest_modseq`, and `SELECT`,
+801. IMAP mailbox DTOs now carry durable `highest_modseq`, and `SELECT`,
      `EXAMINE`, and `STATUS` can expose `[HIGHESTMODSEQ ...]` /
      `HIGHESTMODSEQ` metadata for clients that use mod-sequence based sync
      hints.
-801. IMAP `FETCH` and `UID FETCH` now return RFC 4551-shaped `MODSEQ (n)`
+802. IMAP `FETCH` and `UID FETCH` now return RFC 4551-shaped `MODSEQ (n)`
      attributes when requested, mapping durable per-message IMAP mod-sequences
      through the gateway.
-802. IMAP `SEARCH` and `UID SEARCH` now support RFC 4551-shaped `MODSEQ`
+803. IMAP `SEARCH` and `UID SEARCH` now support RFC 4551-shaped `MODSEQ`
      criteria, including optional metadata entry/type arguments, and append
      `(MODSEQ n)` with the highest matched mod-sequence for non-empty results.
-803. IMAP `FETCH` and `UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
+804. IMAP `FETCH` and `UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
      modifiers, returning only messages with greater per-message mod-sequences
      and implicitly including `MODSEQ` response attributes.
-804. IMAP sessions now become CONDSTORE-aware after implemented mod-sequence
+805. IMAP sessions now become CONDSTORE-aware after implemented mod-sequence
      enabling commands, so subsequent flag `FETCH` event/STORE echo responses
      include `MODSEQ` attributes for client cache coherence.
-805. IMAP `STORE` and `UID STORE` now support RFC 4551-shaped
+806. IMAP `STORE` and `UID STORE` now support RFC 4551-shaped
      `(UNCHANGEDSINCE n)` modifiers with transactional per-message mod-sequence
      checks, partial success for passing messages, and `[MODIFIED uid-set]` /
      `[MODIFIED sequence-set]` responses for stale flag writes.
-806. Conditional IMAP `STORE`/`UID STORE` response and service event paths now
+807. Conditional IMAP `STORE`/`UID STORE` response and service event paths now
      filter modified stale UIDs out of successful `FETCH` echoes and mailbox
      flag notifications, keeping mixed-success CONDSTORE updates clean across
      backend adapters.
-807. IMAP `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
+808. IMAP `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
      parameter and mark the session CONDSTORE-aware.
-808. IMAP `CAPABILITY` now advertises `CONDSTORE`, making the implemented
+809. IMAP `CAPABILITY` now advertises `CONDSTORE`, making the implemented
      RFC 4551 durable mod-sequence sync surface discoverable by standard IMAP
      clients.
-809. IMAP now advertises `ENABLE` and accepts RFC 5161-shaped
+810. IMAP now advertises `ENABLE` and accepts RFC 5161-shaped
      `ENABLE CONDSTORE`, allowing clients to mark a session CONDSTORE-aware
      before mailbox selection while leaving the capability list stable.
-810. IMAP `LIST` now emits RFC 6154 special-use attributes for system folder
+811. IMAP `LIST` now emits RFC 6154 special-use attributes for system folder
      roles such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged so
      standards-aware clients can auto-detect default mailbox roles.
-811. IMAP now advertises `SPECIAL-USE` and accepts RFC 6154 extended
+812. IMAP now advertises `SPECIAL-USE` and accepts RFC 6154 extended
      `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms, filtering special
      role discovery requests while keeping normal `LIST` output compatible.
-812. Development storage portability is now documented in
+813. Development storage portability is now documented in
      `docs/storage-backends.md`, and `deploy/docker-compose.dev.yml` includes a
      `minio-init` one-shot service that creates the default local `gogomail`
      bucket for MinIO-backed runs.
-813. S3-compatible storage URL generation now has regression coverage for
+814. S3-compatible storage URL generation now has regression coverage for
      virtual-hosted-style requests with URL-sensitive object keys, preventing
      double-escaped paths before SigV4 canonical request signing.
-814. IMAP selected-mailbox event draining now renders sequence-bearing
+815. IMAP selected-mailbox event draining now renders sequence-bearing
      `MailboxEventExpunge` notifications as untagged `EXPUNGE` responses for
      `NOOP`/`IDLE` clients, keeping live deletion state aligned.
-815. Existing IMAP UID lookup now returns mailbox sequence numbers, letting
+816. Existing IMAP UID lookup now returns mailbox sequence numbers, letting
      Mail API move/delete expunge events become renderable for live
      `NOOP`/`IDLE` clients even after the committed mutation removes source UID
      rows.
-816. IMAP `MOVE` and `UID MOVE` now reassign source mailbox UID rows to fresh
+817. IMAP `MOVE` and `UID MOVE` now reassign source mailbox UID rows to fresh
      destination mailbox UIDs inside the move transaction and return UIDPLUS
      `[COPYUID ...]` mappings before source `EXPUNGE` responses, aligning the
      MOVE path with RFC 6851/UIDPLUS-compatible client expectations.
-817. IMAP `MOVE` and `UID MOVE` now advance the selected source mailbox
+818. IMAP `MOVE` and `UID MOVE` now advance the selected source mailbox
      highest mod-sequence and emit `[HIGHESTMODSEQ ...]` metadata alongside
      the move response path, keeping the advertised CONDSTORE surface aligned
      with RFC 6851 mod-sequence expectations.
-818. IMAP `CAPABILITY` now advertises RFC 3348 `CHILDREN` alongside the
+819. IMAP `CAPABILITY` now advertises RFC 3348 `CHILDREN` alongside the
      existing `\HasNoChildren` LIST attributes, keeping mailbox hierarchy
      discovery signals consistent for standards-aware clients.
-819. IMAP `LIST` now derives RFC 3348 `\HasChildren` / `\HasNoChildren`
+820. IMAP `LIST` now derives RFC 3348 `\HasChildren` / `\HasNoChildren`
      attributes from mailbox parent/path metadata instead of marking every
      mailbox leaf-only, giving hierarchical clients accurate expansion hints.
-820. IMAP `SUBSCRIBE` and `UNSUBSCRIBE` now persist mailbox subscription names
+821. IMAP `SUBSCRIBE` and `UNSUBSCRIBE` now persist mailbox subscription names
      through the service/repository boundary, and `LSUB` returns the saved set
      while retaining deleted mailbox names with `\Noselect` and honoring the
      RFC 3501 `%` hierarchy parent response case.
-821. IMAP `ID` now validates RFC 2971-shaped `NIL` or bounded field/value
+822. IMAP `ID` now validates RFC 2971-shaped `NIL` or bounded field/value
      parameter lists, rejecting duplicate fields, oversized field names or
      values, and malformed argument shapes before returning gogomail server
      identity.
-822. IMAP `MOVE` and `UID MOVE` now allow the selected mailbox as the
+823. IMAP `MOVE` and `UID MOVE` now allow the selected mailbox as the
      destination when COPY to that mailbox is allowed, creating a fresh
      same-mailbox message UID before expunging the source UID as required by
      RFC 6851.
-823. IMAP `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`, and extended
+824. IMAP `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`, and extended
      `LIST ... RETURN (STATUS (...))` emits requested `STATUS` data after each
      matching selectable mailbox, reducing standards-aware client folder-list
      round trips.
-824. IMAP `CAPABILITY` now advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)`
+825. IMAP `CAPABILITY` now advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)`
      and `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses
      with requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and
      CONDSTORE `MODSEQ` data.
-825. IMAP `CAPABILITY` now advertises RFC 5182 `SEARCHRES`; `SEARCH RETURN
+826. IMAP `CAPABILITY` now advertises RFC 5182 `SEARCHRES`; `SEARCH RETURN
      (SAVE)` stores selected-session search results so `$` can be reused by
      subsequent sequence-set and UID-set commands without sending result sets
      back through the client.
-826. IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
+827. IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
      `LIST-STATUS` can return per-mailbox active message octet totals from
      repository aggregate metadata without per-message `RFC822.SIZE` fetches.
-827. IMAP `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT`
+828. IMAP `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT`
      reuse selected-mailbox search evaluation, enforce mandatory `US-ASCII` and
      `UTF-8` charset support, and return sorted sequence-number or UID result
      sets for standard arrival, sent-date, address, base-subject, and size
      ordering.
-828. IMAP `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`;
+829. IMAP `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`;
      `THREAD ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` reuse
      selected-mailbox search evaluation and return ordered-subject thread trees
      without advertising the more complex `REFERENCES` algorithm before its
      Message-ID normalization and ancestry rules are implemented.
-829. IMAP RFC 5256 base-subject extraction now decodes RFC 2047 encoded-word
+830. IMAP RFC 5256 base-subject extraction now decodes RFC 2047 encoded-word
      subjects before reply/forward artifact removal, improving
      internationalized `SORT SUBJECT` and `THREAD ORDEREDSUBJECT` compatibility.
-830. IMAP mailbox mutation guardrails now enforce RFC 3501 `INBOX` special
+831. IMAP mailbox mutation guardrails now enforce RFC 3501 `INBOX` special
      cases by rejecting `CREATE INBOX`, `DELETE INBOX`, and generic
      `RENAME INBOX` until the required message-moving rename semantics are
      implemented.
-831. Service-backed IMAP message summaries now hydrate stored `To`, `Cc`, and
+832. Service-backed IMAP message summaries now hydrate stored `To`, `Cc`, and
      `Bcc` address JSON into RFC-shaped ENVELOPE address lists, keeping real
      repository-backed `FETCH ENVELOPE`, address search, and RFC 5256 address
      sort behavior aligned with persisted message metadata.
-832. IMAP `FETCH` and `UID FETCH` now apply RFC 3501 `\Seen` side effects for
+833. IMAP `FETCH` and `UID FETCH` now apply RFC 3501 `\Seen` side effects for
      successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads while
      preserving `BODY.PEEK[...]` and `RFC822.HEADER` as non-mutating preview
      requests.
-833. IMAP `FETCH` and `UID FETCH` now preserve RFC 3501 `RFC822`,
+834. IMAP `FETCH` and `UID FETCH` now preserve RFC 3501 `RFC822`,
      `RFC822.HEADER`, and `RFC822.TEXT` response data item names on the wire
      instead of rewriting them to their internal `BODY[...]` equivalents.
-834. IMAP `SUBSCRIBE` can now persist missing mailbox names so `LSUB` can
+835. IMAP `SUBSCRIBE` can now persist missing mailbox names so `LSUB` can
      report them with `\Noselect`, preserving subscription state across mailbox
      migration, deletion, and delayed creation flows.
-835. IMAP mailbox names now follow RFC 3501 modified UTF-7 at the protocol
+836. IMAP mailbox names now follow RFC 3501 modified UTF-7 at the protocol
      boundary: `LIST`/`LSUB` decode reference and pattern arguments before
      matching and encode non-ASCII names or ampersands on the wire, while
      `SELECT`, `EXAMINE`, `STATUS`, `APPEND`, `COPY`, `MOVE`, `CREATE`,

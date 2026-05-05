@@ -375,6 +375,9 @@ Current state:
 - `FETCH`/`UID FETCH` can now follow multipart body-part numbering inside
   top-level `message/rfc822` parts, including nested part MIME headers such as
   `BODY[1.2]` and `BODY[1.2.MIME]`.
+- IMAP literal-fetch regression coverage now includes multipart messages that
+  attach a `message/rfc822` whose encapsulated body is itself multipart,
+  guarding forwarded-message paths such as `BODY[2.2]` and `BODY[2.2.MIME]`.
 - Malformed encapsulated `message/rfc822` literals now degrade gracefully for
   nested section fetches, returning an empty header section and raw text bytes
   instead of failing the whole IMAP `FETCH`.
@@ -560,7 +563,8 @@ Current state:
 
 Next:
 
-- Extend MIME literal fetches with broader client fixture coverage.
+- Extend MIME literal fetches with captured real-client fixture variants as
+  they become available.
 
 Frontend note:
 
