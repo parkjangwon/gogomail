@@ -325,7 +325,7 @@ DO UPDATE SET
   size = EXCLUDED.size,
   ics = EXCLUDED.ics,
   updated_at = now()
-RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, size, ics, created_at, updated_at`
+RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at`
 	var object CalendarObject
 	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
@@ -342,6 +342,7 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, si
 		&object.CalendarID,
 		&object.ObjectName,
 		&object.UID,
+		&object.Component,
 		&object.ETag,
 		&object.Size,
 		&object.ICS,
@@ -372,7 +373,7 @@ func (r *Repository) ListObjects(ctx context.Context, req ListObjectsRequest) ([
 		return nil, err
 	}
 	const query = `
-SELECT id::text, user_id::text, calendar_id::text, object_name, uid, etag, size, ics, created_at, updated_at
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at
 FROM caldav_calendar_objects
 WHERE user_id = $1::uuid
   AND calendar_id = $2::uuid
@@ -387,7 +388,7 @@ LIMIT $4`
 	var objects []CalendarObject
 	for rows.Next() {
 		var object CalendarObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.CalendarID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.ICS, &object.CreatedAt, &object.UpdatedAt); err != nil {
+		if err := rows.Scan(&object.ID, &object.UserID, &object.CalendarID, &object.ObjectName, &object.UID, &object.Component, &object.ETag, &object.Size, &object.ICS, &object.CreatedAt, &object.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan CalDAV object: %w", err)
 		}
 		objects = append(objects, object)
@@ -407,7 +408,7 @@ func (r *Repository) GetObject(ctx context.Context, req GetObjectRequest) (Calen
 		return CalendarObject{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, calendar_id::text, object_name, uid, etag, size, ics, created_at, updated_at
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at
 FROM caldav_calendar_objects
 WHERE user_id = $1::uuid
   AND calendar_id = $2::uuid
@@ -420,6 +421,7 @@ WHERE user_id = $1::uuid
 		&object.CalendarID,
 		&object.ObjectName,
 		&object.UID,
+		&object.Component,
 		&object.ETag,
 		&object.Size,
 		&object.ICS,
@@ -461,7 +463,7 @@ WHERE user_id = $1::uuid
   AND calendar_id = $2::uuid
   AND object_name = $3
   AND status = 'active'
-RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, size, ics, created_at, updated_at`
+RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at`
 	var object CalendarObject
 	err = tx.QueryRowContext(ctx, query, req.UserID, req.CalendarID, req.ObjectName).Scan(
 		&object.ID,
@@ -469,6 +471,7 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, si
 		&object.CalendarID,
 		&object.ObjectName,
 		&object.UID,
+		&object.Component,
 		&object.ETag,
 		&object.Size,
 		&object.ICS,

@@ -78,6 +78,7 @@ type CalendarObject struct {
 	CalendarID string
 	ObjectName string
 	UID        string
+	Component  string
 	ETag       string
 	Size       int64
 	ICS        []byte

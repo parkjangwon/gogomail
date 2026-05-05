@@ -274,6 +274,48 @@ func TestHandlerReportCalendarQuerySkipsNonOverlappingTimeRange(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryFiltersByComponent(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	todoICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nSUMMARY:Review\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	store.objects = append(store.objects, CalendarObject{
+		ID:         "object-todo",
+		UserID:     "user-1",
+		CalendarID: "work",
+		ObjectName: "todo-1.ics",
+		UID:        "todo-1@example.com",
+		Component:  ComponentVTODO,
+		ETag:       `"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+		Size:       int64(len(todoICS)),
+		ICS:        todoICS,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	})
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VTODO"/>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "todo-1.ics") {
+		t.Fatalf("VTODO calendar-query missing todo object:\n%s", body)
+	}
+	if strings.Contains(body, "event-1.ics") {
+		t.Fatalf("VTODO calendar-query returned VEVENT object:\n%s", body)
+	}
+}
+
 func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing.T) {
 	t.Parallel()
 
@@ -864,6 +906,7 @@ func newFakeDiscoveryStore() *fakeDiscoveryStore {
 			CalendarID: "work",
 			ObjectName: "event-1.ics",
 			UID:        "event-1@example.com",
+			Component:  ComponentVEVENT,
 			ETag:       `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
 			Size:       int64(len(eventICS)),
 			ICS:        eventICS,
@@ -932,6 +975,7 @@ func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectReq
 		CalendarID: validated.CalendarID,
 		ObjectName: validated.ObjectName,
 		UID:        validated.UID,
+		Component:  validated.Component,
 		ETag:       etag,
 		Size:       int64(len(validated.ICS)),
 		ICS:        append([]byte(nil), validated.ICS...),

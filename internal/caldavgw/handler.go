@@ -734,6 +734,9 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
+		if !calendarObjectMatchesComponent(object, report.Component) {
+			continue
+		}
 		matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.TimeRange)
 		if err != nil {
 			return nil, err
@@ -755,6 +758,20 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, nil
+}
+
+func calendarObjectMatchesComponent(object CalendarObject, component string) bool {
+	component = strings.ToUpper(strings.TrimSpace(component))
+	if component == "" {
+		return true
+	}
+	if component == unsupportedCalendarQueryComponent {
+		return false
+	}
+	if object.Component == "" {
+		return true
+	}
+	return strings.EqualFold(object.Component, component)
 }
 
 func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource ResourcePath, timeRange TimeRange, includeChildren bool) ([]byte, error) {

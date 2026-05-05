@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV supported-report-set discovery)
+Last updated: 2026-05-06 (updated after CalDAV calendar-query component filtering)
 
 ## Current phase
 
@@ -2180,6 +2180,11 @@ The platform hardening sprint completed the following:
   `sync-collection`. This keeps native-client capability discovery aligned
   with implemented semantics instead of advertising future scheduling or
   recurrence features prematurely.
+- CalDAV `REPORT calendar-query` now honors simple top-level component filters
+  such as `VEVENT` and `VTODO` by using the repository's stored
+  `component_type` metadata before expensive time-range/body work. This keeps
+  common client filters from returning unrelated object types while preserving
+  the bounded iCalendar parser as the write-time source of truth.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
