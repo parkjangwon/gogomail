@@ -55,6 +55,13 @@ type CreateFileFromObjectRequest struct {
 	ChecksumSHA256 string
 }
 
+type ListNodesRequest struct {
+	UserID   string
+	ParentID string
+	Status   string
+	Limit    int
+}
+
 func ValidateCreateFolderRequest(req CreateFolderRequest) (CreateFolderRequest, string, error) {
 	userID, err := validateDriveID("user_id", req.UserID, true)
 	if err != nil {
@@ -121,6 +128,32 @@ func ValidateCreateFileFromObjectRequest(req CreateFileFromObjectRequest) (Creat
 		MIMEType:       mimeType,
 		ChecksumSHA256: checksum,
 	}, normalizedName, nil
+}
+
+func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return ListNodesRequest{}, err
+	}
+	parentID, err := validateDriveID("parent_id", req.ParentID, false)
+	if err != nil {
+		return ListNodesRequest{}, err
+	}
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = NodeStatusActive
+	}
+	status, err = ValidateNodeStatus(status)
+	if err != nil {
+		return ListNodesRequest{}, err
+	}
+	limit := normalizeDriveListLimit(req.Limit)
+	return ListNodesRequest{
+		UserID:   userID,
+		ParentID: parentID,
+		Status:   status,
+		Limit:    limit,
+	}, nil
 }
 
 func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) (Node, error) {
@@ -214,6 +247,81 @@ RETURNING
 		return Node{}, fmt.Errorf("create drive folder: %w", err)
 	}
 	return node, nil
+}
+
+func (r *Repository) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListNodesRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM drive_nodes
+WHERE user_id = $1::uuid
+  AND status = $3
+  AND (
+    (NULLIF($2, '') IS NULL AND parent_id IS NULL)
+    OR parent_id = NULLIF($2, '')::uuid
+  )
+ORDER BY
+  CASE WHEN node_type = 'folder' THEN 0 ELSE 1 END,
+  normalized_name ASC,
+  id ASC
+LIMIT $4`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list drive nodes: %w", err)
+	}
+	defer rows.Close()
+
+	nodes := make([]Node, 0, req.Limit)
+	for rows.Next() {
+		var node Node
+		if err := rows.Scan(
+			&node.ID,
+			&node.CompanyID,
+			&node.DomainID,
+			&node.UserID,
+			&node.ParentID,
+			&node.Type,
+			&node.Name,
+			&node.NormalizedName,
+			&node.MIMEType,
+			&node.Size,
+			&node.StorageBackend,
+			&node.StoragePath,
+			&node.ChecksumSHA256,
+			&node.Status,
+			&node.CreatedAt,
+			&node.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan drive node: %w", err)
+		}
+		nodes = append(nodes, node)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate drive nodes: %w", err)
+	}
+	return nodes, nil
 }
 
 func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Store, req CreateFileFromObjectRequest) (Node, error) {
@@ -501,4 +609,14 @@ func validateDriveChecksum(value string) (string, error) {
 		}
 	}
 	return value, nil
+}
+
+func normalizeDriveListLimit(limit int) int {
+	if limit <= 0 {
+		return 50
+	}
+	if limit > 200 {
+		return 200
+	}
+	return limit
 }

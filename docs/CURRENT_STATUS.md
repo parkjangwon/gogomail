@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive file finalize boundary)
+Last updated: 2026-05-06 (updated after Drive node list boundary)
 
 ## Current phase
 
@@ -243,6 +243,9 @@ guidance.
   storage backend/object metadata, verifies the object through `storage.Stat`,
   and increments the company/domain/user quota ledger in the same transaction
   as the `drive_nodes` file insert.
+- Drive now has an internal node-list repository read model for active,
+  trashed, or deleted nodes under a parent folder, with bounded limits and
+  folder-first stable ordering for future webmail/Drive clients.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
