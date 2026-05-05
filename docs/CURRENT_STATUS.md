@@ -2062,6 +2062,10 @@ The platform hardening sprint completed the following:
   roots (`calendar-query`, `calendar-multiget`, `free-busy-query`, and
   `sync-collection`) with body/property/href/depth limits before handlers are
   advertised.
+- CalDAV now has a PostgreSQL repository boundary for calendar create/list/get
+  and calendar-object upsert/list/get/soft-delete. Object writes validate `.ics`
+  resource names, UID/component metadata, strong ETags, optional observed ETags,
+  object-size limits, and bump calendar sync tokens in the same transaction.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

@@ -2022,6 +2022,11 @@ Implementation order:
       `calendar-query`, `calendar-multiget`, `free-busy-query`, and WebDAV
       `sync-collection`, with explicit body, property, href, and nesting
       limits before method handlers are advertised.
+1040. CalDAV storage now has a PostgreSQL repository boundary for calendar
+      create/list/get and calendar-object upsert/list/get/soft-delete, with
+      `.ics` resource-name validation, UID/component checks, strong ETag
+      generation, optional observed-ETag guards, object-size limits, and
+      transactional calendar sync-token bumps for future WebDAV sync handlers.
 
 ## Deferred until backend contracts stabilize
 
