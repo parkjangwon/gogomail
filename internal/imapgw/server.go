@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -166,9 +167,13 @@ func (s *Server) ServeConn(conn net.Conn) error {
 type imapConnState struct {
 	session         *Session
 	selectedMailbox MailboxID
+	pendingAuthTag  string
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
+	if state.pendingAuthTag != "" {
+		return s.handleAuthenticatePlainResponse(writer, strings.TrimRight(line, "\r\n"), state)
+	}
 	fields, parseErr := parseIMAPFields(strings.TrimRight(line, "\r\n"))
 	if parseErr != nil {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
@@ -206,6 +211,18 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		state.session = &authSession
 		_, err = writer.WriteString(tag + " OK LOGIN completed\r\n")
+		return false, err
+	case "AUTHENTICATE":
+		if state.session != nil {
+			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+			return false, err
+		}
+		if len(fields) != 3 || strings.ToUpper(fields[2]) != "PLAIN" {
+			_, err := writer.WriteString(tag + " BAD AUTHENTICATE mechanism is unsupported\r\n")
+			return false, err
+		}
+		state.pendingAuthTag = tag
+		_, err := writer.WriteString("+ \r\n")
 		return false, err
 	case "SELECT":
 		if state.session == nil {
@@ -291,6 +308,44 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
+	tag := state.pendingAuthTag
+	state.pendingAuthTag = ""
+	if strings.TrimSpace(line) == "*" {
+		_, err := writer.WriteString(tag + " NO AUTHENTICATE canceled\r\n")
+		return false, err
+	}
+	username, password, ok := decodeSASLPlain(line)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
+		return false, err
+	}
+	authSession, err := s.options.Backend.Authenticate(context.Background(), username, password)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO AUTHENTICATE failed\r\n")
+		return false, writeErr
+	}
+	state.session = &authSession
+	_, err = writer.WriteString(tag + " OK AUTHENTICATE completed\r\n")
+	return false, err
+}
+
+func decodeSASLPlain(value string) (string, string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", "", false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return "", "", false
+	}
+	parts := strings.Split(string(decoded), "\x00")
+	if len(parts) != 3 || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[1], parts[2], true
 }
 
 func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {

@@ -800,6 +800,9 @@ The platform hardening sprint completed the following:
   attributes, and `RFC822.SIZE` metadata requests do not trigger body streaming.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
+- IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
+  cancellation, and SASL PLAIN credential decoding over the existing protocol
+  auth adapter.
 - `gogomail --mode=imap` initializes the service-backed IMAP store adapter,
   a process-local mailbox event broker for future IDLE/session fan-out, and the
   configured TCP protocol listener.

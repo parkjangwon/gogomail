@@ -827,6 +827,9 @@ Implementation order:
 700. IMAP `CAPABILITY` responses now reflect connection state by dropping
      `AUTH=PLAIN` after authentication, and the command parser rejects
      unsupported synchronizing literal tokens instead of treating them as atoms.
+701. IMAP `AUTHENTICATE PLAIN` now supports the standard continuation flow with
+     SASL PLAIN base64 decoding, cancellation handling, and post-auth
+     capability state updates.
 
 ## Deferred until backend contracts stabilize
 
