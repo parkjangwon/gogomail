@@ -96,6 +96,66 @@ func TestHandlerPropfindCalendarCollectionDepthOne(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarMultiget(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>",
+		"<D:getetag>",
+		"<C:calendar-data>BEGIN:VCALENDAR",
+		"UID:event-1@example.com",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("calendar-multiget missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerReportCalendarMultigetReturnsPropertyNotFoundForMissingHref(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:href>/caldav/calendars/user-1/work/missing.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "HTTP/1.1 404 Not Found") {
+		t.Fatalf("missing href did not render 404 propstat:\n%s", body)
+	}
+}
+
+func TestHandlerReportRejectsUnsupportedReports(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level></D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerPropfindRejectsUnsafeDiscovery(t *testing.T) {
 	t.Parallel()
 
@@ -165,6 +225,7 @@ func newFakeDiscoveryStore() *fakeDiscoveryStore {
 			UID:        "event-1@example.com",
 			ETag:       `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
 			Size:       128,
+			ICS:        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}},

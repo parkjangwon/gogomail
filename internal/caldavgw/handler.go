@@ -48,10 +48,57 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveOptions(w)
 	case MethodPropfind:
 		h.servePropfind(w, r)
+	case MethodReport:
+		h.serveReport(w, r)
 	default:
 		w.Header().Set("Allow", calDAVAllowHeader())
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
+	if h.Store == nil {
+		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
+		return
+	}
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if resource.UserID != "" && resource.UserID != userID {
+		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+		return
+	}
+	report, err := ParseReport(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	responses, err := h.reportResponses(r.Context(), userID, resource, report)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	body, err := BuildMultiStatusXML(responses)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusMultiStatus)
+	_, _ = w.Write(body)
 }
 
 func (h *Handler) serveOptions(w http.ResponseWriter) {
@@ -207,6 +254,65 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 
 func responseForProperties(href string, propfind PropfindRequest, props []PropertyResult) MultiStatusResponse {
 	return MultiStatusResponse{Href: href, PropStats: SelectPropfindProperties(propfind, props)}
+}
+
+func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+	switch report.Kind {
+	case ReportCalendarMulti:
+		if resource.Kind != ResourceCalendarCollection && resource.Kind != ResourceCalendarHome {
+			return nil, fmt.Errorf("calendar-multiget requires a calendar collection or home resource")
+		}
+		return h.calendarMultigetResponses(ctx, userID, report)
+	default:
+		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
+	}
+}
+
+func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, report ReportRequest) ([]MultiStatusResponse, error) {
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
+	for _, href := range report.Hrefs {
+		resource, err := ParseResourcePath(href)
+		if err != nil || resource.Kind != ResourceCalendarObject || resource.UserID != userID {
+			responses = append(responses, notFoundResponse(href, report.Properties))
+			continue
+		}
+		object, err := h.Store.LookupCalendarObject(ctx, userID, resource.CalendarID, resource.ObjectName)
+		if err != nil {
+			responses = append(responses, notFoundResponse(href, report.Properties))
+			continue
+		}
+		props, err := CalendarObjectProperties(userID, object)
+		if err != nil {
+			return nil, err
+		}
+		if containsXMLName(report.Properties, PropCalendarData) {
+			props = append(props, CalendarObjectDataProperty(object.ICS))
+		}
+		objectHref, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
+		if err != nil {
+			return nil, err
+		}
+		responses = append(responses, responseForProperties(objectHref, propfind, props))
+	}
+	return responses, nil
+}
+
+func notFoundResponse(href string, properties []XMLName) MultiStatusResponse {
+	missing := make([]PropertyResult, 0, len(properties))
+	for _, prop := range properties {
+		missing = append(missing, PropertyResult{Name: prop})
+	}
+	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusNotFound, Properties: missing}}}
+}
+
+func containsXMLName(names []XMLName, target XMLName) bool {
+	for _, name := range names {
+		if name == target {
+			return true
+		}
+	}
+	return false
 }
 
 func calDAVAllowHeader() string {

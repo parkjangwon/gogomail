@@ -2100,6 +2100,10 @@ The platform hardening sprint completed the following:
   `calendar-multiget` requires bounded hrefs, `free-busy-query` requires a UTC
   time range, and `sync-collection` requires supported `sync-level=1` plus a
   bounded optional `limit`.
+- CalDAV now implements a first `REPORT calendar-multiget` handler for
+  authenticated calendar collections, returning multistatus object metadata and
+  requested `calendar-data` bodies while representing missing hrefs through
+  per-resource 404 propstats.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
