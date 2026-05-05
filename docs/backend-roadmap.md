@@ -905,6 +905,9 @@ Implementation order:
      a bounded server identity response for client compatibility diagnostics.
 728. IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox
      state and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
+729. IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit `NO` unsupported
+     responses instead of generic parser failures while `\Deleted` semantics
+     remain intentionally deferred.
 
 ## Deferred until backend contracts stabilize
 

@@ -851,6 +851,8 @@ The platform hardening sprint completed the following:
   identity response.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
+- IMAP `EXPUNGE` and `UID EXPUNGE` return explicit unsupported `NO` responses
+  while `\Deleted` semantics remain deferred.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
