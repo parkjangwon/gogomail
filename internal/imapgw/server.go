@@ -1921,6 +1921,8 @@ type imapMIMEPartRequest struct {
 	partial imapPartialBodyRequest
 }
 
+const maxIMAPMIMEPartPathDepth = 32
+
 func (r imapMIMEPartRequest) sectionName() string {
 	parts := make([]string, 0, len(r.path)+1)
 	for _, value := range r.path {
@@ -2018,6 +2020,9 @@ func imapParseMIMEPartRequestToken(token string) (imapMIMEPartRequest, bool) {
 		parts = parts[:len(parts)-1]
 	}
 	if len(parts) == 0 {
+		return imapMIMEPartRequest{}, false
+	}
+	if len(parts) > maxIMAPMIMEPartPathDepth {
 		return imapMIMEPartRequest{}, false
 	}
 	path := make([]int, 0, len(parts))

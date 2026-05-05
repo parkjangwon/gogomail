@@ -295,6 +295,8 @@ Current state:
 - `FETCH`/`UID FETCH` now supports bounded top-level multipart body-section
   literals such as `BODY[1]` and `BODY[2]`, letting clients read individual
   MIME parts without fetching the full message.
+- `FETCH`/`UID FETCH` now supports bounded nested multipart body-section
+  literals such as `BODY[1.2]` with a capped MIME part path depth.
 - `FETCH`/`UID FETCH` now answers conservative single-part MIME header requests
   for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - `FETCH`/`UID FETCH` now streams actual multipart child MIME headers for
@@ -403,8 +405,8 @@ Current state:
 
 Next:
 
-- Extend MIME literal fetches to nested part paths and broader multipart
-  subtypes beyond the current top-level part support.
+- Extend MIME literal fetches with more malformed multipart edge cases and
+  broader client fixture coverage.
 
 Frontend note:
 

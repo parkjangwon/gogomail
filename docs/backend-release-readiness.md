@@ -387,6 +387,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` now streams bounded top-level multipart
   body-section literals such as `BODY[1]` and `BODY[2]`, letting clients read
   individual MIME parts without fetching the full message.
+- IMAP `FETCH`/`UID FETCH` now streams bounded nested multipart body-section
+  literals such as `BODY[1.2]` with a capped MIME part path depth.
 - IMAP `FETCH`/`UID FETCH` now streams actual multipart child MIME headers for
   `BODY[n.MIME]` and `BODY.PEEK[n.MIME]` when the selected part exists.
 - IMAP `SEARCH`/`UID SEARCH` now support common flag criteria including
