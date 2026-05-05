@@ -24,7 +24,9 @@ Current state:
 
 - IMAP read-only selected-state mutation handling now validates malformed
   `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE` requests before
-  returning read-only `NO` failures for syntactically valid mutations.
+  returning read-only `NO` failures for syntactically valid mutations,
+  including invalid UID/sequence sets, STORE modes/flags, and destination
+  mailbox names.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

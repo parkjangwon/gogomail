@@ -540,10 +540,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if len(fields) < 5 {
 			return s.handleStore(writer, tag, fields, state)
 		}
-		if state.readOnly {
-			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
-			return false, err
-		}
 		return s.handleStore(writer, tag, fields, state)
 	case "COPY":
 		return s.handleCopy(writer, tag, fields, state)
@@ -641,10 +637,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		if len(fields) != 4 {
 			return s.handleMove(writer, tag, fields, state)
-		}
-		if state.readOnly {
-			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
-			return false, err
 		}
 		return s.handleMove(writer, tag, fields, state)
 	case "APPEND":
@@ -1183,18 +1175,10 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		if len(fields) < 6 {
 			return s.handleUIDStore(writer, tag, fields, state)
 		}
-		if state.readOnly {
-			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
-			return false, err
-		}
 		return s.handleUIDStore(writer, tag, fields, state)
 	case "EXPUNGE":
 		if len(fields) != 4 {
 			return s.handleUIDExpunge(writer, tag, fields, state)
-		}
-		if state.readOnly {
-			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
-			return false, err
 		}
 		return s.handleUIDExpunge(writer, tag, fields, state)
 	case "COPY":
@@ -1202,10 +1186,6 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "MOVE":
 		if len(fields) != 5 {
 			return s.handleUIDMove(writer, tag, fields, state)
-		}
-		if state.readOnly {
-			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
-			return false, err
 		}
 		return s.handleUIDMove(writer, tag, fields, state)
 	default:
@@ -2693,6 +2673,10 @@ func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 		return false, err
 	}
+	if state.readOnly {
+		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+		return false, err
+	}
 	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(destMailbox), "UID MOVE")
 }
 
@@ -2704,6 +2688,10 @@ func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []str
 	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires a positive UID set\r\n")
+		return false, err
+	}
+	if state.readOnly {
+		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 		return false, err
 	}
 	return s.writeExpungeResponses(writer, tag, state, uids, "UID EXPUNGE")
@@ -2787,6 +2775,10 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
+		return false, err
+	}
+	if state.readOnly {
+		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 		return false, err
 	}
 	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
@@ -4965,6 +4957,10 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE flags are unsupported\r\n")
 		return false, err
 	}
+	if state.readOnly {
+		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+		return false, err
+	}
 	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "UID STORE")
 }
 
@@ -4986,11 +4982,6 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD STORE requires a valid message sequence set\r\n")
 		return false, err
 	}
-	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
-	if err != nil {
-		_, writeErr := writer.WriteString(tag + " NO STORE failed\r\n")
-		return false, writeErr
-	}
 	unchangedSince, storeFields, ok := imapStoreUnchangedSince(fields[3:])
 	if !ok || len(storeFields) < 2 {
 		_, err := writer.WriteString(tag + " BAD STORE UNCHANGEDSINCE modifier is invalid\r\n")
@@ -5005,6 +4996,15 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD STORE flags are unsupported\r\n")
 		return false, err
+	}
+	if state.readOnly {
+		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+		return false, err
+	}
+	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO STORE failed\r\n")
+		return false, writeErr
 	}
 	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "STORE")
 }

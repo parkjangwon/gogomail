@@ -1327,6 +1327,10 @@ Implementation order:
      `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE` commands before
      returning `NO mailbox is read-only` for valid mutation attempts, keeping
      syntax errors precise for standards-aware clients.
+854. IMAP read-only mutation validation now covers full command syntax before
+     the read-only response, including invalid UID/sequence sets, unsupported
+     STORE modes/flags, and modified UTF-7 destination mailbox names, while
+     avoiding backend mutation work for syntactically valid `EXAMINE` attempts.
 
 ## Deferred until backend contracts stabilize
 

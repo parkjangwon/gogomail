@@ -1063,7 +1063,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP read-only selected-state mutation handling now preserves
   command-specific tagged `BAD` responses for malformed `STORE`/`MOVE` and UID
   mutation commands before returning read-only `NO` responses for valid
-  mutations.
+  mutations, without invoking backend mutation paths for syntactically valid
+  mutation attempts against `EXAMINE`-selected mailboxes.
 
 ## Must verify before release cut
 

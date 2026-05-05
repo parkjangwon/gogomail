@@ -1229,7 +1229,7 @@ func TestServerValidatesMalformedMutationsBeforeReadOnly(t *testing.T) {
 			t.Fatalf("read examine response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 STORE\r\na4 UID STORE\r\na5 MOVE 1\r\na6 UID MOVE\r\na7 UID EXPUNGE\r\na8 STORE 1 +FLAGS (\\Seen)\r\na9 UID STORE 7 +FLAGS (\\Seen)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 STORE\r\na4 UID STORE\r\na5 MOVE 1\r\na6 UID MOVE\r\na7 UID EXPUNGE\r\na8 UID EXPUNGE 0\r\na9 STORE 0 +FLAGS (\\Seen)\r\na10 STORE 1 BOGUS (\\Seen)\r\na11 STORE 1 +FLAGS (\\Bogus)\r\na12 UID STORE 0 +FLAGS (\\Seen)\r\na13 UID STORE 7 BOGUS (\\Seen)\r\na14 UID STORE 7 +FLAGS (\\Bogus)\r\na15 MOVE 0 Archive\r\na16 UID MOVE 0 Archive\r\na17 MOVE 1 &Jjo!\r\na18 UID MOVE 7 &Jjo!\r\na19 STORE 1 +FLAGS (\\Seen)\r\na20 UID STORE 7 +FLAGS (\\Seen)\r\na21 UID EXPUNGE 7\r\na22 MOVE 1 Archive\r\na23 UID MOVE 7 Archive\r\n")); err != nil {
 		t.Fatalf("write mutation commands: %v", err)
 	}
 	want := []string{
@@ -1238,8 +1238,22 @@ func TestServerValidatesMalformedMutationsBeforeReadOnly(t *testing.T) {
 		"a5 BAD MOVE requires sequence set and destination mailbox\r\n",
 		"a6 BAD UID MOVE requires UID set and destination mailbox\r\n",
 		"a7 BAD UID EXPUNGE requires UID set\r\n",
-		"a8 NO mailbox is read-only\r\n",
-		"a9 NO mailbox is read-only\r\n",
+		"a8 BAD UID EXPUNGE requires a positive UID set\r\n",
+		"a9 BAD STORE requires a valid message sequence set\r\n",
+		"a10 BAD STORE mode is unsupported\r\n",
+		"a11 BAD STORE flags are unsupported\r\n",
+		"a12 BAD UID STORE requires a positive UID set\r\n",
+		"a13 BAD UID STORE mode is unsupported\r\n",
+		"a14 BAD UID STORE flags are unsupported\r\n",
+		"a15 BAD MOVE requires a valid message sequence set\r\n",
+		"a16 BAD UID MOVE requires a positive UID set\r\n",
+		"a17 BAD MOVE destination mailbox name is not valid modified UTF-7\r\n",
+		"a18 BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n",
+		"a19 NO mailbox is read-only\r\n",
+		"a20 NO mailbox is read-only\r\n",
+		"a21 NO mailbox is read-only\r\n",
+		"a22 NO mailbox is read-only\r\n",
+		"a23 NO mailbox is read-only\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -1250,7 +1264,7 @@ func TestServerValidatesMalformedMutationsBeforeReadOnly(t *testing.T) {
 			t.Fatalf("mutation response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a24 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

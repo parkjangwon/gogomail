@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP read-only mutation syntax ordering)
+Last updated: 2026-05-05 (updated after full IMAP read-only mutation validation)
 
 ## Current phase
 
@@ -1479,7 +1479,8 @@ The platform hardening sprint completed the following:
 - IMAP read-only selected-state mutation commands now let malformed
   `STORE`/`MOVE`/`UID STORE`/`UID MOVE`/`UID EXPUNGE` requests return
   command-specific tagged `BAD` responses before valid mutations are rejected
-  with `NO mailbox is read-only`.
+  with `NO mailbox is read-only`, including invalid UID/sequence sets, STORE
+  modes/flags, and modified UTF-7 destination mailbox names.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
