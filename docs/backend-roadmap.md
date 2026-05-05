@@ -2266,6 +2266,10 @@ Implementation order:
       alias, and group-membership tables, and the shared principal resolver can
       load group and resource principals for future shared inbox, resource
       calendar, admin directory, and delegated access workflows.
+1095. Directory/Identity can resolve normalized email aliases to target user,
+      organization, group, or resource principals, with active aliases enforced
+      as globally unique normalized addresses for predictable mail, attendee,
+      and admin-console lookup semantics.
 
 ## Deferred until backend contracts stabilize
 
@@ -2277,8 +2281,8 @@ Implementation order:
 - IMAP
 - CalDAV public/client-ready compatibility
 - Directory/Identity expansion for delegated relationships, effective
-  membership checks, alias resolution, and resource booking policy beyond the
-  initial principal tables and resolver
+  membership checks, and resource booking policy beyond the initial principal
+  tables, resolver, and alias lookup
 - Contacts/CardDAV boundary for personal contacts, external people, and
   address-book metadata
 - Notification & Sync boundary for domain events, reminders, devices, quiet

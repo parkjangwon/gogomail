@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/gogomail/gogomail/internal/mail"
 )
 
 const (
@@ -35,6 +37,23 @@ type Principal struct {
 type ResolvePrincipalRequest struct {
 	ID         string
 	Kind       string
+	ActiveOnly bool
+}
+
+type Alias struct {
+	ID              string
+	CompanyID       string
+	DomainID        string
+	Address         string
+	AddressACE      string
+	TargetKind      string
+	TargetID        string
+	Status          string
+	TargetPrincipal Principal
+}
+
+type ResolveAliasRequest struct {
+	Address    string
 	ActiveOnly bool
 }
 
@@ -81,5 +100,20 @@ func NormalizeResolvePrincipalRequest(req ResolvePrincipalRequest) (ResolvePrinc
 	}
 	req.ID = id
 	req.Kind = kind
+	return req, nil
+}
+
+func NormalizeResolveAliasRequest(req ResolveAliasRequest) (ResolveAliasRequest, error) {
+	address, err := mail.NormalizeAddress(req.Address)
+	if err != nil {
+		return ResolveAliasRequest{}, err
+	}
+	if len(address) > 320 {
+		return ResolveAliasRequest{}, fmt.Errorf("alias address is too long")
+	}
+	if strings.ContainsAny(address, "\r\n") {
+		return ResolveAliasRequest{}, fmt.Errorf("alias address must not contain line breaks")
+	}
+	req.Address = address
 	return req, nil
 }

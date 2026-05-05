@@ -74,10 +74,55 @@ func TestNormalizePrincipalIDRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestNormalizeResolveAliasRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeResolveAliasRequest(ResolveAliasRequest{
+		Address:    " Ops@Example.COM ",
+		ActiveOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeResolveAliasRequest returned error: %v", err)
+	}
+	if got.Address != "ops@example.com" || !got.ActiveOnly {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeResolveAliasRequestRejectsInvalidAddresses(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"",
+		"not an address",
+		"ops@example.com\nbcc@example.net",
+		strings.Repeat("local", 90) + "@example.com",
+	}
+	for _, address := range tests {
+		address := address
+		t.Run(address, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeResolveAliasRequest(ResolveAliasRequest{Address: address}); err == nil {
+				t.Fatalf("NormalizeResolveAliasRequest(%q) error = nil, want rejection", address)
+			}
+		})
+	}
+}
+
 func TestRepositoryResolvePrincipalRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewRepository(nil).ResolvePrincipal(context.Background(), ResolvePrincipalRequest{ID: "user-1"})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryResolveAliasRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ResolveAlias(context.Background(), ResolveAliasRequest{Address: "ops@example.com"})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)
 	}
