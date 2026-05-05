@@ -220,6 +220,37 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	}
 }
 
+func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN \"user@example.com\" \"sec\\\\ret\"\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write login/logout: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	t.Parallel()
 
@@ -488,6 +519,17 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 	_, _ = reader.ReadString('\n')
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
+	t.Parallel()
+
+	if _, err := parseIMAPFields(`a1 LOGIN "user@example.com secret`); err == nil {
+		t.Fatal("parseIMAPFields accepted unterminated quoted string")
+	}
+	if _, err := parseIMAPFields("a1 LOGIN \"user\nbad\" secret"); err == nil {
+		t.Fatal("parseIMAPFields accepted quoted control character")
 	}
 }
 

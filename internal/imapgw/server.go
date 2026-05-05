@@ -169,7 +169,11 @@ type imapConnState struct {
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
-	fields := strings.Fields(strings.TrimRight(line, "\r\n"))
+	fields, parseErr := parseIMAPFields(strings.TrimRight(line, "\r\n"))
+	if parseErr != nil {
+		_, err := writer.WriteString("* BAD malformed command\r\n")
+		return false, err
+	}
 	if len(fields) < 2 {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
@@ -447,4 +451,55 @@ func imapQuotedString(value string) string {
 		return r
 	}, value)
 	return `"` + strings.Join(strings.Fields(value), " ") + `"`
+}
+
+func parseIMAPFields(line string) ([]string, error) {
+	fields := make([]string, 0, 4)
+	for i := 0; i < len(line); {
+		for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
+			i++
+		}
+		if i >= len(line) {
+			break
+		}
+		if line[i] == '"' {
+			i++
+			var b strings.Builder
+			closed := false
+			for i < len(line) {
+				switch line[i] {
+				case '\\':
+					i++
+					if i >= len(line) {
+						return nil, fmt.Errorf("unterminated quoted string")
+					}
+					b.WriteByte(line[i])
+					i++
+				case '"':
+					i++
+					fields = append(fields, b.String())
+					closed = true
+				default:
+					if line[i] < 0x20 || line[i] == 0x7f {
+						return nil, fmt.Errorf("invalid quoted control character")
+					}
+					b.WriteByte(line[i])
+					i++
+				}
+				if closed {
+					break
+				}
+			}
+			if !closed {
+				return nil, fmt.Errorf("unterminated quoted string")
+			}
+			continue
+		}
+		start := i
+		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
+			i++
+		}
+		fields = append(fields, line[start:i])
+	}
+	return fields, nil
 }

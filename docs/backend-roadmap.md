@@ -804,16 +804,19 @@ Implementation order:
      returns sanitized quoted mailbox names with hierarchy delimiters.
 693. Authenticated IMAP `STATUS` now maps to service-backed mailbox state and
      returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
-694. Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
+694. IMAP command parsing now supports basic quoted strings with backslash
+     escapes, allowing common quoted `LOGIN` credentials and mailbox atoms while
+     rejecting malformed quoted controls.
+695. Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
      RFC822 size metadata from the service-backed message fetch boundary.
-695. Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
+696. Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
      `-FLAGS` for supported system flags to the service-backed flag mutation
      boundary and returns updated flag metadata.
-696. `gogomail --mode=imap` now opens the configured TCP listener and serves the
+697. `gogomail --mode=imap` now opens the configured TCP listener and serves the
      IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `LIST`,
      `SELECT`, metadata `UID FETCH`, `UID STORE`, and `LOGOUT`, while
      body/header FETCH, IDLE, MOVE, and EXPUNGE remain deferred.
-697. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
+698. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.
 

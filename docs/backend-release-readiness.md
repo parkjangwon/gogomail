@@ -289,6 +289,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   returns sanitized quoted mailbox names with hierarchy delimiters.
 - Authenticated IMAP `STATUS` now maps to service-backed mailbox state and
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
+- IMAP command parsing now supports basic quoted strings with backslash escapes,
+  allowing common quoted `LOGIN` credentials and mailbox atoms while rejecting
+  malformed quoted controls.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
   RFC822 size metadata from the service-backed message fetch boundary.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
