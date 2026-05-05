@@ -268,6 +268,8 @@ Current state:
   response while richer MIME tree serialization remains future work.
 - `FETCH`/`UID FETCH` now support bounded header-only literals for
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
+- `FETCH`/`UID FETCH` now support text-only section literals for `BODY[TEXT]`,
+  `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
