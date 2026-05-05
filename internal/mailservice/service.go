@@ -600,16 +600,22 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	}
 	userID := strings.TrimSpace(string(req.UserID))
 	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
+		return nil, err
+	}
 	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince)
 	if err != nil {
 		var modified *imapgw.StoreModifiedError
 		if errors.As(err, &modified) {
-			_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), imapSuccessfulStoreSummaries(summaries, modified))
+			_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, userID, imapSuccessfulStoreSummaries(summaries, modified))
 			return summaries, err
 		}
 		return nil, err
 	}
-	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries)
+	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, userID, summaries)
 	return summaries, nil
 }
 
@@ -777,6 +783,15 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 	userID := strings.TrimSpace(string(req.UserID))
 	sourceMailboxID := strings.TrimSpace(string(req.SourceMailboxID))
 	destMailboxID := strings.TrimSpace(string(req.DestMailboxID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("source_mailbox_id", sourceMailboxID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("dest_mailbox_id", destMailboxID); err != nil {
+		return nil, err
+	}
 	summaries, err := repo.CopyIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
@@ -795,6 +810,15 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 	userID := strings.TrimSpace(string(req.UserID))
 	sourceMailboxID := strings.TrimSpace(string(req.SourceMailboxID))
 	destMailboxID := strings.TrimSpace(string(req.DestMailboxID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("source_mailbox_id", sourceMailboxID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("dest_mailbox_id", destMailboxID); err != nil {
+		return nil, err
+	}
 	results, err := repo.MoveIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
@@ -812,6 +836,12 @@ func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeReq
 	}
 	userID := strings.TrimSpace(string(req.UserID))
 	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
+		return nil, err
+	}
 	summaries, err := repo.ExpungeIMAPMessages(ctx, userID, mailboxID, req.UIDs)
 	if err != nil {
 		return nil, err

@@ -754,6 +754,9 @@ Current state:
   Service-level APPEND rejects CR/LF-bearing or oversized user/mailbox
   identifiers before repository lookup, spooling, parsing, storage, or quota
   work.
+- Service-level IMAP `STORE`, `COPY`, `MOVE`, and `EXPUNGE` mutations reject
+  CR/LF-bearing or oversized user/mailbox identifiers before repository
+  mutation dispatch or mailbox event publication.
 - Empty IMAP flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.

@@ -1623,6 +1623,10 @@ Implementation order:
      user and mailbox identifiers before repository lookup, spooling, parsing,
      storage, or quota work, keeping direct service callers aligned with the
      protocol boundary's defensive posture.
+936. IMAP service-backed `STORE`, `COPY`, `MOVE`, and `EXPUNGE` mutations now
+     reject CR/LF-bearing or oversized user and mailbox identifiers before
+     repository mutation dispatch or mailbox event publication, extending the
+     direct-call guardrails beyond APPEND.
 
 ## Deferred until backend contracts stabilize
 

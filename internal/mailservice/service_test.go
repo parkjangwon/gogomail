@@ -879,6 +879,82 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestIMAPMutationServicesRejectUnsafeIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		call   func(*Service) error
+		called func(*fakeRepository) bool
+	}{
+		{
+			name: "store unsafe user",
+			call: func(service *Service) error {
+				_, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
+					UserID:    "user-1\nbad",
+					MailboxID: "inbox",
+					UIDs:      []imapgw.UID{12},
+					Flags:     imapgw.MessageFlags{Read: true},
+					Mode:      imapgw.StoreFlagsAdd,
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPFlagUserID != "" },
+		},
+		{
+			name: "copy unsafe destination mailbox",
+			call: func(service *Service) error {
+				_, err := service.CopyIMAPMessages(context.Background(), imapgw.CopyMessagesRequest{
+					UserID:          "user-1",
+					SourceMailboxID: "inbox",
+					DestMailboxID:   imapgw.MailboxID(strings.Repeat("m", maxServiceResourceIDBytes+1)),
+					UIDs:            []imapgw.UID{12},
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPCopyUserID != "" },
+		},
+		{
+			name: "move unsafe source mailbox",
+			call: func(service *Service) error {
+				_, err := service.MoveIMAPMessages(context.Background(), imapgw.MoveMessagesRequest{
+					UserID:          "user-1",
+					SourceMailboxID: "inbox\r\nbad",
+					DestMailboxID:   "archive",
+					UIDs:            []imapgw.UID{12},
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMoveUserID != "" },
+		},
+		{
+			name: "expunge unsafe mailbox",
+			call: func(service *Service) error {
+				_, err := service.ExpungeIMAPMessages(context.Background(), imapgw.ExpungeRequest{
+					UserID:    "user-1",
+					MailboxID: "inbox\nbad",
+					UIDs:      []imapgw.UID{12},
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPExpungeUserID != "" },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &fakeRepository{}
+			service := New(repo, nil)
+			if err := tc.call(service); err == nil {
+				t.Fatal("IMAP mutation service accepted unsafe identifier")
+			}
+			if tc.called(repo) {
+				t.Fatal("repository was called before identifier validation")
+			}
+		})
+	}
+}
+
 func TestStoreIMAPFlagsModifiedPublishesOnlySuccessfulSummaries(t *testing.T) {
 	t.Parallel()
 
