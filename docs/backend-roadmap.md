@@ -1541,6 +1541,9 @@ Implementation order:
 913. S3-compatible access key IDs now reject spaces, tabs, and line breaks
      during config validation and adapter construction, preventing copied
      credential mistakes from being silently trimmed before SigV4 signing.
+914. S3-compatible bucket validation now requires bucket names to start and end
+     with a letter or digit, rejecting dot-edge names such as `.gogomail` and
+     `gogomail.` before adapter construction.
 
 ## Deferred until backend contracts stabilize
 
