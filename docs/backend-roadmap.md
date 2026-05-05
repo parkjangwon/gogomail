@@ -971,6 +971,10 @@ Implementation order:
      that walks multipart trees, preserves raw transfer-encoding metadata,
      counts body octets/lines, and avoids retaining attachment payloads for
      future IMAP `BODYSTRUCTURE` serialization.
+755. IMAP metadata-only `BODYSTRUCTURE` fetches now use the streaming
+     MIME-structure parser to return multipart child order, subtype, parameters,
+     transfer encodings, dispositions, body octets, and text line counts without
+     retaining attachment payloads.
 
 ## Deferred until backend contracts stabilize
 

@@ -823,6 +823,10 @@ The platform hardening sprint completed the following:
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
   parameters, content-transfer-encoding, ID, and description from bounded raw
   message headers instead of always reporting text/plain defaults.
+- IMAP `BODYSTRUCTURE` now uses the streaming MIME-structure parser for
+  metadata-only fetches, returning multipart child order, subtype, parameters,
+  transfer encodings, dispositions, body octets, and text line counts without
+  retaining attachment payloads.
 - IMAP `FETCH`/`UID FETCH` supports standard `FAST`, `ALL`, and `FULL` macros,
   including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded header-only literals for

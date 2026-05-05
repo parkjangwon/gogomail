@@ -271,6 +271,10 @@ Current state:
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
   parameters, content-transfer-encoding, ID, and description from bounded raw
   message headers instead of always reporting text/plain defaults.
+- Metadata-only `BODYSTRUCTURE` fetches now use the streaming MIME-structure
+  parser to return multipart child order, subtype, parameters, transfer
+  encodings, dispositions, body octets, and text line counts without retaining
+  attachment payloads.
 - `FETCH`/`UID FETCH` now supports standard `FAST`, `ALL`, and `FULL` macros,
   including the non-extensible `BODY` attribute for `FULL`.
 - `FETCH`/`UID FETCH` now support bounded header-only literals for
@@ -365,8 +369,8 @@ Current state:
 
 Next:
 
-- Wire the new streaming MIME-structure parser into IMAP `BODYSTRUCTURE` for
-  higher-fidelity client previews.
+- Extend MIME-tree metadata reuse to combined `BODYSTRUCTURE` plus literal body
+  fetches by adding a safe reopen or precomputed metadata path.
 
 Frontend note:
 
