@@ -174,6 +174,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
   and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical
   principal/calendar/object path parsing before WebDAV handlers are advertised.
+- CalDAV storage now has migration-backed calendar and calendar-object tables
+  plus gateway validation for calendar metadata, supported top-level iCalendar
+  components, UID bounds, strong ETags, sync-token derivation, and maximum `.ics`
+  object bytes.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

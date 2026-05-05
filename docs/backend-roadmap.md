@@ -2012,6 +2012,10 @@ Implementation order:
       DAV tokens, principal paths, calendar-home paths, calendar collections,
       and `.ics` object paths before storage or public protocol handlers are
       enabled.
+1038. CalDAV storage groundwork now has `caldav_calendars` and
+      `caldav_calendar_objects` migrations plus gateway validation for calendar
+      metadata, supported top-level iCalendar components, object UIDs, strong
+      ETags, sync-token derivation, and bounded `.ics` object bodies.
 
 ## Deferred until backend contracts stabilize
 

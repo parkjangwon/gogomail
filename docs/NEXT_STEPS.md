@@ -1403,6 +1403,10 @@ Current state:
   boundary, `gogomail --mode=caldav` is a runtime scaffold, and
   `internal/caldavgw` owns RFC/WebDAV method tokens plus principal, calendar
   home, collection, and `.ics` object path parsing.
+- CalDAV storage groundwork now includes `caldav_calendars` and
+  `caldav_calendar_objects`, with gateway validation for names, colors,
+  descriptions, component types, UIDs, strong ETags, sync-token derivation, and
+  bounded `.ics` object bodies.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1412,10 +1416,10 @@ Current state:
 
 Next:
 
-- Continue CalDAV with PostgreSQL calendar/calendar-object migrations,
-  iCalendar parser/serializer selection, ETag/sync-token storage, bounded
-  WebDAV XML parsing, and `OPTIONS`/`PROPFIND` discovery handlers before
-  advertising client-ready compatibility.
+- Continue CalDAV with repository methods for calendar/object CRUD,
+  iCalendar parser/serializer selection, bounded WebDAV XML parsing, and
+  `OPTIONS`/`PROPFIND` discovery handlers before advertising client-ready
+  compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

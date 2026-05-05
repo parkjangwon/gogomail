@@ -46,6 +46,18 @@ calendar-home-set, calendar collections, `.ics` object paths, ETags, sync
 tokens, supported-calendar-component-set, REPORT handling, and WebDAV XML
 response envelopes.
 
+The first persisted storage boundary uses dedicated tables:
+
+- `caldav_calendars` for user-owned calendar collections, display metadata,
+  lifecycle state, and sync tokens;
+- `caldav_calendar_objects` for individual `.ics` resources, iCalendar UID,
+  top-level component type, strong ETag, object size, and bounded iCalendar
+  payloads.
+
+ETags are strong quoted SHA-256 values over the stored iCalendar bytes. Sync
+tokens are stored explicitly on calendars so WebDAV sync behavior can evolve
+without deriving client state from timestamps or list pagination.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles
