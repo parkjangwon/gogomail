@@ -341,9 +341,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Policy/Audit boundaries needed for shared/delegated/resource calendars.
 - The first Directory/Identity boundary is intentionally narrow:
   `internal/directory` resolves active user principals through shared
-  user/domain/company state, and CalDAV discovery delegates to it. This does not
-  make shared calendars, resource booking, group principals, aliases,
-  memberships, or delegated access public-release ready yet.
+  user/domain/company state and organization principals through
+  organization/domain/company state, while CalDAV discovery delegates active
+  user lookup to it. This does not make shared calendars, resource booking,
+  group principals, aliases, memberships, or delegated access public-release
+  ready yet.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
