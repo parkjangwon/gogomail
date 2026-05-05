@@ -17,6 +17,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_INBOUND_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "")
 	t.Setenv("GOGOMAIL_IMAP_ADDR", "")
+	t.Setenv("GOGOMAIL_IMAP_TLS_CERT_FILE", "")
+	t.Setenv("GOGOMAIL_IMAP_TLS_KEY_FILE", "")
+	t.Setenv("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
@@ -139,6 +142,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.IMAPAddr != ":1143" {
 		t.Fatalf("IMAPAddr = %q, want :1143", cfg.IMAPAddr)
+	}
+	if cfg.IMAPTLSCertFile != "" || cfg.IMAPTLSKeyFile != "" {
+		t.Fatalf("IMAP TLS files = %q/%q, want empty", cfg.IMAPTLSCertFile, cfg.IMAPTLSKeyFile)
+	}
+	if !cfg.IMAPAllowInsecureAuth {
+		t.Fatal("IMAPAllowInsecureAuth = false, want true in development defaults")
 	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)

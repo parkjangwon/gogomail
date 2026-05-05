@@ -30,8 +30,14 @@ func (c Config) Validate() error {
 	if c.SubmissionAllowInsecureAuth && strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH must be false in production")
 	}
+	if c.IMAPAllowInsecureAuth && strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
+		return fmt.Errorf("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH must be false in production")
+	}
 	if (c.SMTPTLSCertFile == "") != (c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("both SMTP TLS certificate and key files are required")
+	}
+	if (c.IMAPTLSCertFile == "") != (c.IMAPTLSKeyFile == "") {
+		return fmt.Errorf("both IMAP TLS certificate and key files are required")
 	}
 	if c.HTTPReadTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_HTTP_READ_TIMEOUT must be positive")
@@ -58,6 +64,12 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := validateTCPAddr("GOGOMAIL_IMAP_ADDR", c.IMAPAddr, true); err != nil {
+		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_CERT_FILE", c.IMAPTLSCertFile, 4096); err != nil {
+		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_KEY_FILE", c.IMAPTLSKeyFile, 4096); err != nil {
 		return err
 	}
 	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_ADDR", c.SubmissionAddr, true); err != nil {

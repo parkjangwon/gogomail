@@ -162,6 +162,8 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"imap gateway scaffold ready",
 		"mode", ModeIMAP,
 		"addr", cfg.IMAPAddr,
+		"tls_configured", strings.TrimSpace(cfg.IMAPTLSCertFile) != "",
+		"allow_insecure_auth", cfg.IMAPAllowInsecureAuth,
 		"mailbox_event_broker", runtime.events != nil,
 		"backend_adapter", "service",
 		"protocol_listener", "deferred",

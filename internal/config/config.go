@@ -19,6 +19,9 @@ type Config struct {
 	InboundSMTPAddr                     string
 	InboundTrustedRelays                []string
 	IMAPAddr                            string
+	IMAPTLSCertFile                     string
+	IMAPTLSKeyFile                      string
+	IMAPAllowInsecureAuth               bool
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxRecipients             int
@@ -182,6 +185,9 @@ func Load() Config {
 		InboundSMTPAddr:                     envOrDefault("GOGOMAIL_INBOUND_SMTP_ADDR", ":2526"),
 		InboundTrustedRelays:                splitCSV(envOrDefault("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "127.0.0.1/32,::1/128")),
 		IMAPAddr:                            envOrDefault("GOGOMAIL_IMAP_ADDR", ":1143"),
+		IMAPTLSCertFile:                     envOrDefault("GOGOMAIL_IMAP_TLS_CERT_FILE", ""),
+		IMAPTLSKeyFile:                      envOrDefault("GOGOMAIL_IMAP_TLS_KEY_FILE", ""),
+		IMAPAllowInsecureAuth:               boolEnvOrDefault("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxRecipients:             intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),

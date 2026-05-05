@@ -255,6 +255,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Runtime config now loads and validates `GOGOMAIL_IMAP_ADDR` as required TCP
   listener metadata for the scaffold, preparing the future protocol listener
   without opening the port yet.
+- Runtime config also loads and validates IMAP TLS certificate/key paths plus
+  `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH`, preventing production IMAP auth from
+  being enabled with cleartext credential policy.
 - ADR 0008 records the IMAP authentication/session contract: protocol auth uses
   a dedicated adapter over local user password hashes, JWT remains HTTP-only,
   production auth requires TLS policy review, and MOVE/EXPUNGE stay explicitly

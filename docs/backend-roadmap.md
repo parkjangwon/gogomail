@@ -764,6 +764,9 @@ Implementation order:
 681. `mailservice.NewIMAPBackendAdapter` now composes the protocol authenticator
      with the service-backed store/session adapter, giving the future TCP
      listener a single `imapgw.Backend` boundary.
+682. Runtime config now loads and validates IMAP TLS certificate/key paths plus
+     `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH`, preventing production IMAP auth from
+     being enabled with cleartext credential policy.
 
 ## Deferred until backend contracts stabilize
 
