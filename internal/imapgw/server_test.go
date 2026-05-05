@@ -2161,6 +2161,66 @@ func TestServerHandlesUIDFetchModSeqAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesUIDFetchChangedSinceAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS) (CHANGEDSINCE 17)\r\na4 UID FETCH 7 (FLAGS) (CHANGEDSINCE nope)\r\n")); err != nil {
+		t.Fatalf("write uid fetch changedsince: %v", err)
+	}
+	want := []string{
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41 MODSEQ (18))\r\n",
+		"a3 OK UID FETCH completed\r\n",
+		"a4 BAD FETCH CHANGEDSINCE modifier is invalid\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch changedsince response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch changedsince response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read logout response: %v", err)
+		}
+		if line == "a5 OK LOGOUT completed\r\n" {
+			break
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	t.Parallel()
 

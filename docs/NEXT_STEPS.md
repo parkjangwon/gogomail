@@ -289,6 +289,9 @@ Current state:
 - `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria,
   including optional metadata entry/type arguments, and return the highest
   matched mod-sequence in non-empty SEARCH responses.
+- `FETCH`/`UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE` modifiers,
+  returning only messages with greater per-message mod-sequences and
+  implicitly adding `MODSEQ` attributes.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
