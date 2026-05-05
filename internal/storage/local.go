@@ -48,7 +48,7 @@ func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error
 		}
 	}()
 
-	_, copyErr := io.Copy(file, body)
+	_, copyErr := io.Copy(file, contextReader{ctx: ctx, reader: body})
 	closeErr := file.Close()
 	if copyErr != nil {
 		return fmt.Errorf("write storage object: %w", copyErr)
@@ -65,6 +65,18 @@ func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error
 	}
 	committed = true
 	return nil
+}
+
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r contextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(p)
 }
 
 func (s *LocalStore) Get(ctx context.Context, path string) (io.ReadCloser, error) {

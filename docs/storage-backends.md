@@ -23,6 +23,8 @@ of line breaks when the local backend is active.
 Writes are staged through unique temporary files in the destination directory
 and committed with `rename`, avoiding fixed `.tmp` collisions on local or
 NFS-style mounts while preserving atomic object replacement semantics.
+Canceled write contexts stop body copy, remove the staged temp object, and do
+not commit partial data.
 Deletes are idempotent for missing objects, matching S3-style cleanup behavior
 so lifecycle workers behave consistently across storage backends.
 

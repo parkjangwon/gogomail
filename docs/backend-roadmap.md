@@ -1663,6 +1663,10 @@ Implementation order:
      literal `+` preservation as object keys, keeping reverse-proxy/base-path
      deployments aligned with SigV4 canonical request paths across AWS S3,
      MinIO, and strict compatible providers.
+947. Local/NFS-style storage writes now honor context cancellation during body
+     copy, cleaning staged temp objects and avoiding partial object commits,
+     aligning local/NFS cancellation semantics with S3-compatible request
+     cancellation.
 
 ## Deferred until backend contracts stabilize
 

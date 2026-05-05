@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3 base-path escaping hardening)
+Last updated: 2026-05-05 (updated after Local/NFS write cancellation hardening)
 
 ## Current phase
 
@@ -223,6 +223,9 @@ guidance.
 - Local/NFS-style storage writes now stage through unique temporary files in
   the target directory before `rename`, avoiding fixed `.tmp` collisions while
   preserving atomic object replacement semantics.
+- Local/NFS-style storage writes now honor context cancellation during body
+  copy, removing staged temp objects instead of committing partial data after a
+  canceled request.
 - Local/NFS-style storage deletes now treat already-missing objects as success,
   aligning cleanup semantics with S3-compatible delete behavior across storage
   backends.
