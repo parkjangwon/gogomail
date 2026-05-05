@@ -314,6 +314,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `GetRange` now also bounded-drains unread range bytes on early
   close, improving connection reuse for canceled preview/download paths without
   unbounded cleanup reads.
+- IMAP `STATUS` and LIST-STATUS now reject duplicate status data items before
+  mailbox metadata lookup, avoiding ambiguous duplicate status pairs in
+  client-visible responses.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

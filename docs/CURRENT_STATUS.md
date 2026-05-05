@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 partial range early-close drain)
+Last updated: 2026-05-06 (updated after IMAP duplicate STATUS item rejection)
 
 ## Current phase
 
@@ -2242,6 +2242,9 @@ The platform hardening sprint completed the following:
   when callers close a range reader before consuming the full requested window,
   improving connection reuse for preview/cancel paths without unbounded drain
   work.
+- IMAP `STATUS` and LIST-STATUS item parsing now rejects duplicate status data
+  items before mailbox metadata lookup, avoiding ambiguous duplicate
+  client-visible status pairs.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
