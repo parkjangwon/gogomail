@@ -37,6 +37,7 @@ type Repository interface {
 	BulkSetThreadFlag(ctx context.Context, req maildb.BulkThreadFlagRequest) (maildb.BulkThreadFlagResult, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
+	BulkMoveThreads(ctx context.Context, req maildb.BulkThreadMoveRequest) (maildb.BulkThreadMoveResult, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
@@ -1176,6 +1177,34 @@ func (s *Service) BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMo
 	return updated, nil
 }
 
+func (s *Service) BulkMoveThreads(ctx context.Context, req maildb.BulkThreadMoveRequest) (int64, error) {
+	req = normalizeBulkThreadMoveRequest(req)
+	if err := maildb.ValidateBulkThreadMoveRequest(req); err != nil {
+		return 0, err
+	}
+	repo, ok := s.repository.(interface {
+		ListMessageIDsForThreads(context.Context, string, []string) ([]string, error)
+		BulkMoveThreads(context.Context, maildb.BulkThreadMoveRequest) (maildb.BulkThreadMoveResult, error)
+	})
+	if !ok {
+		return 0, fmt.Errorf("thread move repository is required")
+	}
+	messageIDs, err := repo.ListMessageIDsForThreads(ctx, req.UserID, req.ThreadIDs)
+	if err != nil {
+		return 0, err
+	}
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, req.UserID, messageIDs)
+	if err != nil {
+		return 0, err
+	}
+	result, err := repo.BulkMoveThreads(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids)
+	return result.Updated, nil
+}
+
 func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID string) error {
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
@@ -2147,6 +2176,13 @@ func normalizeBulkThreadFlagRequest(req maildb.BulkThreadFlagRequest) maildb.Bul
 func normalizeBulkMessageMoveRequest(req maildb.BulkMessageMoveRequest) maildb.BulkMessageMoveRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	req.FolderID = strings.TrimSpace(req.FolderID)
+	return req
+}
+
+func normalizeBulkThreadMoveRequest(req maildb.BulkThreadMoveRequest) maildb.BulkThreadMoveRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.ThreadIDs = normalizeStringList(req.ThreadIDs)
 	req.FolderID = strings.TrimSpace(req.FolderID)
 	return req
 }

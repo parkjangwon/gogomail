@@ -86,6 +86,17 @@ type BulkThreadFlagResult struct {
 	MessageIDs []string
 }
 
+type BulkThreadMoveRequest struct {
+	UserID    string   `json:"user_id,omitempty"`
+	ThreadIDs []string `json:"thread_ids"`
+	FolderID  string   `json:"folder_id"`
+}
+
+type BulkThreadMoveResult struct {
+	Updated    int64
+	MessageIDs []string
+}
+
 type BulkMessageMoveRequest struct {
 	UserID     string   `json:"user_id,omitempty"`
 	MessageIDs []string `json:"message_ids"`
@@ -156,6 +167,25 @@ func ValidateBulkMessageMoveRequest(req BulkMessageMoveRequest) error {
 		return fmt.Errorf("too many message_ids")
 	}
 	return validateBulkMessageIDs(req.MessageIDs)
+}
+
+func ValidateBulkThreadMoveRequest(req BulkThreadMoveRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if strings.TrimSpace(req.FolderID) == "" {
+		return fmt.Errorf("folder_id is required")
+	}
+	if err := validateMailboxResourceID("folder_id", req.FolderID); err != nil {
+		return err
+	}
+	if len(req.ThreadIDs) == 0 {
+		return fmt.Errorf("thread_ids is required")
+	}
+	if len(req.ThreadIDs) > BulkMessageMaxIDs {
+		return fmt.Errorf("too many thread_ids")
+	}
+	return validateBulkThreadIDs(req.ThreadIDs)
 }
 
 func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
@@ -802,6 +832,52 @@ SELECT id
 FROM updated_messages
 ORDER BY id`
 
+func (r *Repository) ListMessageIDsForThreads(ctx context.Context, userID string, threadIDs []string) ([]string, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if err := validateBulkThreadIDs(threadIDs); err != nil {
+		return nil, err
+	}
+	rawIDs, err := json.Marshal(threadIDs)
+	if err != nil {
+		return nil, fmt.Errorf("encode thread ids: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, listMessageIDsForThreadsSQL, userID, string(rawIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list message ids for threads: %w", err)
+	}
+	defer rows.Close()
+
+	var messageIDs []string
+	for rows.Next() {
+		var messageID string
+		if err := rows.Scan(&messageID); err != nil {
+			return nil, fmt.Errorf("scan thread message id: %w", err)
+		}
+		messageIDs = append(messageIDs, messageID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate thread message ids: %w", err)
+	}
+	return messageIDs, nil
+}
+
+const listMessageIDsForThreadsSQL = `
+SELECT id::text
+FROM messages
+WHERE user_id = $1
+  AND status = 'active'
+  AND COALESCE(thread_id, id)::text IN (
+    SELECT value FROM jsonb_array_elements_text($2::jsonb)
+  )
+ORDER BY id`
+
 func (r *Repository) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
@@ -912,6 +988,71 @@ RETURNING id::text`
 	}
 	return int64(len(movedIDs)), nil
 }
+
+func (r *Repository) BulkMoveThreads(ctx context.Context, req BulkThreadMoveRequest) (BulkThreadMoveResult, error) {
+	if r.db == nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkThreadMoveRequest(req); err != nil {
+		return BulkThreadMoveResult{}, err
+	}
+	userID := strings.TrimSpace(req.UserID)
+	folderID := strings.TrimSpace(req.FolderID)
+	rawIDs, err := json.Marshal(req.ThreadIDs)
+	if err != nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("encode thread ids: %w", err)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("begin bulk thread move transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx, bulkMoveThreadsSQL, userID, string(rawIDs), folderID)
+	if err != nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("bulk move threads: %w", err)
+	}
+	var movedIDs []string
+	for rows.Next() {
+		var movedID string
+		if err := rows.Scan(&movedID); err != nil {
+			rows.Close()
+			return BulkThreadMoveResult{}, fmt.Errorf("scan bulk moved thread message: %w", err)
+		}
+		movedIDs = append(movedIDs, movedID)
+	}
+	if err := rows.Close(); err != nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("close bulk moved thread rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("iterate bulk moved thread messages: %w", err)
+	}
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, movedIDs); err != nil {
+		return BulkThreadMoveResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return BulkThreadMoveResult{}, fmt.Errorf("commit bulk thread move transaction: %w", err)
+	}
+	return BulkThreadMoveResult{Updated: int64(len(movedIDs)), MessageIDs: movedIDs}, nil
+}
+
+const bulkMoveThreadsSQL = `
+UPDATE messages
+SET folder_id = $3,
+    updated_at = now()
+WHERE user_id = $1
+  AND COALESCE(thread_id, id)::text IN (
+    SELECT value FROM jsonb_array_elements_text($2::jsonb)
+  )
+  AND status = 'active'
+  AND EXISTS (
+    SELECT 1
+    FROM folders
+    WHERE folders.id = $3
+      AND folders.user_id = $1
+  )
+RETURNING id::text`
 
 func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID string) error {
 	if r.db == nil {

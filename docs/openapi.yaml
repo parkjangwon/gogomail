@@ -392,6 +392,19 @@ paths:
           $ref: "#/components/responses/BulkUpdate"
         default:
           $ref: "#/components/responses/Error"
+  /threads/bulk/folder:
+    patch:
+      operationId: bulkMoveThreads
+      summary: Bounded bulk conversation folder move
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/BulkThreadMove"
+      responses:
+        "200":
+          $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/attachments:
     get:
       operationId: listMessageAttachments
@@ -3100,6 +3113,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/BulkMessageMoveRequest"
+    BulkThreadMove:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkThreadMoveRequest"
     BulkMessageDelete:
       required: true
       content:
@@ -3840,7 +3859,7 @@ components:
             enum: [read, starred, answered, forwarded]
         bulk_actions:
           type: object
-          required: [max_message_ids, flags, thread_flags, move, delete]
+          required: [max_message_ids, flags, thread_flags, move, thread_move, delete]
           properties:
             max_message_ids:
               type: integer
@@ -3851,6 +3870,8 @@ components:
             thread_flags:
               type: boolean
             move:
+              type: boolean
+            thread_move:
               type: boolean
             delete:
               type: boolean
@@ -6353,6 +6374,19 @@ components:
       required: [message_ids, folder_id]
       properties:
         message_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            maxLength: 200
+        folder_id:
+          type: string
+          maxLength: 200
+    BulkThreadMoveRequest:
+      type: object
+      required: [thread_ids, folder_id]
+      properties:
+        thread_ids:
           type: array
           maxItems: 500
           items:

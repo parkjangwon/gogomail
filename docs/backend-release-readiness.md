@@ -32,6 +32,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API exposes bounded thread-level bulk flag updates for efficient
   conversation-list read/starred/answered/forwarded actions with IMAP flag
   event fanout for the updated messages.
+- Mail API exposes bounded thread-level folder moves for efficient
+  conversation-list archive/move workflows while preserving destination-folder
+  validation, IMAP UID invalidation, and expunge event fanout.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
