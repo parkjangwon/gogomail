@@ -2041,6 +2041,10 @@ Implementation order:
       headers, safe depth handling, user/path scope checks, and multistatus
       discovery responses for principals, calendar homes, collections, and
       objects before the public listener is enabled.
+1044. The PostgreSQL CalDAV repository now satisfies the discovery store
+      boundary with active principal lookup and calendar/object list/get
+      adapters, preparing `PROPFIND` runtime wiring without exposing the public
+      listener yet.
 
 ## Deferred until backend contracts stabilize
 

@@ -2080,6 +2080,9 @@ The platform hardening sprint completed the following:
   unsafe infinite-depth discovery, enforces authenticated user/path scope, and
   can render principal, calendar-home, calendar-collection, and calendar-object
   multistatus responses before the public listener is enabled.
+- The PostgreSQL CalDAV repository now satisfies the discovery store boundary,
+  including active principal lookup through active user/domain/company scope and
+  calendar/object list/get adapters for the internal `PROPFIND` handler.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

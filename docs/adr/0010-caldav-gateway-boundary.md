@@ -87,6 +87,10 @@ client-visible protocol activation separate from the internal handler work
 until authentication, TLS, repository adapter wiring, and compatibility tests
 are reviewed together.
 
+The PostgreSQL repository is adapted to the discovery store interface inside
+`internal/caldavgw`, so runtime wiring can use the same tested handler boundary
+without coupling WebDAV XML generation to raw SQL call sites.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles
