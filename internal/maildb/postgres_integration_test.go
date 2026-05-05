@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -890,6 +891,9 @@ WHERE user_id = $1::uuid
 	}
 	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, assigned[0].UID); err == nil {
 		t.Fatal("GetIMAPMessage found moved message in old mailbox")
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID); !errors.Is(err, ErrIMAPMessageNotActive) {
+		t.Fatalf("EnsureIMAPMessageUID for stale old mailbox error = %v, want ErrIMAPMessageNotActive", err)
 	}
 	movedUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.sentID, firstID)
 	if err != nil {

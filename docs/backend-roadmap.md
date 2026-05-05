@@ -698,6 +698,7 @@ Implementation order:
 638. Admin GET/DELETE routes and bodyless Admin POST commands now reject request bodies and `Content-Type` headers before dispatch, preventing ignored payloads on operator reads, deletes, route verification, retry, IMAP UID backfill, API-usage export-batch creation, and manifest digest/signature creation.
 639. Redis stream consumers now inspect Redis pending delivery counts and move repeatedly handler-failing messages into a durable dead-letter stream before acknowledging the original event, preventing one poison event from pinning event/search/API-metering/push/delivery workers forever while still allowing transient handler retries first.
 640. Event, search-index, API-metering, push-notification, and delivery workers now expose per-worker Redis consumer max-delivery and dead-letter-stream configuration, making poison-event handling tunable without code changes.
+641. IMAP UID assignment now reuses existing UIDs only when the message is still active in the same user/mailbox and treats stale moved/deleted `mail.stored` events as no-ops, preventing cross-mailbox UID reuse and permanent retries from legitimate mailbox races.
 
 ## Deferred until backend contracts stabilize
 
