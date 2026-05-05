@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Admin command query guardrails)
+Last updated: 2026-05-05 (updated after Admin mutation query guardrails)
 
 ## Current phase
 
@@ -953,6 +953,10 @@ The platform hardening sprint completed the following:
   outbox retry, DKIM deactivation, suppression deletion, trusted-relay
   deletion, and delivery-route deletion now reject unknown query parameter names
   before dispatch, preventing ignored `dry_run`/`force`-style operator flags.
+- Admin JSON mutation routes for tenant quotas, domain/user lifecycle and
+  policy, backpressure, attachment cleanup, quota correction, push outcomes,
+  trusted relays, delivery routes, and DKIM keys now reject unknown query
+  parameter names before dispatch.
 - Mail JWT and Admin token authentication now reject repeated credential
   headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials
   before dispatch.
