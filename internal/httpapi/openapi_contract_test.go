@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"go.yaml.in/yaml/v3"
@@ -211,6 +212,31 @@ func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
 	} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("AttachmentUploadCapabilities schema must document %q", want)
+		}
+	}
+}
+
+func TestOpenAPIDraftDocumentsDriveCapabilityLimits(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	block := extractOpenAPIComponentBlock(t, string(raw), "schemas", "WebmailCapabilities")
+	for _, want := range []string{
+		"maximum: " + strconv.FormatInt(drive.MaxUploadSessionBytes, 10),
+		"maximum: " + strconv.FormatInt(int64(drive.MaxUploadSessionTTL.Seconds()), 10),
+		"maximum: " + strconv.FormatInt(int64(drive.DefaultUploadSessionTTL.Seconds()), 10),
+		"upload_sessions",
+		"upload_session_body",
+		"upload_session_checksum",
+		"finalize_upload_sessions",
+		"cancel_upload_sessions",
+		"resumable_chunked_uploads",
+	} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("WebmailCapabilities Drive schema must document %q", want)
 		}
 	}
 }

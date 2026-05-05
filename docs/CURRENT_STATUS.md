@@ -338,6 +338,10 @@ guidance.
 - Mail API now exposes `POST /api/v1/drive/upload-sessions/{id}/finalize`,
   letting frontend clients commit uploaded session bodies into Drive file
   metadata through the same quota and storage verification boundary.
+- Webmail capabilities now advertise Drive node operations, upload-session
+  create/read/cancel/body/finalize support, checksum preconditions, and Drive
+  upload size/TTL limits so production clients can enable Drive flows without
+  copying backend constants.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
