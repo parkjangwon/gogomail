@@ -201,6 +201,106 @@ func TestHandlerReportCalendarQuerySkipsNonOverlappingTimeRange(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>",
+		"<D:getetag>",
+		"<C:calendar-data>BEGIN:VCALENDAR",
+		"<D:sync-token>sync-calendar</D:sync-token>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("sync-collection missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerReportSyncCollectionCurrentTokenReturnsOnlyToken(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "event-1.ics") {
+		t.Fatalf("current-token sync-collection returned object changes:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:sync-token>sync-calendar</D:sync-token>") {
+		t.Fatalf("sync-token missing:\n%s", body)
+	}
+}
+
+func TestHandlerReportSyncCollectionRejectsStaleToken(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-stale</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:valid-sync-token") {
+		t.Fatalf("valid-sync-token precondition missing:\n%s", body)
+	}
+}
+
+func TestHandlerReportSyncCollectionRejectsTruncatingLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	second := store.objects[0]
+	second.ID = "object-2"
+	second.ObjectName = "event-2.ics"
+	second.UID = "event-2@example.com"
+	second.ETag = `"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`
+	store.objects = append(store.objects, second)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "limit would truncate") {
+		t.Fatalf("truncating limit error missing:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportRejectsUnsupportedReports(t *testing.T) {
 	t.Parallel()
 

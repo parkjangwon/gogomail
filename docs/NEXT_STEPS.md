@@ -1450,6 +1450,11 @@ Current state:
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, returning requested ETags and `calendar-data` while filtering
   VEVENT resources against CalDAV time ranges through the RFC 5545 parser.
+- CalDAV now handles conservative `REPORT sync-collection` requests for
+  authenticated calendar collections: initial sync returns active objects plus
+  a top-level sync token, current tokens return no resource changes, stale
+  tokens return a DAV `valid-sync-token` error, and truncating limits are
+  rejected until change-log/continuation semantics are implemented.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1459,9 +1464,9 @@ Current state:
 
 Next:
 
-- Continue CalDAV with sync-collection/free-busy handlers, recurrence-aware
-  calendar-query expansion, and broader compatibility tests before advertising
-  client-ready compatibility.
+- Continue CalDAV with free-busy handlers, recurrence-aware calendar-query
+  expansion, sync tombstone/change-log support, and broader compatibility tests
+  before advertising client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

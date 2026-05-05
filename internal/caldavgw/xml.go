@@ -307,6 +307,9 @@ func validateReportRequest(req ReportRequest) error {
 		if req.SyncLevel != "1" {
 			return fmt.Errorf("unsupported sync-level %q", req.SyncLevel)
 		}
+		if len(req.Properties) == 0 {
+			return fmt.Errorf("sync-collection REPORT requires at least one property")
+		}
 	}
 	return nil
 }

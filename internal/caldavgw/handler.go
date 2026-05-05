@@ -2,6 +2,8 @@ package caldavgw
 
 import (
 	"context"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,6 +30,14 @@ type Handler struct {
 	Store             DiscoveryStore
 	ResolveUser       UserResolver
 	IncludeScheduling bool
+}
+
+type InvalidSyncTokenError struct {
+	Token string
+}
+
+func (e InvalidSyncTokenError) Error() string {
+	return "CalDAV sync-token is no longer valid"
 }
 
 func NewHandler(store DiscoveryStore, resolveUser UserResolver) *Handler {
@@ -244,10 +254,25 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 	}
 	responses, err := h.reportResponses(r.Context(), userID, resource, report)
 	if err != nil {
+		var invalidSyncToken InvalidSyncTokenError
+		if errors.As(err, &invalidSyncToken) {
+			writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	body, err := BuildMultiStatusXML(responses)
+	var body []byte
+	if report.Kind == ReportSyncCollection {
+		calendar, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		body, err = BuildSyncCollectionXML(responses, calendar.SyncToken)
+	} else {
+		body, err = BuildMultiStatusXML(responses)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -426,6 +451,11 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 			return nil, fmt.Errorf("calendar-query requires a calendar collection resource")
 		}
 		return h.calendarQueryResponses(ctx, userID, resource, report)
+	case ReportSyncCollection:
+		if resource.Kind != ResourceCalendarCollection {
+			return nil, fmt.Errorf("sync-collection requires a calendar collection resource")
+		}
+		return h.syncCollectionResponses(ctx, userID, resource, report)
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
@@ -492,6 +522,43 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	return responses, nil
 }
 
+func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+	calendar, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID)
+	if err != nil {
+		return nil, err
+	}
+	if report.SyncToken != "" {
+		if report.SyncToken != calendar.SyncToken {
+			return nil, InvalidSyncTokenError{Token: report.SyncToken}
+		}
+		return nil, nil
+	}
+	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	if err != nil {
+		return nil, err
+	}
+	if report.Limit > 0 && report.Limit < len(objects) {
+		return nil, fmt.Errorf("sync-collection limit would truncate results")
+	}
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	responses := make([]MultiStatusResponse, 0, len(objects))
+	for _, object := range objects {
+		props, err := CalendarObjectProperties(userID, object)
+		if err != nil {
+			return nil, err
+		}
+		if containsXMLName(report.Properties, PropCalendarData) {
+			props = append(props, CalendarObjectDataProperty(object.ICS))
+		}
+		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
+		if err != nil {
+			return nil, err
+		}
+		responses = append(responses, responseForProperties(href, propfind, props))
+	}
+	return responses, nil
+}
+
 func notFoundResponse(href string, properties []XMLName) MultiStatusResponse {
 	missing := make([]PropertyResult, 0, len(properties))
 	for _, prop := range properties {
@@ -507,6 +574,27 @@ func containsXMLName(names []XMLName, target XMLName) bool {
 		}
 	}
 	return false
+}
+
+func writeDAVPreconditionError(w http.ResponseWriter, status int, precondition string, message string) {
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
+	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+		`<D:error xmlns:D="%s"><D:%s/><D:responsedescription>%s</D:responsedescription></D:error>`,
+		DAVNamespace,
+		precondition,
+		xmlEscapeText(message),
+	)
+}
+
+func xmlEscapeText(value string) string {
+	var b strings.Builder
+	if err := xml.EscapeText(&b, []byte(value)); err != nil {
+		return ""
+	}
+	return b.String()
 }
 
 func calDAVAllowHeader() string {

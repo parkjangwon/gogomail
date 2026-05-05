@@ -130,6 +130,15 @@ time-range overlap checks through the RFC 5545 parser when a CalDAV
 time-range semantics remain future compatibility work before the listener is
 advertised as broadly client-ready.
 
+`REPORT sync-collection` starts with conservative RFC 6578 behavior because the
+repository currently stores one collection sync token but not a durable
+per-change log or tombstone stream. Empty sync-token requests return all active
+objects and a top-level multistatus `sync-token`; requests with the current
+token return only the token; stale tokens return a DAV `valid-sync-token`
+precondition error rather than silently omitting deletes. Truncating limits are
+rejected until continuation semantics can be implemented without lying to
+clients about synchronization completeness.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

@@ -171,6 +171,18 @@ func SelectPropfindProperties(req PropfindRequest, available []PropertyResult) [
 }
 
 func BuildMultiStatusXML(responses []MultiStatusResponse) ([]byte, error) {
+	return buildMultiStatusXML(responses, "")
+}
+
+func BuildSyncCollectionXML(responses []MultiStatusResponse, syncToken string) ([]byte, error) {
+	syncToken = strings.TrimSpace(syncToken)
+	if syncToken == "" {
+		return nil, fmt.Errorf("sync-token is required")
+	}
+	return buildMultiStatusXML(responses, syncToken)
+}
+
+func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
 	enc := xml.NewEncoder(&buf)
@@ -187,6 +199,11 @@ func BuildMultiStatusXML(responses []MultiStatusResponse) ([]byte, error) {
 	}
 	for _, response := range responses {
 		if err := encodeResponse(enc, response); err != nil {
+			return nil, err
+		}
+	}
+	if syncToken != "" {
+		if err := encodeTextElement(enc, "D:sync-token", syncToken); err != nil {
 			return nil, err
 		}
 	}

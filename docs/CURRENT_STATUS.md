@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV calendar-query handling)
+Last updated: 2026-05-06 (updated after CalDAV sync-collection handling)
 
 ## Current phase
 
@@ -2099,7 +2099,7 @@ The platform hardening sprint completed the following:
   `calendar-query` requires a filter and extracts nested CalDAV time ranges,
   `calendar-multiget` requires bounded hrefs, `free-busy-query` requires a UTC
   time range, and `sync-collection` requires supported `sync-level=1` plus a
-  bounded optional `limit`.
+  requested property set and bounded optional `limit`.
 - CalDAV now implements a first `REPORT calendar-multiget` handler for
   authenticated calendar collections, returning multistatus object metadata and
   requested `calendar-data` bodies while representing missing hrefs through
@@ -2112,7 +2112,13 @@ The platform hardening sprint completed the following:
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, listing matching `.ics` objects through WebDAV multistatus
   responses and applying RFC 5545-backed VEVENT overlap checks when a CalDAV
-  time-range filter is supplied. Sync-collection, free-busy, scheduling, and
+  time-range filter is supplied.
+- CalDAV now handles a conservative RFC 6578 `REPORT sync-collection` path for
+  authenticated calendar collections: empty sync tokens return all active
+  objects plus the collection sync token, current tokens return only the
+  top-level sync token, stale tokens return a DAV `valid-sync-token`
+  precondition error, and truncating limits are rejected until continuation or
+  tombstone/change-log semantics exist. Free-busy, scheduling, recurrence, and
   broader native-client compatibility coverage remain incomplete.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
