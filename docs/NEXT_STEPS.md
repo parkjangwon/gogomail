@@ -75,6 +75,9 @@ Current state:
 - `ENABLE` validates missing capability arguments before authentication
   failures, while well-formed unauthenticated enable attempts still return
   `NO authentication required` without mutating session feature state.
+- `ENABLE` also validates malformed capability atoms before authentication or
+  session mutation, keeping RFC 5161 syntax errors separate from unsupported
+  but well-formed capabilities.
 - `LIST`/`LSUB` CHILDREN attributes infer immediate parents from nested
   `FullPath` values when backend rows do not carry `ParentID`, preserving
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
