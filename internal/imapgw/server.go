@@ -4799,17 +4799,22 @@ func imapFetchRequestsModSeq(items []string) bool {
 }
 
 func imapFetchChangedSince(items []string) (uint64, bool, bool) {
-	tokens := imapFetchNormalizedTokens(items)
 	var threshold uint64
 	found := false
-	for i := 0; i < len(tokens); i++ {
-		if tokens[i] != "CHANGEDSINCE" {
+	for i := 0; i < len(items); i++ {
+		token := strings.ToUpper(strings.TrimSpace(items[i]))
+		if !strings.Contains(token, "CHANGEDSINCE") {
 			continue
 		}
-		if found || i+1 >= len(tokens) {
+		if found || token != "(CHANGEDSINCE" || i+1 >= len(items) {
 			return 0, false, false
 		}
-		modseq, ok := parseIMAPModSeqValue(tokens[i+1])
+		valueToken := strings.TrimSpace(items[i+1])
+		if !strings.HasSuffix(valueToken, ")") || strings.HasSuffix(valueToken, "))") {
+			return 0, false, false
+		}
+		value := strings.TrimSpace(strings.TrimSuffix(valueToken, ")"))
+		modseq, ok := parseIMAPModSeqValue(value)
 		if !ok {
 			return 0, false, false
 		}

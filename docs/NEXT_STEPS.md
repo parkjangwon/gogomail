@@ -150,6 +150,9 @@ Current state:
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
   validate RFC-shaped header field names instead of trimming stray brackets,
   rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+- IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
+  parenthesized modifier form and rejects bare or over-closed variants such as
+  `FETCH 7 FLAGS CHANGEDSINCE 17`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in
