@@ -793,12 +793,18 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 	}
 	if len(criteria) == 2 {
 		switch strings.ToUpper(criteria[0]) {
-		case "SINCE", "BEFORE":
+		case "SINCE", "BEFORE", "ON":
 			day, ok := parseIMAPSearchDate(criteria[1])
 			if !ok {
 				return nil, false
 			}
 			return imapSearchDateResults(messages, uidMode, strings.ToUpper(criteria[0]), day), true
+		case "SENTSINCE", "SENTBEFORE", "SENTON":
+			day, ok := parseIMAPSearchDate(criteria[1])
+			if !ok {
+				return nil, false
+			}
+			return imapSearchSentDateResults(messages, uidMode, strings.ToUpper(criteria[0]), day), true
 		case "FROM", "TO", "CC", "BCC", "SUBJECT":
 			return imapSearchTextResults(messages, uidMode, strings.ToUpper(criteria[0]), criteria[1]), true
 		}
@@ -890,6 +896,45 @@ func imapMessageMatchesDateSearch(summary MessageSummary, criterion string, day 
 		return !messageDay.Before(day)
 	case "BEFORE":
 		return messageDay.Before(day)
+	case "ON":
+		return messageDay.Equal(day)
+	default:
+		return false
+	}
+}
+
+func imapSearchSentDateResults(messages []MessageSummary, uidMode bool, criterion string, day time.Time) []uint32 {
+	results := make([]uint32, 0, len(messages))
+	for i, summary := range messages {
+		if !imapMessageMatchesSentDateSearch(summary, criterion, day) {
+			continue
+		}
+		if uidMode {
+			results = append(results, uint32(summary.UID))
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		results = append(results, sequenceNumber)
+	}
+	return results
+}
+
+func imapMessageMatchesSentDateSearch(summary MessageSummary, criterion string, day time.Time) bool {
+	date := summary.Envelope.Date
+	if date.IsZero() {
+		return false
+	}
+	messageDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	switch criterion {
+	case "SENTSINCE":
+		return !messageDay.Before(day)
+	case "SENTBEFORE":
+		return messageDay.Before(day)
+	case "SENTON":
+		return messageDay.Equal(day)
 	default:
 		return false
 	}

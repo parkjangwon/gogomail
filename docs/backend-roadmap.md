@@ -888,8 +888,8 @@ Implementation order:
 721. IMAP `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
      `BODY.PEEK[HEADER.FIELDS.NOT (...)]`, returning bounded header literals
      with requested fields excluded.
-722. IMAP `SEARCH` and `UID SEARCH` now support `SINCE` and `BEFORE` date
-     criteria over message `INTERNALDATE`, using RFC-style `DD-Mon-YYYY`
+722. IMAP `SEARCH` and `UID SEARCH` now support `SINCE`, `BEFORE`, and `ON`
+     date criteria over message `INTERNALDATE`, using RFC-style `DD-Mon-YYYY`
      criteria parsing.
 723. IMAP `SEARCH` and `UID SEARCH` now support basic `FROM` and `SUBJECT`
      substring criteria over selected-mailbox message summaries.
@@ -916,6 +916,8 @@ Implementation order:
      the command.
 732. IMAP `SEARCH` and `UID SEARCH` now support address-list criteria for `TO`,
      `CC`, and `BCC` alongside existing `FROM` and `SUBJECT` summary searches.
+733. IMAP `SEARCH` and `UID SEARCH` now support sent-date criteria
+     `SENTSINCE`, `SENTBEFORE`, and `SENTON` over message envelope dates.
 
 ## Deferred until backend contracts stabilize
 

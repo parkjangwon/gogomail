@@ -350,8 +350,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` now supports bounded
   `BODY[HEADER.FIELDS.NOT (...)]` and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
   literals for exclude-style header reads.
-- IMAP `SEARCH`/`UID SEARCH` now supports `SINCE` and `BEFORE` date criteria
-  over message `INTERNALDATE`.
+- IMAP `SEARCH`/`UID SEARCH` now supports `SINCE`, `BEFORE`, and `ON` over
+  message `INTERNALDATE`, plus `SENTSINCE`, `SENTBEFORE`, and `SENTON` over
+  envelope dates.
 - IMAP `SEARCH`/`UID SEARCH` now supports basic `FROM`, `TO`, `CC`, `BCC`,
   and `SUBJECT` substring criteria over selected-mailbox summaries.
 - IMAP now supports authenticated `NAMESPACE`, exposing the personal namespace

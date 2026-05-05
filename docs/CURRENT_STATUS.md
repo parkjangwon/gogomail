@@ -837,8 +837,9 @@ The platform hardening sprint completed the following:
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS.NOT (...)]` and
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` literals.
-- IMAP `SEARCH`/`UID SEARCH` supports `SINCE` and `BEFORE` date criteria over
-  message `INTERNALDATE`.
+- IMAP `SEARCH`/`UID SEARCH` supports `SINCE`, `BEFORE`, and `ON` over message
+  `INTERNALDATE`, plus `SENTSINCE`, `SENTBEFORE`, and `SENTON` over envelope
+  dates.
 - IMAP `SEARCH`/`UID SEARCH` supports basic `FROM`, `TO`, `CC`, `BCC`, and
   `SUBJECT` substring criteria over selected-mailbox summaries.
 - IMAP supports authenticated `NAMESPACE` for personal namespace and hierarchy
