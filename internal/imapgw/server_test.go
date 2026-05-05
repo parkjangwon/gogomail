@@ -1116,7 +1116,7 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *testing.T) {
 	t.Parallel()
 
-	backendImpl := &appendBackend{}
+	backendImpl := &appendBackend{err: ErrUnsupportedAppend}
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
@@ -1167,6 +1167,58 @@ func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *te
 		t.Fatalf("noop after append = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerAppendSuccessReturnsAppendUID(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendBackend{
+		result: AppendMessageResult{
+			Summary:     MessageSummary{ID: "message-42", MailboxID: "inbox", UID: 42},
+			UIDValidity: 99,
+		},
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
+		t.Fatalf("write append literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello world\r\n")); err != nil {
+		t.Fatalf("write append literal body: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK [APPENDUID 99 42] APPEND completed\r\n" {
+		t.Fatalf("append response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -4011,23 +4063,28 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 	return summaries, nil
 }
 
-func (fakeBackend) AppendMessage(context.Context, AppendMessageRequest) (MessageSummary, error) {
-	return MessageSummary{}, ErrUnsupportedAppend
+func (fakeBackend) AppendMessage(context.Context, AppendMessageRequest) (AppendMessageResult, error) {
+	return AppendMessageResult{}, ErrUnsupportedAppend
 }
 
 type appendBackend struct {
 	fakeBackend
 	request AppendMessageRequest
 	body    string
+	result  AppendMessageResult
+	err     error
 }
 
-func (b *appendBackend) AppendMessage(_ context.Context, req AppendMessageRequest) (MessageSummary, error) {
+func (b *appendBackend) AppendMessage(_ context.Context, req AppendMessageRequest) (AppendMessageResult, error) {
 	b.request = req
 	if req.Body != nil {
 		data, _ := io.ReadAll(req.Body)
 		b.body = string(data)
 	}
-	return MessageSummary{}, ErrUnsupportedAppend
+	if b.err != nil {
+		return AppendMessageResult{}, b.err
+	}
+	return b.result, nil
 }
 
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

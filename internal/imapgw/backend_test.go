@@ -66,8 +66,8 @@ func (fakeComposedBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]Mes
 	return []MessageSummary{{ID: "message-1", UID: 1, SequenceNumber: 1, Flags: MessageFlags{Read: true}}}, nil
 }
 
-func (fakeComposedBackend) AppendMessage(context.Context, AppendMessageRequest) (MessageSummary, error) {
-	return MessageSummary{ID: "message-append-1", MailboxID: "inbox", UID: 2}, nil
+func (fakeComposedBackend) AppendMessage(context.Context, AppendMessageRequest) (AppendMessageResult, error) {
+	return AppendMessageResult{Summary: MessageSummary{ID: "message-append-1", MailboxID: "inbox", UID: 2}, UIDValidity: 1}, nil
 }
 
 func (fakeComposedBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

@@ -577,8 +577,8 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	return summaries, nil
 }
 
-func (s *Service) AppendIMAPMessage(context.Context, imapgw.AppendMessageRequest) (imapgw.MessageSummary, error) {
-	return imapgw.MessageSummary{}, imapgw.ErrUnsupportedAppend
+func (s *Service) AppendIMAPMessage(context.Context, imapgw.AppendMessageRequest) (imapgw.AppendMessageResult, error) {
+	return imapgw.AppendMessageResult{}, imapgw.ErrUnsupportedAppend
 }
 
 func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.MessageSummary, error) {

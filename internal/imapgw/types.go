@@ -92,6 +92,11 @@ type AppendMessageRequest struct {
 	Body         io.Reader
 }
 
+type AppendMessageResult struct {
+	Summary     MessageSummary
+	UIDValidity uint32
+}
+
 type StoreFlagsMode string
 
 const (
@@ -112,7 +117,7 @@ type MessageStore interface {
 	ListMessages(ctx context.Context, req ListMessagesRequest) ([]MessageSummary, error)
 	FetchMessage(ctx context.Context, req FetchMessageRequest) (Message, error)
 	StoreFlags(ctx context.Context, req StoreFlagsRequest) ([]MessageSummary, error)
-	AppendMessage(ctx context.Context, req AppendMessageRequest) (MessageSummary, error)
+	AppendMessage(ctx context.Context, req AppendMessageRequest) (AppendMessageResult, error)
 }
 
 type Store interface {
