@@ -1,0 +1,75 @@
+# gogomail storage backends
+
+gogomail stores raw `.eml` objects, attachments, exports, and readiness probes
+through the shared storage interface. Deployments can switch backends by
+configuration without changing stored object keys.
+
+## Local filesystem or NFS
+
+Local storage is the default and can point at a normal disk path or an
+NFS-style mounted directory.
+
+```sh
+GOGOMAIL_STORAGE_BACKEND=local
+GOGOMAIL_STORAGE_ROOT=./data/storage
+```
+
+Use local storage for development, single-node installs, or deployments where
+the mount itself provides durability and availability.
+
+## Local MinIO
+
+The development compose stack starts MinIO and creates a `gogomail` bucket via
+the `minio-init` service.
+
+```sh
+docker compose -f deploy/docker-compose.dev.yml up -d minio minio-init
+
+GOGOMAIL_STORAGE_BACKEND=minio
+GOGOMAIL_STORAGE_S3_ENDPOINT=http://localhost:19000
+GOGOMAIL_STORAGE_S3_REGION=us-east-1
+GOGOMAIL_STORAGE_S3_BUCKET=gogomail
+GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID=gogomail
+GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY=gogomail123
+```
+
+The `minio` backend always uses path-style S3 requests so local endpoints do
+not need wildcard DNS.
+
+## AWS S3 or compatible object storage
+
+Use the `s3` backend for AWS S3 or S3-compatible services that accept SigV4.
+
+```sh
+GOGOMAIL_STORAGE_BACKEND=s3
+GOGOMAIL_STORAGE_S3_REGION=us-east-1
+GOGOMAIL_STORAGE_S3_BUCKET=gogomail-prod
+GOGOMAIL_STORAGE_S3_PREFIX=mail
+GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID=...
+GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY=...
+```
+
+Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Set
+`GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider or local network
+does not support virtual-hosted bucket names.
+
+## Integration verification
+
+Optional S3-compatible integration coverage runs a real `PUT`/`GET`/`DELETE`
+round trip when these variables are present:
+
+```sh
+GOGOMAIL_TEST_S3_ENDPOINT=http://localhost:19000
+GOGOMAIL_TEST_S3_BUCKET=gogomail
+GOGOMAIL_TEST_S3_ACCESS_KEY_ID=gogomail
+GOGOMAIL_TEST_S3_SECRET_ACCESS_KEY=gogomail123
+go test ./internal/storage
+```
+
+For AWS S3 virtual-hosted testing, also set the region and explicitly disable
+path-style requests:
+
+```sh
+GOGOMAIL_TEST_S3_REGION=us-east-1
+GOGOMAIL_TEST_S3_FORCE_PATH_STYLE=false
+```

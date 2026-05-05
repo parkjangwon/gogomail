@@ -159,6 +159,9 @@ guidance.
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
   region, bucket, prefix, credential, and session-token settings.
+- `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
+  configuration, and the development compose stack includes `minio-init` to
+  create the default local `gogomail` bucket.
 - HTTP server runtime guardrails are configurable and validated: read, write,
   idle, read-header timeout, and maximum header bytes are wired into the shared
   Mail/Admin/API-metered HTTP server.
