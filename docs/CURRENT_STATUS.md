@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV conditional object reads)
+Last updated: 2026-05-06 (updated after CalDAV PUT media-type validation)
 
 ## Current phase
 
@@ -2197,6 +2197,9 @@ The platform hardening sprint completed the following:
 - CalDAV calendar object `GET` and `HEAD` now honor `If-None-Match` against
   stored strong ETags, returning `304 Not Modified` with safe cache headers and
   no body when clients already have the current `.ics` representation.
+- CalDAV calendar object `PUT` now validates explicit `Content-Type` headers
+  before body parsing, accepting `text/calendar` with parameters and rejecting
+  incompatible media types with HTTP 415.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

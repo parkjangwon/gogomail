@@ -1499,6 +1499,9 @@ Current state:
 - CalDAV object `GET`/`HEAD` now support `If-None-Match` cache revalidation
   against strong object ETags, returning `304 Not Modified` without streaming
   `.ics` bodies when possible.
+- CalDAV object `PUT` now rejects explicit non-`text/calendar` media types
+  before iCalendar parsing, while still allowing clients that omit
+  `Content-Type`.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
