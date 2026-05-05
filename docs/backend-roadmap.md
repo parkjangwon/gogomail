@@ -1366,6 +1366,11 @@ Implementation order:
      `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before
      authentication failures, preserving precise tagged `BAD` diagnostics while
      valid unauthenticated commands still return `NO authentication required`.
+865. IMAP selected-mailbox discovery commands now validate malformed
+     `NAMESPACE`, `SELECT`, `EXAMINE`, and `STATUS` argument shape, CONDSTORE
+     options, status item lists, or modified UTF-7 mailbox names before
+     authentication failures, preserving precise tagged `BAD` diagnostics while
+     valid unauthenticated commands still return `NO authentication required`.
 
 ## Deferred until backend contracts stabilize
 

@@ -3891,6 +3891,56 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 	}
 }
 
+func TestServerValidatesSelectedMailboxSyntaxBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 NAMESPACE extra\r\na2 SELECT\r\na3 SELECT &Jjo!\r\na4 EXAMINE inbox (QRESYNC)\r\na5 STATUS\r\na6 STATUS inbox MESSAGES\r\na7 STATUS inbox (BADITEM)\r\na8 STATUS &Jjo! (MESSAGES)\r\na9 SELECT inbox\r\na10 STATUS inbox (MESSAGES)\r\na11 NAMESPACE\r\na12 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write selected mailbox syntax commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD NAMESPACE does not accept arguments\r\n",
+		"a2 BAD SELECT requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a3 BAD SELECT mailbox name is not valid modified UTF-7\r\n",
+		"a4 BAD EXAMINE requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a5 BAD STATUS requires mailbox and status item atoms\r\n",
+		"a6 BAD STATUS requires parenthesized item list\r\n",
+		"a7 BAD STATUS item is unsupported\r\n",
+		"a8 BAD STATUS mailbox name is not valid modified UTF-7\r\n",
+		"a9 NO authentication required\r\n",
+		"a10 NO authentication required\r\n",
+		"a11 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a12 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected mailbox syntax response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected mailbox syntax response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsSubscriptionCommandsBeforeLogin(t *testing.T) {
 	t.Parallel()
 

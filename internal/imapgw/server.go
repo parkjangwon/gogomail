@@ -335,12 +335,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK [CAPABILITY " + strings.Join(s.imapCapabilities(&tlsState), " ") + "] Begin TLS negotiation now\r\n")
 		return false, err
 	case "NAMESPACE":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD NAMESPACE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if _, err := writer.WriteString(`* NAMESPACE (("" "/")) NIL NIL` + "\r\n"); err != nil {
@@ -389,10 +389,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString("+ \r\n")
 		return false, err
 	case "SELECT", "EXAMINE":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) < 3 {
 			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
 			return false, err
@@ -405,6 +401,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		mailboxName, ok := imapDecodeMailboxName(fields[2])
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
@@ -490,10 +490,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	case "SUBSCRIBE", "UNSUBSCRIBE":
 		return s.handleSubscriptionCommand(writer, tag, fields, state, command)
 	case "STATUS":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) < 4 {
 			_, err := writer.WriteString(tag + " BAD STATUS requires mailbox and status item atoms\r\n")
 			return false, err
@@ -507,13 +503,17 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD STATUS item is unsupported\r\n")
 			return false, err
 		}
-		if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
-			state.condstoreAware = true
-		}
 		mailboxName, ok := imapDecodeMailboxName(fields[2])
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD STATUS mailbox name is not valid modified UTF-7\r\n")
 			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
+			state.condstoreAware = true
 		}
 		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 		if err != nil {

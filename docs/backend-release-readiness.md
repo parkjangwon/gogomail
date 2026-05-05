@@ -351,6 +351,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `UNSUBSCRIBE` syntax before authentication failures, preserving precise
   tagged `BAD` diagnostics while keeping valid unauthenticated commands behind
   `NO authentication required`.
+- IMAP selected-mailbox discovery commands now reject malformed `NAMESPACE`,
+  `SELECT`, `EXAMINE`, and `STATUS` syntax before authentication failures,
+  preserving precise tagged `BAD` diagnostics for invalid CONDSTORE options,
+  status item lists, and modified UTF-7 mailbox names.
 - IMAP `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`;
   `LIST` includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy
   attributes plus RFC 6154 special-use attributes for system folders such as
