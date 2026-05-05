@@ -2355,6 +2355,10 @@ Implementation order:
       `param-filter` under a `prop-filter`, parsing unfolded vCard content-line
       parameters and supporting parameter existence, `is-not-defined`, and
       text-match checks before returning matching contact objects.
+1112. CardDAV `addressbook-query` now evaluates multiple `prop-filter`
+      predicates and multiple per-property `text-match`/`param-filter`
+      predicates with RFC 6352 `test=anyof|allof` composition at both the
+      top-level `filter` and individual `prop-filter` levels.
 
 ## Deferred until backend contracts stabilize
 
@@ -2368,7 +2372,7 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV broader CardDAV filter-tree composition, broader vCard
+- Contacts/CardDAV broader vCard
   compatibility, and native-client compatibility beyond the experimental
   runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,
   repository, bounded vCard 4.0 validation, REPORT parsing, and multistatus

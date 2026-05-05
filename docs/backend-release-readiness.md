@@ -363,10 +363,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   scope, UID alignment, strong ETags, optional observed-ETag guards, sync-token
   refreshes, and durable change rows. REPORT parsing recognizes bounded
   `addressbook-query`, `addressbook-multiget`, and `sync-collection` bodies,
-  including properties, hrefs, sync token/level, limits, and a first
-  text-match filter with its enclosing `prop-filter` name. WebDAV multistatus
-  response building can render CardDAV principal, address-book, contact-object,
-  REPORT, and sync metadata. An internal
+  including properties, hrefs, sync token/level, limits, filter/prop-filter
+  `test` attributes, text-match predicates, and nested param-filters. WebDAV
+  multistatus response building can render CardDAV principal, address-book,
+  contact-object, REPORT, and sync metadata. An internal
   RFC 6764/WebDAV-style discovery handler now covers `/.well-known/carddav`,
   `OPTIONS`, and bounded `PROPFIND` over root, principal, address-book home,
   address-book collection, and contact-object resources, with cross-user,
@@ -376,23 +376,21 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-multiget`, `addressbook-query`, and `sync-collection`, including
   scoped href handling, optional `address-data`, current sync-token emission,
   bounded change reads since a stored sync token, and deleted contact 404
-  responses. Query filtering applies the first `text-match` to the parsed
-  unfolded vCard property named by `prop-filter`, while invalid or missing
-  prop-filter names are rejected before execution. The first text-match
-  evaluator honors RFC 6352 default `i;unicode-casemap`, `equals`, `contains`,
-  `starts-with`, `ends-with`, and `negate-condition`, while rejecting
-  unsupported collations or malformed text-match attributes. Query filtering
-  also evaluates the first nested `param-filter` by parsing vCard content-line
-  parameters and supporting parameter existence, `is-not-defined`, and
-  parameter text-match checks. Contact-object `GET`, `HEAD`, `PUT`, and
+  responses. Query filtering evaluates multiple `prop-filter` predicates and
+  multiple per-property text/parameter conditions with RFC 6352
+  `test=anyof|allof` composition. Text-match evaluation honors the RFC default
+  `i;unicode-casemap`, `equals`, `contains`, `starts-with`, `ends-with`, and
+  `negate-condition`, while rejecting unsupported collations or malformed
+  text-match attributes. Query filtering also parses vCard content-line
+  parameters for `param-filter` existence, `is-not-defined`, and parameter
+  text-match checks. Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition
   handling, and repository-backed vCard validation. CardDAV runtime wiring now provides
   `gogomail --mode=carddav`, `GOGOMAIL_CARDDAV_ADDR`, and Basic-auth through
   the existing Submission authenticator, with production insecure-auth
-  validation. Client-ready CardDAV remains gated on broader CardDAV
-  filter-tree composition, broader vCard compatibility, and
-  native-client tests.
+  validation. Client-ready CardDAV remains gated on broader vCard compatibility
+  and native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

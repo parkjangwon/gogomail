@@ -353,6 +353,33 @@ func TestHandlerReportAddressBookQueryHonorsParamFilter(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookQueryHonorsFilterComposition(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter test="allof">
+    <C:prop-filter name="FN"><C:text-match>Other</C:text-match></C:prop-filter>
+    <C:prop-filter name="EMAIL" test="allof">
+      <C:text-match match-type="ends-with">example.com</C:text-match>
+      <C:param-filter name="TYPE"><C:text-match match-type="equals">work</C:text-match></C:param-filter>
+    </C:prop-filter>
+  </C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-2.vcf</D:href>") {
+		t.Fatalf("query REPORT missing composed filter match:\n%s", text)
+	}
+	if strings.Contains(text, "contact-1.vcf") {
+		t.Fatalf("query REPORT ignored allof composition:\n%s", text)
+	}
+}
+
 func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	t.Parallel()
 
