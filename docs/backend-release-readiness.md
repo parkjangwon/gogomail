@@ -1072,8 +1072,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   dispatch boundary, preserving precise malformed-command behavior before
   backend or feature dispatch.
 - IMAP UID dispatch validates authenticated syntax before selected-mailbox
-  state so malformed UID commands produce `BAD` responses instead of being
-  hidden behind state errors.
+  state so malformed or unknown UID subcommands produce `BAD` responses instead
+  of being hidden behind state errors.
 
 ## Must verify before release cut
 

@@ -354,16 +354,17 @@ func TestServerValidatesUIDSubcommandBeforeSelectedState(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 UID\r\na3 UID FETCH]\r\na4 UID FETCH 7 (FLAGS)\r\na5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 UID\r\na3 UID FETCH]\r\na4 UID BOGUS\r\na5 UID FETCH 7 (FLAGS)\r\na6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write uid commands: %v", err)
 	}
 	want := []string{
 		"a1 OK LOGIN completed\r\n",
 		"a2 BAD UID command not implemented\r\n",
 		"a3 BAD malformed command\r\n",
-		"a4 NO mailbox must be selected\r\n",
+		"a4 BAD UID command not implemented\r\n",
+		"a5 NO mailbox must be selected\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a5 OK LOGOUT completed\r\n",
+		"a6 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

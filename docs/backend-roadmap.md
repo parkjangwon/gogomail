@@ -1342,6 +1342,9 @@ Implementation order:
      subcommands before selected-mailbox state, keeping syntax errors precise
      while still returning `NO mailbox must be selected` for valid UID commands
      issued outside selected state.
+858. IMAP authenticated `UID` dispatch now also rejects unknown UID subcommands
+     before selected-mailbox state, so unsupported UID command names are not
+     hidden behind mailbox-selection errors.
 
 ## Deferred until backend contracts stabilize
 
