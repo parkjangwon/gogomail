@@ -1659,6 +1659,10 @@ Implementation order:
      reject oversized direct adapter inputs using the same bounds as startup
      config validation, keeping SigV4 request construction bounded even when
      `NewS3Store` is called outside the app config path.
+946. S3-compatible endpoint base paths are now segment-escaped with the same
+     literal `+` preservation as object keys, keeping reverse-proxy/base-path
+     deployments aligned with SigV4 canonical request paths across AWS S3,
+     MinIO, and strict compatible providers.
 
 ## Deferred until backend contracts stabilize
 

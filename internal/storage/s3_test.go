@@ -273,7 +273,7 @@ func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
 	t.Parallel()
 
 	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000/base",
+		Endpoint:        "http://localhost:9000/base+proxy",
 		Region:          "us-east-1",
 		Bucket:          "gogomail",
 		Prefix:          "mail+archive",
@@ -290,7 +290,7 @@ func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newRequest returned error: %v", err)
 	}
-	if got, want := req.URL.EscapedPath(), "/base/gogomail/mail%2Barchive/messages/msg%2B1.eml"; got != want {
+	if got, want := req.URL.EscapedPath(), "/base%2Bproxy/gogomail/mail%2Barchive/messages/msg%2B1.eml"; got != want {
 		t.Fatalf("request path = %q, want %q", got, want)
 	}
 	if strings.Contains(req.URL.EscapedPath(), "%20") {

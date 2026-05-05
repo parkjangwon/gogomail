@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3 credential size hardening)
+Last updated: 2026-05-05 (updated after S3 base-path escaping hardening)
 
 ## Current phase
 
@@ -199,6 +199,9 @@ guidance.
 - S3-compatible object key escaping now preserves literal `+` characters as
   `%2B` in segment-escaped paths, keeping object identity and SigV4 canonical
   request paths aligned across AWS S3, MinIO, and strict compatible providers.
+- S3-compatible endpoint base paths are now segment-escaped with the same
+  literal `+` preservation as object keys, keeping proxy/base-path deployments
+  aligned with SigV4 canonical request paths.
 - S3-compatible uploads now set a deterministic `Content-Length` for seekable
   PUT bodies without buffering the object in memory, improving compatibility
   for file-backed mail and attachment writes while preserving streaming-first
