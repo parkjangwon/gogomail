@@ -96,6 +96,13 @@ func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, 
 	return s.repo.ListNodes(ctx, req)
 }
 
+func (s *Service) GetNode(ctx context.Context, req GetNodeRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.GetNode(ctx, req)
+}
+
 func (s *Service) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {
 	if s == nil || s.repo == nil {
 		return Node{}, 0, fmt.Errorf("drive repository is required")

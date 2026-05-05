@@ -158,6 +158,9 @@ or development `user_id` fallback path as webmail mail routes:
 
 - `GET /api/v1/drive/nodes` returns `{"drive_nodes":[...]}` and accepts
   bounded `parent_id`, `status=active|trashed|deleted`, and `limit` filters.
+- `GET /api/v1/drive/nodes/{id}` returns `{"drive_node":{...}}` for a single
+  node and accepts bounded `status=active|trashed|deleted` so clients can
+  refresh selected metadata after edits.
 - `POST /api/v1/drive/folders` creates a folder from `{"parent_id","name"}`
   and returns `{"drive_node":{...}}`.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,

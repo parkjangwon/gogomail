@@ -40,6 +40,34 @@ func TestDriveListNodesHandler(t *testing.T) {
 	}
 }
 
+func TestDriveGetNodeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{node: drive.Node{ID: "node-1", UserID: "user-1", Name: "Report.pdf", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1?user_id=user-1&status=active", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.getReq.UserID != "user-1" || service.getReq.NodeID != "node-1" || service.getReq.Status != "active" {
+		t.Fatalf("get request = %+v, want query-backed request", service.getReq)
+	}
+	var body struct {
+		Node drive.Node `json:"drive_node"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Node.ID != "node-1" {
+		t.Fatalf("node = %+v", body.Node)
+	}
+}
+
 func TestDriveCreateFolderHandler(t *testing.T) {
 	t.Parallel()
 
@@ -260,6 +288,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 	}{
 		{name: "list unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&typo=true", nil)},
 		{name: "list duplicate parent", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=a&parent_id=b", nil)},
+		{name: "get unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1?user_id=user-1&typo=true", nil)},
 		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
 		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
 		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},
@@ -292,6 +321,7 @@ type fakeDriveService struct {
 	file       drive.Node
 	staged     drive.StagedObject
 	err        error
+	getReq     drive.GetNodeRequest
 	listReq    drive.ListNodesRequest
 	createReq  drive.CreateFolderRequest
 	fileReq    drive.CreateFileFromObjectRequest
@@ -317,6 +347,14 @@ func (f *fakeDriveService) ListNodes(_ context.Context, req drive.ListNodesReque
 		return nil, f.err
 	}
 	return f.nodes, nil
+}
+
+func (f *fakeDriveService) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {
+	f.getReq = req
+	if f.err != nil {
+		return drive.Node{}, f.err
+	}
+	return f.node, nil
 }
 
 func (f *fakeDriveService) CreateFileFromObject(_ context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error) {
