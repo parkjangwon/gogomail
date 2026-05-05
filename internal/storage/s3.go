@@ -155,7 +155,7 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
-	return resp.Body, nil
+	return &limitedReadCloser{reader: io.LimitReader(resp.Body, validated.Length), closer: resp.Body}, nil
 }
 
 func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, error) {

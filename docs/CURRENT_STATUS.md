@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV If-Unmodified-Since write guards)
+Last updated: 2026-05-06 (updated after S3 range-read body bounds)
 
 ## Current phase
 
@@ -2220,6 +2220,10 @@ The platform hardening sprint completed the following:
   against stored object update timestamps before body reads or repository
   mutation, returning HTTP 412 for stale timestamp-based overwrite/delete
   attempts.
+- S3-compatible `GetRange` now caps the returned reader at the validated
+  requested byte length even if a provider returns an oversized `206 Partial
+  Content` body, matching local/NFS range semantics and keeping partial Drive,
+  attachment, and IMAP reads bounded at the storage adapter boundary.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

@@ -86,7 +86,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 					return
 				}
 				w.WriteHeader(http.StatusPartialContent)
-				_, _ = w.Write([]byte("ell"))
+				_, _ = w.Write([]byte("ell-overrun"))
 				return
 			}
 			_, _ = w.Write([]byte("hello"))

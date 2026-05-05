@@ -139,7 +139,9 @@ provider supplies them.
 S3-compatible `GetRange` uses a signed `GET` request with a single
 `Range: bytes=start-end` header and requires a `206 Partial Content` response,
 so compatible providers cannot silently downgrade partial reads into full
-object transfers.
+object transfers. The returned reader is also capped at the validated requested
+length, matching local/NFS behavior even if a provider sends an oversized
+partial-content body.
 S3-compatible `Copy` uses a signed server-side copy request with an escaped
 `x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
 duplicate objects without pulling object bytes through gogomail.
