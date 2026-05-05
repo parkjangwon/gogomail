@@ -583,6 +583,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP any-state no-argument commands `CAPABILITY`, `NOOP`, and `LOGOUT` now
   reject extra arguments with tagged `BAD` responses instead of silently
   accepting malformed commands or ending sessions for malformed logout attempts.
+- IMAP `STATUS` now requires a parenthesized status item list, rejecting
+  malformed `STATUS mailbox MESSAGES`-style requests before mailbox metadata
+  lookup.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

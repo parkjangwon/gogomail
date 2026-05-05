@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP any-state no-arg validation)
+Last updated: 2026-05-05 (updated after IMAP STATUS item-list validation)
 
 ## Current phase
 
@@ -1124,6 +1124,9 @@ The platform hardening sprint completed the following:
 - IMAP any-state no-argument commands `CAPABILITY`, `NOOP`, and `LOGOUT` now
   reject extra arguments with tagged `BAD` responses instead of silently
   ignoring them or ending the session for malformed logout attempts.
+- IMAP `STATUS` now requires a parenthesized status item list, rejecting
+  malformed `STATUS mailbox MESSAGES`-style requests before mailbox metadata
+  lookup.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

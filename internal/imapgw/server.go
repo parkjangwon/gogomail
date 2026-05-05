@@ -490,6 +490,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD STATUS requires mailbox and status item atoms\r\n")
 			return false, err
 		}
+		if !imapStatusItemListIsParenthesized(fields[3:]) {
+			_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
+			return false, err
+		}
 		statusItems, ok := imapStatusItems(fields[3:])
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD STATUS item is unsupported\r\n")
@@ -5509,6 +5513,17 @@ func imapStatusItems(items []string) ([]string, bool) {
 		}
 	}
 	return out, len(out) > 0
+}
+
+func imapStatusItemListIsParenthesized(items []string) bool {
+	if len(items) == 0 {
+		return false
+	}
+	joined := strings.TrimSpace(strings.Join(items, " "))
+	return strings.HasPrefix(joined, "(") &&
+		strings.HasSuffix(joined, ")") &&
+		strings.Count(joined, "(") == 1 &&
+		strings.Count(joined, ")") == 1
 }
 
 func imapStatusRequestsItem(items []string, want string) bool {
