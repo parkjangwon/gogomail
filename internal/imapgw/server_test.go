@@ -112,7 +112,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SASL-IR AUTH=PLAIN\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -178,7 +178,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH STARTTLS LOGINDISABLED\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STARTTLS LOGINDISABLED\r\n" {
 		t.Fatalf("pre-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK CAPABILITY completed\r\n" {
@@ -193,7 +193,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a3 STARTTLS\r\n")); err != nil {
 		t.Fatalf("write starttls: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
 		t.Fatalf("starttls line = %q err = %v", line, err)
 	}
 	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
@@ -204,7 +204,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := tlsClient.Write([]byte("a4 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write tls capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SASL-IR AUTH=PLAIN\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("post-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK CAPABILITY completed\r\n" {
@@ -278,7 +278,7 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read authenticated capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES\r\n" {
 		t.Fatalf("authenticated capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -616,7 +616,7 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -1137,7 +1137,7 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -3318,6 +3318,79 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		}
 	}
 	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerSearchResSavesAndReusesResults(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) UNSEEN\r\na4 FETCH $ (FLAGS)\r\na5 UID SEARCH UID $ SMALLER 50\r\na6 UID SEARCH RETURN (SAVE MIN) ALL\r\na7 UID FETCH $ (FLAGS)\r\na8 UID SEARCH RETURN (SAVE COUNT) DELETED\r\na9 FETCH $ (FLAGS)\r\na10 SELECT inbox\r\na11 FETCH $ (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write searchres commands: %v", err)
+	}
+	want := []string{
+		"a3 OK SEARCH completed\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
+		"a4 OK FETCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a5 OK UID SEARCH completed\r\n",
+		"* ESEARCH (TAG \"a6\") UID MIN 7\r\n",
+		"a6 OK UID SEARCH completed\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"a7 OK UID FETCH completed\r\n",
+		"* ESEARCH (TAG \"a8\") UID COUNT 0\r\n",
+		"a8 OK UID SEARCH completed\r\n",
+		"a9 OK FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read searchres response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("searchres response = %q, want %q", line, expected)
+		}
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read reselect response: %v", err)
+		}
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a11 OK FETCH completed\r\n" {
+		t.Fatalf("fetch after select reset = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a12 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

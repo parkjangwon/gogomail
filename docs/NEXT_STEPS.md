@@ -381,6 +381,10 @@ Current state:
   `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses with
   requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and
   CONDSTORE `MODSEQ` data.
+- `CAPABILITY` now advertises RFC 5182 `SEARCHRES`; `SEARCH RETURN (SAVE)`
+  stores the selected-session search result so `$` can be reused by later
+  sequence-set and UID-set commands without sending the result set back to the
+  client.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `FETCH`/`UID FETCH` now supports bounded partial section literals for common

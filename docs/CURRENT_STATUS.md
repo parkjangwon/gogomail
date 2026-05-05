@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP ESEARCH support)
+Last updated: 2026-05-05 (updated after IMAP SEARCHRES support)
 
 ## Current phase
 
@@ -858,6 +858,10 @@ The platform hardening sprint completed the following:
   `UID SEARCH RETURN (...)` can return `MIN`, `MAX`, compact `ALL`, `COUNT`,
   UID indicators, and CONDSTORE `MODSEQ` data in single untagged `ESEARCH`
   responses.
+- IMAP `CAPABILITY` advertises RFC 5182 `SEARCHRES`; `SEARCH RETURN (SAVE)`
+  stores the last search result in the selected session so `$` can be reused in
+  subsequent `FETCH`, `UID FETCH`, `SEARCH`, `UID SEARCH`, `STORE`, `COPY`,
+  `MOVE`, and `UID EXPUNGE` set positions.
 - IMAP `FETCH`/`UID FETCH` supports RFC 4551-shaped `CHANGEDSINCE` modifiers,
   returning only messages with greater per-message mod-sequences and
   implicitly including `MODSEQ` response attributes.
