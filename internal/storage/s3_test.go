@@ -357,6 +357,59 @@ func TestValidateS3RegionRejectsUnsafeValues(t *testing.T) {
 	}
 }
 
+func TestNewS3StoreRejectsSecretAccessKeyWhitespace(t *testing.T) {
+	t.Parallel()
+
+	for _, secretAccessKey := range []string{" secret", "secret ", "secret\tvalue", "secret\nvalue"} {
+		secretAccessKey := secretAccessKey
+		t.Run(secretAccessKey, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: secretAccessKey,
+				ForcePathStyle:  true,
+			})
+			if err == nil {
+				t.Fatalf("NewS3Store accepted secret access key %q", secretAccessKey)
+			}
+			if !strings.Contains(err.Error(), "s3 secret access key") || !strings.Contains(err.Error(), "whitespace") {
+				t.Fatalf("error = %q, want secret access key whitespace rejection", err)
+			}
+		})
+	}
+}
+
+func TestNewS3StoreRejectsSessionTokenWhitespace(t *testing.T) {
+	t.Parallel()
+
+	for _, sessionToken := range []string{" token", "token ", "token\tvalue", "token\nvalue"} {
+		sessionToken := sessionToken
+		t.Run(sessionToken, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				SessionToken:    sessionToken,
+				ForcePathStyle:  true,
+			})
+			if err == nil {
+				t.Fatalf("NewS3Store accepted session token %q", sessionToken)
+			}
+			if !strings.Contains(err.Error(), "s3 session token") || !strings.Contains(err.Error(), "whitespace") {
+				t.Fatalf("error = %q, want session token whitespace rejection", err)
+			}
+		})
+	}
+}
+
 func TestS3StoreSanitizesStatusErrorPreview(t *testing.T) {
 	t.Parallel()
 

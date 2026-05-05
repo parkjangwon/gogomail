@@ -102,6 +102,9 @@ Current state:
 - S3-compatible uploads set a deterministic `Content-Length` for seekable PUT
   bodies without buffering the object in memory, improving compatibility for
   file-backed mail and attachment writes while keeping hot paths streaming-first.
+- S3-compatible secret access keys and session tokens reject spaces, tabs, and
+  line breaks during adapter construction, making copied env/config credential
+  mistakes fail fast before runtime S3 authentication errors.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default `gogomail` bucket for local S3-compatible runs.

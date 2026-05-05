@@ -1430,6 +1430,10 @@ Implementation order:
      mailboxes from nested `FullPath` values when `ParentID` is absent,
      preserving `\HasChildren` responses for deeper hierarchies such as
      `Projects/2026/Jan`.
+880. S3-compatible secret access keys and session tokens now reject spaces,
+     tabs, and line breaks during adapter construction, making copied
+     environment/config credential mistakes fail before runtime S3
+     authentication attempts.
 
 ## Deferred until backend contracts stabilize
 
