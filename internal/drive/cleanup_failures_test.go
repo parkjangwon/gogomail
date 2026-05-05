@@ -65,3 +65,77 @@ func TestValidateObjectCleanupFailureRejectsUnsafeInput(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateListObjectCleanupFailuresRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateListObjectCleanupFailuresRequest(ListObjectCleanupFailuresRequest{
+		UserID: " user-1 ",
+		Status: " Resolved ",
+		Limit:  500,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListObjectCleanupFailuresRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.Status != ObjectCleanupFailureStatusResolved {
+		t.Fatalf("request = %+v, want trimmed normalized fields", req)
+	}
+	if req.Limit != MaxObjectCleanupFailureListLimit {
+		t.Fatalf("Limit = %d, want cap %d", req.Limit, MaxObjectCleanupFailureListLimit)
+	}
+
+	defaulted, err := ValidateListObjectCleanupFailuresRequest(ListObjectCleanupFailuresRequest{})
+	if err != nil {
+		t.Fatalf("ValidateListObjectCleanupFailuresRequest default returned error: %v", err)
+	}
+	if defaulted.Status != ObjectCleanupFailureStatusPending || defaulted.Limit != DefaultObjectCleanupFailureListLimit {
+		t.Fatalf("defaulted request = %+v, want pending/default limit", defaulted)
+	}
+}
+
+func TestValidateListObjectCleanupFailuresRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ListObjectCleanupFailuresRequest{
+		{UserID: "user\n1"},
+		{Status: "failed"},
+		{Status: "pending\nbad"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.Status, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateListObjectCleanupFailuresRequest(tc); err == nil {
+				t.Fatalf("ValidateListObjectCleanupFailuresRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
+func TestValidateResolveObjectCleanupFailureRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateResolveObjectCleanupFailureRequest(ResolveObjectCleanupFailureRequest{ID: " cleanup-1 "})
+	if err != nil {
+		t.Fatalf("ValidateResolveObjectCleanupFailureRequest returned error: %v", err)
+	}
+	if req.ID != "cleanup-1" {
+		t.Fatalf("ID = %q, want trimmed id", req.ID)
+	}
+}
+
+func TestValidateResolveObjectCleanupFailureRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{"", "cleanup\n1", strings.Repeat("x", 129)} {
+		id := id
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateResolveObjectCleanupFailureRequest(ResolveObjectCleanupFailureRequest{ID: id}); err == nil {
+				t.Fatalf("ValidateResolveObjectCleanupFailureRequest(%q) error = nil, want rejection", id)
+			}
+		})
+	}
+}
