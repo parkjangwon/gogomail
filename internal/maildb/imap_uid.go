@@ -174,6 +174,9 @@ SELECT
   m.subject,
   m.from_addr,
   m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
   m.size,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
@@ -216,6 +219,9 @@ LIMIT $4`
 			&row.Subject,
 			&row.FromAddr,
 			&row.FromName,
+			&row.ToAddrs,
+			&row.CcAddrs,
+			&row.BccAddrs,
 			&row.InternalDate,
 			&row.Size,
 			&row.Read,
@@ -281,6 +287,9 @@ SELECT
   m.subject,
   m.from_addr,
   m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
   m.size,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
@@ -313,6 +322,9 @@ LIMIT 1`
 		&row.Subject,
 		&row.FromAddr,
 		&row.FromName,
+		&row.ToAddrs,
+		&row.CcAddrs,
+		&row.BccAddrs,
 		&row.InternalDate,
 		&row.Size,
 		&row.Read,
@@ -726,6 +738,9 @@ SELECT
   source.subject,
   source.from_addr,
   source.from_name,
+  source.to_addrs,
+  source.cc_addrs,
+  source.bcc_addrs,
   COALESCE(source.received_at, source.sent_at, now()) AS internal_date,
   source.size,
   COALESCE((source.flags->>'read')::boolean, false) AS read,
@@ -760,6 +775,9 @@ ORDER BY source.rn`
 			&row.Subject,
 			&row.FromAddr,
 			&row.FromName,
+			&row.ToAddrs,
+			&row.CcAddrs,
+			&row.BccAddrs,
 			&row.InternalDate,
 			&row.Size,
 			&row.Read,
@@ -838,6 +856,9 @@ SELECT
   m.subject,
   m.from_addr,
   m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
   m.size,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
@@ -877,6 +898,9 @@ FOR UPDATE OF i, m`
 			&row.Subject,
 			&row.FromAddr,
 			&row.FromName,
+			&row.ToAddrs,
+			&row.CcAddrs,
+			&row.BccAddrs,
 			&row.InternalDate,
 			&row.Size,
 			&row.Read,
@@ -1060,6 +1084,9 @@ SELECT
   m.subject,
   m.from_addr,
   m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
   m.size,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
@@ -1100,6 +1127,9 @@ FOR UPDATE OF i, m`
 			&row.Subject,
 			&row.FromAddr,
 			&row.FromName,
+			&row.ToAddrs,
+			&row.CcAddrs,
+			&row.BccAddrs,
 			&row.InternalDate,
 			&row.Size,
 			&row.Read,
@@ -1450,6 +1480,9 @@ SELECT
   source.subject,
   source.from_addr,
   source.from_name,
+  source.to_addrs,
+  source.cc_addrs,
+  source.bcc_addrs,
   COALESCE(source.received_at, source.sent_at, source.draft_updated_at, source.created_at) AS source_internal_date,
   source.size,
   COALESCE((source.flags->>'read')::boolean, false) AS source_read,
@@ -1497,6 +1530,9 @@ ORDER BY source.rn`
 			&sourceRow.Subject,
 			&sourceRow.FromAddr,
 			&sourceRow.FromName,
+			&sourceRow.ToAddrs,
+			&sourceRow.CcAddrs,
+			&sourceRow.BccAddrs,
 			&sourceRow.InternalDate,
 			&sourceRow.Size,
 			&sourceRow.Read,
@@ -1816,6 +1852,9 @@ type imapMessageRow struct {
 	Subject      string
 	FromAddr     string
 	FromName     string
+	ToAddrs      json.RawMessage
+	CcAddrs      json.RawMessage
+	BccAddrs     json.RawMessage
 	InternalDate time.Time
 	Size         int64
 	Read         bool
@@ -1920,6 +1959,9 @@ func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSu
 			MessageID: row.RFCMessageID,
 			Subject:   row.Subject,
 			From:      imapEnvelopeAddress(row.FromName, row.FromAddr),
+			To:        imapEnvelopeAddresses(row.ToAddrs),
+			Cc:        imapEnvelopeAddresses(row.CcAddrs),
+			Bcc:       imapEnvelopeAddresses(row.BccAddrs),
 			Date:      row.InternalDate,
 		},
 		Flags: imapgw.MessageFlags{
@@ -1978,6 +2020,24 @@ func imapEnvelopeAddress(name string, address string) []imapgw.Address {
 	return []imapgw.Address{{Name: name, Mailbox: mailbox, Host: host}}
 }
 
+func imapEnvelopeAddresses(raw json.RawMessage) []imapgw.Address {
+	if len(raw) == 0 {
+		return nil
+	}
+	var items []struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	}
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return nil
+	}
+	addresses := make([]imapgw.Address, 0, len(items))
+	for _, item := range items {
+		addresses = append(addresses, imapEnvelopeAddress(item.Name, item.Address)...)
+	}
+	return addresses
+}
+
 func scanIMAPMessageByUID(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, uid imapgw.UID) (imapMessageRow, IMAPMessageUID, error) {
 	const query = `
 SELECT
@@ -1987,6 +2047,9 @@ SELECT
   m.subject,
   m.from_addr,
   m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
   m.size,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
@@ -2018,6 +2081,9 @@ FOR UPDATE OF i, m`
 		&row.Subject,
 		&row.FromAddr,
 		&row.FromName,
+		&row.ToAddrs,
+		&row.CcAddrs,
+		&row.BccAddrs,
 		&row.InternalDate,
 		&row.Size,
 		&row.Read,

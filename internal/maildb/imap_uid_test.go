@@ -20,6 +20,9 @@ func TestIMAPMessageFromRowMapsEnvelopeFlagsAndUID(t *testing.T) {
 		Subject:      "Quarterly report",
 		FromAddr:     "sender@example.com",
 		FromName:     "Sender",
+		ToAddrs:      json.RawMessage(`[{"name":"Recipient","address":"recipient@example.com"}]`),
+		CcAddrs:      json.RawMessage(`[{"name":"Copy","address":"copy@example.com"}]`),
+		BccAddrs:     json.RawMessage(`[{"name":"Blind","address":"blind@example.com"}]`),
 		InternalDate: internalDate,
 		Size:         4096,
 		Read:         true,
@@ -46,6 +49,15 @@ func TestIMAPMessageFromRowMapsEnvelopeFlagsAndUID(t *testing.T) {
 	if !reflect.DeepEqual(got.Envelope.From, wantFrom) {
 		t.Fatalf("from = %#v, want %#v", got.Envelope.From, wantFrom)
 	}
+	if want := []imapgw.Address{{Name: "Recipient", Mailbox: "recipient", Host: "example.com"}}; !reflect.DeepEqual(got.Envelope.To, want) {
+		t.Fatalf("to = %#v, want %#v", got.Envelope.To, want)
+	}
+	if want := []imapgw.Address{{Name: "Copy", Mailbox: "copy", Host: "example.com"}}; !reflect.DeepEqual(got.Envelope.Cc, want) {
+		t.Fatalf("cc = %#v, want %#v", got.Envelope.Cc, want)
+	}
+	if want := []imapgw.Address{{Name: "Blind", Mailbox: "blind", Host: "example.com"}}; !reflect.DeepEqual(got.Envelope.Bcc, want) {
+		t.Fatalf("bcc = %#v, want %#v", got.Envelope.Bcc, want)
+	}
 	if !got.Flags.Read || !got.Flags.Starred || !got.Flags.Answered || !got.Flags.Forwarded {
 		t.Fatalf("flags = %#v, want read/starred/answered/forwarded", got.Flags)
 	}
@@ -60,6 +72,18 @@ func TestIMAPEnvelopeAddressParsesDisplayAddress(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("imapEnvelopeAddress = %#v, want %#v", got, want)
+	}
+}
+
+func TestIMAPEnvelopeAddressesDecodesStoredJSON(t *testing.T) {
+	got := imapEnvelopeAddresses(json.RawMessage(`[{"name":"Ops","address":"ops@example.net"},{"name":"","address":"local"}]`))
+	want := []imapgw.Address{
+		{Name: "Ops", Mailbox: "ops", Host: "example.net"},
+		{Mailbox: "local"},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("imapEnvelopeAddresses = %#v, want %#v", got, want)
 	}
 }
 

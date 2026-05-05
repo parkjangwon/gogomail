@@ -355,6 +355,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   apply selected-mailbox search criteria with mandatory `US-ASCII`/`UTF-8`
   charset handling and return sequence-number or UID sort responses for the
   standard arrival, sent-date, address, subject, and size sort keys.
+- Service-backed IMAP message summaries now hydrate stored `To`, `Cc`, and
+  `Bcc` address JSON into RFC-shaped ENVELOPE address lists, so real
+  repository-backed `FETCH ENVELOPE`, address search, and address sort paths
+  use the same recipient metadata that inbound, APPEND, COPY, and MOVE storage
+  preserve.
 - IMAP `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`; `THREAD
   ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` apply selected-mailbox search
   criteria and return ordered-subject thread trees, while the `REFERENCES`
