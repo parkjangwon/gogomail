@@ -25,6 +25,7 @@ const (
 	ModeEventWorker       Mode = "event-worker"
 	ModeIMAP              Mode = "imap"
 	ModeCalDAV            Mode = "caldav"
+	ModeCardDAV           Mode = "carddav"
 	ModeAuthServer        Mode = "auth-server"
 	ModeMailAPI           Mode = "mail-api"
 	ModeAdminAPI          Mode = "admin-api"
@@ -47,6 +48,7 @@ var knownModes = map[Mode]struct{}{
 	ModeEventWorker:       {},
 	ModeIMAP:              {},
 	ModeCalDAV:            {},
+	ModeCardDAV:           {},
 	ModeAuthServer:        {},
 	ModeMailAPI:           {},
 	ModeAdminAPI:          {},

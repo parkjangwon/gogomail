@@ -1605,7 +1605,8 @@ Next:
   multistatus rendering, and internal `OPTIONS`/`PROPFIND` discovery handler
   now includes internal `addressbook-query`, `addressbook-multiget`, and
   `sync-collection` execution plus contact-object `GET`, `HEAD`, `PUT`, and
-  `DELETE` semantics. It should be followed by auth/listener wiring, richer
+  `DELETE` semantics, and `gogomail --mode=carddav` now exposes an
+  experimental Basic-auth runtime listener. It should be followed by richer
   CardDAV filter semantics, broader vCard compatibility, and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

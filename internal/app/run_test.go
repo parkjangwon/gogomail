@@ -150,6 +150,37 @@ func TestNewCalDAVHTTPServerUsesDedicatedAddressAndHTTPGuardrails(t *testing.T) 
 	}
 }
 
+func TestNewCardDAVHTTPServerUsesDedicatedAddressAndHTTPGuardrails(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Config{
+		CardDAVAddr:           " :18082 ",
+		HTTPReadTimeout:       11 * time.Second,
+		HTTPWriteTimeout:      12 * time.Second,
+		HTTPIdleTimeout:       13 * time.Second,
+		HTTPReadHeaderTimeout: 2 * time.Second,
+		HTTPMaxHeaderBytes:    16 << 10,
+	}
+	handler := http.NewServeMux()
+	server := newCardDAVHTTPServer(cfg, handler)
+	if server.Addr != ":18082" || server.Handler != handler {
+		t.Fatalf("server identity = addr:%q handler:%T", server.Addr, server.Handler)
+	}
+	if server.ReadTimeout != 11*time.Second ||
+		server.WriteTimeout != 12*time.Second ||
+		server.IdleTimeout != 13*time.Second ||
+		server.ReadHeaderTimeout != 2*time.Second ||
+		server.MaxHeaderBytes != 16<<10 {
+		t.Fatalf("server guardrails = read:%s write:%s idle:%s readHeader:%s maxHeader:%d",
+			server.ReadTimeout,
+			server.WriteTimeout,
+			server.IdleTimeout,
+			server.ReadHeaderTimeout,
+			server.MaxHeaderBytes,
+		)
+	}
+}
+
 func TestObjectStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
 	t.Parallel()
 

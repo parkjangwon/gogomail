@@ -189,6 +189,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if !cfg.CalDAVAllowInsecureAuth {
 		t.Fatal("CalDAVAllowInsecureAuth = false, want true in development defaults")
 	}
+	if cfg.CardDAVAddr != ":8082" {
+		t.Fatalf("CardDAVAddr = %q, want :8082", cfg.CardDAVAddr)
+	}
+	if !cfg.CardDAVAllowInsecureAuth {
+		t.Fatal("CardDAVAllowInsecureAuth = false, want true in development defaults")
+	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
 	}
@@ -540,6 +546,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "25")
 	t.Setenv("GOGOMAIL_CALDAV_ADDR", ":18081")
 	t.Setenv("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", "false")
+	t.Setenv("GOGOMAIL_CARDDAV_ADDR", ":18082")
+	t.Setenv("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", "false")
 
 	cfg := Load()
 
@@ -569,6 +577,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.CalDAVAllowInsecureAuth {
 		t.Fatal("CalDAVAllowInsecureAuth = true, want false")
+	}
+	if cfg.CardDAVAddr != ":18082" {
+		t.Fatalf("CardDAVAddr = %q, want :18082", cfg.CardDAVAddr)
+	}
+	if cfg.CardDAVAllowInsecureAuth {
+		t.Fatal("CardDAVAllowInsecureAuth = true, want false")
 	}
 	if cfg.SMTPAddr != ":10025" {
 		t.Fatalf("SMTPAddr = %q, want :10025", cfg.SMTPAddr)

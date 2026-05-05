@@ -25,6 +25,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/caldavgw"
+	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
@@ -88,6 +89,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runIMAPGateway(ctx, cfg, logger)
 	case ModeCalDAV:
 		return runCalDAVGateway(ctx, cfg, logger)
+	case ModeCardDAV:
+		return runCardDAVGateway(ctx, cfg, logger)
 	case ModeSearchIndexWorker:
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:
@@ -347,6 +350,53 @@ func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 func newCalDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              strings.TrimSpace(cfg.CalDAVAddr),
+		Handler:           handler,
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
+		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
+		MaxHeaderBytes:    cfg.HTTPMaxHeaderBytes,
+	}
+}
+
+func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	addressBookRepository := carddavgw.NewRepository(db)
+	accountRepository := maildb.NewRepository(db)
+	resolver := carddavgw.NewBasicAuthResolver(accountRepository, cfg.CardDAVAllowInsecureAuth)
+	handler := carddavgw.NewHandler(addressBookRepository, resolver.Resolve)
+	server := newCardDAVHTTPServer(cfg, handler)
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("carddav gateway listening", "addr", server.Addr)
+		errCh <- server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		return ctx.Err()
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
+}
+
+func newCardDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              strings.TrimSpace(cfg.CardDAVAddr),
 		Handler:           handler,
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		WriteTimeout:      cfg.HTTPWriteTimeout,
