@@ -2817,6 +2817,12 @@ func (s *recordingStore) Stat(_ context.Context, path string) (storage.ObjectInf
 	return storage.ObjectInfo{Path: path}, nil
 }
 
+func (s *recordingStore) Copy(_ context.Context, sourcePath string, destPath string) error {
+	s.getPath = sourcePath
+	s.deletePath = destPath
+	return nil
+}
+
 func (s *recordingStore) Delete(_ context.Context, path string) error {
 	s.deletePath = path
 	return nil
@@ -2878,6 +2884,10 @@ func (s failingDeleteStore) Get(context.Context, string) (io.ReadCloser, error) 
 
 func (s failingDeleteStore) Stat(_ context.Context, path string) (storage.ObjectInfo, error) {
 	return storage.ObjectInfo{Path: path}, nil
+}
+
+func (s failingDeleteStore) Copy(context.Context, string, string) error {
+	return nil
 }
 
 func (s failingDeleteStore) Delete(context.Context, string) error {

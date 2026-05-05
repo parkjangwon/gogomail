@@ -348,6 +348,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   object bodies. S3-compatible storage implements this through signed `HEAD`
   requests, giving future Drive and lifecycle workers a portable size/existence
   primitive across local, MinIO, and AWS S3 deployments.
+- Local/NFS and S3-compatible storage expose a shared object `Copy` contract.
+  Local/NFS copies reuse atomic temporary-file commits, and S3-compatible
+  copies use signed server-side copy requests with escaped `x-amz-copy-source`
+  values so future Drive and lifecycle workflows can duplicate objects without
+  forcing caller-side body streaming.
 - Local/NFS-style storage deletes are idempotent for missing objects, aligning
   lifecycle cleanup behavior with S3-compatible object deletion.
 - S3-compatible storage requests reject canceled contexts before object-key

@@ -4,11 +4,13 @@ gogomail stores raw `.eml` objects, attachments, exports, and readiness probes
 through the shared storage interface. Deployments can switch backends by
 configuration without changing stored object keys.
 
-The shared interface supports `Put`, `Get`, `Stat`, and `Delete`. `Stat`
-returns object size and optional backend metadata without streaming the object
-body, using filesystem metadata on local/NFS storage and signed `HEAD` requests
-on S3-compatible storage. Future Drive and lifecycle modules should prefer
-`Stat` for existence/size checks instead of reading object bodies.
+The shared interface supports `Put`, `Get`, `Stat`, `Copy`, and `Delete`.
+`Stat` returns object size and optional backend metadata without streaming the
+object body, using filesystem metadata on local/NFS storage and signed `HEAD`
+requests on S3-compatible storage. `Copy` preserves object keys and adapter
+semantics while avoiding caller-side read/write loops when the backend can copy
+server-side. Future Drive and lifecycle modules should prefer `Stat` for
+existence/size checks and `Copy` for object duplication workflows.
 
 ## Local filesystem or NFS
 
@@ -35,6 +37,8 @@ Deletes are idempotent for missing objects, matching S3-style cleanup behavior
 so lifecycle workers behave consistently across storage backends.
 `Stat` reports the canonical object key, byte size, and filesystem
 last-modified time without opening the file body.
+`Copy` streams from the source object into the destination through the same
+atomic temporary-file write path used by normal local/NFS writes.
 
 ## Local MinIO
 
@@ -106,6 +110,9 @@ AWS S3, MinIO-style endpoints, and local/NFS storage.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them.
+S3-compatible `Copy` uses a signed server-side copy request with an escaped
+`x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
+duplicate objects without pulling object bytes through gogomail.
 S3 `PUT`, failed `GET`, and `DELETE` responses drain a small bounded body
 window before close so normal S3/MinIO responses can reuse HTTP connections
 without letting oversized responses stall cleanup. Local/NFS and S3 readiness

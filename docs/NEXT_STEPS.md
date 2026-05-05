@@ -1191,6 +1191,9 @@ Current state:
 - Shared storage now supports `Stat` across local/NFS and S3-compatible
   backends, giving future Drive, lifecycle, and verification paths a portable
   way to inspect object size/metadata without streaming object bodies.
+- Shared storage now supports `Copy` across local/NFS and S3-compatible
+  backends, giving future Drive and lifecycle workflows a portable object
+  duplication primitive without forcing caller-side read/write loops.
 
 Next:
 

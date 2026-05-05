@@ -185,6 +185,38 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	return nil
 }
 
+func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	sourceObjectPath, err := ValidateObjectPath(sourcePath)
+	if err != nil {
+		return fmt.Errorf("unsafe source storage path %q: %w", sourcePath, err)
+	}
+	destObjectPath, err := ValidateObjectPath(destPath)
+	if err != nil {
+		return fmt.Errorf("unsafe destination storage path %q: %w", destPath, err)
+	}
+	if sourceObjectPath == destObjectPath {
+		return nil
+	}
+	req, err := s.newRequestWithHeaders(ctx, http.MethodPut, destObjectPath, nil, map[string]string{
+		"x-amz-copy-source": s.copySource(sourceObjectPath),
+	})
+	if err != nil {
+		return err
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("copy s3 object: %w", err)
+	}
+	defer drainAndCloseS3Body(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return s3StatusError("copy", resp)
+	}
+	return nil
+}
+
 func (s *S3Store) Check(ctx context.Context) error {
 	objectPath := "health/readiness-" + fmt.Sprintf("%d", s.now().UnixNano()) + ".txt"
 	const body = "gogomail storage readiness\n"
@@ -217,6 +249,10 @@ func (s *S3Store) Check(ctx context.Context) error {
 }
 
 func (s *S3Store) newRequest(ctx context.Context, method string, objectPath string, body io.Reader) (*http.Request, error) {
+	return s.newRequestWithHeaders(ctx, method, objectPath, body, nil)
+}
+
+func (s *S3Store) newRequestWithHeaders(ctx context.Context, method string, objectPath string, body io.Reader, headers map[string]string) (*http.Request, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -237,6 +273,9 @@ func (s *S3Store) newRequest(ctx context.Context, method string, objectPath stri
 	req.Header.Set("x-amz-date", s.now().UTC().Format("20060102T150405Z"))
 	if s.sessionToken != "" {
 		req.Header.Set("x-amz-security-token", s.sessionToken)
+	}
+	for name, value := range headers {
+		req.Header.Set(name, value)
 	}
 	s.sign(req)
 	return req, nil
@@ -312,6 +351,10 @@ func (s *S3Store) key(objectPath string) string {
 	return s.prefix + "/" + objectPath
 }
 
+func (s *S3Store) copySource(objectPath string) string {
+	return "/" + escapeS3Segment(s.bucket) + "/" + escapeS3Key(s.key(objectPath))
+}
+
 func s3BucketNeedsPathStyle(endpoint *url.URL, bucket string) bool {
 	if endpoint == nil {
 		return false
@@ -360,12 +403,14 @@ func (s *S3Store) sign(req *http.Request) {
 
 func signedHeaderValues(req *http.Request) map[string]string {
 	headers := map[string]string{
-		"host":                 req.URL.Host,
-		"x-amz-content-sha256": req.Header.Get("x-amz-content-sha256"),
-		"x-amz-date":           req.Header.Get("x-amz-date"),
+		"host": req.URL.Host,
 	}
-	if token := req.Header.Get("x-amz-security-token"); token != "" {
-		headers["x-amz-security-token"] = token
+	for name, values := range req.Header {
+		name = strings.ToLower(name)
+		if !strings.HasPrefix(name, "x-amz-") {
+			continue
+		}
+		headers[name] = strings.Join(values, ",")
 	}
 	return headers
 }

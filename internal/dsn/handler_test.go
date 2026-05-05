@@ -493,6 +493,11 @@ func (s *memoryStore) Stat(_ context.Context, path string) (storage.ObjectInfo, 
 	return storage.ObjectInfo{Path: path, Size: int64(len(s.values[path]))}, nil
 }
 
+func (s *memoryStore) Copy(_ context.Context, sourcePath string, destPath string) error {
+	s.values[destPath] = append([]byte(nil), s.values[sourcePath]...)
+	return nil
+}
+
 func (s *memoryStore) Delete(_ context.Context, path string) error {
 	delete(s.values, path)
 	return nil
