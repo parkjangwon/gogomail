@@ -2086,6 +2086,10 @@ Implementation order:
       time-range, skips transparent/cancelled events, maps tentative events to
       `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
       free-busy time ranges before handler work.
+1054. CalDAV `Allow` headers now avoid advertising `MKCALENDAR` until a real
+      creation handler exists, keeping standards-sensitive client discovery
+      aligned with implemented semantics instead of exposing a method token that
+      still falls through to 405 handling.
 
 ## Deferred until backend contracts stabilize
 

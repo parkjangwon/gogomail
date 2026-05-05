@@ -2127,6 +2127,9 @@ The platform hardening sprint completed the following:
   free-busy time ranges. Scheduling, recurrence expansion, VFREEBUSY source
   object ingestion, and broader native-client compatibility coverage remain
   incomplete.
+- CalDAV `Allow` headers no longer advertise `MKCALENDAR` before the method has
+  real handler semantics, keeping protocol discovery aligned with implemented
+  behavior.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

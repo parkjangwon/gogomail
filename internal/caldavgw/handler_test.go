@@ -26,6 +26,9 @@ func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodPropfind) || !strings.Contains(got, MethodReport) {
 		t.Fatalf("Allow header = %q", got)
 	}
+	if got := rec.Header().Get("Allow"); strings.Contains(got, MethodMkcalendar) {
+		t.Fatalf("Allow header advertises unimplemented MKCALENDAR: %q", got)
+	}
 }
 
 func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {

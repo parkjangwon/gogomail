@@ -659,7 +659,6 @@ func calDAVAllowHeader() string {
 		MethodOptions,
 		MethodPropfind,
 		MethodReport,
-		MethodMkcalendar,
 		MethodGet,
 		MethodHead,
 		MethodPut,
