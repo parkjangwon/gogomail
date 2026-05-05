@@ -1221,9 +1221,9 @@ func imapMessageMatchesFlagSearch(summary MessageSummary, criterion string) bool
 	case "UNDRAFT":
 		return !summary.Flags.Draft && !strings.EqualFold(strings.TrimSpace(summary.Flags.Status), "draft")
 	case "DELETED":
-		return false
+		return summary.Flags.Deleted
 	case "UNDELETED":
-		return true
+		return !summary.Flags.Deleted
 	case "RECENT", "NEW":
 		return false
 	case "OLD":
@@ -3016,6 +3016,9 @@ func imapStoreFlags(value string) (MessageFlags, bool) {
 			ok = true
 		case FlagDraft:
 			flags.Draft = true
+			ok = true
+		case FlagDeleted:
+			flags.Deleted = true
 			ok = true
 		default:
 			return MessageFlags{}, false

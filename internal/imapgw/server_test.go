@@ -559,12 +559,12 @@ func TestServerHandlesSelectAfterLogin(t *testing.T) {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
-		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft)\r\n",
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
 		"* 2 EXISTS\r\n",
 		"* 0 RECENT\r\n",
 		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
 		"* OK [UIDNEXT 5] Predicted next UID\r\n",
-		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft)] Permanent flags\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
 		"a3 OK [READ-WRITE] SELECT completed\r\n",
 	}
 	for _, expected := range want {
@@ -612,7 +612,7 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
-		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft)\r\n",
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
 		"* 2 EXISTS\r\n",
 		"* 0 RECENT\r\n",
 		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
@@ -2978,12 +2978,12 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID STORE 7:8 +FLAGS (\\Seen \\Flagged)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID STORE 7:8 +FLAGS (\\Seen \\Flagged \\Deleted)\r\n")); err != nil {
 		t.Fatalf("write uid store: %v", err)
 	}
 	want := []string{
-		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged))\r\n",
-		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged))\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged \\Deleted))\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged \\Deleted))\r\n",
 		"a3 OK UID STORE completed\r\n",
 	}
 	for _, expected := range want {
@@ -3283,6 +3283,25 @@ func TestIMAPMailboxDisplayNameTrimsStoredRootPrefix(t *testing.T) {
 	got := imapMailboxDisplayName(Mailbox{ID: "mailbox-1", FullPath: "/Archive/2026"})
 	if got != "Archive/2026" {
 		t.Fatalf("display name = %q, want Archive/2026", got)
+	}
+}
+
+func TestIMAPMessageMatchesDeletedSearch(t *testing.T) {
+	t.Parallel()
+
+	deleted := MessageSummary{Flags: MessageFlags{Deleted: true}}
+	active := MessageSummary{}
+	if !imapMessageMatchesFlagSearch(deleted, "DELETED") {
+		t.Fatal("DELETED did not match IMAP deleted flag")
+	}
+	if imapMessageMatchesFlagSearch(active, "DELETED") {
+		t.Fatal("DELETED matched active message")
+	}
+	if imapMessageMatchesFlagSearch(deleted, "UNDELETED") {
+		t.Fatal("UNDELETED matched IMAP deleted flag")
+	}
+	if !imapMessageMatchesFlagSearch(active, "UNDELETED") {
+		t.Fatal("UNDELETED did not match active message")
 	}
 }
 
@@ -3776,7 +3795,7 @@ func testNestedMultipartBody() string {
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
 	summaries := make([]MessageSummary, 0, len(req.UIDs))
 	for _, uid := range req.UIDs {
-		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft}})
+		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}})
 	}
 	return summaries, nil
 }
@@ -3784,7 +3803,7 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
 	return MailboxState{
 		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
-		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted},
 	}, nil
 }
 

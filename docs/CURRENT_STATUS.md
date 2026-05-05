@@ -812,7 +812,7 @@ The platform hardening sprint completed the following:
   emitting selected-mailbox response data, avoiding ambiguous partial selection
   state when subscription setup fails.
 - IMAP `CHECK` and `CLOSE` support selected-mailbox lifecycle handling; `CLOSE`
-  clears selected state without enabling EXPUNGE/`\Deleted` behavior yet.
+  clears selected state without expunging messages.
 - IMAP `STATUS` validates requested status data items and returns only the
   requested mailbox metadata fields.
 - IMAP mailbox lookup resolves wire names such as `INBOX` and `Archive/2026`
@@ -893,9 +893,9 @@ The platform hardening sprint completed the following:
   common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]` requests.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,
   answered, and draft client views.
-- IMAP `SEARCH`/`UID SEARCH` supports `DELETED` and `UNDELETED`, returning no
-  deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
-  treating active messages as undeleted.
+- IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
+  separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
+  that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
 - IMAP `SEARCH`/`UID SEARCH` supports `RECENT`, `OLD`, and `NEW`, returning no
   recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
@@ -937,7 +937,7 @@ The platform hardening sprint completed the following:
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` return explicit unsupported `NO` responses
-  while `\Deleted` semantics remain deferred.
+  while destructive expunge semantics remain deferred.
 - IMAP `COPY` and `UID COPY` resolve sequence/UID sets through the selected
   mailbox, validate the destination mailbox, duplicate active message metadata
   and attachment rows transactionally, assign fresh destination mailbox UIDs,

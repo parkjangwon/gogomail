@@ -631,7 +631,7 @@ func TestIMAPStoreAdapterSelectsMailboxState(t *testing.T) {
 	if repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" {
 		t.Fatalf("select ids = %q/%q", repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
 	}
-	wantFlags := []string{imapgw.FlagSeen, imapgw.FlagFlagged, imapgw.FlagAnswered, imapgw.FlagDraft}
+	wantFlags := []string{imapgw.FlagSeen, imapgw.FlagFlagged, imapgw.FlagAnswered, imapgw.FlagDraft, imapgw.FlagDeleted}
 	if strings.Join(state.PermanentFlags, ",") != strings.Join(wantFlags, ",") {
 		t.Fatalf("PermanentFlags = %#v, want %#v", state.PermanentFlags, wantFlags)
 	}
