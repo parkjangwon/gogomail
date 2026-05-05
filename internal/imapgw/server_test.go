@@ -104,7 +104,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID AUTH=PLAIN\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT AUTH=PLAIN\r\n" {
 		t.Fatalf("capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -206,7 +206,7 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read authenticated capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT\r\n" {
 		t.Fatalf("authenticated capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -407,7 +407,7 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -589,6 +589,61 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 		t.Fatalf("fetch after close line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesUnselectAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UNSELECT\r\na4 FETCH 1 (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write unselect/fetch: %v", err)
+	}
+	want := []string{
+		"a3 OK UNSELECT completed\r\n",
+		"a4 NO mailbox must be selected\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read unselect response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("unselect response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

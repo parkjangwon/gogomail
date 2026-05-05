@@ -363,6 +363,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   persistent subscription storage is added.
 - IMAP now advertises and supports `ID`, returning a bounded server identity
   response for compatibility diagnostics.
+- IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
+  and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

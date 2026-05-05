@@ -299,6 +299,8 @@ Current state:
   work.
 - IMAP now advertises and supports `ID`, returning a bounded gogomail server
   identity response.
+- IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
+  without invoking `CLOSE`/EXPUNGE semantics.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

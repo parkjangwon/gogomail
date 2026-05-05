@@ -903,6 +903,8 @@ Implementation order:
      persistent subscription storage remains future work.
 727. IMAP now advertises and supports the RFC 2971-style `ID` command, returning
      a bounded server identity response for client compatibility diagnostics.
+728. IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox
+     state and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
 
 ## Deferred until backend contracts stabilize
 
