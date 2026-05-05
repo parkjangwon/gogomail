@@ -274,6 +274,8 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		_, err := writer.WriteString(tag + " OK CAPABILITY completed\r\n")
 		return false, err
+	case "ENABLE":
+		return s.handleEnable(writer, tag, fields, state)
 	case "NOOP":
 		if err := s.drainMailboxEvents(writer, state); err != nil {
 			return false, err
@@ -3367,7 +3369,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
@@ -3379,6 +3381,44 @@ func (s *Server) imapCapabilities(state *imapConnState) []string {
 		}
 	}
 	return capabilities
+}
+
+func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if len(fields) < 3 {
+		_, err := writer.WriteString(tag + " BAD ENABLE requires at least one capability\r\n")
+		return false, err
+	}
+	enabled := make([]string, 0, len(fields)-2)
+	for _, field := range fields[2:] {
+		if strings.EqualFold(field, "CONDSTORE") {
+			state.condstoreAware = true
+			if !imapStringSliceContainsFold(enabled, "CONDSTORE") {
+				enabled = append(enabled, "CONDSTORE")
+			}
+		}
+	}
+	if len(enabled) == 0 {
+		if _, err := writer.WriteString("* ENABLED\r\n"); err != nil {
+			return false, err
+		}
+	} else if _, err := writer.WriteString("* ENABLED " + strings.Join(enabled, " ") + "\r\n"); err != nil {
+		return false, err
+	}
+	_, err := writer.WriteString(tag + " OK ENABLE completed\r\n")
+	return false, err
+}
+
+func imapStringSliceContainsFold(values []string, want string) bool {
+	for _, value := range values {
+		if strings.EqualFold(value, want) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) authAllowed(state *imapConnState) bool {

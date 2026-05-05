@@ -1139,6 +1139,9 @@ Implementation order:
 801. IMAP `CAPABILITY` now advertises `CONDSTORE`, making the implemented
      RFC 4551 durable mod-sequence sync surface discoverable by standard IMAP
      clients.
+802. IMAP now advertises `ENABLE` and accepts RFC 5161-shaped
+     `ENABLE CONDSTORE`, allowing clients to mark a session CONDSTORE-aware
+     before mailbox selection while leaving the capability list stable.
 
 ## Deferred until backend contracts stabilize
 

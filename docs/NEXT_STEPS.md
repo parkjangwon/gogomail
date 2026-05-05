@@ -283,8 +283,8 @@ Current state:
   untagged flag echo responses for those requests.
 - `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, using the service-backed message summary fields.
-- `CAPABILITY` now advertises `CONDSTORE`; implemented RFC 4551 paths use
-  durable mailbox/message mod-sequences for standard client cache sync.
+- `CAPABILITY` now advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
+  `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes when
   requested, backed by durable per-message IMAP mod-sequences.
 - `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria,
