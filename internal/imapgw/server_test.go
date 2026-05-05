@@ -783,7 +783,8 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	backendImpl := &closeBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -821,6 +822,9 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK CLOSE completed\r\n" {
 		t.Fatalf("close line = %q err = %v", line, err)
 	}
+	if backendImpl.expungeCount != 1 || backendImpl.expungeMailboxID != "inbox" || backendImpl.expungeUserID != "user-1" {
+		t.Fatalf("close expunge = count %d user %q mailbox %q, want writable selected mailbox expunged", backendImpl.expungeCount, backendImpl.expungeUserID, backendImpl.expungeMailboxID)
+	}
 	if _, err := client.Write([]byte("a5 FETCH 1 (FLAGS)\r\n")); err != nil {
 		t.Fatalf("write fetch after close: %v", err)
 	}
@@ -828,6 +832,55 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 		t.Fatalf("fetch after close line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerCloseReadOnlyMailboxDoesNotExpunge(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &closeBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
+		t.Fatalf("write login/examine: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read examine response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 CLOSE\r\n")); err != nil {
+		t.Fatalf("write close: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK CLOSE completed\r\n" {
+		t.Fatalf("close line = %q err = %v", line, err)
+	}
+	if backendImpl.expungeCount != 0 {
+		t.Fatalf("read-only close expunge count = %d, want 0", backendImpl.expungeCount)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -3854,6 +3907,20 @@ func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]Message
 
 func (fakeBackend) Expunge(context.Context, ExpungeRequest) ([]MessageSummary, error) {
 	return []MessageSummary{{ID: "message-7", MailboxID: "inbox", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Deleted: true}}}, nil
+}
+
+type closeBackend struct {
+	fakeBackend
+	expungeCount     int
+	expungeUserID    UserID
+	expungeMailboxID MailboxID
+}
+
+func (b *closeBackend) Expunge(_ context.Context, req ExpungeRequest) ([]MessageSummary, error) {
+	b.expungeCount++
+	b.expungeUserID = req.UserID
+	b.expungeMailboxID = req.MailboxID
+	return []MessageSummary{{ID: "message-7", MailboxID: req.MailboxID, UID: 7, SequenceNumber: 1, Flags: MessageFlags{Deleted: true}}}, nil
 }
 
 func (fakeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {

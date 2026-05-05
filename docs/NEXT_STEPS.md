@@ -259,7 +259,8 @@ Current state:
   selected-mailbox response data, avoiding ambiguous partial selection state
   when subscription setup fails.
 - `CHECK` and `CLOSE` now cover selected-mailbox lifecycle calls; `CLOSE`
-  clears selected state without expunging messages.
+  silently expunges `\Deleted` messages for writable selections before clearing
+  selected state, while read-only selections only clear state.
 - `STATUS` now validates requested status data items and returns only the
   requested mailbox metadata fields.
 - IMAP mailbox lookup now resolves wire names such as `INBOX` and

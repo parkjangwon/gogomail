@@ -464,12 +464,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
-		state.selectedMailbox = ""
-		state.selectedMessages = 0
-		state.readOnly = false
-		state.closeSubscription()
-		_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
-		return false, err
+		return s.handleClose(writer, tag, state)
 	case "UNSELECT":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -1656,6 +1651,24 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		return false, writeErr
 	}
 	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(fields[3]), "MOVE")
+}
+
+func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnState) (bool, error) {
+	if !state.readOnly {
+		if _, err := s.options.Backend.Expunge(context.Background(), ExpungeRequest{
+			UserID:    state.session.UserID,
+			MailboxID: state.selectedMailbox,
+		}); err != nil {
+			_, writeErr := writer.WriteString(tag + " NO CLOSE failed\r\n")
+			return false, writeErr
+		}
+	}
+	state.selectedMailbox = ""
+	state.selectedMessages = 0
+	state.readOnly = false
+	state.closeSubscription()
+	_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
+	return false, err
 }
 
 func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
