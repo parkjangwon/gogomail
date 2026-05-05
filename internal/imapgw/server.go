@@ -393,6 +393,21 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		state.closeSubscription()
 		_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
 		return false, err
+	case "UNSELECT":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+			return false, err
+		}
+		state.selectedMailbox = ""
+		state.selectedMessages = 0
+		state.readOnly = false
+		state.closeSubscription()
+		_, err := writer.WriteString(tag + " OK UNSELECT completed\r\n")
+		return false, err
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -1465,7 +1480,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "UNSELECT"}
 	if state == nil || state.session == nil {
 		capabilities = append(capabilities, "AUTH=PLAIN")
 	}

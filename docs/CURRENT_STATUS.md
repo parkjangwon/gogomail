@@ -849,6 +849,8 @@ The platform hardening sprint completed the following:
   checks while persistent subscription storage remains future work.
 - IMAP advertises and supports `ID`, returning a bounded gogomail server
   identity response.
+- IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
+  without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
