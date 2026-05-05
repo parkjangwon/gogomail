@@ -1049,6 +1049,10 @@ The platform hardening sprint completed the following:
 - IMAP persists authenticated `SUBSCRIBE`/`UNSUBSCRIBE` mailbox subscriptions
   through the service/repository boundary, and `LSUB` now returns the saved
   subscription set instead of every visible mailbox.
+- IMAP subscription canonicalization preserves hierarchy delimiters, quoting,
+  and internal spacing while keeping case-insensitive matching, preventing
+  distinct subscribed mailbox names from silently collapsing into one `LSUB`
+  row.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.

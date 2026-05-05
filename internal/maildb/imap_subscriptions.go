@@ -158,9 +158,7 @@ func imapSubscriptionDisplayName(mailbox imapgw.Mailbox) string {
 }
 
 func canonicalIMAPSubscriptionName(value string) string {
-	value = strings.Trim(strings.TrimSpace(value), `"`)
-	value = strings.Trim(value, "/")
-	return strings.ToLower(value)
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func isIMAPMailboxNotFound(err error) bool {

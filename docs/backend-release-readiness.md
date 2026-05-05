@@ -614,6 +614,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP now persists authenticated `SUBSCRIBE`/`UNSUBSCRIBE` mailbox
   subscriptions and returns the saved set from `LSUB` instead of every visible
   mailbox.
+- IMAP subscription canonicalization preserves hierarchy delimiters, quoting,
+  and internal spacing while keeping case-insensitive matching, preventing
+  distinct subscribed mailbox names from silently overwriting each other in
+  `LSUB` state.
 - IMAP `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can report
   them with `\Noselect`, keeping subscription state useful across mailbox
   migration, deletion, and delayed creation flows.

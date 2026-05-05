@@ -1410,6 +1410,10 @@ Implementation order:
      addressing for dotted bucket names on HTTPS endpoints, avoiding AWS S3
      virtual-hosted TLS wildcard certificate mismatches while preserving
      virtual-hosted requests for ordinary bucket names by default.
+875. IMAP subscription canonicalization now preserves hierarchy delimiters,
+     quoting, and internal spacing while retaining case-insensitive matching,
+     preventing distinct subscribed mailbox names from silently collapsing into
+     one `LSUB` row.
 
 ## Deferred until backend contracts stabilize
 
