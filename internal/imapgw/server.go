@@ -3736,7 +3736,7 @@ func (s *Server) uidsForUIDSet(ctx context.Context, state *imapConnState, value 
 		uids := imapSavedSearchUIDs(state)
 		return uids, true, nil
 	}
-	if !strings.ContainsAny(value, ":*") || s == nil || s.options.Backend == nil || state == nil || state.session == nil || state.selectedMailbox == "" {
+	if !strings.ContainsAny(value, ":*,") || s == nil || s.options.Backend == nil || state == nil || state.session == nil || state.selectedMailbox == "" {
 		uids, ok := parseIMAPUIDSet(value)
 		return uids, ok, nil
 	}
