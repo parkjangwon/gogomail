@@ -351,6 +351,13 @@ func TestMailboxListMethodsRejectUnsafeResourceIDs(t *testing.T) {
 				return err
 			},
 		},
+		{
+			name: "thread page folder",
+			run: func(service *Service) error {
+				_, err := service.ListThreadsPage(context.Background(), "user-1", 10, maildb.ThreadListCursor{}, maildb.ThreadListFilter{FolderID: "folder\nbad"})
+				return err
+			},
+		},
 	}
 	for _, tc := range tests {
 		repo := &fakeRepository{}
@@ -3129,7 +3136,7 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	read := false
 	starred := true
 	hasAttachment := true
-	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{Read: &read, Starred: &starred, HasAttachment: &hasAttachment}); err != nil {
+	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{FolderID: " folder-1 ", Read: &read, Starred: &starred, HasAttachment: &hasAttachment}); err != nil {
 		t.Fatalf("ListThreadsPage returned error: %v", err)
 	}
 	if repo.lastListThreadsCursor.ID != threadCursor.ID {
@@ -3137,6 +3144,9 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	}
 	if repo.lastListThreadsFilter.Read == nil || *repo.lastListThreadsFilter.Read || repo.lastListThreadsFilter.Starred == nil || !*repo.lastListThreadsFilter.Starred {
 		t.Fatalf("thread filter = %#v", repo.lastListThreadsFilter)
+	}
+	if repo.lastListThreadsFilter.FolderID != "folder-1" {
+		t.Fatalf("thread folder filter = %#v", repo.lastListThreadsFilter)
 	}
 	if repo.lastListThreadsFilter.HasAttachment == nil || !*repo.lastListThreadsFilter.HasAttachment {
 		t.Fatalf("thread attachment filter = %#v", repo.lastListThreadsFilter)

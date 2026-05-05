@@ -47,6 +47,7 @@ WITH active_messages AS (
   FROM messages
   WHERE user_id = $1
     AND status = 'active'
+    AND ($8 = '' OR folder_id::text = $8)
 ),
 thread_summaries AS (
 SELECT
@@ -78,7 +79,7 @@ AND ($7::boolean IS NULL OR has_attachment = $7::boolean)
 ORDER BY latest_at DESC, thread_key DESC
 LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment, strings.TrimSpace(filter.FolderID))
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}

@@ -590,7 +590,7 @@ func TestOpenAPIDraftKeepsThreadListParametersScoped(t *testing.T) {
 	if !ok {
 		t.Fatal("OpenAPI operation GET /threads is missing")
 	}
-	for _, want := range []string{"#/components/parameters/Limit", "name: cursor", "name: read", "name: starred", "name: has_attachment"} {
+	for _, want := range []string{"#/components/parameters/Limit", "name: folder_id", "name: cursor", "name: read", "name: starred", "name: has_attachment"} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("GET /threads must document %q, got:\n%s", want, block)
 		}

@@ -20,6 +20,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `starred=true|false`, and `has_attachment=true|false` filters for
   conversation-level unread/read/starred/attachment quick views while retaining
   opaque cursor pagination.
+- Mail API thread lists support `folder_id` so production webmail can render
+  folder-scoped conversation views without dropping back to flat message lists.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

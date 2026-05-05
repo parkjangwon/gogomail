@@ -801,12 +801,15 @@ func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&read=false&starred=true&has_attachment=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&folder_id=folder-1&read=false&starred=true&has_attachment=true", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastThreadFilter.FolderID != "folder-1" {
+		t.Fatalf("folder filter = %q", service.lastThreadFilter.FolderID)
 	}
 	if service.lastThreadFilter.Read == nil || *service.lastThreadFilter.Read {
 		t.Fatalf("read filter = %#v", service.lastThreadFilter.Read)
@@ -826,6 +829,7 @@ func TestListThreadsHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
 		"/api/v1/threads?user_id=user-1&read=maybe",
 		"/api/v1/threads?user_id=user-1&starred=maybe",
 		"/api/v1/threads?user_id=user-1&has_attachment=maybe",
+		"/api/v1/threads?user_id=user-1&folder_id=folder%0Abad",
 		"/api/v1/threads?user_id=user-1&starred=true&starred=false",
 	}
 	for _, path := range tests {
