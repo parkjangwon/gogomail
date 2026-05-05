@@ -23,6 +23,9 @@ func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if body == nil {
+		return fmt.Errorf("storage body is required")
+	}
 
 	fullPath, err := s.safePath(path)
 	if err != nil {

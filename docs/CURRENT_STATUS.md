@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP FETCH parenthesis validation)
+Last updated: 2026-05-05 (updated after storage nil-body validation)
 
 ## Current phase
 
@@ -152,6 +152,9 @@ guidance.
 - Mail/Admin HTTP readiness now probes configured storage with a write/read/delete
   cycle, and unsupported HTTP storage backends fail fast instead of silently
   using local storage wiring.
+- Local and S3-compatible storage writes now reject nil `Put` bodies before
+  filesystem or HTTP request work, keeping empty object creation explicit and
+  adapter behavior consistent.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object

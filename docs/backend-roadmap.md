@@ -1547,6 +1547,9 @@ Implementation order:
 915. S3-compatible endpoint base paths now reject encoded path separators such
      as `%2F` and `%5C`, preventing ambiguous SigV4 canonical paths and object
      addressing before adapter construction.
+916. Shared local and S3-compatible storage writes now reject nil `Put` bodies
+     before filesystem or HTTP request work, preventing accidental empty object
+     writes and keeping storage adapter behavior consistent.
 
 ## Deferred until backend contracts stabilize
 

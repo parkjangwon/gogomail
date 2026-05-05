@@ -42,6 +42,16 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	}
 }
 
+func TestLocalStoreRejectsNilPutBody(t *testing.T) {
+	t.Parallel()
+
+	store := NewLocalStore(t.TempDir())
+	err := store.Put(context.Background(), "mailstore/company/domain/message.eml", nil)
+	if err == nil || !strings.Contains(err.Error(), "storage body is required") {
+		t.Fatalf("Put err = %v, want nil body rejection", err)
+	}
+}
+
 func TestLocalStoreCheckProbesWritableStorage(t *testing.T) {
 	t.Parallel()
 
