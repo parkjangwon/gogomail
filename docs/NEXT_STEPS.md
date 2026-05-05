@@ -1071,6 +1071,10 @@ Next:
 - Mail API message and thread list pagination now accept
   `sort=newest|oldest`, enabling explicit newest-first and oldest-first
   production webmail list controls while retaining opaque cursor pagination.
+- Mail API message and thread summaries now expose a required bounded
+  `preview` string from the asynchronous search-document read model, so
+  production webmail lists can render body context without reading stored EML
+  objects during list pagination.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

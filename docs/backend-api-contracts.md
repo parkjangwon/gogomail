@@ -178,6 +178,10 @@ folder scope, or sort direction.
 Boolean filters reject malformed or repeated scalar values before service
 dispatch, allowing webmail clients to render unread/read, starred/unstarred,
 and attachment-presence quick views without invoking full-text search.
+Message summary rows include a required `preview` string for webmail list
+rendering. The preview is whitespace-normalized and capped to 280 characters
+from the asynchronous `message_search_documents` read model; it is an empty
+string until indexing has produced body text for that message.
 
 Search query, folder, sender, and subject filters are whitespace-normalized and
 reject CR/LF-bearing or oversized values before either Postgres or OpenSearch
@@ -703,6 +707,8 @@ while `read=true` means the thread has no unread messages; `starred` and
 `has_attachment` match conversations where any message has the matching state.
 The `folder_id` filter is bounded and validated before repository dispatch so
 webmail clients can render folder-scoped conversation lists safely.
+Thread summaries include a required `preview` string derived from the latest
+message in the conversation using the same bounded search-document read model.
 Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
 attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
 outbound messages inherit the source message thread when `source_message_id` is

@@ -1,6 +1,9 @@
 package maildb
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestThreadSummaryJSONFieldsAreStable(t *testing.T) {
 	t.Parallel()
@@ -8,6 +11,7 @@ func TestThreadSummaryJSONFieldsAreStable(t *testing.T) {
 	thread := ThreadSummary{
 		ID:              "thread-1",
 		Subject:         "hello",
+		Preview:         "body preview",
 		MessageCount:    2,
 		UnreadCount:     1,
 		LatestMessageID: "msg-2",
@@ -15,7 +19,32 @@ func TestThreadSummaryJSONFieldsAreStable(t *testing.T) {
 		HasAttachment:   true,
 		Starred:         true,
 	}
-	if thread.ID == "" || thread.MessageCount != 2 || !thread.HasAttachment || !thread.Starred {
+	if thread.ID == "" || thread.Preview == "" || thread.MessageCount != 2 || !thread.HasAttachment || !thread.Starred {
 		t.Fatalf("thread = %+v", thread)
+	}
+}
+
+func TestThreadListSQLUsesLatestMessagePreview(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"newest": threadListPageNewestSQL,
+		"oldest": threadListPageOldestSQL,
+	} {
+		name := name
+		query := query
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			for _, want := range []string{
+				"LEFT JOIN message_search_documents msd",
+				"left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview",
+				"(array_agg(preview ORDER BY message_at DESC, id DESC))[1] AS preview",
+			} {
+				if !strings.Contains(query, want) {
+					t.Fatalf("thread list query does not include %q:\n%s", want, query)
+				}
+			}
+		})
 	}
 }

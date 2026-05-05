@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after mailbox list sort controls)
+Last updated: 2026-05-06 (updated after mailbox list preview summaries)
 
 ## Current phase
 
@@ -101,6 +101,10 @@ guidance.
 - Mail API message and thread lists now support `sort=newest|oldest` with
   bounded query validation, giving production webmail clients explicit
   newest-first and oldest-first mailbox/conversation list controls.
+- Mail API message and thread summaries now expose a required bounded
+  `preview` string sourced from the asynchronous search-document read model,
+  letting production webmail lists render body context without opening and
+  parsing stored `.eml` objects on the list hot path.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

@@ -103,6 +103,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		if err := rows.Scan(
 			&msg.ID,
 			&msg.Subject,
+			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
 			&msg.ReceivedAt,
@@ -206,6 +207,7 @@ ranked_messages AS (
 SELECT
   messages.id::text AS id,
   messages.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,
   messages.from_name,
   COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
@@ -257,6 +259,7 @@ WHERE messages.user_id = $1
 SELECT
   id,
   subject,
+  preview,
   from_addr,
   from_name,
   message_at,
