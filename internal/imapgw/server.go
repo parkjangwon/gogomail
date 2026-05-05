@@ -1427,11 +1427,12 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
 	for _, uid := range uids {
-		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
+		fetchReq := FetchMessageRequest{
 			UserID:    state.session.UserID,
 			MailboxID: state.selectedMailbox,
 			UID:       uid,
-		})
+		}
+		message, err := s.options.Backend.FetchMessage(context.Background(), fetchReq)
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
 			return false, writeErr
@@ -1443,21 +1444,46 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		requestsLiteral := requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
 		bodyAttribute := ""
 		bodyStructure := ""
-		if !requestsLiteral && message.Body != nil {
-			if requestsBodyAttribute || requestsBodyStructure {
-				structure, err := messageparse.ParseMIMEStructure(message.Body, messageparse.MIMEStructureOptions{})
-				if closeErr := message.Body.Close(); closeErr != nil && err == nil {
+		if requestsBodyAttribute || requestsBodyStructure {
+			structureMessage := message
+			if requestsLiteral {
+				var err error
+				structureMessage, err = s.options.Backend.FetchMessage(context.Background(), fetchReq)
+				if err != nil {
+					structureMessage = Message{}
+				}
+			}
+			if structureMessage.Body != nil {
+				structure, err := messageparse.ParseMIMEStructure(structureMessage.Body, messageparse.MIMEStructureOptions{})
+				if closeErr := structureMessage.Body.Close(); closeErr != nil && err == nil {
 					err = closeErr
 				}
-				if err != nil {
-					bodyAttribute = imapBody(summary)
-					bodyStructure = imapBodyStructure(summary)
-				} else {
+				if err == nil {
 					bodyAttribute = imapBodyFromMIMEStructure(summary, structure)
 					bodyStructure = imapBodyStructureFromMIMEStructure(summary, structure)
 				}
-			} else if err := message.Body.Close(); err != nil {
+			}
+			if bodyAttribute == "" {
+				bodyAttribute = imapBody(summary)
+			}
+			if bodyStructure == "" {
+				bodyStructure = imapBodyStructure(summary)
+			}
+			if !requestsLiteral {
+				message.Body = nil
+			}
+		} else if !requestsLiteral && message.Body != nil {
+			if err := message.Body.Close(); err != nil {
 				return false, err
+			}
+			message.Body = nil
+		}
+		if !requestsLiteral {
+			if message.Body != nil {
+				if err := message.Body.Close(); err != nil {
+					return false, err
+				}
+				message.Body = nil
 			}
 		}
 		sequenceNumber, ok := imapSequenceNumber(summary)
@@ -1494,7 +1520,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				if err := body.Close(); err != nil {
 					return false, err
 				}
-				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, "", "")
+				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
 				section := "TEXT"
 				if requestsPartText {
 					section = "1"
@@ -1516,7 +1542,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				continue
 			}
-			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, "", "")
+			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
 			if requestsPartialBody {
 				count := partial.count
 				if partial.offset >= uint64(summary.Size) {

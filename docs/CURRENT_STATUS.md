@@ -827,6 +827,10 @@ The platform hardening sprint completed the following:
   metadata-only fetches, returning multipart child order, subtype, parameters,
   transfer encodings, dispositions, body octets, and text line counts without
   retaining attachment payloads.
+- IMAP combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the
+  raw message for MIME metadata while preserving the original reader for
+  literal streaming, so common preview/header fetch batches keep rich structure
+  responses.
 - IMAP `FETCH`/`UID FETCH` supports standard `FAST`, `ALL`, and `FULL` macros,
   including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded header-only literals for

@@ -975,6 +975,10 @@ Implementation order:
      MIME-structure parser to return multipart child order, subtype, parameters,
      transfer encodings, dispositions, body octets, and text line counts without
      retaining attachment payloads.
+756. IMAP combined `BODYSTRUCTURE` plus literal body/header fetches can reopen
+     the raw message for MIME metadata while preserving the original reader for
+     literal streaming, so common preview/header fetch batches keep rich
+     structure responses.
 
 ## Deferred until backend contracts stabilize
 

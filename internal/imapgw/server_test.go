@@ -3077,6 +3077,63 @@ func TestServerHandlesFetchMultipartBodyStructure(t *testing.T) {
 	}
 }
 
+func TestServerHandlesCombinedBodyStructureAndHeaderFetch(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 11 (BODYSTRUCTURE BODY.PEEK[HEADER])\r\n")); err != nil {
+		t.Fatalf("write uid fetch bodystructure/header: %v", err)
+	}
+	bodySize := len(testMultipartBody())
+	header := "Content-Type: multipart/mixed; boundary=frontier\r\n\r\n"
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read combined fetch line: %v", err)
+	}
+	wantPrefix := fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE ((\"TEXT\" \"PLAIN\" (\"CHARSET\" \"utf-8\") NIL NIL \"7BIT\" 5 1 NIL NIL NIL NIL) (\"APPLICATION\" \"PDF\" (\"NAME\" \"report.pdf\") NIL NIL \"BASE64\" 12 NIL (\"ATTACHMENT\" (\"FILENAME\" \"report.pdf\")) NIL NIL) \"MIXED\" (\"BOUNDARY\" \"frontier\") NIL NIL NIL) BODY[HEADER] {%d}\r\n", bodySize, len(header))
+	if line != wantPrefix {
+		t.Fatalf("combined fetch line = %q, want %q", line, wantPrefix)
+	}
+	literal := make([]byte, len(header))
+	if _, err := io.ReadFull(reader, literal); err != nil {
+		t.Fatalf("read combined header literal: %v", err)
+	}
+	if string(literal) != header {
+		t.Fatalf("combined header literal = %q, want %q", literal, header)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("fetch close line = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion line = %q err = %v", line, err)
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
