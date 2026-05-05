@@ -101,6 +101,9 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` date criteria reject malformed date atoms that
   still contain quote characters after command parsing, so broken inputs such
   as `SINCE 05-May-2026"` are not silently normalized.
+- IMAP command tokenization rejects embedded quote characters inside unquoted
+  atoms while preserving escaped quotes inside proper quoted strings, keeping
+  RFC 3501 atom and quoted-string handling separate.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

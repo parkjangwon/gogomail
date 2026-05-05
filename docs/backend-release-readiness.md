@@ -149,6 +149,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` date criteria reject malformed date atoms that
   still contain quote characters after command parsing, so broken inputs such
   as `SINCE 05-May-2026"` are not silently normalized.
+- IMAP command tokenization rejects embedded quote characters inside unquoted
+  atoms while preserving escaped quotes inside proper quoted strings, keeping
+  RFC 3501 atom and quoted-string handling separate.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

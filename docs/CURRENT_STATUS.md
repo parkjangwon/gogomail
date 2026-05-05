@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP search-date quote rejection)
+Last updated: 2026-05-05 (updated after IMAP embedded atom quote rejection)
 
 ## Current phase
 
@@ -220,6 +220,9 @@ guidance.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject malformed date atoms that
   still contain quote characters after command parsing, so broken inputs such
   as `SINCE 05-May-2026"` are not silently normalized.
+- IMAP command tokenization now rejects embedded quote characters inside
+  unquoted atoms while preserving escaped quotes inside proper quoted strings,
+  keeping RFC 3501 atom and quoted-string handling separate.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -5922,6 +5922,9 @@ func parseIMAPFieldsWithLiteral(line string, literal *string) ([]string, error) 
 		}
 		start := i
 		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
+			if line[i] == '"' && line[start] != '(' && i+1 < len(line) && line[i+1] != ' ' && line[i+1] != '\t' {
+				return nil, fmt.Errorf("invalid embedded atom quote character")
+			}
 			if line[i] < 0x20 || line[i] == 0x7f {
 				return nil, fmt.Errorf("invalid atom control character")
 			}
