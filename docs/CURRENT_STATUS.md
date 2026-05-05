@@ -23,6 +23,11 @@ required guidance, aiming for a Notion Mail-like UI/UX. Before creating or
 substantially implementing frontend apps, ask the user for frontend-specific
 guidance.
 
+Calendar work is planned as a standards-first CalDAV module, not as a
+frontend-only calendar API. The initial `internal/caldavgw` boundary and
+`caldav` runtime mode scaffold exist so future webmail calendar features and
+native CalDAV/iCalendar clients can share a protocol-correct backend.
+
 ## Completed or materially advanced
 
 - SMTP receive engine with real TCP integration coverage.
@@ -415,7 +420,7 @@ guidance.
   through a tight expected-size bound, so malformed or proxy-inflated probe
   responses cannot allocate unbounded memory during `/health/ready` checks.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
-  cleanup, and HTTP runtimes now share storage backend validation and factory
+  cleanup, CalDAV scaffold, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object
   storage. `GOGOMAIL_STORAGE_BACKEND=s3` can target AWS S3, while
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
@@ -2043,6 +2048,9 @@ The platform hardening sprint completed the following:
   `drive_share_links` stores user/file-scoped token hashes, bounded suffixes,
   permissions, status, and expiry; Mail API routes can create, list, and revoke
   links while returning raw share tokens only in the create response.
+- CalDAV work has started with ADR 0010, a `caldav` runtime scaffold, and an
+  `internal/caldavgw` boundary for RFC/WebDAV standards, DAV tokens, principal
+  paths, calendar-home paths, calendar collections, and `.ics` object paths.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
