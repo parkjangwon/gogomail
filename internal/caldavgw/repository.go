@@ -24,6 +24,14 @@ type CreateCalendarRequest struct {
 	Description string
 }
 
+type CreateCalendarAtPathRequest struct {
+	UserID      string
+	CalendarID  string
+	Name        string
+	Color       string
+	Description string
+}
+
 type ListCalendarsRequest struct {
 	UserID string
 	Status string
@@ -114,6 +122,59 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 			return Calendar{}, fmt.Errorf("active user not found")
 		}
 		return Calendar{}, fmt.Errorf("create CalDAV calendar: %w", err)
+	}
+	return calendar, nil
+}
+
+func (r *Repository) CreateCalendarAtPath(ctx context.Context, req CreateCalendarAtPathRequest) (Calendar, error) {
+	if r == nil || r.db == nil {
+		return Calendar{}, fmt.Errorf("database handle is required")
+	}
+	req, normalizedName, syncToken, err := ValidateCreateCalendarAtPathRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	const query = `
+WITH active_user AS (
+  SELECT u.id AS user_id, d.id AS domain_id, c.id AS company_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  JOIN companies c ON c.id = d.company_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+    AND c.status = 'active'
+)
+INSERT INTO caldav_calendars (
+  id, company_id, domain_id, user_id, name, normalized_name, color, description, sync_token
+)
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7
+FROM active_user
+RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
+	var calendar Calendar
+	err = r.db.QueryRowContext(ctx, query,
+		req.UserID,
+		req.CalendarID,
+		req.Name,
+		normalizedName,
+		req.Color,
+		req.Description,
+		syncToken,
+	).Scan(
+		&calendar.ID,
+		&calendar.UserID,
+		&calendar.Name,
+		&calendar.Color,
+		&calendar.Description,
+		&calendar.SyncToken,
+		&calendar.CreatedAt,
+		&calendar.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Calendar{}, fmt.Errorf("active user not found")
+		}
+		return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
 	}
 	return calendar, nil
 }
@@ -401,6 +462,37 @@ func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarReq
 	}
 	syncToken := CalendarSyncToken(userID, normalizedName, time.Now().UTC().Format(time.RFC3339Nano))
 	return CreateCalendarRequest{UserID: userID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
+}
+
+func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, error) {
+	userID, err := validateCalDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return CreateCalendarAtPathRequest{}, "", "", err
+	}
+	calendarID, err := ValidateCalendarPathID(req.CalendarID)
+	if err != nil {
+		return CreateCalendarAtPathRequest{}, "", "", err
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = calendarID
+	}
+	create, normalizedName, syncToken, err := ValidateCreateCalendarRequest(CreateCalendarRequest{
+		UserID:      userID,
+		Name:        name,
+		Color:       req.Color,
+		Description: req.Description,
+	})
+	if err != nil {
+		return CreateCalendarAtPathRequest{}, "", "", err
+	}
+	return CreateCalendarAtPathRequest{
+		UserID:      create.UserID,
+		CalendarID:  calendarID,
+		Name:        create.Name,
+		Color:       create.Color,
+		Description: create.Description,
+	}, normalizedName, syncToken, nil
 }
 
 func ValidateListCalendarsRequest(req ListCalendarsRequest) (ListCalendarsRequest, error) {

@@ -1460,9 +1460,11 @@ Current state:
   `Depth: 1` child VEVENTs while clipping to the requested UTC time range,
   skipping transparent/cancelled events, mapping tentative events to
   `BUSY-TENTATIVE`, and coalescing same-type overlaps.
-- CalDAV method discovery now withholds `MKCALENDAR` from `Allow` headers until
-  a real creation handler exists, avoiding advertised-but-unimplemented
-  semantics for native clients.
+- CalDAV now handles `MKCALENDAR` on authenticated calendar collection paths
+  with UUID Request-URI segments. Creation XML is bounded and namespace-aware
+  for display name, description, and CalendarServer/Apple calendar color, and
+  successful creates return `201 Created` plus `Location`; slug-style path
+  aliases remain future compatibility work.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1474,8 +1476,9 @@ Next:
 
 - Continue CalDAV with recurrence-aware calendar-query/free-busy expansion,
   sync tombstone/change-log support, VFREEBUSY source-object support,
-  MKCALENDAR creation semantics, scheduling semantics, and broader
-  compatibility tests before advertising client-ready compatibility.
+  slug/path-alias support for friendlier MKCALENDAR clients, scheduling
+  semantics, and broader compatibility tests before advertising client-ready
+  compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

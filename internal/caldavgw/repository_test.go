@@ -28,6 +28,30 @@ func TestValidateCreateCalendarRequest(t *testing.T) {
 	}
 }
 
+func TestValidateCreateCalendarAtPathRequest(t *testing.T) {
+	t.Parallel()
+
+	req, normalizedName, syncToken, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
+		UserID:      " user-1 ",
+		CalendarID:  "11111111-1111-4111-8111-111111111111",
+		Name:        " Project ",
+		Color:       " #aabbcc ",
+		Description: " Milestones ",
+	})
+	if err != nil {
+		t.Fatalf("ValidateCreateCalendarAtPathRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.CalendarID != "11111111-1111-4111-8111-111111111111" || req.Name != "Project" {
+		t.Fatalf("request = %+v", req)
+	}
+	if normalizedName != "project" {
+		t.Fatalf("normalized name = %q", normalizedName)
+	}
+	if !strings.HasPrefix(syncToken, "sync-") {
+		t.Fatalf("sync token = %q", syncToken)
+	}
+}
+
 func TestValidateCreateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
@@ -45,6 +69,25 @@ func TestValidateCreateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 
 			if _, _, _, err := ValidateCreateCalendarRequest(req); err == nil {
 				t.Fatalf("ValidateCreateCalendarRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
+func TestValidateCreateCalendarAtPathRequestRejectsNonUUIDPathIDs(t *testing.T) {
+	t.Parallel()
+
+	for _, calendarID := range []string{"work", "11111111-1111-4111-8111-11111111111z", "11111111111141118111111111111111"} {
+		calendarID := calendarID
+		t.Run(calendarID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
+				UserID:     "user-1",
+				CalendarID: calendarID,
+				Name:       "Work",
+			}); err == nil {
+				t.Fatal("ValidateCreateCalendarAtPathRequest error = nil, want rejection")
 			}
 		})
 	}

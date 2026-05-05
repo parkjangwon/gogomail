@@ -24,6 +24,10 @@ type ObjectStore interface {
 	DeleteObject(ctx context.Context, req DeleteObjectRequest) (CalendarObject, error)
 }
 
+type CalendarCreator interface {
+	CreateCalendarAtPath(ctx context.Context, req CreateCalendarAtPathRequest) (Calendar, error)
+}
+
 type UserResolver func(*http.Request) (string, error)
 
 type Handler struct {
@@ -73,10 +77,75 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.servePutObject(w, r)
 	case MethodDelete:
 		h.serveDeleteObject(w, r)
+	case MethodMkcalendar:
+		h.serveMkcalendar(w, r)
 	default:
 		w.Header().Set("Allow", calDAVAllowHeader())
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
+	if h.Store == nil {
+		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
+		return
+	}
+	store, ok := h.Store.(CalendarCreator)
+	if !ok {
+		http.Error(w, "caldav calendar creator is not configured", http.StatusNotImplemented)
+		return
+	}
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil || resource.Kind != ResourceCalendarCollection {
+		http.Error(w, "MKCALENDAR requires a calendar collection path", http.StatusConflict)
+		return
+	}
+	if resource.UserID != userID {
+		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+		return
+	}
+	if _, err := h.Store.LookupPrincipal(r.Context(), userID); err != nil {
+		http.Error(w, "caldav calendar home not found", http.StatusConflict)
+		return
+	}
+	if _, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID); err == nil {
+		http.Error(w, "caldav calendar already exists", http.StatusMethodNotAllowed)
+		return
+	}
+	req, err := ParseMKCalendar(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	calendar, err := store.CreateCalendarAtPath(r.Context(), CreateCalendarAtPathRequest{
+		UserID:      userID,
+		CalendarID:  resource.CalendarID,
+		Name:        req.DisplayName,
+		Color:       req.Color,
+		Description: req.Description,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	location, err := CalendarCollectionPath(userID, calendar.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Location", location)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
@@ -659,6 +728,7 @@ func calDAVAllowHeader() string {
 		MethodOptions,
 		MethodPropfind,
 		MethodReport,
+		MethodMkcalendar,
 		MethodGet,
 		MethodHead,
 		MethodPut,

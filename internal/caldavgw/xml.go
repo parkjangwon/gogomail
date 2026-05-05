@@ -75,6 +75,12 @@ type PropfindRequest struct {
 	Include    []XMLName
 }
 
+type MKCalendarRequest struct {
+	DisplayName string
+	Description string
+	Color       string
+}
+
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
 	body, err := readBoundedXMLBody(r)
 	if err != nil {
@@ -158,6 +164,130 @@ func ParsePropfind(r io.Reader) (PropfindRequest, error) {
 					return PropfindRequest{}, err
 				}
 				return req, nil
+			}
+		}
+	}
+}
+
+func ParseMKCalendar(r io.Reader) (MKCalendarRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return MKCalendarRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return MKCalendarRequest{}, nil
+	}
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return MKCalendarRequest{}, err
+	}
+	if !sameXMLName(root.Name, CalDAVNamespace, "mkcalendar") {
+		return MKCalendarRequest{}, fmt.Errorf("unsupported MKCALENDAR root {%s}%s", root.Name.Space, root.Name.Local)
+	}
+	var req MKCalendarRequest
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return MKCalendarRequest{}, fmt.Errorf("unterminated MKCALENDAR body")
+		}
+		if err != nil {
+			return MKCalendarRequest{}, fmt.Errorf("decode MKCALENDAR body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, DAVNamespace, "set") {
+				if err := parseMKCalendarSet(dec, tok.Name, &req); err != nil {
+					return MKCalendarRequest{}, err
+				}
+				continue
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return MKCalendarRequest{}, err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if err := rejectTrailingXML(dec); err != nil {
+					return MKCalendarRequest{}, err
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
+func parseMKCalendarSet(dec *xml.Decoder, setName xml.Name, req *MKCalendarRequest) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated MKCALENDAR set element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode MKCALENDAR set: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				if err := parseMKCalendarProp(dec, tok.Name, req); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, setName) {
+				return nil
+			}
+		}
+	}
+}
+
+func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarRequest) error {
+	properties := 0
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated MKCALENDAR prop element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode MKCALENDAR prop: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			properties++
+			if properties > MaxWebDAVProperties {
+				return fmt.Errorf("too many MKCALENDAR properties")
+			}
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				req.DisplayName = strings.TrimSpace(text)
+			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-description"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				req.Description = strings.TrimSpace(text)
+			case sameXMLName(tok.Name, CalendarServerNamespace, "calendar-color") ||
+				sameXMLName(tok.Name, "http://apple.com/ns/ical/", "calendar-color"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				req.Color = strings.TrimSpace(text)
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, propName) {
+				return nil
 			}
 		}
 	}

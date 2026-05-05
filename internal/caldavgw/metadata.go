@@ -150,6 +150,26 @@ func ValidateCalendarComponent(component string) (string, error) {
 	}
 }
 
+func ValidateCalendarPathID(id string) (string, error) {
+	id = strings.TrimSpace(strings.ToLower(id))
+	if len(id) != 36 {
+		return "", fmt.Errorf("calendar path id must be a UUID")
+	}
+	for i, r := range id {
+		switch i {
+		case 8, 13, 18, 23:
+			if r != '-' {
+				return "", fmt.Errorf("calendar path id must be a UUID")
+			}
+		default:
+			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+				return "", fmt.Errorf("calendar path id must be a lowercase UUID")
+			}
+		}
+	}
+	return id, nil
+}
+
 func CalendarSyncToken(parts ...string) string {
 	h := sha256.New()
 	for _, part := range parts {
