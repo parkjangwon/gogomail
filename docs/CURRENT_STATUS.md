@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP LIST-STATUS item-list validation)
+Last updated: 2026-05-05 (updated after IMAP command tag validation)
 
 ## Current phase
 
@@ -1128,6 +1128,9 @@ The platform hardening sprint completed the following:
 - IMAP `STATUS` now requires a parenthesized status item list, rejecting
   malformed `STATUS mailbox MESSAGES`-style requests before mailbox metadata
   lookup.
+- IMAP command dispatch now rejects malformed tags containing atom-special
+  characters with untagged `BAD` responses before command handling, avoiding
+  ambiguous tagged replies for invalid client command tags.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

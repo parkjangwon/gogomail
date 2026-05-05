@@ -589,6 +589,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `LIST ... RETURN (STATUS (...))` now also requires a parenthesized
   status item list, rejecting malformed `RETURN (STATUS MESSAGES)` before
   mailbox listing work.
+- IMAP command dispatch rejects malformed tags containing atom-special
+  characters with untagged `BAD` responses before command handling, avoiding
+  ambiguous tagged replies for invalid client command tags.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

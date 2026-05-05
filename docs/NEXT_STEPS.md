@@ -574,6 +574,9 @@ Current state:
   malformed commands or ending the session for malformed logout attempts.
 - `STATUS` now requires a parenthesized status item list, rejecting malformed
   `STATUS mailbox MESSAGES`-style requests before mailbox metadata lookup.
+- Command dispatch now rejects malformed tags containing atom-special
+  characters with untagged `BAD` responses before command handling, avoiding
+  ambiguous tagged replies for invalid client command tags.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response

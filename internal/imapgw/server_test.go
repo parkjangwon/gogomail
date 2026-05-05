@@ -200,6 +200,48 @@ func TestServerRejectsArgumentsForAnyStateNoArgCommands(t *testing.T) {
 	}
 }
 
+func TestServerRejectsMalformedCommandTags(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("* NOOP\r\na]1 NOOP\r\na*1 NOOP\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write malformed tags: %v", err)
+	}
+	want := []string{
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a2 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read malformed tag response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("malformed tag response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStartTLS(t *testing.T) {
 	t.Parallel()
 
