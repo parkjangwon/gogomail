@@ -759,6 +759,29 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestCreateIMAPMailboxUsesFolderBoundary(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapMailboxes: []imapgw.Mailbox{{ID: "archive-id", Name: "Archive", UIDValidity: 7, UIDNext: 1}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.CreateIMAPMailbox(context.Background(), " user-1 ", " /Archive ")
+	if err != nil {
+		t.Fatalf("CreateIMAPMailbox returned error: %v", err)
+	}
+	if got.ID != "archive-id" || got.UIDValidity != 7 || got.UIDNext != 1 {
+		t.Fatalf("mailbox = %#v, want IMAP mailbox state from repository", got)
+	}
+	if repo.lastCreateFolder.UserID != "user-1" || repo.lastCreateFolder.Name != "Archive" {
+		t.Fatalf("create folder request = %#v, want trimmed user/name", repo.lastCreateFolder)
+	}
+	if repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != "archive-id" {
+		t.Fatalf("created mailbox lookup = %q/%q, want user-1/archive-id", repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
+	}
+}
+
 func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -1478,7 +1501,7 @@ func (f *fakeRepository) ListFolders(_ context.Context, userID string) ([]maildb
 
 func (f *fakeRepository) CreateFolder(_ context.Context, req maildb.CreateFolderRequest) (maildb.Folder, error) {
 	f.lastCreateFolder = req
-	return maildb.Folder{}, nil
+	return maildb.Folder{ID: strings.ToLower(req.Name) + "-id", Name: req.Name, FullPath: req.Name, Type: "user"}, nil
 }
 
 func (f *fakeRepository) RenameFolder(_ context.Context, userID string, folderID string, name string) (maildb.Folder, error) {

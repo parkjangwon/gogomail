@@ -26,6 +26,10 @@ func (a IMAPStoreAdapter) GetMailbox(ctx context.Context, userID imapgw.UserID, 
 	return a.service.GetIMAPMailbox(ctx, userID, mailboxID)
 }
 
+func (a IMAPStoreAdapter) CreateMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
+	return a.service.CreateIMAPMailbox(ctx, userID, mailboxID)
+}
+
 func (a IMAPStoreAdapter) ListMessages(ctx context.Context, req imapgw.ListMessagesRequest) ([]imapgw.MessageSummary, error) {
 	return a.service.ListIMAPMessages(ctx, req)
 }

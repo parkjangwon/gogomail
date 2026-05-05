@@ -42,6 +42,10 @@ func (fakeComposedBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailb
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, nil
 }
 
+func (fakeComposedBackend) CreateMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
+	return Mailbox{ID: "archive", Name: "Archive", UIDValidity: 2, UIDNext: 1}, nil
+}
+
 func (fakeComposedBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{{ID: "message-1", UID: 1}}, nil
 }

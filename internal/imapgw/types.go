@@ -94,6 +94,7 @@ const (
 type MailboxStore interface {
 	ListMailboxes(ctx context.Context, req ListMailboxesRequest) ([]Mailbox, error)
 	GetMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) (Mailbox, error)
+	CreateMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) (Mailbox, error)
 }
 
 type MessageStore interface {
