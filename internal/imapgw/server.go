@@ -1922,6 +1922,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 	case "(":
 		predicates := make([]imapSearchPredicate, 0, len(criteria))
 		i := 1
+		seenSearchKey := false
 		for i < len(criteria) {
 			if criteria[i] == ")" {
 				break
@@ -1933,9 +1934,10 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 			if predicate != nil {
 				predicates = append(predicates, predicate)
 			}
+			seenSearchKey = true
 			i += consumed
 		}
-		if i >= len(criteria) || criteria[i] != ")" {
+		if i >= len(criteria) || criteria[i] != ")" || !seenSearchKey {
 			return nil, 0, false
 		}
 		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, index int) (bool, error) {

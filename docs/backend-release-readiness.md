@@ -152,6 +152,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.
+- IMAP parenthesized `SEARCH`/`UID SEARCH` groups reject empty `()` groups
+  instead of treating them as match-all, while preserving valid `(ALL)` groups.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
