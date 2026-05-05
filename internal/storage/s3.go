@@ -177,6 +177,9 @@ func (s *S3Store) Check(ctx context.Context) error {
 }
 
 func (s *S3Store) newRequest(ctx context.Context, method string, objectPath string, body io.Reader) (*http.Request, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	rawObjectPath := objectPath
 	objectPath, err := ValidateObjectPath(objectPath)
 	if err != nil {

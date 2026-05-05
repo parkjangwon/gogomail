@@ -155,6 +155,9 @@ guidance.
 - Local and S3-compatible storage writes now reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.
+- S3-compatible storage requests now reject canceled contexts before object-key
+  validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
+  aligned with local/NFS storage and reducing wasted request work.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object
