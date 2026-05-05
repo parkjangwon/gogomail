@@ -360,6 +360,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `STORE`/`UID STORE` now supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers, checking message mod-sequences transactionally, applying passing
   updates, and returning `[MODIFIED uid-set]` for stale messages.
+- IMAP `SELECT`/`EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
+  parameter and mark the session CONDSTORE-aware while keeping full extension
+  advertisement deferred until every required behavior is closed.
 - IMAP `FETCH`/`UID FETCH` now return a conservative single-part
   `BODYSTRUCTURE` response for clients that require structure metadata before
   fetching message bodies.

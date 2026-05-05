@@ -1134,6 +1134,10 @@ Implementation order:
      `(UNCHANGEDSINCE n)` modifiers with transactional per-message mod-sequence
      checks, partial success for passing messages, and `[MODIFIED uid-set]`
      responses for stale flag writes.
+800. IMAP `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
+     parameter and mark the session CONDSTORE-aware while keeping full
+     extension advertisement deferred until the remaining required semantics
+     are closed.
 
 ## Deferred until backend contracts stabilize
 
