@@ -166,14 +166,17 @@ or development `user_id` fallback path as webmail mail routes:
 - `GET /api/v1/drive/nodes/{id}/download` streams an active Drive file from
   the configured storage backend with `Content-Disposition`,
   `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and
-  `Accept-Ranges: bytes`; folders, trashed nodes, and missing objects are
-  rejected before bytes are streamed. The route accepts one optional
+  `Accept-Ranges: bytes`; when the node has a recorded SHA-256 digest, the
+  route also returns `X-Gogomail-Drive-SHA256` for whole-object integrity
+  checks. Folders, trashed nodes, and missing objects are rejected before bytes
+  are streamed. The route accepts one optional
   `Range: bytes=start-end` style header, returns `206 Partial Content` with
   `Content-Range` for satisfiable ranges, and rejects malformed, repeated, or
   multi-range requests before opening a partial object body.
 - `HEAD /api/v1/drive/nodes/{id}/download` performs the same active-file and
   object-existence checks but returns only download headers, including
-  `Content-Length` when the storage backend reports size.
+  `Content-Length` when the storage backend reports size and
+  `X-Gogomail-Drive-SHA256` when a node digest is available.
 - `GET /api/v1/drive/usage` returns `{"drive_usage_summary":{...}}` for the
   authenticated/fallback user, exposing quota ledger values, status-scoped node
   counts and bytes, and pending/uploading/failed upload-session counts.

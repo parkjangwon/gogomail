@@ -74,7 +74,7 @@ func TestDriveDownloadNodeHandler(t *testing.T) {
 	t.Parallel()
 
 	service := &fakeDriveService{download: drive.FileDownload{
-		Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "보고서.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "보고서.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, ChecksumSHA256: strings.Repeat("A", 64), Status: drive.NodeStatusActive},
 		Body: io.NopCloser(strings.NewReader("content")),
 	}}
 	mux := http.NewServeMux()
@@ -108,6 +108,9 @@ func TestDriveDownloadNodeHandler(t *testing.T) {
 	if got := rec.Header().Get("Content-Length"); got != "7" {
 		t.Fatalf("Content-Length = %q", got)
 	}
+	if got := rec.Header().Get("X-Gogomail-Drive-SHA256"); got != strings.Repeat("a", 64) {
+		t.Fatalf("X-Gogomail-Drive-SHA256 = %q", got)
+	}
 }
 
 func TestDriveDownloadNodeHandlerSupportsByteRange(t *testing.T) {
@@ -115,11 +118,11 @@ func TestDriveDownloadNodeHandlerSupportsByteRange(t *testing.T) {
 
 	service := &fakeDriveService{
 		metadata: drive.FileMetadata{
-			Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, Status: drive.NodeStatusActive},
+			Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, ChecksumSHA256: strings.Repeat("b", 64), Status: drive.NodeStatusActive},
 			Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
 		},
 		rangeDownload: drive.FileDownload{
-			Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, Status: drive.NodeStatusActive},
+			Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, ChecksumSHA256: strings.Repeat("b", 64), Status: drive.NodeStatusActive},
 			Body: io.NopCloser(strings.NewReader("nte")),
 		},
 	}
@@ -151,6 +154,9 @@ func TestDriveDownloadNodeHandlerSupportsByteRange(t *testing.T) {
 	}
 	if got := rec.Header().Get("Accept-Ranges"); got != "bytes" {
 		t.Fatalf("Accept-Ranges = %q", got)
+	}
+	if got := rec.Header().Get("X-Gogomail-Drive-SHA256"); got != strings.Repeat("b", 64) {
+		t.Fatalf("X-Gogomail-Drive-SHA256 = %q", got)
 	}
 }
 
@@ -221,7 +227,7 @@ func TestDriveHeadDownloadNodeHandler(t *testing.T) {
 	t.Parallel()
 
 	service := &fakeDriveService{metadata: drive.FileMetadata{
-		Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 1, Status: drive.NodeStatusActive},
+		Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 1, ChecksumSHA256: strings.Repeat("c", 64), Status: drive.NodeStatusActive},
 		Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
 	}}
 	mux := http.NewServeMux()
@@ -245,6 +251,25 @@ func TestDriveHeadDownloadNodeHandler(t *testing.T) {
 	}
 	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `filename="report.pdf"`) {
 		t.Fatalf("Content-Disposition = %q", got)
+	}
+	if got := rec.Header().Get("X-Gogomail-Drive-SHA256"); got != strings.Repeat("c", 64) {
+		t.Fatalf("X-Gogomail-Drive-SHA256 = %q", got)
+	}
+}
+
+func TestDriveDownloadHeadersOmitUnsafeChecksum(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	writeDriveFileDownloadHeaders(rec, drive.Node{
+		Name:           "report.pdf",
+		Type:           drive.NodeTypeFile,
+		MIMEType:       "application/pdf",
+		Size:           7,
+		ChecksumSHA256: "bad\r\nheader",
+	})
+	if got := rec.Header().Get("X-Gogomail-Drive-SHA256"); got != "" {
+		t.Fatalf("X-Gogomail-Drive-SHA256 = %q, want omitted", got)
 	}
 }
 
