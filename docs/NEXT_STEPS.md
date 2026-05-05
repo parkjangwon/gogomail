@@ -661,6 +661,9 @@ Current state:
   stores the selected-session search result so `$` can be reused by later
   sequence-set and UID-set commands without sending the result set back to the
   client.
+- `SEARCH RETURN (SAVE)` now clears the selected-session `$` result when the
+  save-requested search fails with tagged `NO`, while tagged `BAD` searches
+  leave the previous result untouched as required by RFC 5182.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `FETCH`/`UID FETCH` now supports bounded partial section literals for common

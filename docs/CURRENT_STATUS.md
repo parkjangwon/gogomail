@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP SEARCH date-day compatibility hardening)
+Last updated: 2026-05-05 (updated after IMAP SEARCHRES SAVE failure handling)
 
 ## Current phase
 
@@ -1073,6 +1073,9 @@ The platform hardening sprint completed the following:
   stores the last search result in the selected session so `$` can be reused in
   subsequent `FETCH`, `UID FETCH`, `SEARCH`, `UID SEARCH`, `STORE`, `COPY`,
   `MOVE`, and `UID EXPUNGE` set positions.
+- IMAP `SEARCH RETURN (SAVE)` now clears the selected-session `$` result when a
+  save-requested search fails with tagged `NO`, matching RFC 5182 failure
+  semantics while leaving tagged `BAD` searches non-mutating.
 - IMAP `FETCH`/`UID FETCH` supports RFC 4551-shaped `CHANGEDSINCE` modifiers,
   returning only messages with greater per-message mod-sequences and
   implicitly including `MODSEQ` response attributes.

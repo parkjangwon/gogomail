@@ -1648,6 +1648,10 @@ Implementation order:
      date-day atoms such as `SINCE 5-May-2026` while preserving malformed quote
      rejection for broken atoms such as `SINCE 05-May-2026"`, improving client
      compatibility without weakening syntax guardrails.
+943. IMAP `SEARCH RETURN (SAVE)` now clears the selected-session `$` result
+     when the save-requested search fails with tagged `NO`, while tagged `BAD`
+     searches leave the previous result untouched, aligning the advertised
+     SEARCHRES capability with RFC 5182 failure semantics.
 
 ## Deferred until backend contracts stabilize
 
