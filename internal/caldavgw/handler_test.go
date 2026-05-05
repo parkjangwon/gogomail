@@ -1,0 +1,217 @@
+package caldavgw
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(&fakeDiscoveryStore{}, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodOptions, "/caldav/principals/user-1/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("DAV"); !strings.Contains(got, DAVCalendarAccess) || !strings.Contains(got, DAVSyncCollection) {
+		t.Fatalf("DAV header = %q", got)
+	}
+	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodPropfind) || !strings.Contains(got, MethodReport) {
+		t.Fatalf("Allow header = %q", got)
+	}
+}
+
+func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/principals/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><C:calendar-home-set/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<C:calendar-home-set><D:href>/caldav/calendars/user-1/</D:href></C:calendar-home-set>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("principal discovery missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerPropfindCalendarHomeDepthOne(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:displayname/><D:resourcetype/><C:supported-calendar-component-set/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/</D:href>") {
+		t.Fatalf("home response missing:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/</D:href>") {
+		t.Fatalf("child calendar response missing:\n%s", body)
+	}
+	if !strings.Contains(body, "<C:comp name=\"VEVENT\"></C:comp>") {
+		t.Fatalf("supported component response missing:\n%s", body)
+	}
+}
+
+func TestHandlerPropfindCalendarCollectionDepthOne(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:getetag/><D:getcontenttype/><D:resourcetype/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") {
+		t.Fatalf("calendar object response missing:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:getetag>") || !strings.Contains(body, "<D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>") {
+		t.Fatalf("calendar object properties missing:\n%s", body)
+	}
+}
+
+func TestHandlerPropfindRejectsUnsafeDiscovery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		userID string
+		target string
+		depth  string
+		want   int
+	}{
+		{name: "cross user", userID: "user-2", target: "/caldav/principals/user-1/", depth: "0", want: http.StatusForbidden},
+		{name: "infinity", userID: "user-1", target: "/caldav/calendars/user-1/", depth: "infinity", want: http.StatusForbidden},
+		{name: "bad depth", userID: "user-1", target: "/caldav/calendars/user-1/", depth: "2", want: http.StatusBadRequest},
+		{name: "object depth one", userID: "user-1", target: "/caldav/calendars/user-1/work/event-1.ics", depth: "1", want: http.StatusNotFound},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewHandler(newFakeDiscoveryStore(), fixedUser(tc.userID))
+			req := httptest.NewRequest(MethodPropfind, tc.target, strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:allprop/></D:propfind>`))
+			req.Header.Set("Depth", tc.depth)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d, body = %s", rec.Code, tc.want, rec.Body.String())
+			}
+		})
+	}
+}
+
+func fixedUser(userID string) UserResolver {
+	return func(*http.Request) (string, error) { return userID, nil }
+}
+
+type fakeDiscoveryStore struct {
+	principal Principal
+	calendars []Calendar
+	objects   []CalendarObject
+}
+
+func newFakeDiscoveryStore() *fakeDiscoveryStore {
+	now := time.Now()
+	return &fakeDiscoveryStore{
+		principal: Principal{
+			UserID:           "user-1",
+			DisplayName:      "User One",
+			CalendarHomePath: "/caldav/calendars/user-1/",
+			PrincipalPath:    "/caldav/principals/user-1/",
+		},
+		calendars: []Calendar{{
+			ID:          "work",
+			UserID:      "user-1",
+			Name:        "Work",
+			Color:       "#AABBCC",
+			Description: "Team calendar",
+			SyncToken:   "sync-calendar",
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}},
+		objects: []CalendarObject{{
+			ID:         "object-1",
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-1.ics",
+			UID:        "event-1@example.com",
+			ETag:       `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+			Size:       128,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		}},
+	}
+}
+
+func (s *fakeDiscoveryStore) LookupPrincipal(_ context.Context, userID string) (Principal, error) {
+	if s.principal.UserID != userID {
+		return Principal{}, errFakeNotFound
+	}
+	return s.principal, nil
+}
+
+func (s *fakeDiscoveryStore) ListCalendarCollections(_ context.Context, userID string) ([]Calendar, error) {
+	if s.principal.UserID != userID {
+		return nil, errFakeNotFound
+	}
+	return append([]Calendar(nil), s.calendars...), nil
+}
+
+func (s *fakeDiscoveryStore) LookupCalendar(_ context.Context, userID string, calendarID string) (Calendar, error) {
+	for _, calendar := range s.calendars {
+		if calendar.UserID == userID && calendar.ID == calendarID {
+			return calendar, nil
+		}
+	}
+	return Calendar{}, errFakeNotFound
+}
+
+func (s *fakeDiscoveryStore) ListCalendarObjects(_ context.Context, userID string, calendarID string) ([]CalendarObject, error) {
+	if _, err := s.LookupCalendar(context.Background(), userID, calendarID); err != nil {
+		return nil, err
+	}
+	return append([]CalendarObject(nil), s.objects...), nil
+}
+
+func (s *fakeDiscoveryStore) LookupCalendarObject(_ context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
+	for _, object := range s.objects {
+		if object.UserID == userID && object.CalendarID == calendarID && object.ObjectName == objectName {
+			return object, nil
+		}
+	}
+	return CalendarObject{}, errFakeNotFound
+}
+
+type fakeNotFoundError struct{}
+
+func (fakeNotFoundError) Error() string { return "not found" }
+
+var errFakeNotFound fakeNotFoundError

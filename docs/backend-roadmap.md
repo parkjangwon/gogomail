@@ -2036,6 +2036,11 @@ Implementation order:
       builder with per-property `propstat` statuses plus principal,
       calendar-home, calendar-collection, and calendar-object discovery
       properties needed by future PROPFIND and REPORT handlers.
+1043. CalDAV now has an internal `OPTIONS`/`PROPFIND` discovery handler
+      boundary over a pluggable discovery store, including DAV capability
+      headers, safe depth handling, user/path scope checks, and multistatus
+      discovery responses for principals, calendar homes, collections, and
+      objects before the public listener is enabled.
 
 ## Deferred until backend contracts stabilize
 

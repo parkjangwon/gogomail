@@ -2075,6 +2075,11 @@ The platform hardening sprint completed the following:
   discovery properties, calendar-home hints, calendar collection metadata
   (`supported-calendar-component-set`, `supported-calendar-data`,
   `max-resource-size`, sync token), and calendar-object ETag/content metadata.
+- CalDAV now has an internal `OPTIONS`/`PROPFIND` discovery handler boundary
+  over a pluggable discovery store. It advertises DAV capabilities, rejects
+  unsafe infinite-depth discovery, enforces authenticated user/path scope, and
+  can render principal, calendar-home, calendar-collection, and calendar-object
+  multistatus responses before the public listener is enabled.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

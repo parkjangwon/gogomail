@@ -81,6 +81,12 @@ that keeps per-property statuses explicit. This avoids scattering raw XML
 construction across future `PROPFIND` and `REPORT` handlers and preserves the
 mixed-success property semantics WebDAV clients expect.
 
+The first discovery handler boundary supports `OPTIONS` and `PROPFIND` over a
+pluggable store, but the public `caldav` runtime remains gated. This keeps
+client-visible protocol activation separate from the internal handler work
+until authentication, TLS, repository adapter wiring, and compatibility tests
+are reviewed together.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles
