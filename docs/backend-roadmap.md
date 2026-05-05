@@ -1118,6 +1118,9 @@ Implementation order:
      `EXAMINE`, and `STATUS` can expose `[HIGHESTMODSEQ ...]` /
      `HIGHESTMODSEQ` metadata for clients that use mod-sequence based sync
      hints.
+795. IMAP `FETCH` and `UID FETCH` now return RFC 4551-shaped `MODSEQ (n)`
+     attributes when requested, mapping durable per-message IMAP mod-sequences
+     through the gateway without advertising broader CONDSTORE semantics yet.
 
 ## Deferred until backend contracts stabilize
 

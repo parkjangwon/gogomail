@@ -2035,6 +2035,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	partialHeaderFieldsNot, requestsPartialHeaderFieldsNot := imapFetchPartialHeaderFieldsNot(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
+	requestsModSeq := imapFetchRequestsModSeq(items)
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
 	for _, uid := range uids {
@@ -2125,7 +2126,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					_, err := writer.WriteString(tag + " NO UID FETCH body section is unavailable\r\n")
 					return false, err
 				}
-				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
+				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
 				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s]%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), partRequest.sectionName(), partRequest.partialSuffix(), len(literal))); err != nil {
 					return false, err
 				}
@@ -2162,7 +2163,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				if err := body.Close(); err != nil {
 					return false, err
 				}
-				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
+				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
 				section := "TEXT"
 				if requestsPartText {
 					section = "1"
@@ -2198,7 +2199,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				continue
 			}
-			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
+			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
 			if requestsPartialBody {
 				count := partial.count
 				if partial.offset >= uint64(summary.Size) {
@@ -2247,7 +2248,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if message.Body != nil {
 			_ = message.Body.Close()
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure), " "))); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure), " "))); err != nil {
 			return false, err
 		}
 	}
@@ -2907,6 +2908,10 @@ func imapFetchRequestsInternalDate(items []string) bool {
 	return imapFetchRequestsToken(items, "INTERNALDATE")
 }
 
+func imapFetchRequestsModSeq(items []string) bool {
+	return imapFetchRequestsToken(items, "MODSEQ")
+}
+
 func imapFetchRequestsBodyStructure(items []string) bool {
 	return imapFetchRequestsToken(items, "BODYSTRUCTURE")
 }
@@ -2926,7 +2931,7 @@ func imapFetchRequestsToken(items []string, want string) bool {
 	return false
 }
 
-func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeInternalDate bool, includeBody bool, includeBodyStructure bool, bodyAttribute string, bodyStructure string) []string {
+func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeInternalDate bool, includeModSeq bool, includeBody bool, includeBodyStructure bool, bodyAttribute string, bodyStructure string) []string {
 	attributes := []string{
 		fmt.Sprintf("UID %d", summary.UID),
 		"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
@@ -2937,6 +2942,9 @@ func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeIn
 	}
 	if includeEnvelope {
 		attributes = append(attributes, "ENVELOPE "+imapEnvelope(summary))
+	}
+	if includeModSeq {
+		attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", summary.ModSeq))
 	}
 	if includeBody {
 		if bodyAttribute == "" {

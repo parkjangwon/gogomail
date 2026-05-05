@@ -345,6 +345,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, enabling standard mailbox list metadata reads.
+- IMAP `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes
+  when requested, surfacing durable per-message mod-sequences without
+  advertising full CONDSTORE behavior prematurely.
 - IMAP `FETCH`/`UID FETCH` now return a conservative single-part
   `BODYSTRUCTURE` response for clients that require structure metadata before
   fetching message bodies.

@@ -2102,6 +2102,65 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesUIDFetchModSeqAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 7 (FLAGS MODSEQ)\r\n")); err != nil {
+		t.Fatalf("write uid fetch modseq: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 MODSEQ (17))\r\n",
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch modseq response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch modseq response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read logout response: %v", err)
+		}
+		if line == "a4 OK LOGOUT completed\r\n" {
+			break
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -4253,6 +4312,7 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 			Flags:        MessageFlags{Read: true, Starred: true},
 			InternalDate: internalDate,
 			Size:         size,
+			ModSeq:       uint64(req.UID + 10),
 		},
 		Body: io.NopCloser(strings.NewReader(body)),
 	}, nil
