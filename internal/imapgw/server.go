@@ -3373,6 +3373,10 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		_, err := writer.WriteString(tag + " BAD FETCH CHANGEDSINCE modifier is invalid\r\n")
 		return false, err
 	}
+	if !imapFetchDataItemParenthesesValid(items) {
+		_, err := writer.WriteString(tag + " BAD FETCH data item list is invalid\r\n")
+		return false, err
+	}
 	if !imapFetchMacroUsageValid(items) {
 		_, err := writer.WriteString(tag + " BAD FETCH macro is invalid\r\n")
 		return false, err
@@ -4827,6 +4831,16 @@ func imapFetchChangedSince(items []string) (uint64, bool, bool) {
 		i++
 	}
 	return threshold, found, true
+}
+
+func imapFetchDataItemParenthesesValid(items []string) bool {
+	for _, item := range items {
+		token := strings.TrimSpace(item)
+		if strings.HasPrefix(token, "((") || strings.HasSuffix(token, "))") {
+			return false
+		}
+	}
+	return true
 }
 
 func imapFetchNormalizedTokens(items []string) []string {

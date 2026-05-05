@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UNCHANGEDSINCE validation)
+Last updated: 2026-05-05 (updated after IMAP FETCH parenthesis validation)
 
 ## Current phase
 
@@ -279,6 +279,9 @@ guidance.
 - IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` now requires the RFC-shaped
   parenthesized modifier form and rejects malformed over-closed values such as
   `(UNCHANGEDSINCE 27))`.
+- IMAP `FETCH`/`UID FETCH` data items now reject over-parenthesized tokens
+  before item normalization, preventing malformed requests such as
+  `FETCH 1 ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

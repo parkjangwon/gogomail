@@ -1535,6 +1535,9 @@ Implementation order:
 911. IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` now requires the RFC-shaped
      parenthesized modifier form and rejects malformed over-closed values such
      as `(UNCHANGEDSINCE 27))`.
+912. IMAP `FETCH`/`UID FETCH` data items now reject over-parenthesized tokens
+     before item normalization, preventing malformed requests such as `FETCH 1
+     ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 
 ## Deferred until backend contracts stabilize
 
