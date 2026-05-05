@@ -577,7 +577,7 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
-		if !contactObjectMatchesText(object, report.TextMatch) {
+		if !contactObjectMatchesFilter(object, report.FilterProperty, report.TextMatch) {
 			continue
 		}
 		props, err := ContactObjectProperties(userID, object)
@@ -596,12 +596,29 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	return responses, nil
 }
 
-func contactObjectMatchesText(object ContactObject, text string) bool {
+func contactObjectMatchesFilter(object ContactObject, propertyName string, text string) bool {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return true
 	}
-	return strings.Contains(strings.ToLower(string(object.VCard)), strings.ToLower(text))
+	propertyName = strings.ToUpper(strings.TrimSpace(propertyName))
+	if propertyName == "" {
+		return strings.Contains(strings.ToLower(string(object.VCard)), strings.ToLower(text))
+	}
+	lines, err := unfoldVCardLines(string(object.VCard))
+	if err != nil {
+		return false
+	}
+	for _, line := range lines {
+		name, value, err := parseVCardContentLine(line)
+		if err != nil {
+			continue
+		}
+		if name == propertyName && strings.Contains(strings.ToLower(value), strings.ToLower(text)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {

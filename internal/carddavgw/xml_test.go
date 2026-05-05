@@ -167,7 +167,7 @@ func TestParseReportCollectsAddressBookQueryTextMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseReport returned error: %v", err)
 	}
-	if !req.HasFilter || req.TextMatch != "Alice" {
+	if !req.HasFilter || req.FilterProperty != "FN" || req.TextMatch != "Alice" {
 		t.Fatalf("filter = %+v", req)
 	}
 }
@@ -185,6 +185,8 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level></D:sync-collection>`,
 		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"text match line break":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:text-match>A&#x0A;B</C:text-match></C:filter></C:addressbook-query>`,
+		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"malformed xml":          `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter></C:addressbook-query>`,
 		"multiple roots":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
 		"xml directive":          `<!DOCTYPE report><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query>`,

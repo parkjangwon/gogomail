@@ -290,6 +290,27 @@ func TestHandlerReportAddressBookQueryFiltersTextMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookQueryFiltersSpecificVCardProperty(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="EMAIL"><C:text-match>other@example.com</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-2.vcf</D:href>") {
+		t.Fatalf("query REPORT missing EMAIL match:\n%s", text)
+	}
+	if strings.Contains(text, "contact-1.vcf") {
+		t.Fatalf("query REPORT matched the wrong vCard property:\n%s", text)
+	}
+}
+
 func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	t.Parallel()
 
@@ -547,7 +568,7 @@ func testCardDAVDiscoveryStore(t *testing.T) fakeCardDAVDiscoveryStore {
 			UserID:        "user-1",
 			AddressBookID: "personal",
 			ObjectName:    "contact-1.vcf",
-			VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"),
+			VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEMAIL:contact-one@example.com\r\nEND:VCARD\r\n"),
 			ETag:          `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
 			Size:          64,
 			CreatedAt:     createdAt,
@@ -556,7 +577,7 @@ func testCardDAVDiscoveryStore(t *testing.T) fakeCardDAVDiscoveryStore {
 			UserID:        "user-1",
 			AddressBookID: "personal",
 			ObjectName:    "contact-2.vcf",
-			VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-2\r\nFN:Other Person\r\nEND:VCARD\r\n"),
+			VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-2\r\nFN:Other Person\r\nEMAIL:other@example.com\r\nEND:VCARD\r\n"),
 			ETag:          `"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"`,
 			Size:          65,
 			CreatedAt:     createdAt,

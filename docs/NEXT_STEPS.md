@@ -1606,10 +1606,12 @@ Next:
   now includes internal `addressbook-query`, `addressbook-multiget`, and
   `sync-collection` execution plus contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` semantics, and `gogomail --mode=carddav` now exposes an
-  experimental Basic-auth runtime listener. It should be followed by richer
-  CardDAV filter semantics, broader vCard compatibility, and native-client
-  compatibility tests before any public contacts UI or API treats it as
-  production-ready.
+  experimental Basic-auth runtime listener. It also preserves the first
+  `prop-filter` name for `addressbook-query` and applies `text-match` to
+  parsed unfolded vCard property values. It should be followed by broader
+  CardDAV filter-tree/collation semantics, broader vCard compatibility, and
+  native-client compatibility tests before any public contacts UI or API treats
+  it as production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.
