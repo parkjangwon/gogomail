@@ -1375,6 +1375,11 @@ Implementation order:
      `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before authentication
      failures too, preserving precise tagged `BAD` diagnostics while valid
      unauthenticated commands still return `NO authentication required`.
+867. IMAP selected-state action commands now validate malformed `FETCH`,
+     `STORE`, `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox
+     names before authentication failures too, preserving precise tagged `BAD`
+     diagnostics while valid unauthenticated commands still return
+     `NO authentication required`.
 
 ## Deferred until backend contracts stabilize
 

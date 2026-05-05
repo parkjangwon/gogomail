@@ -437,6 +437,55 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerValidatesSelectedActionSyntaxBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 FETCH\r\na2 STORE\r\na3 COPY 1\r\na4 COPY 1 &Jjo!\r\na5 MOVE 1\r\na6 MOVE 1 &Jjo!\r\na7 FETCH 1 (FLAGS)\r\na8 STORE 1 +FLAGS (\\Seen)\r\na9 COPY 1 Archive\r\na10 MOVE 1 Archive\r\na11 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write selected action auth commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD FETCH requires sequence set and data items\r\n",
+		"a2 BAD STORE requires sequence set, mode, and flags\r\n",
+		"a3 BAD COPY requires sequence set and destination mailbox\r\n",
+		"a4 BAD COPY destination mailbox name is not valid modified UTF-7\r\n",
+		"a5 BAD MOVE requires sequence set and destination mailbox\r\n",
+		"a6 BAD MOVE destination mailbox name is not valid modified UTF-7\r\n",
+		"a7 NO authentication required\r\n",
+		"a8 NO authentication required\r\n",
+		"a9 NO authentication required\r\n",
+		"a10 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a11 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected action auth response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected action auth response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerValidatesSelectedNoArgSyntaxBeforeSelectedState(t *testing.T) {
 	t.Parallel()
 

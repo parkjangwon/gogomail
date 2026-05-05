@@ -1495,6 +1495,10 @@ The platform hardening sprint completed the following:
   `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
   before returning `NO mailbox must be selected` for valid commands issued
   outside selected state.
+- Selected-state action commands now also validate malformed `FETCH`, `STORE`,
+  `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
+  authentication failures, while valid unauthenticated commands still return
+  `NO authentication required`.
 - Selected-state no-argument commands now reject extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors for well-formed commands.

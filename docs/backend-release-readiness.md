@@ -1086,6 +1086,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-state command dispatch validates obvious malformed
   `FETCH`/`STORE`/`COPY`/`MOVE`/`SEARCH`/`SORT`/`THREAD` syntax before selected
   mailbox state errors, keeping parser diagnostics precise for client authors.
+- IMAP selected-state action commands validate malformed `FETCH`, `STORE`,
+  `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
+  authentication errors too, preserving precise tagged `BAD` diagnostics during
+  client state-machine probing.
 - IMAP selected-state no-argument commands reject extra arguments before
   authentication and selected-mailbox state errors, keeping destructive
   lifecycle commands from hiding malformed input behind state responses.

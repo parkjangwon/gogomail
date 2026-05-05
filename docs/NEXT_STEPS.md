@@ -40,6 +40,10 @@ Current state:
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
+- Selected-state action commands also validate malformed `FETCH`, `STORE`,
+  `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
+  authentication failures, while well-formed unauthenticated commands still
+  return `NO authentication required`.
 - Selected-state no-argument commands validate extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors.
