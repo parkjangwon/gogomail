@@ -276,6 +276,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	command := strings.ToUpper(fields[1])
 	switch command {
 	case "CAPABILITY":
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD CAPABILITY does not accept arguments\r\n")
+			return false, err
+		}
 		if _, err := writer.WriteString("* CAPABILITY " + strings.Join(s.imapCapabilities(state), " ") + "\r\n"); err != nil {
 			return false, err
 		}
@@ -284,6 +288,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	case "ENABLE":
 		return s.handleEnable(writer, tag, fields, state)
 	case "NOOP":
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD NOOP does not accept arguments\r\n")
+			return false, err
+		}
 		if err := s.drainMailboxEvents(writer, state); err != nil {
 			return false, err
 		}
@@ -632,6 +640,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		return s.handleAppend(writer, tag, fields, literal, state)
 	case "LOGOUT":
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD LOGOUT does not accept arguments\r\n")
+			return false, err
+		}
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
 		}

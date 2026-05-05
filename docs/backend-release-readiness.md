@@ -580,6 +580,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-state no-argument commands `CHECK`, `CLOSE`, `UNSELECT`, and
   `EXPUNGE` now reject extra arguments with tagged `BAD` responses instead of
   ignoring malformed input, preventing ambiguous destructive expunge handling.
+- IMAP any-state no-argument commands `CAPABILITY`, `NOOP`, and `LOGOUT` now
+  reject extra arguments with tagged `BAD` responses instead of silently
+  accepting malformed commands or ending sessions for malformed logout attempts.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

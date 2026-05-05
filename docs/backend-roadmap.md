@@ -1307,6 +1307,10 @@ Implementation order:
      and `EXPUNGE` now reject extra arguments with tagged `BAD` responses
      instead of ignoring malformed input, protecting destructive expunge
      handling from ambiguous client commands.
+848. IMAP any-state no-argument commands `CAPABILITY`, `NOOP`, and `LOGOUT`
+     now reject extra arguments with tagged `BAD` responses instead of silently
+     accepting malformed commands or ending sessions for malformed logout
+     attempts.
 
 ## Deferred until backend contracts stabilize
 

@@ -568,6 +568,9 @@ Current state:
   `EXPUNGE` now reject extra arguments with tagged `BAD` responses instead of
   ignoring malformed input, protecting destructive expunge handling from
   ambiguous client commands.
+- Any-state no-argument commands `CAPABILITY`, `NOOP`, and `LOGOUT` now reject
+  extra arguments with tagged `BAD` responses instead of silently accepting
+  malformed commands or ending the session for malformed logout attempts.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
