@@ -1251,6 +1251,30 @@ paths:
           $ref: "#/components/responses/AttachmentUploadSessionList"
         default:
           $ref: "#/components/responses/Error"
+  /drive-upload-sessions:
+    get:
+      operationId: listAdminDriveUploadSessions
+      summary: Admin inspect Drive upload sessions
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+          description: Required user scope for Drive upload session inspection.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, uploading, finalized, canceled, expired, failed]
+          description: Limit Drive upload sessions by lifecycle status.
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUploadSessionList"
+        default:
+          $ref: "#/components/responses/Error"
   /attachment-cleanup/runs:
     post:
       operationId: runAdminAttachmentCleanup
@@ -4688,7 +4712,7 @@ components:
               enum: [available]
             drive:
               type: string
-              enum: [planned]
+              enum: [available]
         limits:
           type: object
           required: [max_list_limit, max_attachment_cleanup_limit, max_api_usage_retention_run_limit]
@@ -4725,7 +4749,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, drive_upload_sessions, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -4740,6 +4764,8 @@ components:
             attachment_cleanup:
               type: boolean
             attachment_upload_sessions:
+              type: boolean
+            drive_upload_sessions:
               type: boolean
             quota_reconciliation:
               type: boolean

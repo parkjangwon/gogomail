@@ -14,6 +14,7 @@ import (
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -37,7 +38,10 @@ type adminService struct {
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
-	attachmentCleanup           interface {
+	drive                       interface {
+		ListUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
+	}
+	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 		CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
 		ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
@@ -271,6 +275,17 @@ func (s adminService) ListStaleAttachmentUploadSessions(ctx context.Context, bef
 		return nil, fmt.Errorf("attachment cleanup service is not configured")
 	}
 	return s.attachmentCleanup.ListStaleAttachmentUploadSessions(ctx, before, limit)
+}
+
+func (s adminService) ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
+	if s.drive == nil {
+		return nil, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateListUploadSessionsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return s.drive.ListUploadSessions(ctx, req)
 }
 
 func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

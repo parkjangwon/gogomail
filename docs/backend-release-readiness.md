@@ -158,9 +158,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   staged objects through shared storage before committing metadata and unified
   quota usage.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
-  operator consoles can discover backend contract version, available/planned
+  operator consoles can discover backend contract version, available
   modules, tenant/domain/user surfaces, operational triage areas, and
   list/cleanup/retention limits before rendering navigation or forms.
+- Admin API exposes `GET /admin/v1/drive-upload-sessions` so operator consoles
+  can inspect Drive upload session state by required user scope and optional
+  lifecycle status before broader Drive admin APIs are built.
 - Mail API exposes cursor-paginated thread list and thread-message read models for conversation-style webmail rendering, and draft search uses the same opaque cursor envelope for compose-scale draft lists.
 - `gogomail --mode=all-in-one` registers Mail API and Admin API routes in the
   same HTTP process for small-deployment and local release smoke coverage.

@@ -409,12 +409,14 @@ Current state:
 - Mail API now exposes `GET /api/v1/drive/upload-sessions` with status and
   limit filters, giving future Drive upload managers a reconnect/recovery
   surface.
+- Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
+  user scope plus status/limit filters, and admin capabilities advertise Drive
+  upload-session inspection.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session cleanup counts to future admin/operator visibility
-  once Drive admin APIs are introduced.
+- Add Drive upload-session cleanup counts to future admin/operator visibility.
 
 ### 2. Message threading and search
 

@@ -216,7 +216,7 @@ be documented precisely before exposure.
 `GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap
 surface for future production operator consoles. It returns
 `{"admin_console_capabilities":{...}}` with the backend contract version,
-available mail/admin modules, planned Drive module marker, common list and
+available mail/admin/Drive modules, common list and
 cleanup/retention limits, tenant/domain/user control availability, operational
 triage surfaces, API usage/export support, IMAP UID backfill support, and
 admin auth/no-store behavior.
@@ -394,6 +394,9 @@ The Admin API exposes `GET /admin/v1/attachment-upload-sessions` with bounded
 `user_id`, `draft_id`, and lifecycle `status` filters so operators can inspect
 active, finalized, canceled, or expired upload sessions without relying only on
 stale-cleanup previews.
+The Admin API also exposes `GET /admin/v1/drive-upload-sessions` with required
+`user_id`, bounded `status`, and `limit` filters so operators can inspect
+Drive upload session state for a user without entering the webmail API surface.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

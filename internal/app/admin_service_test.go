@@ -11,6 +11,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -191,6 +192,26 @@ func TestAdminServiceRunAttachmentSessionCleanupRecordsAudit(t *testing.T) {
 	}
 }
 
+func TestAdminServiceListDriveUploadSessionsDelegatesToDrive(t *testing.T) {
+	t.Parallel()
+
+	driveStore := &fakeAdminDrive{
+		sessions: []drive.UploadSession{{ID: "session-1", UserID: "user-1"}},
+	}
+	service := adminService{drive: driveStore}
+	req := drive.ListUploadSessionsRequest{UserID: " user-1 ", Status: " uploading ", Limit: 5}
+	sessions, err := service.ListDriveUploadSessions(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ListDriveUploadSessions returned error: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "session-1" {
+		t.Fatalf("sessions = %+v", sessions)
+	}
+	if driveStore.lastReq.UserID != "user-1" || driveStore.lastReq.Status != drive.UploadSessionStatusUploading || driveStore.lastReq.Limit != 5 {
+		t.Fatalf("lastReq = %+v", driveStore.lastReq)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -259,6 +280,16 @@ type fakeAdminAttachmentCleanup struct {
 	expiredSessions []maildb.AttachmentUploadSession
 	err             error
 	sessionErr      error
+}
+
+type fakeAdminDrive struct {
+	sessions []drive.UploadSession
+	lastReq  drive.ListUploadSessionsRequest
+}
+
+func (f *fakeAdminDrive) ListUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
+	f.lastReq = req
+	return f.sessions, nil
 }
 
 func (f *fakeAdminAttachmentCleanup) ExpireStaleAttachmentUploads(context.Context, time.Time, int) ([]maildb.Attachment, error) {
