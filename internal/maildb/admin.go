@@ -679,7 +679,12 @@ type PushNotificationStatsView struct {
 	InvalidToken  int64 `json:"invalid_token"`
 }
 
-const maxPushNotificationFilterBytes = 1024
+const (
+	maxPushNotificationFilterBytes     = 1024
+	maxDeliveryRouteCredentialBytes    = 4096
+	maxDeliveryRouteDescriptionBytes   = 512
+	maxDeliveryRouteOperationalIDBytes = 1024
+)
 
 type SuppressionEntry struct {
 	ID              string    `json:"id"`
@@ -1163,19 +1168,31 @@ func ValidateCreateDeliveryRouteRequest(req CreateDeliveryRouteRequest) error {
 		return fmt.Errorf("auth_username is required when auth_password is set")
 	}
 	for field, value := range map[string]string{
-		"farm":          req.Farm,
-		"smtp_hello":    req.SMTPHello,
-		"pool_name":     req.PoolName,
-		"auth_identity": req.AuthIdentity,
-		"auth_username": req.AuthUsername,
-		"auth_password": req.AuthPassword,
-		"description":   req.Description,
+		"farm":        req.Farm,
+		"smtp_hello":  req.SMTPHello,
+		"pool_name":   req.PoolName,
+		"description": req.Description,
 	} {
 		if strings.ContainsAny(value, "\r\n") {
 			return fmt.Errorf("%s must not contain newlines", field)
 		}
+		if len(strings.TrimSpace(value)) > maxDeliveryRouteOperationalIDBytes {
+			return fmt.Errorf("%s is too long", field)
+		}
 	}
-	if len(req.Description) > 512 {
+	for field, value := range map[string]string{
+		"auth_identity": req.AuthIdentity,
+		"auth_username": req.AuthUsername,
+		"auth_password": req.AuthPassword,
+	} {
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("%s must not contain newlines", field)
+		}
+		if len(strings.TrimSpace(value)) > maxDeliveryRouteCredentialBytes {
+			return fmt.Errorf("%s is too long", field)
+		}
+	}
+	if len(req.Description) > maxDeliveryRouteDescriptionBytes {
 		return fmt.Errorf("description is too long")
 	}
 	return nil

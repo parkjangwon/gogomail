@@ -2,6 +2,7 @@ package maildb
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -67,6 +68,13 @@ func TestValidateCreateDeliveryRouteRequestRejectsUnsafeInput(t *testing.T) {
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, Port: 70000},
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, TLSMode: "cleartext"},
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, Description: "bad\nline"},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, Farm: strings.Repeat("f", maxDeliveryRouteOperationalIDBytes+1)},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, SMTPHello: strings.Repeat("h", maxDeliveryRouteOperationalIDBytes+1)},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, PoolName: strings.Repeat("p", maxDeliveryRouteOperationalIDBytes+1)},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, Description: strings.Repeat("d", maxDeliveryRouteDescriptionBytes+1)},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, AuthIdentity: strings.Repeat("i", maxDeliveryRouteCredentialBytes+1)},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, AuthUsername: strings.Repeat("u", maxDeliveryRouteCredentialBytes+1)},
+		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, AuthUsername: "relay", AuthPassword: strings.Repeat("s", maxDeliveryRouteCredentialBytes+1)},
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, TLSMode: "disable", ImplicitTLS: true},
 		{DomainPattern: "example.com", Hosts: []string{"relay.example.net"}, AuthPassword: "secret"},
 	} {
