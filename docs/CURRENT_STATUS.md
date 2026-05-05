@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after local storage idempotent deletes)
+Last updated: 2026-05-05 (updated after IMAP flag-list syntax hardening)
 
 ## Current phase
 
@@ -191,6 +191,10 @@ guidance.
   nested `FullPath` values when backend rows do not carry `ParentID`, so deeper
   hierarchies such as `Projects/2026/Jan` still mark `Projects/2026` with
   `\HasChildren` for clients that depend on hierarchy metadata.
+- IMAP `APPEND`, `STORE`, and `UID STORE` flag-list parsing now rejects
+  unparenthesized or unbalanced flag lists instead of silently trimming stray
+  parentheses, keeping flag mutation syntax closer to RFC-shaped client
+  expectations.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
