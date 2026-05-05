@@ -79,6 +79,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.
+- Drive upload-session creation now has a repository/service boundary that
+  validates active users, optional active parent folders, storage backend, size,
+  and expiration before recording pending upload metadata.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

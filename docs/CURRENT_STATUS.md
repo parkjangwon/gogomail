@@ -309,6 +309,10 @@ guidance.
   `internal/drive` validation contract for upload IDs, parent folders,
   declared size, MIME type, storage backend, lifecycle status, and bounded
   expiration before HTTP upload-session routes are exposed.
+- `internal/drive.Repository.CreateUploadSession` can create pending Drive
+  upload sessions for active users under optional active parent folders,
+  preserving the same backend-neutral storage metadata and bounded expiration
+  rules that future HTTP clients will use.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

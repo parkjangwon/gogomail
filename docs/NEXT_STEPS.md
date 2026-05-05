@@ -377,12 +377,14 @@ Current state:
 - `drive_upload_sessions` now defines the database and validation boundary for
   resumable Drive uploads, including declared/received sizes, lifecycle status,
   storage metadata, and expiration indexes.
+- `internal/drive.Repository.CreateUploadSession` now records pending Drive
+  upload sessions for active users and optional active parent folders.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session repository/service/API methods so clients can
-  reserve quota, retry large objects, and surface resumable upload state.
+- Add Drive upload-session body/finalize service and API methods so clients
+  can reserve quota, retry large objects, and surface resumable upload state.
 
 ### 2. Message threading and search
 

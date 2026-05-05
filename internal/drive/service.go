@@ -89,6 +89,13 @@ func (s *Service) CreateFileFromObject(ctx context.Context, req CreateFileFromOb
 	return s.repo.CreateFileFromObject(ctx, store, req)
 }
 
+func (s *Service) CreateUploadSession(ctx context.Context, req CreateUploadSessionRequest) (UploadSession, error) {
+	if s == nil || s.repo == nil {
+		return UploadSession{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.CreateUploadSession(ctx, req)
+}
+
 func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
 	if s == nil || s.repo == nil {
 		return nil, fmt.Errorf("drive repository is required")
