@@ -345,12 +345,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, enabling standard mailbox list metadata reads.
+- IMAP `CAPABILITY` now advertises `CONDSTORE` after the RFC 4551-shaped
+  mod-sequence fetch/search/status/select/store paths were wired through
+  durable mailbox/message state.
 - IMAP `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes
-  when requested, surfacing durable per-message mod-sequences without
-  advertising full CONDSTORE behavior prematurely.
+  when requested, surfacing durable per-message mod-sequences.
 - IMAP `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria and
-  append the highest matched mod-sequence to non-empty SEARCH responses, while
-  full CONDSTORE behavior remains unadvertised.
+  append the highest matched mod-sequence to non-empty SEARCH responses.
 - IMAP `FETCH`/`UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
   modifiers, filtering responses to messages with greater per-message
   mod-sequences and implicitly returning `MODSEQ` attributes.
@@ -359,10 +360,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   responses to include `MODSEQ` attributes.
 - IMAP `STORE`/`UID STORE` now supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers, checking message mod-sequences transactionally, applying passing
-  updates, and returning `[MODIFIED uid-set]` for stale messages.
+  updates, and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]` for
+  stale messages.
 - IMAP `SELECT`/`EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
-  parameter and mark the session CONDSTORE-aware while keeping full extension
-  advertisement deferred until every required behavior is closed.
+  parameter and mark the session CONDSTORE-aware.
 - IMAP `FETCH`/`UID FETCH` now return a conservative single-part
   `BODYSTRUCTURE` response for clients that require structure metadata before
   fetching message bodies.

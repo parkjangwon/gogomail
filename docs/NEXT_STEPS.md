@@ -283,9 +283,10 @@ Current state:
   untagged flag echo responses for those requests.
 - `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, using the service-backed message summary fields.
+- `CAPABILITY` now advertises `CONDSTORE`; implemented RFC 4551 paths use
+  durable mailbox/message mod-sequences for standard client cache sync.
 - `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes when
-  requested, backed by durable per-message IMAP mod-sequences while broader
-  CONDSTORE behavior remains unadvertised.
+  requested, backed by durable per-message IMAP mod-sequences.
 - `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria,
   including optional metadata entry/type arguments, and return the highest
   matched mod-sequence in non-empty SEARCH responses.
@@ -297,10 +298,10 @@ Current state:
   flag `FETCH` event/STORE echo responses include `MODSEQ`.
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
-  success for passing messages, and `[MODIFIED uid-set]` stale-write responses.
+  success for passing messages, and UID/sequence `[MODIFIED ...]`
+  stale-write responses.
 - `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
-  parameter and mark the session CONDSTORE-aware without advertising the full
-  extension prematurely.
+  parameter and mark the session CONDSTORE-aware.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,

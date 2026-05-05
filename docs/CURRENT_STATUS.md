@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP FETCH MODSEQ support)
+Last updated: 2026-05-05 (updated after IMAP CONDSTORE capability advertisement)
 
 ## Current phase
 
@@ -832,9 +832,10 @@ The platform hardening sprint completed the following:
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes from message summaries for mailbox list rendering.
+- IMAP `CAPABILITY` advertises `CONDSTORE`; implemented RFC 4551 paths use
+  durable mailbox/message mod-sequences for standard client cache sync.
 - IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes
-  when requested, using durable per-message mod-sequences without advertising
-  broader CONDSTORE semantics yet.
+  when requested, using durable per-message mod-sequences.
 - IMAP `SEARCH`/`UID SEARCH` can match RFC 4551-shaped `MODSEQ` criteria,
   including optional metadata entry/type arguments, and append the highest
   matched mod-sequence to non-empty SEARCH responses.
@@ -846,10 +847,10 @@ The platform hardening sprint completed the following:
   subsequent flag `FETCH` event/STORE echo responses include `MODSEQ`.
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
-  passing updates and returning `[MODIFIED uid-set]` for stale messages.
+  passing updates and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]`
+  for stale messages.
 - IMAP `SELECT` and `EXAMINE` accept the RFC 4551-shaped `(CONDSTORE)`
-  parameter and mark the session CONDSTORE-aware without advertising the full
-  extension prematurely.
+  parameter and mark the session CONDSTORE-aware.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,

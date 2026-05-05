@@ -1120,7 +1120,7 @@ Implementation order:
      hints.
 795. IMAP `FETCH` and `UID FETCH` now return RFC 4551-shaped `MODSEQ (n)`
      attributes when requested, mapping durable per-message IMAP mod-sequences
-     through the gateway without advertising broader CONDSTORE semantics yet.
+     through the gateway.
 796. IMAP `SEARCH` and `UID SEARCH` now support RFC 4551-shaped `MODSEQ`
      criteria, including optional metadata entry/type arguments, and append
      `(MODSEQ n)` with the highest matched mod-sequence for non-empty results.
@@ -1132,12 +1132,13 @@ Implementation order:
      include `MODSEQ` attributes for client cache coherence.
 799. IMAP `STORE` and `UID STORE` now support RFC 4551-shaped
      `(UNCHANGEDSINCE n)` modifiers with transactional per-message mod-sequence
-     checks, partial success for passing messages, and `[MODIFIED uid-set]`
-     responses for stale flag writes.
+     checks, partial success for passing messages, and `[MODIFIED uid-set]` /
+     `[MODIFIED sequence-set]` responses for stale flag writes.
 800. IMAP `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
-     parameter and mark the session CONDSTORE-aware while keeping full
-     extension advertisement deferred until the remaining required semantics
-     are closed.
+     parameter and mark the session CONDSTORE-aware.
+801. IMAP `CAPABILITY` now advertises `CONDSTORE`, making the implemented
+     RFC 4551 durable mod-sequence sync surface discoverable by standard IMAP
+     clients.
 
 ## Deferred until backend contracts stabilize
 
