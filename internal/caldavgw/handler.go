@@ -421,6 +421,11 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 			return nil, fmt.Errorf("calendar-multiget requires a calendar collection or home resource")
 		}
 		return h.calendarMultigetResponses(ctx, userID, report)
+	case ReportCalendarQuery:
+		if resource.Kind != ResourceCalendarCollection {
+			return nil, fmt.Errorf("calendar-query requires a calendar collection resource")
+		}
+		return h.calendarQueryResponses(ctx, userID, resource, report)
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
@@ -452,6 +457,37 @@ func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, 
 			return nil, err
 		}
 		responses = append(responses, responseForProperties(objectHref, propfind, props))
+	}
+	return responses, nil
+}
+
+func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	if err != nil {
+		return nil, err
+	}
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	responses := make([]MultiStatusResponse, 0, len(objects))
+	for _, object := range objects {
+		matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.TimeRange)
+		if err != nil {
+			return nil, err
+		}
+		if !matches {
+			continue
+		}
+		props, err := CalendarObjectProperties(userID, object)
+		if err != nil {
+			return nil, err
+		}
+		if containsXMLName(report.Properties, PropCalendarData) {
+			props = append(props, CalendarObjectDataProperty(object.ICS))
+		}
+		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
+		if err != nil {
+			return nil, err
+		}
+		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, nil
 }

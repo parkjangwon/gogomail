@@ -1434,8 +1434,9 @@ Current state:
 - CalDAV runtime configuration now includes `GOGOMAIL_CALDAV_ADDR` and
   `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation rejecting
   insecure Basic-auth operation.
-- `gogomail --mode=caldav` now starts a dedicated discovery-only HTTP listener
-  backed by the CalDAV repository and Basic-auth resolver.
+- `gogomail --mode=caldav` now starts a dedicated HTTP listener backed by the
+  CalDAV repository and Basic-auth resolver, with discovery, object I/O, and
+  initial REPORT handlers in place.
 - CalDAV REPORT parsing now validates `calendar-query`, `calendar-multiget`,
   `free-busy-query`, and `sync-collection` shapes more strictly, including
   nested time-range extraction, required href/filter/range/level fields, and
@@ -1446,6 +1447,9 @@ Current state:
 - CalDAV now handles authenticated calendar object `GET`, `HEAD`, `PUT`, and
   `DELETE` with strong ETag headers, bounded iCalendar writes, and
   `If-Match`/`If-None-Match` precondition handling.
+- CalDAV now handles `REPORT calendar-query` for authenticated calendar
+  collections, returning requested ETags and `calendar-data` while filtering
+  VEVENT resources against CalDAV time ranges through the RFC 5545 parser.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1455,8 +1459,9 @@ Current state:
 
 Next:
 
-- Continue CalDAV with calendar-query/sync-collection handlers and broader
-  compatibility tests before advertising client-ready compatibility.
+- Continue CalDAV with sync-collection/free-busy handlers, recurrence-aware
+  calendar-query expansion, and broader compatibility tests before advertising
+  client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

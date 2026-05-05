@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive range download API)
+Last updated: 2026-05-06 (updated after CalDAV calendar-query handling)
 
 ## Current phase
 
@@ -2092,9 +2092,9 @@ The platform hardening sprint completed the following:
   insecure CalDAV Basic-auth credentials before runtime wiring is enabled.
 - `gogomail --mode=caldav` now starts a dedicated HTTP listener using
   `GOGOMAIL_CALDAV_ADDR`, the CalDAV PostgreSQL discovery repository, and the
-  Basic-auth resolver. The runtime is discovery-only at this stage; full
-  CalDAV client-ready compatibility still depends on REPORT/PUT/DELETE and
-  broader compatibility coverage.
+  Basic-auth resolver. Full CalDAV client-ready compatibility still depends on
+  sync-collection, free-busy/scheduling, recurrence semantics, and broader
+  native-client compatibility coverage.
 - CalDAV REPORT parsing now validates more protocol shape before handlers run:
   `calendar-query` requires a filter and extracts nested CalDAV time ranges,
   `calendar-multiget` requires bounded hrefs, `free-busy-query` requires a UTC
@@ -2109,6 +2109,11 @@ The platform hardening sprint completed the following:
   `text/calendar` bodies, writes enforce bounded iCalendar validation and
   `If-Match`/`If-None-Match` preconditions, and deletes honor optional ETag
   preconditions before soft-deleting repository objects.
+- CalDAV now handles `REPORT calendar-query` for authenticated calendar
+  collections, listing matching `.ics` objects through WebDAV multistatus
+  responses and applying RFC 5545-backed VEVENT overlap checks when a CalDAV
+  time-range filter is supplied. Sync-collection, free-busy, scheduling, and
+  broader native-client compatibility coverage remain incomplete.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

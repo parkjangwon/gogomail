@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
 	ical "github.com/emersion/go-ical"
 )
@@ -52,6 +53,44 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 		return ICalendarObject{}, fmt.Errorf("iCalendar object must contain exactly one supported calendar component")
 	}
 	return found[0], nil
+}
+
+func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, error) {
+	if timeRange == nil {
+		return true, nil
+	}
+	cal, err := ical.NewDecoder(bytes.NewReader(body)).Decode()
+	if err != nil {
+		return false, fmt.Errorf("decode iCalendar object: %w", err)
+	}
+	if cal == nil || cal.Component == nil {
+		return false, fmt.Errorf("iCalendar body must contain one VCALENDAR root")
+	}
+	for _, child := range cal.Children {
+		if strings.EqualFold(child.Name, ComponentVEVENT) {
+			return eventOverlapsRange(child, *timeRange)
+		}
+	}
+	return false, nil
+}
+
+func eventOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, error) {
+	event := ical.Event{Component: component}
+	start, err := event.DateTimeStart(time.UTC)
+	if err != nil {
+		return false, fmt.Errorf("decode VEVENT DTSTART: %w", err)
+	}
+	end, err := event.DateTimeEnd(time.UTC)
+	if err != nil || end.IsZero() {
+		end = start
+	}
+	if end.Before(start) {
+		return false, fmt.Errorf("VEVENT DTEND must not be before DTSTART")
+	}
+	if end.Equal(start) {
+		end = start.Add(time.Nanosecond)
+	}
+	return start.Before(timeRange.End) && end.After(timeRange.Start), nil
 }
 
 func calendarComponentUID(component *ical.Component) (string, error) {

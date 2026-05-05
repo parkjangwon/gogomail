@@ -3,6 +3,7 @@ package caldavgw
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseICalendarObjectExtractsUIDAndComponent(t *testing.T) {
@@ -96,4 +97,40 @@ func TestValidateUpsertObjectRequestRejectsMetadataMismatch(t *testing.T) {
 	}); err == nil {
 		t.Fatal("ValidateUpsertObjectRequest accepted mismatched component")
 	}
+}
+
+func TestCalendarObjectMatchesTimeRange(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260506T013000Z"),
+		End:   mustCalDAVTime(t, "20260506T030000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if !matches {
+		t.Fatal("matches = false, want true")
+	}
+	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260507T000000Z"),
+		End:   mustCalDAVTime(t, "20260508T000000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if matches {
+		t.Fatal("matches = true, want false")
+	}
+}
+
+func mustCalDAVTime(t *testing.T, value string) time.Time {
+	t.Helper()
+
+	parsed, err := parseICalendarUTC(value)
+	if err != nil {
+		t.Fatalf("parseICalendarUTC(%q): %v", value, err)
+	}
+	return parsed
 }

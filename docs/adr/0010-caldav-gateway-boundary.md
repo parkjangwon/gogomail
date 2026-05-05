@@ -122,6 +122,14 @@ rather than Mail API routes. `PUT` reuses the iCalendar validation and strong
 ETag repository boundary, while `If-Match` and `If-None-Match` checks keep
 native client cache/write behavior coherent.
 
+`REPORT calendar-query` is handled in the gateway over the same repository
+boundary. The first implementation lists objects from an authenticated calendar
+collection, returns requested WebDAV/iCalendar properties, and applies VEVENT
+time-range overlap checks through the RFC 5545 parser when a CalDAV
+`time-range` filter is supplied. Recurrence expansion and non-VEVENT
+time-range semantics remain future compatibility work before the listener is
+advertised as broadly client-ready.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

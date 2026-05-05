@@ -219,11 +219,17 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   handler logic is added.
 - CalDAV now handles `REPORT calendar-multiget` for authenticated calendar
   collections, including requested `calendar-data` bodies and missing-object
-  404 propstats. Calendar-query, sync-collection, and object mutation/read
-  handlers remain incomplete.
+  404 propstats. Sync-collection, free-busy, and scheduling handlers remain
+  incomplete.
 - CalDAV now handles calendar object `GET`, `HEAD`, `PUT`, and `DELETE` with
   strong ETag headers, bounded iCalendar validation, and conditional request
-  preconditions. Calendar-query and sync-collection handlers remain incomplete.
+  preconditions. Sync-collection and broader native-client compatibility tests
+  remain incomplete.
+- CalDAV now handles `REPORT calendar-query` for authenticated calendar
+  collections, including requested `calendar-data` bodies and VEVENT
+  time-range filtering through the RFC 5545 parser. Sync-collection,
+  free-busy, scheduling, recurrence expansion, and broader device/client
+  compatibility tests remain incomplete.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
