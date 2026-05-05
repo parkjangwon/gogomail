@@ -119,7 +119,13 @@ type attachmentCleanupResult struct {
 }
 
 type driveCleanupRunner interface {
+	ExpireUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 	RetryObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
+}
+
+type driveCleanupResult struct {
+	ExpiredSessions int
+	ObjectCleanup   drive.RetryObjectCleanupFailuresResult
 }
 
 type apiUsageRetentionRunner interface {
@@ -332,7 +338,7 @@ func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.
 	}
 	service := driveServiceForConfig(db, cfg, store)
 	if cfg.DriveCleanupRunOnce {
-		_, err := retryDriveObjectCleanupOnce(ctx, service, cfg.DriveCleanupBatchSize, logger)
+		_, err := cleanupDriveOnce(ctx, service, time.Now, cfg.DriveCleanupBatchSize, logger)
 		return err
 	}
 	return runDriveCleanupLoop(ctx, service, cfg.DriveCleanupInterval, cfg.DriveCleanupBatchSize, logger)
@@ -469,7 +475,7 @@ func runDriveCleanupLoop(ctx context.Context, cleaner driveCleanupRunner, interv
 	if batchSize <= 0 {
 		return fmt.Errorf("drive cleanup batch size must be positive")
 	}
-	if _, err := retryDriveObjectCleanupOnce(ctx, cleaner, batchSize, logger); err != nil && logger != nil {
+	if _, err := cleanupDriveOnce(ctx, cleaner, time.Now, batchSize, logger); err != nil && logger != nil {
 		logger.Error("drive cleanup failed", "error", err)
 	}
 	ticker := time.NewTicker(interval)
@@ -479,11 +485,45 @@ func runDriveCleanupLoop(ctx context.Context, cleaner driveCleanupRunner, interv
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if _, err := retryDriveObjectCleanupOnce(ctx, cleaner, batchSize, logger); err != nil && logger != nil {
+			if _, err := cleanupDriveOnce(ctx, cleaner, time.Now, batchSize, logger); err != nil && logger != nil {
 				logger.Error("drive cleanup failed", "error", err)
 			}
 		}
 	}
+}
+
+func cleanupDriveOnce(ctx context.Context, cleaner driveCleanupRunner, now func() time.Time, batchSize int, logger *slog.Logger) (driveCleanupResult, error) {
+	if cleaner == nil {
+		return driveCleanupResult{}, fmt.Errorf("drive cleanup service is required")
+	}
+	if batchSize <= 0 {
+		return driveCleanupResult{}, fmt.Errorf("drive cleanup batch size must be positive")
+	}
+	if now == nil {
+		now = time.Now
+	}
+	before := now().UTC()
+	expired, err := cleaner.ExpireUploadSessions(ctx, drive.ExpireUploadSessionsRequest{
+		Before: before,
+		Limit:  batchSize,
+	})
+	if err != nil {
+		return driveCleanupResult{}, err
+	}
+	objectCleanup, err := retryDriveObjectCleanupOnce(ctx, cleaner, batchSize, logger)
+	result := driveCleanupResult{
+		ExpiredSessions: len(expired),
+		ObjectCleanup:   objectCleanup,
+	}
+	if logger != nil {
+		logger.Info(
+			"drive upload session cleanup completed",
+			"expired_sessions", result.ExpiredSessions,
+			"before", before.Format(time.RFC3339),
+			"limit", batchSize,
+		)
+	}
+	return result, err
 }
 
 func retryDriveObjectCleanupOnce(ctx context.Context, cleaner driveCleanupRunner, batchSize int, logger *slog.Logger) (drive.RetryObjectCleanupFailuresResult, error) {
