@@ -299,6 +299,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible storage requests reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
+- S3-compatible readiness probes read the verification object through a tight
+  expected-size bound, preventing malformed or proxy-inflated probe responses
+  from allocating unbounded memory during `/health/ready` checks.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object
