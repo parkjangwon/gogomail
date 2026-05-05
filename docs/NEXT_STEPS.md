@@ -290,6 +290,10 @@ Current state:
 - `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return active message octet totals per mailbox without
   fetching every message's `RFC822.SIZE`.
+- `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT` reuse the
+  selected-mailbox search evaluator, require `US-ASCII` or `UTF-8` charset
+  arguments, and return sorted sequence numbers or UIDs for the standard sort
+  keys clients use for mailbox list ordering.
 - `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata, matching client namespace delimiter
   probes before persistent subscription storage exists.
@@ -487,8 +491,10 @@ Current state:
   boundary and returns updated flag metadata.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
   IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`,
-  `FETCH`/`UID FETCH`, `STORE`/`UID STORE`, `SEARCH`, `IDLE`, `STARTTLS`, and
-  `LOGOUT`, while destructive mailbox mutation semantics remain deferred.
+  `FETCH`/`UID FETCH`, `STORE`/`UID STORE`, `SEARCH`, `SORT`, `IDLE`,
+  `STARTTLS`, `CREATE`/`DELETE`/`RENAME`, `APPEND`, `COPY`, `MOVE`, `EXPUNGE`,
+  `CLOSE`, `UNSELECT`, and `LOGOUT` over the service-backed mailbox/session
+  boundary.
 - `gogomail --mode=imap` now starts a dedicated Redis consumer group for
   committed `mail.stored` events and publishes UID-bearing `EXISTS` updates
   into its process-local mailbox event broker so live IDLE sessions can observe

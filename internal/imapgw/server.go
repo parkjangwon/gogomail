@@ -22,6 +22,8 @@ import (
 	"time"
 
 	messageparse "github.com/gogomail/gogomail/internal/message"
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 )
 
 type ServerOptions struct {
@@ -483,6 +485,8 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		return s.handleFetch(writer, tag, fields, state)
 	case "SEARCH":
 		return s.handleSearch(writer, tag, fields, state, false)
+	case "SORT":
+		return s.handleSort(writer, tag, fields, state, false)
 	case "STORE":
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
@@ -1037,6 +1041,8 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		return s.handleUIDFetch(writer, tag, fields, state)
 	case "SEARCH":
 		return s.handleSearch(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
+	case "SORT":
+		return s.handleSort(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "STORE":
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
@@ -1133,6 +1139,66 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	completion := "SEARCH"
 	if uidMode {
 		completion = "UID SEARCH"
+	}
+	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) < 5 {
+		_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
+		return false, err
+	}
+	sortCriteria, searchFields, charsetOK, ok := imapSortCommandArguments(fields[2:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
+		return false, err
+	}
+	if !charsetOK {
+		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n")
+		return false, err
+	}
+	if len(searchFields) == 0 {
+		_, err := writer.WriteString(tag + " BAD SORT requires search criteria\r\n")
+		return false, err
+	}
+	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		Limit:     int(state.selectedMessages),
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO SORT failed\r\n")
+		return false, writeErr
+	}
+	requestsModSeq := imapSearchRequestsModSeq(searchFields)
+	if requestsModSeq {
+		state.condstoreAware = true
+	}
+	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO SORT failed\r\n")
+		return false, writeErr
+	}
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD SORT search criteria are unsupported\r\n")
+		return false, err
+	}
+	imapSortMatches(results, sortCriteria)
+	if _, err := writer.WriteString("* SORT" + imapSearchResultSuffix(imapSearchResultValues(results), 0, false) + "\r\n"); err != nil {
+		return false, err
+	}
+	completion := "SORT"
+	if uidMode {
+		completion = "UID SORT"
 	}
 	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
 	return false, err
@@ -1242,6 +1308,7 @@ type imapSearchMatch struct {
 	uid            UID
 	sequenceNumber uint32
 	modSeq         uint64
+	summary        MessageSummary
 }
 
 type imapSearchSavedMessage struct {
@@ -1288,12 +1355,218 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 			uid:            summary.UID,
 			sequenceNumber: imapSearchSequenceNumber(summary, i),
 			modSeq:         summary.ModSeq,
+			summary:        summary,
 		})
 	}
 	if len(results) == 0 {
 		highestModSeq = 0
 	}
 	return results, highestModSeq, true, nil
+}
+
+type imapSortCriterion struct {
+	key     string
+	reverse bool
+}
+
+func imapSortCommandArguments(fields []string) ([]imapSortCriterion, []string, bool, bool) {
+	sortFields, rest, ok := imapConsumeParenthesizedFields(fields)
+	if !ok || len(rest) < 2 {
+		return nil, nil, true, false
+	}
+	criteria, ok := imapSortCriteria(sortFields)
+	if !ok || len(criteria) == 0 {
+		return nil, nil, true, false
+	}
+	charset := strings.ToUpper(strings.Trim(rest[0], `"`))
+	switch charset {
+	case "US-ASCII", "UTF-8":
+	default:
+		return nil, nil, false, true
+	}
+	return criteria, imapNormalizeSearchCriteria(rest[1:]), true, true
+}
+
+func imapSortCriteria(fields []string) ([]imapSortCriterion, bool) {
+	tokens := imapFetchNormalizedTokens(fields)
+	criteria := make([]imapSortCriterion, 0, len(tokens))
+	for i := 0; i < len(tokens); i++ {
+		reverse := false
+		if tokens[i] == "REVERSE" {
+			reverse = true
+			i++
+			if i >= len(tokens) {
+				return nil, false
+			}
+		}
+		switch tokens[i] {
+		case "ARRIVAL", "CC", "DATE", "FROM", "SIZE", "SUBJECT", "TO":
+			criteria = append(criteria, imapSortCriterion{key: tokens[i], reverse: reverse})
+		default:
+			return nil, false
+		}
+	}
+	return criteria, true
+}
+
+func imapSortMatches(matches []imapSearchMatch, criteria []imapSortCriterion) {
+	collator := collate.New(language.Und, collate.IgnoreCase)
+	sort.SliceStable(matches, func(i, j int) bool {
+		left := matches[i]
+		right := matches[j]
+		for _, criterion := range criteria {
+			cmp := imapCompareSortCriterion(collator, left.summary, right.summary, criterion.key)
+			if cmp == 0 {
+				continue
+			}
+			if criterion.reverse {
+				return cmp > 0
+			}
+			return cmp < 0
+		}
+		return left.sequenceNumber < right.sequenceNumber
+	})
+}
+
+func imapCompareSortCriterion(collator *collate.Collator, left MessageSummary, right MessageSummary, key string) int {
+	switch key {
+	case "ARRIVAL":
+		return imapCompareTime(left.InternalDate, right.InternalDate)
+	case "DATE":
+		return imapCompareTime(imapSortSentDate(left), imapSortSentDate(right))
+	case "SIZE":
+		return imapCompareInt64(left.Size, right.Size)
+	case "FROM":
+		return collator.CompareString(imapSortFirstMailbox(left.Envelope.From), imapSortFirstMailbox(right.Envelope.From))
+	case "TO":
+		return collator.CompareString(imapSortFirstMailbox(left.Envelope.To), imapSortFirstMailbox(right.Envelope.To))
+	case "CC":
+		return collator.CompareString(imapSortFirstMailbox(left.Envelope.Cc), imapSortFirstMailbox(right.Envelope.Cc))
+	case "SUBJECT":
+		return collator.CompareString(imapBaseSubject(left.Envelope.Subject), imapBaseSubject(right.Envelope.Subject))
+	default:
+		return 0
+	}
+}
+
+func imapSortSentDate(summary MessageSummary) time.Time {
+	if !summary.Envelope.Date.IsZero() {
+		return summary.Envelope.Date
+	}
+	return summary.InternalDate
+}
+
+func imapSortFirstMailbox(addresses []Address) string {
+	if len(addresses) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(addresses[0].Mailbox)
+}
+
+func imapCompareTime(left time.Time, right time.Time) int {
+	if left.Equal(right) {
+		return 0
+	}
+	if left.Before(right) {
+		return -1
+	}
+	return 1
+}
+
+func imapCompareInt64(left int64, right int64) int {
+	if left == right {
+		return 0
+	}
+	if left < right {
+		return -1
+	}
+	return 1
+}
+
+func imapBaseSubject(subject string) string {
+	subject = strings.TrimSpace(strings.Join(strings.Fields(subject), " "))
+	for {
+		previous := subject
+		subject = imapStripSubjectTrailers(subject)
+		for {
+			stripped := imapStripSubjectLeader(subject)
+			if stripped == subject {
+				break
+			}
+			subject = stripped
+			subject = imapStripSubjectTrailers(subject)
+		}
+		if inner, ok := imapStripForwardWrapper(subject); ok {
+			subject = strings.TrimSpace(inner)
+			continue
+		}
+		if subject == previous {
+			return subject
+		}
+	}
+}
+
+func imapStripSubjectTrailers(subject string) string {
+	for {
+		trimmed := strings.TrimSpace(subject)
+		if strings.HasSuffix(strings.ToLower(trimmed), "(fwd)") {
+			subject = strings.TrimSpace(trimmed[:len(trimmed)-5])
+			continue
+		}
+		return trimmed
+	}
+}
+
+func imapStripSubjectLeader(subject string) string {
+	subject = strings.TrimSpace(subject)
+	for {
+		stripped, ok := imapStripSubjectBlob(subject)
+		if !ok {
+			break
+		}
+		subject = strings.TrimSpace(stripped)
+	}
+	lower := strings.ToLower(subject)
+	for _, prefix := range []string{"re", "fw", "fwd"} {
+		if !strings.HasPrefix(lower, prefix) {
+			continue
+		}
+		rest := subject[len(prefix):]
+		rest = strings.TrimLeft(rest, " \t")
+		if strings.HasPrefix(rest, "[") {
+			withoutBlob, ok := imapStripSubjectBlob(rest)
+			if ok {
+				rest = strings.TrimLeft(withoutBlob, " \t")
+			}
+		}
+		if strings.HasPrefix(rest, ":") {
+			return strings.TrimSpace(rest[1:])
+		}
+	}
+	return subject
+}
+
+func imapStripSubjectBlob(subject string) (string, bool) {
+	if !strings.HasPrefix(subject, "[") {
+		return subject, false
+	}
+	if strings.HasPrefix(strings.ToLower(subject), "[fwd:") {
+		return subject, false
+	}
+	end := strings.Index(subject, "]")
+	if end <= 0 {
+		return subject, false
+	}
+	return subject[end+1:], true
+}
+
+func imapStripForwardWrapper(subject string) (string, bool) {
+	trimmed := strings.TrimSpace(subject)
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "[fwd:") && strings.HasSuffix(trimmed, "]") {
+		return trimmed[5 : len(trimmed)-1], true
+	}
+	return subject, false
 }
 
 type imapSearchPredicate func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error)
@@ -3908,7 +4181,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}

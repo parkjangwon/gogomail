@@ -1206,6 +1206,11 @@ Implementation order:
 820. IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
      `LIST-STATUS` can return per-mailbox active message octet totals from
      repository aggregate metadata without per-message `RFC822.SIZE` fetches.
+821. IMAP `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT`
+     reuse selected-mailbox search evaluation, enforce mandatory `US-ASCII` and
+     `UTF-8` charset support, and return sorted sequence-number or UID result
+     sets for standard arrival, sent-date, address, base-subject, and size
+     ordering.
 
 ## Deferred until backend contracts stabilize
 
