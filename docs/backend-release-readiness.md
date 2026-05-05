@@ -361,6 +361,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP now accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox
   existence checks, keeping subscription-management clients from failing before
   persistent subscription storage is added.
+- IMAP now advertises and supports `ID`, returning a bounded server identity
+  response for compatibility diagnostics.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

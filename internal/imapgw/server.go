@@ -210,6 +210,16 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
 		return false, err
+	case "ID":
+		if len(fields) < 3 {
+			_, err := writer.WriteString(tag + " BAD ID requires NIL or parameter list\r\n")
+			return false, err
+		}
+		if _, err := writer.WriteString(`* ID ("name" "gogomail")` + "\r\n"); err != nil {
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " OK ID completed\r\n")
+		return false, err
 	case "NAMESPACE":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -1455,7 +1465,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID"}
 	if state == nil || state.session == nil {
 		capabilities = append(capabilities, "AUTH=PLAIN")
 	}

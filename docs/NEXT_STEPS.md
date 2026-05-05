@@ -297,6 +297,8 @@ Current state:
 - Authenticated `SUBSCRIBE`/`UNSUBSCRIBE` now validate mailbox existence and
   complete successfully while persistent subscription storage remains future
   work.
+- IMAP now advertises and supports `ID`, returning a bounded gogomail server
+  identity response.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

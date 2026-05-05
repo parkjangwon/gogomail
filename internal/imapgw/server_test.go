@@ -104,7 +104,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE AUTH=PLAIN\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID AUTH=PLAIN\r\n" {
 		t.Fatalf("capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -206,7 +206,7 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read authenticated capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID\r\n" {
 		t.Fatalf("authenticated capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -290,6 +290,50 @@ func TestServerHandlesNamespaceAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerHandlesIDCommand(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 ID NIL\r\n")); err != nil {
+		t.Fatalf("write id: %v", err)
+	}
+	want := []string{
+		"* ID (\"name\" \"gogomail\")\r\n",
+		"a1 OK ID completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read id response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("id response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -363,7 +407,7 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
