@@ -97,6 +97,48 @@ func TestValidateAcceptsRedisFeatureBackends(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "http empty", mutate: func(cfg *Config) { cfg.HTTPAddr = "" }},
+		{name: "smtp missing port", mutate: func(cfg *Config) { cfg.SMTPAddr = "localhost" }},
+		{name: "inbound nonnumeric port", mutate: func(cfg *Config) { cfg.InboundSMTPAddr = "127.0.0.1:notaport" }},
+		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
+		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
+		{name: "newline", mutate: func(cfg *Config) { cfg.HTTPAddr = ":8080\nbad" }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want listener address rejection")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsListenerAddressForms(t *testing.T) {
+	cfg := Load()
+	cfg.HTTPAddr = "[::1]:8080"
+	cfg.SMTPAddr = ":2525"
+	cfg.InboundSMTPAddr = "127.0.0.1:2526"
+	cfg.SubmissionAddr = "localhost:2587"
+	cfg.SubmissionSMTPSAddr = ""
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	cfg.SubmissionSMTPSAddr = "[::1]:465"
+	cfg.SMTPTLSCertFile = "cert.pem"
+	cfg.SMTPTLSKeyFile = "key.pem"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error with SMTPS addr = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidPushNotifyWebhookConfig(t *testing.T) {
 	tests := []struct {
 		name   string
