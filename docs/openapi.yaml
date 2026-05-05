@@ -306,6 +306,37 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /drive/nodes/{id}/download:
+    head:
+      operationId: headDriveNodeDownload
+      summary: Inspect active Drive file download headers
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: Drive file metadata headers without a response body.
+          headers:
+            Content-Disposition:
+              description: Attachment filename for the Drive node, including RFC 5987 filename* when needed.
+              schema:
+                type: string
+            Content-Length:
+              description: Size in bytes reported by the storage backend for the Drive file object.
+              schema:
+                type: integer
+                format: int64
+            Cache-Control:
+              description: Drive file downloads are user data and must not be stored by shared caches.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for Drive file downloads.
+              schema:
+                type: string
+                enum: [nosniff]
+        default:
+          $ref: "#/components/responses/Error"
     get:
       operationId: downloadDriveNode
       summary: Download an active Drive file

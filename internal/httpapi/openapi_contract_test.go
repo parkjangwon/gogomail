@@ -309,6 +309,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /folders/{id}":                                       "#/components/responses/Status",
 		"GET /drive/nodes":                                           "#/components/responses/DriveNodeList",
 		"GET /drive/nodes/{id}":                                      "#/components/responses/DriveNode",
+		"HEAD /drive/nodes/{id}/download":                            "",
 		"GET /drive/nodes/{id}/download":                             "",
 		"GET /drive/usage":                                           "#/components/responses/DriveUsageSummary",
 		"POST /drive/folders":                                        "#/components/responses/DriveNode",
@@ -560,6 +561,7 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for _, route := range []string{
 		"GET /messages/{id}/attachments/{attachment_id}/download",
+		"HEAD /drive/nodes/{id}/download",
 		"GET /drive/nodes/{id}/download",
 	} {
 		block, ok := operations[route]
@@ -569,7 +571,11 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		if strings.Contains(block, "application/json:") {
 			t.Fatalf("%s must not declare application/json", route)
 		}
-		for _, want := range []string{"application/octet-stream:", "type: string", "format: binary", "Content-Disposition:", "Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"} {
+		wants := []string{"Content-Disposition:", "Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"}
+		if !strings.HasPrefix(route, "HEAD ") {
+			wants = append(wants, "application/octet-stream:", "type: string", "format: binary")
+		}
+		for _, want := range wants {
 			if !strings.Contains(block, want) {
 				t.Fatalf("%s must document %q", route, want)
 			}
@@ -1176,6 +1182,7 @@ func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
 		"DELETE /push-devices/{id}",
 		"GET /drive/nodes",
 		"GET /drive/nodes/{id}",
+		"HEAD /drive/nodes/{id}/download",
 		"GET /drive/nodes/{id}/download",
 		"GET /drive/usage",
 	} {
@@ -1315,7 +1322,7 @@ func extractOpenAPIRoutes(t *testing.T, filename string) map[string]bool {
 	routes := make(map[string]bool)
 	var currentPath string
 	pathPattern := regexp.MustCompile(`^  (/[^:]+):\s*$`)
-	methodPattern := regexp.MustCompile(`^    (get|put|post|patch|delete):\s*$`)
+	methodPattern := regexp.MustCompile(`^    (get|head|put|post|patch|delete):\s*$`)
 	for _, line := range strings.Split(string(raw), "\n") {
 		if match := pathPattern.FindStringSubmatch(line); match != nil {
 			currentPath = match[1]
@@ -1344,7 +1351,7 @@ func extractOpenAPIOperationBlocks(t *testing.T, filename string) map[string]str
 	var currentRoute string
 	var currentBlock strings.Builder
 	pathPattern := regexp.MustCompile(`^  (/[^:]+):\s*$`)
-	methodPattern := regexp.MustCompile(`^    (get|put|post|patch|delete):\s*$`)
+	methodPattern := regexp.MustCompile(`^    (get|head|put|post|patch|delete):\s*$`)
 	flush := func() {
 		if currentRoute != "" {
 			operations[currentRoute] = currentBlock.String()

@@ -25,6 +25,7 @@ type DriveService interface {
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 	OpenFile(ctx context.Context, req drive.OpenFileRequest) (drive.FileDownload, error)
+	StatFile(ctx context.Context, req drive.OpenFileRequest) (drive.FileMetadata, error)
 	GetUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
@@ -115,15 +116,29 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		defer download.Body.Close()
-		w.Header().Set("Content-Type", attachmentContentType(download.Node.MIMEType))
-		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Node.Name))
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if download.Node.Size > 0 {
-			w.Header().Set("Content-Length", strconv.FormatInt(download.Node.Size, 10))
-		}
+		writeDriveFileDownloadHeaders(w, download.Node)
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, download.Body)
+	})
+
+	mux.HandleFunc("HEAD /api/v1/drive/nodes/{id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		metadata, err := service.StatFile(r.Context(), drive.OpenFileRequest{UserID: userID, NodeID: nodeID})
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeDriveFileDownloadHeaders(w, driveNodeWithStatSize(metadata.Node, metadata.Object.Size))
+		w.WriteHeader(http.StatusOK)
 	})
 
 	mux.HandleFunc("GET /api/v1/drive/usage", func(w http.ResponseWriter, r *http.Request) {
@@ -531,6 +546,21 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_delete": result})
 	})
+}
+
+func writeDriveFileDownloadHeaders(w http.ResponseWriter, node drive.Node) {
+	w.Header().Set("Content-Type", attachmentContentType(node.MIMEType))
+	w.Header().Set("Content-Disposition", contentDispositionAttachment(node.Name))
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if node.Size >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(node.Size, 10))
+	}
+}
+
+func driveNodeWithStatSize(node drive.Node, size int64) drive.Node {
+	node.Size = size
+	return node
 }
 
 func driveNodeRequestIdentity(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, string, bool) {

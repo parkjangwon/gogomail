@@ -103,6 +103,11 @@ type FileDownload struct {
 	Body io.ReadCloser
 }
 
+type FileMetadata struct {
+	Node   Node
+	Object storage.ObjectInfo
+}
+
 type TrashNodeRequest struct {
 	UserID string
 	NodeID string

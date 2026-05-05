@@ -279,37 +279,57 @@ func (s *Service) GetNode(ctx context.Context, req GetNodeRequest) (Node, error)
 }
 
 func (s *Service) OpenFile(ctx context.Context, req OpenFileRequest) (FileDownload, error) {
-	if s == nil || s.repo == nil {
-		return FileDownload{}, fmt.Errorf("drive repository is required")
-	}
-	validated, err := ValidateGetNodeRequest(GetNodeRequest{UserID: req.UserID, NodeID: req.NodeID, Status: NodeStatusActive})
+	node, storagePath, store, err := s.driveFileObject(ctx, req)
 	if err != nil {
 		return FileDownload{}, err
-	}
-	node, err := s.repo.GetNode(ctx, validated)
-	if err != nil {
-		return FileDownload{}, err
-	}
-	if node.Type != NodeTypeFile {
-		return FileDownload{}, fmt.Errorf("drive node is not a file")
-	}
-	storageBackend, err := validateStorageBackend(node.StorageBackend)
-	if err != nil {
-		return FileDownload{}, err
-	}
-	storagePath, err := storage.ValidateObjectPath(node.StoragePath)
-	if err != nil {
-		return FileDownload{}, fmt.Errorf("unsafe drive file storage path: %w", err)
-	}
-	store := s.stores[storageBackend]
-	if store == nil {
-		return FileDownload{}, fmt.Errorf("storage store %q is required", storageBackend)
 	}
 	body, err := store.Get(ctx, storagePath)
 	if err != nil {
 		return FileDownload{}, fmt.Errorf("open drive file object: %w", err)
 	}
 	return FileDownload{Node: node, Body: body}, nil
+}
+
+func (s *Service) StatFile(ctx context.Context, req OpenFileRequest) (FileMetadata, error) {
+	node, storagePath, store, err := s.driveFileObject(ctx, req)
+	if err != nil {
+		return FileMetadata{}, err
+	}
+	info, err := store.Stat(ctx, storagePath)
+	if err != nil {
+		return FileMetadata{}, fmt.Errorf("stat drive file object: %w", err)
+	}
+	return FileMetadata{Node: node, Object: info}, nil
+}
+
+func (s *Service) driveFileObject(ctx context.Context, req OpenFileRequest) (Node, string, storage.Store, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, "", nil, fmt.Errorf("drive repository is required")
+	}
+	validated, err := ValidateGetNodeRequest(GetNodeRequest{UserID: req.UserID, NodeID: req.NodeID, Status: NodeStatusActive})
+	if err != nil {
+		return Node{}, "", nil, err
+	}
+	node, err := s.repo.GetNode(ctx, validated)
+	if err != nil {
+		return Node{}, "", nil, err
+	}
+	if node.Type != NodeTypeFile {
+		return Node{}, "", nil, fmt.Errorf("drive node is not a file")
+	}
+	storageBackend, err := validateStorageBackend(node.StorageBackend)
+	if err != nil {
+		return Node{}, "", nil, err
+	}
+	storagePath, err := storage.ValidateObjectPath(node.StoragePath)
+	if err != nil {
+		return Node{}, "", nil, fmt.Errorf("unsafe drive file storage path: %w", err)
+	}
+	store := s.stores[storageBackend]
+	if store == nil {
+		return Node{}, "", nil, fmt.Errorf("storage store %q is required", storageBackend)
+	}
+	return node, storagePath, store, nil
 }
 
 func (s *Service) GetUsageSummary(ctx context.Context, req GetUsageSummaryRequest) (UsageSummary, error) {

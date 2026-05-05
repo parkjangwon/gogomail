@@ -429,6 +429,8 @@ Current state:
 - Mail API now exposes `GET /api/v1/drive/nodes/{id}/download`, streaming
   active Drive file bytes through the configured storage backend with safe
   download headers, and webmail capabilities advertise `node_download`.
+- Mail API now exposes `HEAD /api/v1/drive/nodes/{id}/download` for metadata
+  and object-existence checks without transferring Drive file bytes.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

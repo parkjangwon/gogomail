@@ -79,6 +79,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive active file downloads are exposed through a bounded Mail API route that
   opens file objects through the configured local/NFS, MinIO, or S3-compatible
   storage adapter and returns safe attachment/no-store/nosniff headers.
+- Drive active file download headers can also be inspected with `HEAD` without
+  opening or transferring file bytes, while still verifying storage-object
+  existence.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

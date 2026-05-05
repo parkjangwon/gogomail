@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func TestDriveListNodesHandler(t *testing.T) {
@@ -106,6 +107,37 @@ func TestDriveDownloadNodeHandler(t *testing.T) {
 	}
 	if got := rec.Header().Get("Content-Length"); got != "7" {
 		t.Fatalf("Content-Length = %q", got)
+	}
+}
+
+func TestDriveHeadDownloadNodeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{metadata: drive.FileMetadata{
+		Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 1, Status: drive.NodeStatusActive},
+		Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodHead, "/api/v1/drive/nodes/node-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.statReq.UserID != "user-1" || service.statReq.NodeID != "node-1" {
+		t.Fatalf("stat request = %+v, want user/node", service.statReq)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("HEAD body length = %d, want 0", rec.Body.Len())
+	}
+	if got := rec.Header().Get("Content-Length"); got != "7" {
+		t.Fatalf("Content-Length = %q", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `filename="report.pdf"`) {
+		t.Fatalf("Content-Disposition = %q", got)
 	}
 }
 
@@ -621,10 +653,12 @@ type fakeDriveService struct {
 	uploadSession             drive.UploadSession
 	uploadSessions            []drive.UploadSession
 	download                  drive.FileDownload
+	metadata                  drive.FileMetadata
 	usageSummary              drive.UsageSummary
 	err                       error
 	getReq                    drive.GetNodeRequest
 	openReq                   drive.OpenFileRequest
+	statReq                   drive.OpenFileRequest
 	usageReq                  drive.GetUsageSummaryRequest
 	getUploadSessionReq       drive.GetUploadSessionRequest
 	listUploadSessionReq      drive.ListUploadSessionsRequest
@@ -678,6 +712,20 @@ func (f *fakeDriveService) OpenFile(_ context.Context, req drive.OpenFileRequest
 	return drive.FileDownload{
 		Node: drive.Node{ID: "node-1", UserID: req.UserID, Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
 		Body: io.NopCloser(strings.NewReader("content")),
+	}, nil
+}
+
+func (f *fakeDriveService) StatFile(_ context.Context, req drive.OpenFileRequest) (drive.FileMetadata, error) {
+	f.statReq = req
+	if f.err != nil {
+		return drive.FileMetadata{}, f.err
+	}
+	if f.metadata.Node.ID != "" {
+		return f.metadata, nil
+	}
+	return drive.FileMetadata{
+		Node:   drive.Node{ID: "node-1", UserID: req.UserID, Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
 	}, nil
 }
 
