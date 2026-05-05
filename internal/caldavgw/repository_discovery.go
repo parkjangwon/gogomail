@@ -2,9 +2,9 @@ package caldavgw
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
+
+	"github.com/gogomail/gogomail/internal/directory"
 )
 
 var _ DiscoveryStore = (*Repository)(nil)
@@ -17,22 +17,15 @@ func (r *Repository) LookupPrincipal(ctx context.Context, userID string) (Princi
 	if err != nil {
 		return Principal{}, err
 	}
-	const query = `
-SELECT u.id::text, u.display_name
-FROM users u
-JOIN domains d ON d.id = u.domain_id
-JOIN companies c ON c.id = d.company_id
-WHERE u.id = $1::uuid
-  AND u.status = 'active'
-  AND d.status = 'active'
-  AND c.status = 'active'`
-	var principal Principal
-	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&principal.UserID, &principal.DisplayName); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Principal{}, fmt.Errorf("CalDAV principal not found")
-		}
+	resolved, err := directory.NewRepository(r.db).ResolvePrincipal(ctx, directory.ResolvePrincipalRequest{
+		ID:         userID,
+		Kind:       directory.PrincipalKindUser,
+		ActiveOnly: true,
+	})
+	if err != nil {
 		return Principal{}, fmt.Errorf("lookup CalDAV principal: %w", err)
 	}
+	principal := Principal{UserID: resolved.ID, DisplayName: resolved.DisplayName}
 	principalPath, err := PrincipalPath(principal.UserID)
 	if err != nil {
 		return Principal{}, err

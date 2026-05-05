@@ -2253,6 +2253,11 @@ Implementation order:
       comma-listed `If-Match` preconditions for collection `DELETE` and
       `PROPPATCH`, while preserving `If-Match: *` as an existing-collection
       guard.
+1092. Directory/Identity now has a first protocol-neutral
+      `internal/directory` principal resolver for bounded active user principal
+      lookup over user/domain/company state, and CalDAV discovery delegates to
+      that shared boundary instead of embedding its own private active-user
+      query.
 
 ## Deferred until backend contracts stabilize
 
@@ -2263,8 +2268,9 @@ Implementation order:
 - Vault
 - IMAP
 - CalDAV public/client-ready compatibility
-- Directory/Identity service boundary for org principals, resources, groups,
-  aliases, memberships, delegation, and principal resolution
+- Directory/Identity expansion for organization/resource/group principals,
+  aliases, memberships, delegation, and principal resolution beyond the initial
+  active-user resolver
 - Contacts/CardDAV boundary for personal contacts, external people, and
   address-book metadata
 - Notification & Sync boundary for domain events, reminders, devices, quiet

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV collection ETag preconditions)
+Last updated: 2026-05-06 (updated after Directory principal resolver boundary)
 
 ## Current phase
 
@@ -42,6 +42,13 @@ Policy/Audit boundaries. Directory is the platform/org layer for users, teams,
 groups, aliases, resources, memberships, delegation, and principal resolution;
 Contacts/CardDAV is the user-owned address-book layer for personal/external
 people and user-specific metadata.
+
+The first Directory/Identity slice now exists as `internal/directory`: it owns
+bounded platform-principal identifiers, principal kinds, and active user
+principal resolution over user/domain/company state. CalDAV discovery uses this
+shared resolver instead of embedding its own active-user join, but group,
+resource, organization, alias, membership, and delegated principal semantics
+remain future release gates.
 
 ## Completed or materially advanced
 
@@ -2270,6 +2277,9 @@ The platform hardening sprint completed the following:
   by evaluating only their canonical path component through the same user and
   collection scope checks, while rejecting userinfo-bearing authorities, query,
   fragment, opaque, non-HTTP(S), or unsafe href forms.
+- Directory/Identity now has a first protocol-neutral principal resolver under
+  `internal/directory`, and CalDAV active principal discovery delegates to it
+  instead of owning the user/domain/company active-scope query directly.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2291,3 +2301,6 @@ Next focus areas:
    direct cloud KMS adapter, before using API usage batches for invoices or hard
    limits.
 6. Frontend planning and API contract review before webmail implementation.
+7. Extend Directory/Identity from active users to organizations, groups,
+   resources, aliases, memberships, and delegated principal relationships
+   before public shared-calendar or resource-booking CalDAV features.
