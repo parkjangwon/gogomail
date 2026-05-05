@@ -1314,6 +1314,9 @@ Implementation order:
 849. IMAP `STATUS` now requires a parenthesized status item list, rejecting
      malformed `STATUS mailbox MESSAGES`-style requests before mailbox metadata
      lookup.
+850. IMAP `LIST ... RETURN (STATUS (...))` now also requires a parenthesized
+     status item list, rejecting malformed `RETURN (STATUS MESSAGES)` before
+     mailbox listing work.
 
 ## Deferred until backend contracts stabilize
 

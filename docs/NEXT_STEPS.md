@@ -289,7 +289,8 @@ Current state:
 - `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits the requested `STATUS` data directly
   after each matching selectable mailbox to reduce client folder-list round
-  trips.
+  trips, and rejects malformed `RETURN (STATUS MESSAGES)` style status item
+  lists before mailbox listing work.
 - `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return active message octet totals per mailbox without
   fetching every message's `RFC822.SIZE`.

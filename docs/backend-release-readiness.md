@@ -586,6 +586,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `STATUS` now requires a parenthesized status item list, rejecting
   malformed `STATUS mailbox MESSAGES`-style requests before mailbox metadata
   lookup.
+- IMAP `LIST ... RETURN (STATUS (...))` now also requires a parenthesized
+  status item list, rejecting malformed `RETURN (STATUS MESSAGES)` before
+  mailbox listing work.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

@@ -5298,6 +5298,9 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 	if len(fields) < 4 || !strings.EqualFold(fields[2], "RETURN") {
 		return imapListOptions{}, false
 	}
+	if !imapListStatusReturnItemsParenthesized(fields[3:]) {
+		return imapListOptions{}, false
+	}
 	tokens := imapFetchNormalizedTokens(fields[3:])
 	if len(tokens) == 0 {
 		return imapListOptions{}, false
@@ -5325,6 +5328,42 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 		}
 	}
 	return options, true
+}
+
+func imapListStatusReturnItemsParenthesized(fields []string) bool {
+	joined := strings.TrimSpace(strings.Join(fields, " "))
+	upper := strings.ToUpper(joined)
+	offset := 0
+	for {
+		index := strings.Index(upper[offset:], "STATUS")
+		if index < 0 {
+			return true
+		}
+		index += offset
+		end := index + len("STATUS")
+		if !imapTokenBoundary(upper, index, end) {
+			offset = end
+			continue
+		}
+		rest := strings.TrimLeft(joined[end:], " \t")
+		return strings.HasPrefix(rest, "(")
+	}
+}
+
+func imapTokenBoundary(value string, start int, end int) bool {
+	if start > 0 {
+		prev := value[start-1]
+		if ('A' <= prev && prev <= 'Z') || ('0' <= prev && prev <= '9') || prev == '-' {
+			return false
+		}
+	}
+	if end < len(value) {
+		next := value[end]
+		if ('A' <= next && next <= 'Z') || ('0' <= next && next <= '9') || next == '-' {
+			return false
+		}
+	}
+	return true
 }
 
 func imapMailboxWireName(value string) string {
