@@ -249,6 +249,10 @@ Current state:
   filesystem rename semantics; S3-compatible storage uses signed server-side
   copy followed by source delete, so callers should treat post-copy failures as
   duplicate-cleanup work instead of relying on atomic rename semantics.
+- Shared storage exposes a bounded `DeletePrefix` helper over the existing
+  `List` and idempotent `Delete` contracts, giving future Drive folder
+  deletion, attachment lifecycle, and reconciliation jobs a cursor-driven
+  cleanup path without relying on provider-specific recursive delete behavior.
 - S3-compatible secret access keys and session tokens reject spaces, tabs, and
   line breaks during config validation and adapter construction, making copied
   env/config credential mistakes fail fast before runtime S3 authentication

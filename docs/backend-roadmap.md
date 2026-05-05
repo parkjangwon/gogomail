@@ -1742,6 +1742,11 @@ Implementation order:
      signed S3 server-side copy plus source delete remotely so future Drive and
      lifecycle workflows can relocate objects through one backend-neutral
      contract while respecting S3's non-atomic rename model.
+967. Shared storage now provides a bounded `DeletePrefix` helper over
+     validated prefix `List` pages and idempotent object deletes, giving future
+     Drive folder deletion, attachment lifecycle, and reconciliation jobs a
+     cursor-driven cleanup path that stays portable across local/NFS, MinIO,
+     AWS S3, and strict S3-compatible backends.
 
 ## Deferred until backend contracts stabilize
 
