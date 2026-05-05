@@ -277,6 +277,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
 	}
+	if !imapAtomValid(fields[1]) {
+		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
+		return false, err
+	}
 	command := strings.ToUpper(fields[1])
 	switch command {
 	case "CAPABILITY":
@@ -1164,6 +1168,10 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	}
 	if len(fields) < 3 {
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		return false, err
+	}
+	if !imapAtomValid(fields[2]) {
+		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
 		return false, err
 	}
 	switch strings.ToUpper(fields[2]) {
@@ -5747,6 +5755,10 @@ func imapCommandArgumentString(line string) string {
 }
 
 func imapTagValid(tag string) bool {
+	return imapAtomValid(tag)
+}
+
+func imapAtomValid(tag string) bool {
 	if tag == "" {
 		return false
 	}

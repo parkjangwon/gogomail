@@ -1068,6 +1068,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP generic mailbox mutation commands now keep INBOX special semantics out
   of normal folder operations by rejecting create/delete/rename-from/rename-to
   INBOX attempts before backend folder mutation.
+- IMAP command atom validation covers the command name and UID subcommand name
+  dispatch boundary, preserving precise malformed-command behavior before
+  backend or feature dispatch.
 
 ## Must verify before release cut
 
