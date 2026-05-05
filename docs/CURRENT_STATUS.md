@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP command tag plus rejection)
+Last updated: 2026-05-05 (updated after IMAP search-date quote rejection)
 
 ## Current phase
 
@@ -217,6 +217,9 @@ guidance.
 - IMAP command tag validation now rejects `+` in tags before command routing,
   matching RFC 3501 tag grammar and avoiding ambiguity with continuation
   protocol markers.
+- IMAP `SEARCH`/`UID SEARCH` date criteria now reject malformed date atoms that
+  still contain quote characters after command parsing, so broken inputs such
+  as `SINCE 05-May-2026"` are not silently normalized.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
