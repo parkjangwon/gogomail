@@ -348,6 +348,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata
   immediately after each matching selectable mailbox so compatible clients can
   avoid per-folder `STATUS` round trips.
+- IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
+  `LIST-STATUS` can return per-mailbox total active message octets without
+  requiring clients to fetch and sum each message's `RFC822.SIZE`.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts

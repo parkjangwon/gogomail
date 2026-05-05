@@ -26,6 +26,7 @@ type Mailbox struct {
 	Messages      uint32
 	Recent        uint32
 	Unseen        uint32
+	Size          int64
 }
 
 type MessageSummary struct {

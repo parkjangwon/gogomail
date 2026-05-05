@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP SEARCHRES support)
+Last updated: 2026-05-05 (updated after IMAP STATUS=SIZE support)
 
 ## Current phase
 
@@ -834,6 +834,9 @@ The platform hardening sprint completed the following:
 - IMAP `CAPABILITY` advertises RFC 5819 `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata after each
   matching selectable mailbox.
+- IMAP `CAPABILITY` advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
+  `LIST-STATUS` can return per-mailbox total active message octets without
+  fetching every message's `RFC822.SIZE`.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.

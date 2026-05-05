@@ -1203,6 +1203,9 @@ Implementation order:
      (SAVE)` stores selected-session search results so `$` can be reused by
      subsequent sequence-set and UID-set commands without sending result sets
      back through the client.
+820. IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
+     `LIST-STATUS` can return per-mailbox active message octet totals from
+     repository aggregate metadata without per-message `RFC822.SIZE` fetches.
 
 ## Deferred until backend contracts stabilize
 

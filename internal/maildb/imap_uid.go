@@ -86,14 +86,16 @@ SELECT
   f.order_index,
   COALESCE(c.total, 0) AS total,
   COALESCE(c.unread, 0) AS unread,
-  COALESCE(c.starred, 0) AS starred
+  COALESCE(c.starred, 0) AS starred,
+  COALESCE(c.total_size, 0) AS total_size
 FROM folders f
 LEFT JOIN (
   SELECT
     folder_id,
     COUNT(*) AS total,
     COUNT(*) FILTER (WHERE COALESCE((flags->>'read')::boolean, false) = false) AS unread,
-    COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred
+    COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred,
+    SUM(size) AS total_size
   FROM messages
   WHERE user_id = $1::uuid
     AND status = 'active'
@@ -124,6 +126,7 @@ LIMIT 1`
 		&folder.Total,
 		&folder.Unread,
 		&folder.Starred,
+		&folder.TotalSize,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return imapgw.Mailbox{}, fmt.Errorf("%w: %q", imapgw.ErrMailboxNotFound, mailboxID)
@@ -1802,6 +1805,7 @@ func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 		HighestModSeq: state.HighestModSeq,
 		Messages:      uint32(folder.Total),
 		Unseen:        uint32(folder.Unread),
+		Size:          folder.TotalSize,
 	}
 }
 
