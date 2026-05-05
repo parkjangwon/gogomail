@@ -839,18 +839,27 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
+		imapAppendTarget: maildb.IMAPAppendTarget{
+			UserID:      "user-1",
+			MailboxID:   "inbox",
+			CompanyID:   "company-1",
+			DomainID:    "domain-1",
+			Address:     "user@example.com",
+			UIDValidity: 12,
+		},
 		imapAppendResult: imapgw.AppendMessageResult{
 			Summary:     imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 44},
 			UIDValidity: 12,
 		},
 	}
-	service := New(repo, nil).WithIMAPMailboxEvents(events)
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store).WithIMAPMailboxEvents(events)
 
 	got, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
 		UserID:    " user-1 ",
 		MailboxID: " inbox ",
-		Size:      11,
-		Body:      strings.NewReader("hello world"),
+		Size:      int64(len("Subject: hi\r\n\r\nhello")),
+		Body:      strings.NewReader("Subject: hi\r\n\r\nhello"),
 	})
 	if err != nil {
 		t.Fatalf("AppendIMAPMessage returned error: %v", err)
@@ -858,11 +867,48 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 	if got.Summary.UID != 44 || got.UIDValidity != 12 {
 		t.Fatalf("append result = %#v, want repository result", got)
 	}
-	if repo.lastIMAPAppend.UserID != "user-1" || repo.lastIMAPAppend.MailboxID != "inbox" || repo.lastIMAPAppend.Size != 11 {
-		t.Fatalf("append request = %#v, want trimmed ids and size", repo.lastIMAPAppend)
+	if repo.lastIMAPAppendUserID != "user-1" || repo.lastIMAPAppendMailboxID != "inbox" {
+		t.Fatalf("append target lookup = %q/%q, want trimmed ids", repo.lastIMAPAppendUserID, repo.lastIMAPAppendMailboxID)
+	}
+	if repo.lastIMAPAppendStored.Target.UserID != "user-1" || repo.lastIMAPAppendStored.Target.MailboxID != "inbox" || repo.lastIMAPAppendStored.Size != int64(len("Subject: hi\r\n\r\nhello")) {
+		t.Fatalf("append stored request = %#v, want canonical target and size", repo.lastIMAPAppendStored)
+	}
+	if repo.lastIMAPAppendStored.Parsed.Subject != "hi" {
+		t.Fatalf("append parsed subject = %q, want hi", repo.lastIMAPAppendStored.Parsed.Subject)
+	}
+	if !strings.HasPrefix(repo.lastIMAPAppendStored.StoragePath, "mailstore/company-1/domain-1/user-1/imap-append/") {
+		t.Fatalf("append storage path = %q", repo.lastIMAPAppendStored.StoragePath)
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 {
 		t.Fatalf("events = %#v, want exists event", events.events)
+	}
+}
+
+func TestAppendIMAPMessageRejectsLiteralSizeMismatch(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapAppendTarget: maildb.IMAPAppendTarget{
+			UserID:    "user-1",
+			MailboxID: "inbox",
+			CompanyID: "company-1",
+			DomainID:  "domain-1",
+			Address:   "user@example.com",
+		},
+	}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+
+	_, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		Size:      5,
+		Body:      strings.NewReader("Subject: hi\r\n\r\nhello"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "append literal size mismatch") {
+		t.Fatalf("AppendIMAPMessage error = %v, want size mismatch", err)
+	}
+	if repo.lastIMAPAppendStored.StoragePath != "" {
+		t.Fatalf("append stored request = %#v, want no repository append after size mismatch", repo.lastIMAPAppendStored)
 	}
 }
 
@@ -1412,6 +1458,7 @@ type fakeRepository struct {
 	detail                         maildb.MessageDetail
 	imapMessage                    maildb.IMAPStoredMessage
 	imapFlagSummaries              []imapgw.MessageSummary
+	imapAppendTarget               maildb.IMAPAppendTarget
 	imapAppendResult               imapgw.AppendMessageResult
 	imapCopySummaries              []imapgw.MessageSummary
 	imapMoveSummaries              []imapgw.MessageSummary
@@ -1512,7 +1559,9 @@ type fakeRepository struct {
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
 	lastIMAPFlagUserID             string
 	lastIMAPFlagMailboxID          string
-	lastIMAPAppend                 imapgw.AppendMessageRequest
+	lastIMAPAppendUserID           string
+	lastIMAPAppendMailboxID        string
+	lastIMAPAppendStored           maildb.AppendStoredIMAPMessageRequest
 	lastIMAPCopyUserID             string
 	lastIMAPCopySourceMailboxID    string
 	lastIMAPCopyDestMailboxID      string
@@ -1686,8 +1735,14 @@ func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailbo
 	return f.imapFlagSummaries, nil
 }
 
-func (f *fakeRepository) AppendIMAPMessage(_ context.Context, req imapgw.AppendMessageRequest) (imapgw.AppendMessageResult, error) {
-	f.lastIMAPAppend = req
+func (f *fakeRepository) ResolveIMAPAppendTarget(_ context.Context, userID string, mailboxID string) (maildb.IMAPAppendTarget, error) {
+	f.lastIMAPAppendUserID = userID
+	f.lastIMAPAppendMailboxID = mailboxID
+	return f.imapAppendTarget, nil
+}
+
+func (f *fakeRepository) AppendStoredIMAPMessage(_ context.Context, req maildb.AppendStoredIMAPMessageRequest) (imapgw.AppendMessageResult, error) {
+	f.lastIMAPAppendStored = req
 	return f.imapAppendResult, nil
 }
 

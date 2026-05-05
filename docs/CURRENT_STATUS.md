@@ -949,15 +949,15 @@ The platform hardening sprint completed the following:
 - IMAP `MOVE` and `UID MOVE` resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
   messages transactionally, remove source mailbox UID rows, and emit RFC-shaped
-  source `EXPUNGE` responses. `APPEND` remains explicitly unsupported.
+  source `EXPUNGE` responses.
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
   optional flag-list, optional internal date-time, literal body, and size after
   bounded literal framing. The boundary now returns UIDPLUS-ready append
   metadata so successful storage can emit `[APPENDUID uidvalidity uid]`; the
-  service layer now delegates to an append-capable repository and publishes
-  best-effort destination `EXISTS` events, while deployments without that
-  repository/storage implementation still return an explicit unsupported
-  response.
+  service layer now spools and size-checks the literal body, parses the RFC
+  message, writes the raw `.eml` through the configured storage backend, asks
+  `maildb` to insert metadata, quota, outbox, and mailbox UID state in one
+  transaction, and publishes best-effort destination `EXISTS` events.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

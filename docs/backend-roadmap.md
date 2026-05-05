@@ -1086,6 +1086,12 @@ Implementation order:
      publishes best-effort destination `EXISTS` events for successful append
      results while preserving explicit unsupported responses for deployments
      without repository-backed APPEND storage.
+787. IMAP `APPEND` now has a service-backed storage path: the service spools
+     and size-checks synchronizing literals, parses RFC message metadata,
+     stores the raw `.eml` through the configured storage backend, and the
+     `maildb` repository inserts message metadata, quota ledger increments,
+     `mail.stored` outbox work, mailbox-local UID assignment, and UIDVALIDITY in
+     one transaction.
 
 ## Deferred until backend contracts stabilize
 
