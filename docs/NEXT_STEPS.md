@@ -1600,10 +1600,10 @@ Next:
   Search for unified event/person/resource lookup; and Policy/Audit for
   retention, admin controls, and traceable calendar access.
 - Continue Contacts/CardDAV as a standards-first module: the current
-  `internal/carddavgw` path/href boundary should be followed by bounded vCard
-  validation, address-book/contact-object storage, REPORT parsing, sync tokens,
-  and native-client compatibility tests before any public contacts UI or API
-  treats it as production-ready.
+  `internal/carddavgw` path/href and storage metadata boundary should be
+  followed by repository methods, bounded vCard semantic validation, REPORT
+  parsing, sync handling, and native-client compatibility tests before any
+  public contacts UI or API treats it as production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

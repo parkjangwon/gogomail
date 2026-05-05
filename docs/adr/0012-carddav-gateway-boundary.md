@@ -19,12 +19,15 @@ supported.
 ## Decision
 
 Create `internal/carddavgw` as the CardDAV/WebDAV protocol boundary. The first
-slice owns RFC names, DAV capability tokens, principal paths, address-book home
-paths, address-book collection paths, `.vcf` contact-object resource paths, and
-safe relative/absolute href parsing.
+slices own RFC names, DAV capability tokens, principal paths, address-book home
+paths, address-book collection paths, `.vcf` contact-object resource paths,
+safe relative/absolute href parsing, address-book metadata validation, contact
+object name/UID/ETag/size validation, and sync-token derivation.
 
-Storage, vCard parsing, REPORT handling, sync tokens, auth, and HTTP listener
-wiring will be added only when their semantics are implemented and tested.
+PostgreSQL storage tables hold address books, contact objects, and
+address-book change logs. vCard semantic parsing, repository methods, REPORT
+handling, sync handlers, auth, and HTTP listener wiring will be added only when
+their semantics are implemented and tested.
 
 ## Consequences
 
