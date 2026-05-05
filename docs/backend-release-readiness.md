@@ -341,6 +341,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `LIST` now decodes RFC 3501 modified UTF-7 reference/pattern arguments,
   applies exact, `*`, and `%` mailbox pattern matching over decoded names, and
   returns sanitized quoted mailbox names encoded back to modified UTF-7.
+- IMAP mailbox-taking commands decode RFC 3501 modified UTF-7 mailbox
+  arguments before crossing into service/storage boundaries, covering
+  `SELECT`, `EXAMINE`, `STATUS`, `APPEND`, `COPY`, `MOVE`, `CREATE`, `DELETE`,
+  `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`, and `LSUB` while rejecting raw
+  8-bit or malformed modified UTF-7 forms.
 - IMAP `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`;
   `LIST` includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy
   attributes plus RFC 6154 special-use attributes for system folders such as

@@ -375,14 +375,23 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		condstore, ok := imapSelectCondstore(fields[3:])
-		if len(fields) < 3 || !ok {
+		if len(fields) < 3 {
 			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
+			return false, err
+		}
+		condstore, ok := imapSelectCondstore(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
+			return false, err
+		}
+		mailboxName, ok := imapDecodeMailboxName(fields[2])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
 			return false, err
 		}
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
 			UserID:    state.session.UserID,
-			MailboxID: MailboxID(fields[2]),
+			MailboxID: MailboxID(mailboxName),
 			ReadOnly:  command == "EXAMINE",
 		})
 		if err != nil {
@@ -470,12 +479,18 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
 			state.condstoreAware = true
 		}
-		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+		mailboxName, ok := imapDecodeMailboxName(fields[2])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD STATUS mailbox name is not valid modified UTF-7\r\n")
+			return false, err
+		}
+		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO STATUS failed\r\n")
 			return false, writeErr
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(imapMailboxDisplayName(mailbox)), imapStatusData(mailbox, statusItems))); err != nil {
+		statusName := imapEncodeMailboxName(imapMailboxWireName(imapMailboxDisplayName(mailbox)))
+		if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(statusName), imapStatusData(mailbox, statusItems))); err != nil {
 			return false, err
 		}
 		_, err = writer.WriteString(tag + " OK STATUS completed\r\n")
@@ -2563,12 +2578,17 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID COPY requires UID set and destination mailbox\r\n")
 		return false, err
 	}
+	destMailbox, destOK := imapDecodeMailboxName(fields[4])
+	if !destOK {
+		_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
 		return false, err
 	}
-	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[4]), "UID COPY")
+	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(destMailbox), "UID COPY")
 }
 
 func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -2576,12 +2596,17 @@ func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires UID set and destination mailbox\r\n")
 		return false, err
 	}
+	destMailbox, destOK := imapDecodeMailboxName(fields[4])
+	if !destOK {
+		_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 		return false, err
 	}
-	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(fields[4]), "UID MOVE")
+	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(destMailbox), "UID MOVE")
 }
 
 func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -2636,6 +2661,11 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD COPY requires sequence set and destination mailbox\r\n")
 		return false, err
 	}
+	destMailbox, destOK := imapDecodeMailboxName(fields[3])
+	if !destOK {
+		_, err := writer.WriteString(tag + " BAD COPY destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
@@ -2646,7 +2676,7 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 		_, writeErr := writer.WriteString(tag + " NO COPY failed\r\n")
 		return false, writeErr
 	}
-	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[3]), "COPY")
+	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(destMailbox), "COPY")
 }
 
 func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -2662,6 +2692,11 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD MOVE requires sequence set and destination mailbox\r\n")
 		return false, err
 	}
+	destMailbox, destOK := imapDecodeMailboxName(fields[3])
+	if !destOK {
+		_, err := writer.WriteString(tag + " BAD MOVE destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
@@ -2672,7 +2707,7 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		_, writeErr := writer.WriteString(tag + " NO MOVE failed\r\n")
 		return false, writeErr
 	}
-	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(fields[3]), "MOVE")
+	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(destMailbox), "MOVE")
 }
 
 func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string, literal *string, state *imapConnState) (bool, error) {
@@ -2689,10 +2724,15 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD APPEND options are unsupported\r\n")
 		return false, err
 	}
+	mailboxName, ok := imapDecodeMailboxName(fields[2])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD APPEND mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	body := *literal
 	result, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
 		UserID:       state.session.UserID,
-		MailboxID:    MailboxID(fields[2]),
+		MailboxID:    MailboxID(mailboxName),
 		Flags:        flags,
 		InternalDate: internalDate,
 		Size:         int64(len(body)),

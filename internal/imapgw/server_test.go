@@ -2782,6 +2782,108 @@ func TestServerDecodesModifiedUTF7MailboxMutationArguments(t *testing.T) {
 	}
 }
 
+func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &operationalMailboxNameBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 SELECT &U,BTFw-\r\n")); err != nil {
+		t.Fatalf("write select: %v", err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select metadata: %v", err)
+		}
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK [READ-WRITE] SELECT completed\r\n" {
+		t.Fatalf("select completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 STATUS &U,BTFw- (MESSAGES UIDNEXT)\r\n")); err != nil {
+		t.Fatalf("write status: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* STATUS \"&U,BTFw-\" (MESSAGES 2 UIDNEXT 12)\r\n" {
+		t.Fatalf("status line = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK STATUS completed\r\n" {
+		t.Fatalf("status completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 APPEND &U,BTFw- {5}\r\n")); err != nil {
+		t.Fatalf("write append: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello\r\n")); err != nil {
+		t.Fatalf("write append body: %v", err)
+	}
+	wantAppend := []string{
+		"* 3 EXISTS\r\n",
+		"a4 OK [APPENDUID 10 44] APPEND completed\r\n",
+	}
+	for _, expected := range wantAppend {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read append response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("append response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 COPY 1 &ZeVnLIqe-\r\na6 UID MOVE 7 &ZeVnLIqe-\r\n")); err != nil {
+		t.Fatalf("write copy/move: %v", err)
+	}
+	want := []string{
+		"a5 OK [COPYUID 20 7 50] COPY completed\r\n",
+		"* OK [COPYUID 20 7 51] UID MOVE UID mapping\r\n",
+		"* OK [HIGHESTMODSEQ 30] UID MOVE source mod-sequence\r\n",
+		"* 1 EXPUNGE\r\n",
+		"a6 OK UID MOVE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read copy/move response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("copy/move response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if backendImpl.selected != "台北" || backendImpl.statusLookup != "台北" || backendImpl.appended != "台北" || backendImpl.appendBody != "hello" {
+		t.Fatalf("decoded select/status/append = %q/%q/%q body %q", backendImpl.selected, backendImpl.statusLookup, backendImpl.appended, backendImpl.appendBody)
+	}
+	if backendImpl.copyDest != "nihon" || backendImpl.moveDest != "nihon" {
+		t.Fatalf("decoded copy/move destination IDs = %q/%q, want nihon/nihon", backendImpl.copyDest, backendImpl.moveDest)
+	}
+}
+
 func TestServerRejectsMalformedModifiedUTF7MailboxName(t *testing.T) {
 	t.Parallel()
 
@@ -6004,6 +6106,62 @@ func (b *mailboxMutationBackend) SubscribeMailbox(_ context.Context, _ UserID, m
 func (b *mailboxMutationBackend) UnsubscribeMailbox(_ context.Context, _ UserID, mailboxID MailboxID) error {
 	b.unsubscribed = mailboxID
 	return nil
+}
+
+type operationalMailboxNameBackend struct {
+	fakeBackend
+	selected     MailboxID
+	statusLookup MailboxID
+	appended     MailboxID
+	appendBody   string
+	copyDest     MailboxID
+	moveDest     MailboxID
+}
+
+func (b *operationalMailboxNameBackend) SelectMailbox(_ context.Context, req SelectMailboxRequest) (MailboxState, error) {
+	b.selected = req.MailboxID
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "taipei", Name: "台北", UIDValidity: 10, UIDNext: 12, Messages: 2},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted},
+	}, nil
+}
+
+func (b *operationalMailboxNameBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
+	switch mailboxID {
+	case "台北":
+		b.statusLookup = mailboxID
+		return Mailbox{ID: "taipei", Name: "台北", UIDValidity: 10, UIDNext: 12, Messages: 2}, nil
+	case "日本語":
+		return Mailbox{ID: "nihon", Name: "日本語", UIDValidity: 20, UIDNext: 50}, nil
+	default:
+		return Mailbox{}, ErrMailboxNotFound
+	}
+}
+
+func (b *operationalMailboxNameBackend) AppendMessage(_ context.Context, req AppendMessageRequest) (AppendMessageResult, error) {
+	b.appended = req.MailboxID
+	if req.Body != nil {
+		data, _ := io.ReadAll(req.Body)
+		b.appendBody = string(data)
+	}
+	return AppendMessageResult{
+		Summary:     MessageSummary{ID: "append-44", MailboxID: "taipei", UID: 44},
+		UIDValidity: 10,
+	}, nil
+}
+
+func (b *operationalMailboxNameBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
+	b.copyDest = req.DestMailboxID
+	return []MessageSummary{{ID: "copy-50", MailboxID: req.DestMailboxID, UID: 50}}, nil
+}
+
+func (b *operationalMailboxNameBackend) MoveMessages(_ context.Context, req MoveMessagesRequest) ([]MoveMessageResult, error) {
+	b.moveDest = req.DestMailboxID
+	return []MoveMessageResult{{
+		Source:              MessageSummary{ID: "message-7", MailboxID: req.SourceMailboxID, UID: 7, SequenceNumber: 1},
+		Destination:         MessageSummary{ID: "move-51", MailboxID: req.DestMailboxID, UID: 51, SequenceNumber: 1},
+		SourceHighestModSeq: 30,
+	}}, nil
 }
 
 func (childMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {

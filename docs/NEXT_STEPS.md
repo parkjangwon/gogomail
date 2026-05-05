@@ -462,8 +462,9 @@ Current state:
   behavior that expects subscriptions to outlive selectable mailboxes.
 - `LSUB` retains subscribed names after mailbox deletion with `\Noselect` and
   covers the RFC 3501 `%` hierarchy parent response case.
-- IMAP mailbox mutation and subscription commands decode RFC 3501 modified
-  UTF-7 mailbox arguments before crossing into the service boundary, rejecting
+- IMAP mailbox-taking commands decode RFC 3501 modified UTF-7 mailbox
+  arguments before crossing into the service boundary, covering selection,
+  status, append, copy/move, mutation, and subscription paths while rejecting
   raw 8-bit and malformed alternate forms instead of leaking wire encoding into
   storage.
 - IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
