@@ -1677,6 +1677,10 @@ Implementation order:
      version, available/planned modules including future Drive, list and
      cleanup/retention limits, tenant/domain/user controls, operational triage
      surfaces, API usage/export, IMAP UID backfill, and admin auth behavior.
+950. Mail API now exposes `GET /api/v1/mailbox/overview`, giving production
+     webmail chrome a user-scoped aggregate read for total, unread, starred,
+     and stored-size counters plus system-folder ID shortcuts without requiring
+     each frontend client to duplicate folder-list aggregation.
 
 ## Deferred until backend contracts stabilize
 

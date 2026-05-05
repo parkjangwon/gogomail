@@ -105,6 +105,17 @@ paths:
           $ref: "#/components/responses/Status"
         default:
           $ref: "#/components/responses/Error"
+  /mailbox/overview:
+    get:
+      operationId: getMailboxOverview
+      summary: Summarize mailbox counts for webmail chrome
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/MailboxOverview"
+        default:
+          $ref: "#/components/responses/Error"
   /messages:
     get:
       operationId: listMessages
@@ -2434,6 +2445,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/FolderEnvelope"
+    MailboxOverview:
+      description: Mailbox overview envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MailboxOverviewEnvelope"
     MessageListPage:
       description: Message list page envelope
       content:
@@ -3265,6 +3282,37 @@ components:
       properties:
         folder:
           $ref: "#/components/schemas/Folder"
+    MailboxOverview:
+      type: object
+      required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]
+      properties:
+        total_messages:
+          type: integer
+          format: int64
+          minimum: 0
+        unread_messages:
+          type: integer
+          format: int64
+          minimum: 0
+        starred_messages:
+          type: integer
+          format: int64
+          minimum: 0
+        total_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        system_folders:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of system folder type to folder id, for example inbox, sent, drafts, trash, spam, or archive.
+    MailboxOverviewEnvelope:
+      type: object
+      required: [mailbox_overview]
+      properties:
+        mailbox_overview:
+          $ref: "#/components/schemas/MailboxOverview"
     MessageSummary:
       type: object
       required: [id, subject, from_addr, from_name, received_at, size, has_attachment, read, starred]

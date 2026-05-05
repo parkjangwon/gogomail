@@ -85,6 +85,18 @@ type webmailCapabilitiesEnvelope struct {
 	WebmailCapabilities webmailCapabilities `json:"webmail_capabilities"`
 }
 
+type mailboxOverviewEnvelope struct {
+	MailboxOverview mailboxOverview `json:"mailbox_overview"`
+}
+
+type mailboxOverview struct {
+	TotalMessages   int64             `json:"total_messages"`
+	UnreadMessages  int64             `json:"unread_messages"`
+	StarredMessages int64             `json:"starred_messages"`
+	TotalSizeBytes  int64             `json:"total_size_bytes"`
+	SystemFolders   map[string]string `json:"system_folders"`
+}
+
 type webmailCapabilities struct {
 	ContractVersion       string                        `json:"contract_version"`
 	Modules               map[string]string             `json:"modules"`
@@ -151,6 +163,22 @@ type webmailAttachmentCapabilities struct {
 type webmailPushCapabilities struct {
 	Devices   bool     `json:"devices"`
 	Platforms []string `json:"platforms"`
+}
+
+func buildMailboxOverview(folders []maildb.Folder) mailboxOverview {
+	overview := mailboxOverview{
+		SystemFolders: make(map[string]string),
+	}
+	for _, folder := range folders {
+		overview.TotalMessages += folder.Total
+		overview.UnreadMessages += folder.Unread
+		overview.StarredMessages += folder.Starred
+		overview.TotalSizeBytes += folder.TotalSize
+		if folder.SystemType != "" {
+			overview.SystemFolders[folder.SystemType] = folder.ID
+		}
+	}
+	return overview
 }
 
 func currentWebmailCapabilities() webmailCapabilities {
@@ -226,6 +254,25 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		writeJSON(w, http.StatusOK, webmailCapabilitiesEnvelope{WebmailCapabilities: currentWebmailCapabilities()})
+	})
+
+	mux.HandleFunc("GET /api/v1/mailbox/overview", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		folders, err := service.ListFolders(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, mailboxOverviewEnvelope{MailboxOverview: buildMailboxOverview(folders)})
 	})
 
 	mux.HandleFunc("GET /api/v1/folders", func(w http.ResponseWriter, r *http.Request) {

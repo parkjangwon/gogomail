@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Admin console capability bootstrap API)
+Last updated: 2026-05-05 (updated after mailbox overview API)
 
 ## Current phase
 
@@ -83,6 +83,9 @@ guidance.
   frontend can discover backend contract version, active/planned modules, list
   limits, supported message flags, bulk-action bounds, compose/search/thread,
   attachment, and push-device capabilities without hard-coding server limits.
+- Mail API exposes `GET /api/v1/mailbox/overview` so production webmail chrome
+  can render aggregate total/unread/starred/size counts and system-folder ID
+  shortcuts without duplicating folder-list aggregation in every client.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.
