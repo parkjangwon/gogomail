@@ -24,6 +24,7 @@ var (
 	PropGetContentType                = XMLName{Space: DAVNamespace, Local: "getcontenttype"}
 	PropGetContentLength              = XMLName{Space: DAVNamespace, Local: "getcontentlength"}
 	PropSyncToken                     = XMLName{Space: DAVNamespace, Local: "sync-token"}
+	PropSupportedReportSet            = XMLName{Space: DAVNamespace, Local: "supported-report-set"}
 	PropCalendarHomeSet               = XMLName{Space: CalDAVNamespace, Local: "calendar-home-set"}
 	PropCalendarData                  = XMLName{Space: CalDAVNamespace, Local: "calendar-data"}
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
@@ -43,6 +44,7 @@ type PropertyValue struct {
 	Text               string
 	Hrefs              []string
 	ResourceTypes      []XMLName
+	Reports            []XMLName
 	CalendarComponents []string
 	CalendarDataTypes  []CalendarDataType
 }
@@ -113,7 +115,17 @@ func CalendarCollectionProperties(userID string, calendar Calendar) ([]PropertyR
 		{Name: PropSupportedCalendarData, Value: PropertyValue{CalendarDataTypes: []CalendarDataType{{ContentType: "text/calendar", Version: "2.0"}}}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxCalendarObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: calendar.SyncToken}, Found: true},
+		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: SupportedCalendarReports()}, Found: true},
 	}, nil
+}
+
+func SupportedCalendarReports() []XMLName {
+	return []XMLName{
+		{Space: CalDAVNamespace, Local: string(ReportCalendarQuery)},
+		{Space: CalDAVNamespace, Local: string(ReportCalendarMulti)},
+		{Space: CalDAVNamespace, Local: string(ReportFreeBusyQuery)},
+		{Space: DAVNamespace, Local: string(ReportSyncCollection)},
+	}
 }
 
 func CalendarObjectProperties(userID string, object CalendarObject) ([]PropertyResult, error) {
@@ -294,6 +306,12 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 				return err
 			}
 		}
+	case len(prop.Value.Reports) > 0:
+		for _, report := range prop.Value.Reports {
+			if err := encodeSupportedReport(enc, report); err != nil {
+				return err
+			}
+		}
 	case len(prop.Value.CalendarComponents) > 0:
 		for _, component := range prop.Value.CalendarComponents {
 			if err := encodeCalendarComponent(enc, component); err != nil {
@@ -312,6 +330,28 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 		}
 	}
 	return enc.EncodeToken(start.End())
+}
+
+func encodeSupportedReport(enc *xml.Encoder, report XMLName) error {
+	reportName, err := prefixedName(report)
+	if err != nil {
+		return err
+	}
+	supportedStart := xml.StartElement{Name: xml.Name{Local: "D:supported-report"}}
+	if err := enc.EncodeToken(supportedStart); err != nil {
+		return err
+	}
+	reportStart := xml.StartElement{Name: xml.Name{Local: "D:report"}}
+	if err := enc.EncodeToken(reportStart); err != nil {
+		return err
+	}
+	if err := encodeEmptyElement(enc, reportName); err != nil {
+		return err
+	}
+	if err := enc.EncodeToken(reportStart.End()); err != nil {
+		return err
+	}
+	return enc.EncodeToken(supportedStart.End())
 }
 
 func encodeCalendarComponent(enc *xml.Encoder, component string) error {

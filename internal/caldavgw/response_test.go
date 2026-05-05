@@ -176,10 +176,35 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 		"<C:supported-calendar-data><C:calendar-data content-type=\"text/calendar\" version=\"2.0\"></C:calendar-data></C:supported-calendar-data>",
 		"<C:max-resource-size>10485760</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",
+		"<D:supported-report-set>",
+		"<C:calendar-query></C:calendar-query>",
+		"<C:calendar-multiget></C:calendar-multiget>",
+		"<C:free-busy-query></C:free-busy-query>",
+		"<D:sync-collection></D:sync-collection>",
 		"<CS:calendar-color>#AABBCC</CS:calendar-color>",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("calendar collection XML missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestSupportedCalendarReportsMatchesImplementedReportHandlers(t *testing.T) {
+	t.Parallel()
+
+	reports := SupportedCalendarReports()
+	want := []XMLName{
+		{Space: CalDAVNamespace, Local: "calendar-query"},
+		{Space: CalDAVNamespace, Local: "calendar-multiget"},
+		{Space: CalDAVNamespace, Local: "free-busy-query"},
+		{Space: DAVNamespace, Local: "sync-collection"},
+	}
+	if len(reports) != len(want) {
+		t.Fatalf("reports = %+v, want %+v", reports, want)
+	}
+	for i := range want {
+		if reports[i] != want[i] {
+			t.Fatalf("reports[%d] = %+v, want %+v", i, reports[i], want[i])
 		}
 	}
 }

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV PROPPATCH collection metadata support)
+Last updated: 2026-05-06 (updated after CalDAV supported-report-set discovery)
 
 ## Current phase
 
@@ -2174,6 +2174,12 @@ The platform hardening sprint completed the following:
   Updates are transactional, refresh the collection sync token, append a
   `collection-updated` sync marker, and keep calendar objects, scheduling, and
   product-specific policy out of the gateway path.
+- CalDAV calendar collection `PROPFIND` now exposes WebDAV
+  `supported-report-set` for the REPORT handlers that actually exist today:
+  CalDAV `calendar-query`, `calendar-multiget`, `free-busy-query`, and WebDAV
+  `sync-collection`. This keeps native-client capability discovery aligned
+  with implemented semantics instead of advertising future scheduling or
+  recurrence features prematurely.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

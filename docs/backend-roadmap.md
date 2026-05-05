@@ -2123,6 +2123,11 @@ Implementation order:
       boundaries are established for public calendar semantics. Calendar must
       not evolve into an isolated CRUD subsystem with its own private principal
       model.
+1060. CalDAV collection discovery now exposes WebDAV `supported-report-set`
+      for the REPORT methods implemented by the gateway today:
+      `calendar-query`, `calendar-multiget`, `free-busy-query`, and
+      `sync-collection`. Future scheduling/timezone reports remain
+      unadvertised until their full RFC semantics and backend boundaries exist.
 
 ## Deferred until backend contracts stabilize
 
