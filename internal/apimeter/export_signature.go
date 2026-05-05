@@ -21,6 +21,7 @@ const (
 	maxExportManifestSigningSecretBytes        = 4096
 	maxRemoteSignerTokenBytes                  = 4096
 	maxRemoteSignerResponseBytes               = 1 << 20
+	maxRemoteSignerErrorBodyBytes              = 512
 	hmacSHA256SignatureHexBytes                = 64
 	ed25519SignatureHexBytes                   = ed25519.SignatureSize * 2
 )
@@ -220,8 +221,7 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return ExportManifestSignature{}, fmt.Errorf("remote signer returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+		return ExportManifestSignature{}, fmt.Errorf("remote signer returned status %d: %s", resp.StatusCode, remoteSignerErrorBodyPreview(resp.Body))
 	}
 	signature, err := decodeRemoteEd25519SignatureResponse(resp.Body)
 	if err != nil {
@@ -251,6 +251,18 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 		return ExportManifestSignature{}, fmt.Errorf("remote signer returned an invalid signature")
 	}
 	return signature, nil
+}
+
+func remoteSignerErrorBodyPreview(body io.Reader) string {
+	raw, _ := io.ReadAll(io.LimitReader(body, maxRemoteSignerErrorBodyBytes))
+	preview := strings.ToValidUTF8(strings.TrimSpace(string(raw)), "")
+	preview = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, preview)
+	return strings.Join(strings.Fields(preview), " ")
 }
 
 func decodeRemoteEd25519SignatureResponse(body io.Reader) (ExportManifestSignature, error) {

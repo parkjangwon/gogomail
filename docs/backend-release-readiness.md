@@ -469,6 +469,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   sized signature hex before decoding.
 - Remote Ed25519 manifest signer responses reject oversized bodies and trailing
   JSON tokens before signature evidence is accepted.
+- Remote Ed25519 manifest signer status-error diagnostics collapse signer
+  response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
+  external signer errors from leaking into export/billing diagnostics.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch; DKIM key
   listing can filter active and inactive key lifecycle states.
