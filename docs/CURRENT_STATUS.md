@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after bounded storage prefix cleanup)
+Last updated: 2026-05-06 (updated after Drive metadata boundary)
 
 ## Current phase
 
@@ -39,7 +39,7 @@ guidance.
 - Shared high-performance-minded EML parsing boundary under `internal/message`.
 - PostgreSQL metadata model for companies, domains, users, folders, messages,
   attachments, outbox, audit logs, DKIM keys, trusted relays, delivery routes,
-  domain DNS checks, and policy-bearing domain settings.
+  domain DNS checks, Drive nodes, and policy-bearing domain settings.
 - Admin APIs for domains, users, quotas, DKIM keys, trusted relays, delivery
   routes, delivery route resolution, queue stats, delivery attempts,
   outbox event metadata, suppression list, quota usage, domain DNS
@@ -230,6 +230,11 @@ guidance.
   validated prefix `List` pages with idempotent object deletes, giving future
   Drive folder deletion, attachment lifecycle, and reconciliation jobs a
   cursor-driven cleanup path without backend-specific recursive delete logic.
+- Drive backend groundwork now has ADR 0009, a `drive_nodes` PostgreSQL
+  metadata table, and an internal node-name/type/status validation package.
+  Drive object bytes remain behind the shared storage interface while metadata,
+  folder trees, lifecycle state, and future quota enforcement stay in the
+  database/service boundary.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

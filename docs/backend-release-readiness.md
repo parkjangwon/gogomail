@@ -55,6 +55,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   allowing future Drive folder deletion and lifecycle workers to delete one
   cursor page at a time instead of depending on provider-specific recursive
   delete behavior.
+- Drive backend groundwork is started without frontend implementation: ADR
+  0009 defines the metadata/storage/quota boundary, `drive_nodes` persists
+  user-scoped file/folder metadata and lifecycle state, and `internal/drive`
+  validates node names, types, and statuses before future repository/API code.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
