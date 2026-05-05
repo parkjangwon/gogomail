@@ -1891,6 +1891,62 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 	}
 }
 
+func TestServerCopyToSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &selectedCopyBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 COPY 1 INBOX\r\n")); err != nil {
+		t.Fatalf("write selected copy: %v", err)
+	}
+	want := []string{
+		"* 5 EXISTS\r\n",
+		"a3 OK [COPYUID 1 7 11] COPY completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected copy response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected copy response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerCopyAndMoveMissingDestinationReturnsTryCreate(t *testing.T) {
 	t.Parallel()
 
@@ -5677,6 +5733,12 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	if got := imapAppendExistsCount(2, MessageSummary{}); got != 3 {
 		t.Fatalf("imapAppendExistsCount fallback = %d, want 3", got)
 	}
+	if got := imapSummariesExistsCount(2, []MessageSummary{{SequenceNumber: 5}}); got != 5 {
+		t.Fatalf("imapSummariesExistsCount with summary sequence = %d, want 5", got)
+	}
+	if got := imapSummariesExistsCount(2, []MessageSummary{{}, {}}); got != 4 {
+		t.Fatalf("imapSummariesExistsCount fallback = %d, want 4", got)
+	}
 }
 
 func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
@@ -7387,6 +7449,19 @@ func (b *copyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) (
 		b.nextUID++
 	}
 	return summaries, nil
+}
+
+type selectedCopyBackend struct {
+	fakeBackend
+}
+
+func (selectedCopyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
+	return []MessageSummary{{
+		ID:             "message-copy-11",
+		MailboxID:      req.DestMailboxID,
+		UID:            11,
+		SequenceNumber: 5,
+	}}, nil
 }
 
 type missingDestinationBackend struct {
