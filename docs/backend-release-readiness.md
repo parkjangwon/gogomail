@@ -327,6 +327,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Delivery workers can opt into PostgreSQL-backed delivery routes through `GOGOMAIL_DELIVERY_ROUTE_BACKEND=postgres`, reusing the existing delivery router boundary and falling back to direct MX delivery when no active route matches.
 - Admin domain/user create validation rejects malformed domains, unsafe usernames, invalid ACE names, and mismatched primary address ownership.
 - SMTP receive/submission paths now include TCP-level protocol integration coverage for inbound delivery, AUTH PLAIN submission, policy rejection, and SMTPS.
+- Authenticated Submission applies enforcing per-domain recipient caps during
+  `RCPT TO`, not only after `DATA`, so oversized envelopes receive earlier SMTP
+  feedback before message streaming/spooling.
 - Authentication-Results trace header formatting strips control characters and
   bounds verifier metadata before formatting SPF/DKIM/DMARC results, preventing
   DNS/library diagnostics from injecting or bloating stored trace headers.
