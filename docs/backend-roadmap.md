@@ -712,6 +712,7 @@ Implementation order:
 652. Authentication-Results trace header formatting now strips control characters and bounds authserv-id, reason, domain, and identifier metadata before formatting SPF/DKIM/DMARC results, preventing verifier diagnostics from injecting or bloating stored headers.
 653. Health and service-info GET routes now reject unknown query parameter names, making release probe and metadata endpoint typos visible as HTTP 400 instead of silently ignored inputs.
 654. Runtime config validation now restricts `GOGOMAIL_ENV` to `development`, `test`, or `production`, preventing environment typos from silently bypassing production-only safety gates.
+655. Runtime config validation now restricts Redis-backed deduplication, recipient rate limiting, and SMTP backpressure backend selectors to `none` or `redis`, preventing typos from silently disabling operational controls.
 
 ## Deferred until backend contracts stabilize
 
