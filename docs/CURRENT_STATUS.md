@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 range close-drain handling)
+Last updated: 2026-05-06 (updated after S3 partial range early-close drain)
 
 ## Current phase
 
@@ -2238,6 +2238,10 @@ The platform hardening sprint completed the following:
 - S3-compatible `GetRange` now drains a small bounded remainder on successful
   range-reader close, improving HTTP connection reuse when providers send extra
   partial-response bytes without exposing those bytes to callers.
+- S3-compatible `GetRange` now applies the same bounded close-drain behavior
+  when callers close a range reader before consuming the full requested window,
+  improving connection reuse for preview/cancel paths without unbounded drain
+  work.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

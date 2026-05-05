@@ -311,6 +311,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `GetRange` now drains a small bounded remainder on successful
   range-reader close, preserving HTTP connection reuse for oversized partial
   responses without exposing extra bytes to callers.
+- S3-compatible `GetRange` now also bounded-drains unread range bytes on early
+  close, improving connection reuse for canceled preview/download paths without
+  unbounded cleanup reads.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
