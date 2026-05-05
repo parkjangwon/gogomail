@@ -26,8 +26,8 @@ func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodPropfind) || !strings.Contains(got, MethodReport) {
 		t.Fatalf("Allow header = %q", got)
 	}
-	if got := rec.Header().Get("Allow"); strings.Contains(got, MethodMkcalendar) {
-		t.Fatalf("Allow header advertises unimplemented MKCALENDAR: %q", got)
+	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodMkcalendar) {
+		t.Fatalf("Allow header does not advertise MKCALENDAR: %q", got)
 	}
 }
 
@@ -445,6 +445,65 @@ func TestHandlerPutCalendarObjectCreatesAndUpdates(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:" xmlns:CS="http://calendarserver.org/ns/">
+  <D:set>
+    <D:prop>
+      <D:displayname>Project Calendar</D:displayname>
+      <C:calendar-description>Delivery milestones</C:calendar-description>
+      <CS:calendar-color>#aabbcc</CS:calendar-color>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/caldav/calendars/user-1/"+calendarID+"/" {
+		t.Fatalf("Location = %q", got)
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", calendarID)
+	if err != nil {
+		t.Fatalf("created calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Project Calendar" || calendar.Description != "Delivery milestones" || calendar.Color != "#AABBCC" {
+		t.Fatalf("calendar = %+v", calendar)
+	}
+}
+
+func TestHandlerMkcalendarRejectsExistingCalendar(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerMkcalendarRejectsUnsafePathID(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/not-a-uuid/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerPutRejectsFailedPreconditions(t *testing.T) {
 	t.Parallel()
 
@@ -638,6 +697,31 @@ func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectReq
 	return object, nil
 }
 
+func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateCalendarAtPathRequest) (Calendar, error) {
+	validated, _, syncToken, err := ValidateCreateCalendarAtPathRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	for _, calendar := range s.calendars {
+		if calendar.UserID == validated.UserID && calendar.ID == validated.CalendarID {
+			return Calendar{}, errFakeExists
+		}
+	}
+	now := time.Now()
+	calendar := Calendar{
+		ID:          validated.CalendarID,
+		UserID:      validated.UserID,
+		Name:        validated.Name,
+		Color:       validated.Color,
+		Description: validated.Description,
+		SyncToken:   syncToken,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	s.calendars = append(s.calendars, calendar)
+	return calendar, nil
+}
+
 func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectRequest) (CalendarObject, error) {
 	validated, _, err := ValidateDeleteObjectRequest(req)
 	if err != nil {
@@ -657,3 +741,9 @@ type fakeNotFoundError struct{}
 func (fakeNotFoundError) Error() string { return "not found" }
 
 var errFakeNotFound fakeNotFoundError
+
+type fakeExistsError struct{}
+
+func (fakeExistsError) Error() string { return "already exists" }
+
+var errFakeExists fakeExistsError

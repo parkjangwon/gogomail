@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV free-busy handling)
+Last updated: 2026-05-06 (updated after CalDAV MKCALENDAR handling)
 
 ## Current phase
 
@@ -2127,9 +2127,14 @@ The platform hardening sprint completed the following:
   free-busy time ranges. Scheduling, recurrence expansion, VFREEBUSY source
   object ingestion, and broader native-client compatibility coverage remain
   incomplete.
-- CalDAV `Allow` headers no longer advertise `MKCALENDAR` before the method has
-  real handler semantics, keeping protocol discovery aligned with implemented
-  behavior.
+- CalDAV now handles `MKCALENDAR` for authenticated calendar collection paths
+  whose Request-URI calendar segment is a UUID. The handler parses bounded
+  CalDAV/WebDAV creation XML for display name, description, and CalendarServer
+  or Apple calendar color, creates the collection at the requested URI, returns
+  `201 Created` with `Location`, rejects cross-user paths, existing calendars,
+  missing homes, and unsafe non-UUID path ids, and advertises `MKCALENDAR` again
+  only because handler semantics now exist. Human-readable slug calendar paths
+  remain future path-alias work.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

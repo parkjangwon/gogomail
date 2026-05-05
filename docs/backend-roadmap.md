@@ -2086,10 +2086,13 @@ Implementation order:
       time-range, skips transparent/cancelled events, maps tentative events to
       `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
       free-busy time ranges before handler work.
-1054. CalDAV `Allow` headers now avoid advertising `MKCALENDAR` until a real
-      creation handler exists, keeping standards-sensitive client discovery
-      aligned with implemented semantics instead of exposing a method token that
-      still falls through to 405 handling.
+1054. CalDAV now implements `MKCALENDAR` for authenticated calendar collection
+      Request-URIs whose calendar segment is a UUID, parsing bounded
+      namespace-aware creation properties for display name, description, and
+      CalendarServer/Apple color, creating the collection at the requested URI,
+      and returning `201 Created` with `Location`. The `Allow` header advertises
+      `MKCALENDAR` again only after those semantics exist; human-readable slug
+      aliases remain future compatibility work.
 
 ## Deferred until backend contracts stabilize
 

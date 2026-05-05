@@ -148,6 +148,15 @@ events, maps `TENTATIVE` to `BUSY-TENTATIVE`, and coalesces same-type overlaps.
 Recurrence expansion and stored VFREEBUSY source-object ingestion remain future
 compatibility work.
 
+`MKCALENDAR` creation is handled by the gateway instead of a product calendar
+API. To preserve Request-URI semantics with the current UUID-backed storage
+schema, the first implementation accepts calendar collection paths whose
+calendar segment is a UUID and inserts the collection with that id. The
+creation body parser is bounded and namespace-aware for `displayname`,
+`calendar-description`, and CalendarServer/Apple `calendar-color`. Friendlier
+human-readable slug aliases need a separate storage/path design before they can
+be advertised safely to clients.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

@@ -153,6 +153,47 @@ func TestParsePropfindRejectsOversizedBody(t *testing.T) {
 	}
 }
 
+func TestParseMKCalendarCollectsCreationProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:" xmlns:CS="http://calendarserver.org/ns/">
+  <D:set>
+    <D:prop>
+      <D:displayname> Team Calendar </D:displayname>
+      <C:calendar-description> Milestones </C:calendar-description>
+      <CS:calendar-color> #aabbcc </CS:calendar-color>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`
+	req, err := ParseMKCalendar(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseMKCalendar returned error: %v", err)
+	}
+	if req.DisplayName != "Team Calendar" || req.Description != "Milestones" || req.Color != "#aabbcc" {
+		t.Fatalf("request = %+v", req)
+	}
+}
+
+func TestParseMKCalendarAllowsEmptyBody(t *testing.T) {
+	t.Parallel()
+
+	req, err := ParseMKCalendar(strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("ParseMKCalendar returned error: %v", err)
+	}
+	if req != (MKCalendarRequest{}) {
+		t.Fatalf("request = %+v, want empty", req)
+	}
+}
+
+func TestParseMKCalendarRejectsWrongRoot(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ParseMKCalendar(strings.NewReader(`<D:propfind xmlns:D="DAV:"/>`)); err == nil {
+		t.Fatal("ParseMKCalendar accepted wrong root")
+	}
+}
+
 func TestParseReportRecognizesCalDAVAndSyncReports(t *testing.T) {
 	t.Parallel()
 
