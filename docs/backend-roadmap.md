@@ -757,6 +757,10 @@ Implementation order:
      stays HTTP-only, production auth requires TLS policy review, and
      MOVE/EXPUNGE remain explicitly unsupported until IMAP-safe mutation
      semantics are accepted.
+680. `mailservice.NewIMAPAuthenticatorAdapter` now maps the existing
+     Submission/local-password authentication boundary into `imapgw.Session`
+     values, giving the future listener a protocol-native authenticator without
+     coupling IMAP to JWT middleware.
 
 ## Deferred until backend contracts stabilize
 

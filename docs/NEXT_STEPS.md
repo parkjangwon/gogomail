@@ -201,6 +201,10 @@ Current state:
   protocol auth adapter over local user password hashes, keep JWT out of IMAP,
   require TLS policy review before production enablement, and continue rejecting
   MOVE/EXPUNGE until IMAP-safe mutation semantics exist.
+- `mailservice.NewIMAPAuthenticatorAdapter` now maps the existing
+  Submission/local-password authentication boundary into `imapgw.Session`
+  values, giving the future listener a protocol-native authenticator without
+  coupling IMAP to JWT middleware.
 
 Next:
 
