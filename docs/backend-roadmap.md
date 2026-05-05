@@ -1013,6 +1013,9 @@ Implementation order:
 767. IMAP `FETCH` and `UID FETCH` now stream actual multipart child MIME
      headers for `BODY[n.MIME]` and `BODY.PEEK[n.MIME]` requests when the
      selected part exists.
+768. IMAP `FETCH` and `UID FETCH` now support bounded nested multipart
+     body-section literals such as `BODY[1.2]` with a capped MIME part path
+     depth.
 
 ## Deferred until backend contracts stabilize
 

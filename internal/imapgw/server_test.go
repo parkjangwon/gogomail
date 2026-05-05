@@ -3290,6 +3290,70 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	}
 }
 
+func TestServerHandlesNestedMultipartPartFetch(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 12 BODY[1.2]\r\n")); err != nil {
+		t.Fatalf("write uid fetch nested part: %v", err)
+	}
+	bodySize := len(testNestedMultipartBody())
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read nested part literal header: %v", err)
+	}
+	wantPrefix := fmt.Sprintf("* 6 FETCH (UID 12 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.2] {11}\r\n", bodySize)
+	if line != wantPrefix {
+		t.Fatalf("nested part literal header = %q, want %q", line, wantPrefix)
+	}
+	literal := make([]byte, 11)
+	if _, err := io.ReadFull(reader, literal); err != nil {
+		t.Fatalf("read nested part literal: %v", err)
+	}
+	if string(literal) != "<b>html</b>" {
+		t.Fatalf("nested part literal = %q", literal)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("nested part close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesCombinedBodyStructureAndHeaderFetch(t *testing.T) {
 	t.Parallel()
 
@@ -3391,6 +3455,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		body = testMultipartBody()
 		size = int64(len(body))
 	}
+	if req.UID == 12 {
+		body = testNestedMultipartBody()
+		size = int64(len(body))
+	}
 	return Message{
 		Summary: MessageSummary{
 			ID:             "message-1",
@@ -3427,6 +3495,27 @@ func testMultipartBody() string {
 		"",
 		"UEZGREFUQQ==",
 		"--frontier--",
+		"",
+	}, "\r\n")
+}
+
+func testNestedMultipartBody() string {
+	return strings.Join([]string{
+		"Content-Type: multipart/mixed; boundary=outer",
+		"",
+		"--outer",
+		"Content-Type: multipart/alternative; boundary=alt",
+		"",
+		"--alt",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"plain",
+		"--alt",
+		"Content-Type: text/html; charset=utf-8",
+		"",
+		"<b>html</b>",
+		"--alt--",
+		"--outer--",
 		"",
 	}, "\r\n")
 }
