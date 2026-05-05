@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Redis consumer identifier hardening)
+Last updated: 2026-05-05 (updated after OpenSearch credential guardrails)
 
 ## Current phase
 
@@ -100,6 +100,9 @@ guidance.
 - OpenSearch indexing now rejects blank, CR/LF-bearing, or oversized document
   message IDs before constructing `_doc/{id}` URLs, keeping URL IDs aligned
   with bounded JSON metadata.
+- OpenSearch writer/searcher construction now trims usernames while preserving
+  password bytes, and rejects CR/LF-bearing or oversized endpoint credentials
+  before BasicAuth request headers can be generated.
 - OpenSearch relevance response decoding is capped before JSON parsing so
   oversized search backend responses cannot allocate unbounded highlight or hit
   payloads in the Mail API path, and trailing JSON tokens are rejected before

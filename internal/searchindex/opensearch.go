@@ -29,7 +29,10 @@ type OpenSearchIndexer struct {
 	password string
 }
 
-const maxOpenSearchMetadataBytes = 1000
+const (
+	maxOpenSearchMetadataBytes   = 1000
+	maxOpenSearchCredentialBytes = 4096
+)
 
 func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
 	endpoint, err := url.Parse(strings.TrimSpace(opts.Endpoint))
@@ -46,6 +49,10 @@ func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
 	if err != nil {
 		return OpenSearchIndexer{}, err
 	}
+	username, password, err := normalizeOpenSearchCredentials(opts.Username, opts.Password)
+	if err != nil {
+		return OpenSearchIndexer{}, err
+	}
 	client := opts.Client
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
@@ -54,9 +61,26 @@ func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
 		endpoint: endpoint,
 		index:    index,
 		client:   client,
-		username: strings.TrimSpace(opts.Username),
-		password: opts.Password,
+		username: username,
+		password: password,
 	}, nil
+}
+
+func normalizeOpenSearchCredentials(username string, password string) (string, string, error) {
+	username = strings.TrimSpace(username)
+	if strings.ContainsAny(username, "\r\n") {
+		return "", "", fmt.Errorf("opensearch username cannot contain line breaks")
+	}
+	if len(username) > maxOpenSearchCredentialBytes {
+		return "", "", fmt.Errorf("opensearch username is too long")
+	}
+	if strings.ContainsAny(password, "\r\n") {
+		return "", "", fmt.Errorf("opensearch password cannot contain line breaks")
+	}
+	if len(password) > maxOpenSearchCredentialBytes {
+		return "", "", fmt.Errorf("opensearch password is too long")
+	}
+	return username, password, nil
 }
 
 func (i OpenSearchIndexer) IndexMessage(ctx context.Context, doc Document) error {
