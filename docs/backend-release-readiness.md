@@ -292,8 +292,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
   allowing common quoted `LOGIN` credentials and mailbox atoms while rejecting
   malformed quoted controls.
-- Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
-  RFC822 size metadata from the service-backed message fetch boundary.
+- Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
+  RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
+  raw message fetch boundary.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
