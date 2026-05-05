@@ -534,12 +534,17 @@ func TestListThreadsHandler(t *testing.T) {
 	}
 	var body struct {
 		Threads []maildb.ThreadSummary `json:"threads"`
+		Limit   int                    `json:"limit"`
+		HasMore bool                   `json:"has_more"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
 	}
 	if len(body.Threads) != 1 || body.Threads[0].ID != "thread-1" {
 		t.Fatalf("threads = %+v", body.Threads)
+	}
+	if body.Limit != 10 || body.HasMore {
+		t.Fatalf("thread page metadata = limit:%d has_more:%v", body.Limit, body.HasMore)
 	}
 	if service.lastUserID != "user-1" || service.lastLimit != 10 {
 		t.Fatalf("lastUserID=%q lastLimit=%d", service.lastUserID, service.lastLimit)
@@ -564,6 +569,8 @@ func TestSearchMessagesHandler(t *testing.T) {
 	}
 	var body struct {
 		Messages []maildb.MessageSummary `json:"messages"`
+		Limit    int                     `json:"limit"`
+		HasMore  bool                    `json:"has_more"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
@@ -729,6 +736,8 @@ func TestListThreadMessagesHandler(t *testing.T) {
 	}
 	var body struct {
 		Messages []maildb.MessageSummary `json:"messages"`
+		Limit    int                     `json:"limit"`
+		HasMore  bool                    `json:"has_more"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
@@ -736,8 +745,31 @@ func TestListThreadMessagesHandler(t *testing.T) {
 	if len(body.Messages) != 1 || service.lastThreadID != "thread-1" {
 		t.Fatalf("messages = %+v lastThreadID=%q", body.Messages, service.lastThreadID)
 	}
+	if body.Limit != 20 || body.HasMore {
+		t.Fatalf("thread message page metadata = limit:%d has_more:%v", body.Limit, body.HasMore)
+	}
 	if service.lastUserID != "user-1" || service.lastLimit != 20 {
 		t.Fatalf("lastUserID=%q lastLimit=%d", service.lastUserID, service.lastLimit)
+	}
+}
+
+func TestThreadHandlersRejectInvalidCursor(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	for _, path := range []string{
+		"/api/v1/threads?user_id=user-1&cursor=not-base64",
+		"/api/v1/threads/thread-1/messages?user_id=user-1&cursor=not-base64",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
 	}
 }
 
@@ -2562,7 +2594,20 @@ func (f *fakeMessageService) ListThreads(_ context.Context, userID string, limit
 	return f.threads, nil
 }
 
+func (f *fakeMessageService) ListThreadsPage(_ context.Context, userID string, limit int, _ maildb.ThreadListCursor) ([]maildb.ThreadSummary, error) {
+	f.lastUserID = userID
+	f.lastLimit = limit
+	return f.threads, nil
+}
+
 func (f *fakeMessageService) ListThreadMessages(_ context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
+	f.lastUserID = userID
+	f.lastThreadID = threadID
+	f.lastLimit = limit
+	return f.list, nil
+}
+
+func (f *fakeMessageService) ListThreadMessagesPage(_ context.Context, userID string, threadID string, limit int, _ maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	f.lastUserID = userID
 	f.lastThreadID = threadID
 	f.lastLimit = limit

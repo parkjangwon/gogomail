@@ -49,7 +49,9 @@ type MessageService interface {
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error)
+	ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error)
 	ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error)
+	ListThreadMessagesPage(ctx context.Context, userID string, threadID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
 	SearchDrafts(ctx context.Context, query maildb.DraftSearchQuery) ([]maildb.MessageDetail, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
@@ -328,7 +330,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -339,19 +341,38 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		threads, err := service.ListThreads(r.Context(), userID, limit)
+		cursorRaw, ok := singleQueryValue(w, r, "cursor")
+		if !ok {
+			return
+		}
+		cursor, err := maildb.DecodeThreadListCursor(cursorRaw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		threads, err := service.ListThreadsPage(r.Context(), userID, limit, cursor)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"threads": threads})
+		page, err := maildb.NewThreadListPage(threads, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"threads":     page.Threads,
+			"limit":       page.Limit,
+			"has_more":    page.HasMore,
+			"next_cursor": page.NextCursor,
+		})
 	})
 
 	mux.HandleFunc("GET /api/v1/threads/{id}/messages", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -362,16 +383,35 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		cursorRaw, ok := singleQueryValue(w, r, "cursor")
+		if !ok {
+			return
+		}
+		cursor, err := maildb.DecodeMessageListCursor(cursorRaw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		threadID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
-		messages, err := service.ListThreadMessages(r.Context(), userID, threadID, limit)
+		messages, err := service.ListThreadMessagesPage(r.Context(), userID, threadID, limit, cursor)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"messages": messages})
+		page, err := maildb.NewMessageListPage(messages, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"messages":    page.Messages,
+			"limit":       page.Limit,
+			"has_more":    page.HasMore,
+			"next_cursor": page.NextCursor,
+		})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/delivery-status", func(w http.ResponseWriter, r *http.Request) {

@@ -618,7 +618,9 @@ Thread read APIs are exposed through:
 Thread summaries use `COALESCE(thread_id, id)` so legacy/unthreaded messages
 still appear as single-message threads. Thread message lists are scoped by the
 authenticated/fallback user id and returned in chronological order for webmail
-conversation rendering.
+conversation rendering. Both thread reads support `limit` plus opaque `cursor`
+pagination and return `has_more`/`next_cursor` alongside the existing
+`threads` or `messages` arrays.
 Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
 attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
 outbound messages inherit the source message thread when `source_message_id` is

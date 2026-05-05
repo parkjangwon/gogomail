@@ -1200,9 +1200,11 @@ type fakeRepository struct {
 	lastPageLimit                  int
 	lastListThreadsUserID          string
 	lastListThreadsLimit           int
+	lastListThreadsCursor          maildb.ThreadListCursor
 	lastThreadMessagesUserID       string
 	lastThreadID                   string
 	lastThreadMessagesLimit        int
+	lastThreadMessagesCursor       maildb.MessageListCursor
 	lastGetMessageUserID           string
 	lastGetMessageID               string
 	lastSearchQuery                maildb.MessageSearchQuery
@@ -1292,10 +1294,25 @@ func (f *fakeRepository) ListThreads(_ context.Context, userID string, limit int
 	return nil, nil
 }
 
+func (f *fakeRepository) ListThreadsPage(_ context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error) {
+	f.lastListThreadsUserID = userID
+	f.lastListThreadsLimit = limit
+	f.lastListThreadsCursor = cursor
+	return nil, nil
+}
+
 func (f *fakeRepository) ListThreadMessages(_ context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
 	f.lastThreadMessagesUserID = userID
 	f.lastThreadID = threadID
 	f.lastThreadMessagesLimit = limit
+	return nil, nil
+}
+
+func (f *fakeRepository) ListThreadMessagesPage(_ context.Context, userID string, threadID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	f.lastThreadMessagesUserID = userID
+	f.lastThreadID = threadID
+	f.lastThreadMessagesLimit = limit
+	f.lastThreadMessagesCursor = cursor
 	return nil, nil
 }
 
@@ -2123,6 +2140,27 @@ func TestListMessagesPageDelegatesCursor(t *testing.T) {
 	}
 	if repo.lastPageCursor.ID != cursor.ID {
 		t.Fatalf("cursor = %+v, want %+v", repo.lastPageCursor, cursor)
+	}
+}
+
+func TestThreadPageMethodsDelegateCursors(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+	threadCursor := maildb.ThreadListCursor{ID: "11111111-1111-1111-1111-111111111111"}
+	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor); err != nil {
+		t.Fatalf("ListThreadsPage returned error: %v", err)
+	}
+	if repo.lastListThreadsCursor.ID != threadCursor.ID {
+		t.Fatalf("thread cursor = %+v, want %+v", repo.lastListThreadsCursor, threadCursor)
+	}
+	messageCursor := maildb.MessageListCursor{ID: "22222222-2222-2222-2222-222222222222"}
+	if _, err := service.ListThreadMessagesPage(context.Background(), "user-1", "thread-1", 10, messageCursor); err != nil {
+		t.Fatalf("ListThreadMessagesPage returned error: %v", err)
+	}
+	if repo.lastThreadMessagesCursor.ID != messageCursor.ID {
+		t.Fatalf("thread message cursor = %+v, want %+v", repo.lastThreadMessagesCursor, messageCursor)
 	}
 }
 

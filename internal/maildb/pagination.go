@@ -24,6 +24,18 @@ type MessageListPage struct {
 	NextCursor string           `json:"next_cursor,omitempty"`
 }
 
+type ThreadListCursor struct {
+	At time.Time `json:"at"`
+	ID string    `json:"id"`
+}
+
+type ThreadListPage struct {
+	Threads    []ThreadSummary `json:"threads"`
+	Limit      int             `json:"limit"`
+	HasMore    bool            `json:"has_more"`
+	NextCursor string          `json:"next_cursor,omitempty"`
+}
+
 func NewMessageListPage(messages []MessageSummary, requestedLimit int) (MessageListPage, error) {
 	limit := NormalizeMessageListLimit(requestedLimit)
 	hasMore := len(messages) > limit
@@ -45,6 +57,32 @@ func NewMessageListPage(messages []MessageSummary, requestedLimit int) (MessageL
 	next, err := EncodeMessageListCursor(MessageListCursor{At: last.ReceivedAt, ID: last.ID})
 	if err != nil {
 		return MessageListPage{}, err
+	}
+	page.NextCursor = next
+	return page, nil
+}
+
+func NewThreadListPage(threads []ThreadSummary, requestedLimit int) (ThreadListPage, error) {
+	limit := NormalizeMessageListLimit(requestedLimit)
+	hasMore := len(threads) > limit
+	if hasMore {
+		threads = threads[:limit]
+	}
+	page := ThreadListPage{
+		Threads: threads,
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if len(threads) == 0 {
+		return page, nil
+	}
+	last := threads[len(threads)-1]
+	if last.ID == "" || last.LatestAt.IsZero() {
+		return page, nil
+	}
+	next, err := EncodeThreadListCursor(ThreadListCursor{At: last.LatestAt, ID: last.ID})
+	if err != nil {
+		return ThreadListPage{}, err
 	}
 	page.NextCursor = next
 	return page, nil
@@ -98,6 +136,48 @@ func DecodeMessageListCursor(value string) (MessageListCursor, error) {
 	}
 	if !isUUIDLike(cursor.ID) {
 		return MessageListCursor{}, fmt.Errorf("cursor message id must be a UUID")
+	}
+	return cursor, nil
+}
+
+func EncodeThreadListCursor(cursor ThreadListCursor) (string, error) {
+	if cursor.At.IsZero() {
+		return "", fmt.Errorf("cursor timestamp is required")
+	}
+	if strings.TrimSpace(cursor.ID) == "" {
+		return "", fmt.Errorf("cursor thread id is required")
+	}
+	raw, err := json.Marshal(cursor)
+	if err != nil {
+		return "", fmt.Errorf("marshal thread list cursor: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func DecodeThreadListCursor(value string) (ThreadListCursor, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ThreadListCursor{}, nil
+	}
+	if len(value) > MessageListCursorMaxBytes {
+		return ThreadListCursor{}, fmt.Errorf("thread list cursor is too long")
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return ThreadListCursor{}, fmt.Errorf("decode thread list cursor: %w", err)
+	}
+	var cursor ThreadListCursor
+	if err := json.Unmarshal(raw, &cursor); err != nil {
+		return ThreadListCursor{}, fmt.Errorf("unmarshal thread list cursor: %w", err)
+	}
+	if cursor.At.IsZero() {
+		return ThreadListCursor{}, fmt.Errorf("cursor timestamp is required")
+	}
+	if strings.TrimSpace(cursor.ID) == "" {
+		return ThreadListCursor{}, fmt.Errorf("cursor thread id is required")
+	}
+	if !isUUIDLike(cursor.ID) {
+		return ThreadListCursor{}, fmt.Errorf("cursor thread id must be a UUID")
 	}
 	return cursor, nil
 }
