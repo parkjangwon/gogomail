@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -278,8 +279,13 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, writeErr := writer.WriteString(tag + " NO LIST failed\r\n")
 			return false, writeErr
 		}
+		pattern := imapListPattern(fields[2], fields[3])
 		for _, mailbox := range mailboxes {
-			if _, err := writer.WriteString(`* LIST (\HasNoChildren) "/" ` + imapQuotedString(imapMailboxDisplayName(mailbox)) + "\r\n"); err != nil {
+			displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
+			if !imapMailboxMatchesPattern(displayName, pattern) {
+				continue
+			}
+			if _, err := writer.WriteString(`* LIST (\HasNoChildren) "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
 				return false, err
 			}
 		}
@@ -777,6 +783,47 @@ func imapMailboxDisplayName(mailbox Mailbox) string {
 		return strings.TrimSpace(mailbox.Name)
 	}
 	return strings.TrimSpace(string(mailbox.ID))
+}
+
+func imapMailboxWireName(value string) string {
+	value = strings.ToValidUTF8(value, "")
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, value)
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func imapListPattern(reference string, pattern string) string {
+	reference = strings.Trim(reference, `"`)
+	pattern = strings.Trim(pattern, `"`)
+	if reference == "" || pattern == "" || strings.HasPrefix(pattern, "/") {
+		return pattern
+	}
+	return strings.TrimRight(reference, "/") + "/" + pattern
+}
+
+func imapMailboxMatchesPattern(name string, pattern string) bool {
+	if pattern == "" {
+		return name == ""
+	}
+	var b strings.Builder
+	b.WriteString("^")
+	for _, r := range pattern {
+		switch r {
+		case '*':
+			b.WriteString(".*")
+		case '%':
+			b.WriteString(`[^/]*`)
+		default:
+			b.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	b.WriteString("$")
+	matched, err := regexp.MatchString(b.String(), name)
+	return err == nil && matched
 }
 
 func imapStatusItems(items []string) ([]string, bool) {

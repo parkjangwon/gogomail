@@ -318,6 +318,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   with `CLOSE` clearing selected state while EXPUNGE/`\Deleted` remain deferred.
 - IMAP `STATUS` now validates requested status data items and emits only those
   requested fields, including `RECENT`.
+- IMAP `LIST` now applies exact, `*`, and `%` mailbox pattern matching before
+  returning sanitized quoted mailbox names.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
