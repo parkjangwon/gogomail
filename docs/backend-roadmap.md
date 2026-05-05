@@ -944,6 +944,8 @@ Implementation order:
      while cross-mailbox copy semantics remain deferred.
 743. IMAP non-UID `STORE` now accepts bounded sequence sets/ranges and maps
      them to the same service-backed flag mutation boundary as `UID STORE`.
+744. IMAP non-UID `STORE` now supports `.SILENT` flag mutation modes and
+     suppresses untagged flag echo responses for those requests.
 
 ## Deferred until backend contracts stabilize
 

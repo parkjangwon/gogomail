@@ -342,6 +342,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag updates unless `.SILENT` is requested.
 - IMAP non-UID `STORE` now accepts bounded sequence sets/ranges and maps them
   to the same service-backed flag mutation boundary as `UID STORE`.
+- IMAP non-UID `STORE` now supports `.SILENT` flag mutation modes and suppresses
+  untagged flag echo responses for those requests.
 - IMAP `NOOP` now drains queued mailbox events into untagged `EXISTS` and flag
   `FETCH` updates for selected mailboxes.
 - IMAP now advertises and accepts `IDLE`, entering continuation mode and

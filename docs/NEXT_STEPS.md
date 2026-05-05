@@ -276,6 +276,8 @@ Current state:
   batches instead of issuing one command per message.
 - Non-UID `STORE` now accepts bounded sequence sets/ranges and maps them to the
   same service-backed flag mutation boundary as `UID STORE`.
+- Non-UID `STORE` now supports `.SILENT` flag mutation modes and suppresses
+  untagged flag echo responses for those requests.
 - `NOOP` now drains queued selected-mailbox events as untagged `EXISTS` and flag
   `FETCH` updates, giving clients a polling path alongside live IDLE.
 - `IDLE` is now advertised and accepted, streaming selected-mailbox events while
