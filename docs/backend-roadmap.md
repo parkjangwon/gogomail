@@ -1300,6 +1300,9 @@ Implementation order:
      `DELETE`, and `RENAME` now return tagged `[NONEXISTENT]` response codes
      instead of generic command failures, preserving machine-readable
      absent-folder state for standards-aware clients.
+846. IMAP `SELECT` and `EXAMINE` now emit `[UIDNOTSTICKY]` when selected
+     mailbox state marks UIDs as non-sticky, keeping UIDPLUS-adjacent clients
+     aware of mailbox UID persistence guarantees.
 
 ## Deferred until backend contracts stabilize
 
