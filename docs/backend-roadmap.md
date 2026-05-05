@@ -1983,6 +1983,9 @@ Implementation order:
       now enforce the owning user's `drive/users/{user_id}/...` object prefix
       before storage adapter access, tightening tenant isolation for local/NFS,
       MinIO, and S3-backed deployments.
+1030. Drive cleanup-failure recording now rejects object paths outside the
+      owning user's `drive/users/{user_id}/...` prefix, keeping retry queues
+      tenant-scoped at ingestion instead of only at retry time.
 
 ## Deferred until backend contracts stabilize
 

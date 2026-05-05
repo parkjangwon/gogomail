@@ -272,8 +272,9 @@ guidance.
 - Drive permanent-delete cleanup failures now have a PostgreSQL retry record
   boundary. Structured cleanup errors can be recorded with user/node/object
   context, pending failures are de-duplicated per backend/path, attempts are
-  incremented on repeat failures, and error text is one-line/UTF-8 bounded for
-  future operator and worker surfaces.
+  incremented on repeat failures, object paths must stay under the owning
+  user's `drive/users/{user_id}/...` prefix, and error text is one-line/UTF-8
+  bounded for future operator and worker surfaces.
 - Drive cleanup-failure records now have bounded repository list and resolve
   methods with status/user filters, oldest-first pending ordering, limit caps,
   and pending-only resolution, preparing retry workers and admin visibility
