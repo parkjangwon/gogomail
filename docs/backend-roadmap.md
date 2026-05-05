@@ -2206,13 +2206,10 @@ Implementation order:
       create attempts cheap.
 1080. CalDAV calendar collection `DELETE` now evaluates `If-Unmodified-Since`
       and `If-Match: *` preconditions before deleting a collection and its
-      children, preventing stale native-client deletes while failing closed for
-      non-star collection ETag preconditions until collection ETags are
-      explicitly advertised.
+      children, preventing stale native-client deletes.
 1081. CalDAV collection `PROPPATCH` now shares the collection precondition gate,
-      rejecting stale `If-Unmodified-Since` metadata edits and non-star
-      collection `If-Match` conditions before reading or parsing XML request
-      bodies.
+      rejecting stale `If-Unmodified-Since` metadata edits before reading or
+      parsing XML request bodies.
 1082. CalDAV `REPORT` now validates malformed Depth headers and rejects
       `Depth: infinity` before reading XML request bodies, keeping unsupported
       WebDAV traversal semantics out of calendar-query, calendar-multiget,
@@ -2251,6 +2248,11 @@ Implementation order:
       start/duration forms, clipping them to the requested range, and feeding
       them through the existing same-type coalescing path for RFC 4791
       `free-busy-query` responses.
+1091. CalDAV calendar collections now advertise strong collection `getetag`
+      values derived from collection sync state and evaluate specific
+      comma-listed `If-Match` preconditions for collection `DELETE` and
+      `PROPPATCH`, while preserving `If-Match: *` as an existing-collection
+      guard.
 
 ## Deferred until backend contracts stabilize
 

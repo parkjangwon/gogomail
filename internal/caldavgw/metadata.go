@@ -179,6 +179,17 @@ func CalendarSyncToken(parts ...string) string {
 	return "sync-" + hex.EncodeToString(h.Sum(nil))
 }
 
+func CalendarCollectionETag(userID string, calendar Calendar) (string, error) {
+	userID = strings.TrimSpace(userID)
+	calendarID := strings.TrimSpace(calendar.ID)
+	syncToken := strings.TrimSpace(calendar.SyncToken)
+	if userID == "" || calendarID == "" || syncToken == "" {
+		return "", fmt.Errorf("calendar collection etag requires user, calendar, and sync token")
+	}
+	sum := sha256.Sum256([]byte(CalendarSyncToken("collection-etag", userID, calendarID, syncToken)))
+	return `"` + hex.EncodeToString(sum[:]) + `"`, nil
+}
+
 func StrongETag(body []byte) (string, error) {
 	if len(body) == 0 {
 		return "", fmt.Errorf("calendar object body is required")

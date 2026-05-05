@@ -1561,10 +1561,10 @@ Current state:
   the XML request body when no active collection already exists at that path.
 - CalDAV collection `DELETE` now honors `If-Unmodified-Since` and
   `If-Match: *` preconditions before deleting a calendar collection and its
-  children; non-star collection ETag preconditions fail closed until collection
-  ETags are part of the advertised contract.
+  children, and strong collection ETags derived from sync state are advertised
+  through discovery so specific `If-Match` values can protect stale clients.
 - CalDAV collection `PROPPATCH` now shares that precondition gate, rejecting
-  stale metadata updates and non-star collection ETag conditions before XML
+  stale metadata updates and mismatched collection ETag conditions before XML
   request bodies are read or parsed.
 - CalDAV `REPORT` now rejects malformed Depth headers and `Depth: infinity`
   before reading XML request bodies, keeping unsupported WebDAV traversal

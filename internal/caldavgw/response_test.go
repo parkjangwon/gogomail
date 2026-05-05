@@ -162,6 +162,10 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CalendarCollectionProperties returned error: %v", err)
 	}
+	etag, err := CalendarCollectionETag("user-1", Calendar{ID: "work", SyncToken: "sync-123"})
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
 	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
 		Href:      "/caldav/calendars/user-1/work/",
 		PropStats: SelectPropfindProperties(PropfindRequest{Kind: PropfindAllProp}, props),
@@ -181,6 +185,7 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
 		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
 		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
+		"<D:getetag>&#34;" + strings.Trim(etag, `"`) + "&#34;</D:getetag>",
 		"<D:supported-report-set>",
 		"<C:calendar-query></C:calendar-query>",
 		"<C:calendar-multiget></C:calendar-multiget>",

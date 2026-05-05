@@ -120,9 +120,14 @@ func CalendarCollectionProperties(userID string, calendar Calendar) ([]PropertyR
 	if err != nil {
 		return nil, err
 	}
+	etag, err := CalendarCollectionETag(userID, calendar)
+	if err != nil {
+		return nil, err
+	}
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: calendar.Name}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeCalendar}}, Found: true},
+		{Name: PropGetETag, Value: PropertyValue{Text: etag}, Found: true},
 		webDAVTimeProperty(PropCreationDate, calendar.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, calendar.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},

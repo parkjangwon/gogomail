@@ -403,9 +403,12 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 			http.Error(w, "caldav calendar not found", http.StatusPreconditionFailed)
 			return false
 		}
-		if ifMatch != "" && ifMatch != "*" {
-			http.Error(w, "caldav calendar collection etag precondition cannot be evaluated", http.StatusPreconditionFailed)
-			return false
+		if ifMatch != "" {
+			etag, err := CalendarCollectionETag(userID, calendar)
+			if err != nil || !ifMatchMatches(ifMatch, etag) {
+				http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
+				return false
+			}
 		}
 		if objectModifiedSince(ifUnmodifiedSince, calendar.UpdatedAt) {
 			http.Error(w, "caldav calendar modified since precondition", http.StatusPreconditionFailed)
