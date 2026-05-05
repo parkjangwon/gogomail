@@ -503,6 +503,20 @@ paths:
           $ref: "#/components/responses/DriveNode"
         default:
           $ref: "#/components/responses/Error"
+  /drive/nodes/{id}/copy:
+    post:
+      operationId: copyDriveNode
+      summary: Copy an active Drive file to another folder
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveNodeCopy"
+      responses:
+        "201":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
@@ -3848,6 +3862,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveNodeMoveRequest"
+    DriveNodeCopy:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveNodeCopyRequest"
     MessageFlagUpdate:
       required: true
       content:
@@ -4653,6 +4673,18 @@ components:
           type: string
           maxLength: 200
           description: Destination folder id. Omit or send an empty string to move the node to the Drive root.
+    DriveNodeCopyRequest:
+      type: object
+      required: [name]
+      properties:
+        parent_id:
+          type: string
+          maxLength: 200
+          description: Destination folder id. Omit or send an empty string to copy the file into the Drive root.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
     MailboxOverview:
       type: object
       required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]
@@ -5230,7 +5262,7 @@ components:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
         drive:
           type: object
-          required: [nodes, node_name_search, node_detail, node_download, node_range_download, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          required: [nodes, node_name_search, node_detail, node_download, node_range_download, copy_nodes, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
           properties:
             nodes:
               type: boolean
@@ -5241,6 +5273,8 @@ components:
             node_download:
               type: boolean
             node_range_download:
+              type: boolean
+            copy_nodes:
               type: boolean
             usage_summary:
               type: boolean

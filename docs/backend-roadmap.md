@@ -1945,6 +1945,11 @@ Implementation order:
       reusing message, attachment, and storage-object validation to return safe
       download headers and object-backed `Content-Length` without streaming
       attachment bytes.
+1020. Mail API now exposes `POST /api/v1/drive/nodes/{id}/copy` for active
+      Drive files, copying object bytes through the backend-neutral storage
+      `Copy` contract, creating quota-accounted file metadata, advertising
+      `copy_nodes` to webmail clients, and cleaning up the copied object when
+      metadata creation fails.
 
 ## Deferred until backend contracts stabilize
 
