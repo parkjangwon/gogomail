@@ -908,6 +908,9 @@ Implementation order:
 729. IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit `NO` unsupported
      responses instead of generic parser failures while `\Deleted` semantics
      remain intentionally deferred.
+730. IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
+     advertising it only before authentication and removing it after the
+     connection upgrades.
 
 ## Deferred until backend contracts stabilize
 

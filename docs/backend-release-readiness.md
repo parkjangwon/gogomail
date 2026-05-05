@@ -367,6 +367,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO`
   responses while `\Deleted` semantics remain deferred.
+- IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
+  advertising it before authentication and removing it after upgrade.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
