@@ -276,6 +276,8 @@ Current state:
   `FETCH` updates, giving clients a polling path before full IDLE support.
 - `IDLE` is now advertised and accepted, with queued selected-mailbox events
   drained when the client sends `DONE`.
+- `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now work over the
+  selected mailbox message list.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
