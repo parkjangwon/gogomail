@@ -318,6 +318,8 @@ Current state:
   operands inside `OR`.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
+- `FETCH`/`UID FETCH` now supports bounded partial section literals for common
+  `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]` requests.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,
   `FLAGGED`, `ANSWERED`, and `DRAFT` for standard client views.
 - `SEARCH`/`UID SEARCH` now supports `DELETED` and `UNDELETED`, returning no

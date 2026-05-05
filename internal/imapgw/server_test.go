@@ -2274,7 +2274,30 @@ func TestServerHandlesUIDFetchPartialBodyAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 UID FETCH 9 BODY.PEEK[TEXT]<6.6>\r\n")); err != nil {
+		t.Fatalf("write uid fetch partial text: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read partial text literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[TEXT]<6> {6}\r\n" {
+		t.Fatalf("partial text literal header = %q", line)
+	}
+	partialText := make([]byte, 6)
+	if _, err := io.ReadFull(reader, partialText); err != nil {
+		t.Fatalf("read partial text literal: %v", err)
+	}
+	if string(partialText) != "header" {
+		t.Fatalf("partial text = %q", partialText)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("partial text close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("partial completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

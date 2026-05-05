@@ -870,6 +870,8 @@ The platform hardening sprint completed the following:
   operands inside `OR`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
+- IMAP `FETCH`/`UID FETCH` can stream bounded partial section literals for
+  common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]` requests.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,
   answered, and draft client views.
 - IMAP `SEARCH`/`UID SEARCH` supports `DELETED` and `UNDELETED`, returning no
