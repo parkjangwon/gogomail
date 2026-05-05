@@ -27,6 +27,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM", "")
+	t.Setenv("GOGOMAIL_CALDAV_ADDR", "")
+	t.Setenv("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
@@ -180,6 +182,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.IMAPNotifyConsumerDeadLetterStream != "mail.event.dead" {
 		t.Fatalf("IMAPNotifyConsumerDeadLetterStream = %q, want mail.event.dead", cfg.IMAPNotifyConsumerDeadLetterStream)
+	}
+	if cfg.CalDAVAddr != ":8081" {
+		t.Fatalf("CalDAVAddr = %q, want :8081", cfg.CalDAVAddr)
+	}
+	if !cfg.CalDAVAllowInsecureAuth {
+		t.Fatal("CalDAVAllowInsecureAuth = false, want true in development defaults")
 	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
@@ -530,6 +538,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "secret")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "jwt-secret")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "25")
+	t.Setenv("GOGOMAIL_CALDAV_ADDR", ":18081")
+	t.Setenv("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", "false")
 
 	cfg := Load()
 
@@ -553,6 +563,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.HTTPMaxHeaderBytes != 32768 {
 		t.Fatalf("HTTPMaxHeaderBytes = %d, want 32768", cfg.HTTPMaxHeaderBytes)
+	}
+	if cfg.CalDAVAddr != ":18081" {
+		t.Fatalf("CalDAVAddr = %q, want :18081", cfg.CalDAVAddr)
+	}
+	if cfg.CalDAVAllowInsecureAuth {
+		t.Fatal("CalDAVAllowInsecureAuth = true, want false")
 	}
 	if cfg.SMTPAddr != ":10025" {
 		t.Fatalf("SMTPAddr = %q, want :10025", cfg.SMTPAddr)

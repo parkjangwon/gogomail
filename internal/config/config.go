@@ -29,6 +29,8 @@ type Config struct {
 	IMAPNotifyConsumerClaimIdle         time.Duration
 	IMAPNotifyConsumerMaxDeliveries     int64
 	IMAPNotifyConsumerDeadLetterStream  string
+	CalDAVAddr                          string
+	CalDAVAllowInsecureAuth             bool
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxRecipients             int
@@ -205,6 +207,8 @@ func Load() Config {
 		IMAPNotifyConsumerClaimIdle:         durationEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		IMAPNotifyConsumerMaxDeliveries:     int64EnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES", 10),
 		IMAPNotifyConsumerDeadLetterStream:  strings.TrimSpace(os.Getenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM")),
+		CalDAVAddr:                          envOrDefault("GOGOMAIL_CALDAV_ADDR", ":8081"),
+		CalDAVAllowInsecureAuth:             boolEnvOrDefault("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxRecipients:             intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),

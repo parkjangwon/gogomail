@@ -2087,6 +2087,9 @@ The platform hardening sprint completed the following:
   authenticated Submission password verifier boundary, requires TLS or an
   HTTPS forwarding signal unless explicitly allowed for development, and
   returns the authenticated user ID for future native CalDAV clients.
+- Configuration now includes `GOGOMAIL_CALDAV_ADDR` and
+  `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation rejecting
+  insecure CalDAV Basic-auth credentials before runtime wiring is enabled.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
