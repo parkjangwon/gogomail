@@ -1219,6 +1219,10 @@ Implementation order:
 823. IMAP RFC 5256 base-subject extraction now decodes RFC 2047 encoded-word
      subjects before reply/forward artifact removal, improving
      internationalized `SORT SUBJECT` and `THREAD ORDEREDSUBJECT` compatibility.
+824. IMAP mailbox mutation guardrails now enforce RFC 3501 `INBOX` special
+     cases by rejecting `CREATE INBOX`, `DELETE INBOX`, and generic
+     `RENAME INBOX` until the required message-moving rename semantics are
+     implemented.
 
 ## Deferred until backend contracts stabilize
 

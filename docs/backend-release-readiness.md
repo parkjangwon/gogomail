@@ -558,6 +558,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
   validation/storage constraints.
+- IMAP `CREATE INBOX` and `DELETE INBOX` now return explicit RFC 3501-shaped
+  `NO` failures, and `RENAME INBOX` is rejected instead of being treated like a
+  generic folder rename until its required special message-moving semantics are
+  implemented.
 - IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
   advertising it before authentication and removing it after upgrade.
 - IMAP `STARTTLS` completion now includes an updated `[CAPABILITY ...]`

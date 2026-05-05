@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP RFC 2047 base-subject decoding)
+Last updated: 2026-05-05 (updated after IMAP INBOX mutation guardrails)
 
 ## Current phase
 
@@ -1038,6 +1038,10 @@ The platform hardening sprint completed the following:
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
   validation/storage constraints.
+- IMAP `CREATE INBOX` and `DELETE INBOX` return explicit RFC 3501-shaped `NO`
+  failures, and `RENAME INBOX` is rejected instead of incorrectly routing it
+  through generic mailbox rename before its required special "move messages and
+  leave INBOX empty" semantics are implemented.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

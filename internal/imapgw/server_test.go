@@ -2780,7 +2780,7 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 CREATE Projects\r\na2 LOGIN user@example.com secret\r\na3 CREATE Projects\r\na4 DELETE Projects\r\na5 RENAME Projects Archive\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 CREATE Projects\r\na2 LOGIN user@example.com secret\r\na3 CREATE Projects\r\na4 DELETE Projects\r\na5 RENAME Projects Archive\r\na6 CREATE INBOX\r\na7 DELETE inbox\r\na8 RENAME Inbox OldInbox\r\n")); err != nil {
 		t.Fatalf("write mailbox mutations: %v", err)
 	}
 	want := []string{
@@ -2789,6 +2789,9 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 		"a3 OK CREATE completed\r\n",
 		"a4 OK DELETE completed\r\n",
 		"a5 OK RENAME completed\r\n",
+		"a6 NO CREATE cannot create INBOX\r\n",
+		"a7 NO DELETE cannot delete INBOX\r\n",
+		"a8 NO RENAME INBOX special semantics are not supported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -2799,7 +2802,7 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 			t.Fatalf("mailbox mutation response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
