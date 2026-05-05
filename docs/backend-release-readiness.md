@@ -344,6 +344,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - DKIM key creation derives the public DNS TXT record from the private key when omitted, reducing operator DNS setup errors while preserving private-key omission from admin list responses.
 - Admin API exposes domain DNS verification for MX, SPF, DMARC, and active DKIM TXT records, and each check is persisted with an audit log entry for domain onboarding traceability before frontend implementation.
 - Delivery workers can opt into PostgreSQL-backed delivery routes through `GOGOMAIL_DELIVERY_ROUTE_BACKEND=postgres`, reusing the existing delivery router boundary and falling back to direct MX delivery when no active route matches.
+- Static smart-host configuration rejects password-only auth plus CR/LF-bearing
+  or oversized auth username, password, and identity values during startup
+  config validation, matching the Admin delivery-route guardrails before
+  delivery worker startup.
 - Admin domain/user create validation rejects malformed domains, unsafe usernames, invalid ACE names, and mismatched primary address ownership.
 - SMTP receive/submission paths now include TCP-level protocol integration coverage for inbound delivery, AUTH PLAIN submission, policy rejection, and SMTPS.
 - Authenticated Submission applies enforcing per-domain recipient caps during

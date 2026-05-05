@@ -727,6 +727,7 @@ Implementation order:
 667. OpenSearch writer/searcher construction now trims usernames while preserving password bytes, and rejects CR/LF-bearing or oversized endpoint credentials before BasicAuth request headers can be generated.
 668. Runtime config validation now rejects CR/LF-bearing or oversized OpenSearch username/password configuration when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, surfacing credential formatting mistakes before worker/search setup.
 669. OpenSearch index/bootstrap/search status-error diagnostics now collapse backend response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing backend errors from leaking into logs or API diagnostics.
+670. Runtime config validation now rejects static smart-host password-only auth plus CR/LF-bearing or oversized auth username, password, and identity values, matching Admin delivery-route guardrails before delivery worker startup.
 
 ## Deferred until backend contracts stabilize
 
