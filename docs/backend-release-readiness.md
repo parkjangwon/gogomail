@@ -292,6 +292,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar object `GET` and `HEAD` now emit `Last-Modified` from stored
   object update time and honor `If-Modified-Since` timestamp revalidation with
   second-precision comparisons.
+- CalDAV calendar object `PUT` and `DELETE` now honor `If-Unmodified-Since`
+  against stored object update time before reading request bodies or mutating
+  the repository, returning HTTP 412 for stale timestamp guards.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
