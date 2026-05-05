@@ -207,6 +207,44 @@ func TestDriveCancelUploadSessionHandler(t *testing.T) {
 	}
 }
 
+func TestDriveStoreUploadSessionBodyHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{uploadSession: drive.UploadSession{
+		ID:             "session-1",
+		UserID:         "user-1",
+		UploadID:       "upload-1",
+		Name:           "Report.pdf",
+		ReceivedSize:   11,
+		Status:         drive.UploadSessionStatusUploading,
+		StorageBackend: "s3",
+		ChecksumSHA256: strings.Repeat("a", 64),
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/drive/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("hello drive"))
+	req.Header.Set("X-Content-SHA256", strings.Repeat("a", 64))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.storeUploadSessionBodyReq.UserID != "user-1" || service.storeUploadSessionBodyReq.SessionID != "session-1" || service.storeUploadSessionBodyReq.ExpectedChecksumSHA256 != strings.Repeat("a", 64) || service.storeUploadSessionBodyReq.Body == nil {
+		t.Fatalf("store upload session body request = %+v, want user/session/checksum/body", service.storeUploadSessionBodyReq)
+	}
+	var body struct {
+		Session drive.UploadSession `json:"drive_upload_session"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Session.Status != drive.UploadSessionStatusUploading {
+		t.Fatalf("session = %+v", body.Session)
+	}
+}
+
 func TestDriveFinalizeFileHandler(t *testing.T) {
 	t.Parallel()
 
@@ -413,6 +451,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "upload session invalid expires", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{"name":"Report.pdf","storage_backend":"s3","expires_at":"tomorrow"}`))},
 		{name: "get upload session unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions/session-1?user_id=user-1&typo=true", nil)},
 		{name: "cancel upload session body rejected", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/upload-sessions/session-1?user_id=user-1", strings.NewReader(`{}`))},
+		{name: "store upload session content range rejected", req: requestWithHeader(http.MethodPut, "/api/v1/drive/upload-sessions/session-1/body?user_id=user-1", "Content-Range", "bytes 0-1/2")},
 		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
 		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},
 		{name: "rename invalid json", req: httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/name?user_id=user-1", strings.NewReader(`{`))},
@@ -438,26 +477,27 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 }
 
 type fakeDriveService struct {
-	nodes                  []drive.Node
-	node                   drive.Node
-	folder                 drive.Node
-	file                   drive.Node
-	staged                 drive.StagedObject
-	uploadSession          drive.UploadSession
-	err                    error
-	getReq                 drive.GetNodeRequest
-	getUploadSessionReq    drive.GetUploadSessionRequest
-	cancelUploadSessionReq drive.CancelUploadSessionRequest
-	listReq                drive.ListNodesRequest
-	createReq              drive.CreateFolderRequest
-	fileReq                drive.CreateFileFromObjectRequest
-	stagedReq              drive.StoreStagedObjectRequest
-	uploadSessionReq       drive.CreateUploadSessionRequest
-	trashReq               drive.TrashNodeRequest
-	restoreReq             drive.RestoreNodeRequest
-	renameReq              drive.RenameNodeRequest
-	moveReq                drive.MoveNodeRequest
-	deleteReq              drive.PermanentDeleteNodeRequest
+	nodes                     []drive.Node
+	node                      drive.Node
+	folder                    drive.Node
+	file                      drive.Node
+	staged                    drive.StagedObject
+	uploadSession             drive.UploadSession
+	err                       error
+	getReq                    drive.GetNodeRequest
+	getUploadSessionReq       drive.GetUploadSessionRequest
+	cancelUploadSessionReq    drive.CancelUploadSessionRequest
+	storeUploadSessionBodyReq drive.StoreUploadSessionBodyRequest
+	listReq                   drive.ListNodesRequest
+	createReq                 drive.CreateFolderRequest
+	fileReq                   drive.CreateFileFromObjectRequest
+	stagedReq                 drive.StoreStagedObjectRequest
+	uploadSessionReq          drive.CreateUploadSessionRequest
+	trashReq                  drive.TrashNodeRequest
+	restoreReq                drive.RestoreNodeRequest
+	renameReq                 drive.RenameNodeRequest
+	moveReq                   drive.MoveNodeRequest
+	deleteReq                 drive.PermanentDeleteNodeRequest
 }
 
 func (f *fakeDriveService) CreateFolder(_ context.Context, req drive.CreateFolderRequest) (drive.Node, error) {
@@ -524,6 +564,14 @@ func (f *fakeDriveService) CancelUploadSession(_ context.Context, req drive.Canc
 	return f.uploadSession, nil
 }
 
+func (f *fakeDriveService) StoreUploadSessionBody(_ context.Context, req drive.StoreUploadSessionBodyRequest) (drive.UploadSession, error) {
+	f.storeUploadSessionBodyReq = req
+	if f.err != nil {
+		return drive.UploadSession{}, f.err
+	}
+	return f.uploadSession, nil
+}
+
 func (f *fakeDriveService) TrashNode(_ context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error) {
 	f.trashReq = req
 	if f.err != nil {
@@ -566,3 +614,9 @@ func (f *fakeDriveService) PermanentDeleteNode(_ context.Context, req drive.Perm
 
 var _ DriveService = (*fakeDriveService)(nil)
 var errDriveTest = errors.New("drive test error")
+
+func requestWithHeader(method string, target string, header string, value string) *http.Request {
+	req := httptest.NewRequest(method, target, strings.NewReader("body"))
+	req.Header.Set(header, value)
+	return req
+}

@@ -94,6 +94,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session body storage now preserves retry safety by writing each
   body to a distinct object path before repository metadata update, deleting
   failed writes and superseded bodies through the shared storage adapter.
+- Drive upload-session body storage is now exposed through a Mail API route
+  with optional SHA-256 verification and explicit `Content-Range` rejection
+  until chunked/resumable upload semantics are finalized.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

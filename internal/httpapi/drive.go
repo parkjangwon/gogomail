@@ -17,6 +17,7 @@ type DriveService interface {
 	CreateUploadSession(ctx context.Context, req drive.CreateUploadSessionRequest) (drive.UploadSession, error)
 	GetUploadSession(ctx context.Context, req drive.GetUploadSessionRequest) (drive.UploadSession, error)
 	CancelUploadSession(ctx context.Context, req drive.CancelUploadSessionRequest) (drive.UploadSession, error)
+	StoreUploadSessionBody(ctx context.Context, req drive.StoreUploadSessionBodyRequest) (drive.UploadSession, error)
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
@@ -200,6 +201,45 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		session, err := service.CancelUploadSession(r.Context(), drive.CancelUploadSessionRequest{UserID: userID, SessionID: sessionID})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_session": session})
+	})
+
+	mux.HandleFunc("PUT /api/v1/drive/upload-sessions/{id}/body", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		sessionID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		contentRange, ok := singleHTTPHeaderValue(w, r, "Content-Range", maxHTTPAuthHeaderBytes)
+		if !ok {
+			return
+		}
+		if contentRange != "" {
+			writeError(w, http.StatusBadRequest, "content-range is not supported for drive upload session body storage")
+			return
+		}
+		checksum, ok := singleHTTPHeaderValue(w, r, "X-Content-SHA256", maxHTTPAuthHeaderBytes)
+		if !ok {
+			return
+		}
+		body := http.MaxBytesReader(w, r.Body, drive.MaxUploadSessionBytes+1)
+		session, err := service.StoreUploadSessionBody(r.Context(), drive.StoreUploadSessionBodyRequest{
+			UserID:                 userID,
+			SessionID:              sessionID,
+			ExpectedChecksumSHA256: checksum,
+			Body:                   body,
+		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

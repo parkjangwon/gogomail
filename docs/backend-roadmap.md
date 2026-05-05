@@ -1850,6 +1850,10 @@ Implementation order:
      that stream retry bodies to distinct canonical object paths, enforce
      declared size and optional SHA-256 checks, record storage metadata, and
      clean failed or superseded objects best-effort through shared storage.
+994. Mail API now exposes `PUT /api/v1/drive/upload-sessions/{id}/body`,
+     wiring retry-safe Drive upload-session body storage to clients with
+     optional `X-Content-SHA256` verification and explicit `Content-Range`
+     rejection until chunked upload semantics are specified.
 
 ## Deferred until backend contracts stabilize
 
