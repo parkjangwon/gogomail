@@ -221,7 +221,7 @@ func Load() Config {
 		StorageS3Region:                     envOrDefault("GOGOMAIL_STORAGE_S3_REGION", "us-east-1"),
 		StorageS3Bucket:                     envOrDefault("GOGOMAIL_STORAGE_S3_BUCKET", ""),
 		StorageS3Prefix:                     envOrDefault("GOGOMAIL_STORAGE_S3_PREFIX", ""),
-		StorageS3AccessKeyID:                envOrDefault("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", ""),
+		StorageS3AccessKeyID:                os.Getenv("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID"),
 		StorageS3SecretAccessKey:            os.Getenv("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY"),
 		StorageS3SessionToken:               os.Getenv("GOGOMAIL_STORAGE_S3_SESSION_TOKEN"),
 		StorageS3ForcePathStyle:             boolEnvOrDefault("GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE", false),

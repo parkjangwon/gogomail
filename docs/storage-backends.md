@@ -57,10 +57,10 @@ GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID=...
 GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY=...
 ```
 
-Credential values are validated before adapter construction. Secret access keys
-and session tokens must not contain spaces, tabs, or line breaks, so copied
-environment values with hidden whitespace fail fast instead of surfacing later
-as opaque S3 authentication failures.
+Credential values are validated before adapter construction. Access key IDs,
+secret access keys, and session tokens must not contain spaces, tabs, or line
+breaks, so copied environment values with hidden whitespace fail fast instead
+of surfacing later as opaque S3 authentication failures.
 
 Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Endpoints
 must be plain HTTP(S) origins with an optional canonical base path; userinfo,
