@@ -1468,6 +1468,9 @@ Implementation order:
 891. IMAP `SEARCH`/`UID SEARCH` date criteria now reject malformed date atoms
      that still contain quote characters after command parsing, preventing
      broken `SINCE 05-May-2026"` style inputs from being silently normalized.
+892. IMAP command tokenization now rejects embedded quote characters inside
+     unquoted atoms while preserving escaped quotes inside proper quoted
+     strings, keeping RFC 3501 atom and quoted-string handling separate.
 
 ## Deferred until backend contracts stabilize
 

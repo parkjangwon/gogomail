@@ -7068,6 +7068,9 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	if _, err := parseIMAPFields("a1 LOGIN \"user\\\rbad\" secret"); err == nil {
 		t.Fatal("parseIMAPFields accepted escaped quoted control character")
 	}
+	if _, err := parseIMAPFields(`a1 LOGIN user"bad secret`); err == nil {
+		t.Fatal("parseIMAPFields accepted quote character inside atom")
+	}
 	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6}"); err == nil {
 		t.Fatal("parseIMAPFields accepted unsupported literal")
 	}
@@ -7088,6 +7091,13 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if got, want := fields, []string{"a1", "APPEND", "inbox", literal}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("literal+ fields = %#v, want %#v", got, want)
+	}
+	fields, err = parseIMAPFields(`a1 SEARCH SUBJECT "Project \"Q2\""`)
+	if err != nil {
+		t.Fatalf("parseIMAPFields quoted string with escaped quote returned error: %v", err)
+	}
+	if got, want := fields, []string{"a1", "SEARCH", "SUBJECT", `Project "Q2"`}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("escaped quoted fields = %#v, want %#v", got, want)
 	}
 	if _, _, ok, err := imapCommandLiteralSize("a1 APPEND inbox {12}\r\n"); err != nil || !ok {
 		t.Fatalf("imapCommandLiteralSize synchronizing ok = %v err = %v", ok, err)
