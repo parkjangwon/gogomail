@@ -381,15 +381,17 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   prop-filter names are rejected before execution. The first text-match
   evaluator honors RFC 6352 default `i;unicode-casemap`, `equals`, `contains`,
   `starts-with`, `ends-with`, and `negate-condition`, while rejecting
-  unsupported collations or malformed text-match attributes. Contact-object
-  `GET`, `HEAD`, `PUT`, and `DELETE` now run inside the internal handler with
-  `text/vcard` validation, bounded body reads, ETag and Last-Modified headers,
-  cache/precondition handling, and repository-backed vCard validation. CardDAV
-  runtime wiring now provides
+  unsupported collations or malformed text-match attributes. Query filtering
+  also evaluates the first nested `param-filter` by parsing vCard content-line
+  parameters and supporting parameter existence, `is-not-defined`, and
+  parameter text-match checks. Contact-object `GET`, `HEAD`, `PUT`, and
+  `DELETE` now run inside the internal handler with `text/vcard` validation,
+  bounded body reads, ETag and Last-Modified headers, cache/precondition
+  handling, and repository-backed vCard validation. CardDAV runtime wiring now provides
   `gogomail --mode=carddav`, `GOGOMAIL_CARDDAV_ADDR`, and Basic-auth through
   the existing Submission authenticator, with production insecure-auth
   validation. Client-ready CardDAV remains gated on broader CardDAV
-  filter-tree/param-filter semantics, broader vCard compatibility, and
+  filter-tree composition, broader vCard compatibility, and
   native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
