@@ -295,6 +295,10 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 		return
 	}
+	if existed && objectModifiedSince(r.Header.Get("If-Unmodified-Since"), existing.UpdatedAt) {
+		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
+		return
+	}
 	body, err := readBoundedCalendarBody(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
@@ -338,14 +342,19 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
-	if ifMatch != "" {
+	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
+	if ifMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
 		if err != nil {
 			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
 			return
 		}
-		if !ifMatchMatches(ifMatch, object.ETag) {
+		if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
 			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+			return
+		}
+		if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
+			http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
 			return
 		}
 	}
@@ -476,6 +485,19 @@ func objectNotModifiedSince(header string, updatedAt time.Time) bool {
 	}
 	lastModified := updatedAt.UTC().Truncate(time.Second)
 	return !lastModified.After(since.UTC())
+}
+
+func objectModifiedSince(header string, updatedAt time.Time) bool {
+	header = strings.TrimSpace(header)
+	if header == "" || updatedAt.IsZero() || strings.ContainsAny(header, "\r\n") {
+		return false
+	}
+	since, err := http.ParseTime(header)
+	if err != nil {
+		return false
+	}
+	lastModified := updatedAt.UTC().Truncate(time.Second)
+	return lastModified.After(since.UTC())
 }
 
 func validateCalendarPutContentType(value string) error {

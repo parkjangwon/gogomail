@@ -2170,6 +2170,10 @@ Implementation order:
       stored object update time and honor `If-Modified-Since` revalidation with
       second-precision comparisons, reducing unnecessary body streaming for
       timestamp-valid native-client caches.
+1071. CalDAV calendar object `PUT` and `DELETE` now honor
+      `If-Unmodified-Since` against stored object update time before reading
+      request bodies or mutating repository state, returning HTTP 412 for stale
+      timestamp-based overwrite/delete preconditions.
 
 ## Deferred until backend contracts stabilize
 

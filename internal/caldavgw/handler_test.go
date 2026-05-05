@@ -836,6 +836,23 @@ func TestHandlerPutRejectsFailedETagPreconditions(t *testing.T) {
 	}
 }
 
+func TestHandlerPutRejectsFailedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.objects[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
+	handler := NewHandler(store, fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	t.Parallel()
 
@@ -1091,6 +1108,24 @@ func TestHandlerDeleteRejectsIfMatchStarForMissingObject(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerDeleteRejectsFailedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.objects[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.objects) != 1 {
+		t.Fatalf("objects after rejected delete = %d, want 1", len(store.objects))
 	}
 }
 

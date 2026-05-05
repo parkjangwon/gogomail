@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV Last-Modified cache revalidation)
+Last updated: 2026-05-06 (updated after CalDAV If-Unmodified-Since write guards)
 
 ## Current phase
 
@@ -2216,6 +2216,10 @@ The platform hardening sprint completed the following:
   object update time and honor `If-Modified-Since` revalidation with
   second-precision comparisons, avoiding unnecessary `.ics` body streaming for
   timestamp-valid client caches.
+- CalDAV calendar object `PUT` and `DELETE` now honor `If-Unmodified-Since`
+  against stored object update timestamps before body reads or repository
+  mutation, returning HTTP 412 for stale timestamp-based overwrite/delete
+  attempts.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
