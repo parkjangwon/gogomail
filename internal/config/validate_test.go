@@ -20,8 +20,20 @@ func TestValidateRejectsProductionInsecureIMAPAuth(t *testing.T) {
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
 	cfg.IMAPAllowInsecureAuth = true
+	cfg.CalDAVAllowInsecureAuth = false
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want production insecure IMAP auth rejection")
+	}
+}
+
+func TestValidateRejectsProductionInsecureCalDAVAuth(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = true
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want production insecure CalDAV auth rejection")
 	}
 }
 
@@ -46,6 +58,7 @@ func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
 			cfg.Environment = env
 			cfg.SubmissionAllowInsecureAuth = false
 			cfg.IMAPAllowInsecureAuth = false
+			cfg.CalDAVAllowInsecureAuth = false
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("Validate() error = %v", err)
 			}
@@ -300,6 +313,8 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "inbound nonnumeric port", mutate: func(cfg *Config) { cfg.InboundSMTPAddr = "127.0.0.1:notaport" }},
 		{name: "imap empty", mutate: func(cfg *Config) { cfg.IMAPAddr = "" }},
 		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
+		{name: "caldav missing port", mutate: func(cfg *Config) { cfg.CalDAVAddr = "localhost" }},
+		{name: "caldav newline", mutate: func(cfg *Config) { cfg.CalDAVAddr = ":8081\nbad" }},
 		{name: "imap tls cert newline", mutate: func(cfg *Config) { cfg.IMAPTLSCertFile = "cert.pem\nbad" }},
 		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
 		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
@@ -323,6 +338,7 @@ func TestValidateAcceptsListenerAddressForms(t *testing.T) {
 	cfg.SMTPAddr = ":2525"
 	cfg.InboundSMTPAddr = "127.0.0.1:2526"
 	cfg.IMAPAddr = "localhost:1143"
+	cfg.CalDAVAddr = "localhost:8081"
 	cfg.IMAPTLSCertFile = "imap-cert.pem"
 	cfg.IMAPTLSKeyFile = "imap-key.pem"
 	cfg.SubmissionAddr = "localhost:2587"
@@ -412,6 +428,7 @@ func TestValidateAcceptsHTTPSWebhooksInProduction(t *testing.T) {
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
 	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
 	cfg.AttachmentScanBackend = "webhook"
 	cfg.AttachmentScanWebhookURL = "https://scanner.example/scan"
 	cfg.PushNotifyBackend = "webhook"

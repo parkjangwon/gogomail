@@ -2049,6 +2049,9 @@ Implementation order:
       authenticated Submission password verifier boundary, requires TLS or an
       HTTPS forwarding signal unless explicitly allowed for development, and
       resolves authenticated user IDs for future native-client runtime wiring.
+1046. CalDAV runtime configuration now has `GOGOMAIL_CALDAV_ADDR` and
+      `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation
+      rejecting insecure Basic-auth operation before listener wiring is enabled.
 
 ## Deferred until backend contracts stabilize
 

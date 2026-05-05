@@ -207,6 +207,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   authenticator and rejects non-TLS credential use unless explicitly allowed
   for development, preparing native CalDAV clients without query-parameter
   identity fallback in production.
+- CalDAV runtime configuration now exposes a dedicated listener address and
+  insecure-auth development toggle, with production validation rejecting
+  insecure Basic-auth operation.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

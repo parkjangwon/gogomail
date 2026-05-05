@@ -97,6 +97,11 @@ authenticated Submission password verifier so CalDAV, IMAP, SMTP Submission,
 and future account APIs can converge on one local-password source instead of
 inventing a separate calendar credential path.
 
+CalDAV runtime configuration is separate from the generic Mail/Admin HTTP
+listener. `GOGOMAIL_CALDAV_ADDR` gives operators a dedicated protocol endpoint,
+and production rejects `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH=true` so Basic
+credentials are not accidentally accepted over cleartext transport.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles
