@@ -2197,6 +2197,9 @@ Implementation order:
 1077. S3-compatible `GetRange` now also bounded-drains unread range bytes when
       callers close early, improving connection reuse for preview/cancel paths
       without allowing unbounded cleanup reads.
+1078. IMAP `STATUS` and LIST-STATUS parsing now rejects duplicate status data
+      items before mailbox metadata lookup, keeping RFC-shaped status item
+      lists deterministic and preventing duplicate response pairs.
 
 ## Deferred until backend contracts stabilize
 

@@ -4725,7 +4725,7 @@ func TestServerHandlesRequestedStatusItemsOnly(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (UIDNEXT RECENT)\r\na3 STATUS inbox (BADITEM)\r\na4 STATUS inbox MESSAGES\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (UIDNEXT RECENT)\r\na3 STATUS inbox (BADITEM)\r\na4 STATUS inbox MESSAGES\r\na5 STATUS inbox (UIDNEXT UIDNEXT)\r\n")); err != nil {
 		t.Fatalf("write login/status: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
@@ -4743,7 +4743,10 @@ func TestServerHandlesRequestedStatusItemsOnly(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a4 BAD STATUS requires parenthesized item list\r\n" {
 		t.Fatalf("unparenthesized status line = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a5 BAD STATUS item is unsupported\r\n" {
+		t.Fatalf("duplicate status item line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

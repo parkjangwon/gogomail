@@ -6042,11 +6042,16 @@ func imapMailboxMatchesPattern(name string, pattern string) bool {
 
 func imapStatusItems(items []string) ([]string, bool) {
 	out := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
 	for _, raw := range items {
 		for _, token := range strings.Fields(strings.Trim(raw, "()")) {
 			item := strings.ToUpper(strings.TrimSpace(token))
 			switch item {
 			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ", "SIZE":
+				if _, ok := seen[item]; ok {
+					return nil, false
+				}
+				seen[item] = struct{}{}
 				out = append(out, item)
 			default:
 				return nil, false

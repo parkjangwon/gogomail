@@ -1532,6 +1532,8 @@ Current state:
 - S3-compatible `GetRange` now also drains a small bounded remainder when
   callers close before consuming the requested range, helping preview/cancel
   paths reuse HTTP connections.
+- IMAP `STATUS`/LIST-STATUS parsing now rejects duplicate status data items
+  before mailbox metadata lookup.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
