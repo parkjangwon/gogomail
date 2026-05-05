@@ -1434,6 +1434,8 @@ Current state:
 - CalDAV runtime configuration now includes `GOGOMAIL_CALDAV_ADDR` and
   `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation rejecting
   insecure Basic-auth operation.
+- `gogomail --mode=caldav` now starts a dedicated discovery-only HTTP listener
+  backed by the CalDAV repository and Basic-auth resolver.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1443,10 +1445,9 @@ Current state:
 
 Next:
 
-- Continue CalDAV by wiring the discovery handler into the `caldav` listener
-  using the new runtime address/auth settings, then add stricter REPORT
-  filter/href/time-range validation before advertising client-ready
-  compatibility.
+- Continue CalDAV with stricter REPORT filter/href/time-range validation,
+  calendar-query/calendar-multiget/sync-collection handlers, and object
+  GET/PUT/DELETE semantics before advertising client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.
