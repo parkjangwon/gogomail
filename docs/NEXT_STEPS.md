@@ -357,14 +357,16 @@ Current state:
   pending cleanup records, delete referenced objects through configured stores,
   resolve successful records, and re-record failed attempts with fresh bounded
   diagnostics.
+- `drive-cleanup-worker` can now run the Drive cleanup retry service on a
+  validated interval or in run-once mode, using the configured local/NFS,
+  MinIO, or S3-compatible object store.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add a Drive cleanup worker/app wiring path so the retry service can run
-  periodically outside request/handler flows.
-- Add Drive HTTP contracts only after repository/service
-  create/list/delete/restore flows are stable enough to document in OpenAPI.
+- Add Drive HTTP contracts for folder/file list, trash, restore, and permanent
+  delete now that repository/service cleanup flows are stable enough to
+  document in OpenAPI.
 
 ### 2. Message threading and search
 

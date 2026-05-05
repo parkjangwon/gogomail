@@ -97,6 +97,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive cleanup drift can now be retried through an internal service method
   that deletes pending object references, resolves successful records, and
   refreshes failed-attempt diagnostics for future scheduled worker wiring.
+- Drive cleanup retry now has a dedicated `drive-cleanup-worker` backend mode
+  with validated interval/batch/run-once settings and shared storage adapter
+  wiring, so object cleanup drift can be handled outside request paths.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

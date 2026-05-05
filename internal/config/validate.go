@@ -20,6 +20,7 @@ const (
 	maxDeliverySmartHostCredentialBytes    = 4096
 	maxWebhookTokenBytes                   = 4096
 	maxAttachmentCleanupBatchSize          = 1000
+	maxDriveCleanupBatchSize               = 1000
 	minHTTPMaxHeaderBytes                  = 4 << 10
 	maxHTTPMaxHeaderBytes                  = 1 << 20
 )
@@ -236,6 +237,12 @@ func (c Config) Validate() error {
 	}
 	if c.AttachmentCleanupBatchSize <= 0 || c.AttachmentCleanupBatchSize > maxAttachmentCleanupBatchSize {
 		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE must be between 1 and %d", maxAttachmentCleanupBatchSize)
+	}
+	if c.DriveCleanupInterval <= 0 {
+		return fmt.Errorf("GOGOMAIL_DRIVE_CLEANUP_INTERVAL must be positive")
+	}
+	if c.DriveCleanupBatchSize <= 0 || c.DriveCleanupBatchSize > maxDriveCleanupBatchSize {
+		return fmt.Errorf("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE must be between 1 and %d", maxDriveCleanupBatchSize)
 	}
 	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook"); err != nil {
 		return err
