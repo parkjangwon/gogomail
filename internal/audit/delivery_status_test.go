@@ -50,6 +50,29 @@ func TestDeliveryStatusAuditLog(t *testing.T) {
 	}
 }
 
+func TestDeliveryStatusAuditLogAcceptsExhausted(t *testing.T) {
+	t.Parallel()
+
+	log, err := DeliveryStatusAuditLog([]byte(`{
+		"event":"mail.delivery_exhausted",
+		"message_id":"018f0000-0000-7000-8000-000000000001",
+		"company_id":"11111111-1111-4111-8111-111111111111",
+		"domain_id":"22222222-2222-4222-8222-222222222222",
+		"sender":"sender@example.com",
+		"status":"exhausted",
+		"error_message":"retry budget exhausted"
+	}`))
+	if err != nil {
+		t.Fatalf("DeliveryStatusAuditLog returned error: %v", err)
+	}
+	if log.Action != "mail.delivery_exhausted" {
+		t.Fatalf("Action = %q, want mail.delivery_exhausted", log.Action)
+	}
+	if log.Result != "failure" {
+		t.Fatalf("Result = %q, want failure", log.Result)
+	}
+}
+
 func TestDeliveryStatusAuditLogRejectsInvalidMessageID(t *testing.T) {
 	t.Parallel()
 

@@ -686,6 +686,18 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err := router.Register("mail.delivery_failed", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
 		return err
 	}
+	if err := router.Register("mail.delivery_exhausted", eventstream.MultiHandler{
+		audit.NewDeliveryStatusHandler(auditRepository),
+		dsnpkg.NewBounceHandler(dsnpkg.HandlerOptions{
+			Store:        store,
+			Queue:        dsnpkg.NewPostgresOutboxQueue(db),
+			ReportingMTA: cfg.SMTPDomain,
+			Postmaster:   cfg.DSNPostmaster,
+			Farm:         outbound.FarmGeneral,
+		}),
+	}); err != nil {
+		return err
+	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:           redisClient,

@@ -92,6 +92,66 @@ func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
 	}
 }
 
+func TestBounceHandlerQueuesFailureDSNForExhaustedDelivery(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{values: map[string][]byte{
+		"mailstore/original.eml": []byte("From: Sender <sender@example.com>\r\nTo: Slow <slow@example.net>\r\nSubject: Original\r\nMessage-ID: <original@example.com>\r\n\r\nbody"),
+	}}
+	queue := &captureQueue{}
+	handler := NewBounceHandler(HandlerOptions{
+		Store:        store,
+		Queue:        queue,
+		ReportingMTA: "mx.example.com",
+		Now: func() time.Time {
+			return time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
+		},
+	})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: []byte(`{
+		"event":"mail.delivery_exhausted",
+		"message_id":"018f0000-0000-7000-8000-000000000002",
+		"rfc_message_id":"<original@example.com>",
+		"company_id":"company-1",
+		"domain_id":"domain-1",
+		"sender":"sender@example.com",
+		"error_message":"451 4.4.7 retry timeout",
+		"storage_path":"mailstore/original.eml",
+		"dsn_return":"HDRS",
+		"dsn_envelope_id":"env-1",
+		"exhausted_at":"2026-05-04T01:00:00Z",
+		"recipient_details":[{
+			"recipient":"slow@example.net",
+			"recipient_domain":"example.net",
+			"enhanced_status":"4.4.7",
+			"dsn_notify":["FAILURE"],
+			"original_recipient":"rfc822;alias+40example.net"
+		}]
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if queue.dedupeKey != "dsn:bounce:018f0000-0000-7000-8000-000000000002:slow@example.net" {
+		t.Fatalf("dedupeKey = %q, want stable exhausted DSN key", queue.dedupeKey)
+	}
+	var queued delivery.QueuedMessage
+	if err := json.Unmarshal(queue.payload, &queued); err != nil {
+		t.Fatalf("decode queued payload: %v", err)
+	}
+	raw := string(store.values[queued.StoragePath])
+	for _, want := range []string{
+		"Action: failed",
+		"Status: 4.4.7",
+		"Diagnostic-Code: smtp; 451 4.4.7 retry timeout",
+		"Original-Recipient: rfc822; alias+40example.net",
+		"Content-Type: text/rfc822-headers",
+	} {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("stored exhausted DSN missing %q:\n%s", want, raw)
+		}
+	}
+}
+
 func TestBounceHandlerSkipsNullReversePathAndNotifyNever(t *testing.T) {
 	t.Parallel()
 

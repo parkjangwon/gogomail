@@ -404,6 +404,8 @@ func dsnStatusMatchesAction(action string, status string) bool {
 		return status[0] == '2'
 	case "delayed":
 		return status[0] == '4'
+	case "failed":
+		return status[0] == '4' || status[0] == '5'
 	default:
 		return status[0] == '5'
 	}

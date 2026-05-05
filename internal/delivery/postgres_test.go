@@ -81,6 +81,7 @@ func TestExhaustedEventPayloadNormalizesMetadata(t *testing.T) {
 		Farm:         " general ",
 		From:         outbound.Address{Email: " sender@example.com "},
 		To:           []outbound.Address{{Email: " user@example.net "}},
+		StoragePath:  "mailstore/original.eml",
 	}, " temporary failure ")
 	if err != nil {
 		t.Fatalf("exhaustedEventPayload returned error: %v", err)
@@ -96,6 +97,17 @@ func TestExhaustedEventPayloadNormalizesMetadata(t *testing.T) {
 	recipients, ok := got["recipients"].([]any)
 	if !ok || len(recipients) != 1 || recipients[0] != "user@example.net" {
 		t.Fatalf("recipients = %#v", got["recipients"])
+	}
+	details, ok := got["recipient_details"].([]any)
+	if !ok || len(details) != 1 {
+		t.Fatalf("recipient_details = %#v", got["recipient_details"])
+	}
+	detail, ok := details[0].(map[string]any)
+	if !ok || detail["recipient"] != "user@example.net" || detail["recipient_domain"] != "example.net" {
+		t.Fatalf("recipient detail = %#v", details[0])
+	}
+	if got["storage_path"] != "mailstore/original.eml" {
+		t.Fatalf("storage_path = %#v", got["storage_path"])
 	}
 }
 
