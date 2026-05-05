@@ -79,7 +79,7 @@ func (s *Server) ListenAndServe() error {
 	if s == nil {
 		return fmt.Errorf("imap server is nil")
 	}
-	listener, err := net.Listen("tcp", s.options.Addr)
+	listener, err := s.Listen()
 	if err != nil {
 		return err
 	}
@@ -95,6 +95,16 @@ func (s *Server) ListenAndServe() error {
 		s.mu.Unlock()
 	}()
 	return s.Serve(listener)
+}
+
+func (s *Server) Listen() (net.Listener, error) {
+	if s == nil {
+		return nil, fmt.Errorf("imap server is nil")
+	}
+	if s.options.TLSConfig != nil {
+		return tls.Listen("tcp", s.options.Addr, s.options.TLSConfig)
+	}
+	return net.Listen("tcp", s.options.Addr)
 }
 
 func (s *Server) Close() error {

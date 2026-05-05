@@ -285,6 +285,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
   IMAP server shell with greeting, `CAPABILITY`, `NOOP`, and `LOGOUT`, while
   mailbox commands remain deferred.
+- IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
+  present, keeping the runtime listener path aligned with the authentication
+  policy guardrails.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event

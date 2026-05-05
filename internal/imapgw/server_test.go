@@ -54,6 +54,23 @@ func TestNewServerAcceptsTLSOrExplicitInsecureAuthPolicy(t *testing.T) {
 	}
 }
 
+func TestServerListenUsesConfiguredAddress(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: "127.0.0.1:0", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	listener, err := server.Listen()
+	if err != nil {
+		t.Fatalf("Listen returned error: %v", err)
+	}
+	defer listener.Close()
+	if listener.Addr().String() == "" {
+		t.Fatal("listener address is empty")
+	}
+}
+
 func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	t.Parallel()
 

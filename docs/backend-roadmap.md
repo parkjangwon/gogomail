@@ -800,6 +800,9 @@ Implementation order:
 691. `gogomail --mode=imap` now opens the configured TCP listener and serves the
      IMAP server shell with greeting, `CAPABILITY`, `NOOP`, and `LOGOUT`, while
      mailbox commands remain deferred.
+692. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
+     present, keeping the runtime listener path aligned with the authentication
+     policy guardrails.
 
 ## Deferred until backend contracts stabilize
 
