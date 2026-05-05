@@ -1296,6 +1296,10 @@ Implementation order:
      command-specific validators, so incomplete `UID SEARCH`, `UID FETCH`,
      `UID STORE`, `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD`
      responses instead of a generic UID-dispatch failure.
+845. IMAP missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`,
+     `DELETE`, and `RENAME` now return tagged `[NONEXISTENT]` response codes
+     instead of generic command failures, preserving machine-readable
+     absent-folder state for standards-aware clients.
 
 ## Deferred until backend contracts stabilize
 

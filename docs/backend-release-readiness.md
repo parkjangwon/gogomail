@@ -570,6 +570,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   command-specific validators, so incomplete `UID SEARCH`, `UID FETCH`,
   `UID STORE`, `UID EXPUNGE`, and `UID COPY` receive precise tagged `BAD`
   responses instead of a generic UID-dispatch failure.
+- IMAP missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`, `DELETE`,
+  and `RENAME` now return tagged `[NONEXISTENT]` response codes instead of
+  generic command failures, preserving machine-readable absent-folder state for
+  clients.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

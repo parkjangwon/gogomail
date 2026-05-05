@@ -397,6 +397,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			ReadOnly:  command == "EXAMINE",
 		})
 		if err != nil {
+			if errors.Is(err, ErrMailboxNotFound) {
+				_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, command))
+				return false, writeErr
+			}
 			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 			return false, writeErr
 		}
@@ -488,6 +492,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 		if err != nil {
+			if errors.Is(err, ErrMailboxNotFound) {
+				_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "STATUS"))
+				return false, writeErr
+			}
 			_, writeErr := writer.WriteString(tag + " NO STATUS failed\r\n")
 			return false, writeErr
 		}
@@ -790,10 +798,18 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 	}
 	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "DELETE"))
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO DELETE failed\r\n")
 		return false, writeErr
 	}
 	if err := s.options.Backend.DeleteMailbox(context.Background(), state.session.UserID, mailbox.ID); err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "DELETE"))
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO DELETE failed\r\n")
 		return false, writeErr
 	}
@@ -827,6 +843,10 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		return false, err
 	}
 	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, MailboxID(sourceName), MailboxID(destName)); err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "RENAME"))
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
 	}
@@ -836,6 +856,10 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 
 func imapMailboxNameIsINBOX(name string) bool {
 	return strings.EqualFold(strings.TrimSpace(name), "INBOX")
+}
+
+func imapMailboxNotFoundResponse(tag string, command string) string {
+	return tag + " NO [NONEXISTENT] " + command + " mailbox does not exist\r\n"
 }
 
 func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fields []string, state *imapConnState, command string) (bool, error) {

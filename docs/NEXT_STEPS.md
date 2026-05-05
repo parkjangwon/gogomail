@@ -557,6 +557,10 @@ Current state:
   validators, so incomplete `UID SEARCH`, `UID FETCH`, `UID STORE`,
   `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD` responses instead
   of a generic UID-dispatch failure.
+- Missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`, `DELETE`, and
+  `RENAME` now return tagged `[NONEXISTENT]` response codes instead of generic
+  command failures, so clients can distinguish absent folders from transient
+  backend failures.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
