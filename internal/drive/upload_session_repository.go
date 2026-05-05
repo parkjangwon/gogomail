@@ -195,3 +195,80 @@ WHERE s.id = $2::uuid
 	}
 	return session, nil
 }
+
+func (r *Repository) CancelUploadSession(ctx context.Context, req CancelUploadSessionRequest) (UploadSession, error) {
+	if r == nil || r.db == nil {
+		return UploadSession{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateCancelUploadSessionRequest(req)
+	if err != nil {
+		return UploadSession{}, err
+	}
+	const query = `
+UPDATE drive_upload_sessions s
+SET
+  status = 'canceled',
+  canceled_at = now(),
+  updated_at = now()
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+WHERE s.id = $2::uuid
+  AND s.user_id = $1::uuid
+  AND u.id = s.user_id
+  AND u.status = 'active'
+  AND d.status = 'active'
+  AND s.status IN ('pending', 'uploading', 'failed')
+RETURNING
+  s.id::text,
+  s.user_id::text,
+  COALESCE(s.parent_id::text, ''),
+  s.upload_id,
+  s.name,
+  s.declared_size,
+  s.received_size,
+  s.mime_type,
+  s.status,
+  s.storage_backend,
+  s.storage_path,
+  s.checksum_sha256,
+  s.expires_at,
+  s.created_at,
+  s.updated_at,
+  s.finalized_at,
+  s.canceled_at`
+	var session UploadSession
+	var finalizedAt sql.NullTime
+	var canceledAt sql.NullTime
+	err = r.db.QueryRowContext(ctx, query, req.UserID, req.SessionID).Scan(
+		&session.ID,
+		&session.UserID,
+		&session.ParentID,
+		&session.UploadID,
+		&session.Name,
+		&session.DeclaredSize,
+		&session.ReceivedSize,
+		&session.MIMEType,
+		&session.Status,
+		&session.StorageBackend,
+		&session.StoragePath,
+		&session.ChecksumSHA256,
+		&session.ExpiresAt,
+		&session.CreatedAt,
+		&session.UpdatedAt,
+		&finalizedAt,
+		&canceledAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return UploadSession{}, fmt.Errorf("cancelable drive upload session not found")
+		}
+		return UploadSession{}, fmt.Errorf("cancel drive upload session: %w", err)
+	}
+	if finalizedAt.Valid {
+		session.FinalizedAt = finalizedAt.Time
+	}
+	if canceledAt.Valid {
+		session.CanceledAt = canceledAt.Time
+	}
+	return session, nil
+}

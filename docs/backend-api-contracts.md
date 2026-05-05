@@ -170,6 +170,9 @@ or development `user_id` fallback path as webmail mail routes:
 - `GET /api/v1/drive/upload-sessions/{id}` returns
   `{"drive_upload_session":{...}}` for status refresh, retry, and future
   resumable-upload UI state.
+- `DELETE /api/v1/drive/upload-sessions/{id}` cancels a pending, uploading,
+  or failed session and returns `{"drive_upload_session":{...}}` with
+  `status=canceled`.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",

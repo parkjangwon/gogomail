@@ -88,6 +88,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session reads are now exposed through a Mail API route so
   frontend clients can refresh pending/uploading/finalized/canceled/expired
   state through a stable envelope.
+- Drive upload-session cancelation is now exposed through a Mail API route,
+  letting clients close abandoned pending/uploading/failed sessions before
+  expiry cleanup handles them.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

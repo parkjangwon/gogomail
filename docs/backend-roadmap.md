@@ -1843,6 +1843,9 @@ Implementation order:
 991. Mail API now exposes `GET /api/v1/drive/upload-sessions/{id}`, giving
      production Drive clients a stable upload-session status refresh path for
      retry and future resumable-upload state.
+992. Mail API now exposes `DELETE /api/v1/drive/upload-sessions/{id}`,
+     allowing production Drive clients to cancel pending, uploading, or failed
+     sessions explicitly instead of waiting for expiry cleanup.
 
 ## Deferred until backend contracts stabilize
 

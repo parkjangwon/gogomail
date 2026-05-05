@@ -384,6 +384,8 @@ Current state:
   optional RFC3339 expiration.
 - Mail API now exposes `GET /api/v1/drive/upload-sessions/{id}` for upload
   session status refresh and retry-state hydration.
+- Mail API now exposes `DELETE /api/v1/drive/upload-sessions/{id}` for
+  explicit cancelation of pending/uploading/failed Drive upload sessions.
 
 Next:
 

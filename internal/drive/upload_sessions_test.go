@@ -97,6 +97,39 @@ func TestValidateGetUploadSessionRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateCancelUploadSessionRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateCancelUploadSessionRequest(CancelUploadSessionRequest{UserID: " user-1 ", SessionID: " session-1 "})
+	if err != nil {
+		t.Fatalf("ValidateCancelUploadSessionRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.SessionID != "session-1" {
+		t.Fatalf("request = %+v, want trimmed fields", req)
+	}
+}
+
+func TestValidateCancelUploadSessionRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []CancelUploadSessionRequest{
+		{SessionID: "session-1"},
+		{UserID: "user-1"},
+		{UserID: "user\n1", SessionID: "session-1"},
+		{UserID: "user-1", SessionID: "session\n1"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.SessionID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateCancelUploadSessionRequest(tc); err == nil {
+				t.Fatalf("ValidateCancelUploadSessionRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidateUploadSessionStatus(t *testing.T) {
 	t.Parallel()
 
