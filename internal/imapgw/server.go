@@ -2153,9 +2153,6 @@ func imapSearchKeywordValid(value string) bool {
 }
 
 func imapSearchStringArgument(value string) (string, bool) {
-	if strings.Contains(value, `"`) {
-		return "", false
-	}
 	return value, true
 }
 
@@ -5821,9 +5818,6 @@ func imapDecodeMailboxBase64(value string) (string, bool) {
 }
 
 func imapListPattern(reference string, pattern string) (string, bool) {
-	if strings.Contains(reference, `"`) || strings.Contains(pattern, `"`) {
-		return "", false
-	}
 	var ok bool
 	reference, ok = imapDecodeMailboxName(reference)
 	if !ok {
@@ -6004,7 +5998,7 @@ func parseIMAPFieldsWithLiteral(line string, literal *string) ([]string, error) 
 		}
 		start := i
 		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
-			if line[i] == '"' && line[start] != '(' && i+1 < len(line) && line[i+1] != ' ' && line[i+1] != '\t' {
+			if line[i] == '"' && line[start] != '(' {
 				return nil, fmt.Errorf("invalid embedded atom quote character")
 			}
 			if line[i] < 0x20 || line[i] == 0x7f {

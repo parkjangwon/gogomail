@@ -1515,9 +1515,14 @@ Implementation order:
      malformed keyword atoms that still contain quote characters after command
      parsing, preventing broken values such as `KEYWORD custom"` from being
      silently normalized.
-906. IMAP `LIST` and `LSUB` reference/pattern atoms now reject malformed values
-     that still contain quote characters after command parsing, preventing
-     broken mailbox patterns such as `INBOX"` from being silently normalized.
+906. IMAP command tokenization now rejects dangling quote characters at the end
+     of unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
+     `LIST "" INBOX"` from reaching command-specific normalization while
+     preserving valid escaped quotes inside proper quoted strings.
+907. IMAP `SEARCH` text arguments now preserve valid RFC quoted-special escaped
+     quotes from proper quoted strings, so standards-shaped searches such as
+     `SUBJECT "Project \"Q2\""` remain compatible while malformed atom quotes
+     are rejected by command parsing.
 
 ## Deferred until backend contracts stabilize
 
