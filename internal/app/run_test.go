@@ -228,6 +228,23 @@ func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
 	}
 }
 
+func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
+	t.Parallel()
+
+	runtime := newIMAPGatewayRuntime(nil, nil, nil)
+	opts, err := imapServerOptionsForConfig(config.Config{
+		IMAPAddr:              " :1143 ",
+		IMAPAllowInsecureAuth: true,
+		SMTPDomain:            "localhost",
+	}, runtime.backend)
+	if err != nil {
+		t.Fatalf("imapServerOptionsForConfig returned error: %v", err)
+	}
+	if opts.Addr != ":1143" || opts.Backend == nil || opts.TLSConfig != nil || !opts.AllowInsecureAuth {
+		t.Fatalf("options = %+v", opts)
+	}
+}
+
 func TestAllInOneHTTPModeIncludesMailAndAdminAPIs(t *testing.T) {
 	t.Parallel()
 

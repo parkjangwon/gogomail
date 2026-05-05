@@ -135,6 +135,13 @@ type imapGatewayRuntime struct {
 	events  *imapgw.MailboxEventBroker
 }
 
+type imapServerOptions struct {
+	Addr              string
+	Backend           imapgw.Backend
+	TLSConfig         *tls.Config
+	AllowInsecureAuth bool
+}
+
 func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator) imapGatewayRuntime {
 	events := imapgw.NewMailboxEventBroker(32)
 	service := mailservice.New(repository, store).WithIMAPMailboxEvents(events)
@@ -144,6 +151,19 @@ func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Stor
 		backend: mailservice.NewIMAPBackendAdapter(authenticator, service),
 		events:  events,
 	}
+}
+
+func imapServerOptionsForConfig(cfg config.Config, backend imapgw.Backend) (imapServerOptions, error) {
+	tlsConfig, err := imapTLSConfig(cfg)
+	if err != nil {
+		return imapServerOptions{}, err
+	}
+	return imapServerOptions{
+		Addr:              strings.TrimSpace(cfg.IMAPAddr),
+		Backend:           backend,
+		TLSConfig:         tlsConfig,
+		AllowInsecureAuth: cfg.IMAPAllowInsecureAuth,
+	}, nil
 }
 
 func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
@@ -159,12 +179,16 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	repository := maildb.NewRepository(db)
 	runtime := newIMAPGatewayRuntime(repository, store, repository)
+	serverOptions, err := imapServerOptionsForConfig(cfg, runtime.backend)
+	if err != nil {
+		return err
+	}
 	logger.Info(
 		"imap gateway scaffold ready",
 		"mode", ModeIMAP,
-		"addr", cfg.IMAPAddr,
-		"tls_configured", strings.TrimSpace(cfg.IMAPTLSCertFile) != "",
-		"allow_insecure_auth", cfg.IMAPAllowInsecureAuth,
+		"addr", serverOptions.Addr,
+		"tls_configured", serverOptions.TLSConfig != nil,
+		"allow_insecure_auth", serverOptions.AllowInsecureAuth,
 		"mailbox_event_broker", runtime.events != nil,
 		"backend_adapter", "service",
 		"protocol_listener", "deferred",

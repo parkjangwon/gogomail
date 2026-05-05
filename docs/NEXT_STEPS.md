@@ -214,6 +214,9 @@ Current state:
 - `mailservice.NewIMAPBackendAdapter` composes the protocol authenticator with
   the service-backed store/session adapter, so the future TCP listener can take
   one `imapgw.Backend` boundary.
+- IMAP runtime now builds listener-ready server options containing address,
+  backend, TLS config, and insecure-auth policy while still deferring the actual
+  TCP protocol server.
 
 Next:
 

@@ -786,6 +786,9 @@ Implementation order:
      object-key prefixes during config validation, surfacing duplicate
      separators, dot segments, traversal, or backslash mistakes before adapter
      construction.
+688. IMAP runtime now builds listener-ready server options containing address,
+     backend, TLS config, and insecure-auth policy while still deferring the
+     actual TCP protocol server.
 
 ## Deferred until backend contracts stabilize
 
