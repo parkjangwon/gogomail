@@ -403,6 +403,9 @@ Drive upload session state for a user without entering the webmail API surface.
 `user_id` plus bounded `parent_id`, lifecycle `status`, `q`, and `limit`
 filters so operator consoles can inspect or name-filter a user's Drive
 inventory through the same node read model used by webmail clients.
+`GET /admin/v1/drive-nodes/{id}` returns `{"drive_node":{...}}` with required
+`user_id` and optional lifecycle `status`, giving operator consoles a bounded
+single-node metadata view for files and folders.
 `POST /admin/v1/drive-upload-cleanup/candidates` accepts the same explicit
 cleanup preview body as attachment cleanup and returns
 `{"drive_upload_cleanup_candidates":{...}}` with stale Drive upload-session

@@ -1886,19 +1886,22 @@ Implementation order:
 1003. Admin API now exposes `GET /admin/v1/drive-nodes` with required user
       scope plus parent/status/name/limit filters, giving operator consoles a
       bounded Drive inventory view through the existing node read model.
-1004. Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates`
+1004. Admin API now exposes `GET /admin/v1/drive-nodes/{id}` with required
+      user scope and lifecycle status filtering, giving operator consoles a
+      bounded single-node metadata inspection view.
+1005. Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates`
       for stale Drive upload-session cleanup counts and bounded candidate rows,
       giving operator consoles a non-destructive preview before worker cleanup.
-1005. Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for
+1006. Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for
       explicit audited one-shot stale Drive upload-session expiry with
       candidate counts and expired session rows.
-1006. Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with
+1007. Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with
       bounded user/status/limit filters so operator consoles can inspect
       pending or resolved Drive backend object cleanup drift.
-1007. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`
+1008. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`
       for audited operator closure of pending Drive cleanup failures after
       external object cleanup verification.
-1008. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`
+1009. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`
       for audited bounded retry of pending Drive object cleanup failures, with
       scanned/deleted/resolved/failed counts for operator consoles.
 

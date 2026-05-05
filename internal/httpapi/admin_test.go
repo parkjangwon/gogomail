@@ -831,6 +831,74 @@ func TestAdminDriveNodesHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminDriveNodeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		driveNode: drive.Node{
+			ID:     "node-1",
+			UserID: "user-1",
+			Name:   "Report.pdf",
+			Type:   drive.NodeTypeFile,
+			Status: drive.NodeStatusActive,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-nodes/node-1?user_id=%20user-1%20&status=active", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Node drive.Node `json:"drive_node"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Node.ID != "node-1" {
+		t.Fatalf("node = %+v", body.Node)
+	}
+	if service.lastDriveNodeGet.UserID != "user-1" || service.lastDriveNodeGet.NodeID != "node-1" || service.lastDriveNodeGet.Status != drive.NodeStatusActive {
+		t.Fatalf("lastDriveNodeGet = %+v", service.lastDriveNodeGet)
+	}
+}
+
+func TestAdminDriveNodeHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/drive-nodes/node-1?user_id=user%0Abad",
+		"/admin/v1/drive-nodes/node-1?user_id=user-1&status=missing",
+		"/admin/v1/drive-nodes/node%0A1?user_id=user-1",
+		"/admin/v1/drive-nodes/node-1?user_id=user-1&cursor=opaque",
+		"/admin/v1/drive-nodes/node-1",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDriveNodeGet.NodeID != "" {
+				t.Fatalf("get was called: %+v", service.lastDriveNodeGet)
+			}
+		})
+	}
+}
+
 func TestAdminDriveUploadSessionsHandlerRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 
@@ -6447,6 +6515,7 @@ type fakeAdminService struct {
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
+	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
 	driveUploadSessions                         []drive.UploadSession
 	apiUsageExportHandoff                       maildb.APIUsageExportHandoffView
@@ -6525,6 +6594,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListBefore      time.Time
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
+	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
 	lastDriveUploadSessionList                  drive.ListUploadSessionsRequest
 	lastDriveUploadCleanupBefore                time.Time
@@ -6799,6 +6869,11 @@ func (f *fakeAdminService) ListDriveNodes(_ context.Context, req drive.ListNodes
 	f.lastDriveNodeList = req
 	f.lastLimit = req.Limit
 	return f.driveNodes, nil
+}
+
+func (f *fakeAdminService) GetDriveNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {
+	f.lastDriveNodeGet = req
+	return f.driveNode, nil
 }
 
 func (f *fakeAdminService) CountStaleDriveUploadSessions(_ context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error) {

@@ -418,6 +418,8 @@ Current state:
 - Drive node listing now supports a bounded `q` name filter on both Mail and
   Admin API list surfaces, with case-insensitive normalization and literal
   wildcard handling.
+- Admin API now exposes `GET /admin/v1/drive-nodes/{id}` with required user
+  scope and lifecycle status filtering for single-node metadata inspection.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for
