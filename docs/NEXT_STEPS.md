@@ -386,11 +386,14 @@ Current state:
   session status refresh and retry-state hydration.
 - Mail API now exposes `DELETE /api/v1/drive/upload-sessions/{id}` for
   explicit cancelation of pending/uploading/failed Drive upload sessions.
+- `internal/drive.Service.StoreUploadSessionBody` now streams retry bodies to
+  distinct session object paths, verifies declared size and optional checksum,
+  records storage metadata, and cleans failed/superseded objects best-effort.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session body/finalize service and API methods so clients
+- Add Drive upload-session body API and finalize service/API methods so clients
   can reserve quota, retry large objects, and surface resumable upload state.
 
 ### 2. Message threading and search

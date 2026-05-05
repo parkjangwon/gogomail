@@ -4,8 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 const (
@@ -60,6 +63,21 @@ type GetUploadSessionRequest struct {
 type CancelUploadSessionRequest struct {
 	UserID    string
 	SessionID string
+}
+
+type StoreUploadSessionBodyRequest struct {
+	UserID                 string
+	SessionID              string
+	ExpectedChecksumSHA256 string
+	Body                   io.Reader
+}
+
+type RecordUploadSessionBodyRequest struct {
+	UserID         string
+	SessionID      string
+	ReceivedSize   int64
+	StoragePath    string
+	ChecksumSHA256 string
 }
 
 func NewUploadID() (string, error) {
@@ -142,6 +160,52 @@ func ValidateCancelUploadSessionRequest(req CancelUploadSessionRequest) (CancelU
 	return CancelUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
 }
 
+func ValidateStoreUploadSessionBodyRequest(req StoreUploadSessionBodyRequest) (StoreUploadSessionBodyRequest, error) {
+	userID, sessionID, err := validateUploadSessionIdentity(req.UserID, req.SessionID)
+	if err != nil {
+		return StoreUploadSessionBodyRequest{}, err
+	}
+	expectedChecksum := strings.TrimSpace(strings.ToLower(req.ExpectedChecksumSHA256))
+	if expectedChecksum != "" {
+		expectedChecksum, err = validateRequiredDriveChecksum("expected_checksum_sha256", expectedChecksum)
+		if err != nil {
+			return StoreUploadSessionBodyRequest{}, err
+		}
+	}
+	if req.Body == nil {
+		return StoreUploadSessionBodyRequest{}, fmt.Errorf("drive upload session body is required")
+	}
+	return StoreUploadSessionBodyRequest{UserID: userID, SessionID: sessionID, ExpectedChecksumSHA256: expectedChecksum, Body: req.Body}, nil
+}
+
+func ValidateRecordUploadSessionBodyRequest(req RecordUploadSessionBodyRequest) (RecordUploadSessionBodyRequest, error) {
+	userID, sessionID, err := validateUploadSessionIdentity(req.UserID, req.SessionID)
+	if err != nil {
+		return RecordUploadSessionBodyRequest{}, err
+	}
+	if req.ReceivedSize < 0 {
+		return RecordUploadSessionBodyRequest{}, fmt.Errorf("received_size must not be negative")
+	}
+	storagePath := strings.TrimSpace(req.StoragePath)
+	if storagePath == "" {
+		return RecordUploadSessionBodyRequest{}, fmt.Errorf("storage_path is required")
+	}
+	if _, err := storage.ValidateObjectPath(storagePath); err != nil {
+		return RecordUploadSessionBodyRequest{}, fmt.Errorf("storage_path is invalid: %w", err)
+	}
+	checksum, err := validateRequiredDriveChecksum("checksum_sha256", req.ChecksumSHA256)
+	if err != nil {
+		return RecordUploadSessionBodyRequest{}, err
+	}
+	return RecordUploadSessionBodyRequest{
+		UserID:         userID,
+		SessionID:      sessionID,
+		ReceivedSize:   req.ReceivedSize,
+		StoragePath:    storagePath,
+		ChecksumSHA256: checksum,
+	}, nil
+}
+
 func validateUploadSessionIdentity(userIDValue string, sessionIDValue string) (string, string, error) {
 	userID, err := validateDriveID("user_id", userIDValue, true)
 	if err != nil {
@@ -152,6 +216,17 @@ func validateUploadSessionIdentity(userIDValue string, sessionIDValue string) (s
 		return "", "", err
 	}
 	return userID, sessionID, nil
+}
+
+func validateRequiredDriveChecksum(field string, value string) (string, error) {
+	value, err := validateDriveChecksum(value)
+	if err != nil {
+		return "", err
+	}
+	if value == "" {
+		return "", fmt.Errorf("%s is required", field)
+	}
+	return value, nil
 }
 
 func ValidateUploadSessionStatus(status string) (string, error) {

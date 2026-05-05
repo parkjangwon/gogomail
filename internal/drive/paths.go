@@ -25,6 +25,26 @@ func BuildStagedObjectPath(userID string, uploadID string) (string, error) {
 	return path, nil
 }
 
+func BuildUploadSessionBodyPath(userID string, sessionID string, objectID string) (string, error) {
+	userID, err := validateDriveObjectPathID("user_id", userID)
+	if err != nil {
+		return "", err
+	}
+	sessionID, err = validateDriveObjectPathID("session_id", sessionID)
+	if err != nil {
+		return "", err
+	}
+	objectID, err = validateDriveObjectPathID("object_id", objectID)
+	if err != nil {
+		return "", err
+	}
+	path := fmt.Sprintf("%s/%s/upload-sessions/%s/bodies/%s", driveObjectRoot, userID, sessionID, objectID)
+	if _, err := storage.ValidateObjectPath(path); err != nil {
+		return "", fmt.Errorf("build drive upload session body path: %w", err)
+	}
+	return path, nil
+}
+
 func BuildNodeObjectPath(userID string, nodeID string) (string, error) {
 	userID, err := validateDriveObjectPathID("user_id", userID)
 	if err != nil {

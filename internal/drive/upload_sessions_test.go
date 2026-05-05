@@ -130,6 +130,64 @@ func TestValidateCancelUploadSessionRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateStoreUploadSessionBodyRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateStoreUploadSessionBodyRequest(StoreUploadSessionBodyRequest{
+		UserID:                 " user-1 ",
+		SessionID:              " session-1 ",
+		ExpectedChecksumSHA256: strings.Repeat("A", 64),
+		Body:                   strings.NewReader("body"),
+	})
+	if err != nil {
+		t.Fatalf("ValidateStoreUploadSessionBodyRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.SessionID != "session-1" || req.ExpectedChecksumSHA256 != strings.Repeat("a", 64) {
+		t.Fatalf("request = %+v, want trimmed identity and normalized checksum", req)
+	}
+}
+
+func TestValidateStoreUploadSessionBodyRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []StoreUploadSessionBodyRequest{
+		{SessionID: "session-1", Body: strings.NewReader("body")},
+		{UserID: "user-1", Body: strings.NewReader("body")},
+		{UserID: "user\n1", SessionID: "session-1", Body: strings.NewReader("body")},
+		{UserID: "user-1", SessionID: "session\n1", Body: strings.NewReader("body")},
+		{UserID: "user-1", SessionID: "session-1", ExpectedChecksumSHA256: "not-sha", Body: strings.NewReader("body")},
+		{UserID: "user-1", SessionID: "session-1"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.SessionID+"-"+tc.ExpectedChecksumSHA256, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateStoreUploadSessionBodyRequest(tc); err == nil {
+				t.Fatalf("ValidateStoreUploadSessionBodyRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
+func TestValidateRecordUploadSessionBodyRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateRecordUploadSessionBodyRequest(RecordUploadSessionBodyRequest{
+		UserID:         " user-1 ",
+		SessionID:      " session-1 ",
+		ReceivedSize:   4,
+		StoragePath:    " drive/users/user-1/upload-sessions/session-1/bodies/body-1 ",
+		ChecksumSHA256: strings.Repeat("A", 64),
+	})
+	if err != nil {
+		t.Fatalf("ValidateRecordUploadSessionBodyRequest returned error: %v", err)
+	}
+	if req.StoragePath != "drive/users/user-1/upload-sessions/session-1/bodies/body-1" || req.ChecksumSHA256 != strings.Repeat("a", 64) {
+		t.Fatalf("request = %+v, want trimmed path and normalized checksum", req)
+	}
+}
+
 func TestValidateUploadSessionStatus(t *testing.T) {
 	t.Parallel()
 
