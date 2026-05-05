@@ -407,7 +407,8 @@ Current state:
   successful storage can emit `[APPENDUID uidvalidity uid]`; the service layer
   spools and size-checks the literal, parses the RFC message, writes raw `.eml`
   through the configured storage backend, and `maildb` records metadata, quota,
-  outbox, and mailbox UID state transactionally.
+  outbox, and mailbox UID state transactionally. Missing destination mailboxes
+  now produce an RFC-shaped `[TRYCREATE]` response code.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder

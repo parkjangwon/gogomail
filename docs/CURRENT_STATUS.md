@@ -957,7 +957,8 @@ The platform hardening sprint completed the following:
   service layer now spools and size-checks the literal body, parses the RFC
   message, writes the raw `.eml` through the configured storage backend, asks
   `maildb` to insert metadata, quota, outbox, and mailbox UID state in one
-  transaction, and publishes best-effort destination `EXISTS` events.
+  transaction, publishes best-effort destination `EXISTS` events, and returns
+  `[TRYCREATE]` when the destination mailbox is missing.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

@@ -80,7 +80,7 @@ LIMIT 1`
 		&target.Address,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return IMAPAppendTarget{}, fmt.Errorf("imap append mailbox %q not found", mailboxID)
+			return IMAPAppendTarget{}, fmt.Errorf("%w: %q", imapgw.ErrMailboxNotFound, mailboxID)
 		}
 		return IMAPAppendTarget{}, fmt.Errorf("resolve imap append target: %w", err)
 	}
