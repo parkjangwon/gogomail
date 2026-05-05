@@ -752,7 +752,11 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
 	}
-	results, ok := imapSearchResults(fields[2:], messages, uidMode)
+	results, ok, err := s.imapSearchResults(context.Background(), state, fields[2:], messages, uidMode)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
+		return false, writeErr
+	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
 		return false, err
@@ -768,15 +772,15 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	return false, err
 }
 
-func imapSearchResults(criteria []string, messages []MessageSummary, uidMode bool) ([]uint32, bool) {
+func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool) ([]uint32, bool, error) {
 	if len(criteria) == 0 {
-		return nil, false
+		return nil, false, nil
 	}
 	predicates := make([]imapSearchPredicate, 0, len(criteria))
 	for i := 0; i < len(criteria); {
 		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:])
 		if !ok {
-			return nil, false
+			return nil, false, nil
 		}
 		if predicate != nil {
 			predicates = append(predicates, predicate)
@@ -785,7 +789,11 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 	}
 	results := make([]uint32, 0, len(messages))
 	for i, summary := range messages {
-		if !imapMessageMatchesSearchPredicates(summary, i, predicates) {
+		matches, err := s.imapMessageMatchesSearchPredicates(ctx, state, summary, i, predicates)
+		if err != nil {
+			return nil, true, err
+		}
+		if !matches {
 			continue
 		}
 		if uidMode {
@@ -794,10 +802,10 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 		}
 		results = append(results, imapSearchSequenceNumber(summary, i))
 	}
-	return results, true
+	return results, true, nil
 }
 
-type imapSearchPredicate func(MessageSummary, int) bool
+type imapSearchPredicate func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error)
 
 func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool) {
 	if len(criteria) == 0 {
@@ -813,10 +821,14 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 			return nil, 0, false
 		}
 		if predicate == nil {
-			return func(MessageSummary, int) bool { return false }, consumed + 1, true
+			return func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error) { return false, nil }, consumed + 1, true
 		}
-		return func(summary MessageSummary, index int) bool {
-			return !predicate(summary, index)
+		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, index int) (bool, error) {
+			matches, err := predicate(ctx, server, state, summary, index)
+			if err != nil {
+				return false, err
+			}
+			return !matches, nil
 		}, consumed + 1, true
 	case "OR":
 		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:])
@@ -827,12 +839,19 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		if !ok {
 			return nil, 0, false
 		}
-		return func(summary MessageSummary, index int) bool {
-			return imapSearchPredicateMatches(left, summary, index) || imapSearchPredicateMatches(right, summary, index)
+		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, index int) (bool, error) {
+			leftMatches, err := imapSearchPredicateMatches(ctx, server, state, left, summary, index)
+			if err != nil {
+				return false, err
+			}
+			if leftMatches {
+				return true, nil
+			}
+			return imapSearchPredicateMatches(ctx, server, state, right, summary, index)
 		}, 1 + leftConsumed + rightConsumed, true
 	case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED", "DRAFT", "UNDRAFT":
-		return func(summary MessageSummary, _ int) bool {
-			return imapMessageMatchesFlagSearch(summary, criterion)
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return imapMessageMatchesFlagSearch(summary, criterion), nil
 		}, 1, true
 	case "UID":
 		if len(criteria) < 2 {
@@ -846,9 +865,9 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		for _, uid := range uids {
 			allowed[uid] = struct{}{}
 		}
-		return func(summary MessageSummary, _ int) bool {
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			_, ok := allowed[summary.UID]
-			return ok
+			return ok, nil
 		}, 2, true
 	case "SINCE", "BEFORE", "ON":
 		if len(criteria) < 2 {
@@ -858,8 +877,8 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		if !ok {
 			return nil, 0, false
 		}
-		return func(summary MessageSummary, _ int) bool {
-			return imapMessageMatchesDateSearch(summary, criterion, day)
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return imapMessageMatchesDateSearch(summary, criterion, day), nil
 		}, 2, true
 	case "SENTSINCE", "SENTBEFORE", "SENTON":
 		if len(criteria) < 2 {
@@ -869,8 +888,8 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		if !ok {
 			return nil, 0, false
 		}
-		return func(summary MessageSummary, _ int) bool {
-			return imapMessageMatchesSentDateSearch(summary, criterion, day)
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return imapMessageMatchesSentDateSearch(summary, criterion, day), nil
 		}, 2, true
 	case "LARGER", "SMALLER":
 		if len(criteria) < 2 {
@@ -880,36 +899,48 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		if !ok {
 			return nil, 0, false
 		}
-		return func(summary MessageSummary, _ int) bool {
-			return imapMessageMatchesSizeSearch(summary, criterion, size)
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return imapMessageMatchesSizeSearch(summary, criterion, size), nil
 		}, 2, true
 	case "FROM", "TO", "CC", "BCC", "SUBJECT":
 		if len(criteria) < 2 {
 			return nil, 0, false
 		}
 		query := criteria[1]
-		return func(summary MessageSummary, _ int) bool {
-			return imapMessageMatchesTextSearch(summary, criterion, strings.ToLower(strings.Trim(query, `"`)))
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return imapMessageMatchesTextSearch(summary, criterion, strings.ToLower(strings.Trim(query, `"`))), nil
+		}, 2, true
+	case "BODY", "TEXT":
+		if len(criteria) < 2 {
+			return nil, 0, false
+		}
+		query := strings.ToLower(strings.Trim(criteria[1], `"`))
+		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return server.imapMessageMatchesBodySearch(ctx, state, summary, criterion, query)
 		}, 2, true
 	default:
 		return nil, 0, false
 	}
 }
 
-func imapSearchPredicateMatches(predicate imapSearchPredicate, summary MessageSummary, index int) bool {
+func imapSearchPredicateMatches(ctx context.Context, server *Server, state *imapConnState, predicate imapSearchPredicate, summary MessageSummary, index int) (bool, error) {
 	if predicate == nil {
-		return true
+		return true, nil
 	}
-	return predicate(summary, index)
+	return predicate(ctx, server, state, summary, index)
 }
 
-func imapMessageMatchesSearchPredicates(summary MessageSummary, index int, predicates []imapSearchPredicate) bool {
+func (s *Server) imapMessageMatchesSearchPredicates(ctx context.Context, state *imapConnState, summary MessageSummary, index int, predicates []imapSearchPredicate) (bool, error) {
 	for _, predicate := range predicates {
-		if !imapSearchPredicateMatches(predicate, summary, index) {
-			return false
+		matches, err := imapSearchPredicateMatches(ctx, s, state, predicate, summary, index)
+		if err != nil {
+			return false, err
+		}
+		if !matches {
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
 func imapSearchSequenceNumber(summary MessageSummary, index int) uint32 {
@@ -1135,6 +1166,51 @@ func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, quer
 	default:
 		return false
 	}
+}
+
+const maxIMAPSearchLiteralBytes = 1 << 20
+
+func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapConnState, summary MessageSummary, criterion string, query string) (bool, error) {
+	if s == nil || state == nil || state.session == nil || query == "" || summary.UID == 0 {
+		return false, nil
+	}
+	message, err := s.options.Backend.FetchMessage(ctx, FetchMessageRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		UID:       summary.UID,
+	})
+	if err != nil {
+		return false, err
+	}
+	if message.Body == nil {
+		return false, nil
+	}
+	defer message.Body.Close()
+	literal, err := readIMAPSearchLiteral(message.Body, strings.EqualFold(criterion, "BODY"))
+	if err != nil {
+		return false, err
+	}
+	return strings.Contains(strings.ToLower(string(literal)), query), nil
+}
+
+func readIMAPSearchLiteral(reader io.Reader, bodyOnly bool) ([]byte, error) {
+	if reader == nil {
+		return nil, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(reader, maxIMAPSearchLiteralBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxIMAPSearchLiteralBytes {
+		data = data[:maxIMAPSearchLiteralBytes]
+	}
+	if !bodyOnly {
+		return data, nil
+	}
+	if end := imapHeaderEnd(data); end >= 0 {
+		return data[end:], nil
+	}
+	return nil, nil
 }
 
 func imapAddressListContains(addresses []Address, query string) bool {
