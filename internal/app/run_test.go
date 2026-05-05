@@ -44,6 +44,28 @@ func TestSMTPTLSConfigAllowsNoTLSFiles(t *testing.T) {
 	}
 }
 
+func TestIMAPTLSConfigRequiresCertAndKeyTogether(t *testing.T) {
+	t.Parallel()
+
+	if _, err := imapTLSConfig(config.Config{IMAPTLSCertFile: "cert.pem"}); err == nil {
+		t.Fatal("imapTLSConfig accepted certificate without key")
+	}
+	if _, err := imapTLSConfig(config.Config{IMAPTLSKeyFile: "key.pem"}); err == nil {
+		t.Fatal("imapTLSConfig accepted key without certificate")
+	}
+}
+
+func TestIMAPTLSServerNameUsesListenerHost(t *testing.T) {
+	t.Parallel()
+
+	if got := imapTLSServerName(config.Config{IMAPAddr: "imap.example.com:993", SMTPDomain: "smtp.example.com"}); got != "imap.example.com" {
+		t.Fatalf("server name = %q, want imap listener host", got)
+	}
+	if got := imapTLSServerName(config.Config{IMAPAddr: ":1143", SMTPDomain: "smtp.example.com"}); got != "smtp.example.com" {
+		t.Fatalf("server name = %q, want SMTP domain fallback", got)
+	}
+}
+
 type fakeStorageChecker struct {
 	err error
 }

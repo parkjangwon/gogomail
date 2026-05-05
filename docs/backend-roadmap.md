@@ -767,6 +767,9 @@ Implementation order:
 682. Runtime config now loads and validates IMAP TLS certificate/key paths plus
      `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH`, preventing production IMAP auth from
      being enabled with cleartext credential policy.
+683. IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
+     files with TLS 1.2 minimum and derive the server name from the IMAP
+     listener host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
 
 ## Deferred until backend contracts stabilize
 

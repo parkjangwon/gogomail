@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -589,6 +590,32 @@ func smtpTLSConfig(cfg config.Config) (*tls.Config, error) {
 		MinVersion:   tls.VersionTLS12,
 		ServerName:   cfg.SMTPDomain,
 	}, nil
+}
+
+func imapTLSConfig(cfg config.Config) (*tls.Config, error) {
+	if cfg.IMAPTLSCertFile == "" && cfg.IMAPTLSKeyFile == "" {
+		return nil, nil
+	}
+	if cfg.IMAPTLSCertFile == "" || cfg.IMAPTLSKeyFile == "" {
+		return nil, errors.New("both IMAP TLS certificate and key files are required")
+	}
+	cert, err := tls.LoadX509KeyPair(cfg.IMAPTLSCertFile, cfg.IMAPTLSKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+		ServerName:   imapTLSServerName(cfg),
+	}, nil
+}
+
+func imapTLSServerName(cfg config.Config) string {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(cfg.IMAPAddr))
+	if err == nil && strings.TrimSpace(host) != "" {
+		return strings.Trim(host, "[]")
+	}
+	return strings.TrimSpace(cfg.SMTPDomain)
 }
 
 func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, component string) ([]smtpd.Hook, error) {

@@ -258,6 +258,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Runtime config also loads and validates IMAP TLS certificate/key paths plus
   `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH`, preventing production IMAP auth from
   being enabled with cleartext credential policy.
+- IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
+  files with TLS 1.2 minimum and derive the server name from the IMAP listener
+  host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
 - ADR 0008 records the IMAP authentication/session contract: protocol auth uses
   a dedicated adapter over local user password hashes, JWT remains HTTP-only,
   production auth requires TLS policy review, and MOVE/EXPUNGE stay explicitly
