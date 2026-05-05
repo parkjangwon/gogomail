@@ -3206,15 +3206,39 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID FETCH 11 BODY[2]\r\n")); err != nil {
-		t.Fatalf("write uid fetch part: %v", err)
+	if _, err := client.Write([]byte("a3 UID FETCH 11 BODY[1]\r\n")); err != nil {
+		t.Fatalf("write uid fetch first part: %v", err)
 	}
 	bodySize := len(testMultipartBody())
 	line, err := reader.ReadString('\n')
 	if err != nil {
+		t.Fatalf("read first part literal header: %v", err)
+	}
+	wantPrefix := fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1] {5}\r\n", bodySize)
+	if line != wantPrefix {
+		t.Fatalf("first part literal header = %q, want %q", line, wantPrefix)
+	}
+	firstPart := make([]byte, 5)
+	if _, err := io.ReadFull(reader, firstPart); err != nil {
+		t.Fatalf("read first part literal: %v", err)
+	}
+	if string(firstPart) != "hello" {
+		t.Fatalf("first part literal = %q", firstPart)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("first part close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("first part completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 UID FETCH 11 BODY[2]\r\n")); err != nil {
+		t.Fatalf("write uid fetch part: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
 		t.Fatalf("read part literal header: %v", err)
 	}
-	wantPrefix := fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[2] {12}\r\n", bodySize)
+	wantPrefix = fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[2] {12}\r\n", bodySize)
 	if line != wantPrefix {
 		t.Fatalf("part literal header = %q, want %q", line, wantPrefix)
 	}
@@ -3228,10 +3252,10 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
 		t.Fatalf("part close = %q err = %v", line, err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a4 UID FETCH 11 BODY.PEEK[1.MIME]\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 UID FETCH 11 BODY.PEEK[1.MIME]\r\n")); err != nil {
 		t.Fatalf("write uid fetch part mime: %v", err)
 	}
 	header := "Content-Transfer-Encoding: 7bit\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n"
@@ -3253,10 +3277,10 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
 		t.Fatalf("part mime close = %q err = %v", line, err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
 		t.Fatalf("part mime completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

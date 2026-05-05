@@ -293,8 +293,8 @@ Current state:
 - `FETCH`/`UID FETCH` now support conservative single-part text literals for
   `BODY[1]` and `BODY.PEEK[1]`.
 - `FETCH`/`UID FETCH` now supports bounded top-level multipart body-section
-  literals such as `BODY[2]`, letting clients read individual MIME parts
-  without fetching the full message.
+  literals such as `BODY[1]` and `BODY[2]`, letting clients read individual
+  MIME parts without fetching the full message.
 - `FETCH`/`UID FETCH` now answers conservative single-part MIME header requests
   for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - `FETCH`/`UID FETCH` now streams actual multipart child MIME headers for
