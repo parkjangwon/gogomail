@@ -141,6 +141,37 @@ func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {
 	}
 }
 
+func TestS3StoreUsesPathStyleForDottedHTTPSBucket(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "https://s3.us-east-1.amazonaws.com/base",
+		Region:          "us-east-1",
+		Bucket:          "mail.example.com",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+	req, err := store.newRequest(context.Background(), http.MethodPut, "messages/msg-1.eml", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatalf("newRequest returned error: %v", err)
+	}
+	if req.URL.Scheme != "https" || req.URL.Host != "s3.us-east-1.amazonaws.com" {
+		t.Fatalf("request URL host = %s://%s", req.URL.Scheme, req.URL.Host)
+	}
+	if req.URL.EscapedPath() != "/base/mail.example.com/mail/messages/msg-1.eml" {
+		t.Fatalf("request path = %q", req.URL.EscapedPath())
+	}
+	if !strings.Contains(req.Header.Get("Authorization"), "SignedHeaders=host;x-amz-content-sha256;x-amz-date") {
+		t.Fatalf("Authorization = %q, want host signed header", req.Header.Get("Authorization"))
+	}
+}
+
 func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	t.Parallel()
 

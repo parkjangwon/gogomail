@@ -75,6 +75,7 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
+	forcePathStyle := opts.ForcePathStyle || s3BucketNeedsPathStyle(endpoint, bucket)
 	return &S3Store{
 		endpoint:        endpoint,
 		region:          region,
@@ -83,7 +84,7 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		accessKeyID:     accessKeyID,
 		secretAccessKey: opts.SecretAccessKey,
 		sessionToken:    opts.SessionToken,
-		forcePathStyle:  opts.ForcePathStyle,
+		forcePathStyle:  forcePathStyle,
 		client:          client,
 		now:             time.Now,
 	}, nil
@@ -211,6 +212,10 @@ func (s *S3Store) key(objectPath string) string {
 		return objectPath
 	}
 	return s.prefix + "/" + objectPath
+}
+
+func s3BucketNeedsPathStyle(endpoint *url.URL, bucket string) bool {
+	return endpoint != nil && endpoint.Scheme == "https" && strings.Contains(bucket, ".")
 }
 
 func (s *S3Store) sign(req *http.Request) {

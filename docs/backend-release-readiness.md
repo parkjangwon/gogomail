@@ -1034,6 +1034,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   userinfo, query strings, fragments, CR/LF-bearing target text, or
   non-canonical base paths, preventing ambiguous SigV4 signing and
   object-addressing configuration from reaching runtime storage probes.
+- S3-compatible request construction automatically falls back to path-style
+  addressing for dotted bucket names on HTTPS endpoints, avoiding AWS S3
+  virtual-hosted TLS wildcard certificate mismatches while keeping
+  virtual-hosted requests as the default for ordinary bucket names.
 - Optional S3-compatible integration coverage can exercise real
   `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
   `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are
