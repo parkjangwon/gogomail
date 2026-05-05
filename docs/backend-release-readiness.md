@@ -1074,6 +1074,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP UID dispatch validates authenticated syntax before selected-mailbox
   state so malformed or unknown UID subcommands produce `BAD` responses instead
   of being hidden behind state errors.
+- IMAP selected-state command dispatch validates obvious malformed
+  `FETCH`/`STORE`/`COPY`/`MOVE`/`SEARCH`/`SORT`/`THREAD` syntax before selected
+  mailbox state errors, keeping parser diagnostics precise for client authors.
 
 ## Must verify before release cut
 

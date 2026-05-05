@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UID subcommand dispatch validation)
+Last updated: 2026-05-05 (updated after IMAP selected-command syntax ordering)
 
 ## Current phase
 
@@ -1491,6 +1491,10 @@ The platform hardening sprint completed the following:
   subcommands, and unknown UID subcommands, before selected-mailbox state,
   while still returning selected-state `NO` for syntactically valid supported
   UID commands issued before `SELECT`/`EXAMINE`.
+- Authenticated selected-state IMAP commands now validate obvious malformed
+  `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
+  before returning `NO mailbox must be selected` for valid commands issued
+  outside selected state.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
