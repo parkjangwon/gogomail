@@ -492,6 +492,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API read/search/list, draft-search, attachment capability/session/download,
   and push-device list routes reject unknown query parameter names before
   dispatch, making generated-client typos visible as HTTP 400 responses.
+- Mail API mutation routes reject unknown query parameter names before dispatch,
+  and JSON-backed compose/draft/attachment/send mutations accept the documented
+  development-only `user_id` query fallback when JWT auth is disabled.
 - Admin company/domain/DNS-check/user list routes reject unknown query
   parameter names before dispatch, keeping core operator filters aligned with
   the documented contract.

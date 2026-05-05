@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after delivery retry-exhaustion DSN wiring)
+Last updated: 2026-05-05 (updated after Mail API mutation query guardrails)
 
 ## Current phase
 
@@ -958,6 +958,10 @@ The platform hardening sprint completed the following:
 - Mail API read/search/list, draft-search, attachment capability/session/download,
   and push-device list routes now reject unknown query parameter names before
   dispatch, making generated-client typos visible as HTTP 400 responses.
+- Mail API mutation routes now reject unknown query parameter names before
+  dispatch, and JSON-backed compose/draft/attachment/send mutations honor the
+  documented development-only `user_id` query fallback when JWT auth is
+  disabled.
 - Admin company/domain/DNS-check/user list routes now reject unknown query
   parameter names before dispatch, keeping core operator filters aligned with
   the documented contract.

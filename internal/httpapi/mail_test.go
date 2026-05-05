@@ -250,6 +250,100 @@ func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
 	}
 }
 
+func TestMailMutationHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		body       string
+		dispatched func(*fakeMessageService) bool
+	}{
+		{
+			name:   "create folder",
+			method: http.MethodPost,
+			path:   "/api/v1/folders?user_id=user-1&dry_run=true",
+			body:   `{"name":"Projects"}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
+			name:   "flag message",
+			method: http.MethodPatch,
+			path:   "/api/v1/messages/msg-1/flags?user_id=user-1&expand=true",
+			body:   `{"flag":"read","value":true}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastMessageID != ""
+			},
+		},
+		{
+			name:   "delete message",
+			method: http.MethodDelete,
+			path:   "/api/v1/messages/msg-1?user_id=user-1&force=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastDeletedID != ""
+			},
+		},
+		{
+			name:   "save draft",
+			method: http.MethodPost,
+			path:   "/api/v1/drafts?user_id=user-1&draft=true",
+			body:   `{"subject":"draft","text_body":"body"}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastDraft.UserID != ""
+			},
+		},
+		{
+			name:   "reserve attachment",
+			method: http.MethodPost,
+			path:   "/api/v1/attachments?user_id=user-1&filename=report.pdf",
+			body:   `{"filename":"report.pdf","size":42,"mime_type":"application/pdf"}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastAttachmentUpload.UserID != ""
+			},
+		},
+		{
+			name:   "send message",
+			method: http.MethodPost,
+			path:   "/api/v1/messages/send?user_id=user-1&preview=true",
+			body:   `{"to":[{"email":"recipient@example.net"}],"subject":"hello","text_body":"body"}`,
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastSend.UserID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			var body io.Reader
+			if tt.body != "" {
+				body = strings.NewReader(tt.body)
+			}
+			req := httptest.NewRequest(tt.method, tt.path, body)
+			if tt.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
+			}
+		})
+	}
+}
+
 func TestMailBodylessHandlersRejectPayloadMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -1591,7 +1685,7 @@ func TestUploadAttachmentHandlerRejectsAmbiguousMultipartScalars(t *testing.T) {
 	}
 }
 
-func TestUploadAttachmentHandlerIgnoresDraftIDQueryFallback(t *testing.T) {
+func TestUploadAttachmentHandlerRejectsDraftIDQueryFallback(t *testing.T) {
 	t.Parallel()
 
 	service := &fakeMessageService{}
@@ -1616,11 +1710,11 @@ func TestUploadAttachmentHandlerIgnoresDraftIDQueryFallback(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusCreated {
+	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastAttachmentUpload.DraftID != "" {
-		t.Fatalf("draft_id = %q, want empty body-only form value", service.lastAttachmentUpload.DraftID)
+	if service.lastAttachmentBody != "" || service.lastAttachmentUpload.UserID != "" {
+		t.Fatalf("handler dispatched for draft_id query fallback: body=%q req=%+v", service.lastAttachmentBody, service.lastAttachmentUpload)
 	}
 }
 

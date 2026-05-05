@@ -98,6 +98,10 @@ including health and service-info envelopes, also return
 - Without JWT configuration, development requests must pass `user_id` as a query parameter.
 - Development `user_id` query fallback values are trimmed and reject CR/LF-bearing
   or oversized identifiers before Mail API service dispatch.
+- JSON-backed compose, draft, attachment-reservation, and send mutations also
+  accept the development `user_id` query fallback; when present it is the
+  request-scoping source instead of a body field, matching generated-client
+  behavior.
 - The OpenAPI draft documents that reusable development-only `user_id` fallback
   parameter on every user-scoped Mail operation that can use it when JWT auth is
   disabled.
@@ -250,9 +254,9 @@ multipart body, not the URL query string, and reject repeated `draft_id` or
 filters must appear at most once; duplicate scalar query controls return HTTP
 400 `bad_request`.
 Mail API read/search/list, draft-search, attachment capability/session/download,
-and push-device list routes reject query parameter names outside their
-documented allowlists before service dispatch, so generated-client typos fail
-fast instead of being silently ignored.
+push-device list, and mutation routes reject query parameter names outside
+their documented allowlists before service dispatch, so generated-client typos
+or ignored control flags fail fast instead of being silently ignored.
 Admin company/domain/DNS-check/user list routes apply the same unknown-query
 rejection for their documented operational filters.
 Admin API usage aggregate, ledger, retention, export-batch, artifact,
