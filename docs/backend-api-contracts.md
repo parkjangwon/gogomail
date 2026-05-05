@@ -397,6 +397,10 @@ stale-cleanup previews.
 The Admin API also exposes `GET /admin/v1/drive-upload-sessions` with required
 `user_id`, bounded `status`, and `limit` filters so operators can inspect
 Drive upload session state for a user without entering the webmail API surface.
+`POST /admin/v1/drive-upload-cleanup/candidates` accepts the same explicit
+cleanup preview body as attachment cleanup and returns
+`{"drive_upload_cleanup_candidates":{...}}` with stale Drive upload-session
+candidate rows plus total/limited counts.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

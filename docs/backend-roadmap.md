@@ -1880,6 +1880,9 @@ Implementation order:
       required user scope plus bounded status/limit filters, and admin
       capabilities mark Drive upload-session inspection available for operator
       consoles.
+1002. Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates`
+      for stale Drive upload-session cleanup counts and bounded candidate rows,
+      giving operator consoles a non-destructive preview before worker cleanup.
 
 ## Deferred until backend contracts stabilize
 

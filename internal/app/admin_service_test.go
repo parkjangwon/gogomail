@@ -212,6 +212,31 @@ func TestAdminServiceListDriveUploadSessionsDelegatesToDrive(t *testing.T) {
 	}
 }
 
+func TestAdminServiceDriveUploadCleanupPreviewDelegatesToDrive(t *testing.T) {
+	t.Parallel()
+
+	before := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	driveStore := &fakeAdminDrive{
+		count:    drive.StaleUploadSessionCount{TotalCount: 3, LimitedCount: 2},
+		sessions: []drive.UploadSession{{ID: "session-1"}, {ID: "session-2"}},
+	}
+	service := adminService{drive: driveStore}
+	count, err := service.CountStaleDriveUploadSessions(t.Context(), before, 2)
+	if err != nil {
+		t.Fatalf("CountStaleDriveUploadSessions returned error: %v", err)
+	}
+	if count.TotalCount != 3 || count.LimitedCount != 2 {
+		t.Fatalf("count = %+v", count)
+	}
+	sessions, err := service.ListStaleDriveUploadSessions(t.Context(), before, 2)
+	if err != nil {
+		t.Fatalf("ListStaleDriveUploadSessions returned error: %v", err)
+	}
+	if len(sessions) != 2 || driveStore.lastCleanupReq.Limit != 2 || !driveStore.lastCleanupReq.Before.Equal(before) {
+		t.Fatalf("sessions = %+v lastReq = %+v", sessions, driveStore.lastCleanupReq)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -283,12 +308,24 @@ type fakeAdminAttachmentCleanup struct {
 }
 
 type fakeAdminDrive struct {
-	sessions []drive.UploadSession
-	lastReq  drive.ListUploadSessionsRequest
+	sessions       []drive.UploadSession
+	count          drive.StaleUploadSessionCount
+	lastReq        drive.ListUploadSessionsRequest
+	lastCleanupReq drive.ExpireUploadSessionsRequest
 }
 
 func (f *fakeAdminDrive) ListUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
 	f.lastReq = req
+	return f.sessions, nil
+}
+
+func (f *fakeAdminDrive) CountStaleUploadSessions(_ context.Context, req drive.ExpireUploadSessionsRequest) (drive.StaleUploadSessionCount, error) {
+	f.lastCleanupReq = req
+	return f.count, nil
+}
+
+func (f *fakeAdminDrive) ListStaleUploadSessions(_ context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error) {
+	f.lastCleanupReq = req
 	return f.sessions, nil
 }
 

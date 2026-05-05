@@ -412,11 +412,14 @@ Current state:
 - Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
   user scope plus status/limit filters, and admin capabilities advertise Drive
   upload-session inspection.
+- Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
+  stale Drive upload-session cleanup counts and bounded candidate previews.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session cleanup counts to future admin/operator visibility.
+- Add a Drive cleanup run endpoint if operators need manual destructive
+  session expiry outside the worker loop.
 
 ### 2. Message threading and search
 

@@ -87,7 +87,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions {
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveUploadCleanup {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -786,6 +786,44 @@ func TestAdminDriveUploadSessionsHandlerRejectsUnsafeFilters(t *testing.T) {
 				t.Fatalf("list was called: %+v", service.lastDriveUploadSessionList)
 			}
 		})
+	}
+}
+
+func TestAdminDriveUploadCleanupCandidatesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		staleDriveUploadSessionCount: drive.StaleUploadSessionCount{TotalCount: 3, LimitedCount: 2},
+		staleDriveUploadSessions: []drive.UploadSession{{
+			ID:             "session-1",
+			UserID:         "user-1",
+			UploadID:       "upload-1",
+			Name:           "Report.pdf",
+			Status:         drive.UploadSessionStatusUploading,
+			StorageBackend: "s3",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/drive-upload-cleanup/candidates", strings.NewReader(`{
+		"before":"2020-05-06T12:00:00Z",
+		"limit":25
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{`"drive_upload_cleanup_candidates"`, `"session_candidates"`, `"id":"session-1"`, `"session_candidate_count":3`, `"session_limited_count":2`, `"limit":25`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body = %s, want %s", rec.Body.String(), want)
+		}
+	}
+	if !service.lastDriveUploadCleanupBefore.Equal(time.Date(2020, 5, 6, 12, 0, 0, 0, time.UTC)) || service.lastDriveUploadCleanupLimit != 25 {
+		t.Fatalf("cleanup request = %s/%d", service.lastDriveUploadCleanupBefore, service.lastDriveUploadCleanupLimit)
 	}
 }
 
@@ -6150,6 +6188,8 @@ type fakeAdminService struct {
 	staleAttachmentSessionCount                 maildb.StaleAttachmentUploadSessionCount
 	staleAttachmentCandidates                   []maildb.StaleAttachmentUploadCandidate
 	staleAttachmentSessionCandidates            []maildb.StaleAttachmentUploadSessionCandidate
+	staleDriveUploadSessionCount                drive.StaleUploadSessionCount
+	staleDriveUploadSessions                    []drive.UploadSession
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -6202,6 +6242,8 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
 	lastDriveUploadSessionList                  drive.ListUploadSessionsRequest
+	lastDriveUploadCleanupBefore                time.Time
+	lastDriveUploadCleanupLimit                 int
 	lastAPIUsageDailyList                       maildb.APIUsageAggregateListRequest
 	lastAPIUsageMonthlyList                     maildb.APIUsageAggregateListRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
@@ -6463,6 +6505,18 @@ func (f *fakeAdminService) ListDriveUploadSessions(_ context.Context, req drive.
 	f.lastDriveUploadSessionList = req
 	f.lastLimit = req.Limit
 	return f.driveUploadSessions, nil
+}
+
+func (f *fakeAdminService) CountStaleDriveUploadSessions(_ context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error) {
+	f.lastDriveUploadCleanupBefore = before
+	f.lastDriveUploadCleanupLimit = limit
+	return f.staleDriveUploadSessionCount, nil
+}
+
+func (f *fakeAdminService) ListStaleDriveUploadSessions(_ context.Context, before time.Time, limit int) ([]drive.UploadSession, error) {
+	f.lastDriveUploadCleanupBefore = before
+	f.lastDriveUploadCleanupLimit = limit
+	return f.staleDriveUploadSessions, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error) {

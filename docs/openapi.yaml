@@ -1275,6 +1275,17 @@ paths:
           $ref: "#/components/responses/DriveUploadSessionList"
         default:
           $ref: "#/components/responses/Error"
+  /drive-upload-cleanup/candidates:
+    post:
+      operationId: listAdminDriveUploadCleanupCandidates
+      summary: Preview stale Drive upload session cleanup candidates
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentCleanupRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUploadCleanupCandidates"
+        default:
+          $ref: "#/components/responses/Error"
   /attachment-cleanup/runs:
     post:
       operationId: runAdminAttachmentCleanup
@@ -2885,6 +2896,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveUploadSessionListEnvelope"
+    DriveUploadCleanupCandidates:
+      description: Drive upload cleanup candidates envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveUploadCleanupCandidatesEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -3983,6 +4000,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DriveUploadSession"
+    DriveUploadCleanupCandidates:
+      type: object
+      required: [session_candidates, session_candidate_count, session_limited_count, before, limit]
+      properties:
+        session_candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveUploadSession"
+        session_candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        session_limited_count:
+          type: integer
+          format: int64
+          minimum: 0
+        before:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    DriveUploadCleanupCandidatesEnvelope:
+      type: object
+      required: [drive_upload_cleanup_candidates]
+      properties:
+        drive_upload_cleanup_candidates:
+          $ref: "#/components/schemas/DriveUploadCleanupCandidates"
     DriveUploadSessionCreateRequest:
       type: object
       required: [name, declared_size, storage_backend]
@@ -4749,7 +4795,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, drive_upload_sessions, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, drive_upload_sessions, drive_upload_cleanup, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -4766,6 +4812,8 @@ components:
             attachment_upload_sessions:
               type: boolean
             drive_upload_sessions:
+              type: boolean
+            drive_upload_cleanup:
               type: boolean
             quota_reconciliation:
               type: boolean

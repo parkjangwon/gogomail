@@ -91,6 +91,11 @@ type ExpireUploadSessionsRequest struct {
 	Limit  int
 }
 
+type StaleUploadSessionCount struct {
+	TotalCount   int64 `json:"total_count"`
+	LimitedCount int64 `json:"limited_count"`
+}
+
 type RecordUploadSessionBodyRequest struct {
 	UserID         string
 	SessionID      string

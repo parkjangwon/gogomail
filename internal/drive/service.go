@@ -161,6 +161,20 @@ func (s *Service) ExpireUploadSessions(ctx context.Context, req ExpireUploadSess
 	return expired, nil
 }
 
+func (s *Service) CountStaleUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) (StaleUploadSessionCount, error) {
+	if s == nil || s.repo == nil {
+		return StaleUploadSessionCount{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.CountStaleUploadSessions(ctx, req)
+}
+
+func (s *Service) ListStaleUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) ([]UploadSession, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.ListStaleUploadSessions(ctx, req)
+}
+
 func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSessionBodyRequest) (UploadSession, error) {
 	if ctx == nil {
 		ctx = context.Background()
