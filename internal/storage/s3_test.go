@@ -381,6 +381,45 @@ func TestS3StoreUsesPathStyleForDottedHTTPSBucket(t *testing.T) {
 	}
 }
 
+func TestS3StoreUsesPathStyleForLocalEndpoints(t *testing.T) {
+	t.Parallel()
+
+	for _, endpoint := range []string{
+		"http://localhost:9000/base",
+		"http://127.0.0.1:9000/base",
+		"http://[::1]:9000/base",
+	} {
+		endpoint := endpoint
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        endpoint,
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+			req, err := store.newRequest(context.Background(), http.MethodPut, "messages/msg-1.eml", strings.NewReader("hello"))
+			if err != nil {
+				t.Fatalf("newRequest returned error: %v", err)
+			}
+			if req.URL.Host != store.endpoint.Host {
+				t.Fatalf("request host = %q, want endpoint host %q", req.URL.Host, store.endpoint.Host)
+			}
+			if req.URL.EscapedPath() != "/base/gogomail/mail/messages/msg-1.eml" {
+				t.Fatalf("request path = %q", req.URL.EscapedPath())
+			}
+		})
+	}
+}
+
 func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	t.Parallel()
 

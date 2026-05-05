@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP read service identifier validation hardening)
+Last updated: 2026-05-05 (updated after S3 local-endpoint path-style compatibility hardening)
 
 ## Current phase
 
@@ -192,6 +192,10 @@ guidance.
   for dotted bucket names on HTTPS endpoints, avoiding AWS S3 virtual-hosted
   TLS wildcard certificate mismatches while preserving virtual-hosted requests
   for ordinary bucket names by default.
+- S3-compatible request construction also automatically uses path-style
+  addressing for localhost and IP-address endpoints, avoiding
+  `bucket.localhost`/`bucket.127.0.0.1` style drift for local MinIO and other
+  local compatible object stores even when the generic `s3` backend is used.
 - S3-compatible object key escaping now preserves literal `+` characters as
   `%2B` in segment-escaped paths, keeping object identity and SigV4 canonical
   request paths aligned across AWS S3, MinIO, and strict compatible providers.

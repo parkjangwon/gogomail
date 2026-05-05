@@ -1630,6 +1630,10 @@ Implementation order:
 937. IMAP service-backed read/list/subscription/backfill operations now reject
      CR/LF-bearing or oversized user and mailbox identifiers before repository
      reads, storage opens, event subscriptions, or UID backfill work.
+938. S3-compatible request construction now automatically uses path-style
+     addressing for localhost and IP-address endpoints, avoiding
+     `bucket.localhost`/`bucket.127.0.0.1` drift for local MinIO and other local
+     compatible object stores even when the generic `s3` backend is used.
 
 ## Deferred until backend contracts stabilize
 

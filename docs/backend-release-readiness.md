@@ -323,6 +323,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   construction is covered so MinIO remains path-style by default, ordinary S3
   remains virtual-hosted by default, and
   `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` remains an explicit S3 override.
+  Localhost and IP-address endpoints also switch to path-style addressing
+  automatically, avoiding `bucket.localhost`/`bucket.127.0.0.1` drift for local
+  S3-compatible stores even when `GOGOMAIL_STORAGE_BACKEND=s3` is used.
   S3 request paths preserve literal `+` characters as `%2B` so object identity
   and SigV4 canonical paths do not drift for plus-bearing mail object keys.
   Endpoint base paths reject encoded path separators such as `%2F` and `%5C`;
