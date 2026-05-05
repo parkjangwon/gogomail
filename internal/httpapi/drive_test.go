@@ -172,6 +172,41 @@ func TestDriveGetUploadSessionHandler(t *testing.T) {
 	}
 }
 
+func TestDriveListUploadSessionsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{uploadSessions: []drive.UploadSession{{
+		ID:             "session-1",
+		UserID:         "user-1",
+		UploadID:       "upload-1",
+		Name:           "Report.pdf",
+		Status:         drive.UploadSessionStatusUploading,
+		StorageBackend: "s3",
+	}}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions?user_id=user-1&status=uploading&limit=10", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.listUploadSessionReq.UserID != "user-1" || service.listUploadSessionReq.Status != drive.UploadSessionStatusUploading || service.listUploadSessionReq.Limit != 10 {
+		t.Fatalf("list upload session request = %+v, want query-backed request", service.listUploadSessionReq)
+	}
+	var body struct {
+		Sessions []drive.UploadSession `json:"drive_upload_sessions"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Sessions) != 1 || body.Sessions[0].ID != "session-1" {
+		t.Fatalf("sessions = %+v", body.Sessions)
+	}
+}
+
 func TestDriveCancelUploadSessionHandler(t *testing.T) {
 	t.Parallel()
 
@@ -477,6 +512,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
 		{name: "upload session invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{`))},
 		{name: "upload session invalid expires", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{"name":"Report.pdf","storage_backend":"s3","expires_at":"tomorrow"}`))},
+		{name: "list upload sessions unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions?user_id=user-1&cursor=bad", nil)},
 		{name: "get upload session unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions/session-1?user_id=user-1&typo=true", nil)},
 		{name: "cancel upload session body rejected", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/upload-sessions/session-1?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "store upload session content range rejected", req: requestWithHeader(http.MethodPut, "/api/v1/drive/upload-sessions/session-1/body?user_id=user-1", "Content-Range", "bytes 0-1/2")},
@@ -512,9 +548,11 @@ type fakeDriveService struct {
 	file                      drive.Node
 	staged                    drive.StagedObject
 	uploadSession             drive.UploadSession
+	uploadSessions            []drive.UploadSession
 	err                       error
 	getReq                    drive.GetNodeRequest
 	getUploadSessionReq       drive.GetUploadSessionRequest
+	listUploadSessionReq      drive.ListUploadSessionsRequest
 	cancelUploadSessionReq    drive.CancelUploadSessionRequest
 	storeUploadSessionBodyReq drive.StoreUploadSessionBodyRequest
 	finalizeUploadSessionReq  drive.FinalizeUploadSessionRequest
@@ -584,6 +622,14 @@ func (f *fakeDriveService) GetUploadSession(_ context.Context, req drive.GetUplo
 		return drive.UploadSession{}, f.err
 	}
 	return f.uploadSession, nil
+}
+
+func (f *fakeDriveService) ListUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
+	f.listUploadSessionReq = req
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.uploadSessions, nil
 }
 
 func (f *fakeDriveService) CancelUploadSession(_ context.Context, req drive.CancelUploadSessionRequest) (drive.UploadSession, error) {

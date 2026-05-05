@@ -198,6 +198,61 @@ WHERE s.id = $2::uuid
 	return session, nil
 }
 
+func (r *Repository) ListUploadSessions(ctx context.Context, req ListUploadSessionsRequest) ([]UploadSession, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListUploadSessionsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+SELECT
+  s.id::text,
+  s.user_id::text,
+  COALESCE(s.parent_id::text, ''),
+  s.upload_id,
+  s.name,
+  s.declared_size,
+  s.received_size,
+  s.mime_type,
+  s.status,
+  s.storage_backend,
+  s.storage_path,
+  s.checksum_sha256,
+  s.expires_at,
+  s.created_at,
+  s.updated_at,
+  s.finalized_at,
+  s.canceled_at
+FROM drive_upload_sessions s
+JOIN users u ON u.id = s.user_id
+JOIN domains d ON d.id = u.domain_id
+WHERE s.user_id = $1::uuid
+  AND u.status = 'active'
+  AND d.status = 'active'
+  AND ($2 = '' OR s.status = $2)
+ORDER BY s.updated_at DESC, s.created_at DESC
+LIMIT $3`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.Status, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list drive upload sessions: %w", err)
+	}
+	defer rows.Close()
+	sessions := make([]UploadSession, 0)
+	for rows.Next() {
+		session, err := scanUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan drive upload session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate drive upload sessions: %w", err)
+	}
+	return sessions, nil
+}
+
 func (r *Repository) CancelUploadSession(ctx context.Context, req CancelUploadSessionRequest) (UploadSession, error) {
 	if r == nil || r.db == nil {
 		return UploadSession{}, fmt.Errorf("database handle is required")

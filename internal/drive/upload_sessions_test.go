@@ -97,6 +97,43 @@ func TestValidateGetUploadSessionRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateListUploadSessionsRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateListUploadSessionsRequest(ListUploadSessionsRequest{
+		UserID: " user-1 ",
+		Status: " Uploading ",
+		Limit:  0,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListUploadSessionsRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.Status != UploadSessionStatusUploading || req.Limit != UploadSessionCleanupDefaultLimit {
+		t.Fatalf("request = %+v, want normalized list request", req)
+	}
+}
+
+func TestValidateListUploadSessionsRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ListUploadSessionsRequest{
+		{Status: UploadSessionStatusPending},
+		{UserID: "user\n1"},
+		{UserID: "user-1", Status: "ready"},
+		{UserID: "user-1", Limit: -1},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.Status, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateListUploadSessionsRequest(tc); err == nil {
+				t.Fatalf("ValidateListUploadSessionsRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidateCancelUploadSessionRequest(t *testing.T) {
 	t.Parallel()
 

@@ -1872,6 +1872,10 @@ Implementation order:
 999. `drive-cleanup-worker` now runs Drive upload-session expiry before
      permanent-delete object cleanup retries on each tick, keeping abandoned
      session bodies and object cleanup drift out of request paths.
+1000. Mail API now exposes `GET /api/v1/drive/upload-sessions` with bounded
+      status and limit filters, plus webmail capability discovery for the list
+      surface, so production Drive upload managers can recover in-progress
+      session state.
 
 ## Deferred until backend contracts stabilize
 

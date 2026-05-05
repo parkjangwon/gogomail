@@ -182,6 +182,7 @@ type webmailDriveCapabilities struct {
 	TrashRestore             bool  `json:"trash_restore"`
 	PermanentDelete          bool  `json:"permanent_delete"`
 	UploadSessions           bool  `json:"upload_sessions"`
+	ListUploadSessions       bool  `json:"list_upload_sessions"`
 	UploadSessionBody        bool  `json:"upload_session_body"`
 	UploadSessionChecksum    bool  `json:"upload_session_checksum"`
 	FinalizeUploadSessions   bool  `json:"finalize_upload_sessions"`
@@ -281,6 +282,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 			TrashRestore:             true,
 			PermanentDelete:          true,
 			UploadSessions:           true,
+			ListUploadSessions:       true,
 			UploadSessionBody:        true,
 			UploadSessionChecksum:    true,
 			FinalizeUploadSessions:   true,

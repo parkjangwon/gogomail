@@ -112,6 +112,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `drive-cleanup-worker` now runs upload-session expiry before object cleanup
   failure retries, giving operators a single Drive cleanup mode for abandoned
   session bodies and permanent-delete drift.
+- Drive upload sessions can now be listed through Mail API with bounded status
+  and limit filters, and webmail capabilities advertise the list contract so
+  clients can recover in-progress upload state.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

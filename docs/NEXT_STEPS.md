@@ -406,6 +406,9 @@ Current state:
   backend after metadata expiry.
 - `drive-cleanup-worker` now expires stale Drive upload sessions on each tick
   before retrying pending permanent-delete object cleanup failures.
+- Mail API now exposes `GET /api/v1/drive/upload-sessions` with status and
+  limit filters, giving future Drive upload managers a reconnect/recovery
+  surface.
 
 Next:
 

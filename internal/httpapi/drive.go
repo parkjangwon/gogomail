@@ -16,6 +16,7 @@ type DriveService interface {
 	StoreStagedObject(ctx context.Context, req drive.StoreStagedObjectRequest) (drive.StagedObject, error)
 	CreateUploadSession(ctx context.Context, req drive.CreateUploadSessionRequest) (drive.UploadSession, error)
 	GetUploadSession(ctx context.Context, req drive.GetUploadSessionRequest) (drive.UploadSession, error)
+	ListUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	CancelUploadSession(ctx context.Context, req drive.CancelUploadSessionRequest) (drive.UploadSession, error)
 	StoreUploadSessionBody(ctx context.Context, req drive.StoreUploadSessionBodyRequest) (drive.UploadSession, error)
 	FinalizeUploadSession(ctx context.Context, req drive.FinalizeUploadSessionRequest) (drive.Node, error)
@@ -161,6 +162,37 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_upload_session": session})
+	})
+
+	mux.HandleFunc("GET /api/v1/drive/upload-sessions", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id", "status", "limit") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		status, ok := parseBoundedHTTPQuery(w, r, "status", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		sessions, err := service.ListUploadSessions(r.Context(), drive.ListUploadSessionsRequest{
+			UserID: userID,
+			Status: status,
+			Limit:  limit,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
 	})
 
 	mux.HandleFunc("GET /api/v1/drive/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {

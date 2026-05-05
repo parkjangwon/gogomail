@@ -142,6 +142,22 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /drive/upload-sessions:
+    get:
+      operationId: listDriveUploadSessions
+      summary: List Drive upload sessions
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, uploading, finalized, canceled, expired, failed]
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUploadSessionList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: createDriveUploadSession
       summary: Create a Drive upload session
@@ -2839,6 +2855,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveUploadSessionEnvelope"
+    DriveUploadSessionList:
+      description: Drive upload session list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveUploadSessionListEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -3929,6 +3951,14 @@ components:
       properties:
         drive_upload_session:
           $ref: "#/components/schemas/DriveUploadSession"
+    DriveUploadSessionListEnvelope:
+      type: object
+      required: [drive_upload_sessions]
+      properties:
+        drive_upload_sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveUploadSession"
     DriveUploadSessionCreateRequest:
       type: object
       required: [name, declared_size, storage_backend]
@@ -4581,7 +4611,7 @@ components:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
         drive:
           type: object
-          required: [nodes, node_detail, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          required: [nodes, node_detail, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
           properties:
             nodes:
               type: boolean
@@ -4598,6 +4628,8 @@ components:
             permanent_delete:
               type: boolean
             upload_sessions:
+              type: boolean
+            list_upload_sessions:
               type: boolean
             upload_session_body:
               type: boolean

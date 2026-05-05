@@ -44,6 +44,25 @@ func TestServiceGetUploadSessionRequiresRepository(t *testing.T) {
 	}
 }
 
+func TestListUploadSessionsRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	repo := NewRepository(nil)
+	_, err := repo.ListUploadSessions(context.Background(), ListUploadSessionsRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("ListUploadSessions err = %v, want database handle rejection first", err)
+	}
+}
+
+func TestServiceListUploadSessionsRequiresRepository(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Service)(nil).ListUploadSessions(context.Background(), ListUploadSessionsRequest{})
+	if err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("ListUploadSessions err = %v, want repository rejection", err)
+	}
+}
+
 func TestCancelUploadSessionRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
