@@ -88,8 +88,7 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 }
 
 func AddressBookHomeProperties(userID string) ([]PropertyResult, error) {
-	home, err := AddressBookHomePath(userID)
-	if err != nil {
+	if _, err := AddressBookHomePath(userID); err != nil {
 		return nil, err
 	}
 	principalPath, err := PrincipalPath(userID)
@@ -99,7 +98,7 @@ func AddressBookHomeProperties(userID string) ([]PropertyResult, error) {
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: "Address Books"}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection}}, Found: true},
-		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{home}}, Found: true},
+		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 	}, nil
 }
@@ -150,6 +149,49 @@ func ContactObjectProperties(userID string, object ContactObject) ([]PropertyRes
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropResourceType, Found: true},
 	}, nil
+}
+
+func SelectPropfindProperties(req PropfindRequest, available []PropertyResult) []PropStatus {
+	byName := make(map[XMLName]PropertyResult, len(available))
+	var all []PropertyResult
+	for _, prop := range available {
+		if !prop.Found {
+			continue
+		}
+		byName[prop.Name] = prop
+		all = append(all, prop)
+	}
+	sortPropertyResults(all)
+
+	switch req.Kind {
+	case PropfindPropName:
+		names := make([]PropertyResult, 0, len(all))
+		for _, prop := range all {
+			names = append(names, PropertyResult{Name: prop.Name, Found: true})
+		}
+		return []PropStatus{{StatusCode: http.StatusOK, Properties: names}}
+	case PropfindProp:
+		var found, missing []PropertyResult
+		for _, name := range req.Properties {
+			if prop, ok := byName[name]; ok {
+				found = append(found, prop)
+			} else {
+				missing = append(missing, PropertyResult{Name: name, Found: false})
+			}
+		}
+		sortPropertyResults(found)
+		sortPropertyResults(missing)
+		return propStatsForFoundMissing(found, missing)
+	default:
+		selected := append([]PropertyResult(nil), all...)
+		for _, name := range req.Include {
+			if prop, ok := byName[name]; ok && !containsProperty(selected, name) {
+				selected = append(selected, prop)
+			}
+		}
+		sortPropertyResults(selected)
+		return []PropStatus{{StatusCode: http.StatusOK, Properties: selected}}
+	}
 }
 
 func SelectReportProperties(req ReportRequest, available []PropertyResult) []PropStatus {
@@ -405,6 +447,15 @@ func propStatsForFoundMissing(found []PropertyResult, missing []PropertyResult) 
 		stats = append(stats, PropStatus{StatusCode: http.StatusNotFound, Properties: missing})
 	}
 	return stats
+}
+
+func containsProperty(properties []PropertyResult, name XMLName) bool {
+	for _, prop := range properties {
+		if prop.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func sortPropertyResults(properties []PropertyResult) {

@@ -25,6 +25,51 @@ type XMLName struct {
 	Local string
 }
 
+type Depth string
+
+const (
+	DepthZero     Depth = "0"
+	DepthOne      Depth = "1"
+	DepthInfinity Depth = "infinity"
+)
+
+func ParseDepth(value string, fallback Depth) (Depth, error) {
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("depth must not contain line breaks")
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if fallback == "" {
+			return "", fmt.Errorf("depth is required")
+		}
+		return fallback, nil
+	}
+	switch strings.ToLower(value) {
+	case string(DepthZero):
+		return DepthZero, nil
+	case string(DepthOne):
+		return DepthOne, nil
+	case string(DepthInfinity):
+		return DepthInfinity, nil
+	default:
+		return "", fmt.Errorf("unsupported depth %q", value)
+	}
+}
+
+type PropfindKind string
+
+const (
+	PropfindAllProp  PropfindKind = "allprop"
+	PropfindPropName PropfindKind = "propname"
+	PropfindProp     PropfindKind = "prop"
+)
+
+type PropfindRequest struct {
+	Kind       PropfindKind
+	Properties []XMLName
+	Include    []XMLName
+}
+
 type ReportKind string
 
 const (
@@ -42,6 +87,94 @@ type ReportRequest struct {
 	Limit      int
 	HasFilter  bool
 	TextMatch  string
+}
+
+func ParsePropfind(r io.Reader) (PropfindRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return PropfindRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return PropfindRequest{Kind: PropfindAllProp}, nil
+	}
+
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return PropfindRequest{}, err
+	}
+	if !sameXMLName(root.Name, DAVNamespace, "propfind") {
+		return PropfindRequest{}, fmt.Errorf("unsupported PROPFIND root {%s}%s", root.Name.Space, root.Name.Local)
+	}
+
+	var req PropfindRequest
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return PropfindRequest{}, fmt.Errorf("unterminated PROPFIND body")
+		}
+		if err != nil {
+			return PropfindRequest{}, fmt.Errorf("decode PROPFIND body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "allprop"):
+				if req.Kind != "" {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND body must contain one request mode")
+				}
+				req.Kind = PropfindAllProp
+				if err := skipElement(dec, tok.Name); err != nil {
+					return PropfindRequest{}, err
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "propname"):
+				if req.Kind != "" {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND body must contain one request mode")
+				}
+				req.Kind = PropfindPropName
+				if err := skipElement(dec, tok.Name); err != nil {
+					return PropfindRequest{}, err
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "prop"):
+				if req.Kind != "" {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND body must contain one request mode")
+				}
+				req.Kind = PropfindProp
+				properties, err := parsePropElement(dec, tok.Name)
+				if err != nil {
+					return PropfindRequest{}, err
+				}
+				req.Properties = properties
+			case sameXMLName(tok.Name, DAVNamespace, "include"):
+				if req.Kind != PropfindAllProp {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND include is only supported with allprop")
+				}
+				include, err := parsePropElement(dec, tok.Name)
+				if err != nil {
+					return PropfindRequest{}, err
+				}
+				req.Include = append(req.Include, include...)
+				if len(req.Include) > MaxWebDAVProperties {
+					return PropfindRequest{}, fmt.Errorf("too many WebDAV include properties")
+				}
+			default:
+				return PropfindRequest{}, fmt.Errorf("unsupported PROPFIND element {%s}%s", tok.Name.Space, tok.Name.Local)
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if req.Kind == "" {
+					req.Kind = PropfindAllProp
+				}
+				if req.Kind == PropfindProp && len(req.Properties) == 0 {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND prop request must include at least one property")
+				}
+				if err := rejectTrailingXML(dec); err != nil {
+					return PropfindRequest{}, err
+				}
+				return req, nil
+			}
+		}
+	}
 }
 
 func ParseReport(r io.Reader) (ReportRequest, error) {

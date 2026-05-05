@@ -119,6 +119,58 @@ func TestSelectReportPropertiesSeparatesFoundAndMissing(t *testing.T) {
 	}
 }
 
+func TestSelectPropfindPropertiesSupportsPropfindModes(t *testing.T) {
+	t.Parallel()
+
+	available := []PropertyResult{
+		{Name: PropDisplayName, Value: PropertyValue{Text: "Personal"}, Found: true},
+		{Name: PropGetETag, Value: PropertyValue{Text: `"abc"`}, Found: true},
+	}
+	prop := SelectPropfindProperties(PropfindRequest{
+		Kind: PropfindProp,
+		Properties: []XMLName{
+			PropGetETag,
+			{Space: CardDAVNamespace, Local: "missing"},
+		},
+	}, available)
+	if len(prop) != 2 || prop[0].StatusCode != http.StatusOK || prop[1].StatusCode != http.StatusNotFound {
+		t.Fatalf("prop stats = %+v", prop)
+	}
+
+	propname := SelectPropfindProperties(PropfindRequest{Kind: PropfindPropName}, available)
+	if len(propname) != 1 || len(propname[0].Properties) != 2 {
+		t.Fatalf("propname stats = %+v", propname)
+	}
+
+	allprop := SelectPropfindProperties(PropfindRequest{
+		Kind:    PropfindAllProp,
+		Include: []XMLName{PropGetETag},
+	}, available)
+	if len(allprop) != 1 || len(allprop[0].Properties) != 2 {
+		t.Fatalf("allprop stats = %+v", allprop)
+	}
+}
+
+func TestAddressBookHomePropertiesUsePrincipalAsCurrentUser(t *testing.T) {
+	t.Parallel()
+
+	props, err := AddressBookHomeProperties("user-1")
+	if err != nil {
+		t.Fatalf("AddressBookHomeProperties returned error: %v", err)
+	}
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href:      "/carddav/addressbooks/user-1/",
+		PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: props}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	text := string(body)
+	if !strings.Contains(text, "<D:current-user-principal><D:href>/carddav/principals/user-1/</D:href></D:current-user-principal>") {
+		t.Fatalf("current-user-principal should point to principal href:\n%s", text)
+	}
+}
+
 func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 	t.Parallel()
 
