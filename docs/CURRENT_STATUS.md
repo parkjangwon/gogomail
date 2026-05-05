@@ -511,8 +511,9 @@ guidance.
   both signing and verification. Tokens with `iat` values more than one minute
   in the future are rejected before Mail API claims are trusted.
 - Redis event consumers acknowledge malformed stream entries after logging
-  decode failures, preventing poison messages from pinning worker progress while
-  preserving retry behavior for handler failures.
+  decode failures and move repeatedly handler-failing messages into a durable
+  Redis dead-letter stream before acknowledging the original event, preventing
+  poison messages from pinning worker progress indefinitely.
 - Redis event/search/API-metering/push/delivery workers reclaim idle pending
   Redis Stream messages via configurable claim-idle settings, improving crash
   recovery for at-least-once event processing. Startup validation now also

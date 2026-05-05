@@ -13,38 +13,45 @@ import (
 )
 
 type RedisConsumer struct {
-	client     redisConsumerClient
-	stream     string
-	group      string
-	consumer   string
-	count      int64
-	block      time.Duration
-	claimIdle  time.Duration
-	claimStart string
-	handler    Handler
-	logger     *slog.Logger
+	client           redisConsumerClient
+	stream           string
+	group            string
+	consumer         string
+	count            int64
+	block            time.Duration
+	claimIdle        time.Duration
+	claimStart       string
+	maxDeliveries    int64
+	deadLetterStream string
+	handler          Handler
+	logger           *slog.Logger
 }
 
 type redisConsumerClient interface {
 	XAck(ctx context.Context, stream string, group string, id ...string) *redis.IntCmd
+	XAdd(ctx context.Context, a *redis.XAddArgs) *redis.StringCmd
 	XAutoClaim(ctx context.Context, a *redis.XAutoClaimArgs) *redis.XAutoClaimCmd
 	XGroupCreateMkStream(ctx context.Context, stream string, group string, start string) *redis.StatusCmd
+	XPendingExt(ctx context.Context, a *redis.XPendingExtArgs) *redis.XPendingExtCmd
 	XReadGroup(ctx context.Context, a *redis.XReadGroupArgs) *redis.XStreamSliceCmd
 }
 
 type RedisConsumerOptions struct {
-	Client    *redis.Client
-	Stream    string
-	Group     string
-	Consumer  string
-	Count     int64
-	Block     time.Duration
-	ClaimIdle time.Duration
-	Handler   Handler
-	Logger    *slog.Logger
+	Client           *redis.Client
+	Stream           string
+	Group            string
+	Consumer         string
+	Count            int64
+	Block            time.Duration
+	ClaimIdle        time.Duration
+	MaxDeliveries    int64
+	DeadLetterStream string
+	Handler          Handler
+	Logger           *slog.Logger
 }
 
 const redisClaimStartID = "0-0"
+const defaultRedisMaxDeliveries int64 = 10
 
 func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 	if opts.Client == nil {
@@ -71,21 +78,39 @@ func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 	if opts.ClaimIdle < 0 {
 		return nil, fmt.Errorf("redis consumer claim idle duration must not be negative")
 	}
+	if opts.MaxDeliveries < 0 {
+		return nil, fmt.Errorf("redis consumer max deliveries must not be negative")
+	}
+	if opts.MaxDeliveries == 0 {
+		opts.MaxDeliveries = defaultRedisMaxDeliveries
+	}
+	opts.DeadLetterStream = strings.TrimSpace(opts.DeadLetterStream)
+	if opts.DeadLetterStream == "" {
+		opts.DeadLetterStream = opts.Stream + ".dead"
+	}
+	if strings.ContainsAny(opts.DeadLetterStream, "\r\n") {
+		return nil, fmt.Errorf("redis consumer dead-letter stream is invalid")
+	}
+	if len(opts.DeadLetterStream) > maxRedisMetadataBytes {
+		return nil, fmt.Errorf("redis consumer dead-letter stream is too long")
+	}
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
 
 	return &RedisConsumer{
-		client:     opts.Client,
-		stream:     opts.Stream,
-		group:      opts.Group,
-		consumer:   opts.Consumer,
-		count:      opts.Count,
-		block:      opts.Block,
-		claimIdle:  opts.ClaimIdle,
-		claimStart: redisClaimStartID,
-		handler:    opts.Handler,
-		logger:     opts.Logger,
+		client:           opts.Client,
+		stream:           opts.Stream,
+		group:            opts.Group,
+		consumer:         opts.Consumer,
+		count:            opts.Count,
+		block:            opts.Block,
+		claimIdle:        opts.ClaimIdle,
+		claimStart:       redisClaimStartID,
+		maxDeliveries:    opts.MaxDeliveries,
+		deadLetterStream: opts.DeadLetterStream,
+		handler:          opts.Handler,
+		logger:           opts.Logger,
 	}, nil
 }
 
@@ -208,6 +233,13 @@ func (c *RedisConsumer) processRedisMessage(ctx context.Context, stream string, 
 		return true, nil
 	}
 	if err := c.handler.HandleEvent(ctx, msg); err != nil {
+		deadLettered, deadLetterErr := c.deadLetterIfPoison(ctx, msg, err, ack)
+		if deadLetterErr != nil {
+			return false, deadLetterErr
+		}
+		if deadLettered {
+			return true, nil
+		}
 		c.logger.Warn("event handler failed", "stream", msg.Stream, "id", msg.ID, "error", err)
 		return false, nil
 	}
@@ -215,6 +247,96 @@ func (c *RedisConsumer) processRedisMessage(ctx context.Context, stream string, 
 		return false, fmt.Errorf("ack redis stream message %q: %w", redisMessage.ID, err)
 	}
 	return true, nil
+}
+
+func (c *RedisConsumer) deadLetterIfPoison(ctx context.Context, msg Message, handlerErr error, ack func(context.Context, string) error) (bool, error) {
+	if c.maxDeliveries <= 0 {
+		return false, nil
+	}
+	pending, err := c.client.XPendingExt(ctx, &redis.XPendingExtArgs{
+		Stream: msg.Stream,
+		Group:  c.group,
+		Start:  msg.ID,
+		End:    msg.ID,
+		Count:  1,
+	}).Result()
+	if err != nil {
+		return false, fmt.Errorf("inspect redis stream pending message %q: %w", msg.ID, err)
+	}
+	if len(pending) == 0 {
+		c.logger.Warn("event handler failed for redis stream message without pending metadata", "stream", msg.Stream, "id", msg.ID, "error", handlerErr)
+		return false, nil
+	}
+	deliveries := pending[0].RetryCount
+	if deliveries < c.maxDeliveries {
+		c.logger.Warn(
+			"event handler failed",
+			"stream", msg.Stream,
+			"id", msg.ID,
+			"deliveries", deliveries,
+			"max_deliveries", c.maxDeliveries,
+			"error", handlerErr,
+		)
+		return false, nil
+	}
+	if err := c.deadLetter(ctx, msg, handlerErr, deliveries); err != nil {
+		return false, err
+	}
+	if err := ack(ctx, msg.ID); err != nil {
+		return false, fmt.Errorf("ack dead-lettered redis stream message %q: %w", msg.ID, err)
+	}
+	c.logger.Error(
+		"dead-lettered poison redis stream message",
+		"stream", msg.Stream,
+		"dead_letter_stream", c.deadLetterStream,
+		"id", msg.ID,
+		"deliveries", deliveries,
+		"max_deliveries", c.maxDeliveries,
+		"error", handlerErr,
+	)
+	return true, nil
+}
+
+func (c *RedisConsumer) deadLetter(ctx context.Context, msg Message, handlerErr error, deliveries int64) error {
+	_, err := c.client.XAdd(ctx, &redis.XAddArgs{
+		Stream: c.deadLetterStream,
+		Values: map[string]any{
+			"original_stream":  msg.Stream,
+			"group":            c.group,
+			"consumer":         c.consumer,
+			"original_id":      msg.ID,
+			"outbox_id":        msg.OutboxID,
+			"partition_key":    msg.PartitionKey,
+			"payload":          string(msg.Payload),
+			"error":            redisDeadLetterError(handlerErr),
+			"deliveries":       deliveries,
+			"dead_lettered_at": time.Now().UTC().Format(time.RFC3339Nano),
+		},
+	}).Result()
+	if err != nil {
+		return fmt.Errorf("write redis stream dead-letter message %q to %q: %w", msg.ID, c.deadLetterStream, err)
+	}
+	return nil
+}
+
+const maxRedisDeadLetterErrorBytes = 2048
+
+func redisDeadLetterError(err error) string {
+	if err == nil {
+		return ""
+	}
+	value := strings.TrimSpace(strings.NewReplacer("\r", " ", "\n", " ").Replace(err.Error()))
+	if len(value) <= maxRedisDeadLetterErrorBytes {
+		return value
+	}
+	var b strings.Builder
+	for _, r := range value {
+		if b.Len()+len(string(r)) > maxRedisDeadLetterErrorBytes {
+			break
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func decodeRedisMessage(stream string, msg redis.XMessage) (Message, error) {
