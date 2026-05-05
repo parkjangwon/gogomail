@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Mail API mutation query guardrails)
+Last updated: 2026-05-05 (updated after Admin command query guardrails)
 
 ## Current phase
 
@@ -949,6 +949,10 @@ The platform hardening sprint completed the following:
   bodies and `Content-Type` headers before dispatch, preventing ignored payloads
   on operator reads, deletes, route verification, retry, IMAP UID backfill,
   API-usage export-batch creation, and manifest digest/signature creation.
+- Admin bodyless command/delete routes for IMAP UID backfill, DKIM DNS verify,
+  outbox retry, DKIM deactivation, suppression deletion, trusted-relay
+  deletion, and delivery-route deletion now reject unknown query parameter names
+  before dispatch, preventing ignored `dry_run`/`force`-style operator flags.
 - Mail JWT and Admin token authentication now reject repeated credential
   headers, and Admin routes reject mixed `X-Admin-Token` plus bearer credentials
   before dispatch.
