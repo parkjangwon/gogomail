@@ -1406,7 +1406,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\n")); err != nil {
 		t.Fatalf("write search: %v", err)
 	}
 	want := []string{
@@ -1420,6 +1420,10 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"a6 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a7 OK UID SEARCH completed\r\n",
+		"* SEARCH 2\r\n",
+		"a8 OK SEARCH completed\r\n",
+		"* SEARCH 7 8\r\n",
+		"a9 OK UID SEARCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -1430,7 +1434,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

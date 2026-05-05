@@ -924,6 +924,8 @@ Implementation order:
 735. IMAP `SEARCH` and `UID SEARCH` can combine supported criteria with the RFC
      default AND semantics, including `ALL` plus flag, date, size, address, and
      UID filters.
+736. IMAP `SEARCH` and `UID SEARCH` now support RFC `NOT` and binary `OR`
+     criteria composition over the supported predicate set.
 
 ## Deferred until backend contracts stabilize
 
