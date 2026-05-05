@@ -417,6 +417,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   namespace command so client discovery matches the supported command surface.
 - IMAP now supports authenticated `LSUB` over the same mailbox pattern matching
   path as `LIST`, while persistent subscription storage remains future work.
+- IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
+  `\Noselect` and `/` delimiter metadata for clients that probe namespace
+  delimiters through LIST-compatible commands.
 - IMAP now accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox
   existence checks, keeping subscription-management clients from failing before
   persistent subscription storage is added.

@@ -258,6 +258,9 @@ Current state:
   requested mailbox metadata fields.
 - `LIST` now filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
+- `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
+  `\Noselect` and `/` delimiter metadata, matching client namespace delimiter
+  probes before persistent subscription storage exists.
 - `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes so clients can
   distinguish writable and read-only flag state.
 - `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts alongside

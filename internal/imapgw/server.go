@@ -552,6 +552,13 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		return false, writeErr
 	}
 	pattern := imapListPattern(fields[2], fields[3])
+	if pattern == "" {
+		if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ""` + "\r\n"); err != nil {
+			return false, err
+		}
+		_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
+		return false, err
+	}
 	for _, mailbox := range mailboxes {
 		displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
 		if !imapMailboxMatchesPattern(displayName, pattern) {
