@@ -3076,6 +3076,7 @@ func imapAppendOptions(fields []string) (MessageFlags, time.Time, bool) {
 
 func parseIMAPAppendDate(value string) (time.Time, bool) {
 	for _, layout := range []string{
+		"_2-Jan-2006 15:04:05 -0700",
 		"02-Jan-2006 15:04:05 -0700",
 		"2-Jan-2006 15:04:05 -0700",
 	} {

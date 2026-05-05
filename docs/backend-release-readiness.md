@@ -812,6 +812,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   are rejected as syntax `BAD` responses instead of being reported as
   unsupported. Successful append results include the appended message sequence
   number, which is used as the precise `EXISTS` event count when available.
+  APPEND internaldate parsing accepts RFC 3501 space-padded one-digit date-days
+  such as `" 5-May-2026 ..."`.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
