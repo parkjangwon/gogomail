@@ -2147,6 +2147,10 @@ Implementation order:
       `If-None-Match` revalidation against stored strong ETags, returning
       `304 Not Modified` without a body when the client representation is
       current.
+1065. CalDAV calendar object `PUT` now validates explicit `Content-Type`
+      headers at the protocol boundary, accepting `text/calendar` with
+      parameters and rejecting incompatible media types with HTTP 415 before
+      bounded iCalendar parsing.
 
 ## Deferred until backend contracts stabilize
 

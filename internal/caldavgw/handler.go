@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -255,6 +256,10 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object store is not configured", http.StatusNotImplemented)
 		return
 	}
+	if err := validateCalendarPutContentType(r.Header.Get("Content-Type")); err != nil {
+		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+		return
+	}
 	ifNoneMatch := strings.TrimSpace(r.Header.Get("If-None-Match"))
 	existed := false
 	if _, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName); err == nil {
@@ -417,6 +422,24 @@ func ifNoneMatchMatches(header string, etag string) bool {
 		}
 	}
 	return false
+}
+
+func validateCalendarPutContentType(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("calendar object content type must not contain line breaks")
+	}
+	mediaType, _, err := mime.ParseMediaType(value)
+	if err != nil {
+		return fmt.Errorf("calendar object content type is invalid")
+	}
+	if !strings.EqualFold(mediaType, "text/calendar") {
+		return fmt.Errorf("calendar object content type must be text/calendar")
+	}
+	return nil
 }
 
 func readBoundedCalendarBody(r io.Reader) ([]byte, error) {

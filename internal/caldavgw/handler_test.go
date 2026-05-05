@@ -683,6 +683,7 @@ func TestHandlerPutCalendarObjectCreatesAndUpdates(t *testing.T) {
 	handler := NewHandler(store, fixedUser("user-1"))
 	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
 	req.Header.Set("If-None-Match", "*")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -695,11 +696,26 @@ func TestHandlerPutCalendarObjectCreatesAndUpdates(t *testing.T) {
 	}
 
 	updateReq := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	updateReq.Header.Set("Content-Type", "text/calendar")
 	updateReq.Header.Set("If-Match", etag)
 	updateRec := httptest.NewRecorder()
 	handler.ServeHTTP(updateRec, updateReq)
 	if updateRec.Code != http.StatusNoContent {
 		t.Fatalf("update status = %d body = %s", updateRec.Code, updateRec.Body.String())
+	}
+}
+
+func TestHandlerPutCalendarObjectRejectsUnsupportedContentType(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(`{"uid":"event-2"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want 415, body = %s", rec.Code, rec.Body.String())
 	}
 }
 
