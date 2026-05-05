@@ -805,6 +805,12 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 				return nil, false
 			}
 			return imapSearchSentDateResults(messages, uidMode, strings.ToUpper(criteria[0]), day), true
+		case "LARGER", "SMALLER":
+			size, ok := parseIMAPSearchSize(criteria[1])
+			if !ok {
+				return nil, false
+			}
+			return imapSearchSizeResults(messages, uidMode, strings.ToUpper(criteria[0]), size), true
 		case "FROM", "TO", "CC", "BCC", "SUBJECT":
 			return imapSearchTextResults(messages, uidMode, strings.ToUpper(criteria[0]), criteria[1]), true
 		}
@@ -946,6 +952,44 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return day, true
+}
+
+func parseIMAPSearchSize(value string) (int64, bool) {
+	size, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil || size < 0 {
+		return 0, false
+	}
+	return size, true
+}
+
+func imapSearchSizeResults(messages []MessageSummary, uidMode bool, criterion string, size int64) []uint32 {
+	results := make([]uint32, 0, len(messages))
+	for i, summary := range messages {
+		if !imapMessageMatchesSizeSearch(summary, criterion, size) {
+			continue
+		}
+		if uidMode {
+			results = append(results, uint32(summary.UID))
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		results = append(results, sequenceNumber)
+	}
+	return results
+}
+
+func imapMessageMatchesSizeSearch(summary MessageSummary, criterion string, size int64) bool {
+	switch criterion {
+	case "LARGER":
+		return summary.Size > size
+	case "SMALLER":
+		return summary.Size < size
+	default:
+		return false
+	}
 }
 
 func imapSearchTextResults(messages []MessageSummary, uidMode bool, criterion string, query string) []uint32 {

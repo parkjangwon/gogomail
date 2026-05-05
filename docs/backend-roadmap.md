@@ -918,6 +918,8 @@ Implementation order:
      `CC`, and `BCC` alongside existing `FROM` and `SUBJECT` summary searches.
 733. IMAP `SEARCH` and `UID SEARCH` now support sent-date criteria
      `SENTSINCE`, `SENTBEFORE`, and `SENTON` over message envelope dates.
+734. IMAP `SEARCH` and `UID SEARCH` now support RFC 3501 `LARGER` and
+     `SMALLER` size criteria over message `RFC822.SIZE` metadata.
 
 ## Deferred until backend contracts stabilize
 

@@ -291,6 +291,8 @@ Current state:
   dates.
 - `SEARCH`/`UID SEARCH` now supports basic `FROM`, `TO`, `CC`, `BCC`, and
   `SUBJECT` substring criteria over selected-mailbox summaries.
+- `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER` criteria
+  over message `RFC822.SIZE` metadata.
 - Authenticated `NAMESPACE` now advertises the personal namespace and `/`
   hierarchy delimiter for mailbox discovery.
 - Authenticated `LSUB` now returns subscribed-compatible mailbox responses over
