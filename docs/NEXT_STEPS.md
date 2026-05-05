@@ -1610,8 +1610,9 @@ Next:
   `prop-filter` name for `addressbook-query` and applies `text-match` to
   parsed unfolded vCard property values, including RFC 6352 match-type,
   `negate-condition`, and default `i;unicode-casemap` handling for the first
-  text match. It should be followed by broader CardDAV filter-tree/param-filter
-  semantics, broader vCard compatibility, and
+  text match. It also evaluates the first nested `param-filter` against parsed
+  vCard content-line parameters. It should be followed by broader CardDAV
+  filter-tree composition, broader vCard compatibility, and
   native-client compatibility tests before any public contacts UI or API treats
   it as production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash

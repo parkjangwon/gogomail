@@ -137,6 +137,24 @@ func TestValidateVCardObjectRejectsMalformedCards(t *testing.T) {
 	}
 }
 
+func TestParseVCardContentLinePartsCollectsParameters(t *testing.T) {
+	t.Parallel()
+
+	line, err := parseVCardContentLineParts(`item1.EMAIL;TYPE=home,voice;PREF=1;LABEL="Desk, Main":person@example.com`)
+	if err != nil {
+		t.Fatalf("parseVCardContentLineParts returned error: %v", err)
+	}
+	if line.Name != "EMAIL" || line.Value != "person@example.com" {
+		t.Fatalf("line = %+v", line)
+	}
+	if got := line.Params["TYPE"]; len(got) != 2 || got[0] != "home" || got[1] != "voice" {
+		t.Fatalf("TYPE params = %+v", got)
+	}
+	if got := line.Params["LABEL"]; len(got) != 1 || got[0] != "Desk, Main" {
+		t.Fatalf("LABEL params = %+v", got)
+	}
+}
+
 func TestAddressBookSyncToken(t *testing.T) {
 	t.Parallel()
 

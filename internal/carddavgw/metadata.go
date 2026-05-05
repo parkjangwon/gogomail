@@ -261,33 +261,135 @@ func unfoldVCardLines(raw string) ([]string, error) {
 }
 
 func parseVCardContentLine(line string) (string, string, error) {
+	parsed, err := parseVCardContentLineParts(line)
+	if err != nil {
+		return "", "", err
+	}
+	return parsed.Name, parsed.Value, nil
+}
+
+type vCardContentLine struct {
+	Name   string
+	Params map[string][]string
+	Value  string
+}
+
+func parseVCardContentLineParts(line string) (vCardContentLine, error) {
 	if line == "" {
-		return "", "", fmt.Errorf("content line is empty")
+		return vCardContentLine{}, fmt.Errorf("content line is empty")
 	}
 	separator := strings.IndexByte(line, ':')
 	if separator <= 0 {
-		return "", "", fmt.Errorf("content line missing value separator")
+		return vCardContentLine{}, fmt.Errorf("content line missing value separator")
 	}
 	rawName := line[:separator]
 	value := line[separator+1:]
 	if strings.ContainsAny(rawName, "\r\n") || strings.ContainsAny(value, "\r\n") {
-		return "", "", fmt.Errorf("content line contains line breaks")
+		return vCardContentLine{}, fmt.Errorf("content line contains line breaks")
 	}
-	namePart := rawName
-	if semi := strings.IndexByte(namePart, ';'); semi >= 0 {
-		namePart = namePart[:semi]
+	segments, err := splitVCardContentLineName(rawName)
+	if err != nil {
+		return vCardContentLine{}, err
 	}
+	if len(segments) == 0 {
+		return vCardContentLine{}, fmt.Errorf("property name is required")
+	}
+	namePart := segments[0]
 	if dot := strings.LastIndexByte(namePart, '.'); dot >= 0 {
 		namePart = namePart[dot+1:]
 	}
 	namePart = strings.ToUpper(strings.TrimSpace(namePart))
 	if namePart == "" {
-		return "", "", fmt.Errorf("property name is required")
+		return vCardContentLine{}, fmt.Errorf("property name is required")
 	}
 	for _, r := range namePart {
 		if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
-			return "", "", fmt.Errorf("property name is invalid")
+			return vCardContentLine{}, fmt.Errorf("property name is invalid")
 		}
 	}
-	return namePart, value, nil
+	params := make(map[string][]string)
+	for _, rawParam := range segments[1:] {
+		key, values, ok, err := parseVCardParam(rawParam)
+		if err != nil {
+			return vCardContentLine{}, err
+		}
+		if !ok {
+			continue
+		}
+		params[key] = append(params[key], values...)
+	}
+	return vCardContentLine{Name: namePart, Params: params, Value: value}, nil
+}
+
+func splitVCardContentLineName(raw string) ([]string, error) {
+	var segments []string
+	start := 0
+	quoted := false
+	for i, r := range raw {
+		switch r {
+		case '"':
+			quoted = !quoted
+		case ';':
+			if !quoted {
+				segments = append(segments, raw[start:i])
+				start = i + 1
+			}
+		}
+	}
+	if quoted {
+		return nil, fmt.Errorf("content line parameter quote is unterminated")
+	}
+	segments = append(segments, raw[start:])
+	return segments, nil
+}
+
+func parseVCardParam(raw string) (string, []string, bool, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil, false, nil
+	}
+	eq := strings.IndexByte(raw, '=')
+	if eq <= 0 {
+		return "", nil, false, nil
+	}
+	name := strings.ToUpper(strings.TrimSpace(raw[:eq]))
+	if name == "" {
+		return "", nil, false, fmt.Errorf("parameter name is required")
+	}
+	for _, r := range name {
+		if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+			return "", nil, false, fmt.Errorf("parameter name is invalid")
+		}
+	}
+	values, err := splitVCardParamValues(raw[eq+1:])
+	if err != nil {
+		return "", nil, false, err
+	}
+	return name, values, true, nil
+}
+
+func splitVCardParamValues(raw string) ([]string, error) {
+	var values []string
+	start := 0
+	quoted := false
+	for i, r := range raw {
+		switch r {
+		case '"':
+			quoted = !quoted
+		case ',':
+			if !quoted {
+				values = append(values, cleanVCardParamValue(raw[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	if quoted {
+		return nil, fmt.Errorf("parameter value quote is unterminated")
+	}
+	values = append(values, cleanVCardParamValue(raw[start:]))
+	return values, nil
+}
+
+func cleanVCardParamValue(raw string) string {
+	return strings.Trim(strings.TrimSpace(raw), `"`)
 }

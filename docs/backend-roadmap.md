@@ -2351,6 +2351,10 @@ Implementation order:
       `ends-with`, and `negate-condition`, while rejecting unsupported
       collations or malformed text-match attributes instead of silently
       changing query semantics.
+1111. CardDAV `addressbook-query` now evaluates the first nested
+      `param-filter` under a `prop-filter`, parsing unfolded vCard content-line
+      parameters and supporting parameter existence, `is-not-defined`, and
+      text-match checks before returning matching contact objects.
 
 ## Deferred until backend contracts stabilize
 
@@ -2364,7 +2368,7 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV broader CardDAV filter-tree/param-filter semantics, broader vCard
+- Contacts/CardDAV broader CardDAV filter-tree composition, broader vCard
   compatibility, and native-client compatibility beyond the experimental
   runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,
   repository, bounded vCard 4.0 validation, REPORT parsing, and multistatus

@@ -63,8 +63,9 @@ execution for `addressbook-query`, `addressbook-multiget`, and
 `prop-filter` property name and applies `text-match` to parsed unfolded vCard
 property values instead of only scanning the whole object body. It also honors
 the RFC 6352 default `i;unicode-casemap` collation plus `equals`, `contains`,
-`starts-with`, `ends-with`, and `negate-condition` text-match attributes. It
-remains gated on broader vCard/filter-tree/param-filter compatibility and
+`starts-with`, `ends-with`, and `negate-condition` text-match attributes, and
+can evaluate the first nested `param-filter` against parsed vCard parameter
+values. It remains gated on broader vCard/filter-tree compatibility and
 native-client tests. The handler is deliberately experimental and does not yet
 make CardDAV public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
@@ -2386,11 +2387,13 @@ The platform hardening sprint completed the following:
   property is present. The first text-match evaluator honors the RFC 6352
   default `i;unicode-casemap` collation, rejects unsupported collations instead
   of silently changing semantics, and supports `equals`, `contains`,
-  `starts-with`, `ends-with`, and `negate-condition`. The repository can
+  `starts-with`, `ends-with`, and `negate-condition`. It can also evaluate the
+  first nested `param-filter` by parsing vCard content-line parameters and
+  matching parameter existence, absence, or text-match values. The repository can
   list address-book changes since a stored sync token and rejects missing or
   unsafe sync tokens before SQL work. This still does not advertise public
   native-client compatibility because broader CardDAV filter trees,
-  param-filter semantics, broader vCard compatibility, and client
+  `test=anyof|allof` composition, broader vCard compatibility, and client
   compatibility tests are still pending.
 - CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
@@ -2407,7 +2410,7 @@ The platform hardening sprint completed the following:
   rejects insecure Basic auth in production through
   `GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH=false`. This enables deployment smoke
   testing of the CardDAV gateway while keeping public/client-ready status gated
-  on broader filter trees/param-filters, vCard compatibility, and native-client
+  on broader filter tree composition, vCard compatibility, and native-client
   verification.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
@@ -2435,6 +2438,6 @@ Next focus areas:
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
 8. Extend CardDAV from internal discovery into authenticated client workflows:
-   add broader CardDAV filter-tree/param-filter semantics, vCard compatibility, and
+   add broader CardDAV filter-tree composition, vCard compatibility, and
    native-client tests before webmail contacts, attendee auto-complete, or
    public native CardDAV compatibility are exposed.

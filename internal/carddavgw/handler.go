@@ -610,19 +610,41 @@ func contactObjectMatchesFilter(object ContactObject, filter AddressBookQueryFil
 	}
 	propertyExists := false
 	for _, line := range lines {
-		name, value, err := parseVCardContentLine(line)
+		parsed, err := parseVCardContentLineParts(line)
 		if err != nil {
 			continue
 		}
-		if name != propertyName {
+		if parsed.Name != propertyName {
 			continue
 		}
 		propertyExists = true
-		if !filter.HasTextMatch || textMatchApplies(value, filter.TextMatch) {
+		if filter.HasParamFilter && !vCardParamFilterApplies(parsed.Params, filter.ParamFilter) {
+			continue
+		}
+		if !filter.HasTextMatch || textMatchApplies(parsed.Value, filter.TextMatch) {
 			return true
 		}
 	}
-	return propertyExists && !filter.HasTextMatch
+	return propertyExists && !filter.HasTextMatch && !filter.HasParamFilter
+}
+
+func vCardParamFilterApplies(params map[string][]string, filter CardDAVParamFilter) bool {
+	values, exists := params[strings.ToUpper(strings.TrimSpace(filter.Name))]
+	if filter.IsNotDefined {
+		return !exists
+	}
+	if !exists {
+		return false
+	}
+	if !filter.HasTextMatch {
+		return true
+	}
+	for _, value := range values {
+		if textMatchApplies(value, filter.TextMatch) {
+			return true
+		}
+	}
+	return false
 }
 
 func textMatchApplies(value string, match CardDAVTextMatch) bool {

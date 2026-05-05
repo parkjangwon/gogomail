@@ -197,6 +197,31 @@ func TestParseReportCollectsAddressBookQueryTextMatchAttributes(t *testing.T) {
 	}
 }
 
+func TestParseReportCollectsAddressBookQueryParamFilter(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <C:filter>
+    <C:prop-filter name="EMAIL">
+      <C:param-filter name="TYPE"><C:text-match match-type="equals">home</C:text-match></C:param-filter>
+    </C:prop-filter>
+  </C:filter>
+</C:addressbook-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if req.Filter.PropertyName != "EMAIL" || !req.Filter.HasParamFilter {
+		t.Fatalf("filter = %+v", req.Filter)
+	}
+	if req.Filter.ParamFilter.Name != "TYPE" || !req.Filter.ParamFilter.HasTextMatch {
+		t.Fatalf("param-filter = %+v", req.Filter.ParamFilter)
+	}
+	if req.Filter.ParamFilter.TextMatch.Text != "home" || req.Filter.ParamFilter.TextMatch.MatchType != TextMatchEquals {
+		t.Fatalf("param text-match = %+v", req.Filter.ParamFilter.TextMatch)
+	}
+}
+
 func TestParseReportRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
@@ -215,6 +240,9 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"unsupported collation":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match collation="i;octet">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"param filter no parent": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:param-filter name="TYPE"><C:text-match>home</C:text-match></C:param-filter></C:filter></C:addressbook-query>`,
+		"param filter no name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter><C:text-match>home</C:text-match></C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,
+		"param filter mixed":     `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter name="TYPE"><C:is-not-defined/><C:text-match>home</C:text-match></C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,
 		"malformed xml":          `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter></C:addressbook-query>`,
 		"multiple roots":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
 		"xml directive":          `<!DOCTYPE report><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query>`,
