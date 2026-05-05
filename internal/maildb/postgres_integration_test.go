@@ -16,6 +16,7 @@ import (
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/imapgw"
+	messageparse "github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/outbound"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -1078,6 +1079,90 @@ WHERE message_id = $1::uuid`, string(copied[0].ID)).Scan(&copiedAttachmentCount,
 	}
 	if quotaAfter-quotaBefore != 112 {
 		t.Fatalf("quota delta = %d, want copied message plus attachment bytes 112", quotaAfter-quotaBefore)
+	}
+}
+
+func TestPostgresIMAPAppendStoresMessageAndUID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	target, err := repo.ResolveIMAPAppendTarget(ctx, seed.userID, "INBOX")
+	if err != nil {
+		t.Fatalf("ResolveIMAPAppendTarget returned error: %v", err)
+	}
+	if target.MailboxID != seed.inboxID || target.UserID != seed.userID || target.DomainID != seed.domainID || target.CompanyID != seed.companyID {
+		t.Fatalf("append target = %#v, want seeded inbox/user/domain/company", target)
+	}
+	if target.UIDValidity == 0 {
+		t.Fatal("append target UIDValidity = 0")
+	}
+
+	raw := strings.Join([]string{
+		"Message-ID: <imap-append@example.com>",
+		"Date: Tue, 5 May 2026 12:34:56 +0900",
+		"From: Sender <sender@example.net>",
+		"To: Alice <alice@example.com>",
+		"Subject: IMAP append integration",
+		"",
+		"hello from append",
+	}, "\r\n")
+	parsed, err := messageparse.ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	internalDate := time.Date(2026, 5, 5, 12, 34, 56, 0, time.FixedZone("KST", 9*60*60))
+
+	var quotaBefore int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaBefore); err != nil {
+		t.Fatalf("read quota before append: %v", err)
+	}
+	result, err := repo.AppendStoredIMAPMessage(ctx, AppendStoredIMAPMessageRequest{
+		Target:       target,
+		StoragePath:  "mailstore/company/domain/user/imap-append/2026/05/append.eml",
+		Parsed:       parsed,
+		Flags:        imapgw.MessageFlags{Read: true, Starred: true},
+		InternalDate: internalDate,
+		Size:         int64(len(raw)),
+	})
+	if err != nil {
+		t.Fatalf("AppendStoredIMAPMessage returned error: %v", err)
+	}
+	if result.UIDValidity != target.UIDValidity || result.Summary.UID != 1 || result.Summary.MailboxID != imapgw.MailboxID(seed.inboxID) {
+		t.Fatalf("append result uidvalidity/mailbox/uid = %d/%q/%d, want %d/%q/1", result.UIDValidity, result.Summary.MailboxID, result.Summary.UID, target.UIDValidity, seed.inboxID)
+	}
+	if result.Summary.Envelope.Subject != "IMAP append integration" || !result.Summary.Flags.Read || !result.Summary.Flags.Starred {
+		t.Fatalf("append summary = %#v, want subject and initial flags", result.Summary)
+	}
+
+	stored, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, result.Summary.UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage appended message returned error: %v", err)
+	}
+	if stored.StoragePath != "mailstore/company/domain/user/imap-append/2026/05/append.eml" {
+		t.Fatalf("appended storage path = %q", stored.StoragePath)
+	}
+
+	var quotaAfter int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaAfter); err != nil {
+		t.Fatalf("read quota after append: %v", err)
+	}
+	if quotaAfter-quotaBefore != int64(len(raw)) {
+		t.Fatalf("quota delta = %d, want %d", quotaAfter-quotaBefore, len(raw))
+	}
+
+	var outboxTopic, outboxEvent, outboxStoragePath string
+	if err := db.QueryRowContext(ctx, `
+SELECT topic, payload->>'event', payload->>'storage_path'
+FROM outbox
+WHERE partition_key = $1`, string(result.Summary.ID)).Scan(&outboxTopic, &outboxEvent, &outboxStoragePath); err != nil {
+		t.Fatalf("query append outbox: %v", err)
+	}
+	if outboxTopic != "mail.event" || outboxEvent != "mail.stored" || outboxStoragePath != stored.StoragePath {
+		t.Fatalf("append outbox = %q/%q/%q, want mail.event/mail.stored/%q", outboxTopic, outboxEvent, outboxStoragePath, stored.StoragePath)
 	}
 }
 
