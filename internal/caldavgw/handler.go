@@ -233,6 +233,11 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object not found", http.StatusNotFound)
 		return
 	}
+	if ifNoneMatchMatches(r.Header.Get("If-None-Match"), object.ETag) {
+		writeCalendarObjectNotModifiedHeaders(w, object)
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	writeCalendarObjectHeaders(w, object)
 	w.WriteHeader(http.StatusOK)
 	if r.Method != MethodHead {
@@ -386,6 +391,32 @@ func writeCalendarObjectHeaders(w http.ResponseWriter, object CalendarObject) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Length", strconv.FormatInt(object.Size, 10))
+}
+
+func writeCalendarObjectNotModifiedHeaders(w http.ResponseWriter, object CalendarObject) {
+	w.Header().Set("ETag", object.ETag)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+}
+
+func ifNoneMatchMatches(header string, etag string) bool {
+	header = strings.TrimSpace(header)
+	if header == "" || strings.ContainsAny(header, "\r\n") {
+		return false
+	}
+	if header == "*" {
+		return true
+	}
+	for _, candidate := range strings.Split(header, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if strings.HasPrefix(candidate, "W/") {
+			candidate = strings.TrimSpace(strings.TrimPrefix(candidate, "W/"))
+		}
+		if candidate == etag {
+			return true
+		}
+	}
+	return false
 }
 
 func readBoundedCalendarBody(r io.Reader) ([]byte, error) {

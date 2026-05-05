@@ -2143,6 +2143,10 @@ Implementation order:
       `getlastmodified` metadata for resources where gogomail has exact stored
       state. Owner hrefs point at the authenticated principal, creation dates
       are UTC RFC3339 values, and last-modified values use HTTP-date format.
+1064. CalDAV calendar object `GET` and `HEAD` now support HTTP
+      `If-None-Match` revalidation against stored strong ETags, returning
+      `304 Not Modified` without a body when the client representation is
+      current.
 
 ## Deferred until backend contracts stabilize
 

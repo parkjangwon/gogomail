@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV WebDAV owner/date properties)
+Last updated: 2026-05-06 (updated after CalDAV conditional object reads)
 
 ## Current phase
 
@@ -2194,6 +2194,9 @@ The platform hardening sprint completed the following:
   `getlastmodified` metadata where the current model can answer them exactly.
   Owners point at the authenticated user's principal URL, creation dates use
   UTC RFC3339 timestamps, and last-modified values use HTTP-date formatting.
+- CalDAV calendar object `GET` and `HEAD` now honor `If-None-Match` against
+  stored strong ETags, returning `304 Not Modified` with safe cache headers and
+  no body when clients already have the current `.ics` representation.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

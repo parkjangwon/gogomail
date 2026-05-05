@@ -1496,6 +1496,9 @@ Current state:
   `getlastmodified` for calendar collections and objects when backed by stored
   metadata, improving native-client discovery without inventing ACL/delegation
   semantics.
+- CalDAV object `GET`/`HEAD` now support `If-None-Match` cache revalidation
+  against strong object ETags, returning `304 Not Modified` without streaming
+  `.ics` bodies when possible.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
