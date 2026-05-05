@@ -636,10 +636,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		return s.handleMove(writer, tag, fields, state)
 	case "APPEND":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		return s.handleAppend(writer, tag, fields, literal, state)
 	case "LOGOUT":
 		if len(fields) != 2 {
@@ -2874,6 +2870,10 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	mailboxName, ok := imapDecodeMailboxName(fields[2])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD APPEND mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	body := *literal

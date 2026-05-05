@@ -1526,6 +1526,10 @@ The platform hardening sprint completed the following:
   item lists, or modified UTF-7 mailbox names before authentication failures,
   while valid unauthenticated commands still return `NO authentication
   required`.
+- IMAP `APPEND` now validates missing literals, malformed append options, and
+  modified UTF-7 mailbox names before authentication failures, while valid
+  unauthenticated appends still consume the RFC literal and return
+  `NO authentication required` before backend storage.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

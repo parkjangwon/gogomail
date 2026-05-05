@@ -68,6 +68,10 @@ Current state:
   or modified UTF-7 mailbox names before authentication failures, while
   well-formed unauthenticated commands still return `NO authentication
   required`.
+- `APPEND` validates missing literals, malformed append options, and modified
+  UTF-7 mailbox names before authentication failures, while well-formed
+  unauthenticated appends still consume the RFC literal and return
+  `NO authentication required` before backend storage.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

@@ -1389,6 +1389,10 @@ Implementation order:
      state-independent malformed subcommands before authentication failures too,
      preserving precise tagged `BAD` diagnostics while valid unauthenticated UID
      commands still return `NO authentication required`.
+870. IMAP `APPEND` now validates missing literals, malformed append options, and
+     modified UTF-7 mailbox names before authentication failures too, while
+     valid unauthenticated appends still consume the RFC literal and return
+     `NO authentication required` before backend storage.
 
 ## Deferred until backend contracts stabilize
 
