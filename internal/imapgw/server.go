@@ -1170,11 +1170,16 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
 		return false, err
 	}
+	subcommand := strings.ToUpper(fields[2])
+	if !imapUIDSubcommandKnown(subcommand) {
+		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		return false, err
+	}
 	if state.selectedMailbox == "" {
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
-	switch strings.ToUpper(fields[2]) {
+	switch subcommand {
 	case "FETCH":
 		return s.handleUIDFetch(writer, tag, fields, state)
 	case "SEARCH":
@@ -1203,6 +1208,15 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
+	}
+}
+
+func imapUIDSubcommandKnown(subcommand string) bool {
+	switch subcommand {
+	case "FETCH", "SEARCH", "SORT", "THREAD", "STORE", "EXPUNGE", "COPY", "MOVE":
+		return true
+	default:
+		return false
 	}
 }
 
