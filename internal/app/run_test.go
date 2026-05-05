@@ -245,6 +245,23 @@ func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
 	}
 }
 
+func TestNewIMAPServerBuildsProtocolShell(t *testing.T) {
+	t.Parallel()
+
+	runtime := newIMAPGatewayRuntime(nil, nil, nil)
+	opts, err := imapServerOptionsForConfig(config.Config{IMAPAddr: ":1143", IMAPAllowInsecureAuth: true}, runtime.backend)
+	if err != nil {
+		t.Fatalf("imapServerOptionsForConfig returned error: %v", err)
+	}
+	server, err := newIMAPServer(opts)
+	if err != nil {
+		t.Fatalf("newIMAPServer returned error: %v", err)
+	}
+	if server == nil || server.Options().Addr != ":1143" {
+		t.Fatalf("server = %+v", server)
+	}
+}
+
 func TestAllInOneHTTPModeIncludesMailAndAdminAPIs(t *testing.T) {
 	t.Parallel()
 

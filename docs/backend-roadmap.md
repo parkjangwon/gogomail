@@ -793,6 +793,9 @@ Implementation order:
      with listener option validation, backend requirement checks, and
      TLS/insecure-auth policy enforcement before the IMAP command parser is
      wired.
+690. `gogomail --mode=imap` now constructs the `imapgw.Server` shell from
+     runtime options while still deferring `Listen`/`Serve` until command
+     handling is wired.
 
 ## Deferred until backend contracts stabilize
 
