@@ -1507,6 +1507,10 @@ Implementation order:
 903. IMAP `THREAD` algorithm arguments now reject malformed atoms that still
      contain quote characters after command parsing, preventing broken values
      such as `ORDEREDSUBJECT"` from being silently normalized.
+904. IMAP `SEARCH`/`UID SEARCH` text, body, and header string arguments now
+     reject malformed atoms that still contain quote characters after command
+     parsing, preventing broken values such as `SUBJECT IMAP"` from being
+     normalized.
 
 ## Deferred until backend contracts stabilize
 
