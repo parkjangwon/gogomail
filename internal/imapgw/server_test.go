@@ -7255,6 +7255,21 @@ func TestParseIMAPUIDSet(t *testing.T) {
 	}
 }
 
+func TestParseIMAPUIDSetAcceptsClientScaleRanges(t *testing.T) {
+	t.Parallel()
+
+	got, ok := parseIMAPUIDSet("1:1000")
+	if !ok {
+		t.Fatal("parseIMAPUIDSet rejected client-scale UID range")
+	}
+	if len(got) != 1000 || got[0] != 1 || got[len(got)-1] != 1000 {
+		t.Fatalf("UID range length/edges = %d/%d/%d, want 1000/1/1000", len(got), got[0], got[len(got)-1])
+	}
+	if _, ok := parseIMAPUIDSet("1:10001"); ok {
+		t.Fatal("parseIMAPUIDSet accepted range above expansion cap")
+	}
+}
+
 func TestParseIMAPSequenceSet(t *testing.T) {
 	t.Parallel()
 
@@ -7280,6 +7295,21 @@ func TestParseIMAPSequenceSet(t *testing.T) {
 		if got, ok := parseIMAPSequenceSet(value, 0); ok {
 			t.Fatalf("parseIMAPSequenceSet(%q, 0) = %v true, want rejection", value, got)
 		}
+	}
+}
+
+func TestParseIMAPSequenceSetAcceptsClientScaleStarRanges(t *testing.T) {
+	t.Parallel()
+
+	got, ok := parseIMAPSequenceSet("1:*", 1000)
+	if !ok {
+		t.Fatal("parseIMAPSequenceSet rejected client-scale star range")
+	}
+	if len(got) != 1000 || got[0] != 1 || got[len(got)-1] != 1000 {
+		t.Fatalf("sequence range length/edges = %d/%d/%d, want 1000/1/1000", len(got), got[0], got[len(got)-1])
+	}
+	if _, ok := parseIMAPSequenceSet("1:*", 10001); ok {
+		t.Fatal("parseIMAPSequenceSet accepted range above expansion cap")
 	}
 }
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after storage nil-body validation)
+Last updated: 2026-05-05 (updated after IMAP client-scale set validation)
 
 ## Current phase
 
@@ -251,6 +251,9 @@ guidance.
 - IMAP UID and message sequence-set numbers now require digit-only atoms,
   rejecting signed values such as `UID FETCH +7` and `FETCH +1` before command
   execution.
+- IMAP UID and message sequence-set expansion now accepts common client-scale
+  ranges such as `1:1000` and `1:*` while still enforcing an explicit expansion
+  cap, reducing false `BAD` responses during mailbox synchronization.
 - IMAP MIME body-part paths and partial body fetch windows now require
   digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
   `BODY[]<+12.34>` before fetch processing.

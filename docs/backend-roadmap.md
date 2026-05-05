@@ -1550,6 +1550,9 @@ Implementation order:
 916. Shared local and S3-compatible storage writes now reject nil `Put` bodies
      before filesystem or HTTP request work, preventing accidental empty object
      writes and keeping storage adapter behavior consistent.
+917. IMAP UID and message sequence-set expansion now accepts client-scale
+     ranges such as `1:1000` and `1:*` while retaining an explicit expansion
+     cap, reducing false `BAD` responses during mailbox synchronization.
 
 ## Deferred until backend contracts stabilize
 
