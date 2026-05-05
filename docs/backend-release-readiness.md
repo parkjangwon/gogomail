@@ -706,6 +706,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   contract. Local/NFS uses directory walks, and S3-compatible storage uses
   signed `ListObjectsV2`, giving future Drive, lifecycle, and reconciliation
   workflows a portable cursor-paginated object metadata scan.
+- S3-compatible `ListObjectsV2` decoding now rejects truncated pages that omit
+  a continuation token, so cleanup and reconciliation workers do not accept a
+  provider response that cannot be advanced safely.
 - Local/NFS-style storage deletes are idempotent for missing objects, aligning
   lifecycle cleanup behavior with S3-compatible object deletion.
 - S3-compatible storage requests reject canceled contexts before object-key

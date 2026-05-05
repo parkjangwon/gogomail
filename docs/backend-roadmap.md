@@ -2234,6 +2234,9 @@ Implementation order:
       invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping
       object keys, S3 URLs, SigV4 canonical paths, logs, and cleanup cursors
       text-stable across backends.
+1087. S3-compatible `ListObjectsV2` decoding now rejects truncated pages that
+      omit a continuation token, preventing Drive, lifecycle, and reconciliation
+      scans from accepting a page that cannot be advanced safely.
 
 ## Deferred until backend contracts stabilize
 

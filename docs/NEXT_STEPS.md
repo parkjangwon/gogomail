@@ -230,6 +230,9 @@ Current state:
   AWS-reserved bucket prefixes and suffixes before storage adapter construction,
   and requires bucket names to start and end with a letter or digit, keeping AWS
   and MinIO-style deployment failures early and explicit.
+- S3-compatible `ListObjectsV2` responses now reject `IsTruncated=true` pages
+  that omit a continuation token, preventing Drive/lifecycle cleanup scans from
+  accepting a page that cannot be advanced safely.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction. Endpoint base paths also reject encoded path

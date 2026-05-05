@@ -289,6 +289,35 @@ func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsTruncatedPageWithoutCursor(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>true</IsTruncated>
+  <Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err == nil || !strings.Contains(err.Error(), "truncated response missing continuation token") {
+		t.Fatalf("List err = %v, want missing continuation token rejection", err)
+	}
+}
+
 func TestS3StoreGetRangeRequiresMatchingContentRange(t *testing.T) {
 	t.Parallel()
 
