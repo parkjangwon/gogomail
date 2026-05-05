@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV REPORT parsing)
+Last updated: 2026-05-06 (updated after CardDAV multistatus responses)
 
 ## Current phase
 
@@ -59,7 +59,9 @@ sync-token updates, and durable change rows. Public CardDAV compatibility
 now has bounded REPORT request parsing for `addressbook-query`,
 `addressbook-multiget`, and `sync-collection`, but remains gated on REPORT
 handlers, sync handlers, auth/listener wiring, broader vCard compatibility, and
-native-client tests.
+native-client tests. WebDAV multistatus response building is available for
+CardDAV principal, address-book collection, contact-object, REPORT, and sync
+responses.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2349,6 +2351,11 @@ The platform hardening sprint completed the following:
   collecting requested properties, hrefs, sync token/level, limits, and first
   text-match filter while rejecting malformed, oversized, deeply nested, or
   unsupported sync-level shapes before handlers are exposed.
+- CardDAV now has a WebDAV `multistatus` response builder for future PROPFIND,
+  REPORT, and sync handlers. It renders principal discovery, address-book
+  collection metadata, contact-object metadata, requested `address-data`,
+  supported reports, supported vCard data types, sync tokens, and per-property
+  404 propstats.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2374,6 +2381,6 @@ Next focus areas:
    resources, aliases, group memberships, and bounded membership expansion into
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
-8. Add CardDAV REPORT/sync handlers and broader native-client vCard
+8. Add CardDAV discovery/REPORT/sync handlers and broader native-client vCard
    compatibility tests before webmail contacts, attendee auto-complete, or
    native CardDAV client compatibility are exposed.

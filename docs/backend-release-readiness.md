@@ -364,8 +364,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   refreshes, and durable change rows. REPORT parsing recognizes bounded
   `addressbook-query`, `addressbook-multiget`, and `sync-collection` bodies,
   including properties, hrefs, sync token/level, limits, and a first text-match
-  filter. Client-ready CardDAV remains gated on REPORT handlers, sync handlers,
-  auth/listener wiring, broader vCard compatibility, and native-client tests.
+  filter. WebDAV multistatus response building can render CardDAV principal,
+  address-book, contact-object, REPORT, and sync metadata. Client-ready CardDAV
+  remains gated on discovery/REPORT handlers, sync handlers, auth/listener
+  wiring, broader vCard compatibility, and native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
