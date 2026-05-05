@@ -1414,6 +1414,10 @@ Implementation order:
      quoting, and internal spacing while retaining case-insensitive matching,
      preventing distinct subscribed mailbox names from silently collapsing into
      one `LSUB` row.
+876. IMAP quoted-string response formatting now preserves ordinary internal
+     spacing while escaping quotes/backslashes and cleaning controls, preventing
+     mailbox names, FETCH metadata, and MIME parameters from being rewritten on
+     output.
 
 ## Deferred until backend contracts stabilize
 

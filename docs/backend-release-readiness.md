@@ -346,6 +346,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `SELECT`, `EXAMINE`, `STATUS`, `APPEND`, `COPY`, `MOVE`, `CREATE`, `DELETE`,
   `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`, and `LSUB` while rejecting raw
   8-bit or malformed modified UTF-7 forms.
+- IMAP quoted-string response formatting preserves ordinary internal spacing
+  while escaping quotes/backslashes and cleaning controls, preventing mailbox
+  names, FETCH metadata, and MIME parameters from being rewritten on output.
 - IMAP mailbox management and subscription commands now reject malformed
   `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
   `UNSUBSCRIBE` syntax before authentication failures, preserving precise

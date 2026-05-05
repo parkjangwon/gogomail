@@ -1064,6 +1064,9 @@ The platform hardening sprint completed the following:
   `MOVE`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`,
   and `LSUB`, reject raw 8-bit or malformed modified UTF-7 forms, and keep
   internal service/storage mailbox names as UTF-8.
+- IMAP quoted-string response formatting now escapes quotes/backslashes and
+  cleans controls without collapsing ordinary spacing, preserving mailbox names,
+  MIME parameters, and other wire values whose internal spaces are significant.
 - IMAP advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
   field/value parameter lists before returning gogomail server identity.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
