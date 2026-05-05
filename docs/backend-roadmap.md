@@ -1090,10 +1090,9 @@ Implementation order:
 788. IMAP `SELECT` and `EXAMINE` now emit optional RFC-shaped `[UNSEEN n]`
      response codes by resolving the first unread message sequence number from
      mailbox summaries instead of confusing unseen counts with sequence numbers.
-789. IMAP command reading now consumes bounded synchronizing literals with a
+789. IMAP command reading consumes bounded synchronizing literals with a
      continuation response, preserves the literal as the final parsed command
-     field, rejects unsupported non-synchronizing literals, and keeps the
-     connection framed even while `APPEND` storage remains deferred.
+     field, and keeps the connection framed for APPEND-style command literals.
 790. IMAP `APPEND` now has a protocol-to-backend request boundary carrying the
      destination mailbox, literal body reader, and size, with the service adapter
      returning an explicit unsupported error until repository/storage append
@@ -1272,6 +1271,10 @@ Implementation order:
      that attach a `message/rfc822` whose encapsulated body is itself
      multipart, guarding nested `MESSAGE/RFC822` serialization for forwarded
      message compatibility.
+838. IMAP now advertises `LITERAL+` and accepts bounded non-synchronizing
+     command literals such as `APPEND ... {n+}` without an extra continuation
+     round trip, while preserving synchronizing literal framing for
+     conservative clients.
 
 ## Deferred until backend contracts stabilize
 
