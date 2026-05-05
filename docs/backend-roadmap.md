@@ -1707,6 +1707,10 @@ Implementation order:
 957. Mail API now exposes bounded thread-level bulk flag updates, enabling
      conversation-list read/starred/answered/forwarded actions while using the
      updated message IDs for best-effort IMAP flag event fanout.
+958. Mail API now exposes bounded thread-level folder moves, enabling
+     conversation-list archive/move workflows while validating destination
+     folders, invalidating affected IMAP UID rows transactionally, and
+     publishing best-effort expunge events from the pre-move UID snapshot.
 
 ## Deferred until backend contracts stabilize
 

@@ -60,6 +60,7 @@ type MessageService interface {
 	BulkSetThreadFlag(ctx context.Context, req maildb.BulkThreadFlagRequest) (int64, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
+	BulkMoveThreads(ctx context.Context, req maildb.BulkThreadMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
@@ -116,6 +117,7 @@ type webmailBulkActionCapabilities struct {
 	Flags         bool `json:"flags"`
 	ThreadFlags   bool `json:"thread_flags"`
 	Move          bool `json:"move"`
+	ThreadMove    bool `json:"thread_move"`
 	Delete        bool `json:"delete"`
 }
 
@@ -197,6 +199,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 			Flags:         true,
 			ThreadFlags:   true,
 			Move:          true,
+			ThreadMove:    true,
 			Delete:        true,
 		},
 		MailboxActions: webmailMailboxCapabilities{
@@ -830,6 +833,32 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		req.UserID = userID
 		updated, err := service.BulkMoveMessages(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "updated": updated})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/threads/bulk/folder", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		var req maildb.BulkThreadMoveRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.UserID = userID
+		updated, err := service.BulkMoveThreads(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

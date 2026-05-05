@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after thread bulk flag actions)
+Last updated: 2026-05-06 (updated after thread bulk move actions)
 
 ## Current phase
 
@@ -108,6 +108,9 @@ guidance.
 - Mail API now supports bounded thread-level bulk flag updates for
   conversation-list read/starred/answered/forwarded actions, while publishing
   best-effort IMAP flag events for the updated messages.
+- Mail API now supports bounded thread-level folder moves, validating
+  destination folders, invalidating affected IMAP UID rows transactionally, and
+  publishing best-effort IMAP expunge events from the pre-move UID snapshot.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

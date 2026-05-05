@@ -87,6 +87,41 @@ func TestBulkSetThreadFlagSQLUpdatesActiveThreadMessages(t *testing.T) {
 	}
 }
 
+func TestValidateBulkThreadMoveRequestRejectsUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []BulkThreadMoveRequest{
+		{UserID: "user-1", FolderID: "folder-1", ThreadIDs: []string{"thread-1", "thread-1"}},
+		{UserID: "user-1", FolderID: "folder-1", ThreadIDs: []string{"thread-1\r\nthread-2"}},
+		{UserID: "user-1", FolderID: strings.Repeat("x", maxMailboxResourceIDBytes+1), ThreadIDs: []string{"thread-1"}},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(strings.Join(req.ThreadIDs, ","), func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateBulkThreadMoveRequest(req); err == nil {
+				t.Fatalf("ValidateBulkThreadMoveRequest accepted unsafe request %+v", req)
+			}
+		})
+	}
+}
+
+func TestBulkMoveThreadsSQLUpdatesActiveThreadMessages(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"COALESCE(thread_id, id)::text IN",
+		"jsonb_array_elements_text($2::jsonb)",
+		"EXISTS (",
+		"RETURNING id::text",
+	} {
+		if !strings.Contains(bulkMoveThreadsSQL, want) {
+			t.Fatalf("bulk thread move SQL does not include %q:\n%s", want, bulkMoveThreadsSQL)
+		}
+	}
+}
+
 func TestValidateBulkMessageMoveRequestRejectsTooManyIDs(t *testing.T) {
 	t.Parallel()
 

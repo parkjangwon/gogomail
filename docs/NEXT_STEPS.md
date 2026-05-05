@@ -1078,6 +1078,9 @@ Next:
 - Mail API now supports bounded `PATCH /api/v1/threads/bulk/flags` for
   conversation-list read/starred/answered/forwarded actions with best-effort
   IMAP flag notifications for the updated messages.
+- Mail API now supports bounded `PATCH /api/v1/threads/bulk/folder` for
+  conversation-list archive/move workflows with destination-folder validation,
+  transactional IMAP UID invalidation, and best-effort expunge notifications.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

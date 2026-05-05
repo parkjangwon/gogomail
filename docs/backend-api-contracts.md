@@ -220,6 +220,9 @@ request and only affect active messages owned by the authenticated user.
 - `PATCH /api/v1/messages/bulk/folder`
   - Body: `{"message_ids":["..."],"folder_id":"..."}`
   - Response: `{"status":"ok","updated":2}`
+- `PATCH /api/v1/threads/bulk/folder`
+  - Body: `{"thread_ids":["..."],"folder_id":"..."}`
+  - Response: `{"status":"ok","updated":5}`
 - `POST /api/v1/messages/bulk/delete`
   - Body: `{"message_ids":["..."]}`
   - Response: `{"status":"ok","updated":2}`
@@ -228,7 +231,11 @@ Bulk endpoints reject missing, blank, duplicate, over-limit, CR/LF-bearing, or
 oversized message/thread IDs instead of silently ignoring ambiguous client
 intent. Thread flag updates use `COALESCE(thread_id, id)` so legacy unthreaded
 messages can still be handled as single-message conversations, and the updated
-message IDs are used for best-effort IMAP flag notifications.
+message IDs are used for best-effort IMAP flag notifications. Thread folder
+moves validate the destination folder, move every active message in matching
+conversations, invalidate affected IMAP UID rows in the same database
+transaction, and publish best-effort IMAP expunge events from the pre-move UID
+snapshot.
 
 ## Compose requests
 
