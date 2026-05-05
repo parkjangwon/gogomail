@@ -184,6 +184,9 @@ guidance.
   and line breaks during config validation and adapter construction, surfacing
   copied env/config credential mistakes before readiness probes or runtime
   PUT/GET requests fail with opaque authentication errors.
+- S3-compatible access key IDs now reject spaces, tabs, and line breaks during
+  config validation and adapter construction, preventing copied credential
+  mistakes from being silently trimmed before SigV4 signing.
 - Local/NFS-style storage writes now stage through unique temporary files in
   the target directory before `rename`, avoiding fixed `.tmp` collisions while
   preserving atomic object replacement semantics.

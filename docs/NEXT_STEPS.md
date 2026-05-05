@@ -198,6 +198,9 @@ Current state:
   line breaks during config validation and adapter construction, making copied
   env/config credential mistakes fail fast before runtime S3 authentication
   errors.
+- S3-compatible access key IDs reject spaces, tabs, and line breaks during
+  config validation and adapter construction, preventing copied credential
+  mistakes from being silently trimmed before SigV4 signing.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default `gogomail` bucket for local S3-compatible runs.

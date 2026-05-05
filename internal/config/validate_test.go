@@ -115,13 +115,16 @@ func TestValidateRejectsIncompleteS3StorageBackend(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsS3SecretCredentialWhitespace(t *testing.T) {
+func TestValidateRejectsS3CredentialWhitespace(t *testing.T) {
 	for _, backend := range []string{"s3", "minio"} {
 		backend := backend
 		for _, tt := range []struct {
 			name   string
 			mutate func(*Config)
 		}{
+			{name: "access key leading space", mutate: func(cfg *Config) { cfg.StorageS3AccessKeyID = " access" }},
+			{name: "access key trailing space", mutate: func(cfg *Config) { cfg.StorageS3AccessKeyID = "access " }},
+			{name: "access key tab", mutate: func(cfg *Config) { cfg.StorageS3AccessKeyID = "access\tkey" }},
 			{name: "secret leading space", mutate: func(cfg *Config) { cfg.StorageS3SecretAccessKey = " secret" }},
 			{name: "secret trailing space", mutate: func(cfg *Config) { cfg.StorageS3SecretAccessKey = "secret " }},
 			{name: "secret tab", mutate: func(cfg *Config) { cfg.StorageS3SecretAccessKey = "secret\tvalue" }},
