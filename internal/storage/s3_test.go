@@ -125,6 +125,33 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 }
 
+func TestS3StoreSanitizesStatusErrorPreview(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("bad bucket\r\nrequest-id: 123"))
+	}))
+	defer server.Close()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        server.URL,
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	err = store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello"))
+	if err == nil || !strings.Contains(err.Error(), "403") || !strings.Contains(err.Error(), "bad bucket request-id: 123") || strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("error = %q, want sanitized status preview", err)
+	}
+}
+
 func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	endpoint := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_ENDPOINT"))
 	bucket := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_BUCKET"))

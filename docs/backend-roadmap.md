@@ -770,6 +770,10 @@ Implementation order:
 683. IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
      files with TLS 1.2 minimum and derive the server name from the IMAP
      listener host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
+684. S3-compatible storage status-error diagnostics now collapse backend
+     response bodies into bounded one-line UTF-8 previews, preventing
+     CR/LF-bearing object-store errors from leaking into readiness or storage
+     operation diagnostics.
 
 ## Deferred until backend contracts stabilize
 

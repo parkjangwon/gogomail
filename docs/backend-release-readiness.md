@@ -590,6 +590,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   adapter boundary and signs streaming `PUT`, `GET`, and `DELETE` requests with
   AWS SigV4, keeping AWS S3 and MinIO-style deployments behind the existing
   storage interface.
+- S3-compatible storage status-error diagnostics collapse backend response
+  bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing object
+  store errors from leaking into readiness or storage operation diagnostics.
 - Optional S3-compatible integration coverage can exercise real
   `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
   `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are

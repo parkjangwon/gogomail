@@ -108,7 +108,7 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("put s3 object: status %d", resp.StatusCode)
+		return s3StatusError("put", resp)
 	}
 	return nil
 }
@@ -123,8 +123,9 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 		return nil, fmt.Errorf("get s3 object: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		err := s3StatusError("get", resp)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("get s3 object: status %d", resp.StatusCode)
+		return nil, err
 	}
 	return resp.Body, nil
 }
@@ -140,7 +141,7 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("delete s3 object: status %d", resp.StatusCode)
+		return s3StatusError("delete", resp)
 	}
 	return nil
 }
@@ -313,6 +314,32 @@ func hmacSHA256(key []byte, value []byte) []byte {
 func sha256Hex(value []byte) string {
 	sum := sha256.Sum256(value)
 	return hex.EncodeToString(sum[:])
+}
+
+func s3StatusError(operation string, resp *http.Response) error {
+	preview := s3ErrorBodyPreview(resp.Body, 512)
+	if preview == "" {
+		return fmt.Errorf("%s s3 object: status %d", operation, resp.StatusCode)
+	}
+	return fmt.Errorf("%s s3 object: status %d: %s", operation, resp.StatusCode, preview)
+}
+
+func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
+	if body == nil || maxBytes <= 0 {
+		return ""
+	}
+	data, err := io.ReadAll(io.LimitReader(body, maxBytes))
+	if err != nil {
+		return ""
+	}
+	text := strings.ToValidUTF8(string(data), "")
+	text = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, text)
+	return strings.Join(strings.Fields(text), " ")
 }
 
 var _ Store = (*S3Store)(nil)
