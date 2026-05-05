@@ -537,6 +537,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	case "THREAD":
 		return s.handleThread(writer, tag, fields, state, false)
 	case "STORE":
+		if len(fields) < 5 {
+			return s.handleStore(writer, tag, fields, state)
+		}
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 			return false, err
@@ -635,6 +638,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if state.selectedMailbox == "" {
 			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
+		}
+		if len(fields) != 4 {
+			return s.handleMove(writer, tag, fields, state)
 		}
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
@@ -1174,12 +1180,18 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "THREAD":
 		return s.handleThread(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "STORE":
+		if len(fields) < 6 {
+			return s.handleUIDStore(writer, tag, fields, state)
+		}
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 			return false, err
 		}
 		return s.handleUIDStore(writer, tag, fields, state)
 	case "EXPUNGE":
+		if len(fields) != 4 {
+			return s.handleUIDExpunge(writer, tag, fields, state)
+		}
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 			return false, err
@@ -1188,6 +1200,9 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "COPY":
 		return s.handleUIDCopy(writer, tag, fields, state)
 	case "MOVE":
+		if len(fields) != 5 {
+			return s.handleUIDMove(writer, tag, fields, state)
+		}
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 			return false, err

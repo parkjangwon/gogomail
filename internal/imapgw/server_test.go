@@ -1200,6 +1200,66 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	}
 }
 
+func TestServerValidatesMalformedMutationsBeforeReadOnly(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: &selectModeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
+		t.Fatalf("write login/examine: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read examine response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 STORE\r\na4 UID STORE\r\na5 MOVE 1\r\na6 UID MOVE\r\na7 UID EXPUNGE\r\na8 STORE 1 +FLAGS (\\Seen)\r\na9 UID STORE 7 +FLAGS (\\Seen)\r\n")); err != nil {
+		t.Fatalf("write mutation commands: %v", err)
+	}
+	want := []string{
+		"a3 BAD STORE requires sequence set, mode, and flags\r\n",
+		"a4 BAD UID STORE requires UID, mode, and flags\r\n",
+		"a5 BAD MOVE requires sequence set and destination mailbox\r\n",
+		"a6 BAD UID MOVE requires UID set and destination mailbox\r\n",
+		"a7 BAD UID EXPUNGE requires UID set\r\n",
+		"a8 NO mailbox is read-only\r\n",
+		"a9 NO mailbox is read-only\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read mutation response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("mutation response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerSelectUsesCanonicalMailboxID(t *testing.T) {
 	t.Parallel()
 

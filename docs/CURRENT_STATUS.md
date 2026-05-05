@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP atom control validation)
+Last updated: 2026-05-05 (updated after IMAP read-only mutation syntax ordering)
 
 ## Current phase
 
@@ -1476,6 +1476,10 @@ The platform hardening sprint completed the following:
 - Local storage now shares the strict object-path validator used by mailservice,
   rejecting non-canonical, oversized, duplicate-separator, or dot-segment keys
   at the adapter boundary before reads, writes, or deletes.
+- IMAP read-only selected-state mutation commands now let malformed
+  `STORE`/`MOVE`/`UID STORE`/`UID MOVE`/`UID EXPUNGE` requests return
+  command-specific tagged `BAD` responses before valid mutations are rejected
+  with `NO mailbox is read-only`.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
