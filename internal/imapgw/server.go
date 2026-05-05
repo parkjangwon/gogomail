@@ -228,6 +228,27 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 		}
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
 		return false, err
+	case "LIST":
+		if *session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if len(fields) != 4 {
+			_, err := writer.WriteString(tag + " BAD LIST requires reference and mailbox pattern atoms\r\n")
+			return false, err
+		}
+		mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: (*session).UserID})
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO LIST failed\r\n")
+			return false, writeErr
+		}
+		for _, mailbox := range mailboxes {
+			if _, err := writer.WriteString(`* LIST (\HasNoChildren) "/" ` + imapQuotedString(imapMailboxDisplayName(mailbox)) + "\r\n"); err != nil {
+				return false, err
+			}
+		}
+		_, err = writer.WriteString(tag + " OK LIST completed\r\n")
+		return false, err
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -240,9 +261,32 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 	}
 }
 
+func imapMailboxDisplayName(mailbox Mailbox) string {
+	if strings.TrimSpace(mailbox.FullPath) != "" {
+		return strings.TrimSpace(mailbox.FullPath)
+	}
+	if strings.TrimSpace(mailbox.Name) != "" {
+		return strings.TrimSpace(mailbox.Name)
+	}
+	return strings.TrimSpace(string(mailbox.ID))
+}
+
 func imapFlagList(flags []string) string {
 	if len(flags) == 0 {
 		return "()"
 	}
 	return "(" + strings.Join(flags, " ") + ")"
+}
+
+func imapQuotedString(value string) string {
+	value = strings.ToValidUTF8(value, "")
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `"`, `\"`)
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, value)
+	return `"` + strings.Join(strings.Fields(value), " ") + `"`
 }
