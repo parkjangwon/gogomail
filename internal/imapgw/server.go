@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	messageparse "github.com/gogomail/gogomail/internal/message"
 )
 
 type ServerOptions struct {
@@ -1443,15 +1445,17 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		bodyStructure := ""
 		if !requestsLiteral && message.Body != nil {
 			if requestsBodyAttribute || requestsBodyStructure {
-				header, err := readIMAPSectionLiteral(message.Body, true)
+				structure, err := messageparse.ParseMIMEStructure(message.Body, messageparse.MIMEStructureOptions{})
 				if closeErr := message.Body.Close(); closeErr != nil && err == nil {
 					err = closeErr
 				}
 				if err != nil {
-					return false, err
+					bodyAttribute = imapBody(summary)
+					bodyStructure = imapBodyStructure(summary)
+				} else {
+					bodyAttribute = imapBodyFromMIMEStructure(summary, structure)
+					bodyStructure = imapBodyStructureFromMIMEStructure(summary, structure)
 				}
-				bodyAttribute = imapBodyFromHeader(summary, header)
-				bodyStructure = imapBodyStructureFromHeader(summary, header)
 			} else if err := message.Body.Close(); err != nil {
 				return false, err
 			}
@@ -2036,6 +2040,13 @@ func imapBodyStructure(summary MessageSummary) string {
 	return imapBodyStructureFromHeader(summary, nil)
 }
 
+func imapBodyStructureFromMIMEStructure(summary MessageSummary, structure messageparse.MIMEStructure) string {
+	if structure.Root.MediaType == "" {
+		return imapBodyStructure(summary)
+	}
+	return imapMIMEPartBody(structure.Root, maxInt64(summary.Size, 0), true)
+}
+
 func imapBodyStructureFromHeader(summary MessageSummary, header []byte) string {
 	return imapBodyFromHeaderExtended(summary, header, true)
 }
@@ -2044,8 +2055,69 @@ func imapBody(summary MessageSummary) string {
 	return imapBodyFromHeader(summary, nil)
 }
 
+func imapBodyFromMIMEStructure(summary MessageSummary, structure messageparse.MIMEStructure) string {
+	if structure.Root.MediaType == "" {
+		return imapBody(summary)
+	}
+	return imapMIMEPartBody(structure.Root, maxInt64(summary.Size, 0), false)
+}
+
 func imapBodyFromHeader(summary MessageSummary, header []byte) string {
 	return imapBodyFromHeaderExtended(summary, header, false)
+}
+
+func imapMIMEPartBody(part messageparse.MIMEPart, fallbackSize int64, extended bool) string {
+	if part.MediaType == "MULTIPART" {
+		childBodies := make([]string, 0, len(part.Parts)+5)
+		for _, child := range part.Parts {
+			childBodies = append(childBodies, imapMIMEPartBody(child, child.Size, extended))
+		}
+		if len(childBodies) == 0 {
+			return imapBodyFromHeaderExtended(MessageSummary{Size: fallbackSize}, nil, extended)
+		}
+		childBodies = append(childBodies, imapQuotedString(imapMIMESubtype(part.MediaSubtype)))
+		if extended {
+			childBodies = append(childBodies, imapMIMEBodyParameterList(part.Params), "NIL", "NIL", "NIL")
+		}
+		return "(" + strings.Join(childBodies, " ") + ")"
+	}
+	return imapMIMESinglePartBody(part, fallbackSize, extended)
+}
+
+func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, extended bool) string {
+	mediaType := imapMIMEToken(part.MediaType, "TEXT")
+	mediaSubtype := imapMIMEToken(part.MediaSubtype, "PLAIN")
+	size := part.Size
+	if size == 0 && fallbackSize > 0 {
+		size = fallbackSize
+	}
+	fields := []string{
+		imapQuotedString(mediaType),
+		imapQuotedString(mediaSubtype),
+		imapMIMEBodyParameterList(part.Params),
+		imapNString(part.ContentID),
+		imapNString(part.Description),
+		imapQuotedString(imapMIMEToken(part.Encoding, "7BIT")),
+		fmt.Sprintf("%d", maxInt64(size, 0)),
+	}
+	if mediaType == "TEXT" {
+		lines := part.Lines
+		if lines == 0 && size > 0 {
+			lines = 1
+		}
+		fields = append(fields, fmt.Sprintf("%d", lines))
+	}
+	if extended {
+		fields = append(fields, "NIL", imapMIMEBodyDisposition(part), "NIL", "NIL")
+	}
+	return "(" + strings.Join(fields, " ") + ")"
+}
+
+func imapMIMEBodyDisposition(part messageparse.MIMEPart) string {
+	if strings.TrimSpace(part.Disposition) == "" {
+		return "NIL"
+	}
+	return "(" + imapQuotedString(imapMIMEToken(part.Disposition, "ATTACHMENT")) + " " + imapMIMEBodyParameterList(part.DispositionParams) + ")"
 }
 
 func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended bool) string {
@@ -2145,6 +2217,10 @@ func imapBodyParams(params map[string]string) map[string]string {
 }
 
 func imapBodyParameterList(params map[string]string) string {
+	return imapMIMEBodyParameterList(params)
+}
+
+func imapMIMEBodyParameterList(params map[string]string) string {
 	if len(params) == 0 {
 		return "NIL"
 	}
@@ -2155,9 +2231,21 @@ func imapBodyParameterList(params map[string]string) string {
 	sort.Strings(keys)
 	values := make([]string, 0, len(keys)*2)
 	for _, key := range keys {
-		values = append(values, imapQuotedString(key), imapQuotedString(params[key]))
+		values = append(values, imapQuotedString(strings.ToUpper(key)), imapQuotedString(params[key]))
 	}
 	return "(" + strings.Join(values, " ") + ")"
+}
+
+func imapMIMEToken(value string, fallback string) string {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	if value == "" || strings.ContainsAny(value, " \t\r\n") {
+		return fallback
+	}
+	return value
+}
+
+func imapMIMESubtype(value string) string {
+	return imapMIMEToken(value, "MIXED")
 }
 
 func maxInt64(a int64, b int64) int64 {

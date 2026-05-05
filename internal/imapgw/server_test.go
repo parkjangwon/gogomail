@@ -3013,8 +3013,57 @@ func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
 		t.Fatalf("write uid fetch bodystructure: %v", err)
 	}
 	bodySize := len("Content-Type: text/html; charset=utf-8; format=flowed\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n<p>Hello</p>")
+	partSize := len("<p>Hello</p>")
 	want := []string{
-		fmt.Sprintf("* 4 FETCH (UID 10 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE (\"TEXT\" \"HTML\" (\"CHARSET\" \"utf-8\" \"FORMAT\" \"flowed\") NIL NIL \"QUOTED-PRINTABLE\" %d 1 NIL NIL NIL NIL))\r\n", bodySize, bodySize),
+		fmt.Sprintf("* 4 FETCH (UID 10 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE (\"TEXT\" \"HTML\" (\"CHARSET\" \"utf-8\" \"FORMAT\" \"flowed\") NIL NIL \"QUOTED-PRINTABLE\" %d 1 NIL NIL NIL NIL))\r\n", bodySize, partSize),
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read bodystructure response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("bodystructure response = %q, want %q", line, expected)
+		}
+	}
+}
+
+func TestServerHandlesFetchMultipartBodyStructure(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 11 BODYSTRUCTURE\r\n")); err != nil {
+		t.Fatalf("write uid fetch bodystructure: %v", err)
+	}
+	bodySize := len(testMultipartBody())
+	want := []string{
+		fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE ((\"TEXT\" \"PLAIN\" (\"CHARSET\" \"utf-8\") NIL NIL \"7BIT\" 5 1 NIL NIL NIL NIL) (\"APPLICATION\" \"PDF\" (\"NAME\" \"report.pdf\") NIL NIL \"BASE64\" 12 NIL (\"ATTACHMENT\" (\"FILENAME\" \"report.pdf\")) NIL NIL) \"MIXED\" (\"BOUNDARY\" \"frontier\") NIL NIL NIL))\r\n", bodySize),
 		"a3 OK UID FETCH completed\r\n",
 	}
 	for _, expected := range want {
@@ -3068,6 +3117,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		body = "Content-Type: text/html; charset=utf-8; format=flowed\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n<p>Hello</p>"
 		size = int64(len(body))
 	}
+	if req.UID == 11 {
+		body = testMultipartBody()
+		size = int64(len(body))
+	}
 	return Message{
 		Summary: MessageSummary{
 			ID:             "message-1",
@@ -3086,6 +3139,26 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		},
 		Body: io.NopCloser(strings.NewReader(body)),
 	}, nil
+}
+
+func testMultipartBody() string {
+	return strings.Join([]string{
+		"Content-Type: multipart/mixed; boundary=frontier",
+		"",
+		"--frontier",
+		"Content-Type: text/plain; charset=utf-8",
+		"Content-Transfer-Encoding: 7bit",
+		"",
+		"hello",
+		"--frontier",
+		"Content-Type: application/pdf; name=\"report.pdf\"",
+		"Content-Transfer-Encoding: base64",
+		"Content-Disposition: attachment; filename=\"report.pdf\"",
+		"",
+		"UEZGREFUQQ==",
+		"--frontier--",
+		"",
+	}, "\r\n")
 }
 
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {

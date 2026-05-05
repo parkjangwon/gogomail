@@ -337,6 +337,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
   parameters, content-transfer-encoding, ID, and description from bounded raw
   message headers instead of always reporting text/plain defaults.
+- IMAP metadata-only `BODYSTRUCTURE` fetches now use the streaming
+  MIME-structure parser to return multipart child order, subtype, parameters,
+  transfer encodings, dispositions, body octets, and text line counts without
+  retaining attachment payloads.
 - IMAP `FETCH`/`UID FETCH` now supports standard `FAST`, `ALL`, and `FULL`
   macros, including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` now support bounded header-only literals for
