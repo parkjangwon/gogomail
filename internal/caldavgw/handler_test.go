@@ -659,6 +659,28 @@ func TestHandlerGetCalendarObjectHonorsIfNoneMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectHonorsIfMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	for _, method := range []string{MethodGet, MethodHead} {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(method, "/caldav/calendars/user-1/work/event-1.ics", nil)
+			req.Header.Set("If-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`)
+			req.Header.Set("If-None-Match", store.objects[0].ETag)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusPreconditionFailed {
+				t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandlerGetCalendarObjectIgnoresNonMatchingIfNoneMatch(t *testing.T) {
 	t.Parallel()
 
@@ -1007,6 +1029,20 @@ func TestHandlerDeleteRejectsETagMismatch(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerDeleteAcceptsListedETag(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `+store.objects[0].ETag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

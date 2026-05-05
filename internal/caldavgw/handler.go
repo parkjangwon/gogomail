@@ -234,6 +234,10 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object not found", http.StatusNotFound)
 		return
 	}
+	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
+		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+		return
+	}
 	if ifNoneMatchMatches(r.Header.Get("If-None-Match"), object.ETag) {
 		writeCalendarObjectNotModifiedHeaders(w, object)
 		w.WriteHeader(http.StatusNotModified)
@@ -334,7 +338,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
 			return
 		}
-		if object.ETag != ifMatch {
+		if !ifMatchMatches(ifMatch, object.ETag) {
 			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 			return
 		}
