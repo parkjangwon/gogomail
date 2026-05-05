@@ -154,6 +154,39 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateTrashNodeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateTrashNodeRequest(TrashNodeRequest{UserID: " user-1 ", NodeID: " node-1 "})
+	if err != nil {
+		t.Fatalf("ValidateTrashNodeRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.NodeID != "node-1" {
+		t.Fatalf("request = %+v, want trimmed IDs", req)
+	}
+}
+
+func TestValidateTrashNodeRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []TrashNodeRequest{
+		{NodeID: "node-1"},
+		{UserID: "user-1"},
+		{UserID: "user\n1", NodeID: "node-1"},
+		{UserID: "user-1", NodeID: "node\n1"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.NodeID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateTrashNodeRequest(tc); err == nil {
+				t.Fatalf("ValidateTrashNodeRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestCreateFileFromObjectRequiresStore(t *testing.T) {
 	t.Parallel()
 

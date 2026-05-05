@@ -1765,6 +1765,10 @@ Implementation order:
      active/trashed/deleted folder contents with folder-first stable ordering,
      preparing future Drive list views before any HTTP API or frontend surface
      is exposed.
+972. Drive now has an internal trash repository mutation that marks an active
+     file/folder and its active descendants as trashed in one transaction,
+     preserving object bytes and quota usage for future restore or delayed
+     permanent deletion workflows.
 
 ## Deferred until backend contracts stabilize
 

@@ -325,12 +325,16 @@ Current state:
 - `internal/drive.Repository.ListNodes` can read bounded active/trashed/deleted
   folder contents with folder-first stable ordering, preparing Drive list views
   before an HTTP API is exposed.
+- `internal/drive.Repository.TrashNode` can mark an active file/folder and its
+  active descendants as trashed in one transaction, preserving object bytes and
+  quota usage for future restore or delayed permanent deletion.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive trash/delete flows against `drive_nodes`, using storage
-  `DeletePrefix` and quota decrement semantics before exposing HTTP API routes.
+- Add Drive restore and permanent-delete flows against `drive_nodes`, using
+  storage `DeletePrefix` and quota decrement semantics before exposing HTTP API
+  routes.
 - Add Drive service and HTTP contracts only after repository create/list/delete
   flows are stable enough to document in OpenAPI.
 
