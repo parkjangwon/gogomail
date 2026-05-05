@@ -177,6 +177,28 @@ paths:
           $ref: "#/components/responses/DriveUploadSession"
         default:
           $ref: "#/components/responses/Error"
+  /drive/upload-sessions/{id}/body:
+    put:
+      operationId: storeDriveUploadSessionBody
+      summary: Store a Drive upload session body
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - name: X-Content-SHA256
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveUploadSessionBody"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUploadSession"
+        "413":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/files/finalize:
     post:
       operationId: finalizeDriveFileFromObject
@@ -3378,6 +3400,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveUploadSessionCreateRequest"
+    DriveUploadSessionBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
     DriveNodeRename:
       required: true
       content:

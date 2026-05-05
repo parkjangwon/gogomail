@@ -173,6 +173,10 @@ or development `user_id` fallback path as webmail mail routes:
 - `DELETE /api/v1/drive/upload-sessions/{id}` cancels a pending, uploading,
   or failed session and returns `{"drive_upload_session":{...}}` with
   `status=canceled`.
+- `PUT /api/v1/drive/upload-sessions/{id}/body` streams the body through the
+  configured storage backend, rejects `Content-Range`, optionally verifies
+  `X-Content-SHA256`, records received size/storage path/checksum, and returns
+  `{"drive_upload_session":{...}}`.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",

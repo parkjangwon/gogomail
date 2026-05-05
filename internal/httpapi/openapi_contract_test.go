@@ -91,6 +91,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 		"POST /folders",
 		"POST /drive/folders",
 		"POST /drive/upload-sessions",
+		"PUT /drive/upload-sessions/{id}/body",
 		"POST /drive/files/finalize",
 		"PUT /drive/files/staged/{upload_id}/body",
 		"PATCH /drive/nodes/{id}/name",
@@ -279,6 +280,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /drive/upload-sessions":                                "#/components/responses/DriveUploadSession",
 		"GET /drive/upload-sessions/{id}":                            "#/components/responses/DriveUploadSession",
 		"DELETE /drive/upload-sessions/{id}":                         "#/components/responses/DriveUploadSession",
+		"PUT /drive/upload-sessions/{id}/body":                       "#/components/responses/DriveUploadSession",
 		"POST /drive/files/finalize":                                 "#/components/responses/DriveNode",
 		"PUT /drive/files/staged/{upload_id}/body":                   "#/components/responses/DriveStagedObject",
 		"DELETE /drive/nodes/{id}":                                   "#/components/responses/DriveDelete",
@@ -448,13 +450,18 @@ func TestOpenAPIDraftDocumentsUploadSessionChecksumHeader(t *testing.T) {
 	t.Parallel()
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
-	block, ok := operations["PUT /attachments/upload-sessions/{id}/body"]
-	if !ok {
-		t.Fatal("OpenAPI operation PUT /attachments/upload-sessions/{id}/body is missing")
-	}
-	for _, want := range []string{"X-Content-SHA256", "in: header", "^[0-9a-f]{64}$"} {
-		if !strings.Contains(block, want) {
-			t.Fatalf("upload session body operation must document checksum header detail %q", want)
+	for _, route := range []string{
+		"PUT /attachments/upload-sessions/{id}/body",
+		"PUT /drive/upload-sessions/{id}/body",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		for _, want := range []string{"X-Content-SHA256", "in: header", "^[0-9a-f]{64}$"} {
+			if !strings.Contains(block, want) {
+				t.Fatalf("upload session body operation %s must document checksum header detail %q", route, want)
+			}
 		}
 	}
 }

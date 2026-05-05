@@ -327,6 +327,10 @@ guidance.
   and optional SHA-256, update session storage metadata, and best-effort clean
   superseded or failed staged bodies across local/NFS, MinIO, and S3-compatible
   stores.
+- Mail API now exposes `PUT /api/v1/drive/upload-sessions/{id}/body`, wiring
+  the retry-safe body storage service to frontend clients with an optional
+  `X-Content-SHA256` integrity header and explicit `Content-Range` rejection
+  until chunked/resumable semantics are specified.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

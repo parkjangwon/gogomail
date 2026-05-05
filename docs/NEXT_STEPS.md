@@ -389,12 +389,14 @@ Current state:
 - `internal/drive.Service.StoreUploadSessionBody` now streams retry bodies to
   distinct session object paths, verifies declared size and optional checksum,
   records storage metadata, and cleans failed/superseded objects best-effort.
+- Mail API now exposes `PUT /api/v1/drive/upload-sessions/{id}/body` for
+  retry-safe full-body upload-session storage with optional SHA-256 checking.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session body API and finalize service/API methods so clients
-  can reserve quota, retry large objects, and surface resumable upload state.
+- Add Drive upload-session finalize service/API methods so clients can commit
+  uploaded session bodies into quota-accounted Drive file metadata.
 
 ### 2. Message threading and search
 
