@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after webmail capability bootstrap API)
+Last updated: 2026-05-05 (updated after Admin console capability bootstrap API)
 
 ## Current phase
 
@@ -46,6 +46,10 @@ guidance.
   checks/history, backpressure inspection/update, domain policy, per-domain
   stats, DKIM DNS verification, delivery route runtime counters, and exhausted
   delivery attempts with recipient-domain and recent-window filters.
+- Admin API exposes `GET /admin/v1/console/capabilities` so a production
+  operator console can discover backend contract version, available/planned
+  modules, list/cleanup/retention limits, tenancy controls, operational triage
+  surfaces, and auth/no-store behavior before rendering console navigation.
 - Delivery-attempt list, stats, and exhausted-attempt reads can filter by
   message id, farm, sender, recipient domain, and recent time window for
   targeted retry/bounce incident triage.

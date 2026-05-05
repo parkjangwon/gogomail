@@ -53,6 +53,47 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 }
 
+func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/console/capabilities", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body adminConsoleCapabilitiesEnvelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	got := body.AdminConsoleCapabilities
+	if got.ContractVersion != BackendContractVersion {
+		t.Fatalf("contract version = %q, want %q", got.ContractVersion, BackendContractVersion)
+	}
+	if got.Modules["admin"] != "available" || got.Modules["mail"] != "available" || got.Modules["drive"] != "planned" {
+		t.Fatalf("modules = %#v", got.Modules)
+	}
+	if got.Limits.MaxListLimit != maildb.MessageListMaxLimit ||
+		got.Limits.MaxAttachmentCleanupLimit != maildb.AttachmentCleanupMaxLimit ||
+		got.Limits.MaxAPIUsageRetentionRunLimit != maildb.APIUsageLedgerRetentionMaxLimit {
+		t.Fatalf("limits = %#v", got.Limits)
+	}
+	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
+		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
+	}
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill {
+		t.Fatalf("operation capabilities = %#v", got.Operations)
+	}
+	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
+		t.Fatalf("security capabilities = %#v", got.Security)
+	}
+}
+
 func TestAdminBackfillIMAPMailboxUIDsHandler(t *testing.T) {
 	t.Parallel()
 

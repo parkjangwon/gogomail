@@ -53,6 +53,7 @@ Successful resource responses keep a stable singular key:
 
 - `{"message":{...}}`
 - `{"webmail_capabilities":{...}}`
+- `{"admin_console_capabilities":{...}}`
 - `{"delivery_status":{...}}`
 - `{"draft":{...}}`
 - `{"attachment":{...}}`
@@ -148,6 +149,17 @@ and push-device platforms.
 Clients should use this endpoint to enable controls and validate local form
 limits instead of copying backend constants into the frontend. The route is a
 read-only capability surface and does not dispatch repository work.
+
+`GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap
+surface for future production operator consoles. It returns
+`{"admin_console_capabilities":{...}}` with the backend contract version,
+available mail/admin modules, planned Drive module marker, common list and
+cleanup/retention limits, tenant/domain/user control availability, operational
+triage surfaces, API usage/export support, IMAP UID backfill support, and
+admin auth/no-store behavior.
+
+Admin clients should use this endpoint to build navigation and validate local
+operator form limits instead of duplicating backend constants.
 
 ## Pagination
 

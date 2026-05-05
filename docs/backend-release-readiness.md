@@ -9,6 +9,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   clients can discover backend contract version, available/planned modules,
   supported flags/actions, and compose/search/attachment/push limits without
   hard-coded frontend constants.
+- Admin API exposes `GET /admin/v1/console/capabilities` so production
+  operator consoles can discover backend contract version, available/planned
+  modules, tenant/domain/user surfaces, operational triage areas, and
+  list/cleanup/retention limits before rendering navigation or forms.
 - Mail API exposes cursor-paginated thread list and thread-message read models for conversation-style webmail rendering, and draft search uses the same opaque cursor envelope for compose-scale draft lists.
 - `gogomail --mode=all-in-one` registers Mail API and Admin API routes in the
   same HTTP process for small-deployment and local release smoke coverage.
