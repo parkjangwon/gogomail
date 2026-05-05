@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP STATUS=SIZE support)
+Last updated: 2026-05-05 (updated after IMAP SORT support)
 
 ## Current phase
 
@@ -837,6 +837,11 @@ The platform hardening sprint completed the following:
 - IMAP `CAPABILITY` advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return per-mailbox total active message octets without
   fetching every message's `RFC822.SIZE`.
+- IMAP `CAPABILITY` advertises RFC 5256 `SORT`; `SORT` and `UID SORT` evaluate
+  the existing selected-mailbox search criteria, require `US-ASCII` or `UTF-8`
+  charset arguments, and return sequence-number or UID `SORT` responses over
+  RFC 5256 sort keys including base-subject, sent-date, arrival-date, address,
+  and size ordering.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.

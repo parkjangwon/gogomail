@@ -351,6 +351,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return per-mailbox total active message octets without
   requiring clients to fetch and sum each message's `RFC822.SIZE`.
+- IMAP `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT`
+  apply selected-mailbox search criteria with mandatory `US-ASCII`/`UTF-8`
+  charset handling and return sequence-number or UID sort responses for the
+  standard arrival, sent-date, address, subject, and size sort keys.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts
@@ -557,8 +561,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   boundary and returns updated flag metadata.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
   IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`,
-  `FETCH`/`UID FETCH`, `STORE`/`UID STORE`, `SEARCH`, `IDLE`, `STARTTLS`, and
-  `LOGOUT`, while destructive mailbox mutation semantics remain deferred.
+  `FETCH`/`UID FETCH`, `STORE`/`UID STORE`, `SEARCH`, `SORT`, `IDLE`,
+  `STARTTLS`, `CREATE`/`DELETE`/`RENAME`, `APPEND`, `COPY`, `MOVE`, `EXPUNGE`,
+  `CLOSE`, `UNSELECT`, and `LOGOUT` over the service-backed mailbox/session
+  boundary.
 - `gogomail --mode=imap` now runs its own Redis consumer group for committed
   `mail.stored` events and publishes UID-bearing `EXISTS` updates into the
   process-local mailbox event broker for live IDLE sessions.
