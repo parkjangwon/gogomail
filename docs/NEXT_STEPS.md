@@ -33,6 +33,9 @@ Current state:
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.
+- Authenticated `UID` dispatch validates missing or malformed subcommands
+  before selected-mailbox state, while preserving `NO mailbox must be selected`
+  for syntactically valid UID commands issued outside selected state.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

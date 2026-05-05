@@ -1162,16 +1162,16 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
-	if state.selectedMailbox == "" {
-		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-		return false, err
-	}
 	if len(fields) < 3 {
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
 	}
 	if !imapAtomValid(fields[2]) {
 		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
 	switch strings.ToUpper(fields[2]) {

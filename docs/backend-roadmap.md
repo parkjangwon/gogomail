@@ -1338,6 +1338,10 @@ Implementation order:
 856. IMAP command dispatch now validates command and UID subcommand atoms before
      routing, rejecting atom-special-bearing command names as malformed syntax
      instead of reporting them as unknown commands.
+857. IMAP authenticated `UID` dispatch now validates missing or malformed
+     subcommands before selected-mailbox state, keeping syntax errors precise
+     while still returning `NO mailbox must be selected` for valid UID commands
+     issued outside selected state.
 
 ## Deferred until backend contracts stabilize
 
