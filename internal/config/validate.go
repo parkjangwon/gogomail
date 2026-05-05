@@ -105,6 +105,13 @@ func (c Config) Validate() error {
 		return err
 	}
 	storageBackend := strings.ToLower(strings.TrimSpace(c.StorageBackend))
+	if storageBackend == "local" {
+		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_MAILSTORE_ROOT", c.MailstoreRoot, 4096); err != nil {
+			return err
+		}
+	} else if err := validateBoundedNoCRLF("GOGOMAIL_MAILSTORE_ROOT", c.MailstoreRoot, 4096); err != nil {
+		return err
+	}
 	if storageBackend == "s3" || storageBackend == "minio" {
 		if storageBackend == "minio" && strings.TrimSpace(c.StorageS3Endpoint) == "" {
 			return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT is required when GOGOMAIL_STORAGE_BACKEND=minio")

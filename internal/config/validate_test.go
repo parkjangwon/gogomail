@@ -77,6 +77,20 @@ func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnsafeLocalStorageRoot(t *testing.T) {
+	for _, root := range []string{"", "   ", "var/mailstore\nbad"} {
+		root := root
+		t.Run(root, func(t *testing.T) {
+			cfg := Load()
+			cfg.StorageBackend = "local"
+			cfg.MailstoreRoot = root
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want unsafe local storage root rejection")
+			}
+		})
+	}
+}
+
 func TestValidateAcceptsS3StorageBackend(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "s3"

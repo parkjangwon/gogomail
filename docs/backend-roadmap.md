@@ -1579,6 +1579,10 @@ Implementation order:
      small bounded response-body window before close, improving HTTP connection
      reuse for ordinary S3/MinIO responses while preventing oversized bodies
      from stalling cleanup.
+924. Local/NFS storage configuration now requires a non-empty bounded
+     `GOGOMAIL_MAILSTORE_ROOT` without line breaks when
+     `GOGOMAIL_STORAGE_BACKEND=local`, surfacing broken filesystem roots during
+     config validation before runtime storage probes.
 
 ## Deferred until backend contracts stabilize
 

@@ -176,6 +176,10 @@ Current state:
   ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
+- Local/NFS storage configuration requires a non-empty bounded
+  `GOGOMAIL_MAILSTORE_ROOT` without line breaks when
+  `GOGOMAIL_STORAGE_BACKEND=local`, so broken filesystem roots fail during
+  config validation instead of surfacing later as storage probe errors.
 - Local/NFS-style storage writes stage data through unique temporary files in
   the destination directory before `rename`, avoiding fixed `.tmp` collisions
   while preserving atomic object replacement semantics.
