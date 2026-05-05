@@ -702,7 +702,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID\r\n")
 		return false, err
 	}
-	mode, ok := imapStoreMode(fields[4])
+	mode, silent, ok := imapStoreMode(fields[4])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE mode is unsupported\r\n")
 		return false, err
@@ -722,6 +722,10 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO UID STORE failed\r\n")
 		return false, writeErr
+	}
+	if silent {
+		_, err := writer.WriteString(tag + " OK UID STORE completed\r\n")
+		return false, err
 	}
 	for _, summary := range summaries {
 		sequenceNumber, ok := imapSequenceNumber(summary)
@@ -744,16 +748,22 @@ func imapSequenceNumber(summary MessageSummary) (uint32, bool) {
 	return summary.SequenceNumber, true
 }
 
-func imapStoreMode(value string) (StoreFlagsMode, bool) {
+func imapStoreMode(value string) (StoreFlagsMode, bool, bool) {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
 	case "FLAGS":
-		return StoreFlagsReplace, true
+		return StoreFlagsReplace, false, true
+	case "FLAGS.SILENT":
+		return StoreFlagsReplace, true, true
 	case "+FLAGS":
-		return StoreFlagsAdd, true
+		return StoreFlagsAdd, false, true
+	case "+FLAGS.SILENT":
+		return StoreFlagsAdd, true, true
 	case "-FLAGS":
-		return StoreFlagsRemove, true
+		return StoreFlagsRemove, false, true
+	case "-FLAGS.SILENT":
+		return StoreFlagsRemove, true, true
 	default:
-		return "", false
+		return "", false, false
 	}
 }
 

@@ -322,6 +322,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   returning sanitized quoted mailbox names.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
+- IMAP `UID STORE` now supports `.SILENT` mutation modes while applying the same
+  flag changes through the service-backed flag boundary.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

@@ -260,6 +260,8 @@ Current state:
   sanitized wire names.
 - `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes so clients can
   distinguish writable and read-only flag state.
+- `UID STORE` now supports `.SILENT` flag mutation modes and suppresses
+  untagged flag echo responses for those requests.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
