@@ -196,7 +196,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", serverOptions.Addr)
+	listener, err := server.Listen()
 	if err != nil {
 		return err
 	}
