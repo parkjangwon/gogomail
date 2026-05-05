@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after attachment-presence list filters)
+Last updated: 2026-05-05 (updated after folder-scoped thread lists)
 
 ## Current phase
 
@@ -95,6 +95,9 @@ guidance.
   `starred=true|false`, and `has_attachment=true|false` filters, where
   `read=false` means conversations with at least one unread message and
   `read=true` means fully-read conversations.
+- Mail API thread lists now also support `folder_id`, enabling folder-scoped
+  conversation views for inbox, sent, archive, and custom folders without
+  falling back to flat message lists.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

@@ -216,6 +216,12 @@ func (s *Service) ListThreadsPage(ctx context.Context, userID string, limit int,
 		return nil, fmt.Errorf("thread repository is required")
 	}
 	userID = strings.TrimSpace(userID)
+	filter.FolderID = strings.TrimSpace(filter.FolderID)
+	if filter.FolderID != "" {
+		if err := validateServiceResourceID("folder_id", filter.FolderID); err != nil {
+			return nil, err
+		}
+	}
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.ListThreadsPage(ctx, userID, limit, cursor, filter)
 }

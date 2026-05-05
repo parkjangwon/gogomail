@@ -691,11 +691,13 @@ authenticated/fallback user id and returned in chronological order for webmail
 conversation rendering. Both thread reads support `limit` plus opaque `cursor`
 pagination and return `has_more`/`next_cursor` alongside the existing
 `threads` or `messages` arrays.
-Thread list reads also accept optional `read=true|false`,
+Thread list reads also accept optional `folder_id`, `read=true|false`,
 `starred=true|false`, and `has_attachment=true|false` filters. For
 conversations, `read=false` means at least one message in the thread is unread,
 while `read=true` means the thread has no unread messages; `starred` and
 `has_attachment` match conversations where any message has the matching state.
+The `folder_id` filter is bounded and validated before repository dispatch so
+webmail clients can render folder-scoped conversation lists safely.
 Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
 attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
 outbound messages inherit the source message thread when `source_message_id` is

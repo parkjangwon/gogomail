@@ -1066,6 +1066,8 @@ Next:
 - Mail API thread list pagination now accepts optional `read=true|false`,
   `starred=true|false`, and `has_attachment=true|false` filters, with
   `read=false` representing conversations that still contain unread messages.
+- Mail API thread list pagination now also accepts `folder_id`, enabling
+  folder-scoped conversation views for system and custom folders.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

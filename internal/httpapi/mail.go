@@ -548,7 +548,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "read", "starred", "has_attachment") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -568,6 +568,10 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		folderID, ok := parseBoundedHTTPQuery(w, r, "folder_id", false, maxHTTPResourceIDBytes)
+		if !ok {
+			return
+		}
 		read, ok := parseOptionalBoolQuery(w, r, "read")
 		if !ok {
 			return
@@ -581,6 +585,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		threads, err := service.ListThreadsPage(r.Context(), userID, limit, cursor, maildb.ThreadListFilter{
+			FolderID:      folderID,
 			Read:          read,
 			Starred:       starred,
 			HasAttachment: hasAttachment,

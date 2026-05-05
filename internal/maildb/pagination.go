@@ -36,6 +36,7 @@ type ThreadListCursor struct {
 }
 
 type ThreadListFilter struct {
+	FolderID      string
 	Read          *bool
 	Starred       *bool
 	HasAttachment *bool

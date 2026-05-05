@@ -1693,6 +1693,9 @@ Implementation order:
      `has_attachment=true|false`, enabling attachment-presence quick views for
      both flat mailbox lists and conversation lists while preserving existing
      opaque cursor and boolean validation behavior.
+954. Mail API thread list pagination now accepts a bounded `folder_id` filter,
+     enabling folder-scoped conversation views for system and custom folders
+     while retaining opaque cursor pagination and thread-level quick filters.
 
 ## Deferred until backend contracts stabilize
 
