@@ -1915,7 +1915,7 @@ Implementation order:
       improving client compatibility while durable arbitrary keyword storage
       remains deferred.
 1013. IMAP now exposes the webmail `forwarded` state as a first-class
-      `Forwarded` keyword in `FETCH FLAGS`, accepts it through permitted
+      `$Forwarded` keyword in `FETCH FLAGS`, accepts it through permitted
       `STORE`/`UID STORE` flag mutations, and persists it through the existing
       message flag JSON model.
 

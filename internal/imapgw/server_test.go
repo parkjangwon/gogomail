@@ -5463,7 +5463,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\na12 SEARCH KEYWORD custom\r\na13 UID SEARCH UNKEYWORD custom\r\na14 SEARCH KEYWORD forwarded\r\na15 UID SEARCH UNKEYWORD forwarded\r\na16 SEARCH KEYWORD bad%flag\r\na17 SEARCH KEYWORD custom\"\r\na18 UID SEARCH UNKEYWORD custom\"\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\na12 SEARCH KEYWORD custom\r\na13 UID SEARCH UNKEYWORD custom\r\na14 SEARCH KEYWORD forwarded\r\na15 UID SEARCH UNKEYWORD $Forwarded\r\na16 SEARCH KEYWORD bad%flag\r\na17 SEARCH KEYWORD custom\"\r\na18 UID SEARCH UNKEYWORD custom\"\r\n")); err != nil {
 		t.Fatalf("write flag search: %v", err)
 	}
 	want := []string{
@@ -6958,7 +6958,7 @@ func TestServerStoresForwardedKeywordFlagAfterSelect(t *testing.T) {
 		t.Fatalf("write forwarded store: %v", err)
 	}
 	want := []string{
-		"* 1 FETCH (UID 7 FLAGS (Forwarded))\r\n",
+		"* 1 FETCH (UID 7 FLAGS ($Forwarded))\r\n",
 		"a3 OK STORE completed\r\n",
 	}
 	for _, expected := range want {

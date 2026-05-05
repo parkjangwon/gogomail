@@ -6,7 +6,7 @@ const (
 	FlagSeen      = `\Seen`
 	FlagFlagged   = `\Flagged`
 	FlagAnswered  = `\Answered`
-	FlagForwarded = `Forwarded`
+	FlagForwarded = `$Forwarded`
 	FlagDraft     = `\Draft`
 	FlagDeleted   = `\Deleted`
 )
