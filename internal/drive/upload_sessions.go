@@ -1,6 +1,8 @@
 package drive
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -48,6 +50,14 @@ type CreateUploadSessionRequest struct {
 	MIMEType       string
 	StorageBackend string
 	ExpiresAt      time.Time
+}
+
+func NewUploadID() (string, error) {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate drive upload id: %w", err)
+	}
+	return "upload-" + hex.EncodeToString(random[:]), nil
 }
 
 func ValidateCreateUploadSessionRequest(req CreateUploadSessionRequest, now time.Time) (CreateUploadSessionRequest, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -92,6 +93,13 @@ func (s *Service) CreateFileFromObject(ctx context.Context, req CreateFileFromOb
 func (s *Service) CreateUploadSession(ctx context.Context, req CreateUploadSessionRequest) (UploadSession, error) {
 	if s == nil || s.repo == nil {
 		return UploadSession{}, fmt.Errorf("drive repository is required")
+	}
+	if strings.TrimSpace(req.UploadID) == "" {
+		uploadID, err := NewUploadID()
+		if err != nil {
+			return UploadSession{}, err
+		}
+		req.UploadID = uploadID
 	}
 	return s.repo.CreateUploadSession(ctx, req)
 }

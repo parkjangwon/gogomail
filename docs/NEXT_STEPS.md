@@ -379,6 +379,9 @@ Current state:
   storage metadata, and expiration indexes.
 - `internal/drive.Repository.CreateUploadSession` now records pending Drive
   upload sessions for active users and optional active parent folders.
+- Mail API now exposes `POST /api/v1/drive/upload-sessions` for creating
+  pending Drive upload sessions with declared size, storage backend, and
+  optional RFC3339 expiration.
 
 Next:
 

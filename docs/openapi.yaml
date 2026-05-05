@@ -141,6 +141,19 @@ paths:
           $ref: "#/components/responses/DriveNode"
         default:
           $ref: "#/components/responses/Error"
+  /drive/upload-sessions:
+    post:
+      operationId: createDriveUploadSession
+      summary: Create a Drive upload session
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveUploadSessionCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DriveUploadSession"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/files/finalize:
     post:
       operationId: finalizeDriveFileFromObject
@@ -2763,6 +2776,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveStagedObjectEnvelope"
+    DriveUploadSession:
+      description: Drive upload session envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveUploadSessionEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -3330,6 +3349,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveFileFinalizeRequest"
+    DriveUploadSessionCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveUploadSessionCreateRequest"
     DriveNodeRename:
       required: true
       content:
@@ -3780,6 +3805,91 @@ components:
       properties:
         drive_staged_object:
           $ref: "#/components/schemas/DriveStagedObject"
+    DriveUploadSession:
+      type: object
+      required: [id, user_id, upload_id, name, declared_size, received_size, mime_type, status, storage_backend, expires_at, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        parent_id:
+          type: string
+        upload_id:
+          type: string
+        name:
+          type: string
+          maxLength: 255
+        declared_size:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 5368709120
+        received_size:
+          type: integer
+          format: int64
+          minimum: 0
+        mime_type:
+          type: string
+          maxLength: 255
+        status:
+          type: string
+          enum: [pending, uploading, finalized, canceled, expired, failed]
+        storage_backend:
+          type: string
+          maxLength: 64
+        storage_path:
+          type: string
+          maxLength: 1024
+        checksum_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        finalized_at:
+          type: string
+          format: date-time
+        canceled_at:
+          type: string
+          format: date-time
+    DriveUploadSessionEnvelope:
+      type: object
+      required: [drive_upload_session]
+      properties:
+        drive_upload_session:
+          $ref: "#/components/schemas/DriveUploadSession"
+    DriveUploadSessionCreateRequest:
+      type: object
+      required: [name, declared_size, storage_backend]
+      properties:
+        parent_id:
+          type: string
+          maxLength: 200
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        declared_size:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 5368709120
+        mime_type:
+          type: string
+          maxLength: 255
+        storage_backend:
+          type: string
+          maxLength: 64
+        expires_at:
+          type: string
+          format: date-time
     DriveFolderCreateRequest:
       type: object
       required: [name]

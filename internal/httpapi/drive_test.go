@@ -88,6 +88,55 @@ func TestDriveCreateFolderHandler(t *testing.T) {
 	}
 }
 
+func TestDriveCreateUploadSessionHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{uploadSession: drive.UploadSession{
+		ID:             "session-1",
+		UserID:         "user-1",
+		ParentID:       "parent-1",
+		UploadID:       "upload-1",
+		Name:           "Report.pdf",
+		DeclaredSize:   123,
+		MIMEType:       "application/pdf",
+		Status:         drive.UploadSessionStatusPending,
+		StorageBackend: "s3",
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{
+		"parent_id":"parent-1",
+		"name":"Report.pdf",
+		"declared_size":123,
+		"mime_type":"application/pdf",
+		"storage_backend":"s3",
+		"expires_at":"2026-05-07T12:00:00Z"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.uploadSessionReq.UserID != "user-1" || service.uploadSessionReq.ParentID != "parent-1" || service.uploadSessionReq.StorageBackend != "s3" {
+		t.Fatalf("upload session request = %+v, want request body/user", service.uploadSessionReq)
+	}
+	if service.uploadSessionReq.ExpiresAt.IsZero() {
+		t.Fatalf("upload session request = %+v, want parsed expires_at", service.uploadSessionReq)
+	}
+	var body struct {
+		Session drive.UploadSession `json:"drive_upload_session"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Session.ID != "session-1" {
+		t.Fatalf("session = %+v", body.Session)
+	}
+}
+
 func TestDriveFinalizeFileHandler(t *testing.T) {
 	t.Parallel()
 
@@ -290,6 +339,8 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "list duplicate parent", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=a&parent_id=b", nil)},
 		{name: "get unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1?user_id=user-1&typo=true", nil)},
 		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
+		{name: "upload session invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{`))},
+		{name: "upload session invalid expires", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{"name":"Report.pdf","storage_backend":"s3","expires_at":"tomorrow"}`))},
 		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
 		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},
 		{name: "rename invalid json", req: httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/name?user_id=user-1", strings.NewReader(`{`))},
@@ -315,22 +366,24 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 }
 
 type fakeDriveService struct {
-	nodes      []drive.Node
-	node       drive.Node
-	folder     drive.Node
-	file       drive.Node
-	staged     drive.StagedObject
-	err        error
-	getReq     drive.GetNodeRequest
-	listReq    drive.ListNodesRequest
-	createReq  drive.CreateFolderRequest
-	fileReq    drive.CreateFileFromObjectRequest
-	stagedReq  drive.StoreStagedObjectRequest
-	trashReq   drive.TrashNodeRequest
-	restoreReq drive.RestoreNodeRequest
-	renameReq  drive.RenameNodeRequest
-	moveReq    drive.MoveNodeRequest
-	deleteReq  drive.PermanentDeleteNodeRequest
+	nodes            []drive.Node
+	node             drive.Node
+	folder           drive.Node
+	file             drive.Node
+	staged           drive.StagedObject
+	uploadSession    drive.UploadSession
+	err              error
+	getReq           drive.GetNodeRequest
+	listReq          drive.ListNodesRequest
+	createReq        drive.CreateFolderRequest
+	fileReq          drive.CreateFileFromObjectRequest
+	stagedReq        drive.StoreStagedObjectRequest
+	uploadSessionReq drive.CreateUploadSessionRequest
+	trashReq         drive.TrashNodeRequest
+	restoreReq       drive.RestoreNodeRequest
+	renameReq        drive.RenameNodeRequest
+	moveReq          drive.MoveNodeRequest
+	deleteReq        drive.PermanentDeleteNodeRequest
 }
 
 func (f *fakeDriveService) CreateFolder(_ context.Context, req drive.CreateFolderRequest) (drive.Node, error) {
@@ -371,6 +424,14 @@ func (f *fakeDriveService) StoreStagedObject(_ context.Context, req drive.StoreS
 		return drive.StagedObject{}, f.err
 	}
 	return f.staged, nil
+}
+
+func (f *fakeDriveService) CreateUploadSession(_ context.Context, req drive.CreateUploadSessionRequest) (drive.UploadSession, error) {
+	f.uploadSessionReq = req
+	if f.err != nil {
+		return drive.UploadSession{}, f.err
+	}
+	return f.uploadSession, nil
 }
 
 func (f *fakeDriveService) TrashNode(_ context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error) {
