@@ -341,7 +341,9 @@ Current state:
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports bounded partial windows over
-  `BODY[HEADER.FIELDS (...)]` and `BODY.PEEK[HEADER.FIELDS (...)]` reads.
+  `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
+  `BODY[HEADER.FIELDS.NOT (...)]`, and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
+  reads.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` for exclude-style header reads.
 - `SEARCH`/`UID SEARCH` now supports `SINCE`, `BEFORE`, and `ON` over message
