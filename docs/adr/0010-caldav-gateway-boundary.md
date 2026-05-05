@@ -187,6 +187,13 @@ object property patching, scheduling preference changes, and product policy
 decisions remain outside this gateway method until their backend boundaries are
 defined.
 
+Calendar collection `supported-report-set` also stays tied to implemented
+gateway semantics. The gateway advertises only `calendar-query`,
+`calendar-multiget`, `free-busy-query`, and `sync-collection` today. Scheduling,
+timezone, delegation, or other future reports must not be exposed through
+discovery until their RFC behavior, storage model, and policy boundaries are
+implemented.
+
 CalDAV must also depend on platform-level principal boundaries instead of
 inventing a private calendar identity model. Directory/Identity should own
 users, organization hierarchy, teams/groups, aliases, mailing lists, resources,

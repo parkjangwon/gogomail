@@ -1481,6 +1481,10 @@ Current state:
   removed, `displayname` cannot be removed, and the repository records a
   transactional `collection-updated` sync marker instead of hiding metadata
   changes from WebDAV sync state.
+- CalDAV collection discovery now returns WebDAV `supported-report-set` for
+  implemented REPORT handlers only: `calendar-query`, `calendar-multiget`,
+  `free-busy-query`, and `sync-collection`. Scheduling and other future reports
+  remain unadvertised until their semantics exist.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
