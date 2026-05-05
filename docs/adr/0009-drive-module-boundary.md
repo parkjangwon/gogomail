@@ -49,6 +49,10 @@ Drive service code should use the shared storage primitives:
   boundaries.
 - S3-compatible object moves and cleanup remain non-atomic at the storage layer;
   Drive workflows must handle duplicate cleanup and retryable recovery.
-- Future share links, collaborative metadata, resumable uploads, and search
-  indexing should extend this boundary instead of encoding Drive state only in
-  object paths.
+- Share links extend this boundary through `drive_share_links`: links are
+  user/node scoped, only active file nodes can mint links, raw bearer tokens are
+  returned only at creation time, and PostgreSQL persists only token hashes plus
+  bounded suffixes for diagnostics.
+- Future public share-link resolution/download, collaborative metadata,
+  resumable uploads, and search indexing should extend this boundary instead of
+  encoding Drive state only in object paths.

@@ -30,6 +30,9 @@ type DriveService interface {
 	OpenFileRange(ctx context.Context, req drive.OpenFileRangeRequest) (drive.FileDownload, error)
 	StatFile(ctx context.Context, req drive.OpenFileRequest) (drive.FileMetadata, error)
 	GetUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
+	CreateShareLink(ctx context.Context, req drive.CreateShareLinkRequest) (drive.ShareLink, error)
+	ListShareLinks(ctx context.Context, req drive.ListShareLinksRequest) ([]drive.ShareLink, error)
+	RevokeShareLink(ctx context.Context, req drive.RevokeShareLinkRequest) (drive.ShareLink, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
@@ -605,6 +608,104 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
+	})
+
+	mux.HandleFunc("POST /api/v1/drive/nodes/{id}/share-links", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			Permission string `json:"permission"`
+			ExpiresAt  string `json:"expires_at"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		var expiresAt time.Time
+		if strings.TrimSpace(req.ExpiresAt) != "" {
+			parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "expires_at must be RFC3339")
+				return
+			}
+			expiresAt = parsed
+		}
+		link, err := service.CreateShareLink(r.Context(), drive.CreateShareLinkRequest{
+			UserID:     userID,
+			NodeID:     nodeID,
+			Permission: req.Permission,
+			ExpiresAt:  expiresAt,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"drive_share_link": link})
+	})
+
+	mux.HandleFunc("GET /api/v1/drive/share-links", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id", "node_id", "status", "limit") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPQuery(w, r, "node_id", false, maxHTTPResourceIDBytes)
+		if !ok {
+			return
+		}
+		status, ok := parseBoundedHTTPQuery(w, r, "status", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		links, err := service.ListShareLinks(r.Context(), drive.ListShareLinksRequest{
+			UserID: userID,
+			NodeID: nodeID,
+			Status: status,
+			Limit:  limit,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_share_links": links})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/drive/share-links/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		linkID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		link, err := service.RevokeShareLink(r.Context(), drive.RevokeShareLinkRequest{UserID: userID, LinkID: linkID})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_share_link": link})
 	})
 
 	mux.HandleFunc("DELETE /api/v1/drive/nodes/{id}", func(w http.ResponseWriter, r *http.Request) {

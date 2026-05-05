@@ -367,6 +367,27 @@ func (s *Service) GetUsageSummary(ctx context.Context, req GetUsageSummaryReques
 	return s.repo.GetUsageSummary(ctx, req)
 }
 
+func (s *Service) CreateShareLink(ctx context.Context, req CreateShareLinkRequest) (ShareLink, error) {
+	if s == nil || s.repo == nil {
+		return ShareLink{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.CreateShareLink(ctx, req)
+}
+
+func (s *Service) ListShareLinks(ctx context.Context, req ListShareLinksRequest) ([]ShareLink, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.ListShareLinks(ctx, req)
+}
+
+func (s *Service) RevokeShareLink(ctx context.Context, req RevokeShareLinkRequest) (ShareLink, error) {
+	if s == nil || s.repo == nil {
+		return ShareLink{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.RevokeShareLink(ctx, req)
+}
+
 func (s *Service) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {
 	if s == nil || s.repo == nil {
 		return Node{}, 0, fmt.Errorf("drive repository is required")

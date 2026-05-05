@@ -167,6 +167,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Webmail Drive node listing can now opt into `all_parents=true` whole-user
   Drive search/list views while rejecting ambiguous `parent_id` combinations,
   giving production compose file pickers a backend-backed search mode.
+- Drive share-link metadata now has a PostgreSQL boundary and authenticated
+  Mail API create/list/revoke routes, with raw bearer tokens returned only on
+  creation and persisted state limited to token hashes, suffixes, permissions,
+  expiry, and revoke status.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

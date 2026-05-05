@@ -2002,6 +2002,11 @@ Implementation order:
       Drive search/list views while rejecting ambiguous `parent_id`
       combinations, giving production compose file pickers and Drive browsers a
       backend-backed broad search mode without client-side folder crawling.
+1036. Drive share-link metadata now has a PostgreSQL-backed boundary plus
+      authenticated Mail API create/list/revoke routes. Raw tokens are returned
+      only on creation, while persisted state stores token hashes, short
+      suffixes, permission, expiry, and revoke status for future public link
+      resolution and compose-side Drive insertion.
 
 ## Deferred until backend contracts stabilize
 

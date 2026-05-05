@@ -1,0 +1,377 @@
+package drive
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"strings"
+	"time"
+)
+
+const (
+	ShareLinkPermissionView     = "view"
+	ShareLinkPermissionDownload = "download"
+
+	ShareLinkStatusActive  = "active"
+	ShareLinkStatusRevoked = "revoked"
+
+	DefaultShareLinkTTL = 7 * 24 * time.Hour
+	MaxShareLinkTTL     = 30 * 24 * time.Hour
+)
+
+type ShareLink struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	NodeID      string    `json:"node_id"`
+	Token       string    `json:"token,omitempty"`
+	TokenSuffix string    `json:"token_suffix"`
+	Permission  string    `json:"permission"`
+	Status      string    `json:"status"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	RevokedAt   time.Time `json:"revoked_at,omitempty"`
+}
+
+type CreateShareLinkRequest struct {
+	UserID     string
+	NodeID     string
+	Permission string
+	ExpiresAt  time.Time
+	Token      string
+}
+
+type ListShareLinksRequest struct {
+	UserID string
+	NodeID string
+	Status string
+	Limit  int
+}
+
+type RevokeShareLinkRequest struct {
+	UserID string
+	LinkID string
+}
+
+func NewShareLinkToken() (string, error) {
+	var random [32]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate drive share token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(random[:]), nil
+}
+
+func ValidateCreateShareLinkRequest(req CreateShareLinkRequest, now time.Time) (CreateShareLinkRequest, string, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return CreateShareLinkRequest{}, "", err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return CreateShareLinkRequest{}, "", err
+	}
+	permission, err := ValidateShareLinkPermission(req.Permission)
+	if err != nil {
+		return CreateShareLinkRequest{}, "", err
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	now = now.UTC()
+	expiresAt := req.ExpiresAt.UTC()
+	if expiresAt.IsZero() {
+		expiresAt = now.Add(DefaultShareLinkTTL)
+	}
+	if !expiresAt.After(now) {
+		return CreateShareLinkRequest{}, "", fmt.Errorf("expires_at must be in the future")
+	}
+	if expiresAt.After(now.Add(MaxShareLinkTTL)) {
+		return CreateShareLinkRequest{}, "", fmt.Errorf("expires_at exceeds maximum drive share link TTL")
+	}
+	token := req.Token
+	if strings.TrimSpace(token) == "" {
+		token, err = NewShareLinkToken()
+		if err != nil {
+			return CreateShareLinkRequest{}, "", err
+		}
+	}
+	tokenHash, suffix, err := hashShareLinkToken(token)
+	if err != nil {
+		return CreateShareLinkRequest{}, "", err
+	}
+	return CreateShareLinkRequest{
+		UserID:     userID,
+		NodeID:     nodeID,
+		Permission: permission,
+		ExpiresAt:  expiresAt,
+		Token:      token,
+	}, tokenHash + ":" + suffix, nil
+}
+
+func ValidateListShareLinksRequest(req ListShareLinksRequest) (ListShareLinksRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return ListShareLinksRequest{}, err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, false)
+	if err != nil {
+		return ListShareLinksRequest{}, err
+	}
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = ShareLinkStatusActive
+	}
+	status, err = ValidateShareLinkStatus(status)
+	if err != nil {
+		return ListShareLinksRequest{}, err
+	}
+	if req.Limit < 0 {
+		return ListShareLinksRequest{}, fmt.Errorf("limit must not be negative")
+	}
+	return ListShareLinksRequest{
+		UserID: userID,
+		NodeID: nodeID,
+		Status: status,
+		Limit:  normalizeDriveListLimit(req.Limit),
+	}, nil
+}
+
+func ValidateRevokeShareLinkRequest(req RevokeShareLinkRequest) (RevokeShareLinkRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return RevokeShareLinkRequest{}, err
+	}
+	linkID, err := validateDriveID("link_id", req.LinkID, true)
+	if err != nil {
+		return RevokeShareLinkRequest{}, err
+	}
+	return RevokeShareLinkRequest{UserID: userID, LinkID: linkID}, nil
+}
+
+func ValidateShareLinkPermission(permission string) (string, error) {
+	permission = strings.TrimSpace(strings.ToLower(permission))
+	if permission == "" {
+		return ShareLinkPermissionView, nil
+	}
+	switch permission {
+	case ShareLinkPermissionView, ShareLinkPermissionDownload:
+		return permission, nil
+	default:
+		return "", fmt.Errorf("unsupported drive share link permission %q", permission)
+	}
+}
+
+func ValidateShareLinkStatus(status string) (string, error) {
+	status = strings.TrimSpace(strings.ToLower(status))
+	switch status {
+	case ShareLinkStatusActive, ShareLinkStatusRevoked:
+		return status, nil
+	default:
+		return "", fmt.Errorf("unsupported drive share link status %q", status)
+	}
+}
+
+func hashShareLinkToken(token string) (string, string, error) {
+	if token != strings.TrimSpace(token) {
+		return "", "", fmt.Errorf("drive share token must not contain surrounding whitespace")
+	}
+	if len(token) < 32 {
+		return "", "", fmt.Errorf("drive share token is too short")
+	}
+	if len(token) > 256 {
+		return "", "", fmt.Errorf("drive share token is too long")
+	}
+	if strings.ContainsAny(token, "\r\n\t ") {
+		return "", "", fmt.Errorf("drive share token must not contain whitespace")
+	}
+	for _, r := range token {
+		if r < 0x21 || r > 0x7e {
+			return "", "", fmt.Errorf("drive share token must be printable ASCII")
+		}
+	}
+	sum := sha256.Sum256([]byte(token))
+	suffix := token
+	if len(suffix) > 8 {
+		suffix = suffix[len(suffix)-8:]
+	}
+	return hex.EncodeToString(sum[:]), suffix, nil
+}
+
+func (r *Repository) CreateShareLink(ctx context.Context, req CreateShareLinkRequest) (ShareLink, error) {
+	if r == nil || r.db == nil {
+		return ShareLink{}, fmt.Errorf("database handle is required")
+	}
+	req, tokenDigest, err := ValidateCreateShareLinkRequest(req, time.Now().UTC())
+	if err != nil {
+		return ShareLink{}, err
+	}
+	tokenHash, tokenSuffix, ok := strings.Cut(tokenDigest, ":")
+	if !ok {
+		return ShareLink{}, fmt.Errorf("drive share token digest is invalid")
+	}
+	const query = `
+WITH target AS (
+  SELECT n.id, n.user_id
+  FROM drive_nodes n
+  JOIN users u ON u.id = n.user_id
+  JOIN domains d ON d.id = u.domain_id
+  WHERE n.id = $2::uuid
+    AND n.user_id = $1::uuid
+    AND n.node_type = 'file'
+    AND n.status = 'active'
+    AND u.status = 'active'
+    AND d.status = 'active'
+)
+INSERT INTO drive_share_links (
+  user_id,
+  node_id,
+  token_hash,
+  token_suffix,
+  permission,
+  status,
+  expires_at
+)
+SELECT
+  target.user_id,
+  target.id,
+  $3,
+  $4,
+  $5,
+  'active',
+  $6
+FROM target
+RETURNING
+  id::text,
+  user_id::text,
+  node_id::text,
+  token_suffix,
+  permission,
+  status,
+  expires_at,
+  created_at,
+  updated_at,
+  revoked_at`
+	link, err := scanShareLink(r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, tokenHash, tokenSuffix, req.Permission, req.ExpiresAt))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ShareLink{}, fmt.Errorf("active drive file not found")
+		}
+		return ShareLink{}, fmt.Errorf("create drive share link: %w", err)
+	}
+	link.Token = req.Token
+	return link, nil
+}
+
+func (r *Repository) ListShareLinks(ctx context.Context, req ListShareLinksRequest) ([]ShareLink, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListShareLinksRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  node_id::text,
+  token_suffix,
+  permission,
+  status,
+  expires_at,
+  created_at,
+  updated_at,
+  revoked_at
+FROM drive_share_links
+WHERE user_id = $1::uuid
+  AND status = $3
+  AND (NULLIF($2, '') IS NULL OR node_id = NULLIF($2, '')::uuid)
+ORDER BY updated_at DESC, id DESC
+LIMIT $4`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.NodeID, req.Status, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list drive share links: %w", err)
+	}
+	defer rows.Close()
+
+	links := make([]ShareLink, 0, req.Limit)
+	for rows.Next() {
+		link, err := scanShareLink(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan drive share link: %w", err)
+		}
+		links = append(links, link)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate drive share links: %w", err)
+	}
+	return links, nil
+}
+
+func (r *Repository) RevokeShareLink(ctx context.Context, req RevokeShareLinkRequest) (ShareLink, error) {
+	if r == nil || r.db == nil {
+		return ShareLink{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateRevokeShareLinkRequest(req)
+	if err != nil {
+		return ShareLink{}, err
+	}
+	const query = `
+UPDATE drive_share_links
+SET status = 'revoked',
+    revoked_at = now(),
+    updated_at = now()
+WHERE id = $2::uuid
+  AND user_id = $1::uuid
+  AND status = 'active'
+RETURNING
+  id::text,
+  user_id::text,
+  node_id::text,
+  token_suffix,
+  permission,
+  status,
+  expires_at,
+  created_at,
+  updated_at,
+  revoked_at`
+	link, err := scanShareLink(r.db.QueryRowContext(ctx, query, req.UserID, req.LinkID))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ShareLink{}, fmt.Errorf("active drive share link not found")
+		}
+		return ShareLink{}, fmt.Errorf("revoke drive share link: %w", err)
+	}
+	return link, nil
+}
+
+type shareLinkScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanShareLink(scanner shareLinkScanner) (ShareLink, error) {
+	var link ShareLink
+	var revokedAt sql.NullTime
+	if err := scanner.Scan(
+		&link.ID,
+		&link.UserID,
+		&link.NodeID,
+		&link.TokenSuffix,
+		&link.Permission,
+		&link.Status,
+		&link.ExpiresAt,
+		&link.CreatedAt,
+		&link.UpdatedAt,
+		&revokedAt,
+	); err != nil {
+		return ShareLink{}, err
+	}
+	if revokedAt.Valid {
+		link.RevokedAt = revokedAt.Time
+	}
+	return link, nil
+}

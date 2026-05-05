@@ -88,6 +88,83 @@ func TestDriveGetNodeHandler(t *testing.T) {
 	}
 }
 
+func TestDriveCreateShareLinkHandler(t *testing.T) {
+	t.Parallel()
+
+	expiresAt := "2026-05-07T12:00:00Z"
+	service := &fakeDriveService{shareLink: drive.ShareLink{ID: "link-1", UserID: "user-1", NodeID: "node-1", Token: "secret-token", Permission: drive.ShareLinkPermissionDownload, Status: drive.ShareLinkStatusActive}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/share-links?user_id=user-1", strings.NewReader(`{"permission":"download","expires_at":"`+expiresAt+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.createShareLinkReq.UserID != "user-1" || service.createShareLinkReq.NodeID != "node-1" || service.createShareLinkReq.Permission != drive.ShareLinkPermissionDownload || service.createShareLinkReq.ExpiresAt.IsZero() {
+		t.Fatalf("create share-link request = %+v, want user/node/permission/expiry", service.createShareLinkReq)
+	}
+	var body struct {
+		Link drive.ShareLink `json:"drive_share_link"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Link.Token != "secret-token" {
+		t.Fatalf("link token = %q, want create-only token", body.Link.Token)
+	}
+}
+
+func TestDriveListShareLinksHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{shareLinks: []drive.ShareLink{{ID: "link-1", UserID: "user-1", NodeID: "node-1", Status: drive.ShareLinkStatusActive}}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links?user_id=user-1&node_id=node-1&status=active&limit=25", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.listShareLinksReq.UserID != "user-1" || service.listShareLinksReq.NodeID != "node-1" || service.listShareLinksReq.Status != drive.ShareLinkStatusActive || service.listShareLinksReq.Limit != 25 {
+		t.Fatalf("list share-links request = %+v, want query-backed request", service.listShareLinksReq)
+	}
+	var body struct {
+		Links []drive.ShareLink `json:"drive_share_links"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Links) != 1 || body.Links[0].ID != "link-1" {
+		t.Fatalf("links = %+v", body.Links)
+	}
+}
+
+func TestDriveRevokeShareLinkHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{shareLink: drive.ShareLink{ID: "link-1", UserID: "user-1", NodeID: "node-1", Status: drive.ShareLinkStatusRevoked}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/drive/share-links/link-1?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.revokeShareLinkReq.UserID != "user-1" || service.revokeShareLinkReq.LinkID != "link-1" {
+		t.Fatalf("revoke share-link request = %+v, want user/link", service.revokeShareLinkReq)
+	}
+}
+
 func TestDriveDownloadNodeHandler(t *testing.T) {
 	t.Parallel()
 
@@ -874,12 +951,17 @@ type fakeDriveService struct {
 	rangeDownload             drive.FileDownload
 	metadata                  drive.FileMetadata
 	usageSummary              drive.UsageSummary
+	shareLink                 drive.ShareLink
+	shareLinks                []drive.ShareLink
 	err                       error
 	getReq                    drive.GetNodeRequest
 	openReq                   drive.OpenFileRequest
 	openRangeReq              drive.OpenFileRangeRequest
 	statReq                   drive.OpenFileRequest
 	usageReq                  drive.GetUsageSummaryRequest
+	createShareLinkReq        drive.CreateShareLinkRequest
+	listShareLinksReq         drive.ListShareLinksRequest
+	revokeShareLinkReq        drive.RevokeShareLinkRequest
 	getUploadSessionReq       drive.GetUploadSessionRequest
 	listUploadSessionReq      drive.ListUploadSessionsRequest
 	cancelUploadSessionReq    drive.CancelUploadSessionRequest
@@ -970,6 +1052,30 @@ func (f *fakeDriveService) GetUsageSummary(_ context.Context, req drive.GetUsage
 		return drive.UsageSummary{}, f.err
 	}
 	return f.usageSummary, nil
+}
+
+func (f *fakeDriveService) CreateShareLink(_ context.Context, req drive.CreateShareLinkRequest) (drive.ShareLink, error) {
+	f.createShareLinkReq = req
+	if f.err != nil {
+		return drive.ShareLink{}, f.err
+	}
+	return f.shareLink, nil
+}
+
+func (f *fakeDriveService) ListShareLinks(_ context.Context, req drive.ListShareLinksRequest) ([]drive.ShareLink, error) {
+	f.listShareLinksReq = req
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.shareLinks, nil
+}
+
+func (f *fakeDriveService) RevokeShareLink(_ context.Context, req drive.RevokeShareLinkRequest) (drive.ShareLink, error) {
+	f.revokeShareLinkReq = req
+	if f.err != nil {
+		return drive.ShareLink{}, f.err
+	}
+	return f.shareLink, nil
 }
 
 func (f *fakeDriveService) CreateFileFromObject(_ context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error) {
