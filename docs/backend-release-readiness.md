@@ -272,6 +272,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `mailservice.NewIMAPBackendAdapter` composes the protocol authenticator with
   the service-backed store/session adapter, so the future TCP listener can take
   one `imapgw.Backend` boundary.
+- IMAP runtime now builds listener-ready server options containing address,
+  backend, TLS config, and insecure-auth policy while still deferring the actual
+  TCP protocol server.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event
