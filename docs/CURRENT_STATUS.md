@@ -863,6 +863,9 @@ The platform hardening sprint completed the following:
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,
   answered, and draft client views.
+- IMAP `SEARCH`/`UID SEARCH` supports `DELETED` and `UNDELETED`, returning no
+  deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
+  treating active messages as undeleted.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS.NOT (...)]` and

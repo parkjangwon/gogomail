@@ -311,6 +311,9 @@ Current state:
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,
   `FLAGGED`, `ANSWERED`, and `DRAFT` for standard client views.
+- `SEARCH`/`UID SEARCH` now supports `DELETED` and `UNDELETED`, returning no
+  deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
+  treating active messages as undeleted.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and

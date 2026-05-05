@@ -985,6 +985,9 @@ Implementation order:
 758. IMAP `SEARCH` and `UID SEARCH` now accept `CHARSET US-ASCII` and
      `CHARSET UTF-8` prefixes and return an RFC-shaped `[BADCHARSET]` response
      for unsupported search charsets.
+759. IMAP `SEARCH` and `UID SEARCH` now support `DELETED` and `UNDELETED`,
+     returning no deleted matches while `\Deleted`/EXPUNGE semantics remain
+     deferred and treating active messages as undeleted.
 
 ## Deferred until backend contracts stabilize
 

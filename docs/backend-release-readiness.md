@@ -379,6 +379,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` now support common flag criteria including
   `SEEN`, `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, `UNANSWERED`,
   `DRAFT`, and `UNDRAFT`.
+- IMAP `SEARCH`/`UID SEARCH` now supports `DELETED` and `UNDELETED`, returning
+  no deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
+  treating active messages as undeleted.
 - IMAP `FETCH`/`UID FETCH` now supports bounded `BODY[HEADER.FIELDS (...)]`
   and `BODY.PEEK[HEADER.FIELDS (...)]` literals for lightweight header reads.
 - IMAP `FETCH`/`UID FETCH` now supports bounded
