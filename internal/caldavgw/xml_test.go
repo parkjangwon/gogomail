@@ -224,6 +224,36 @@ func TestParseProppatchCollectsCalendarCollectionProperties(t *testing.T) {
 	}
 }
 
+func TestParseProppatchCollectsMultiplePropBlocksPerInstruction(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+  <D:set>
+    <D:prop><D:displayname>Product</D:displayname></D:prop>
+    <D:prop><CS:calendar-color>#445566</CS:calendar-color></D:prop>
+  </D:set>
+  <D:remove>
+    <D:prop><C:calendar-description/></D:prop>
+  </D:remove>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.Name == nil || *req.Name != "Product" {
+		t.Fatalf("name = %v", req.Name)
+	}
+	if req.Color == nil || *req.Color != "#445566" {
+		t.Fatalf("color = %v", req.Color)
+	}
+	if req.Description == nil || *req.Description != "" {
+		t.Fatalf("description = %v", req.Description)
+	}
+	if len(req.Properties) != 3 {
+		t.Fatalf("properties = %+v", req.Properties)
+	}
+}
+
 func TestParseProppatchRemovesOptionalCalendarProperties(t *testing.T) {
 	t.Parallel()
 
