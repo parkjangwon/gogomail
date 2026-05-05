@@ -1311,6 +1311,9 @@ Implementation order:
      now reject extra arguments with tagged `BAD` responses instead of silently
      accepting malformed commands or ending sessions for malformed logout
      attempts.
+849. IMAP `STATUS` now requires a parenthesized status item list, rejecting
+     malformed `STATUS mailbox MESSAGES`-style requests before mailbox metadata
+     lookup.
 
 ## Deferred until backend contracts stabilize
 
