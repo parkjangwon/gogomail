@@ -4,13 +4,16 @@ gogomail stores raw `.eml` objects, attachments, exports, and readiness probes
 through the shared storage interface. Deployments can switch backends by
 configuration without changing stored object keys.
 
-The shared interface supports `Put`, `Get`, `Stat`, `Copy`, and `Delete`.
+The shared interface supports `Put`, `Get`, `Stat`, `Copy`, `List`, and `Delete`.
 `Stat` returns object size and optional backend metadata without streaming the
 object body, using filesystem metadata on local/NFS storage and signed `HEAD`
 requests on S3-compatible storage. `Copy` preserves object keys and adapter
 semantics while avoiding caller-side read/write loops when the backend can copy
-server-side. Future Drive and lifecycle modules should prefer `Stat` for
-existence/size checks and `Copy` for object duplication workflows.
+server-side. `List` returns bounded, cursor-paginated object metadata under a
+validated prefix, using a local/NFS directory walk or signed S3 `ListObjectsV2`
+requests. Future Drive and lifecycle modules should prefer `Stat` for
+existence/size checks, `Copy` for object duplication workflows, and `List` for
+prefix-scoped browsing, reconciliation, and cleanup scans.
 
 ## Local filesystem or NFS
 
@@ -39,6 +42,8 @@ so lifecycle workers behave consistently across storage backends.
 last-modified time without opening the file body.
 `Copy` streams from the source object into the destination through the same
 atomic temporary-file write path used by normal local/NFS writes.
+`List` walks under the requested canonical prefix, returns bounded pages, and
+uses an opaque cursor so callers do not depend on filesystem traversal details.
 
 ## Local MinIO
 
@@ -113,6 +118,10 @@ provider supplies them.
 S3-compatible `Copy` uses a signed server-side copy request with an escaped
 `x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
 duplicate objects without pulling object bytes through gogomail.
+S3-compatible `List` uses signed `ListObjectsV2` requests with validated
+prefixes, bounded `max-keys`, and opaque continuation tokens. Returned keys are
+normalized back to gogomail object paths under the configured storage prefix,
+so callers do not see deployment-specific bucket prefixes.
 S3 `PUT`, failed `GET`, and `DELETE` responses drain a small bounded body
 window before close so normal S3/MinIO responses can reuse HTTP connections
 without letting oversized responses stall cleanup. Local/NFS and S3 readiness

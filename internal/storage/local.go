@@ -150,6 +150,82 @@ func (s *LocalStore) Copy(ctx context.Context, sourcePath string, destPath strin
 	return nil
 }
 
+func (s *LocalStore) List(ctx context.Context, opts ListOptions) (ObjectListPage, error) {
+	if err := ctx.Err(); err != nil {
+		return ObjectListPage{}, err
+	}
+	prefix, err := ValidateObjectPrefix(opts.Prefix)
+	if err != nil {
+		return ObjectListPage{}, fmt.Errorf("unsafe storage prefix %q: %w", opts.Prefix, err)
+	}
+	cursor, err := ValidateListCursor(opts.Cursor)
+	if err != nil {
+		return ObjectListPage{}, err
+	}
+	limit := NormalizeListLimit(opts.Limit)
+
+	root := s.root
+	if prefix != "" {
+		root = filepath.Join(s.root, filepath.FromSlash(prefix))
+	}
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return ObjectListPage{Objects: []ObjectInfo{}}, nil
+		}
+		return ObjectListPage{}, fmt.Errorf("stat storage prefix: %w", err)
+	}
+
+	page := ObjectListPage{Objects: make([]ObjectInfo, 0, limit)}
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, ".") && strings.HasSuffix(base, ".tmp") {
+			return nil
+		}
+		rel, err := filepath.Rel(s.root, path)
+		if err != nil {
+			return fmt.Errorf("resolve storage object: %w", err)
+		}
+		objectPath, err := ValidateObjectPath(filepath.ToSlash(rel))
+		if err != nil {
+			return fmt.Errorf("unsafe listed storage path %q: %w", rel, err)
+		}
+		if cursor != "" && objectPath <= cursor {
+			return nil
+		}
+		if len(page.Objects) >= limit {
+			page.HasMore = true
+			return filepath.SkipAll
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("stat listed storage object: %w", err)
+		}
+		page.Objects = append(page.Objects, ObjectInfo{
+			Path:         objectPath,
+			Size:         info.Size(),
+			LastModified: info.ModTime(),
+		})
+		page.NextCursor = objectPath
+		return nil
+	})
+	if err != nil {
+		return ObjectListPage{}, fmt.Errorf("list storage objects: %w", err)
+	}
+	if !page.HasMore {
+		page.NextCursor = ""
+	}
+	return page, nil
+}
+
 func (s *LocalStore) Delete(ctx context.Context, path string) error {
 	if err := ctx.Err(); err != nil {
 		return err

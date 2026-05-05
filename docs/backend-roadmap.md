@@ -1733,6 +1733,10 @@ Implementation order:
 964. Mail API restore flows now bridge back into IMAP by best-effort assigning
      UIDs to restored active messages and publishing IMAP `EXISTS` events,
      improving live client compatibility after webmail recovery actions.
+965. Shared storage now exposes bounded prefix `List` across local/NFS and
+     S3-compatible backends, using local directory walks and signed
+     `ListObjectsV2` remotely so future Drive, lifecycle, and reconciliation
+     workflows can page through object metadata without backend-specific code.
 
 ## Deferred until backend contracts stabilize
 

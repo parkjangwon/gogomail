@@ -498,6 +498,10 @@ func (s *memoryStore) Copy(_ context.Context, sourcePath string, destPath string
 	return nil
 }
 
+func (s *memoryStore) List(context.Context, storage.ListOptions) (storage.ObjectListPage, error) {
+	return storage.ObjectListPage{}, nil
+}
+
 func (s *memoryStore) Delete(_ context.Context, path string) error {
 	delete(s.values, path)
 	return nil

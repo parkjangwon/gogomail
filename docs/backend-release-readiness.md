@@ -361,6 +361,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   copies use signed server-side copy requests with escaped `x-amz-copy-source`
   values so future Drive and lifecycle workflows can duplicate objects without
   forcing caller-side body streaming.
+- Local/NFS and S3-compatible storage expose a shared bounded prefix `List`
+  contract. Local/NFS uses directory walks, and S3-compatible storage uses
+  signed `ListObjectsV2`, giving future Drive, lifecycle, and reconciliation
+  workflows a portable cursor-paginated object metadata scan.
 - Local/NFS-style storage deletes are idempotent for missing objects, aligning
   lifecycle cleanup behavior with S3-compatible object deletion.
 - S3-compatible storage requests reject canceled contexts before object-key
