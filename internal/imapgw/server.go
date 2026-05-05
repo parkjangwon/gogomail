@@ -400,6 +400,12 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleFetch(writer, tag, fields, state)
 	case "SEARCH":
 		return s.handleSearch(writer, tag, fields, state, false)
+	case "STORE":
+		if state.readOnly {
+			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+			return false, err
+		}
+		return s.handleStore(writer, tag, fields, state)
 	case "COPY":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -2002,6 +2008,46 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE flags are unsupported\r\n")
 		return false, err
 	}
+	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, "UID STORE")
+}
+
+func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) < 5 {
+		_, err := writer.WriteString(tag + " BAD STORE requires sequence set, mode, and flags\r\n")
+		return false, err
+	}
+	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD STORE requires a valid message sequence set\r\n")
+		return false, err
+	}
+	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO STORE failed\r\n")
+		return false, writeErr
+	}
+	mode, silent, ok := imapStoreMode(fields[3])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD STORE mode is unsupported\r\n")
+		return false, err
+	}
+	flags, ok := imapStoreFlags(strings.Join(fields[4:], " "))
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD STORE flags are unsupported\r\n")
+		return false, err
+	}
+	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, "STORE")
+}
+
+func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, completionCommand string) (bool, error) {
 	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
@@ -2010,24 +2056,24 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		Mode:      mode,
 	})
 	if err != nil {
-		_, writeErr := writer.WriteString(tag + " NO UID STORE failed\r\n")
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
 	if silent {
-		_, err := writer.WriteString(tag + " OK UID STORE completed\r\n")
+		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
 	for _, summary := range summaries {
 		sequenceNumber, ok := imapSequenceNumber(summary)
 		if !ok {
-			_, err := writer.WriteString(tag + " NO UID STORE sequence number is unavailable\r\n")
+			_, err := writer.WriteString(tag + " NO " + completionCommand + " sequence number is unavailable\r\n")
 			return false, err
 		}
 		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()))); err != nil {
 			return false, err
 		}
 	}
-	_, err = writer.WriteString(tag + " OK UID STORE completed\r\n")
+	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
 }
 

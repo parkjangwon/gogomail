@@ -340,6 +340,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `RFC822.TEXT` section literals without returning the message headers.
 - IMAP `UID STORE` now accepts bounded UID sets/ranges and returns per-message
   flag updates unless `.SILENT` is requested.
+- IMAP non-UID `STORE` now accepts bounded sequence sets/ranges and maps them
+  to the same service-backed flag mutation boundary as `UID STORE`.
 - IMAP `NOOP` now drains queued mailbox events into untagged `EXISTS` and flag
   `FETCH` updates for selected mailboxes.
 - IMAP now advertises and accepts `IDLE`, entering continuation mode and
