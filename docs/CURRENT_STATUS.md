@@ -1610,8 +1610,8 @@ The platform hardening sprint completed the following:
   while preserving the existing synchronizing literal path for conservative
   clients.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
-  cancellation, and SASL PLAIN credential decoding over the existing protocol
-  auth adapter.
+  RFC-shaped tagged `BAD` cancellation, and SASL PLAIN credential decoding over
+  the existing protocol auth adapter.
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce client auth round trips.
 - `gogomail --mode=imap` initializes the service-backed IMAP store adapter,

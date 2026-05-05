@@ -1337,6 +1337,55 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	}
 }
 
+func TestServerAuthenticatePlainCancelReturnsBad(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN\r\n")); err != nil {
+		t.Fatalf("write authenticate: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ \r\n" {
+		t.Fatalf("continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("*\r\n")); err != nil {
+		t.Fatalf("write authenticate cancel: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD AUTHENTICATE canceled\r\n" {
+		t.Fatalf("authenticate cancel completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write capability: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN\r\n" {
+		t.Fatalf("post-cancel capability = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
+		t.Fatalf("post-cancel capability completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	t.Parallel()
 

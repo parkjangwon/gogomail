@@ -1119,7 +1119,7 @@ func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line stri
 	tag := state.pendingAuthTag
 	state.pendingAuthTag = ""
 	if strings.TrimSpace(line) == "*" {
-		_, err := writer.WriteString(tag + " NO AUTHENTICATE canceled\r\n")
+		_, err := writer.WriteString(tag + " BAD AUTHENTICATE canceled\r\n")
 		return false, err
 	}
 	return s.completeAuthenticatePlain(writer, tag, line, state)
