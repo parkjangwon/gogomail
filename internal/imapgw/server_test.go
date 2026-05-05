@@ -2185,6 +2185,53 @@ func TestServerHandlesListAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerListUsesModifiedUTF7MailboxNames(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: unicodeMailboxBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" \"~peter/mail/&U,BTFw-/*\"\r\n")); err != nil {
+		t.Fatalf("write unicode list: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren) \"/\" \"~peter/mail/&U,BTFw-/&ZeVnLIqe-\"\r\n",
+		"a2 OK LIST completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read unicode list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("unicode list response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerListReportsMailboxChildren(t *testing.T) {
 	t.Parallel()
 
@@ -2681,6 +2728,101 @@ func TestServerHandlesSubscriptionCommandsAfterLogin(t *testing.T) {
 	}
 	if backendImpl.subscribed != "inbox" || backendImpl.unsubscribed != "inbox" {
 		t.Fatalf("subscription calls = %q/%q, want inbox/inbox", backendImpl.subscribed, backendImpl.unsubscribed)
+	}
+}
+
+func TestServerDecodesModifiedUTF7MailboxMutationArguments(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &mailboxMutationBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 CREATE &ZeVnLIqe-\r\na3 RENAME &ZeVnLIqe- &U,BTFw-\r\na4 SUBSCRIBE &U,BTFw-\r\na5 UNSUBSCRIBE &U,BTFw-\r\n")); err != nil {
+		t.Fatalf("write mailbox commands: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"a2 OK CREATE completed\r\n",
+		"a3 OK RENAME completed\r\n",
+		"a4 OK SUBSCRIBE completed\r\n",
+		"a5 OK UNSUBSCRIBE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read mailbox command response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("mailbox command response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if backendImpl.created != "日本語" || backendImpl.renamedFrom != "日本語" || backendImpl.renamedTo != "台北" || backendImpl.subscribed != "台北" || backendImpl.unsubscribed != "台北" {
+		t.Fatalf("decoded mailbox args = create %q rename %q/%q subscribe %q unsubscribe %q", backendImpl.created, backendImpl.renamedFrom, backendImpl.renamedTo, backendImpl.subscribed, backendImpl.unsubscribed)
+	}
+}
+
+func TestServerRejectsMalformedModifiedUTF7MailboxName(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 CREATE &Jjo!\r\n")); err != nil {
+		t.Fatalf("write bad mailbox command: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"a2 BAD CREATE mailbox name is not valid modified UTF-7\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read bad mailbox response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("bad mailbox response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
 	}
 }
 
@@ -5355,6 +5497,35 @@ func TestIMAPMailboxDisplayNameTrimsStoredRootPrefix(t *testing.T) {
 	}
 }
 
+func TestIMAPMailboxModifiedUTF7Codec(t *testing.T) {
+	t.Parallel()
+
+	name := "~peter/mail/台北/日本語"
+	encoded := imapEncodeMailboxName(name)
+	if encoded != "~peter/mail/&U,BTFw-/&ZeVnLIqe-" {
+		t.Fatalf("encoded mailbox name = %q, want RFC 3501 example form", encoded)
+	}
+	decoded, ok := imapDecodeMailboxName(encoded)
+	if !ok || decoded != name {
+		t.Fatalf("decoded mailbox name = %q, %v, want %q true", decoded, ok, name)
+	}
+	ampersand, ok := imapDecodeMailboxName("Archive &- Stuff")
+	if !ok || ampersand != "Archive & Stuff" {
+		t.Fatalf("ampersand decode = %q, %v", ampersand, ok)
+	}
+	for _, bad := range []string{
+		"&Jjo!",
+		"&U,BTFw-&ZeVnLIqe-",
+		"&AGE-",
+		"Archive & Stuff",
+		"日本語",
+	} {
+		if decoded, ok := imapDecodeMailboxName(bad); ok {
+			t.Fatalf("imapDecodeMailboxName(%q) = %q true, want rejection", bad, decoded)
+		}
+	}
+}
+
 func TestIMAPMessageMatchesDeletedSearch(t *testing.T) {
 	t.Parallel()
 
@@ -5762,6 +5933,16 @@ type listStatusBackend struct {
 	fakeBackend
 }
 
+type unicodeMailboxBackend struct {
+	fakeBackend
+}
+
+func (unicodeMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
+	return []Mailbox{
+		{ID: "unicode", Name: "~peter/mail/台北/日本語", UIDValidity: 1, UIDNext: 1},
+	}, nil
+}
+
 func (subscriptionBackend) ListSubscribedMailboxes(context.Context, ListMailboxesRequest) ([]MailboxSubscription, error) {
 	return []MailboxSubscription{
 		{Name: "INBOX", Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, Exists: true},
@@ -5791,6 +5972,36 @@ func (b *subscriptionCommandBackend) SubscribeMailbox(_ context.Context, _ UserI
 }
 
 func (b *subscriptionCommandBackend) UnsubscribeMailbox(_ context.Context, _ UserID, mailboxID MailboxID) error {
+	b.unsubscribed = mailboxID
+	return nil
+}
+
+type mailboxMutationBackend struct {
+	fakeBackend
+	created      MailboxID
+	renamedFrom  MailboxID
+	renamedTo    MailboxID
+	subscribed   MailboxID
+	unsubscribed MailboxID
+}
+
+func (b *mailboxMutationBackend) CreateMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
+	b.created = mailboxID
+	return Mailbox{ID: mailboxID, Name: string(mailboxID), UIDValidity: 1, UIDNext: 1}, nil
+}
+
+func (b *mailboxMutationBackend) RenameMailbox(_ context.Context, _ UserID, source MailboxID, dest MailboxID) (Mailbox, error) {
+	b.renamedFrom = source
+	b.renamedTo = dest
+	return Mailbox{ID: dest, Name: string(dest), UIDValidity: 1, UIDNext: 1}, nil
+}
+
+func (b *mailboxMutationBackend) SubscribeMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (MailboxSubscription, error) {
+	b.subscribed = mailboxID
+	return MailboxSubscription{Name: string(mailboxID), Mailbox: Mailbox{ID: mailboxID, Name: string(mailboxID)}, Exists: true}, nil
+}
+
+func (b *mailboxMutationBackend) UnsubscribeMailbox(_ context.Context, _ UserID, mailboxID MailboxID) error {
 	b.unsubscribed = mailboxID
 	return nil
 }

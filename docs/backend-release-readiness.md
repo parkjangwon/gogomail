@@ -294,7 +294,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   permanent flags, `EXISTS`, `UIDVALIDITY`, `UIDNEXT`, and read-write completion
   metadata from the service-backed mailbox state.
 - Authenticated IMAP `LIST` now maps to the service-backed mailbox list and
-  returns sanitized quoted mailbox names with hierarchy delimiters.
+  returns sanitized quoted mailbox names with hierarchy delimiters, encoding
+  non-ASCII names and ampersands as RFC 3501 modified UTF-7 while
+  `UTF8=ACCEPT` remains unadvertised.
 - Authenticated IMAP `STATUS` now maps to service-backed mailbox state and
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
@@ -336,8 +338,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP mailbox lookup now resolves wire names such as `INBOX` and
   `Archive/2026` to the stored mailbox ID before selected-mailbox state is used
   by follow-up commands.
-- IMAP `LIST` now applies exact, `*`, and `%` mailbox pattern matching before
-  returning sanitized quoted mailbox names.
+- IMAP `LIST` now decodes RFC 3501 modified UTF-7 reference/pattern arguments,
+  applies exact, `*`, and `%` mailbox pattern matching over decoded names, and
+  returns sanitized quoted mailbox names encoded back to modified UTF-7.
 - IMAP `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`;
   `LIST` includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy
   attributes plus RFC 6154 special-use attributes for system folders such as

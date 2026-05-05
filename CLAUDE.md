@@ -79,6 +79,21 @@ When designing or changing architecture:
 
 The intended style is: elegant core, high-throughput internals, flexible extension points.
 
+## Product concept
+
+gogomail's product concept is a polished, developer-friendly mail platform with
+extreme performance, scalability, and availability, backed by strict standards
+compliance for unusually broad client compatibility.
+
+Use that concept as a decision filter:
+
+- Prefer protocol correctness that makes real clients interoperate cleanly.
+- Keep hot paths fast enough for national-scale deployments.
+- Keep extension points explicit so large operators can customize without
+  forking the core.
+- Make operational behavior inspectable, auditable, and predictable.
+- Leave APIs and docs pleasant enough that developers want to build on them.
+
 ## Product feel
 
 gogomail should feel like a polished, developer-friendly, modern mail server from the code outward.

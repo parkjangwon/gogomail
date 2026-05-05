@@ -236,7 +236,9 @@ Current state:
   permanent flags, `EXISTS`, `UIDVALIDITY`, `UIDNEXT`, and read-write completion
   metadata from the service-backed mailbox state.
 - Authenticated IMAP `LIST` now maps to the service-backed mailbox list and
-  returns sanitized quoted mailbox names with hierarchy delimiters.
+  returns sanitized quoted mailbox names with hierarchy delimiters, encoding
+  non-ASCII names and ampersands as RFC 3501 modified UTF-7 while
+  `UTF8=ACCEPT` remains unadvertised.
 - Authenticated IMAP `STATUS` now maps to service-backed mailbox state and
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
@@ -275,8 +277,9 @@ Current state:
 - IMAP mailbox lookup now resolves wire names such as `INBOX` and
   `Archive/2026` to the stored mailbox ID before selected-mailbox state is used
   by follow-up commands.
-- `LIST` now filters mailbox responses with exact, `*`, and `%` patterns over
-  sanitized wire names.
+- `LIST` now decodes RFC 3501 modified UTF-7 reference/pattern arguments,
+  filters mailbox responses with exact, `*`, and `%` patterns over decoded
+  names, and emits matching names in modified UTF-7 on the wire.
 - `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`; `LIST`
   includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy attributes
   plus RFC 6154 special-use attributes for system folders such as Drafts, Sent,
@@ -459,6 +462,10 @@ Current state:
   behavior that expects subscriptions to outlive selectable mailboxes.
 - `LSUB` retains subscribed names after mailbox deletion with `\Noselect` and
   covers the RFC 3501 `%` hierarchy parent response case.
+- IMAP mailbox mutation and subscription commands decode RFC 3501 modified
+  UTF-7 mailbox arguments before crossing into the service boundary, rejecting
+  raw 8-bit and malformed alternate forms instead of leaking wire encoding into
+  storage.
 - IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
   field/value parameter lists before returning gogomail server identity.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
