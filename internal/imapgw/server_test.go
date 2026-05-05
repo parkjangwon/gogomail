@@ -5008,7 +5008,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\na13 SEARCH 2:*\r\na14 UID SEARCH 1:* SUBJECT Archive\r\na15 SEARCH (UNSEEN BCC hidden)\r\na16 UID SEARCH OR (SUBJECT IMAP) (BCC hidden)\r\na17 UID SEARCH MODSEQ 20\r\na18 SEARCH MODSEQ \"/flags/\\\\Seen\" all 17\r\na19 SEARCH MODSEQ \"/flags/\\\\Seen\" bogus 17\r\na20 SEARCH RETURN (MIN MAX COUNT) UNSEEN\r\na21 UID SEARCH RETURN (ALL COUNT) ALL\r\na22 SEARCH RETURN () ALL\r\na23 SEARCH RETURN (MIN) MODSEQ 20\r\na24 SEARCH RETURN (COUNT COUNT) ALL\r\na25 UID SEARCH RETURN (ALL COUNT) DELETED\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\na13 SEARCH 2:*\r\na14 UID SEARCH 1:* SUBJECT Archive\r\na15 SEARCH (UNSEEN BCC hidden)\r\na16 UID SEARCH OR (SUBJECT IMAP) (BCC hidden)\r\na17 UID SEARCH MODSEQ 20\r\na18 SEARCH MODSEQ \"/flags/\\\\Seen\" all 17\r\na19 SEARCH MODSEQ \"/flags/\\\\Seen\" bogus 17\r\na20 SEARCH RETURN (MIN MAX COUNT) UNSEEN\r\na21 UID SEARCH RETURN (ALL COUNT) ALL\r\na22 SEARCH RETURN () ALL\r\na23 SEARCH RETURN (MIN) MODSEQ 20\r\na24 SEARCH RETURN (COUNT COUNT) ALL\r\na25 UID SEARCH RETURN (ALL COUNT) DELETED\r\na26 UID SEARCH UID 1:*\r\na27 UID SEARCH UID 999:*\r\n")); err != nil {
 		t.Fatalf("write search: %v", err)
 	}
 	want := []string{
@@ -5055,6 +5055,10 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"a24 BAD SEARCH return options are unsupported\r\n",
 		"* ESEARCH (TAG \"a25\") UID COUNT 0\r\n",
 		"a25 OK UID SEARCH completed\r\n",
+		"* SEARCH 7 8\r\n",
+		"a26 OK UID SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a27 OK UID SEARCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

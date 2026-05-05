@@ -92,6 +92,9 @@ Current state:
   `*` UID sequence ranges against selected-mailbox UIDs, so common client
   requests such as `UID FETCH 1:*` include the last visible UID without
   expanding through non-existent UID gaps.
+- IMAP `SEARCH UID <sequence-set>` and `UID SEARCH UID <sequence-set>` resolve
+  `*` UID ranges against the selected mailbox's visible UIDs, aligning
+  search-key filtering with UID command range handling.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

@@ -1572,9 +1572,10 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 	if len(criteria) == 0 {
 		return nil, 0, false, nil
 	}
+	maxUID := imapMaxSummaryUID(messages)
 	predicates := make([]imapSearchPredicate, 0, len(criteria))
 	for i := 0; i < len(criteria); {
-		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages, state)
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages, maxUID, state)
 		if !ok {
 			return nil, 0, false, nil
 		}
@@ -1614,6 +1615,16 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		highestModSeq = 0
 	}
 	return results, highestModSeq, true, nil
+}
+
+func imapMaxSummaryUID(messages []MessageSummary) UID {
+	var maxUID UID
+	for _, message := range messages {
+		if message.UID > maxUID {
+			maxUID = message.UID
+		}
+	}
+	return maxUID
 }
 
 type imapSortCriterion struct {
@@ -1902,7 +1913,7 @@ func imapStripForwardWrapper(subject string) (string, bool) {
 
 type imapSearchPredicate func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error)
 
-func imapParseSearchPredicate(criteria []string, maxSequence uint32, state *imapConnState) (imapSearchPredicate, int, bool) {
+func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID, state *imapConnState) (imapSearchPredicate, int, bool) {
 	if len(criteria) == 0 {
 		return nil, 0, false
 	}
@@ -1915,7 +1926,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, state *imap
 			if criteria[i] == ")" {
 				break
 			}
-			predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], maxSequence, state)
+			predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], maxSequence, maxUID, state)
 			if !ok {
 				return nil, 0, false
 			}
@@ -1942,7 +1953,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, state *imap
 	case "ALL":
 		return nil, 1, true
 	case "NOT":
-		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence, state)
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence, maxUID, state)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1957,11 +1968,11 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, state *imap
 			return !matches, nil
 		}, consumed + 1, true
 	case "OR":
-		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence, state)
+		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence, maxUID, state)
 		if !ok {
 			return nil, 0, false
 		}
-		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:], maxSequence, state)
+		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:], maxSequence, maxUID, state)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1983,17 +1994,22 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, state *imap
 		if len(criteria) < 2 {
 			return nil, 0, false
 		}
-		uids, ok := parseIMAPUIDSetForState(criteria[1], state)
-		if !ok {
-			return nil, 0, false
-		}
-		allowed := make(map[UID]struct{}, len(uids))
-		for _, uid := range uids {
-			allowed[uid] = struct{}{}
+		var ranges []imapUIDRange
+		if strings.TrimSpace(criteria[1]) == "$" {
+			uids := imapSavedSearchUIDs(state)
+			ranges = make([]imapUIDRange, 0, len(uids))
+			for _, uid := range uids {
+				ranges = append(ranges, imapUIDRange{start: uid, end: uid})
+			}
+		} else {
+			var ok bool
+			ranges, ok = parseIMAPUIDSetRanges(criteria[1], maxUID)
+			if !ok {
+				return nil, 0, false
+			}
 		}
 		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
-			_, ok := allowed[summary.UID]
-			return ok, nil
+			return imapUIDMatchesRanges(summary.UID, ranges), nil
 		}, 2, true
 	case "SINCE", "BEFORE", "ON":
 		if len(criteria) < 2 {
@@ -3707,22 +3723,30 @@ func imapUIDsMatchingRanges(messages []MessageSummary, ranges []imapUIDRange) ([
 		if message.UID == 0 {
 			continue
 		}
-		for _, uidRange := range ranges {
-			if message.UID < uidRange.start || message.UID > uidRange.end {
-				continue
-			}
+		if imapUIDMatchesRanges(message.UID, ranges) {
 			if _, ok := seen[message.UID]; ok {
-				break
+				continue
 			}
 			seen[message.UID] = struct{}{}
 			uids = append(uids, message.UID)
 			if len(uids) > maxUIDSetItems {
 				return nil, false
 			}
-			break
 		}
 	}
 	return uids, true
+}
+
+func imapUIDMatchesRanges(uid UID, ranges []imapUIDRange) bool {
+	if uid == 0 {
+		return false
+	}
+	for _, uidRange := range ranges {
+		if uid >= uidRange.start && uid <= uidRange.end {
+			return true
+		}
+	}
+	return false
 }
 
 func imapSavedSearchUIDs(state *imapConnState) []UID {

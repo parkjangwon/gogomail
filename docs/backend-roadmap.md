@@ -1459,6 +1459,9 @@ Implementation order:
      resolve `*` UID sequence ranges against selected-mailbox UIDs, so common
      client requests such as `UID FETCH 1:*` include the last visible UID
      without expanding through non-existent UID gaps.
+889. IMAP `SEARCH UID <sequence-set>` and `UID SEARCH UID <sequence-set>` now
+     resolve `*` UID ranges against the selected mailbox's visible UIDs,
+     aligning search-key filtering with UID command range handling.
 
 ## Deferred until backend contracts stabilize
 
