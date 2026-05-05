@@ -318,6 +318,41 @@ func TestS3StoreListRejectsTruncatedPageWithoutCursor(t *testing.T) {
 	}
 }
 
+func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/messages/msg-1.eml </Key><Size>5</Size></Contents>
+  <Contents><Key> mail/messages/msg-2.eml</Key><Size>7</Size></Contents>
+  <Contents><Key>mail/messages/msg-3.eml</Key><Size>9</Size></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-3.eml" {
+		t.Fatalf("list objects = %+v, want only exact canonical key", page.Objects)
+	}
+}
+
 func TestS3StoreGetRangeRequiresMatchingContentRange(t *testing.T) {
 	t.Parallel()
 

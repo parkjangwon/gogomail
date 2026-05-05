@@ -709,6 +709,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` decoding now rejects truncated pages that omit
   a continuation token, so cleanup and reconciliation workers do not accept a
   provider response that cannot be advanced safely.
+- S3-compatible `ListObjectsV2` key decoding preserves provider-returned object
+  key identity by rejecting keys that would require leading/trailing whitespace
+  trimming before prefix/object-path validation.
 - Local/NFS-style storage deletes are idempotent for missing objects, aligning
   lifecycle cleanup behavior with S3-compatible object deletion.
 - S3-compatible storage requests reject canceled contexts before object-key

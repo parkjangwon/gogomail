@@ -2237,6 +2237,10 @@ Implementation order:
 1087. S3-compatible `ListObjectsV2` decoding now rejects truncated pages that
       omit a continuation token, preventing Drive, lifecycle, and reconciliation
       scans from accepting a page that cannot be advanced safely.
+1088. S3-compatible `ListObjectsV2` key decoding no longer trims
+      provider-returned object keys before prefix/object-path validation,
+      preventing distinct whitespace-bearing S3 keys from being silently
+      normalized into canonical gogomail object paths.
 
 ## Deferred until backend contracts stabilize
 

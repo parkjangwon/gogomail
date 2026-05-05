@@ -315,7 +315,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if item.Size < 0 {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object size")
 		}
-		objectPath, ok := s.objectPathFromKey(strings.TrimSpace(item.Key))
+		objectPath, ok := s.objectPathFromKey(item.Key)
 		if !ok {
 			continue
 		}
@@ -594,12 +594,18 @@ func (s *S3Store) key(objectPath string) string {
 }
 
 func (s *S3Store) objectPathFromKey(key string) (string, bool) {
+	if strings.TrimSpace(key) != key {
+		return "", false
+	}
 	if s.prefix != "" {
 		prefix := s.prefix + "/"
 		if !strings.HasPrefix(key, prefix) {
 			return "", false
 		}
 		key = strings.TrimPrefix(key, prefix)
+	}
+	if strings.TrimSpace(key) != key {
+		return "", false
 	}
 	objectPath, err := ValidateObjectPath(key)
 	if err != nil {
