@@ -231,10 +231,13 @@ Current state:
   returns sanitized quoted mailbox names with hierarchy delimiters.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
   RFC822 size metadata from the service-backed message fetch boundary.
+- Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
+  `-FLAGS` for supported system flags to the service-backed flag mutation
+  boundary and returns updated flag metadata.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
   IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`, and
-  metadata `UID FETCH`, and `LOGOUT`, while body/header FETCH, STORE, IDLE,
-  MOVE, and EXPUNGE remain deferred.
+  metadata `UID FETCH`, `UID STORE`, and `LOGOUT`, while body/header FETCH,
+  IDLE, MOVE, and EXPUNGE remain deferred.
 
 Next:
 
