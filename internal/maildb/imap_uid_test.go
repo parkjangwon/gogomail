@@ -36,6 +36,9 @@ func TestIMAPMessageFromRowMapsEnvelopeFlagsAndUID(t *testing.T) {
 	if got.ID != "message-1" || got.MailboxID != "mailbox-1" || got.UID != 42 {
 		t.Fatalf("message identity = %#v, want message/mailbox/uid mapped", got)
 	}
+	if got.ModSeq != 7 {
+		t.Fatalf("modseq = %d, want 7", got.ModSeq)
+	}
 	if got.Envelope.MessageID != "<message-1@example.com>" || got.Envelope.Subject != "Quarterly report" || !got.Envelope.Date.Equal(internalDate) {
 		t.Fatalf("envelope = %#v, want RFC message id, subject, and date", got.Envelope)
 	}

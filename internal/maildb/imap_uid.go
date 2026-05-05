@@ -1463,6 +1463,7 @@ func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSu
 		},
 		InternalDate: row.InternalDate,
 		Size:         row.Size,
+		ModSeq:       uid.ModSeq,
 	}
 }
 

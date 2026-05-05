@@ -36,6 +36,7 @@ type MessageSummary struct {
 	Flags          MessageFlags
 	InternalDate   time.Time
 	Size           int64
+	ModSeq         uint64
 }
 
 type Message struct {

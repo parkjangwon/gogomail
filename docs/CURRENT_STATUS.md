@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UIDPLUS COPYUID support)
+Last updated: 2026-05-05 (updated after IMAP FETCH MODSEQ support)
 
 ## Current phase
 
@@ -832,6 +832,9 @@ The platform hardening sprint completed the following:
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes from message summaries for mailbox list rendering.
+- IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes
+  when requested, using durable per-message mod-sequences without advertising
+  broader CONDSTORE semantics yet.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
