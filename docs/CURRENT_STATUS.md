@@ -360,6 +360,9 @@ guidance.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for
   explicit, audited, one-shot stale Drive upload-session expiry outside the
   worker loop.
+- Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with user,
+  status, and limit filters so operator consoles can inspect Drive backend
+  object cleanup drift.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

@@ -87,7 +87,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveUploadCleanup {
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -862,6 +862,76 @@ func TestAdminDriveUploadCleanupRunHandler(t *testing.T) {
 	}
 	if !service.lastDriveUploadCleanupBefore.Equal(time.Date(2020, 5, 6, 12, 0, 0, 0, time.UTC)) || service.lastDriveUploadCleanupLimit != 25 {
 		t.Fatalf("cleanup request = %s/%d", service.lastDriveUploadCleanupBefore, service.lastDriveUploadCleanupLimit)
+	}
+}
+
+func TestAdminDriveCleanupFailuresHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		driveCleanupFailures: []drive.ObjectCleanupFailure{{
+			ID:             "failure-1",
+			UserID:         "user-1",
+			StorageBackend: "s3",
+			StoragePath:    "drive/users/user-1/files/node-1/body",
+			Status:         drive.ObjectCleanupFailureStatusPending,
+			Attempts:       2,
+			LastError:      "delete failed",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-cleanup-failures?limit=5&user_id=%20user-1%20&status=pending", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Failures []drive.ObjectCleanupFailure `json:"drive_cleanup_failures"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Failures) != 1 || body.Failures[0].ID != "failure-1" {
+		t.Fatalf("failures = %+v", body.Failures)
+	}
+	if service.lastDriveCleanupFailureList.UserID != "user-1" ||
+		service.lastDriveCleanupFailureList.Status != drive.ObjectCleanupFailureStatusPending ||
+		service.lastDriveCleanupFailureList.Limit != 5 {
+		t.Fatalf("lastDriveCleanupFailureList = %+v", service.lastDriveCleanupFailureList)
+	}
+}
+
+func TestAdminDriveCleanupFailuresHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/drive-cleanup-failures?user_id=user%0Abad",
+		"/admin/v1/drive-cleanup-failures?status=closed",
+		"/admin/v1/drive-cleanup-failures?cursor=opaque",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDriveCleanupFailureList.Limit != 0 {
+				t.Fatalf("list was called: %+v", service.lastDriveCleanupFailureList)
+			}
+		})
 	}
 }
 
@@ -6229,6 +6299,7 @@ type fakeAdminService struct {
 	staleDriveUploadSessionCount                drive.StaleUploadSessionCount
 	staleDriveUploadSessions                    []drive.UploadSession
 	expiredDriveUploadSessions                  []drive.UploadSession
+	driveCleanupFailures                        []drive.ObjectCleanupFailure
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -6283,6 +6354,7 @@ type fakeAdminService struct {
 	lastDriveUploadSessionList                  drive.ListUploadSessionsRequest
 	lastDriveUploadCleanupBefore                time.Time
 	lastDriveUploadCleanupLimit                 int
+	lastDriveCleanupFailureList                 drive.ListObjectCleanupFailuresRequest
 	lastAPIUsageDailyList                       maildb.APIUsageAggregateListRequest
 	lastAPIUsageMonthlyList                     maildb.APIUsageAggregateListRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
@@ -6562,6 +6634,12 @@ func (f *fakeAdminService) RunDriveUploadSessionCleanup(_ context.Context, befor
 	f.lastDriveUploadCleanupBefore = before
 	f.lastDriveUploadCleanupLimit = limit
 	return f.expiredDriveUploadSessions, nil
+}
+
+func (f *fakeAdminService) ListDriveObjectCleanupFailures(_ context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error) {
+	f.lastDriveCleanupFailureList = req
+	f.lastLimit = req.Limit
+	return f.driveCleanupFailures, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error) {

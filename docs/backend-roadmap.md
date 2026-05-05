@@ -1886,6 +1886,9 @@ Implementation order:
 1003. Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for
       explicit audited one-shot stale Drive upload-session expiry with
       candidate counts and expired session rows.
+1004. Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with
+      bounded user/status/limit filters so operator consoles can inspect
+      pending or resolved Drive backend object cleanup drift.
 
 ## Deferred until backend contracts stabilize
 
