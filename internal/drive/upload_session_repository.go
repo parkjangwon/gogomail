@@ -275,6 +275,83 @@ RETURNING
 	return session, nil
 }
 
+func (r *Repository) ExpireUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) ([]UploadSession, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateExpireUploadSessionsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin drive upload session expiry transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const selectQuery = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  upload_id,
+  name,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM drive_upload_sessions
+WHERE status IN ('pending', 'uploading', 'failed')
+  AND expires_at < $1
+ORDER BY expires_at ASC, created_at ASC
+LIMIT $2
+FOR UPDATE SKIP LOCKED`
+	rows, err := tx.QueryContext(ctx, selectQuery, req.Before, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("select expired drive upload sessions: %w", err)
+	}
+	defer rows.Close()
+
+	expired := make([]UploadSession, 0)
+	for rows.Next() {
+		session, err := scanUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan expired drive upload session: %w", err)
+		}
+		expired = append(expired, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate expired drive upload sessions: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close expired drive upload session rows: %w", err)
+	}
+
+	for i := range expired {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE drive_upload_sessions
+SET status = 'expired',
+    updated_at = now()
+WHERE id = $1::uuid
+  AND status IN ('pending', 'uploading', 'failed')`, expired[i].ID); err != nil {
+			return nil, fmt.Errorf("expire drive upload session: %w", err)
+		}
+		expired[i].Status = UploadSessionStatusExpired
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit drive upload session expiry transaction: %w", err)
+	}
+	return expired, nil
+}
+
 func (r *Repository) StoreUploadSessionBody(ctx context.Context, req RecordUploadSessionBodyRequest) (UploadSession, error) {
 	if r == nil || r.db == nil {
 		return UploadSession{}, fmt.Errorf("database handle is required")
@@ -354,6 +431,44 @@ RETURNING
 			return UploadSession{}, fmt.Errorf("writable drive upload session not found")
 		}
 		return UploadSession{}, fmt.Errorf("store drive upload session body: %w", err)
+	}
+	if finalizedAt.Valid {
+		session.FinalizedAt = finalizedAt.Time
+	}
+	if canceledAt.Valid {
+		session.CanceledAt = canceledAt.Time
+	}
+	return session, nil
+}
+
+type uploadSessionScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanUploadSession(scanner uploadSessionScanner) (UploadSession, error) {
+	var session UploadSession
+	var finalizedAt sql.NullTime
+	var canceledAt sql.NullTime
+	if err := scanner.Scan(
+		&session.ID,
+		&session.UserID,
+		&session.ParentID,
+		&session.UploadID,
+		&session.Name,
+		&session.DeclaredSize,
+		&session.ReceivedSize,
+		&session.MIMEType,
+		&session.Status,
+		&session.StorageBackend,
+		&session.StoragePath,
+		&session.ChecksumSHA256,
+		&session.ExpiresAt,
+		&session.CreatedAt,
+		&session.UpdatedAt,
+		&finalizedAt,
+		&canceledAt,
+	); err != nil {
+		return UploadSession{}, err
 	}
 	if finalizedAt.Valid {
 		session.FinalizedAt = finalizedAt.Time

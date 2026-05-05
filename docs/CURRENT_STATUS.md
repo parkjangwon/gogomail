@@ -342,6 +342,9 @@ guidance.
   create/read/cancel/body/finalize support, checksum preconditions, and Drive
   upload size/TTL limits so production clients can enable Drive flows without
   copying backend constants.
+- Drive upload sessions can now be expired in bounded repository batches, and
+  the Drive service deletes stored session bodies from the configured backend
+  after rows are marked expired.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

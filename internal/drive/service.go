@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -120,6 +121,37 @@ func (s *Service) CancelUploadSession(ctx context.Context, req CancelUploadSessi
 		return UploadSession{}, fmt.Errorf("drive repository is required")
 	}
 	return s.repo.CancelUploadSession(ctx, req)
+}
+
+func (s *Service) ExpireUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) ([]UploadSession, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("drive repository is required")
+	}
+	req, err := ValidateExpireUploadSessionsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	expired, err := s.repo.ExpireUploadSessions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	for _, session := range expired {
+		storagePath := strings.TrimSpace(session.StoragePath)
+		if storagePath == "" {
+			continue
+		}
+		if _, err := storage.ValidateObjectPath(storagePath); err != nil {
+			return expired, fmt.Errorf("expired drive upload session storage path is invalid: %w", err)
+		}
+		store := s.stores[session.StorageBackend]
+		if store == nil {
+			return expired, fmt.Errorf("storage store %q is required", session.StorageBackend)
+		}
+		if err := store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return expired, fmt.Errorf("delete expired drive upload session body: %w", err)
+		}
+	}
+	return expired, nil
 }
 
 func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSessionBodyRequest) (UploadSession, error) {

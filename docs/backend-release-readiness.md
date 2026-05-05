@@ -106,6 +106,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Webmail capabilities now expose Drive node/upload-session availability and
   Drive upload size/TTL limits, giving production clients a single bootstrap
   contract for mail, attachment, push, and Drive feature gating.
+- Drive upload-session expiry can now run through bounded repository/service
+  paths, marking stale writable sessions expired and deleting stored session
+  bodies through the configured storage backend.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
