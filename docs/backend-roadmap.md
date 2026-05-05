@@ -938,6 +938,8 @@ Implementation order:
 740. IMAP `SEARCH` and `UID SEARCH` now support bounded `BODY` and `TEXT`
      raw-message criteria scans, with `BODY` excluding the RFC 5322 header
      block.
+741. IMAP `SEARCH` and `UID SEARCH` now support bounded RFC
+     `HEADER <field> <value>` criteria scans over the raw message header block.
 
 ## Deferred until backend contracts stabilize
 

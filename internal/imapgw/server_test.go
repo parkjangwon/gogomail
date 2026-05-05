@@ -1769,7 +1769,7 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH BODY archived\r\na4 UID SEARCH TEXT Archive\r\na5 SEARCH BODY Subject\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH BODY archived\r\na4 UID SEARCH TEXT Archive\r\na5 SEARCH BODY Subject\r\na6 UID SEARCH HEADER Subject Archive\r\n")); err != nil {
 		t.Fatalf("write body search: %v", err)
 	}
 	want := []string{
@@ -1779,6 +1779,8 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 		"a4 OK UID SEARCH completed\r\n",
 		"* SEARCH\r\n",
 		"a5 OK SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a6 OK UID SEARCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -1789,7 +1791,7 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 			t.Fatalf("body search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

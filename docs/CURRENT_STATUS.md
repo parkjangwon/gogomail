@@ -851,6 +851,8 @@ The platform hardening sprint completed the following:
   `SUBJECT` substring criteria over selected-mailbox summaries.
 - IMAP `SEARCH`/`UID SEARCH` supports bounded `BODY` and `TEXT` raw-message
   criteria scans, with `BODY` excluding the RFC 5322 header block.
+- IMAP `SEARCH`/`UID SEARCH` supports bounded RFC `HEADER <field> <value>`
+  criteria scans over the raw message header block.
 - IMAP `SEARCH`/`UID SEARCH` supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
 - IMAP supports authenticated `NAMESPACE` for personal namespace and hierarchy
