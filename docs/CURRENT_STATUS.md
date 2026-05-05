@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP selected-command syntax ordering)
+Last updated: 2026-05-05 (updated after IMAP selected no-arg syntax ordering)
 
 ## Current phase
 
@@ -1495,6 +1495,9 @@ The platform hardening sprint completed the following:
   `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
   before returning `NO mailbox must be selected` for valid commands issued
   outside selected state.
+- Authenticated selected-state no-argument commands now reject extra arguments
+  on `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
+  selected-mailbox state errors for well-formed commands.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

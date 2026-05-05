@@ -1077,6 +1077,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-state command dispatch validates obvious malformed
   `FETCH`/`STORE`/`COPY`/`MOVE`/`SEARCH`/`SORT`/`THREAD` syntax before selected
   mailbox state errors, keeping parser diagnostics precise for client authors.
+- IMAP selected-state no-argument commands reject extra arguments before
+  selected-mailbox state errors, keeping destructive lifecycle commands from
+  hiding malformed input behind state responses.
 
 ## Must verify before release cut
 

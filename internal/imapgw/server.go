@@ -552,12 +552,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		if state.selectedMailbox == "" {
-			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD CHECK does not accept arguments\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
 		_, err := writer.WriteString(tag + " OK CHECK completed\r\n")
@@ -567,12 +567,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		if state.selectedMailbox == "" {
-			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD IDLE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
 		state.pendingIdleTag = tag
@@ -583,12 +583,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		if state.selectedMailbox == "" {
-			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD CLOSE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
 		return s.handleClose(writer, tag, state)
@@ -597,12 +597,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		if state.selectedMailbox == "" {
-			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD UNSELECT does not accept arguments\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
 		state.selectedMailbox = ""
@@ -617,12 +617,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		if state.selectedMailbox == "" {
-			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD EXPUNGE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
 		if state.readOnly {
