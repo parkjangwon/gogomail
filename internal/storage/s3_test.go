@@ -155,6 +155,46 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 }
 
+func TestS3StoreCheckBoundsReadinessBody(t *testing.T) {
+	t.Parallel()
+
+	var deletes int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			_, _ = w.Write([]byte("gogomail storage readiness\nextra"))
+		case http.MethodDelete:
+			deletes++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("method = %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        server.URL,
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if err := store.Check(context.Background()); err == nil || !strings.Contains(err.Error(), "readiness probe body mismatch") {
+		t.Fatalf("Check err = %v, want bounded mismatch", err)
+	}
+	if deletes != 1 {
+		t.Fatalf("delete calls = %d, want cleanup after mismatch", deletes)
+	}
+}
+
 type failingRoundTripper struct {
 	t *testing.T
 }

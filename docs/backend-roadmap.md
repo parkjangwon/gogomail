@@ -1570,6 +1570,10 @@ Implementation order:
      before backend dispatch and keeping flag storage behavior aligned with
      RFC-shaped selection metadata. Empty add/remove flag lists remain no-ops,
      while empty replacement is rejected when no permanent flags are permitted.
+922. S3-compatible readiness probes now bound the verification-object read to
+     the exact expected body size plus one byte, preventing malformed or
+     proxy-inflated probe responses from allocating unbounded memory during
+     health checks while still detecting body mismatches.
 
 ## Deferred until backend contracts stabilize
 
