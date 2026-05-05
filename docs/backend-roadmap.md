@@ -926,6 +926,9 @@ Implementation order:
      UID filters.
 736. IMAP `SEARCH` and `UID SEARCH` now support RFC `NOT` and binary `OR`
      criteria composition over the supported predicate set.
+737. IMAP `FETCH` and `UID FETCH` now support standard `FAST`, `ALL`, and
+     `FULL` macros, including the non-extensible `BODY` attribute used by
+     `FULL`.
 
 ## Deferred until backend contracts stabilize
 

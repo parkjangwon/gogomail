@@ -329,6 +329,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` now return a conservative single-part
   `BODYSTRUCTURE` response for clients that require structure metadata before
   fetching message bodies.
+- IMAP `FETCH`/`UID FETCH` now supports standard `FAST`, `ALL`, and `FULL`
+  macros, including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` now support bounded header-only literals for
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - IMAP `FETCH`/`UID FETCH` now support `BODY[TEXT]`, `BODY.PEEK[TEXT]`, and
