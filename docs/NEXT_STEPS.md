@@ -220,6 +220,10 @@ Current state:
 - `internal/imapgw.NewServer` now provides a protocol-server lifecycle shell
   with listener option validation, backend requirement checks, and TLS/insecure
   auth policy enforcement before the IMAP command parser is wired.
+- The IMAP server shell can serve an initial connection greeting plus
+  unauthenticated `CAPABILITY`, `NOOP`, and `LOGOUT` responses, giving TCP
+  clients a bounded RFC-shaped handshake surface before mailbox commands are
+  enabled.
 - `gogomail --mode=imap` now constructs the `imapgw.Server` shell from runtime
   options while still deferring `Listen`/`Serve` until command handling is wired.
 
