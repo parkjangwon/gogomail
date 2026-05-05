@@ -2283,6 +2283,12 @@ Implementation order:
       canonical principal/address-book/contact-object paths, `.vcf` resource
       validation, and safe relative or HTTP(S) absolute href parsing before any
       contacts CRUD or public CardDAV listener is exposed.
+1099. CardDAV storage groundwork now has PostgreSQL `carddav_addressbooks`,
+      `carddav_contact_objects`, and `carddav_addressbook_changes` tables with
+      user-scoped active uniqueness, strong ETag, sync-token, status, size, and
+      `.vcf` body constraints, plus `internal/carddavgw` metadata validators for
+      address-book names/descriptions, contact object names/UIDs, strong ETags,
+      object-size limits, and sync-token derivation.
 
 ## Deferred until backend contracts stabilize
 
@@ -2296,8 +2302,9 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV storage, vCard validation, REPORT/sync behavior, auth, and
-  native-client compatibility beyond the initial path/href boundary
+- Contacts/CardDAV repository methods, bounded vCard semantic validation,
+  REPORT/sync behavior, auth, and native-client compatibility beyond the
+  initial path/href and storage metadata boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
