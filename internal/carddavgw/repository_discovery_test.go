@@ -27,6 +27,9 @@ func TestRepositoryDiscoveryMethodsRequireDatabase(t *testing.T) {
 	if _, err := repo.ListAddressBookObjects(context.Background(), "user-1", "book-1"); err == nil {
 		t.Fatal("ListAddressBookObjects error = nil, want database requirement")
 	}
+	if err := repo.WalkAddressBookObjects(context.Background(), "user-1", "book-1", func(ContactObject) (bool, error) { return false, nil }); err == nil {
+		t.Fatal("WalkAddressBookObjects error = nil, want database requirement")
+	}
 	if _, err := repo.LookupContactObject(context.Background(), "user-1", "book-1", "contact-1.vcf"); err == nil {
 		t.Fatal("LookupContactObject error = nil, want database requirement")
 	}

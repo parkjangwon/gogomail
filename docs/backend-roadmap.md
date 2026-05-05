@@ -2374,6 +2374,10 @@ Implementation order:
 1116. CardDAV `addressbook-query` execution now honors bounded
       `limit/nresults` values by capping returned matching responses before
       building the multistatus body.
+1117. CardDAV repository-backed query execution now has a streaming object
+      walker path, letting handlers evaluate filters and stop once
+      `limit/nresults` is satisfied without materializing the whole address
+      book collection.
 
 ## Deferred until backend contracts stabilize
 
