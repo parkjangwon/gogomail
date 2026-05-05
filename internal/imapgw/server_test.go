@@ -2969,6 +2969,65 @@ func TestFilterIMAPHeaderFields(t *testing.T) {
 	}
 }
 
+func TestIMAPBodyStructureDefersMultipartHeaders(t *testing.T) {
+	t.Parallel()
+
+	header := []byte("Content-Type: multipart/mixed; boundary=frontier\r\n\r\n")
+	got := imapBodyStructureFromHeader(MessageSummary{Size: 123}, header)
+	want := `("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" 123 1 NIL NIL NIL NIL)`
+	if got != want {
+		t.Fatalf("bodystructure = %q, want conservative single-part fallback %q", got, want)
+	}
+}
+
+func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 10 BODYSTRUCTURE\r\n")); err != nil {
+		t.Fatalf("write uid fetch bodystructure: %v", err)
+	}
+	bodySize := len("Content-Type: text/html; charset=utf-8; format=flowed\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n<p>Hello</p>")
+	want := []string{
+		fmt.Sprintf("* 4 FETCH (UID 10 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE (\"TEXT\" \"HTML\" (\"CHARSET\" \"utf-8\" \"FORMAT\" \"flowed\") NIL NIL \"QUOTED-PRINTABLE\" %d 1 NIL NIL NIL NIL))\r\n", bodySize, bodySize),
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read bodystructure response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("bodystructure response = %q, want %q", line, expected)
+		}
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
@@ -3003,6 +3062,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 	}
 	if req.UID == 9 {
 		body = "Subject: Hello\r\nFrom: sender@test\r\n\r\nhello header body"
+		size = int64(len(body))
+	}
+	if req.UID == 10 {
+		body = "Content-Type: text/html; charset=utf-8; format=flowed\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n<p>Hello</p>"
 		size = int64(len(body))
 	}
 	return Message{

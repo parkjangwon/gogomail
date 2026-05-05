@@ -9,8 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
+	stdmail "net/mail"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1435,12 +1438,30 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if summary.UID == 0 {
 			summary.UID = uid
 		}
+		requestsLiteral := requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
+		bodyAttribute := ""
+		bodyStructure := ""
+		if !requestsLiteral && message.Body != nil {
+			if requestsBodyAttribute || requestsBodyStructure {
+				header, err := readIMAPSectionLiteral(message.Body, true)
+				if closeErr := message.Body.Close(); closeErr != nil && err == nil {
+					err = closeErr
+				}
+				if err != nil {
+					return false, err
+				}
+				bodyAttribute = imapBodyFromHeader(summary, header)
+				bodyStructure = imapBodyStructureFromHeader(summary, header)
+			} else if err := message.Body.Close(); err != nil {
+				return false, err
+			}
+		}
 		sequenceNumber, ok := imapSequenceNumber(summary)
 		if !ok {
 			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
 			return false, err
 		}
-		if requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME {
+		if requestsLiteral {
 			if message.Body == nil {
 				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
 				return false, err
@@ -1469,7 +1490,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				if err := body.Close(); err != nil {
 					return false, err
 				}
-				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure)
+				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, "", "")
 				section := "TEXT"
 				if requestsPartText {
 					section = "1"
@@ -1491,7 +1512,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				continue
 			}
-			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure)
+			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, "", "")
 			if requestsPartialBody {
 				count := partial.count
 				if partial.offset >= uint64(summary.Size) {
@@ -1540,7 +1561,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if message.Body != nil {
 			_ = message.Body.Close()
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure), " "))); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure), " "))); err != nil {
 			return false, err
 		}
 	}
@@ -1927,7 +1948,7 @@ func imapFetchRequestsToken(items []string, want string) bool {
 	return false
 }
 
-func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeInternalDate bool, includeBody bool, includeBodyStructure bool) []string {
+func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeInternalDate bool, includeBody bool, includeBodyStructure bool, bodyAttribute string, bodyStructure string) []string {
 	attributes := []string{
 		fmt.Sprintf("UID %d", summary.UID),
 		"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
@@ -1940,10 +1961,16 @@ func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeIn
 		attributes = append(attributes, "ENVELOPE "+imapEnvelope(summary))
 	}
 	if includeBody {
-		attributes = append(attributes, "BODY "+imapBody(summary))
+		if bodyAttribute == "" {
+			bodyAttribute = imapBody(summary)
+		}
+		attributes = append(attributes, "BODY "+bodyAttribute)
 	}
 	if includeBodyStructure {
-		attributes = append(attributes, "BODYSTRUCTURE "+imapBodyStructure(summary))
+		if bodyStructure == "" {
+			bodyStructure = imapBodyStructure(summary)
+		}
+		attributes = append(attributes, "BODYSTRUCTURE "+bodyStructure)
 	}
 	return attributes
 }
@@ -2006,19 +2033,131 @@ func imapNString(value string) string {
 }
 
 func imapBodyStructure(summary MessageSummary) string {
-	lines := int64(0)
-	if summary.Size > 0 {
-		lines = 1
-	}
-	return fmt.Sprintf(`("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" %d %d NIL NIL NIL NIL)`, maxInt64(summary.Size, 0), lines)
+	return imapBodyStructureFromHeader(summary, nil)
+}
+
+func imapBodyStructureFromHeader(summary MessageSummary, header []byte) string {
+	return imapBodyFromHeaderExtended(summary, header, true)
 }
 
 func imapBody(summary MessageSummary) string {
+	return imapBodyFromHeader(summary, nil)
+}
+
+func imapBodyFromHeader(summary MessageSummary, header []byte) string {
+	return imapBodyFromHeaderExtended(summary, header, false)
+}
+
+func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended bool) string {
+	metadata := imapBodyMetadataFromHeader(header)
 	lines := int64(0)
 	if summary.Size > 0 {
 		lines = 1
 	}
-	return fmt.Sprintf(`("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" %d %d)`, maxInt64(summary.Size, 0), lines)
+	size := maxInt64(summary.Size, 0)
+	fields := []string{
+		imapQuotedString(metadata.mediaType),
+		imapQuotedString(metadata.mediaSubtype),
+		imapBodyParameterList(metadata.params),
+		imapNString(metadata.id),
+		imapNString(metadata.description),
+		imapQuotedString(metadata.encoding),
+		fmt.Sprintf("%d", size),
+	}
+	if metadata.mediaType == "TEXT" {
+		fields = append(fields, fmt.Sprintf("%d", lines))
+	}
+	if extended {
+		fields = append(fields, "NIL", "NIL", "NIL", "NIL")
+	}
+	return "(" + strings.Join(fields, " ") + ")"
+}
+
+type imapBodyMetadata struct {
+	mediaType    string
+	mediaSubtype string
+	params       map[string]string
+	id           string
+	description  string
+	encoding     string
+}
+
+func imapBodyMetadataFromHeader(header []byte) imapBodyMetadata {
+	metadata := imapBodyMetadata{
+		mediaType:    "TEXT",
+		mediaSubtype: "PLAIN",
+		params:       map[string]string{"CHARSET": "UTF-8"},
+		encoding:     "7BIT",
+	}
+	if len(header) == 0 {
+		return metadata
+	}
+	message, err := stdmail.ReadMessage(bytes.NewReader(header))
+	if err != nil {
+		return metadata
+	}
+	contentType := strings.TrimSpace(message.Header.Get("Content-Type"))
+	if contentType != "" {
+		mediaType, params, err := mime.ParseMediaType(contentType)
+		if err == nil {
+			if typ, subtype, ok := imapMediaTypeParts(mediaType); ok {
+				if typ == "MULTIPART" {
+					return metadata
+				}
+				metadata.mediaType = typ
+				metadata.mediaSubtype = subtype
+				metadata.params = imapBodyParams(params)
+			}
+		}
+	}
+	if encoding := strings.TrimSpace(message.Header.Get("Content-Transfer-Encoding")); encoding != "" {
+		metadata.encoding = strings.ToUpper(encoding)
+	}
+	metadata.id = strings.TrimSpace(message.Header.Get("Content-ID"))
+	metadata.description = strings.TrimSpace(message.Header.Get("Content-Description"))
+	return metadata
+}
+
+func imapMediaTypeParts(value string) (string, string, bool) {
+	typ, subtype, ok := strings.Cut(strings.TrimSpace(value), "/")
+	typ = strings.ToUpper(strings.TrimSpace(typ))
+	subtype = strings.ToUpper(strings.TrimSpace(subtype))
+	if !ok || typ == "" || subtype == "" || strings.ContainsAny(typ+subtype, " \t\r\n") {
+		return "", "", false
+	}
+	return typ, subtype, true
+}
+
+func imapBodyParams(params map[string]string) map[string]string {
+	if len(params) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(params))
+	for key, value := range params {
+		key = strings.ToUpper(strings.TrimSpace(key))
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" || strings.ContainsAny(key, " \t\r\n") {
+			continue
+		}
+		out[key] = value
+	}
+	return out
+}
+
+func imapBodyParameterList(params map[string]string) string {
+	if len(params) == 0 {
+		return "NIL"
+	}
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	values := make([]string, 0, len(keys)*2)
+	for _, key := range keys {
+		values = append(values, imapQuotedString(key), imapQuotedString(params[key]))
+	}
+	return "(" + strings.Join(values, " ") + ")"
 }
 
 func maxInt64(a int64, b int64) int64 {

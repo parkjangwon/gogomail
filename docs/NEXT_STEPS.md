@@ -268,6 +268,9 @@ Current state:
   attributes when requested, using the service-backed message summary fields.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
+- Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
+  parameters, content-transfer-encoding, ID, and description from bounded raw
+  message headers instead of always reporting text/plain defaults.
 - `FETCH`/`UID FETCH` now supports standard `FAST`, `ALL`, and `FULL` macros,
   including the non-extensible `BODY` attribute for `FULL`.
 - `FETCH`/`UID FETCH` now support bounded header-only literals for
