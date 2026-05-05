@@ -752,6 +752,11 @@ Implementation order:
      `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
      `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables
      are configured.
+679. ADR 0008 now records IMAP authentication and session semantics: protocol
+     auth should use a dedicated adapter over local user password hashes, JWT
+     stays HTTP-only, production auth requires TLS policy review, and
+     MOVE/EXPUNGE remain explicitly unsupported until IMAP-safe mutation
+     semantics are accepted.
 
 ## Deferred until backend contracts stabilize
 

@@ -197,13 +197,16 @@ Current state:
   listener.
 - `GOGOMAIL_IMAP_ADDR` is loaded and validated as required TCP listener
   metadata for the scaffold, giving the future listener a stable config key.
+- ADR 0008 accepts the IMAP authentication/session direction: use a dedicated
+  protocol auth adapter over local user password hashes, keep JWT out of IMAP,
+  require TLS policy review before production enablement, and continue rejecting
+  MOVE/EXPUNGE until IMAP-safe mutation semantics exist.
 
 Next:
 
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
-- Add the TCP IMAP listener only after authentication/session semantics are
-  explicitly reviewed against RFC 3501 and successors.
+- Add the TCP IMAP listener with ADR 0008 as the authentication/session contract.
 
 Frontend note:
 
