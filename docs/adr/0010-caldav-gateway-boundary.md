@@ -65,6 +65,12 @@ header values, and the core CalDAV/WebDAV REPORT roots needed for
 `sync-collection`. Method handlers will build on this parser rather than
 decoding arbitrary XML in request paths.
 
+The first repository boundary keeps calendar and object mutations
+user-scoped. Calendar-object upserts and soft deletes lock the owning active
+calendar and update its sync token transactionally so future REPORT
+`sync-collection` handlers can observe object changes through one collection
+state value.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

@@ -1411,6 +1411,10 @@ Current state:
   parsing, safe `Depth` header parsing, `allprop` `include` support, and core
   REPORT root classification for `calendar-query`, `calendar-multiget`,
   `free-busy-query`, and `sync-collection`.
+- CalDAV storage tables now have a repository boundary for calendar
+  create/list/get and calendar-object upsert/list/get/soft-delete, including
+  `.ics` object-name validation, UID/component/ETag checks, optional observed
+  ETag guards, and transactional calendar sync-token bumps.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1420,10 +1424,9 @@ Current state:
 
 Next:
 
-- Continue CalDAV with repository methods for calendar/object CRUD,
-  iCalendar parser/serializer selection, stricter REPORT filter/href/time-range
-  validation, and `OPTIONS`/`PROPFIND` discovery handlers before advertising
-  client-ready compatibility.
+- Continue CalDAV with iCalendar parser/serializer selection, stricter REPORT
+  filter/href/time-range validation, and `OPTIONS`/`PROPFIND` discovery
+  handlers before advertising client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

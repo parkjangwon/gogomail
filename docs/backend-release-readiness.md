@@ -183,6 +183,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   root classification for `calendar-query`, `calendar-multiget`,
   `free-busy-query`, and `sync-collection` before protocol handlers are
   advertised.
+- CalDAV now has a repository boundary over the calendar storage tables for
+  calendar create/list/get and object upsert/list/get/soft-delete, including
+  `.ics` object-name validation, strong ETag generation, optional observed-ETag
+  guards, and transactional sync-token updates.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

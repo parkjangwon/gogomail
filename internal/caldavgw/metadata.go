@@ -20,6 +20,7 @@ const (
 	MaxCalendarNameBytes        = 255
 	MaxCalendarDescriptionBytes = 2048
 	MaxCalendarObjectUIDBytes   = 255
+	MaxCalendarObjectNameBytes  = 200
 	MaxCalendarObjectBytes      = 10 << 20
 )
 
@@ -114,6 +115,28 @@ func ValidateCalendarObjectUID(uid string) (string, error) {
 	return uid, nil
 }
 
+func ValidateCalendarObjectName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("calendar object name is required")
+	}
+	if len(name) > MaxCalendarObjectNameBytes {
+		return "", fmt.Errorf("calendar object name is too long")
+	}
+	if strings.ContainsAny(name, "\r\n/\\") {
+		return "", fmt.Errorf("calendar object name must be a single path segment")
+	}
+	for _, r := range name {
+		if unicode.IsControl(r) {
+			return "", fmt.Errorf("calendar object name must not contain control characters")
+		}
+	}
+	if !strings.HasSuffix(strings.ToLower(name), ".ics") {
+		return "", fmt.Errorf("calendar object name must end with .ics")
+	}
+	return name, nil
+}
+
 func ValidateCalendarComponent(component string) (string, error) {
 	component = strings.TrimSpace(strings.ToUpper(component))
 	if component == "" {
@@ -125,6 +148,15 @@ func ValidateCalendarComponent(component string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported calendar component %q", component)
 	}
+}
+
+func CalendarSyncToken(parts ...string) string {
+	h := sha256.New()
+	for _, part := range parts {
+		_, _ = h.Write([]byte(part))
+		_, _ = h.Write([]byte{0})
+	}
+	return "sync-" + hex.EncodeToString(h.Sum(nil))
 }
 
 func StrongETag(body []byte) (string, error) {
