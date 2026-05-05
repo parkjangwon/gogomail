@@ -733,11 +733,11 @@ Current state:
   selected mailbox, validate the destination mailbox, move active messages
   transactionally, assign fresh destination UIDs, and allow moves back into the
   selected mailbox by creating a fresh same-mailbox message before expunging
-  the source UID. Responses return UIDPLUS `[COPYUID ...]` mappings when
-  destination UIDs are available, advance and return source mailbox
-  `[HIGHESTMODSEQ ...]` metadata for CONDSTORE-aware clients, emit RFC-shaped
-  source `EXPUNGE` responses, and return `[TRYCREATE]` when the destination
-  mailbox is missing.
+  the source UID. Responses return UIDPLUS `[COPYUID ...]` mappings in the
+  final tagged OK when destination UIDs are available, advance and return
+  source mailbox `[HIGHESTMODSEQ ...]` metadata for CONDSTORE-aware clients,
+  emit RFC-shaped source `EXPUNGE` responses, and return `[TRYCREATE]` when
+  the destination mailbox is missing.
 - `APPEND` now has a protocol-to-backend request boundary for mailbox, optional
   flag-list, optional internal date-time, literal body, and size after bounded
   literal framing. The boundary now carries UIDPLUS-ready append metadata so
