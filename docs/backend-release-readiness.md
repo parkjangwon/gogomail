@@ -300,6 +300,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
   backend selectors accept only `none` or `redis`, preventing typos from
   silently disabling operational controls.
+- HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses
+  are validated as TCP `host:port` values at startup, surfacing bind
+  configuration mistakes before runtime listener setup.
 - Admin API can persist a domain operational policy model in `domains.settings.policy`, and Mail API send/draft-send enforces outbound recipient-count and composed-size guardrails when `outbound_mode=enforce`.
 - DKIM key creation derives the public DNS TXT record from the private key when omitted, reducing operator DNS setup errors while preserving private-key omission from admin list responses.
 - Admin API exposes domain DNS verification for MX, SPF, DMARC, and active DKIM TXT records, and each check is persisted with an audit log entry for domain onboarding traceability before frontend implementation.

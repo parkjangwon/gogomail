@@ -4,8 +4,10 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/mail"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -43,6 +45,21 @@ func (c Config) Validate() error {
 	}
 	if c.HTTPMaxHeaderBytes < minHTTPMaxHeaderBytes || c.HTTPMaxHeaderBytes > maxHTTPMaxHeaderBytes {
 		return fmt.Errorf("GOGOMAIL_HTTP_MAX_HEADER_BYTES must be between %d and %d", minHTTPMaxHeaderBytes, maxHTTPMaxHeaderBytes)
+	}
+	if err := validateTCPAddr("GOGOMAIL_HTTP_ADDR", c.HTTPAddr, true); err != nil {
+		return err
+	}
+	if err := validateTCPAddr("GOGOMAIL_SMTP_ADDR", c.SMTPAddr, true); err != nil {
+		return err
+	}
+	if err := validateTCPAddr("GOGOMAIL_INBOUND_SMTP_ADDR", c.InboundSMTPAddr, true); err != nil {
+		return err
+	}
+	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_ADDR", c.SubmissionAddr, true); err != nil {
+		return err
+	}
+	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_SMTPS_ADDR", c.SubmissionSMTPSAddr, false); err != nil {
+		return err
 	}
 	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local"); err != nil {
 		return err
@@ -346,6 +363,28 @@ func validateEnum(name string, value string, allowed ...string) error {
 		}
 	}
 	return fmt.Errorf("%s has unsupported value %q", name, value)
+}
+
+func validateTCPAddr(name string, value string, required bool) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if required {
+			return fmt.Errorf("%s is required", name)
+		}
+		return nil
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s cannot contain line breaks", name)
+	}
+	_, port, err := net.SplitHostPort(value)
+	if err != nil {
+		return fmt.Errorf("%s must be a TCP host:port address: %w", name, err)
+	}
+	parsedPort, err := strconv.Atoi(port)
+	if err != nil || parsedPort < 1 || parsedPort > 65535 {
+		return fmt.Errorf("%s must include a TCP port between 1 and 65535", name)
+	}
+	return nil
 }
 
 func validateHTTPSURL(name string, value string) error {

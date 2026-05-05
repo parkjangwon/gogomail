@@ -713,6 +713,7 @@ Implementation order:
 653. Health and service-info GET routes now reject unknown query parameter names, making release probe and metadata endpoint typos visible as HTTP 400 instead of silently ignored inputs.
 654. Runtime config validation now restricts `GOGOMAIL_ENV` to `development`, `test`, or `production`, preventing environment typos from silently bypassing production-only safety gates.
 655. Runtime config validation now restricts Redis-backed deduplication, recipient rate limiting, and SMTP backpressure backend selectors to `none` or `redis`, preventing typos from silently disabling operational controls.
+656. Runtime config validation now checks HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses as TCP `host:port` values, surfacing bind configuration mistakes before runtime listener setup.
 
 ## Deferred until backend contracts stabilize
 

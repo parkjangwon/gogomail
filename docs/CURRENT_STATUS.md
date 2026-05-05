@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Redis feature backend validation)
+Last updated: 2026-05-05 (updated after listener address validation)
 
 ## Current phase
 
@@ -691,6 +691,9 @@ The platform hardening sprint completed the following:
 - Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
   backend selectors now accept only `none` or `redis`, preventing typos from
   silently disabling operational controls.
+- HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses
+  are now validated as TCP `host:port` values at startup, surfacing bind
+  configuration mistakes before runtime listener setup.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
   token, requires HTTPS in production, and is wired only at SMTP
