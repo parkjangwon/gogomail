@@ -2087,16 +2087,27 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 		if len(criteria) < 2 {
 			return nil, 0, false
 		}
-		query := criteria[1]
+		query, ok := imapSearchStringArgument(criteria[1])
+		if !ok {
+			return nil, 0, false
+		}
+		query = strings.ToLower(query)
 		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
-			return imapMessageMatchesTextSearch(summary, criterion, strings.ToLower(strings.Trim(query, `"`))), nil
+			return imapMessageMatchesTextSearch(summary, criterion, query), nil
 		}, 2, true
 	case "HEADER":
 		if len(criteria) < 3 {
 			return nil, 0, false
 		}
-		fieldName := strings.Trim(criteria[1], `"`)
-		query := strings.ToLower(strings.Trim(criteria[2], `"`))
+		fieldName, ok := imapSearchStringArgument(criteria[1])
+		if !ok {
+			return nil, 0, false
+		}
+		query, ok := imapSearchStringArgument(criteria[2])
+		if !ok {
+			return nil, 0, false
+		}
+		query = strings.ToLower(query)
 		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			return server.imapMessageMatchesHeaderSearch(ctx, state, summary, fieldName, query)
 		}, 3, true
@@ -2104,7 +2115,11 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 		if len(criteria) < 2 {
 			return nil, 0, false
 		}
-		query := strings.ToLower(strings.Trim(criteria[1], `"`))
+		query, ok := imapSearchStringArgument(criteria[1])
+		if !ok {
+			return nil, 0, false
+		}
+		query = strings.ToLower(query)
 		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			return server.imapMessageMatchesBodySearch(ctx, state, summary, criterion, query)
 		}, 2, true
@@ -2133,6 +2148,13 @@ func imapSearchKeywordValid(value string) bool {
 		return false
 	}
 	return true
+}
+
+func imapSearchStringArgument(value string) (string, bool) {
+	if strings.Contains(value, `"`) {
+		return "", false
+	}
+	return value, true
 }
 
 func imapSearchRequestsModSeq(criteria []string) bool {
