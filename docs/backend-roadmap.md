@@ -782,6 +782,10 @@ Implementation order:
      guardrails before SigV4 signing, rejecting blank, whitespace-bearing,
      slash-bearing, or uppercase region values before object-storage requests
      are created.
+687. S3-compatible object prefixes are now validated as canonical relative
+     object-key prefixes during config validation, surfacing duplicate
+     separators, dot segments, traversal, or backslash mistakes before adapter
+     construction.
 
 ## Deferred until backend contracts stabilize
 

@@ -599,6 +599,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible regions are validated with shared adapter/config guardrails
   before SigV4 signing, rejecting blank, whitespace-bearing, slash-bearing, or
   uppercase region values before object-storage requests are created.
+- S3-compatible object prefixes are validated as canonical relative object-key
+  prefixes during config validation, surfacing duplicate separators, dot
+  segments, traversal, or backslash mistakes before adapter construction.
 - Optional S3-compatible integration coverage can exercise real
   `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
   `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are
