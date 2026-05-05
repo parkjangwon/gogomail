@@ -112,6 +112,11 @@ handler-critical shape early: required query filters, multiget hrefs,
 free-busy UTC time ranges, sync-collection level, and bounded sync limits.
 Handlers can therefore focus on storage reads and WebDAV response semantics.
 
+The first REPORT handler is `calendar-multiget`, because common CalDAV clients
+use it after discovery to hydrate event resources by href. Missing hrefs remain
+inside the multistatus response as 404 propstats instead of failing the whole
+REPORT request.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

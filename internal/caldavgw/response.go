@@ -25,6 +25,7 @@ var (
 	PropGetContentLength              = XMLName{Space: DAVNamespace, Local: "getcontentlength"}
 	PropSyncToken                     = XMLName{Space: DAVNamespace, Local: "sync-token"}
 	PropCalendarHomeSet               = XMLName{Space: CalDAVNamespace, Local: "calendar-home-set"}
+	PropCalendarData                  = XMLName{Space: CalDAVNamespace, Local: "calendar-data"}
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
 	PropCalendarColor                 = XMLName{Space: CalendarServerNamespace, Local: "calendar-color"}
 	PropSupportedCalendarComponentSet = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-component-set"}
@@ -44,6 +45,14 @@ type PropertyValue struct {
 	ResourceTypes      []XMLName
 	CalendarComponents []string
 	CalendarDataTypes  []CalendarDataType
+}
+
+func CalendarObjectDataProperty(body []byte) PropertyResult {
+	return PropertyResult{
+		Name:  PropCalendarData,
+		Value: PropertyValue{Text: string(body)},
+		Found: len(body) > 0,
+	}
 }
 
 type PropertyResult struct {

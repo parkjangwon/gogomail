@@ -2060,6 +2060,10 @@ Implementation order:
       `calendar-query`, `calendar-multiget`, `free-busy-query`, and
       `sync-collection`, including required filters, hrefs, UTC time ranges,
       supported `sync-level=1`, and bounded sync limits before handler logic.
+1049. CalDAV now implements a first `REPORT calendar-multiget` handler for
+      authenticated calendar collections, returning requested object ETags and
+      `calendar-data` bodies in multistatus responses while rendering missing
+      hrefs as per-resource 404 propstats.
 
 ## Deferred until backend contracts stabilize
 
