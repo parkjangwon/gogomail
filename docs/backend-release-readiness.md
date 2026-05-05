@@ -314,6 +314,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `FETCH` responses.
 - IMAP `EXAMINE` now exposes read-only mailbox selection and rejects `UID STORE`
   while the selected mailbox is read-only.
+- IMAP `CHECK` and `CLOSE` now provide safe selected-mailbox lifecycle handling,
+  with `CLOSE` clearing selected state while EXPUNGE/`\Deleted` remain deferred.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

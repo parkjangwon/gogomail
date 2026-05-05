@@ -308,6 +308,31 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleUIDLine(writer, tag, fields, state)
 	case "FETCH":
 		return s.handleFetch(writer, tag, fields, state)
+	case "CHECK":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " OK CHECK completed\r\n")
+		return false, err
+	case "CLOSE":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+			return false, err
+		}
+		state.selectedMailbox = ""
+		state.selectedMessages = 0
+		state.readOnly = false
+		_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
+		return false, err
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
