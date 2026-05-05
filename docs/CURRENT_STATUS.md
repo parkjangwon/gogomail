@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP expunge event SEARCHRES handling)
+Last updated: 2026-05-05 (updated after IMAP EXAMINE failure response handling)
 
 ## Current phase
 
@@ -1103,6 +1103,9 @@ The platform hardening sprint completed the following:
   failures, and `RENAME INBOX` is rejected instead of incorrectly routing it
   through generic mailbox rename before its required special "move messages and
   leave INBOX empty" semantics are implemented.
+- IMAP `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
+  `NO SELECT failed`, keeping tagged failure responses aligned with the command
+  clients actually issued.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

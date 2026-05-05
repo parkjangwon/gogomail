@@ -1289,6 +1289,9 @@ Implementation order:
      now adjust saved SEARCHRES `$` sequence numbers the same way explicit
      `EXPUNGE` commands do, keeping subsequent `$` reuse aligned with visible
      mailbox state.
+843. IMAP `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
+     `NO SELECT failed`, keeping tagged failure responses aligned with the
+     selected-mailbox command clients actually issued.
 
 ## Deferred until backend contracts stabilize
 

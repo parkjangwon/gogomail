@@ -550,6 +550,9 @@ Current state:
   failures, and `RENAME INBOX` is rejected instead of being treated like a
   generic folder rename until its required special message-moving semantics are
   implemented.
+- `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
+  `NO SELECT failed`, keeping tagged failure responses aligned with the command
+  clients actually issued.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
