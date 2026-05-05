@@ -982,6 +982,9 @@ Implementation order:
 757. IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
      namespace command so client discovery matches the supported command
      surface.
+758. IMAP `SEARCH` and `UID SEARCH` now accept `CHARSET US-ASCII` and
+     `CHARSET UTF-8` prefixes and return an RFC-shaped `[BADCHARSET]` response
+     for unsupported search charsets.
 
 ## Deferred until backend contracts stabilize
 

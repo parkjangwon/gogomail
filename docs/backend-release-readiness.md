@@ -395,6 +395,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `HEADER <field> <value>` criteria scans over the raw message header block.
 - IMAP `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
+- IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
+  `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
+  for unsupported search charsets.
 - IMAP now supports authenticated `NAMESPACE`, exposing the personal namespace
   and `/` hierarchy delimiter.
 - IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented

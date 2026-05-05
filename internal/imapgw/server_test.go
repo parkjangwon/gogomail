@@ -1563,7 +1563,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\n")); err != nil {
 		t.Fatalf("write search: %v", err)
 	}
 	want := []string{
@@ -1581,6 +1581,11 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"a8 OK SEARCH completed\r\n",
 		"* SEARCH 7 8\r\n",
 		"a9 OK UID SEARCH completed\r\n",
+		"* SEARCH 1\r\n",
+		"a10 OK SEARCH completed\r\n",
+		"* SEARCH 7 8\r\n",
+		"a11 OK UID SEARCH completed\r\n",
+		"a12 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
