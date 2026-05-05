@@ -44,6 +44,7 @@ type adminService struct {
 		ListStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 		ExpireUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 		ListObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error)
+		ResolveObjectCleanupFailure(ctx context.Context, req drive.ResolveObjectCleanupFailureRequest) (drive.ObjectCleanupFailure, error)
 	}
 	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
@@ -353,6 +354,60 @@ func (s adminService) ListDriveObjectCleanupFailures(ctx context.Context, req dr
 		return nil, err
 	}
 	return s.drive.ListObjectCleanupFailures(ctx, req)
+}
+
+func (s adminService) ResolveDriveObjectCleanupFailure(ctx context.Context, id string) (drive.ObjectCleanupFailure, error) {
+	if s.drive == nil {
+		return drive.ObjectCleanupFailure{}, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateResolveObjectCleanupFailureRequest(drive.ResolveObjectCleanupFailureRequest{ID: id})
+	if err != nil {
+		return drive.ObjectCleanupFailure{}, err
+	}
+	resolved, err := s.drive.ResolveObjectCleanupFailure(ctx, req)
+	if err != nil {
+		return drive.ObjectCleanupFailure{}, err
+	}
+	if s.audit != nil {
+		detail, err := driveCleanupFailureAuditDetail(resolved)
+		if err != nil {
+			return drive.ObjectCleanupFailure{}, err
+		}
+		if err := s.audit.Insert(ctx, audit.Log{
+			Category:   "admin",
+			Action:     "drive_cleanup_failure.resolve",
+			TargetType: "drive_cleanup_failure",
+			TargetID:   resolved.ID,
+			Result:     "resolved",
+			Detail:     detail,
+		}); err != nil {
+			return drive.ObjectCleanupFailure{}, fmt.Errorf("record drive cleanup failure audit: %w", err)
+		}
+	}
+	return resolved, nil
+}
+
+func driveCleanupFailureAuditDetail(failure drive.ObjectCleanupFailure) (json.RawMessage, error) {
+	detail := struct {
+		ID             string `json:"id"`
+		UserID         string `json:"user_id"`
+		NodeID         string `json:"node_id,omitempty"`
+		StorageBackend string `json:"storage_backend"`
+		StoragePath    string `json:"storage_path"`
+		Attempts       int    `json:"attempts"`
+	}{
+		ID:             failure.ID,
+		UserID:         failure.UserID,
+		NodeID:         failure.NodeID,
+		StorageBackend: failure.StorageBackend,
+		StoragePath:    failure.StoragePath,
+		Attempts:       failure.Attempts,
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return nil, fmt.Errorf("marshal drive cleanup failure audit detail: %w", err)
+	}
+	return raw, nil
 }
 
 func driveSessionAuditIDs(sessions []drive.UploadSession) []string {

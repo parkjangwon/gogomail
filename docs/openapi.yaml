@@ -1320,6 +1320,17 @@ paths:
           $ref: "#/components/responses/DriveCleanupFailureList"
         default:
           $ref: "#/components/responses/Error"
+  /drive-cleanup-failures/{id}/resolve:
+    post:
+      operationId: resolveAdminDriveCleanupFailure
+      summary: Resolve a pending Drive object cleanup failure
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveCleanupFailure"
+        default:
+          $ref: "#/components/responses/Error"
   /attachment-cleanup/runs:
     post:
       operationId: runAdminAttachmentCleanup
@@ -2948,6 +2959,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveCleanupFailureListEnvelope"
+    DriveCleanupFailure:
+      description: Drive object cleanup failure envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveCleanupFailureEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -4146,6 +4163,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DriveCleanupFailure"
+    DriveCleanupFailureEnvelope:
+      type: object
+      required: [drive_cleanup_failure]
+      properties:
+        drive_cleanup_failure:
+          $ref: "#/components/schemas/DriveCleanupFailure"
     DriveUploadSessionCreateRequest:
       type: object
       required: [name, declared_size, storage_backend]

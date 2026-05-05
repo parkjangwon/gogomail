@@ -1889,6 +1889,9 @@ Implementation order:
 1004. Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with
       bounded user/status/limit filters so operator consoles can inspect
       pending or resolved Drive backend object cleanup drift.
+1005. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`
+      for audited operator closure of pending Drive cleanup failures after
+      external object cleanup verification.
 
 ## Deferred until backend contracts stabilize
 

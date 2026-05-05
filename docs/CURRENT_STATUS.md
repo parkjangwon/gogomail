@@ -363,6 +363,9 @@ guidance.
 - Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with user,
   status, and limit filters so operator consoles can inspect Drive backend
   object cleanup drift.
+- Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`,
+  allowing audited operator closure after external Drive object cleanup
+  verification.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
