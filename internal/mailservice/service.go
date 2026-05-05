@@ -579,19 +579,128 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 
 func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessageRequest) (imapgw.AppendMessageResult, error) {
 	repo, ok := s.repository.(interface {
-		AppendIMAPMessage(context.Context, imapgw.AppendMessageRequest) (imapgw.AppendMessageResult, error)
+		ResolveIMAPAppendTarget(context.Context, string, string) (maildb.IMAPAppendTarget, error)
+		AppendStoredIMAPMessage(context.Context, maildb.AppendStoredIMAPMessageRequest) (imapgw.AppendMessageResult, error)
 	})
 	if !ok {
 		return imapgw.AppendMessageResult{}, imapgw.ErrUnsupportedAppend
 	}
+	if s.store == nil {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("imap append storage is required")
+	}
 	req.UserID = imapgw.UserID(strings.TrimSpace(string(req.UserID)))
 	req.MailboxID = imapgw.MailboxID(strings.TrimSpace(string(req.MailboxID)))
-	result, err := repo.AppendIMAPMessage(ctx, req)
+	if req.UserID == "" {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("user_id is required")
+	}
+	if req.MailboxID == "" {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("mailbox_id is required")
+	}
+	if req.Body == nil {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("append body is required")
+	}
+	if req.Size < 0 {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("append size must not be negative")
+	}
+	internalDate := req.InternalDate
+	if internalDate.IsZero() {
+		internalDate = time.Now().UTC()
+	}
+	target, err := repo.ResolveIMAPAppendTarget(ctx, string(req.UserID), string(req.MailboxID))
 	if err != nil {
+		return imapgw.AppendMessageResult{}, err
+	}
+
+	spooled, copied, err := spoolIMAPAppendBody(req.Body, req.Size)
+	if err != nil {
+		return imapgw.AppendMessageResult{}, err
+	}
+	defer os.Remove(spooled.Name())
+	defer spooled.Close()
+	if copied != req.Size {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("append literal size mismatch: got %d bytes, want %d", copied, req.Size)
+	}
+	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("rewind imap append body for parse: %w", err)
+	}
+	parsed, err := message.ParseEML(spooled)
+	if err != nil {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("parse imap append message: %w", err)
+	}
+	path := buildIMAPAppendStoragePath(target, randomObjectID(), internalDate)
+	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("rewind imap append body for store: %w", err)
+	}
+	if err := s.store.Put(ctx, path, spooled); err != nil {
+		return imapgw.AppendMessageResult{}, fmt.Errorf("store imap append message: %w", err)
+	}
+	result, err := repo.AppendStoredIMAPMessage(ctx, maildb.AppendStoredIMAPMessageRequest{
+		Target:       target,
+		StoragePath:  path,
+		Parsed:       parsed,
+		Flags:        req.Flags,
+		InternalDate: internalDate,
+		Size:         copied,
+	})
+	if err != nil {
+		_ = s.store.Delete(context.Background(), path)
 		return imapgw.AppendMessageResult{}, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, string(req.UserID), []imapgw.MessageSummary{result.Summary})
 	return result, nil
+}
+
+func spoolIMAPAppendBody(body io.Reader, expectedSize int64) (*os.File, int64, error) {
+	spooled, err := os.CreateTemp("", "gogomail-imap-append-*.eml")
+	if err != nil {
+		return nil, 0, fmt.Errorf("create imap append spool: %w", err)
+	}
+	copied, copyErr := io.Copy(spooled, io.LimitReader(body, expectedSize+1))
+	if copyErr != nil {
+		spooled.Close()
+		os.Remove(spooled.Name())
+		return nil, 0, fmt.Errorf("spool imap append body: %w", copyErr)
+	}
+	return spooled, copied, nil
+}
+
+func buildIMAPAppendStoragePath(target maildb.IMAPAppendTarget, objectID string, internalDate time.Time) string {
+	return strings.Join([]string{
+		"mailstore",
+		sanitizeStoragePathSegment(target.CompanyID),
+		sanitizeStoragePathSegment(target.DomainID),
+		sanitizeStoragePathSegment(target.UserID),
+		"imap-append",
+		internalDate.Format("2006"),
+		internalDate.Format("01"),
+		sanitizeStoragePathSegment(objectID) + ".eml",
+	}, "/")
+}
+
+func sanitizeStoragePathSegment(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "_"
+	}
+	var b strings.Builder
+	b.Grow(len(value))
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-.")
+	if out == "" {
+		return "_"
+	}
+	return out
 }
 
 func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.MessageSummary, error) {

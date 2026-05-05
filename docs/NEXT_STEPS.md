@@ -400,14 +400,14 @@ Current state:
 - `MOVE` and `UID MOVE` now resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
   messages transactionally, remove source mailbox UID rows, and emit RFC-shaped
-  source `EXPUNGE` responses. `APPEND` remains explicitly unsupported.
+  source `EXPUNGE` responses.
 - `APPEND` now has a protocol-to-backend request boundary for mailbox, optional
   flag-list, optional internal date-time, literal body, and size after bounded
   literal framing. The boundary now carries UIDPLUS-ready append metadata so
   successful storage can emit `[APPENDUID uidvalidity uid]`; the service layer
-  delegates to an append-capable repository and emits best-effort destination
-  `EXISTS` events, while deployments without that repository/storage
-  implementation still return an explicit unsupported response.
+  spools and size-checks the literal, parses the RFC message, writes raw `.eml`
+  through the configured storage backend, and `maildb` records metadata, quota,
+  outbox, and mailbox UID state transactionally.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder
