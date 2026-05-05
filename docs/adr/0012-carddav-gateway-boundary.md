@@ -63,7 +63,8 @@ content types/versions are validated against the advertised `text/vcard` 4.0
 support before handler execution. Returned address-data elements carry explicit
 `content-type="text/vcard"` and `version="4.0"` attributes. Addressbook query
 execution honors bounded `limit/nresults` values before rendering multistatus
-responses.
+responses, and repository-backed execution can stream contact objects through a
+walker boundary so filtering can stop once the response cap is satisfied.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

@@ -55,6 +55,23 @@ func (s fakeCardDAVDiscoveryStore) ListAddressBookObjects(_ context.Context, use
 	return objects, nil
 }
 
+func (s fakeCardDAVDiscoveryStore) WalkAddressBookObjects(_ context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error {
+	objects, err := s.ListAddressBookObjects(context.Background(), userID, addressBookID)
+	if err != nil {
+		return err
+	}
+	for _, object := range objects {
+		keepGoing, err := yield(object)
+		if err != nil {
+			return err
+		}
+		if !keepGoing {
+			return nil
+		}
+	}
+	return nil
+}
+
 func (s fakeCardDAVDiscoveryStore) LookupContactObject(_ context.Context, userID string, addressBookID string, objectName string) (ContactObject, error) {
 	for _, object := range s.objects {
 		if object.UserID == userID && object.AddressBookID == addressBookID && object.ObjectName == objectName {

@@ -37,6 +37,10 @@ type ObjectStore interface {
 	DeleteContactObject(ctx context.Context, req DeleteContactObjectRequest) (ContactObject, error)
 }
 
+type ObjectWalker interface {
+	WalkAddressBookObjects(ctx context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error
+}
+
 type InvalidSyncTokenError struct {
 	Token string
 }
@@ -570,14 +574,21 @@ func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath
 }
 
 func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+	if walker, ok := h.Store.(ObjectWalker); ok {
+		return h.walkAddressBookQueryResponses(ctx, walker, userID, resource, report)
+	}
 	objects, err := h.Store.ListAddressBookObjects(ctx, userID, resource.AddressBookID)
 	if err != nil {
 		return nil, err
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
 	for _, object := range objects {
-		if report.Limit > 0 && len(responses) >= report.Limit {
+		if len(responses) >= limit {
 			break
 		}
 		if !contactObjectMatchesFilter(object, report.Filter) {
@@ -595,6 +606,40 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 			return nil, err
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
+	}
+	return responses, nil
+}
+
+func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker ObjectWalker, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	responses := make([]MultiStatusResponse, 0, limit)
+	err := walker.WalkAddressBookObjects(ctx, userID, resource.AddressBookID, func(object ContactObject) (bool, error) {
+		if len(responses) >= limit {
+			return false, nil
+		}
+		if !contactObjectMatchesFilter(object, report.Filter) {
+			return true, nil
+		}
+		props, err := ContactObjectProperties(userID, object)
+		if err != nil {
+			return false, err
+		}
+		if containsXMLName(report.Properties, PropAddressData) {
+			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
+		}
+		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
+		if err != nil {
+			return false, err
+		}
+		responses = append(responses, responseForProperties(href, propfind, props))
+		return len(responses) < limit, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return responses, nil
 }
