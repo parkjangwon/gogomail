@@ -253,6 +253,27 @@ func TestRemoteEd25519ExportManifestSignerRejectsOversizedResponse(t *testing.T)
 	}
 }
 
+func TestRemoteEd25519ExportManifestSignerSanitizesStatusError(t *testing.T) {
+	t.Parallel()
+
+	digest := strings.Repeat("e", 64)
+	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "signer failed\ntrace-id: 123", http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	_, err := (RemoteEd25519ExportManifestSigner{
+		Endpoint:  server.URL,
+		KeyID:     "remote-key-1",
+		PublicKey: publicKey,
+		Client:    server.Client(),
+	}).SignExportManifestDigest(digest)
+	if err == nil || !strings.Contains(err.Error(), "502") || !strings.Contains(err.Error(), "signer failed trace-id: 123") || strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("err = %q, want sanitized status error", err)
+	}
+}
+
 func TestRemoteEd25519ExportManifestSignerRejectsTrailingResponseTokens(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after delivery-route metadata bounds)
+Last updated: 2026-05-05 (updated after remote signer error preview sanitization)
 
 ## Current phase
 
@@ -305,6 +305,9 @@ guidance.
   incorrectly sized signature hex before decoding.
 - Remote Ed25519 manifest signer responses now reject oversized bodies and
   trailing JSON tokens before signature evidence is accepted.
+- Remote Ed25519 manifest signer status-error diagnostics now collapse signer
+  response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
+  external signer errors from leaking into export/billing diagnostics.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
