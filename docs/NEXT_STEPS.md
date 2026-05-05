@@ -82,7 +82,9 @@ Current state:
   or unbalanced flag lists instead of silently trimming stray parentheses.
 - `STORE` and `UID STORE` honor selected-mailbox `[PERMANENTFLAGS]`, rejecting
   otherwise valid system flags when the mailbox did not advertise them as
-  permanent before backend mutation dispatch.
+  permanent before backend mutation dispatch. Empty add/remove flag lists stay
+  no-ops, while empty replacement is rejected when no permanent flags are
+  permitted.
 - IMAP message sequence sets reject numbers above the selected mailbox size
   with tagged `BAD` responses, preserving RFC 3501 bounds behavior.
 - IMAP quoted-string parsing rejects adjacent tokens after a closing quote and

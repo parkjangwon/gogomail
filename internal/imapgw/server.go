@@ -5342,7 +5342,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 		return false, err
 	}
-	if !imapPermanentFlagsAllow(state.permanentFlags, requestedFlags) {
+	if !imapPermanentFlagsAllow(state.permanentFlags, requestedFlags, mode) {
 		_, err := writer.WriteString(tag + " NO UID STORE flags are not permitted\r\n")
 		return false, err
 	}
@@ -5386,7 +5386,7 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 		return false, err
 	}
-	if !imapPermanentFlagsAllow(state.permanentFlags, requestedFlags) {
+	if !imapPermanentFlagsAllow(state.permanentFlags, requestedFlags, mode) {
 		_, err := writer.WriteString(tag + " NO STORE flags are not permitted\r\n")
 		return false, err
 	}
@@ -5613,7 +5613,10 @@ func imapPermanentFlagSet(flags []string) map[string]struct{} {
 	return permitted
 }
 
-func imapPermanentFlagsAllow(permitted map[string]struct{}, requested []string) bool {
+func imapPermanentFlagsAllow(permitted map[string]struct{}, requested []string, mode StoreFlagsMode) bool {
+	if len(requested) == 0 {
+		return mode != StoreFlagsReplace || len(permitted) > 0
+	}
 	for _, flag := range requested {
 		if _, ok := permitted[flag]; !ok {
 			return false
