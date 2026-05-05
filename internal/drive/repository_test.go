@@ -220,6 +220,39 @@ func TestValidateRestoreNodeRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidatePermanentDeleteNodeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidatePermanentDeleteNodeRequest(PermanentDeleteNodeRequest{UserID: " user-1 ", NodeID: " node-1 "})
+	if err != nil {
+		t.Fatalf("ValidatePermanentDeleteNodeRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.NodeID != "node-1" {
+		t.Fatalf("request = %+v, want trimmed IDs", req)
+	}
+}
+
+func TestValidatePermanentDeleteNodeRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []PermanentDeleteNodeRequest{
+		{NodeID: "node-1"},
+		{UserID: "user-1"},
+		{UserID: "user\n1", NodeID: "node-1"},
+		{UserID: "user-1", NodeID: "node\n1"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.NodeID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidatePermanentDeleteNodeRequest(tc); err == nil {
+				t.Fatalf("ValidatePermanentDeleteNodeRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestCreateFileFromObjectRequiresStore(t *testing.T) {
 	t.Parallel()
 

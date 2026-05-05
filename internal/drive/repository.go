@@ -72,6 +72,23 @@ type RestoreNodeRequest struct {
 	NodeID string
 }
 
+type PermanentDeleteNodeRequest struct {
+	UserID string
+	NodeID string
+}
+
+type DeletedObject struct {
+	StorageBackend string
+	StoragePath    string
+}
+
+type PermanentDeleteResult struct {
+	Root          Node
+	DeletedNodes  int64
+	ReleasedBytes int64
+	Objects       []DeletedObject
+}
+
 func ValidateCreateFolderRequest(req CreateFolderRequest) (CreateFolderRequest, string, error) {
 	userID, err := validateDriveID("user_id", req.UserID, true)
 	if err != nil {
@@ -188,6 +205,18 @@ func ValidateRestoreNodeRequest(req RestoreNodeRequest) (RestoreNodeRequest, err
 		return RestoreNodeRequest{}, err
 	}
 	return RestoreNodeRequest{UserID: userID, NodeID: nodeID}, nil
+}
+
+func ValidatePermanentDeleteNodeRequest(req PermanentDeleteNodeRequest) (PermanentDeleteNodeRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return PermanentDeleteNodeRequest{}, err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return PermanentDeleteNodeRequest{}, err
+	}
+	return PermanentDeleteNodeRequest{UserID: userID, NodeID: nodeID}, nil
 }
 
 func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) (Node, error) {
@@ -419,6 +448,44 @@ func (r *Repository) RestoreNode(ctx context.Context, req RestoreNodeRequest) (N
 	return root, updated, nil
 }
 
+func (r *Repository) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNodeRequest) (PermanentDeleteResult, error) {
+	if r == nil || r.db == nil {
+		return PermanentDeleteResult{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidatePermanentDeleteNodeRequest(req)
+	if err != nil {
+		return PermanentDeleteResult{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return PermanentDeleteResult{}, fmt.Errorf("begin permanent-delete drive node transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	root, err := lockTrashedDriveNodeForDelete(ctx, tx, req.UserID, req.NodeID)
+	if err != nil {
+		return PermanentDeleteResult{}, err
+	}
+	deletedNodes, releasedBytes, objects, err := markDriveNodeTreeDeleted(ctx, tx, req.UserID, req.NodeID)
+	if err != nil {
+		return PermanentDeleteResult{}, err
+	}
+	if err := decrementDriveQuota(ctx, tx, req.UserID, releasedBytes); err != nil {
+		return PermanentDeleteResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return PermanentDeleteResult{}, fmt.Errorf("commit permanent-delete drive node transaction: %w", err)
+	}
+	root.Status = NodeStatusDeleted
+	root.UpdatedAt = time.Now().UTC()
+	return PermanentDeleteResult{
+		Root:          root,
+		DeletedNodes:  deletedNodes,
+		ReleasedBytes: releasedBytes,
+		Objects:       objects,
+	}, nil
+}
+
 func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Store, req CreateFileFromObjectRequest) (Node, error) {
 	if r == nil || r.db == nil {
 		return Node{}, fmt.Errorf("database handle is required")
@@ -459,6 +526,58 @@ func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Sto
 	}
 	if err := tx.Commit(); err != nil {
 		return Node{}, fmt.Errorf("commit create drive file transaction: %w", err)
+	}
+	return node, nil
+}
+
+func lockTrashedDriveNodeForDelete(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (Node, error) {
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM drive_nodes
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+  AND status = 'trashed'
+FOR UPDATE`
+	var node Node
+	err := tx.QueryRowContext(ctx, query, nodeID, userID).Scan(
+		&node.ID,
+		&node.CompanyID,
+		&node.DomainID,
+		&node.UserID,
+		&node.ParentID,
+		&node.Type,
+		&node.Name,
+		&node.NormalizedName,
+		&node.MIMEType,
+		&node.Size,
+		&node.StorageBackend,
+		&node.StoragePath,
+		&node.ChecksumSHA256,
+		&node.Status,
+		&node.CreatedAt,
+		&node.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Node{}, fmt.Errorf("trashed drive node not found")
+		}
+		return Node{}, fmt.Errorf("lock trashed drive node for delete: %w", err)
 	}
 	return node, nil
 }
@@ -609,6 +728,62 @@ WHERE id IN (SELECT id FROM tree)`
 		return 0, fmt.Errorf("active drive node not found")
 	}
 	return updated, nil
+}
+
+func markDriveNodeTreeDeleted(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (int64, int64, []DeletedObject, error) {
+	const query = `
+WITH RECURSIVE tree AS (
+  SELECT id
+  FROM drive_nodes
+  WHERE id = $2::uuid
+    AND user_id = $1::uuid
+    AND status = 'trashed'
+  UNION ALL
+  SELECT child.id
+  FROM drive_nodes child
+  JOIN tree ON child.parent_id = tree.id
+  WHERE child.user_id = $1::uuid
+    AND child.status = 'trashed'
+)
+UPDATE drive_nodes
+SET status = 'deleted',
+    deleted_at = COALESCE(deleted_at, now()),
+    updated_at = now()
+WHERE id IN (SELECT id FROM tree)
+RETURNING node_type, size, storage_backend, storage_path`
+	rows, err := tx.QueryContext(ctx, query, userID, nodeID)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("mark drive node tree deleted: %w", err)
+	}
+	defer rows.Close()
+
+	var deletedNodes int64
+	var releasedBytes int64
+	var objects []DeletedObject
+	for rows.Next() {
+		var nodeType string
+		var size int64
+		var storageBackend string
+		var storagePath string
+		if err := rows.Scan(&nodeType, &size, &storageBackend, &storagePath); err != nil {
+			return 0, 0, nil, fmt.Errorf("scan deleted drive node: %w", err)
+		}
+		deletedNodes++
+		if nodeType != NodeTypeFile {
+			continue
+		}
+		releasedBytes += size
+		if storageBackend != "" && storagePath != "" {
+			objects = append(objects, DeletedObject{StorageBackend: storageBackend, StoragePath: storagePath})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, 0, nil, fmt.Errorf("iterate deleted drive nodes: %w", err)
+	}
+	if deletedNodes == 0 {
+		return 0, 0, nil, fmt.Errorf("trashed drive node not found")
+	}
+	return deletedNodes, releasedBytes, objects, nil
 }
 
 func restoreDriveNodeTree(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (int64, error) {
@@ -833,6 +1008,47 @@ SET quota_used = quota_used + $2,
     updated_at = now()
 WHERE id = $1`, companyID, size); err != nil {
 		return fmt.Errorf("increment company drive quota: %w", err)
+	}
+	return nil
+}
+
+func decrementDriveQuota(ctx context.Context, tx *sql.Tx, userID string, size int64) error {
+	if size <= 0 {
+		return nil
+	}
+	var domainID, companyID string
+	if err := tx.QueryRowContext(ctx, `
+SELECT d.id::text, c.id::text
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+JOIN companies c ON c.id = d.company_id
+WHERE u.id = $1
+FOR UPDATE OF u, d, c`, userID).Scan(&domainID, &companyID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("user %q not found for drive quota decrement", userID)
+		}
+		return fmt.Errorf("read drive quota ledger for decrement: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE users
+SET quota_used = GREATEST(0, quota_used - $2),
+    updated_at = now()
+WHERE id = $1`, userID, size); err != nil {
+		return fmt.Errorf("decrement user drive quota: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE domains
+SET quota_used = GREATEST(0, quota_used - $2),
+    updated_at = now()
+WHERE id = $1`, domainID, size); err != nil {
+		return fmt.Errorf("decrement domain drive quota: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE companies
+SET quota_used = GREATEST(0, quota_used - $2),
+    updated_at = now()
+WHERE id = $1`, companyID, size); err != nil {
+		return fmt.Errorf("decrement company drive quota: %w", err)
 	}
 	return nil
 }

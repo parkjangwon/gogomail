@@ -76,6 +76,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive can now restore trashed file/folder metadata recursively, clearing the
   trash timestamp while keeping active sibling name conflicts enforced by the
   database before webmail/Drive APIs expose recoverable delete workflows.
+- Drive can now permanently mark trashed file/folder metadata deleted while
+  releasing file bytes from the unified quota ledger and returning object
+  references for backend-specific cleanup workers.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
