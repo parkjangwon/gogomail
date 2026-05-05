@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3 seekable upload lengths)
+Last updated: 2026-05-05 (updated after IMAP nested CHILDREN fallback)
 
 ## Current phase
 
@@ -177,6 +177,10 @@ guidance.
   PUT bodies without buffering the object in memory, improving compatibility
   for file-backed mail and attachment writes while preserving streaming-first
   storage paths.
+- IMAP `LIST`/`LSUB` CHILDREN attributes now infer immediate parents from
+  nested `FullPath` values when backend rows do not carry `ParentID`, so deeper
+  hierarchies such as `Projects/2026/Jan` still mark `Projects/2026` with
+  `\HasChildren` for clients that depend on hierarchy metadata.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

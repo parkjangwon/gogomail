@@ -75,6 +75,9 @@ Current state:
 - `ENABLE` validates missing capability arguments before authentication
   failures, while well-formed unauthenticated enable attempts still return
   `NO authentication required` without mutating session feature state.
+- `LIST`/`LSUB` CHILDREN attributes infer immediate parents from nested
+  `FullPath` values when backend rows do not carry `ParentID`, preserving
+  `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
