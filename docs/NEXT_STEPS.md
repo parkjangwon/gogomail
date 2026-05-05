@@ -1603,10 +1603,11 @@ Next:
   `internal/carddavgw` path/href, storage metadata, address-book/contact
   repository, bounded vCard 4.0 semantic validation, REPORT parsing,
   multistatus rendering, and internal `OPTIONS`/`PROPFIND` discovery handler
-  should be followed by auth/listener wiring, REPORT execution, sync handling,
-  object `GET`/`PUT`/`DELETE`, broader vCard compatibility, and native-client
-  compatibility tests before any public contacts UI or API treats it as
-  production-ready.
+  now includes internal `addressbook-query`, `addressbook-multiget`, and
+  `sync-collection` execution. It should be followed by auth/listener wiring,
+  object `GET`/`PUT`/`DELETE`, richer CardDAV filter semantics, broader vCard
+  compatibility, and native-client compatibility tests before any public
+  contacts UI or API treats it as production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

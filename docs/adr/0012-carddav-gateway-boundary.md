@@ -43,10 +43,16 @@ The first internal discovery handler exposes only RFC 6764/WebDAV-style
 `/.well-known/carddav`, `OPTIONS`, and bounded `PROPFIND` behavior over the
 CardDAV resource model. It delegates active user principal lookup to the shared
 Directory resolver, rejects cross-user resources, rejects `Depth: infinity`,
-and requires contact-object discovery to use `Depth: 0`. REPORT execution,
-object `GET`/`PUT`/`DELETE`, sync-change reads, auth, broader vCard
-compatibility, and HTTP listener wiring will be added only when their
-semantics are implemented and tested.
+and requires contact-object discovery to use `Depth: 0`.
+
+Internal REPORT execution now covers the parsed `addressbook-multiget`,
+`addressbook-query`, and `sync-collection` shapes. Multiget scopes hrefs to the
+requested home or collection, query execution applies the current bounded first
+text-match filter over stored vCard bodies, and sync execution can return full
+snapshots or bounded change rows since a stored sync token. Object
+`GET`/`PUT`/`DELETE`, richer CardDAV filter semantics, auth, broader vCard
+compatibility, native-client verification, and HTTP listener wiring will be
+added only when their semantics are implemented and tested.
 
 ## Consequences
 
@@ -55,5 +61,5 @@ semantics are implemented and tested.
 - Future CalDAV attendee and resource lookup can depend on Directory plus
   Contacts/CardDAV without inventing private person models.
 - Public CardDAV compatibility remains out of scope until authenticated
-  listener wiring, REPORT behavior, object mutation/read behavior, sync,
-  broader vCard compatibility, and native-client tests are implemented.
+  listener wiring, object mutation/read behavior, richer filters, broader
+  vCard compatibility, and native-client tests are implemented.

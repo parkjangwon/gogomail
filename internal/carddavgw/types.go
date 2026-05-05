@@ -77,6 +77,17 @@ type ContactObject struct {
 	UpdatedAt     time.Time
 }
 
+type AddressBookChange struct {
+	ID            int64
+	UserID        string
+	AddressBookID string
+	ObjectName    string
+	ETag          string
+	Action        string
+	SyncToken     string
+	ChangedAt     time.Time
+}
+
 func Standards() []string {
 	return []string{
 		RFCWebDAV,

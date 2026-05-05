@@ -64,6 +64,13 @@ type DeleteContactObjectRequest struct {
 	ObjectName    string
 }
 
+type ListAddressBookChangesSinceRequest struct {
+	UserID        string
+	AddressBookID string
+	SyncToken     string
+	Limit         int
+}
+
 func (r *Repository) CreateAddressBook(ctx context.Context, req CreateAddressBookRequest) (AddressBook, error) {
 	if r == nil || r.db == nil {
 		return AddressBook{}, fmt.Errorf("database handle is required")
@@ -385,6 +392,65 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 	return object, nil
 }
 
+func (r *Repository) ListAddressBookChangesSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChange, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListAddressBookChangesSinceRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+WITH marker AS (
+  SELECT id
+  FROM carddav_addressbook_changes
+  WHERE user_id = $1::uuid
+    AND addressbook_id = $2::uuid
+    AND sync_token = $3
+)
+SELECT c.id, c.user_id::text, c.addressbook_id::text, c.object_name, c.etag, c.action, c.sync_token, c.changed_at
+FROM carddav_addressbook_changes c
+JOIN marker m ON c.id > m.id
+WHERE c.user_id = $1::uuid
+  AND c.addressbook_id = $2::uuid
+ORDER BY c.id ASC
+LIMIT $4`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.AddressBookID, req.SyncToken, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list CardDAV sync changes: %w", err)
+	}
+	defer rows.Close()
+	var changes []AddressBookChange
+	for rows.Next() {
+		var change AddressBookChange
+		if err := rows.Scan(&change.ID, &change.UserID, &change.AddressBookID, &change.ObjectName, &change.ETag, &change.Action, &change.SyncToken, &change.ChangedAt); err != nil {
+			return nil, fmt.Errorf("scan CardDAV sync change: %w", err)
+		}
+		changes = append(changes, change)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CardDAV sync changes: %w", err)
+	}
+	if len(changes) == 0 {
+		var markerExists bool
+		err := r.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM carddav_addressbook_changes
+  WHERE user_id = $1::uuid
+    AND addressbook_id = $2::uuid
+    AND sync_token = $3
+)`, req.UserID, req.AddressBookID, req.SyncToken).Scan(&markerExists)
+		if err != nil {
+			return nil, fmt.Errorf("check CardDAV sync marker: %w", err)
+		}
+		if !markerExists {
+			return nil, InvalidSyncTokenError{Token: req.SyncToken}
+		}
+	}
+	return changes, nil
+}
+
 func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddressBookRequest, string, string, error) {
 	userID, err := validateCardDAVID("user_id", req.UserID, true)
 	if err != nil {
@@ -525,6 +591,25 @@ func ValidateDeleteContactObjectRequest(req DeleteContactObjectRequest) (DeleteC
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, objectName, "contact-delete", time.Now().UTC().Format(time.RFC3339Nano))
 	return DeleteContactObjectRequest{UserID: userID, AddressBookID: bookID, ObjectName: objectName}, syncToken, nil
+}
+
+func ValidateListAddressBookChangesSinceRequest(req ListAddressBookChangesSinceRequest) (ListAddressBookChangesSinceRequest, error) {
+	userID, err := validateCardDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return ListAddressBookChangesSinceRequest{}, err
+	}
+	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
+	if err != nil {
+		return ListAddressBookChangesSinceRequest{}, err
+	}
+	syncToken := strings.TrimSpace(req.SyncToken)
+	if syncToken == "" {
+		return ListAddressBookChangesSinceRequest{}, fmt.Errorf("sync token is required")
+	}
+	if len(syncToken) > 128 || strings.ContainsAny(syncToken, "\r\n") {
+		return ListAddressBookChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
+	}
+	return ListAddressBookChangesSinceRequest{UserID: userID, AddressBookID: bookID, SyncToken: syncToken, Limit: normalizeCardDAVLimit(req.Limit)}, nil
 }
 
 type addressBookChangeExecer interface {

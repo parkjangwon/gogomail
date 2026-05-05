@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV discovery handler)
+Last updated: 2026-05-06 (updated after CardDAV REPORT execution)
 
 ## Current phase
 
@@ -57,13 +57,14 @@ upsert/list/get/delete `.vcf` resources through active address-book scope,
 using bounded vCard validation, strong ETags, optional observed-ETag guards,
 sync-token updates, and durable change rows. Public CardDAV compatibility now
 has bounded WebDAV `PROPFIND` parsing, an internal `OPTIONS`/`PROPFIND`
-discovery handler, and bounded REPORT request parsing for `addressbook-query`,
-`addressbook-multiget`, and `sync-collection`, but remains gated on REPORT
-handlers, mutation handlers, sync handlers, auth/listener wiring, broader
-vCard compatibility, and native-client tests. The discovery handler is
-deliberately backend-only and does not yet make CardDAV public/client-ready.
-WebDAV multistatus response building is available for CardDAV principal,
-address-book collection, contact-object, REPORT, and sync responses.
+discovery handler, bounded REPORT request parsing, and internal REPORT
+execution for `addressbook-query`, `addressbook-multiget`, and
+`sync-collection`. It remains gated on mutation handlers, auth/listener
+wiring, broader vCard/filter compatibility, and native-client tests. The
+handler is deliberately backend-only and does not yet make CardDAV
+public/client-ready. WebDAV multistatus response building is available for
+CardDAV principal, address-book collection, contact-object, REPORT, and sync
+responses.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2367,6 +2368,16 @@ The platform hardening sprint completed the following:
   the shared Directory resolver. This remains backend-only until auth/listener
   wiring, REPORT execution, object mutation, and native-client compatibility
   are implemented and tested.
+- CardDAV now executes the three parsed REPORT shapes internally:
+  `addressbook-multiget` returns requested contact metadata and optional
+  `address-data` with per-href 404 propstats, `addressbook-query` scans active
+  address-book objects with the current bounded first text-match filter, and
+  `sync-collection` returns full snapshots or bounded change rows with root
+  sync-token emission and deleted contact 404 responses. The repository can
+  list address-book changes since a stored sync token and rejects missing or
+  unsafe sync tokens before SQL work. This still does not advertise public
+  native-client compatibility because auth/listener wiring, object HTTP I/O,
+  richer CardDAV filters, and client compatibility tests are still pending.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2393,7 +2404,7 @@ Next focus areas:
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
 8. Extend CardDAV from internal discovery into authenticated client workflows:
-   add auth/listener wiring, REPORT execution, sync-change reads, object
-   `GET`/`PUT`/`DELETE`, broader vCard compatibility, and native-client tests
+   add auth/listener wiring, object `GET`/`PUT`/`DELETE`, richer CardDAV
+   filter semantics, broader vCard compatibility, and native-client tests
    before webmail contacts, attendee auto-complete, or public native CardDAV
    compatibility are exposed.

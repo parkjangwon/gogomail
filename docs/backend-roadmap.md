@@ -2322,6 +2322,13 @@ Implementation order:
       malformed WebDAV XML, and contact-object discovery above `Depth: 0`;
       the PostgreSQL repository satisfies the discovery store by resolving
       active user principals through the shared Directory layer.
+1106. CardDAV now executes internal REPORT requests for `addressbook-multiget`,
+      `addressbook-query`, and WebDAV `sync-collection`. Multiget scopes hrefs
+      to the requested home or collection and returns per-href 404 propstats,
+      query responses can include `address-data` and apply the current bounded
+      first text-match filter, and sync responses emit the current collection
+      sync token while returning full snapshots or bounded change rows,
+      including 404 responses for deleted contact objects.
 
 ## Deferred until backend contracts stabilize
 
@@ -2335,11 +2342,11 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV authenticated listener wiring, REPORT execution, sync
-  handlers, object `GET`/`PUT`/`DELETE`, broader vCard compatibility, and
-  native-client compatibility beyond the internal discovery, path/href, storage
-  metadata, repository, bounded vCard 4.0 validation, REPORT parsing, and
-  multistatus response boundaries
+- Contacts/CardDAV authenticated listener wiring, object `GET`/`PUT`/`DELETE`,
+  richer CardDAV filter semantics, broader vCard compatibility, and
+  native-client compatibility beyond the internal discovery/REPORT, path/href,
+  storage metadata, repository, bounded vCard 4.0 validation, REPORT parsing,
+  and multistatus response boundaries
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
