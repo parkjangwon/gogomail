@@ -1114,6 +1114,10 @@ Implementation order:
      `EXISTS` events when an exact message count is present, reducing noisy
      follow-up NOOP/IDLE updates after commands that already reported the same
      mailbox size.
+794. IMAP mailbox DTOs now carry durable `highest_modseq`, and `SELECT`,
+     `EXAMINE`, and `STATUS` can expose `[HIGHESTMODSEQ ...]` /
+     `HIGHESTMODSEQ` metadata for clients that use mod-sequence based sync
+     hints.
 
 ## Deferred until backend contracts stabilize
 

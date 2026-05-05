@@ -826,7 +826,8 @@ The platform hardening sprint completed the following:
   versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` emit RFC-shaped untagged `RECENT` counts alongside
   `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
-  and `UIDNEXT`.
+  `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from durable mailbox
+  UID state.
 - IMAP `UID STORE` supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`

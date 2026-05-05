@@ -405,6 +405,11 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
 			return false, err
 		}
+		if mailboxState.HighestModSeq > 0 {
+			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", mailboxState.HighestModSeq)); err != nil {
+				return false, err
+			}
+		}
 		state.closeSubscription()
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
@@ -3450,7 +3455,7 @@ func imapStatusItems(items []string) ([]string, bool) {
 		for _, token := range strings.Fields(strings.Trim(raw, "()")) {
 			item := strings.ToUpper(strings.TrimSpace(token))
 			switch item {
-			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN":
+			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ":
 				out = append(out, item)
 			default:
 				return nil, false
@@ -3474,6 +3479,8 @@ func imapStatusData(mailbox Mailbox, items []string) string {
 			parts = append(parts, "UIDVALIDITY", strconv.FormatUint(uint64(mailbox.UIDValidity), 10))
 		case "UNSEEN":
 			parts = append(parts, "UNSEEN", strconv.FormatUint(uint64(mailbox.Unseen), 10))
+		case "HIGHESTMODSEQ":
+			parts = append(parts, "HIGHESTMODSEQ", strconv.FormatUint(mailbox.HighestModSeq, 10))
 		}
 	}
 	return strings.Join(parts, " ")
