@@ -1231,6 +1231,7 @@ func TestServerRejectsMalformedIDArguments(t *testing.T) {
 		`ID "name" "client"`,
 		`ID ("name")`,
 		`ID ("name""client")`,
+		`ID ("name" bad\client)`,
 		`ID ("name" "client" "name" "duplicate")`,
 		`ID ("0123456789012345678901234567890" "client")`,
 	} {
@@ -1290,6 +1291,12 @@ func TestIMAPIDArgumentsValidEnforcesRFC2971Limits(t *testing.T) {
 	}
 	if imapIDArgumentsValid(`("name""value")`) {
 		t.Fatal("imapIDArgumentsValid accepted adjacent quoted tokens")
+	}
+	if imapIDArgumentsValid(`("name" bad"value)`) {
+		t.Fatal("imapIDArgumentsValid accepted quote inside unquoted value")
+	}
+	if imapIDArgumentsValid(`("name" bad\value)`) {
+		t.Fatal("imapIDArgumentsValid accepted backslash inside unquoted value")
 	}
 	if !imapIDArgumentsValid(`("name" "Project \"Q2\"")`) {
 		t.Fatal("imapIDArgumentsValid rejected escaped quoted-special")
