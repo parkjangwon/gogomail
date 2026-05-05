@@ -240,6 +240,56 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	}
 }
 
+func TestServerHandlesNamespaceAfterLogin(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 NAMESPACE\r\na2 LOGIN user@example.com secret\r\na3 NAMESPACE\r\n")); err != nil {
+		t.Fatalf("write namespace flow: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 NO authentication required\r\n" {
+		t.Fatalf("unauthenticated namespace = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* NAMESPACE ((\"\" \"/\")) NIL NIL\r\n",
+		"a3 OK NAMESPACE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read namespace response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("namespace response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
 	t.Parallel()
 

@@ -841,6 +841,8 @@ The platform hardening sprint completed the following:
   message `INTERNALDATE`.
 - IMAP `SEARCH`/`UID SEARCH` supports basic `FROM` and `SUBJECT` substring
   criteria over selected-mailbox summaries.
+- IMAP supports authenticated `NAMESPACE` for personal namespace and hierarchy
+  delimiter discovery.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
