@@ -710,6 +710,7 @@ Implementation order:
 650. Bounce DSN generation now honors RFC 3461 `RET=FULL` by attaching a bounded, parse-validated original `.eml` as `message/rfc822` in generated RFC 3464 reports while preserving existing `RET=HDRS` header-only behavior.
 651. Health and service-info GET routes now reject request bodies and `Content-Type` headers before returning probe or contract metadata responses, keeping unauthenticated release probes aligned with bodyless HTTP read semantics.
 652. Authentication-Results trace header formatting now strips control characters and bounds authserv-id, reason, domain, and identifier metadata before formatting SPF/DKIM/DMARC results, preventing verifier diagnostics from injecting or bloating stored headers.
+653. Health and service-info GET routes now reject unknown query parameter names, making release probe and metadata endpoint typos visible as HTTP 400 instead of silently ignored inputs.
 
 ## Deferred until backend contracts stabilize
 

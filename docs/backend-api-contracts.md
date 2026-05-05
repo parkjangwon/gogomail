@@ -326,6 +326,8 @@ and manifest digest/signature creation cannot silently ignore client payloads.
 Health and service-info GET routes reject request bodies and `Content-Type`
 headers before returning probe or contract metadata responses, keeping
 bodyless read semantics consistent for unauthenticated release probes.
+They also reject unknown query parameter names, making probe and metadata
+endpoint typos visible as HTTP 400 instead of silently ignored inputs.
 
 Attachment downloads set private `no-store` responses and include both a safe
 ASCII `filename` fallback and a UTF-8 `filename*` parameter in

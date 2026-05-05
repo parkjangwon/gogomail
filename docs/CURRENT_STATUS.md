@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Authentication-Results header hardening)
+Last updated: 2026-05-05 (updated after health/info query guardrails)
 
 ## Current phase
 
@@ -961,6 +961,9 @@ The platform hardening sprint completed the following:
 - Health and service-info GET routes now reject request bodies and
   `Content-Type` headers before writing probe or contract metadata responses,
   keeping bodyless read semantics consistent across HTTP surfaces.
+- Health and service-info GET routes now also reject unknown query parameter
+  names, making release probe and metadata endpoint typos visible as HTTP 400
+  instead of silently ignored inputs.
 - Admin bodyless command/delete routes for IMAP UID backfill, DKIM DNS verify,
   outbox retry, DKIM deactivation, suppression deletion, trusted-relay
   deletion, and delivery-route deletion now reject unknown query parameter names

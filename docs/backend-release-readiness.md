@@ -124,6 +124,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Health and service-info GET routes reject request bodies and `Content-Type`
   headers before returning probe or contract metadata responses, keeping
   unauthenticated release probes aligned with bodyless read semantics.
+- Health and service-info GET routes reject unknown query parameter names, so
+  release probe and metadata endpoint typos fail visibly instead of being
+  ignored.
 - Admin bodyless command/delete routes for IMAP UID backfill, DKIM DNS verify,
   outbox retry, DKIM deactivation, suppression deletion, trusted-relay deletion,
   and delivery-route deletion reject unknown query parameter names before
