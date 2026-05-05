@@ -3373,6 +3373,10 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		_, err := writer.WriteString(tag + " BAD FETCH CHANGEDSINCE modifier is invalid\r\n")
 		return false, err
 	}
+	if !imapFetchMacroUsageValid(items) {
+		_, err := writer.WriteString(tag + " BAD FETCH macro is invalid\r\n")
+		return false, err
+	}
 	items = imapExpandFetchItems(items)
 	if !imapFetchHeaderFieldListsValid(items) {
 		_, err := writer.WriteString(tag + " BAD FETCH header field list is invalid\r\n")
@@ -4835,6 +4839,17 @@ func imapFetchNormalizedTokens(items []string) []string {
 		}
 	}
 	return tokens
+}
+
+func imapFetchMacroUsageValid(items []string) bool {
+	tokens := imapFetchNormalizedTokens(items)
+	for _, token := range tokens {
+		switch token {
+		case "FAST", "ALL", "FULL":
+			return len(tokens) == 1 && strings.EqualFold(strings.TrimSpace(strings.Join(items, " ")), token)
+		}
+	}
+	return true
 }
 
 func imapFetchRequestsBodyStructure(items []string) bool {

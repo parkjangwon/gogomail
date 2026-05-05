@@ -1529,6 +1529,9 @@ Implementation order:
 909. IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
      parenthesized modifier form and rejects bare or over-closed variants such
      as `FETCH 7 FLAGS CHANGEDSINCE 17`.
+910. IMAP `FETCH`/`UID FETCH` macros now remain valid only as standalone macro
+     arguments, rejecting malformed list usage such as `FETCH 1 (FAST)` or
+     `UID FETCH 7 (FLAGS FAST)`.
 
 ## Deferred until backend contracts stabilize
 

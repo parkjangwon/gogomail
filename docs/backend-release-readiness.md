@@ -201,6 +201,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.
+- IMAP `FETCH`/`UID FETCH` macros remain valid only as standalone macro
+  arguments, rejecting malformed list usage such as `FETCH 1 (FAST)` or
+  `UID FETCH 7 (FLAGS FAST)`.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
