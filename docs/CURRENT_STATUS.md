@@ -1487,10 +1487,10 @@ The platform hardening sprint completed the following:
 - IMAP command dispatch now validates command and UID subcommand atoms before
   routing, so atom-special-bearing command names are rejected as malformed
   syntax instead of falling through as unknown commands.
-- Authenticated IMAP `UID` dispatch now validates missing or malformed
-  subcommands, and unknown UID subcommands, before selected-mailbox state,
-  while still returning selected-state `NO` for syntactically valid supported
-  UID commands issued before `SELECT`/`EXAMINE`.
+- IMAP `UID` dispatch now validates missing, malformed, unknown, or
+  state-independent malformed subcommands before authentication or
+  selected-mailbox state, while valid unauthenticated UID commands still return
+  `NO authentication required`.
 - Authenticated selected-state IMAP commands now validate obvious malformed
   `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
   before returning `NO mailbox must be selected` for valid commands issued
@@ -1509,10 +1509,10 @@ The platform hardening sprint completed the following:
 - IMAP `STARTTLS` now rejects extra arguments before TLS availability or
   authentication-state checks, preserving no-argument command syntax diagnostics
   during capability probing.
-- Authenticated IMAP `UID` dispatch now validates subcommand arity and
-  destination mailbox-name syntax for `FETCH`, `STORE`, `EXPUNGE`, `COPY`, and
-  `MOVE` before selected-mailbox state, while leaving selected-state-dependent
-  UID set resolution to the selected command handlers.
+- IMAP `UID` dispatch validates subcommand arity and destination mailbox-name
+  syntax for `FETCH`, `STORE`, `EXPUNGE`, `COPY`, and `MOVE` before
+  authentication or selected-mailbox state, while leaving selected-state-
+  dependent UID set resolution to the selected command handlers.
 - IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
   unsupported mechanisms before returning `[PRIVACYREQUIRED]` on plaintext
   TLS-required listeners.

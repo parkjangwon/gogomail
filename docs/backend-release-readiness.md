@@ -1080,7 +1080,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command atom validation covers the command name and UID subcommand name
   dispatch boundary, preserving precise malformed-command behavior before
   backend or feature dispatch.
-- IMAP UID dispatch validates authenticated syntax before selected-mailbox
+- IMAP UID dispatch validates syntax before authentication and selected-mailbox
   state so malformed or unknown UID subcommands produce `BAD` responses instead
   of being hidden behind state errors.
 - IMAP selected-state command dispatch validates obvious malformed
@@ -1099,9 +1099,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   lifecycle commands from hiding malformed input behind state responses.
 - IMAP `STARTTLS` rejects malformed extra-argument commands before availability
   and state checks, keeping TLS capability probing diagnostics precise.
-- IMAP authenticated `UID` dispatch validates state-independent subcommand
-  syntax before selected-mailbox errors, keeping arity and mailbox-name
-  diagnostics visible to clients even before `SELECT`/`EXAMINE`.
+- IMAP `UID` dispatch validates state-independent subcommand syntax before
+  authentication and selected-mailbox errors, keeping arity and mailbox-name
+  diagnostics visible to clients even before `LOGIN`, `SELECT`, or `EXAMINE`.
 - IMAP authentication commands validate malformed `LOGIN` arity and unsupported
   `AUTHENTICATE` mechanisms before plaintext privacy-required failures, keeping
   auth handshake diagnostics precise without weakening TLS-required policy.
