@@ -126,6 +126,18 @@ func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnsafeS3Region(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Region = "US-EAST-1"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want unsafe S3 region rejection")
+	}
+}
+
 func TestValidateRejectsMinIOWithoutEndpoint(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "minio"

@@ -596,6 +596,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible bucket names are validated with shared adapter/config guardrails
   before runtime wiring, surfacing uppercase, undersized, slash-bearing, or
   punctuation-adjacent deployment mistakes before storage calls.
+- S3-compatible regions are validated with shared adapter/config guardrails
+  before SigV4 signing, rejecting blank, whitespace-bearing, slash-bearing, or
+  uppercase region values before object-storage requests are created.
 - Optional S3-compatible integration coverage can exercise real
   `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
   `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are
