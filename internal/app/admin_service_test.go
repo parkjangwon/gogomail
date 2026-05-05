@@ -237,6 +237,30 @@ func TestAdminServiceDriveUploadCleanupPreviewDelegatesToDrive(t *testing.T) {
 	}
 }
 
+func TestAdminServiceRunDriveUploadCleanupRecordsAudit(t *testing.T) {
+	t.Parallel()
+
+	before := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	driveStore := &fakeAdminDrive{
+		sessions: []drive.UploadSession{{ID: "session-1"}},
+	}
+	writer := &fakeAuditWriter{}
+	service := adminService{drive: driveStore, audit: writer}
+	expired, err := service.RunDriveUploadSessionCleanup(t.Context(), before, 10)
+	if err != nil {
+		t.Fatalf("RunDriveUploadSessionCleanup returned error: %v", err)
+	}
+	if len(expired) != 1 || writer.insertCalls != 1 {
+		t.Fatalf("expired=%d insertCalls=%d", len(expired), writer.insertCalls)
+	}
+	if writer.log.Action != "drive_upload_cleanup.sessions_run" || writer.log.TargetType != "drive_upload_cleanup" || writer.log.Result != "completed" {
+		t.Fatalf("audit log = %+v", writer.log)
+	}
+	if driveStore.lastCleanupReq.Limit != 10 || !driveStore.lastCleanupReq.Before.Equal(before) {
+		t.Fatalf("lastCleanupReq = %+v", driveStore.lastCleanupReq)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -325,6 +349,11 @@ func (f *fakeAdminDrive) CountStaleUploadSessions(_ context.Context, req drive.E
 }
 
 func (f *fakeAdminDrive) ListStaleUploadSessions(_ context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error) {
+	f.lastCleanupReq = req
+	return f.sessions, nil
+}
+
+func (f *fakeAdminDrive) ExpireUploadSessions(_ context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error) {
 	f.lastCleanupReq = req
 	return f.sessions, nil
 }

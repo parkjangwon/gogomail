@@ -107,6 +107,7 @@ type AdminService interface {
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error)
 	ListStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
+	RunDriveUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
 	ListAPIUsageDaily(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -1155,6 +1156,41 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 				"session_candidates":      sessionCandidates,
 				"session_candidate_count": counts.TotalCount,
 				"session_limited_count":   counts.LimitedCount,
+				"before":                  before.Format(time.RFC3339),
+				"limit":                   drive.NormalizeUploadSessionCleanupLimit(req.Limit),
+			},
+		})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req adminAttachmentCleanupRunRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		before, ok := parseAdminAttachmentCleanupRequest(w, req)
+		if !ok {
+			return
+		}
+		counts, err := service.CountStaleDriveUploadSessions(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		expired, err := service.RunDriveUploadSessionCleanup(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"drive_upload_cleanup_run": map[string]any{
+				"expired_sessions":        expired,
+				"session_candidate_count": counts.TotalCount,
+				"session_limited_count":   counts.LimitedCount,
+				"expired_session_count":   len(expired),
 				"before":                  before.Format(time.RFC3339),
 				"limit":                   drive.NormalizeUploadSessionCleanupLimit(req.Limit),
 			},

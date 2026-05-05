@@ -401,6 +401,10 @@ Drive upload session state for a user without entering the webmail API surface.
 cleanup preview body as attachment cleanup and returns
 `{"drive_upload_cleanup_candidates":{...}}` with stale Drive upload-session
 candidate rows plus total/limited counts.
+`POST /admin/v1/drive-upload-cleanup/runs` uses the same explicit cutoff body
+to expire stale Drive upload sessions once and returns
+`{"drive_upload_cleanup_run":{...}}` with candidate counts and expired session
+rows.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart
