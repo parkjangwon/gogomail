@@ -290,7 +290,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - SMTP wire coverage now exercises enabled/disabled extension advertisement, DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` propagation including `NOTIFY=NEVER`, unsupported extension rejection, STARTTLS-gated AUTH, implicit TLS, trusted relay CIDR rejection, and repeated transactions on a single connection.
 - Outbound SMTP wire coverage now verifies DSN parameters are emitted only when the remote MTA advertises DSN support, preventing accidental RFC 3461 option leakage to non-DSN peers. Outbound EAI addresses fail closed with a permanent SMTPUTF8 error when the remote MTA does not advertise SMTPUTF8.
 - Outbound SMTP controlled-sink coverage now verifies accepted DATA can coexist with per-recipient permanent and temporary RCPT failures, preserving retry/bounce classification for delivery handlers.
-- DSN/bounce generation validates inbound event metadata before composing and queueing null reverse-path DSNs.
+- DSN/bounce generation validates inbound event metadata before composing and queueing null reverse-path DSNs, and retry-exhausted delivery events generate sender-facing RFC 3464 failure DSNs with deterministic dedupe keys while still honoring `NOTIFY=NEVER` and null reverse-path suppression.
 - DSN/bounce generation now honors RFC 3461 `RET=HDRS` by attaching bounded,
   sanitized original message headers as a `text/rfc822-headers` report part
   when delivery events carry a safe original `.eml` storage path.

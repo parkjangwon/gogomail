@@ -702,6 +702,7 @@ Implementation order:
 642. Mail API thread list and per-thread message reads now support opaque cursor pagination with `limit`, `has_more`, and `next_cursor`, making large conversation mailboxes navigable without client-side full-list scans.
 643. Mail API draft search now supports opaque cursor pagination with `limit`, `has_more`, and `next_cursor`, making large compose draft lists navigable without loading every active draft.
 644. OpenAPI now wires the development-only `user_id` fallback parameter into every user-scoped Mail operation that can use it when JWT auth is disabled, keeping generated local/all-in-one clients aligned with runtime request scoping.
+645. Retry-exhausted delivery events now carry recipient-level RFC 3461 DSN metadata and safe original-message storage paths into the event worker, letting exhausted temporary failures generate sender-facing RFC 3464 failure DSNs with deterministic dedupe while user delivery status classifies terminal `exhausted` attempts as failed.
 
 ## Deferred until backend contracts stabilize
 

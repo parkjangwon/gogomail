@@ -186,27 +186,55 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 
 func exhaustedEventPayload(queued QueuedMessage, causeMsg string) ([]byte, error) {
 	recipients := make([]string, 0, len(queued.Recipients()))
+	recipientDetails := make([]map[string]any, 0, len(queued.Recipients()))
+	cause := errorFromMessage(causeMsg)
 	for _, r := range queued.Recipients() {
 		if email := strings.TrimSpace(r.Email); email != "" {
 			recipients = append(recipients, email)
+			_, domain, _ := strings.Cut(email, "@")
+			domain = strings.ToLower(strings.TrimSuffix(domain, "."))
+			dsnRecipient := dsnRecipientOptionsForAttempt(queued.DSN.Recipients, email)
+			notify := append([]string(nil), dsnRecipient.Notify...)
+			if notify == nil {
+				notify = []string{}
+			}
+			recipientDetails = append(recipientDetails, map[string]any{
+				"recipient":          email,
+				"recipient_domain":   domain,
+				"enhanced_status":    enhancedStatusForAttempt(AttemptExhausted, cause),
+				"dsn_notify":         notify,
+				"original_recipient": strings.TrimSpace(dsnRecipient.OriginalRecipient),
+			})
 		}
 	}
 	raw, err := json.Marshal(map[string]any{
-		"event":          "mail.delivery_exhausted",
-		"message_id":     strings.TrimSpace(queued.MessageID),
-		"rfc_message_id": strings.TrimSpace(queued.RFCMessageID),
-		"company_id":     strings.TrimSpace(queued.CompanyID),
-		"domain_id":      strings.TrimSpace(queued.DomainID),
-		"farm":           strings.TrimSpace(string(queued.Farm)),
-		"sender":         strings.TrimSpace(queued.From.Email),
-		"recipients":     recipients,
-		"error_message":  strings.TrimSpace(causeMsg),
-		"exhausted_at":   timeNow(),
+		"event":             "mail.delivery_exhausted",
+		"message_id":        strings.TrimSpace(queued.MessageID),
+		"rfc_message_id":    strings.TrimSpace(queued.RFCMessageID),
+		"company_id":        strings.TrimSpace(queued.CompanyID),
+		"domain_id":         strings.TrimSpace(queued.DomainID),
+		"farm":              strings.TrimSpace(string(queued.Farm)),
+		"sender":            strings.TrimSpace(queued.From.Email),
+		"recipients":        recipients,
+		"recipient_details": recipientDetails,
+		"error_message":     strings.TrimSpace(causeMsg),
+		"storage_path":      strings.TrimSpace(queued.StoragePath),
+		"dsn_return":        strings.TrimSpace(queued.DSN.Return),
+		"dsn_envelope_id":   strings.TrimSpace(queued.DSN.EnvelopeID),
+		"exhausted_at":      timeNow(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal delivery_exhausted event: %w", err)
 	}
 	return raw, nil
+}
+
+func errorFromMessage(message string) error {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return nil
+	}
+	return fmt.Errorf("%s", message)
 }
 
 type attemptDiagnostics struct {

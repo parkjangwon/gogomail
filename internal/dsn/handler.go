@@ -78,10 +78,19 @@ func (h *BounceHandler) HandleEvent(ctx context.Context, msg eventstream.Message
 		return fmt.Errorf("dsn queue is required")
 	}
 
-	event, err := decodeBounceEvent(msg.Payload)
+	events, err := decodeFailureEvents(msg.Payload)
 	if err != nil {
 		return err
 	}
+	for _, event := range events {
+		if err := h.handleFailureEvent(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *BounceHandler) handleFailureEvent(ctx context.Context, event bounceEvent) error {
 	if !shouldGenerateFailureDSN(event) {
 		return nil
 	}
@@ -205,6 +214,50 @@ type bounceEvent struct {
 	} `json:"dsn"`
 }
 
+type exhaustedEvent struct {
+	Event            string               `json:"event"`
+	MessageID        string               `json:"message_id"`
+	RFCMessageID     string               `json:"rfc_message_id"`
+	CompanyID        string               `json:"company_id"`
+	DomainID         string               `json:"domain_id"`
+	Sender           string               `json:"sender"`
+	ErrorMessage     string               `json:"error_message"`
+	StoragePath      string               `json:"storage_path"`
+	DSNReturn        string               `json:"dsn_return"`
+	DSNEnvelopeID    string               `json:"dsn_envelope_id"`
+	ExhaustedAt      time.Time            `json:"exhausted_at"`
+	RecipientDetails []exhaustedRecipient `json:"recipient_details"`
+}
+
+type exhaustedRecipient struct {
+	Recipient         string   `json:"recipient"`
+	RecipientDomain   string   `json:"recipient_domain"`
+	EnhancedStatus    string   `json:"enhanced_status"`
+	DSNNotify         []string `json:"dsn_notify"`
+	OriginalRecipient string   `json:"original_recipient"`
+}
+
+func decodeFailureEvents(payload json.RawMessage) ([]bounceEvent, error) {
+	var envelope struct {
+		Event string `json:"event"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		return nil, fmt.Errorf("decode delivery failure event: %w", err)
+	}
+	switch strings.TrimSpace(envelope.Event) {
+	case "mail.bounced":
+		event, err := decodeBounceEvent(payload)
+		if err != nil {
+			return nil, err
+		}
+		return []bounceEvent{event}, nil
+	case "mail.delivery_exhausted":
+		return decodeExhaustedEvents(payload)
+	default:
+		return nil, fmt.Errorf("unexpected delivery failure event %q", envelope.Event)
+	}
+}
+
 func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	var event bounceEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
@@ -213,6 +266,47 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	if event.Event != "mail.bounced" {
 		return bounceEvent{}, fmt.Errorf("unexpected bounce event %q", event.Event)
 	}
+	return normalizeBounceEvent(event)
+}
+
+func decodeExhaustedEvents(payload json.RawMessage) ([]bounceEvent, error) {
+	var event exhaustedEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return nil, fmt.Errorf("decode delivery_exhausted event: %w", err)
+	}
+	if event.Event != "mail.delivery_exhausted" {
+		return nil, fmt.Errorf("unexpected delivery_exhausted event %q", event.Event)
+	}
+	events := make([]bounceEvent, 0, len(event.RecipientDetails))
+	for _, recipient := range event.RecipientDetails {
+		bounced := bounceEvent{
+			Event:           event.Event,
+			MessageID:       event.MessageID,
+			RFCMessageID:    event.RFCMessageID,
+			CompanyID:       event.CompanyID,
+			DomainID:        event.DomainID,
+			Sender:          event.Sender,
+			Recipient:       recipient.Recipient,
+			RecipientDomain: recipient.RecipientDomain,
+			EnhancedStatus:  recipient.EnhancedStatus,
+			ErrorMessage:    event.ErrorMessage,
+			AttemptedAt:     event.ExhaustedAt,
+			StoragePath:     event.StoragePath,
+		}
+		bounced.DSN.Return = event.DSNReturn
+		bounced.DSN.EnvelopeID = event.DSNEnvelopeID
+		bounced.DSN.Notify = recipient.DSNNotify
+		bounced.DSN.OriginalRecipient = recipient.OriginalRecipient
+		normalized, err := normalizeBounceEvent(bounced)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, normalized)
+	}
+	return events, nil
+}
+
+func normalizeBounceEvent(event bounceEvent) (bounceEvent, error) {
 	event.MessageID = strings.TrimSpace(event.MessageID)
 	event.Sender = strings.TrimSpace(event.Sender)
 	event.Recipient = strings.TrimSpace(event.Recipient)
@@ -228,7 +322,7 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	if containsLineBreak(event.RecipientDomain) || containsLineBreak(event.EnhancedStatus) || containsLineBreak(event.ErrorMessage) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid delivery status fields")
 	}
-	if event.EnhancedStatus != "" && (!validEnhancedStatus(event.EnhancedStatus) || !dsnStatusMatchesAction("failed", event.EnhancedStatus)) {
+	if event.EnhancedStatus != "" && (!validEnhancedStatus(event.EnhancedStatus) || !failureEventStatusMatchesAction(event.Event, event.EnhancedStatus)) {
 		return bounceEvent{}, fmt.Errorf("bounce event has invalid enhanced_status %q", event.EnhancedStatus)
 	}
 	if event.Recipient == "" {
@@ -270,6 +364,13 @@ func decodeBounceEvent(payload json.RawMessage) (bounceEvent, error) {
 	}
 	event.DSN.Notify = notify
 	return event, nil
+}
+
+func failureEventStatusMatchesAction(event string, status string) bool {
+	if event == "mail.delivery_exhausted" {
+		return dsnStatusMatchesAction("failed", status)
+	}
+	return status[0] == '5'
 }
 
 func containsLineBreak(value string) bool {

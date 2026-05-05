@@ -112,7 +112,7 @@ func summarizeDeliveryAttempts(attempts []DeliveryAttemptView) (string, string) 
 			bounced = true
 		case "retry", "deferred", "temporary_failure":
 			retry = true
-		case "failed", "permanent_failure":
+		case "failed", "permanent_failure", "exhausted":
 			failed = true
 		}
 	}

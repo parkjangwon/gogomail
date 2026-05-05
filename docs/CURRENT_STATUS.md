@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after compose-focused draft search API)
+Last updated: 2026-05-05 (updated after delivery retry-exhaustion DSN wiring)
 
 ## Current phase
 
@@ -29,7 +29,8 @@ guidance.
   partial recipient failure handling. Admin-created delivery routes reject
   impossible TLS/auth combinations before relay routes are stored.
 - DSN/bounce handling with RFC 3461/3464-oriented metadata, null reverse-path,
-  `NOTIFY=NEVER`, deterministic outbox dedupe, and loop-risk reduction.
+  `NOTIFY=NEVER`, deterministic outbox dedupe, retry-exhaustion failure
+  notifications, and loop-risk reduction.
 - Shared high-performance-minded EML parsing boundary under `internal/message`.
 - PostgreSQL metadata model for companies, domains, users, folders, messages,
   attachments, outbox, audit logs, DKIM keys, trusted relays, delivery routes,
@@ -476,6 +477,10 @@ guidance.
 - The delivery worker wires retry exhaustion recording at runtime, so terminal
   retry exhaustion diagnostics and `mail.delivery_exhausted` events are emitted
   by the actual worker path.
+- Retry-exhausted delivery events now carry recipient-level DSN metadata and
+  safe original storage paths into the event worker, generating sender-facing
+  RFC 3464 failure DSNs with deterministic dedupe keys while preserving
+  `NOTIFY=NEVER` and null reverse-path suppression.
 - Admin delivery attempt lists can be scoped by status, recipient domain, and
   recent time window for bounded retry/bounce triage.
 - Admin delivery attempt stats summarize total attempts, unique messages,
@@ -485,6 +490,8 @@ guidance.
   boundary before operator mutations are passed to the service layer.
 - User-scoped sent-message delivery status treats failed attempts with RFC 3463
   `4.x.x` enhanced status codes as retrying rather than terminal failed.
+- User-scoped sent-message delivery status treats terminal `exhausted`
+  attempts as failed so retry budgets do not remain visible as pending forever.
 - DMARC reject policy enforcement at SMTP receive (`DMARCEnforce` flag).
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses, and outbound delivery now fails closed with a permanent SMTPUTF8

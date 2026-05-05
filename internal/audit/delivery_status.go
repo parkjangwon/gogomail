@@ -102,6 +102,8 @@ func deliveryAuditAction(event string) (string, error) {
 		return "mail.bounced", nil
 	case "mail.delivery_failed":
 		return "mail.delivery_failed", nil
+	case "mail.delivery_exhausted":
+		return "mail.delivery_exhausted", nil
 	default:
 		return "", fmt.Errorf("unexpected delivery audit event %q", event)
 	}
