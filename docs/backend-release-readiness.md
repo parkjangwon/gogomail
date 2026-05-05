@@ -317,12 +317,15 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   storage. `GOGOMAIL_STORAGE_BACKEND=s3` can target AWS S3, while
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
-  region, bucket, prefix, credential, and session-token settings. S3 request
-  paths preserve literal `+` characters as `%2B` so object identity and SigV4
-  canonical paths do not drift for plus-bearing mail object keys. Endpoint base
-  paths reject encoded path separators such as `%2F` and `%5C`; bucket names
-  must start and end with a letter or digit, matching AWS S3 naming rules before
-  adapter construction. Seekable PUT
+  region, bucket, prefix, credential, and session-token settings. Runtime option
+  construction is covered so MinIO remains path-style by default, ordinary S3
+  remains virtual-hosted by default, and
+  `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` remains an explicit S3 override.
+  S3 request paths preserve literal `+` characters as `%2B` so object identity
+  and SigV4 canonical paths do not drift for plus-bearing mail object keys.
+  Endpoint base paths reject encoded path separators such as `%2F` and `%5C`;
+  bucket names must start and end with a letter or digit, matching AWS S3 naming
+  rules before adapter construction. Seekable PUT
   bodies also get deterministic `Content-Length` values without object
   buffering, improving S3-compatible provider behavior for file-backed mail and
   attachment writes. S3-compatible deletes treat `404 Not Found` as
