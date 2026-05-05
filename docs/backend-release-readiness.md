@@ -345,9 +345,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   organization/domain/company state. Directory storage now also defines groups,
   resources, aliases, and group memberships, and the resolver can load
   group/resource principals, normalized alias targets, and direct group
-  memberships. CalDAV discovery delegates active user lookup to this boundary.
-  This does not make shared calendars, resource booking, recursive/effective
-  membership checks, or delegated access public-release ready yet.
+  memberships. Effective membership expansion is bounded with an explicit
+  recursion cap and cycle guard. CalDAV discovery delegates active user lookup
+  to this boundary. This does not make shared calendars, resource booking, or
+  delegated access public-release ready yet.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

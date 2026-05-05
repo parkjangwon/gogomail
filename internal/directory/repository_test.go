@@ -122,8 +122,25 @@ func TestNormalizeCheckGroupMembershipRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NormalizeCheckGroupMembershipRequest returned error: %v", err)
 	}
-	if got.GroupID != "group-1" || got.MemberKind != PrincipalKindUser || got.MemberID != "user-1" || !got.ActiveOnly {
+	if got.GroupID != "group-1" || got.MemberKind != PrincipalKindUser || got.MemberID != "user-1" || !got.ActiveOnly || got.MaxDepth != DefaultMembershipMaxDepth {
 		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCheckGroupMembershipRequestHonorsExplicitDepth(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCheckGroupMembershipRequest(CheckGroupMembershipRequest{
+		GroupID:    "group-1",
+		MemberKind: PrincipalKindGroup,
+		MemberID:   "group-2",
+		MaxDepth:   3,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckGroupMembershipRequest returned error: %v", err)
+	}
+	if got.MaxDepth != 3 {
+		t.Fatalf("max depth = %d, want 3", got.MaxDepth)
 	}
 }
 
@@ -136,6 +153,8 @@ func TestNormalizeCheckGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
 		{GroupID: "group\n1", MemberKind: PrincipalKindUser, MemberID: "user-1"},
 		{GroupID: "group-1", MemberKind: "calendar", MemberID: "user-1"},
 		{GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user\n1"},
+		{GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user-1", MaxDepth: -1},
+		{GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user-1", MaxDepth: MaxGroupMembershipDepth + 1},
 	}
 	for _, req := range tests {
 		req := req
@@ -171,6 +190,19 @@ func TestRepositoryCheckDirectGroupMembershipRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewRepository(nil).CheckDirectGroupMembership(context.Background(), CheckGroupMembershipRequest{
+		GroupID:    "group-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-1",
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryCheckEffectiveGroupMembershipRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).CheckEffectiveGroupMembership(context.Background(), CheckGroupMembershipRequest{
 		GroupID:    "group-1",
 		MemberKind: PrincipalKindUser,
 		MemberID:   "user-1",

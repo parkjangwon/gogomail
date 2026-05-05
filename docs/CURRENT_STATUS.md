@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Directory direct membership checks)
+Last updated: 2026-05-06 (updated after bounded Directory membership expansion)
 
 ## Current phase
 
@@ -2299,6 +2299,10 @@ The platform hardening sprint completed the following:
   organization, group, and resource principals, establishing the first
   auditable membership read boundary before recursive/effective delegation is
   implemented.
+- Directory/Identity also has a bounded effective-membership check that expands
+  nested groups with an explicit recursion cap and cycle guard, preparing
+  delegated access and resource policy evaluation without unbounded graph
+  traversal.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2321,6 +2325,6 @@ Next focus areas:
    limits.
 6. Frontend planning and API contract review before webmail implementation.
 7. Extend Directory/Identity from stored users, organizations, groups,
-   resources, aliases, and group memberships into explicit delegated principal
-   relationships and recursive/effective membership checks before public
-   shared-calendar or resource-booking CalDAV features.
+   resources, aliases, group memberships, and bounded membership expansion into
+   explicit delegated principal relationships before public shared-calendar or
+   resource-booking CalDAV features.

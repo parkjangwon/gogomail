@@ -1593,8 +1593,8 @@ Next:
   extend the initial `internal/directory` user/organization/group/resource
   principal resolver plus alias lookup and group/alias/resource schema into the
   platform boundaries CalDAV depends on: Directory/Identity for delegated
-  relationships, recursive/effective membership checks, resource booking
-  policy, and principal resolution; Contacts/CardDAV for personal/external
+  relationships, resource booking policy, and principal resolution;
+  Contacts/CardDAV for personal/external
   people and address books;
   Notification & Sync for reminders, devices, quiet hours, and delta fan-out;
   Search for unified event/person/resource lookup; and Policy/Audit for
