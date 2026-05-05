@@ -13,10 +13,11 @@ type UIDState struct {
 }
 
 type MessageUID struct {
-	MessageID MessageID
-	MailboxID MailboxID
-	UID       UID
-	ModSeq    uint64
+	MessageID      MessageID
+	MailboxID      MailboxID
+	UID            UID
+	SequenceNumber uint32
+	ModSeq         uint64
 }
 
 func ValidateUIDState(state UIDState) error {

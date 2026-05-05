@@ -1158,6 +1158,10 @@ Implementation order:
 807. IMAP selected-mailbox event draining now renders sequence-bearing
      `MailboxEventExpunge` notifications as untagged `EXPUNGE` responses for
      `NOOP`/`IDLE` clients, keeping live deletion state aligned.
+808. Existing IMAP UID lookup now returns mailbox sequence numbers, letting
+     Mail API move/delete expunge events become renderable for live
+     `NOOP`/`IDLE` clients even after the committed mutation removes source UID
+     rows.
 
 ## Deferred until backend contracts stabilize
 

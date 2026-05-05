@@ -192,6 +192,9 @@ Current state:
   modes without enabling an IMAP protocol listener.
 - IMAP mailbox event publication is best-effort after successful mutations, so
   future IDLE fan-out cannot make committed mail writes appear failed.
+- Mail API move/delete expunge notifications carry mailbox sequence numbers
+  from IMAP UID lookup, allowing selected `NOOP`/`IDLE` clients to receive
+  renderable untagged `EXPUNGE` updates.
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for protocol listener
   wiring through the service boundary.
 - `mailservice.IMAPStoreAdapter` also satisfies `imapgw.MailboxSessionStore`

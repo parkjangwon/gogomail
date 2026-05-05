@@ -887,6 +887,13 @@ WHERE user_id = $1::uuid
 	if len(assigned) != 2 || assigned[0].UID != 1 || assigned[1].UID != 2 {
 		t.Fatalf("assigned UIDs = %#v, want stable 1,2", assigned)
 	}
+	existing, err := repo.ExistingIMAPMessageUIDs(ctx, seed.userID, []string{firstID, secondID})
+	if err != nil {
+		t.Fatalf("ExistingIMAPMessageUIDs returned error: %v", err)
+	}
+	if len(existing) != 2 || existing[0].UID != 1 || existing[0].SequenceNumber != 1 || existing[1].UID != 2 || existing[1].SequenceNumber != 2 {
+		t.Fatalf("existing IMAP UIDs = %#v, want sequence-bearing 1,2", existing)
+	}
 
 	if err := repo.MoveMessage(ctx, seed.userID, firstID, seed.sentID); err != nil {
 		t.Fatalf("MoveMessage returned error: %v", err)

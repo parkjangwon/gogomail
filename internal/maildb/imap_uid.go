@@ -1133,6 +1133,13 @@ SELECT
   imu.message_id::text,
   imu.mailbox_id::text,
   imu.uid,
+  (
+    SELECT COUNT(*)
+    FROM imap_message_uid seq
+    WHERE seq.user_id = imu.user_id
+      AND seq.mailbox_id = imu.mailbox_id
+      AND seq.uid <= imu.uid
+  )::integer AS sequence_number,
   imu.modseq
 FROM input
 JOIN imap_message_uid imu
@@ -1148,7 +1155,7 @@ ORDER BY input.ordinality`
 	items := make([]IMAPMessageUID, 0, len(messageIDs))
 	for rows.Next() {
 		var item IMAPMessageUID
-		if err := rows.Scan(&item.MessageID, &item.MailboxID, &item.UID, &item.ModSeq); err != nil {
+		if err := rows.Scan(&item.MessageID, &item.MailboxID, &item.UID, &item.SequenceNumber, &item.ModSeq); err != nil {
 			return nil, fmt.Errorf("scan imap message uid: %w", err)
 		}
 		if err := imapgw.ValidateMessageUID(item); err != nil {
