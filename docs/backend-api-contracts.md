@@ -158,11 +158,14 @@ or development `user_id` fallback path as webmail mail routes:
 
 - `GET /api/v1/drive/nodes` returns `{"drive_nodes":[...]}` and accepts
   bounded `parent_id`, `status=active|trashed|deleted`,
-  `node_type=folder|file`, `sort=name|updated|created|size`, `q`, and `limit`
-  filters. `q` is a case-insensitive node-name filter scoped to the selected
-  parent/status/type view and treats SQL wildcard characters literally. Sort
-  modes keep folders grouped before files so Drive browsers can switch ordering
-  without losing folder hierarchy affordances.
+  `node_type=folder|file`, `sort=name|updated|created|size`, `q`,
+  `all_parents=true`, and `limit` filters. `q` is a case-insensitive node-name
+  filter scoped to the selected parent/status/type view and treats SQL wildcard
+  characters literally. `all_parents=true` lets production webmail file pickers
+  search/list across the authenticated user's whole Drive tree and is rejected
+  when combined with `parent_id`. Sort modes keep folders grouped before files
+  so Drive browsers can switch ordering without losing folder hierarchy
+  affordances.
 - `GET /api/v1/drive/nodes/{id}` returns `{"drive_node":{...}}` for a single
   node and accepts bounded `status=active|trashed|deleted` so clients can
   refresh selected metadata after edits.

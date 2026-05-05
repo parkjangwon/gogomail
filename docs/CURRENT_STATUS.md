@@ -2035,6 +2035,10 @@ The platform hardening sprint completed the following:
   ordering for production Drive browser ergonomics.
 - Drive node listing now supports `node_type=folder|file` filters on webmail
   and admin APIs, with webmail capabilities advertising supported node types.
+- Webmail Drive node listing now accepts `all_parents=true` for whole-user
+  Drive search/list views while rejecting ambiguous `parent_id` combinations,
+  and webmail capabilities advertise the whole-tree search mode for production
+  file pickers and compose-side Drive insertion flows.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

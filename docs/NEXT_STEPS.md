@@ -1391,6 +1391,10 @@ Current state:
   production browsing controls without frontend-specific assumptions.
 - Drive node listing now supports webmail/admin `node_type=folder|file` filters
   and advertises supported node types through webmail capabilities.
+- Webmail Drive node listing now accepts `all_parents=true` for whole-user
+  Drive search/list views, and webmail capabilities advertise the mode so
+  production compose file pickers can search user Drive inventory without
+  crawling folders client-side.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

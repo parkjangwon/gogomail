@@ -177,6 +177,7 @@ type webmailAttachmentCapabilities struct {
 type webmailDriveCapabilities struct {
 	Nodes                    bool     `json:"nodes"`
 	NodeNameSearch           bool     `json:"node_name_search"`
+	NodeAllParentsSearch     bool     `json:"node_all_parents_search"`
 	NodeTypeFilter           bool     `json:"node_type_filter"`
 	SupportedNodeTypes       []string `json:"supported_node_types"`
 	NodeSortControls         bool     `json:"node_sort_controls"`
@@ -287,6 +288,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		Drive: webmailDriveCapabilities{
 			Nodes:                    true,
 			NodeNameSearch:           true,
+			NodeAllParentsSearch:     true,
 			NodeTypeFilter:           true,
 			SupportedNodeTypes:       []string{drive.NodeTypeFolder, drive.NodeTypeFile},
 			NodeSortControls:         true,
