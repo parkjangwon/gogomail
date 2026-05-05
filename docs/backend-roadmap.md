@@ -2258,6 +2258,10 @@ Implementation order:
       lookup over user/domain/company state, and CalDAV discovery delegates to
       that shared boundary instead of embedding its own private active-user
       query.
+1093. Directory/Identity principal resolution now also supports organization
+      principals over the existing organization/domain/company model, preparing
+      organization calendar and policy scopes without exposing shared-calendar
+      or resource-booking semantics publicly.
 
 ## Deferred until backend contracts stabilize
 
@@ -2268,9 +2272,9 @@ Implementation order:
 - Vault
 - IMAP
 - CalDAV public/client-ready compatibility
-- Directory/Identity expansion for organization/resource/group principals,
-  aliases, memberships, delegation, and principal resolution beyond the initial
-  active-user resolver
+- Directory/Identity expansion for resource/group principals, aliases,
+  memberships, delegation, and principal resolution beyond the initial
+  active-user and organization resolver
 - Contacts/CardDAV boundary for personal contacts, external people, and
   address-book metadata
 - Notification & Sync boundary for domain events, reminders, devices, quiet

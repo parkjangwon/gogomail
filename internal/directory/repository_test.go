@@ -30,6 +30,18 @@ func TestNormalizePrincipalKindRejectsUnsupportedKinds(t *testing.T) {
 	}
 }
 
+func TestNormalizePrincipalKindAcceptsOrganizationPrincipals(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizePrincipalKind(" Organization ")
+	if err != nil {
+		t.Fatalf("NormalizePrincipalKind returned error: %v", err)
+	}
+	if got != PrincipalKindOrganization {
+		t.Fatalf("kind = %q", got)
+	}
+}
+
 func TestNormalizePrincipalIDRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 

@@ -23,9 +23,17 @@ func (r *Repository) ResolvePrincipal(ctx context.Context, req ResolvePrincipalR
 	if err != nil {
 		return Principal{}, err
 	}
-	if req.Kind != PrincipalKindUser {
+	switch req.Kind {
+	case PrincipalKindUser:
+		return r.resolveUserPrincipal(ctx, req)
+	case PrincipalKindOrganization:
+		return r.resolveOrganizationPrincipal(ctx, req)
+	default:
 		return Principal{}, fmt.Errorf("principal kind %q is not implemented", req.Kind)
 	}
+}
+
+func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
 	const query = `
 SELECT u.id::text,
        c.id::text,
@@ -48,6 +56,39 @@ WHERE u.id = $1::uuid
   AND ($2::boolean = false OR (u.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
 	var principal Principal
 	principal.Kind = PrincipalKindUser
+	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
+		&principal.ID,
+		&principal.CompanyID,
+		&principal.DomainID,
+		&principal.OrganizationID,
+		&principal.DisplayName,
+		&principal.PrimaryEmail,
+		&principal.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Principal{}, fmt.Errorf("directory principal not found")
+		}
+		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
+	}
+	return principal, nil
+}
+
+func (r *Repository) resolveOrganizationPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	const query = `
+SELECT o.id::text,
+       c.id::text,
+       d.id::text,
+       o.id::text,
+       o.name,
+       '',
+       o.status
+FROM organizations o
+JOIN domains d ON d.id = o.domain_id
+JOIN companies c ON c.id = d.company_id
+WHERE o.id = $1::uuid
+  AND ($2::boolean = false OR (o.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+	var principal Principal
+	principal.Kind = PrincipalKindOrganization
 	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
 		&principal.ID,
 		&principal.CompanyID,
