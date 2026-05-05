@@ -85,6 +85,9 @@ Current state:
 - IMAP quoted-string parsing rejects adjacent tokens after a closing quote and
   unsupported backslash escapes before authentication or backend work, keeping
   command tokenization aligned with RFC 3501 quoted-special handling.
+- IMAP mailbox wire-name formatting preserves ordinary internal spacing while
+  still collapsing control-character runs, preventing folder list/status
+  responses from changing distinct user-visible mailbox names.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP quoted-string parse hardening)
+Last updated: 2026-05-05 (updated after IMAP mailbox spacing preservation)
 
 ## Current phase
 
@@ -204,6 +204,9 @@ guidance.
 - IMAP quoted-string parsing now rejects adjacent tokens after a closing quote
   and unsupported backslash escapes before authentication or backend work,
   keeping command tokenization aligned with RFC 3501 quoted-special handling.
+- IMAP mailbox wire-name formatting now preserves ordinary internal spacing
+  while still collapsing control-character runs, preventing `LIST`, `LSUB`, and
+  `STATUS` responses from changing distinct user-visible mailbox names.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -1452,6 +1452,9 @@ Implementation order:
 886. IMAP quoted-string parsing now rejects adjacent tokens after a closing
      quote and unsupported backslash escapes before authentication or backend
      work, aligning command tokenization with RFC 3501 quoted-special handling.
+887. IMAP mailbox wire-name formatting now preserves ordinary internal spacing
+     while still collapsing control-character runs, preventing folder
+     list/status responses from changing distinct user-visible mailbox names.
 
 ## Deferred until backend contracts stabilize
 
