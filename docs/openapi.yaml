@@ -4686,7 +4686,7 @@ components:
         parent_id:
           type: string
           maxLength: 200
-          description: Destination folder id. Omit or send an empty string to copy the file into the Drive root.
+          description: Destination folder id. Omit or send an empty string to copy the node into the Drive root.
         name:
           type: string
           minLength: 1
@@ -5268,7 +5268,7 @@ components:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
         drive:
           type: object
-          required: [nodes, node_name_search, node_detail, node_download, node_range_download, copy_nodes, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          required: [nodes, node_name_search, node_detail, node_download, node_range_download, copy_nodes, max_copy_nodes, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
           properties:
             nodes:
               type: boolean
@@ -5282,6 +5282,9 @@ components:
               type: boolean
             copy_nodes:
               type: boolean
+            max_copy_nodes:
+              type: integer
+              maximum: 500
             usage_summary:
               type: boolean
             create_folders:

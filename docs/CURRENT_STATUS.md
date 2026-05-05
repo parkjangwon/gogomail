@@ -2010,15 +2010,16 @@ The platform hardening sprint completed the following:
   the same message/attachment/storage-object boundary as `GET` and returning
   safe `Content-Disposition`, object-backed `Content-Length`, `no-store`, and
   `nosniff` headers without streaming bytes.
-- Drive file copy is now available through `POST /api/v1/drive/nodes/{id}/copy`.
-  It copies active files through the configured storage adapter, creates
-  quota-accounted metadata with caller-provided destination folder/name, exposes
-  `copy_nodes` in webmail capabilities, and removes the copied object if DB
-  metadata creation fails.
+- Drive node copy is now available through `POST /api/v1/drive/nodes/{id}/copy`.
+  It copies active files and bounded active folder trees through the configured
+  storage adapter, creates quota-accounted metadata with caller-provided
+  destination folder/name, exposes `copy_nodes` plus `max_copy_nodes` in
+  webmail capabilities, and removes copied objects if DB metadata creation or
+  bounded folder-tree copy fails.
 - Drive file copy cleanup now records a pending cleanup-failure row if metadata
   creation fails after object copy and the copied object cannot be deleted,
   keeping object-storage drift visible to operator retry/resolve tooling.
-- Drive file copy now preallocates the destination node UUID and uses that same
+- Drive file copies now preallocate the destination node UUID and use that same
   identifier in the copied object's committed storage path and `drive_nodes.id`,
   keeping copy metadata and object keys aligned.
 - Drive upload-session finalization, staged-object finalization, and file copy

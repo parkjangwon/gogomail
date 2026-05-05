@@ -1559,7 +1559,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Exercise outbound DSN/bounce generation against a deployment-level controlled SMTP sink. Unit and wire tests now cover `NOTIFY=NEVER`, null reverse-path queueing/suppression, DSN option suppression to non-DSN peers, and retry/bounce recipient classification for temporary/permanent recipient failures.
 - Verify frontend contracts for error envelope parsing, upload endpoint naming, and draft send response handling.
 - Verify webmail clients use `HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download` for attachment metadata previews when they need object-backed size/header checks before streaming bytes.
-- Verify Drive copy UX calls `POST /api/v1/drive/nodes/{id}/copy` only for files until recursive folder copy is explicitly implemented and advertised.
+- Verify Drive copy UX respects the advertised `max_copy_nodes` cap when calling `POST /api/v1/drive/nodes/{id}/copy` for files or folder trees.
 - Verify Drive cleanup-failure operations include node-less copied-object cleanup rows caused by failed copy metadata creation.
 - Verify Drive clients treat HTTP 507 `insufficient_storage` from finalize/copy paths as quota pressure, distinct from validation failures.
 

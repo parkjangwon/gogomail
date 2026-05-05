@@ -1975,6 +1975,9 @@ Implementation order:
 1027. Drive folder creation SQL now uses only the bound request parameters,
       fixing production folder-create placeholder drift before recursive Drive
       copy work builds on it.
+1028. Drive node copy now supports bounded active folder-tree copies in
+      addition to files, preserving backend-neutral object copy semantics,
+      quota-accounted file metadata, and cleanup on partial-copy failure.
 
 ## Deferred until backend contracts stabilize
 

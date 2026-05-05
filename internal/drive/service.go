@@ -43,6 +43,10 @@ type RetryObjectCleanupFailuresResult struct {
 	Failed   int `json:"failed"`
 }
 
+const MaxDriveCopyNodes = 500
+
+const driveCopyChildrenPageLimit = 200
+
 func NewService(repo *Repository, stores map[string]storage.Store) *Service {
 	copiedStores := make(map[string]storage.Store, len(stores))
 	for backend, store := range stores {
@@ -391,9 +395,90 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 	if err != nil {
 		return Node{}, err
 	}
-	source, sourcePath, store, err := s.driveFileObject(ctx, OpenFileRequest{UserID: req.UserID, NodeID: req.NodeID})
+	source, err := s.repo.GetNode(ctx, GetNodeRequest{UserID: req.UserID, NodeID: req.NodeID})
 	if err != nil {
 		return Node{}, err
+	}
+	switch source.Type {
+	case NodeTypeFile:
+		return s.copyDriveFileNode(ctx, source, req.ParentID, req.Name)
+	case NodeTypeFolder:
+		return s.copyDriveFolderNode(ctx, source, req.ParentID, req.Name)
+	default:
+		return Node{}, fmt.Errorf("unsupported drive node type %q", source.Type)
+	}
+}
+
+func (s *Service) copyDriveFolderNode(ctx context.Context, source Node, parentID string, name string) (Node, error) {
+	root, err := s.repo.CreateFolder(ctx, CreateFolderRequest{UserID: source.UserID, ParentID: parentID, Name: name})
+	if err != nil {
+		return Node{}, err
+	}
+	remaining := MaxDriveCopyNodes - 1
+	if err := s.copyDriveFolderChildren(ctx, source.UserID, source.ID, root.ID, &remaining); err != nil {
+		if cleanupErr := s.cleanupCopiedDriveTree(ctx, source.UserID, root.ID); cleanupErr != nil {
+			return Node{}, fmt.Errorf("copy drive folder tree: %v; cleanup copied tree: %w", err, cleanupErr)
+		}
+		return Node{}, err
+	}
+	return root, nil
+}
+
+func (s *Service) copyDriveFolderChildren(ctx context.Context, userID string, sourceParentID string, destParentID string, remaining *int) error {
+	if remaining == nil || *remaining <= 0 {
+		return fmt.Errorf("drive folder copy exceeds %d nodes", MaxDriveCopyNodes)
+	}
+	children, err := s.repo.ListNodes(ctx, ListNodesRequest{
+		UserID:   userID,
+		ParentID: sourceParentID,
+		Status:   NodeStatusActive,
+		Limit:    driveCopyChildrenPageLimit,
+	})
+	if err != nil {
+		return err
+	}
+	if len(children) >= driveCopyChildrenPageLimit {
+		return fmt.Errorf("drive folder copy child page exceeds supported limit")
+	}
+	for _, child := range children {
+		if *remaining <= 0 {
+			return fmt.Errorf("drive folder copy exceeds %d nodes", MaxDriveCopyNodes)
+		}
+		*remaining = *remaining - 1
+		switch child.Type {
+		case NodeTypeFile:
+			if _, err := s.copyDriveFileNode(ctx, child, destParentID, child.Name); err != nil {
+				return err
+			}
+		case NodeTypeFolder:
+			copiedFolder, err := s.repo.CreateFolder(ctx, CreateFolderRequest{UserID: userID, ParentID: destParentID, Name: child.Name})
+			if err != nil {
+				return err
+			}
+			if err := s.copyDriveFolderChildren(ctx, userID, child.ID, copiedFolder.ID, remaining); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unsupported drive node type %q", child.Type)
+		}
+	}
+	return nil
+}
+
+func (s *Service) copyDriveFileNode(ctx context.Context, source Node, parentID string, name string) (Node, error) {
+	if source.Type != NodeTypeFile {
+		return Node{}, fmt.Errorf("drive node is not a file")
+	}
+	if source.Status != NodeStatusActive {
+		return Node{}, fmt.Errorf("drive node is not active")
+	}
+	sourcePath, err := storage.ValidateObjectPath(source.StoragePath)
+	if err != nil {
+		return Node{}, fmt.Errorf("unsafe drive file storage path: %w", err)
+	}
+	store := s.stores[source.StorageBackend]
+	if store == nil {
+		return Node{}, fmt.Errorf("storage store %q is required", source.StorageBackend)
 	}
 	if _, err := store.Stat(ctx, sourcePath); err != nil {
 		return Node{}, fmt.Errorf("stat source drive file object: %w", err)
@@ -402,7 +487,7 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 	if err != nil {
 		return Node{}, err
 	}
-	destPath, err := BuildNodeObjectPath(req.UserID, newNodeID)
+	destPath, err := BuildNodeObjectPath(source.UserID, newNodeID)
 	if err != nil {
 		return Node{}, err
 	}
@@ -411,9 +496,9 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 	}
 	node, err := s.repo.CreateFileFromObject(ctx, store, CreateFileFromObjectRequest{
 		NodeID:         newNodeID,
-		UserID:         req.UserID,
-		ParentID:       req.ParentID,
-		Name:           req.Name,
+		UserID:         source.UserID,
+		ParentID:       parentID,
+		Name:           name,
 		StorageBackend: source.StorageBackend,
 		StoragePath:    destPath,
 		MIMEType:       source.MIMEType,
@@ -421,7 +506,7 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 	})
 	if err != nil {
 		if cleanupErr := store.Delete(ctx, destPath); cleanupErr != nil {
-			if recordErr := s.recordCopiedObjectCleanupFailure(ctx, req.UserID, source.StorageBackend, destPath, cleanupErr); recordErr != nil {
+			if recordErr := s.recordCopiedObjectCleanupFailure(ctx, source.UserID, source.StorageBackend, destPath, cleanupErr); recordErr != nil {
 				return Node{}, fmt.Errorf("record drive copy cleanup failure after metadata error %v and cleanup error %v: %w", err, cleanupErr, recordErr)
 			}
 			return Node{}, fmt.Errorf("create copied drive file metadata: %v; cleanup copied object: %w", err, cleanupErr)
@@ -429,6 +514,14 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 		return Node{}, err
 	}
 	return node, nil
+}
+
+func (s *Service) cleanupCopiedDriveTree(ctx context.Context, userID string, rootID string) error {
+	if _, _, err := s.repo.TrashNode(ctx, TrashNodeRequest{UserID: userID, NodeID: rootID}); err != nil {
+		return err
+	}
+	_, err := s.PermanentDeleteNode(ctx, PermanentDeleteNodeRequest{UserID: userID, NodeID: rootID})
+	return err
 }
 
 func (s *Service) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNodeRequest) (PermanentDeleteServiceResult, error) {
