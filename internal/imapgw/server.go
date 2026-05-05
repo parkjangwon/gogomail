@@ -3397,17 +3397,22 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
 		return false, err
 	}
-	mode, silent, ok := imapStoreMode(fields[4])
+	unchangedSince, storeFields, ok := imapStoreUnchangedSince(fields[4:])
+	if !ok || len(storeFields) < 2 {
+		_, err := writer.WriteString(tag + " BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n")
+		return false, err
+	}
+	mode, silent, ok := imapStoreMode(storeFields[0])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE mode is unsupported\r\n")
 		return false, err
 	}
-	flags, ok := imapStoreFlags(strings.Join(fields[5:], " "))
+	flags, ok := imapStoreFlags(strings.Join(storeFields[1:], " "))
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE flags are unsupported\r\n")
 		return false, err
 	}
-	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, "UID STORE")
+	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "UID STORE")
 }
 
 func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -3433,28 +3438,42 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, writeErr := writer.WriteString(tag + " NO STORE failed\r\n")
 		return false, writeErr
 	}
-	mode, silent, ok := imapStoreMode(fields[3])
+	unchangedSince, storeFields, ok := imapStoreUnchangedSince(fields[3:])
+	if !ok || len(storeFields) < 2 {
+		_, err := writer.WriteString(tag + " BAD STORE UNCHANGEDSINCE modifier is invalid\r\n")
+		return false, err
+	}
+	mode, silent, ok := imapStoreMode(storeFields[0])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD STORE mode is unsupported\r\n")
 		return false, err
 	}
-	flags, ok := imapStoreFlags(strings.Join(fields[4:], " "))
+	flags, ok := imapStoreFlags(strings.Join(storeFields[1:], " "))
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD STORE flags are unsupported\r\n")
 		return false, err
 	}
-	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, "STORE")
+	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "STORE")
 }
 
-func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, completionCommand string) (bool, error) {
+func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, unchangedSince uint64, completionCommand string) (bool, error) {
+	if unchangedSince > 0 {
+		state.condstoreAware = true
+	}
 	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
-		UserID:    state.session.UserID,
-		MailboxID: state.selectedMailbox,
-		UIDs:      uids,
-		Flags:     flags,
-		Mode:      mode,
+		UserID:         state.session.UserID,
+		MailboxID:      state.selectedMailbox,
+		UIDs:           uids,
+		Flags:          flags,
+		Mode:           mode,
+		UnchangedSince: unchangedSince,
 	})
 	if err != nil {
+		var modified *StoreModifiedError
+		if errors.As(err, &modified) {
+			_, writeErr := writer.WriteString(fmt.Sprintf("%s NO [MODIFIED %s] %s conditional store failed\r\n", tag, imapUIDSetResponse(modified.UIDs), completionCommand))
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
@@ -3481,6 +3500,34 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 	}
 	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
+}
+
+func imapStoreUnchangedSince(fields []string) (uint64, []string, bool) {
+	if len(fields) == 0 {
+		return 0, fields, true
+	}
+	if !strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
+		return 0, fields, true
+	}
+	end := -1
+	for i, field := range fields {
+		if strings.HasSuffix(strings.TrimSpace(field), ")") {
+			end = i
+			break
+		}
+	}
+	if end < 0 {
+		return 0, nil, false
+	}
+	tokens := imapFetchNormalizedTokens(fields[:end+1])
+	if len(tokens) != 2 || !strings.EqualFold(tokens[0], "UNCHANGEDSINCE") {
+		return 0, nil, false
+	}
+	threshold, ok := parseIMAPModSeqValue(tokens[1])
+	if !ok {
+		return 0, nil, false
+	}
+	return threshold, fields[end+1:], true
 }
 
 func imapSequenceNumber(summary MessageSummary) (uint32, bool) {

@@ -1130,6 +1130,10 @@ Implementation order:
 798. IMAP sessions now become CONDSTORE-aware after implemented mod-sequence
      enabling commands, so subsequent flag `FETCH` event/STORE echo responses
      include `MODSEQ` attributes for client cache coherence.
+799. IMAP `STORE` and `UID STORE` now support RFC 4551-shaped
+     `(UNCHANGEDSINCE n)` modifiers with transactional per-message mod-sequence
+     checks and `[MODIFIED uid-set]` responses when a stale flag write is
+     rejected.
 
 ## Deferred until backend contracts stabilize
 
