@@ -232,7 +232,9 @@ or development `user_id` fallback path as webmail mail routes:
   file metadata, and best-effort deletes the copied object if metadata creation
   fails. If that cleanup delete also fails, the Drive cleanup-failure queue
   records the copied object path without a node id so operators can retry or
-  resolve storage drift explicitly.
+  resolve storage drift explicitly. Copied files use a preallocated Drive node
+  UUID for both the committed object path and inserted `drive_nodes.id`, keeping
+  object keys and metadata identifiers aligned across storage backends.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

@@ -54,6 +54,7 @@ func TestValidateCreateFileFromObjectRequest(t *testing.T) {
 	t.Parallel()
 
 	req, normalizedName, err := ValidateCreateFileFromObjectRequest(CreateFileFromObjectRequest{
+		NodeID:         " node-1 ",
 		UserID:         " user-1 ",
 		ParentID:       " parent-1 ",
 		Name:           "  Report.PDF  ",
@@ -65,7 +66,7 @@ func TestValidateCreateFileFromObjectRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateCreateFileFromObjectRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Name != "Report.PDF" {
+	if req.NodeID != "node-1" || req.UserID != "user-1" || req.ParentID != "parent-1" || req.Name != "Report.PDF" {
 		t.Fatalf("request = %+v, want trimmed identity fields", req)
 	}
 	if req.StorageBackend != "s3" || req.StoragePath != "drive/user-1/report.pdf" {
@@ -92,6 +93,7 @@ func TestValidateCreateFileFromObjectRequestRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "../bad"},
 		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf", MIMEType: "text/plain\nbad"},
 		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf", ChecksumSHA256: "not-sha"},
+		{NodeID: "node\n1", UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf"},
 	}
 	for _, tc := range tests {
 		tc := tc

@@ -2012,6 +2012,9 @@ The platform hardening sprint completed the following:
 - Drive file copy cleanup now records a pending cleanup-failure row if metadata
   creation fails after object copy and the copied object cannot be deleted,
   keeping object-storage drift visible to operator retry/resolve tooling.
+- Drive file copy now preallocates the destination node UUID and uses that same
+  identifier in the copied object's committed storage path and `drive_nodes.id`,
+  keeping copy metadata and object keys aligned.
 
 Next focus areas:
 

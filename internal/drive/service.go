@@ -410,6 +410,7 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 		return Node{}, fmt.Errorf("copy drive file object: %w", err)
 	}
 	node, err := s.repo.CreateFileFromObject(ctx, store, CreateFileFromObjectRequest{
+		NodeID:         newNodeID,
 		UserID:         req.UserID,
 		ParentID:       req.ParentID,
 		Name:           req.Name,
