@@ -83,6 +83,8 @@ Current state:
 - Local/NFS-style storage writes stage data through unique temporary files in
   the destination directory before `rename`, avoiding fixed `.tmp` collisions
   while preserving atomic object replacement semantics.
+- Local/NFS-style storage deletes treat already-missing objects as success,
+  aligning cleanup semantics with S3-compatible object deletion.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
   paths share strict canonical key validation before adapter use.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and

@@ -193,6 +193,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Local/NFS-style storage writes now stage through unique temporary files in
   the destination directory before `rename`, avoiding fixed `.tmp` collisions
   while preserving atomic replacement semantics for local deployments.
+- Local/NFS-style storage deletes are idempotent for missing objects, aligning
+  lifecycle cleanup behavior with S3-compatible object deletion.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object

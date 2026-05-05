@@ -19,6 +19,8 @@ the mount itself provides durability and availability.
 Writes are staged through unique temporary files in the destination directory
 and committed with `rename`, avoiding fixed `.tmp` collisions on local or
 NFS-style mounts while preserving atomic object replacement semantics.
+Deletes are idempotent for missing objects, matching S3-style cleanup behavior
+so lifecycle workers behave consistently across storage backends.
 
 ## Local MinIO
 

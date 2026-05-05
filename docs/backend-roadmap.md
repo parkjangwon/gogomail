@@ -1437,6 +1437,9 @@ Implementation order:
 881. Local/NFS-style storage writes now stage data through unique temporary
      files in the destination directory before `rename`, avoiding fixed `.tmp`
      collisions while preserving atomic object replacement semantics.
+882. Local/NFS-style storage deletes now treat already-missing objects as
+     success, aligning lifecycle cleanup semantics with S3-compatible object
+     deletion across storage backends.
 
 ## Deferred until backend contracts stabilize
 
