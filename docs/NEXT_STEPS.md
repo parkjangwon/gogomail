@@ -374,8 +374,8 @@ Current state:
   messages can receive fresh mailbox-local UIDs later.
 - Optional PostgreSQL integration tests cover IMAP UID backfill and move
   invalidation when a test database URL is configured.
-- `internal/imapgw` includes an in-memory mailbox event broker that future IDLE
-  sessions can subscribe to without blocking write paths.
+- `internal/imapgw` includes an in-memory mailbox event broker that live IDLE
+  sessions and NOOP polling can subscribe to without blocking write paths.
 - `mailservice.StoreIMAPFlags` can publish mailbox `flags` events through the
   broker boundary after repository flag mutations succeed.
 - Mail API single and bulk flag mutations can publish mailbox `flags` events
@@ -389,7 +389,7 @@ Current state:
 - Admin API exposes bounded IMAP UID backfill for future operator/bootstrap
   modes without enabling an IMAP protocol listener.
 - IMAP mailbox event publication is best-effort after successful mutations, so
-  future IDLE fan-out cannot make committed mail writes appear failed.
+  IDLE/NOOP fan-out cannot make committed mail writes appear failed.
 - Mail API move/delete expunge notifications carry mailbox sequence numbers
   from IMAP UID lookup, allowing selected `NOOP`/`IDLE` clients to receive
   renderable untagged `EXPUNGE` updates.
@@ -400,7 +400,7 @@ Current state:
   mailbox-event subscription.
 - `gogomail --mode=imap` is now a separate gateway that opens the
   service-backed IMAP store adapter, wires a process-local mailbox event broker
-  for future IDLE sessions, and serves the configured TCP protocol listener.
+  for live IDLE sessions, and serves the configured TCP protocol listener.
 - `GOGOMAIL_IMAP_ADDR` is loaded and validated as required TCP listener
   metadata for the protocol listener.
 - `GOGOMAIL_IMAP_TLS_CERT_FILE`, `GOGOMAIL_IMAP_TLS_KEY_FILE`, and

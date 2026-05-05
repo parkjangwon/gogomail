@@ -922,9 +922,9 @@ The platform hardening sprint completed the following:
   from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
   move invalidation when `GOGOMAIL_TEST_DATABASE_URL` is available.
-- `internal/imapgw` has a small in-memory mailbox event broker for future IDLE
-  fan-out without introducing a protocol listener yet; broker delivery is
-  scoped by both user and mailbox to preserve tenant isolation.
+- `internal/imapgw` has a small in-memory mailbox event broker for live IDLE
+  and NOOP fan-out through the protocol listener; broker delivery is scoped by
+  both user and mailbox to preserve tenant isolation.
 - `mailservice.StoreIMAPFlags` can publish IMAP mailbox `flags` events through
   an optional event publisher after repository flag mutations succeed.
 - Mail API single and bulk flag mutations can look up existing IMAP UID rows and
