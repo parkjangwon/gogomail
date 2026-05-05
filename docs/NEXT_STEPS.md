@@ -80,6 +80,9 @@ Current state:
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
 - `APPEND`, `STORE`, and `UID STORE` flag-list parsing rejects unparenthesized
   or unbalanced flag lists instead of silently trimming stray parentheses.
+- `STORE` and `UID STORE` honor selected-mailbox `[PERMANENTFLAGS]`, rejecting
+  otherwise valid system flags when the mailbox did not advertise them as
+  permanent before backend mutation dispatch.
 - IMAP message sequence sets reject numbers above the selected mailbox size
   with tagged `BAD` responses, preserving RFC 3501 bounds behavior.
 - IMAP quoted-string parsing rejects adjacent tokens after a closing quote and
