@@ -406,6 +406,10 @@ inventory through the same node read model used by webmail clients.
 `GET /admin/v1/drive-nodes/{id}` returns `{"drive_node":{...}}` with required
 `user_id` and optional lifecycle `status`, giving operator consoles a bounded
 single-node metadata view for files and folders.
+`GET /admin/v1/drive-usage` returns `{"drive_usage_summary":{...}}` with
+required `user_id`, exposing user Drive quota ledger values, status-scoped node
+counts and bytes, and pending/uploading/failed upload-session counts for
+operator dashboard cards.
 `POST /admin/v1/drive-upload-cleanup/candidates` accepts the same explicit
 cleanup preview body as attachment cleanup and returns
 `{"drive_upload_cleanup_candidates":{...}}` with stale Drive upload-session

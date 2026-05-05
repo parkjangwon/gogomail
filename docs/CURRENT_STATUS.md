@@ -363,6 +363,9 @@ guidance.
 - Admin API now exposes `GET /admin/v1/drive-nodes/{id}` with required user
   scope and lifecycle status filtering so operator consoles can inspect one
   Drive file or folder without entering user-facing auth paths.
+- Admin API now exposes `GET /admin/v1/drive-usage` with required user scope
+  so operator consoles can render quota, node-count, byte-count, and pending
+  upload-session dashboard summaries.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.

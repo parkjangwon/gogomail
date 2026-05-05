@@ -107,6 +107,7 @@ type AdminService interface {
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetDriveNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
+	GetDriveUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
 	CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error)
 	ListStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
 	RunDriveUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
@@ -219,6 +220,7 @@ type adminConsoleOperationCapabilities struct {
 	DriveUploadSessions      bool `json:"drive_upload_sessions"`
 	DriveNodes               bool `json:"drive_nodes"`
 	DriveNodeDetail          bool `json:"drive_node_detail"`
+	DriveUsageSummary        bool `json:"drive_usage_summary"`
 	DriveUploadCleanup       bool `json:"drive_upload_cleanup"`
 	DriveCleanupFailures     bool `json:"drive_cleanup_failures"`
 	DriveCleanupFailureRetry bool `json:"drive_cleanup_failure_retry"`
@@ -273,6 +275,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			DriveUploadSessions:      true,
 			DriveNodes:               true,
 			DriveNodeDetail:          true,
+			DriveUsageSummary:        true,
 			DriveUploadCleanup:       true,
 			DriveCleanupFailures:     true,
 			DriveCleanupFailureRetry: true,
@@ -1232,6 +1235,34 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_node": node})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/drive-usage", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
+		if strings.TrimSpace(userID) == "" {
+			writeError(w, http.StatusBadRequest, "user_id is required")
+			return
+		}
+		req, err := drive.ValidateGetUsageSummaryRequest(drive.GetUsageSummaryRequest{UserID: userID})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		summary, err := service.GetDriveUsageSummary(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_usage_summary": summary})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

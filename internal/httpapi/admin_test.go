@@ -87,7 +87,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -894,6 +894,75 @@ func TestAdminDriveNodeHandlerRejectsUnsafeFilters(t *testing.T) {
 			}
 			if service.lastDriveNodeGet.NodeID != "" {
 				t.Fatalf("get was called: %+v", service.lastDriveNodeGet)
+			}
+		})
+	}
+}
+
+func TestAdminDriveUsageHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		driveUsageSummary: drive.UsageSummary{
+			UserID:                "user-1",
+			QuotaUsed:             2048,
+			QuotaLimit:            4096,
+			ActiveNodes:           3,
+			FileCount:             2,
+			ActiveBytes:           2048,
+			PendingUploadSessions: 1,
+			PendingUploadBytes:    512,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-usage?user_id=%20user-1%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Summary drive.UsageSummary `json:"drive_usage_summary"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Summary.UserID != "user-1" || body.Summary.ActiveBytes != 2048 || body.Summary.PendingUploadSessions != 1 {
+		t.Fatalf("summary = %+v", body.Summary)
+	}
+	if service.lastDriveUsage.UserID != "user-1" {
+		t.Fatalf("lastDriveUsage = %+v", service.lastDriveUsage)
+	}
+}
+
+func TestAdminDriveUsageHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/drive-usage?user_id=user%0Abad",
+		"/admin/v1/drive-usage?user_id=user-1&cursor=opaque",
+		"/admin/v1/drive-usage",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDriveUsage.UserID != "" {
+				t.Fatalf("usage was called: %+v", service.lastDriveUsage)
 			}
 		})
 	}
@@ -6517,6 +6586,7 @@ type fakeAdminService struct {
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
+	driveUsageSummary                           drive.UsageSummary
 	driveUploadSessions                         []drive.UploadSession
 	apiUsageExportHandoff                       maildb.APIUsageExportHandoffView
 	apiUsageExportArtifact                      maildb.APIUsageExportArtifactView
@@ -6596,6 +6666,7 @@ type fakeAdminService struct {
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
+	lastDriveUsage                              drive.GetUsageSummaryRequest
 	lastDriveUploadSessionList                  drive.ListUploadSessionsRequest
 	lastDriveUploadCleanupBefore                time.Time
 	lastDriveUploadCleanupLimit                 int
@@ -6874,6 +6945,11 @@ func (f *fakeAdminService) ListDriveNodes(_ context.Context, req drive.ListNodes
 func (f *fakeAdminService) GetDriveNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {
 	f.lastDriveNodeGet = req
 	return f.driveNode, nil
+}
+
+func (f *fakeAdminService) GetDriveUsageSummary(_ context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error) {
+	f.lastDriveUsage = req
+	return f.driveUsageSummary, nil
 }
 
 func (f *fakeAdminService) CountStaleDriveUploadSessions(_ context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error) {

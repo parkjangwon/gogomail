@@ -420,6 +420,9 @@ Current state:
   wildcard handling.
 - Admin API now exposes `GET /admin/v1/drive-nodes/{id}` with required user
   scope and lifecycle status filtering for single-node metadata inspection.
+- Admin API now exposes `GET /admin/v1/drive-usage` with required user scope
+  for quota, node-count, byte-count, and pending upload-session dashboard
+  summaries.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

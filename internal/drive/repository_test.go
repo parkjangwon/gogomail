@@ -160,6 +160,28 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateGetUsageSummaryRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateGetUsageSummaryRequest(GetUsageSummaryRequest{UserID: " user-1 "})
+	if err != nil {
+		t.Fatalf("ValidateGetUsageSummaryRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" {
+		t.Fatalf("request = %+v, want trimmed user id", req)
+	}
+	for _, userID := range []string{"", "user\n1"} {
+		userID := userID
+		t.Run(userID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateGetUsageSummaryRequest(GetUsageSummaryRequest{UserID: userID}); err == nil {
+				t.Fatalf("ValidateGetUsageSummaryRequest(%q) error = nil, want rejection", userID)
+			}
+		})
+	}
+}
+
 func TestValidateGetNodeRequest(t *testing.T) {
 	t.Parallel()
 
