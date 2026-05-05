@@ -26,6 +26,18 @@ func TestBuildNodeObjectPath(t *testing.T) {
 	}
 }
 
+func TestBuildUploadSessionBodyPath(t *testing.T) {
+	t.Parallel()
+
+	path, err := BuildUploadSessionBodyPath(" user-1 ", " session-1 ", " body-1 ")
+	if err != nil {
+		t.Fatalf("BuildUploadSessionBodyPath returned error: %v", err)
+	}
+	if path != "drive/users/user-1/upload-sessions/session-1/bodies/body-1" {
+		t.Fatalf("path = %q", path)
+	}
+}
+
 func TestUserObjectPrefix(t *testing.T) {
 	t.Parallel()
 

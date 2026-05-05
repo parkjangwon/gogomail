@@ -91,6 +91,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session cancelation is now exposed through a Mail API route,
   letting clients close abandoned pending/uploading/failed sessions before
   expiry cleanup handles them.
+- Drive upload-session body storage now preserves retry safety by writing each
+  body to a distinct object path before repository metadata update, deleting
+  failed writes and superseded bodies through the shared storage adapter.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

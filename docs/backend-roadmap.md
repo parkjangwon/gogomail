@@ -1846,6 +1846,10 @@ Implementation order:
 992. Mail API now exposes `DELETE /api/v1/drive/upload-sessions/{id}`,
      allowing production Drive clients to cancel pending, uploading, or failed
      sessions explicitly instead of waiting for expiry cleanup.
+993. Drive upload-session body storage now has service/repository boundaries
+     that stream retry bodies to distinct canonical object paths, enforce
+     declared size and optional SHA-256 checks, record storage metadata, and
+     clean failed or superseded objects best-effort through shared storage.
 
 ## Deferred until backend contracts stabilize
 

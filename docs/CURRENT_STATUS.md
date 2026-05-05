@@ -322,6 +322,11 @@ guidance.
 - Mail API now exposes `DELETE /api/v1/drive/upload-sessions/{id}`, allowing
   clients to explicitly cancel pending/uploading/failed Drive upload sessions
   instead of waiting for expiry cleanup.
+- Drive upload-session body storage now has service/repository boundaries that
+  stream each retry to a distinct canonical object path, verify declared size
+  and optional SHA-256, update session storage metadata, and best-effort clean
+  superseded or failed staged bodies across local/NFS, MinIO, and S3-compatible
+  stores.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

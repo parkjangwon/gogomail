@@ -2,9 +2,13 @@ package drive
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/storage"
 )
@@ -116,6 +120,72 @@ func (s *Service) CancelUploadSession(ctx context.Context, req CancelUploadSessi
 		return UploadSession{}, fmt.Errorf("drive repository is required")
 	}
 	return s.repo.CancelUploadSession(ctx, req)
+}
+
+func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSessionBodyRequest) (UploadSession, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if s == nil || s.repo == nil {
+		return UploadSession{}, fmt.Errorf("drive repository is required")
+	}
+	req, err := ValidateStoreUploadSessionBodyRequest(req)
+	if err != nil {
+		return UploadSession{}, err
+	}
+	session, err := s.repo.GetUploadSession(ctx, GetUploadSessionRequest{UserID: req.UserID, SessionID: req.SessionID})
+	if err != nil {
+		return UploadSession{}, err
+	}
+	if session.Status != UploadSessionStatusPending && session.Status != UploadSessionStatusUploading && session.Status != UploadSessionStatusFailed {
+		return UploadSession{}, fmt.Errorf("drive upload session is not writable")
+	}
+	if !session.ExpiresAt.After(time.Now().UTC()) {
+		return UploadSession{}, fmt.Errorf("drive upload session is expired")
+	}
+	store := s.stores[session.StorageBackend]
+	if store == nil {
+		return UploadSession{}, fmt.Errorf("storage store %q is required", session.StorageBackend)
+	}
+	objectID, err := NewUploadID()
+	if err != nil {
+		return UploadSession{}, err
+	}
+	storagePath, err := BuildUploadSessionBodyPath(session.UserID, session.ID, objectID)
+	if err != nil {
+		return UploadSession{}, err
+	}
+
+	counter := &countingReader{reader: req.Body}
+	limited := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
+	hash := sha256.New()
+	if err := store.Put(ctx, storagePath, io.TeeReader(limited, hash)); err != nil {
+		return UploadSession{}, fmt.Errorf("store drive upload session body: %w", err)
+	}
+	if counter.bytesRead > session.DeclaredSize {
+		_ = store.Delete(ctx, storagePath)
+		return UploadSession{}, fmt.Errorf("drive upload session body exceeds declared_size")
+	}
+	checksum := hex.EncodeToString(hash.Sum(nil))
+	if req.ExpectedChecksumSHA256 != "" && checksum != req.ExpectedChecksumSHA256 {
+		_ = store.Delete(ctx, storagePath)
+		return UploadSession{}, fmt.Errorf("drive upload session checksum mismatch")
+	}
+	updated, err := s.repo.StoreUploadSessionBody(ctx, RecordUploadSessionBodyRequest{
+		UserID:         req.UserID,
+		SessionID:      req.SessionID,
+		ReceivedSize:   counter.bytesRead,
+		StoragePath:    storagePath,
+		ChecksumSHA256: checksum,
+	})
+	if err != nil {
+		_ = store.Delete(ctx, storagePath)
+		return UploadSession{}, err
+	}
+	if session.StoragePath != "" && session.StoragePath != storagePath {
+		_ = store.Delete(ctx, session.StoragePath)
+	}
+	return updated, nil
 }
 
 func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {

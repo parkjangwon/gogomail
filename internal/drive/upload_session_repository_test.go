@@ -62,3 +62,22 @@ func TestServiceCancelUploadSessionRequiresRepository(t *testing.T) {
 		t.Fatalf("CancelUploadSession err = %v, want repository rejection", err)
 	}
 }
+
+func TestStoreUploadSessionBodyRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	repo := NewRepository(nil)
+	_, err := repo.StoreUploadSessionBody(context.Background(), RecordUploadSessionBodyRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("StoreUploadSessionBody err = %v, want database handle rejection first", err)
+	}
+}
+
+func TestServiceStoreUploadSessionBodyRequiresRepository(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Service)(nil).StoreUploadSessionBody(context.Background(), StoreUploadSessionBodyRequest{})
+	if err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("StoreUploadSessionBody err = %v, want repository rejection", err)
+	}
+}
