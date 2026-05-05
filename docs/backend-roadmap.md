@@ -2073,6 +2073,12 @@ Implementation order:
       collections, returning requested object ETags and `calendar-data` in
       multistatus responses while applying RFC 5545-backed VEVENT time-range
       overlap filtering when clients send CalDAV time-range filters.
+1052. CalDAV now implements a conservative RFC 6578 `REPORT sync-collection`
+      handler for authenticated calendar collections: initial empty-token sync
+      returns active objects plus a top-level collection sync token, current
+      tokens return only the token, stale tokens return a DAV
+      `valid-sync-token` precondition error, and truncating limits are rejected
+      until continuation or tombstone/change-log support exists.
 
 ## Deferred until backend contracts stabilize
 

@@ -52,6 +52,31 @@ func TestBuildMultiStatusXMLRendersPropStatusEnvelope(t *testing.T) {
 	}
 }
 
+func TestBuildSyncCollectionXMLRendersRootSyncToken(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildSyncCollectionXML([]MultiStatusResponse{{
+		Href: "/caldav/calendars/user-1/work/event.ics",
+		PropStats: []PropStatus{{
+			StatusCode: http.StatusOK,
+			Properties: []PropertyResult{
+				{Name: PropGetETag, Value: PropertyValue{Text: `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`}, Found: true},
+			},
+		}},
+	}}, "sync-123")
+	if err != nil {
+		t.Fatalf("BuildSyncCollectionXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	if !strings.Contains(text, "<D:sync-token>sync-123</D:sync-token>") {
+		t.Fatalf("sync-token missing:\n%s", text)
+	}
+	if !strings.Contains(text, "<D:href>/caldav/calendars/user-1/work/event.ics</D:href>") {
+		t.Fatalf("response href missing:\n%s", text)
+	}
+}
+
 func TestSelectPropfindPropertiesSeparatesFoundAndMissing(t *testing.T) {
 	t.Parallel()
 
