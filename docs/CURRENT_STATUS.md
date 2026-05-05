@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP charset quote hardening)
+Last updated: 2026-05-05 (updated after IMAP THREAD algorithm quote hardening)
 
 ## Current phase
 
@@ -249,6 +249,9 @@ guidance.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject malformed
   atoms that still contain quote characters after command parsing, preventing
   broken values such as `UTF-8"` from being silently normalized.
+- IMAP `THREAD` algorithm arguments now reject malformed atoms that still
+  contain quote characters after command parsing, preventing broken values such
+  as `ORDEREDSUBJECT"` from being silently normalized.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -129,6 +129,9 @@ Current state:
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
   values such as `UTF-8"` from being silently normalized.
+- IMAP `THREAD` algorithm arguments reject malformed atoms that still contain
+  quote characters after command parsing, preventing broken values such as
+  `ORDEREDSUBJECT"` from being silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

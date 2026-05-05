@@ -5210,7 +5210,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na4 UID THREAD ORDEREDSUBJECT US-ASCII SUBJECT Project\r\na5 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na6 THREAD REFERENCES UTF-8 ALL\r\na7 THREAD ORDEREDSUBJECT UTF-8\" ALL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na4 UID THREAD ORDEREDSUBJECT US-ASCII SUBJECT Project\r\na5 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na6 THREAD REFERENCES UTF-8 ALL\r\na7 THREAD ORDEREDSUBJECT UTF-8\" ALL\r\na8 THREAD ORDEREDSUBJECT\" UTF-8 ALL\r\n")); err != nil {
 		t.Fatalf("write thread commands: %v", err)
 	}
 	want := []string{
@@ -5221,6 +5221,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 		"a5 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
 		"a6 BAD THREAD algorithm is unsupported\r\n",
 		"a7 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
+		"a8 BAD THREAD algorithm is unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5231,7 +5232,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 			t.Fatalf("thread response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
