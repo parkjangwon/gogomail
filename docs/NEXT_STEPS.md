@@ -1522,6 +1522,8 @@ Current state:
   Content` body, matching local/NFS range-read behavior.
 - CalDAV object `GET`/`HEAD` now honor `If-Unmodified-Since` before cache
   revalidation, returning HTTP 412 for stale timestamp read preconditions.
+- S3-compatible `GetRange` now validates that `Content-Range` matches the
+  requested byte window before returning the bounded response reader.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
