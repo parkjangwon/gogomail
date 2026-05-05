@@ -1110,6 +1110,10 @@ Implementation order:
      destination mailboxes to RFC-shaped `NO [TRYCREATE]` responses, matching
      the APPEND behavior and improving retry/create flows in standards-aware
      clients.
+793. IMAP selected-mailbox event draining now suppresses stale or duplicate
+     `EXISTS` events when an exact message count is present, reducing noisy
+     follow-up NOOP/IDLE updates after commands that already reported the same
+     mailbox size.
 
 ## Deferred until backend contracts stabilize
 

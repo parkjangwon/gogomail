@@ -871,7 +871,8 @@ The platform hardening sprint completed the following:
 - IMAP non-UID `STORE` supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses for those requests.
 - IMAP `NOOP` drains queued selected-mailbox events into untagged `EXISTS` and
-  flag `FETCH` updates.
+  flag `FETCH` updates, suppressing stale or duplicate exact-count `EXISTS`
+  events relative to the selected mailbox state.
 - IMAP advertises and accepts `IDLE`, entering continuation mode and streaming
   selected-mailbox `EXISTS` and flag `FETCH` updates while waiting for `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` work over the
