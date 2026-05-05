@@ -541,6 +541,24 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	return summaries, nil
 }
 
+func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.MessageSummary, error) {
+	repo, ok := s.repository.(interface {
+		CopyIMAPMessages(context.Context, string, string, string, []imapgw.UID) ([]imapgw.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap copy repository is required")
+	}
+	userID := strings.TrimSpace(string(req.UserID))
+	sourceMailboxID := strings.TrimSpace(string(req.SourceMailboxID))
+	destMailboxID := strings.TrimSpace(string(req.DestMailboxID))
+	summaries, err := repo.CopyIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, userID, summaries)
+	return summaries, nil
+}
+
 func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, summaries []imapgw.MessageSummary) error {
 	if s.imapEvents == nil || len(summaries) == 0 {
 		return nil

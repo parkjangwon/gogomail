@@ -428,6 +428,332 @@ FOR UPDATE`
 	return summaries, nil
 }
 
+func (r *Repository) CopyIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	sourceMailboxID = strings.TrimSpace(sourceMailboxID)
+	destMailboxID = strings.TrimSpace(destMailboxID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if sourceMailboxID == "" {
+		return nil, fmt.Errorf("source_mailbox_id is required")
+	}
+	if destMailboxID == "" {
+		return nil, fmt.Errorf("dest_mailbox_id is required")
+	}
+	if len(uids) == 0 {
+		return nil, nil
+	}
+	if len(uids) > 500 {
+		return nil, fmt.Errorf("too many uids")
+	}
+	for _, uid := range uids {
+		if uid == 0 {
+			return nil, fmt.Errorf("uid must not be zero")
+		}
+	}
+	rawUIDs, err := json.Marshal(uids)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap copy uids: %w", err)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin imap copy transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var destExists bool
+	if err := tx.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM folders
+  WHERE id = $1::uuid
+    AND user_id = $2::uuid
+)`, destMailboxID, userID).Scan(&destExists); err != nil {
+		return nil, fmt.Errorf("validate imap copy destination mailbox: %w", err)
+	}
+	if !destExists {
+		return nil, fmt.Errorf("destination mailbox %q not found", destMailboxID)
+	}
+	const ensureState = `
+INSERT INTO imap_mailbox_state (mailbox_id, user_id)
+SELECT id, user_id
+FROM folders
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+ON CONFLICT (mailbox_id) DO NOTHING`
+	if _, err := tx.ExecContext(ctx, ensureState, destMailboxID, userID); err != nil {
+		return nil, fmt.Errorf("ensure imap destination mailbox state: %w", err)
+	}
+
+	var totalSize int64
+	const totalQuery = `
+WITH input AS (
+  SELECT value::bigint AS uid
+  FROM jsonb_array_elements_text($4::jsonb)
+)
+SELECT COALESCE(SUM(m.size), 0)
+FROM input
+JOIN imap_message_uid i
+  ON i.uid = input.uid
+ AND i.user_id = $1::uuid
+ AND i.mailbox_id = $2::uuid
+JOIN messages m
+  ON m.id = i.message_id
+ AND m.user_id = $1::uuid
+ AND m.folder_id = $2::uuid
+ AND m.status = 'active'
+WHERE EXISTS (
+  SELECT 1
+  FROM folders f
+  WHERE f.id = $3::uuid
+    AND f.user_id = $1::uuid
+)`
+	if err := tx.QueryRowContext(ctx, totalQuery, userID, sourceMailboxID, destMailboxID, string(rawUIDs)).Scan(&totalSize); err != nil {
+		return nil, fmt.Errorf("sum imap copy message sizes: %w", err)
+	}
+	if err := checkAndIncrementUserQuota(ctx, tx, userID, totalSize); err != nil {
+		return nil, err
+	}
+
+	const copyQuery = `
+WITH input AS (
+  SELECT value::bigint AS uid, ordinality
+  FROM jsonb_array_elements_text($4::jsonb) WITH ORDINALITY
+),
+locked_state AS (
+  SELECT mailbox_id, user_id, uidnext, highest_modseq
+  FROM imap_mailbox_state
+  WHERE mailbox_id = $3::uuid
+    AND user_id = $1::uuid
+  FOR UPDATE
+),
+source AS (
+  SELECT
+    gen_random_uuid() AS new_id,
+    m.id AS source_id,
+    m.tenant_id,
+    m.domain_id,
+    m.user_id,
+    m.rfc_message_id,
+    m.in_reply_to,
+    m.thread_id,
+    m.subject,
+    m.from_addr,
+    m.from_name,
+    m.to_addrs,
+    m.cc_addrs,
+    m.bcc_addrs,
+    m.received_at,
+    m.sent_at,
+    m.size,
+    m.has_attachment,
+    m.flags,
+    m.spam_score,
+    m.storage_path,
+    m.dek_encrypted,
+    m.legal_hold,
+    m.compose_intent,
+    m.source_message_id,
+    m.draft_text_body,
+    row_number() OVER (ORDER BY input.ordinality) AS rn
+  FROM input
+  JOIN imap_message_uid i
+    ON i.uid = input.uid
+   AND i.user_id = $1::uuid
+   AND i.mailbox_id = $2::uuid
+  JOIN messages m
+    ON m.id = i.message_id
+   AND m.user_id = $1::uuid
+   AND m.folder_id = $2::uuid
+   AND m.status = 'active'
+),
+inserted_messages AS (
+  INSERT INTO messages (
+    id,
+    tenant_id,
+    domain_id,
+    user_id,
+    folder_id,
+    rfc_message_id,
+    in_reply_to,
+    thread_id,
+    subject,
+    from_addr,
+    from_name,
+    to_addrs,
+    cc_addrs,
+    bcc_addrs,
+    received_at,
+    sent_at,
+    size,
+    has_attachment,
+    flags,
+    spam_score,
+    storage_path,
+    dek_encrypted,
+    status,
+    legal_hold,
+    compose_intent,
+    source_message_id,
+    draft_text_body
+  )
+  SELECT
+    new_id,
+    tenant_id,
+    domain_id,
+    user_id,
+    $3::uuid,
+    rfc_message_id,
+    in_reply_to,
+    thread_id,
+    subject,
+    from_addr,
+    from_name,
+    to_addrs,
+    cc_addrs,
+    bcc_addrs,
+    received_at,
+    sent_at,
+    size,
+    has_attachment,
+    flags,
+    spam_score,
+    storage_path,
+    dek_encrypted,
+    'active',
+    legal_hold,
+    compose_intent,
+    source_message_id,
+    draft_text_body
+  FROM source
+  RETURNING id
+),
+inserted_attachments AS (
+  INSERT INTO attachments (
+    message_id,
+    user_id,
+    draft_id,
+    upload_id,
+    storage_path,
+    filename,
+    size,
+    mime_type,
+    status
+  )
+  SELECT
+    source.new_id,
+    COALESCE(a.user_id, $1::uuid),
+    NULL,
+    'imap-copy/' || source.new_id::text || '/' || a.id::text,
+    a.storage_path,
+    a.filename,
+    a.size,
+    a.mime_type,
+    a.status
+  FROM source
+  JOIN attachments a ON a.message_id = source.source_id
+  RETURNING 1
+),
+inserted_uids AS (
+  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+  SELECT
+    source.new_id,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + source.rn - 1,
+    locked_state.highest_modseq + source.rn
+  FROM source
+  CROSS JOIN locked_state
+  RETURNING message_id, mailbox_id, user_id, uid, modseq
+),
+updated_state AS (
+  UPDATE imap_mailbox_state
+  SET uidnext = uidnext + (SELECT COUNT(*) FROM source),
+      highest_modseq = highest_modseq + (SELECT COUNT(*) FROM source),
+      updated_at = CASE WHEN EXISTS (SELECT 1 FROM source) THEN now() ELSE updated_at END
+  WHERE mailbox_id = $3::uuid
+    AND user_id = $1::uuid
+  RETURNING 1
+)
+SELECT
+  source.new_id::text,
+  $3::text AS mailbox_id,
+  COALESCE(source.rfc_message_id, ''),
+  source.subject,
+  source.from_addr,
+  source.from_name,
+  COALESCE(source.received_at, source.sent_at, now()) AS internal_date,
+  source.size,
+  COALESCE((source.flags->>'read')::boolean, false) AS read,
+  COALESCE((source.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((source.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((source.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((source.flags->>'draft')::boolean, false) AS draft,
+  'active' AS status,
+  inserted_uids.uid,
+  inserted_uids.modseq,
+  (SELECT COUNT(*) FROM inserted_attachments) AS attachment_copy_count
+FROM source
+JOIN inserted_messages ON inserted_messages.id = source.new_id
+JOIN inserted_uids ON inserted_uids.message_id = source.new_id
+ORDER BY source.rn`
+	rows, err := tx.QueryContext(ctx, copyQuery, userID, sourceMailboxID, destMailboxID, string(rawUIDs))
+	if err != nil {
+		return nil, fmt.Errorf("copy imap messages: %w", err)
+	}
+	defer rows.Close()
+
+	summaries := make([]imapgw.MessageSummary, 0, len(uids))
+	for rows.Next() {
+		var row imapMessageRow
+		var messageUID IMAPMessageUID
+		var attachmentCopyCount int64
+		if err := rows.Scan(
+			&row.ID,
+			&row.MailboxID,
+			&row.RFCMessageID,
+			&row.Subject,
+			&row.FromAddr,
+			&row.FromName,
+			&row.InternalDate,
+			&row.Size,
+			&row.Read,
+			&row.Starred,
+			&row.Answered,
+			&row.Forwarded,
+			&row.Draft,
+			&row.Status,
+			&messageUID.UID,
+			&messageUID.ModSeq,
+			&attachmentCopyCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan copied imap message: %w", err)
+		}
+		_ = attachmentCopyCount
+		messageUID.MessageID = imapgw.MessageID(row.ID)
+		messageUID.MailboxID = imapgw.MailboxID(row.MailboxID)
+		summary := imapMessageFromRow(row, messageUID)
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, destMailboxID, messageUID.UID)
+		if err != nil {
+			return nil, err
+		}
+		summary.SequenceNumber = sequenceNumber
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate copied imap messages: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit imap copy transaction: %w", err)
+	}
+	return summaries, nil
+}
+
 func (r *Repository) ExistingIMAPMessageUIDs(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

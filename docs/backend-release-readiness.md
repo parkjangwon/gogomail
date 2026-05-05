@@ -242,12 +242,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag mutation, bounded UID backfill, move/delete UID invalidation, and
   same-active-mailbox idempotency checks.
 - `mailservice` now exposes IMAP mailbox/message listing, raw fetch, flag store,
-  UID backfill, and mailbox-event subscription through service methods plus an
-  `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping protocol wiring off
-  direct `maildb` internals.
+  COPY, UID backfill, and mailbox-event subscription through service methods
+  plus an `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping protocol wiring
+  off direct `maildb` internals.
 - `IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore` for mailbox
-  selection and event subscription, while MOVE and EXPUNGE return an explicit
-  unsupported mutation error until IMAP-safe semantics are reviewed.
+  selection, service-backed COPY, and event subscription, while MOVE and
+  EXPUNGE return an explicit unsupported mutation error until IMAP-safe
+  destructive semantics are reviewed.
 - Admin API exposes bounded IMAP UID backfill by user/mailbox for future
   operator/bootstrap runs without enabling an IMAP protocol listener.
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
@@ -456,8 +457,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO`
   responses while `\Deleted` semantics remain deferred.
-- IMAP `COPY` and `UID COPY` now return explicit unsupported `NO` responses
-  while cross-mailbox copy semantics remain deferred.
+- IMAP `COPY` and `UID COPY` now resolve source sequence/UID sets through the
+  selected mailbox, validate the destination mailbox, duplicate active message
+  metadata and attachment rows transactionally, assign fresh destination
+  mailbox UIDs, and publish best-effort destination `EXISTS` events.
 - IMAP `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
   responses while mailbox mutation/import semantics remain deferred.
 - IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return

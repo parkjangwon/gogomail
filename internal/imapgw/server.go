@@ -428,16 +428,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		return s.handleStore(writer, tag, fields, state)
 	case "COPY":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
-		if state.selectedMailbox == "" {
-			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
-			return false, err
-		}
-		_, err := writer.WriteString(tag + " NO COPY is not supported\r\n")
-		return false, err
+		return s.handleCopy(writer, tag, fields, state)
 	case "CHECK":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -788,8 +779,7 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " NO UID EXPUNGE is not supported\r\n")
 		return false, err
 	case "COPY":
-		_, err := writer.WriteString(tag + " NO UID COPY is not supported\r\n")
-		return false, err
+		return s.handleUIDCopy(writer, tag, fields, state)
 	case "MOVE":
 		_, err := writer.WriteString(tag + " NO UID MOVE is not supported\r\n")
 		return false, err
@@ -1478,6 +1468,19 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 	return s.writeFetchResponses(writer, tag, fields[4:], state, uids, "UID FETCH")
 }
 
+func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 5 {
+		_, err := writer.WriteString(tag + " BAD UID COPY requires UID set and destination mailbox\r\n")
+		return false, err
+	}
+	uids, ok := parseIMAPUIDSet(fields[3])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
+		return false, err
+	}
+	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[4]), "UID COPY")
+}
+
 func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -1502,6 +1505,58 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 		return false, writeErr
 	}
 	return s.writeFetchResponses(writer, tag, fields[3:], state, uids, "FETCH")
+}
+
+func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD COPY requires sequence set and destination mailbox\r\n")
+		return false, err
+	}
+	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
+		return false, err
+	}
+	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO COPY failed\r\n")
+		return false, writeErr
+	}
+	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[3]), "COPY")
+}
+
+func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
+	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+		return false, writeErr
+	}
+	summaries, err := s.options.Backend.CopyMessages(context.Background(), CopyMessagesRequest{
+		UserID:          state.session.UserID,
+		SourceMailboxID: state.selectedMailbox,
+		DestMailboxID:   destMailbox.ID,
+		UIDs:            uids,
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+		return false, writeErr
+	}
+	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
+		state.selectedMessages += uint32(len(summaries))
+		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
+			return false, err
+		}
+	}
+	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+	return false, err
 }
 
 func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnState, sequenceNumbers []uint32) ([]UID, error) {

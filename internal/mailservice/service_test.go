@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -758,6 +759,38 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		imapCopySummaries: []imapgw.MessageSummary{{ID: "msg-copy-1", MailboxID: "archive", UID: 20}},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	got, err := service.CopyIMAPMessages(context.Background(), imapgw.CopyMessagesRequest{
+		UserID:          " user-1 ",
+		SourceMailboxID: " inbox ",
+		DestMailboxID:   " archive ",
+		UIDs:            []imapgw.UID{12, 13},
+	})
+	if err != nil {
+		t.Fatalf("CopyIMAPMessages returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].UID != 20 {
+		t.Fatalf("summaries = %#v, want repository result", got)
+	}
+	if repo.lastIMAPCopyUserID != "user-1" || repo.lastIMAPCopySourceMailboxID != "inbox" || repo.lastIMAPCopyDestMailboxID != "archive" {
+		t.Fatalf("copy ids = %q/%q/%q", repo.lastIMAPCopyUserID, repo.lastIMAPCopySourceMailboxID, repo.lastIMAPCopyDestMailboxID)
+	}
+	if !reflect.DeepEqual(repo.lastIMAPCopyUIDs, []imapgw.UID{12, 13}) {
+		t.Fatalf("copy uids = %v, want [12 13]", repo.lastIMAPCopyUIDs)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "archive" || events.events[0].UID != 20 {
+		t.Fatalf("events = %#v, want exists event", events.events)
+	}
+}
+
 func TestSetMessageFlagPublishesIMAPFlagEvent(t *testing.T) {
 	t.Parallel()
 
@@ -1247,6 +1280,7 @@ type fakeRepository struct {
 	detail                         maildb.MessageDetail
 	imapMessage                    maildb.IMAPStoredMessage
 	imapFlagSummaries              []imapgw.MessageSummary
+	imapCopySummaries              []imapgw.MessageSummary
 	imapUIDs                       []maildb.IMAPMessageUID
 	imapMailboxes                  []imapgw.Mailbox
 	imapMessages                   []imapgw.MessageSummary
@@ -1343,6 +1377,10 @@ type fakeRepository struct {
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
 	lastIMAPFlagUserID             string
 	lastIMAPFlagMailboxID          string
+	lastIMAPCopyUserID             string
+	lastIMAPCopySourceMailboxID    string
+	lastIMAPCopyDestMailboxID      string
+	lastIMAPCopyUIDs               []imapgw.UID
 	lastIMAPUIDLookupUserID        string
 	lastIMAPUIDLookupMessageIDs    []string
 	lastIMAPMailboxUserID          string
@@ -1503,6 +1541,14 @@ func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailbo
 	f.lastIMAPFlags = flags
 	f.lastIMAPFlagMode = mode
 	return f.imapFlagSummaries, nil
+}
+
+func (f *fakeRepository) CopyIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+	f.lastIMAPCopyUserID = userID
+	f.lastIMAPCopySourceMailboxID = sourceMailboxID
+	f.lastIMAPCopyDestMailboxID = destMailboxID
+	f.lastIMAPCopyUIDs = append([]imapgw.UID(nil), uids...)
+	return f.imapCopySummaries, nil
 }
 
 func (f *fakeRepository) ExistingIMAPMessageUIDs(_ context.Context, userID string, messageIDs []string) ([]maildb.IMAPMessageUID, error) {

@@ -15,6 +15,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -946,7 +947,7 @@ func TestServerRejectsUnsupportedExpunge(t *testing.T) {
 	}
 }
 
-func TestServerRejectsUnsupportedCopyMoveAndAppend(t *testing.T) {
+func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 	t.Parallel()
 
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
@@ -975,15 +976,13 @@ func TestServerRejectsUnsupportedCopyMoveAndAppend(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 COPY 1 Archive\r\na4 UID COPY 7 Archive\r\na5 MOVE 1 Archive\r\na6 UID MOVE 7 Archive\r\na7 APPEND inbox NIL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 MOVE 1 Archive\r\na4 UID MOVE 7 Archive\r\na5 APPEND inbox NIL\r\n")); err != nil {
 		t.Fatalf("write unsupported mutation commands: %v", err)
 	}
 	want := []string{
-		"a3 NO COPY is not supported\r\n",
-		"a4 NO UID COPY is not supported\r\n",
-		"a5 NO MOVE is not supported\r\n",
-		"a6 NO UID MOVE is not supported\r\n",
-		"a7 NO APPEND is not supported\r\n",
+		"a3 NO MOVE is not supported\r\n",
+		"a4 NO UID MOVE is not supported\r\n",
+		"a5 NO APPEND is not supported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -994,7 +993,77 @@ func TestServerRejectsUnsupportedCopyMoveAndAppend(t *testing.T) {
 			t.Fatalf("unsupported mutation response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesCopyCommands(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &copyBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 COPY 1:2 Archive\r\na4 UID COPY 7 Archive\r\n")); err != nil {
+		t.Fatalf("write copy commands: %v", err)
+	}
+	want := []string{
+		"a3 OK COPY completed\r\n",
+		"a4 OK UID COPY completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read copy response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("copy response = %q, want %q", line, expected)
+		}
+	}
+	if len(backendImpl.requests) != 2 {
+		t.Fatalf("copy request count = %d, want 2", len(backendImpl.requests))
+	}
+	if got, want := backendImpl.requests[0].UIDs, []UID{7, 8}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("sequence COPY UIDs = %v, want %v", got, want)
+	}
+	if got, want := backendImpl.requests[1].UIDs, []UID{7}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("UID COPY UIDs = %v, want %v", got, want)
+	}
+	for _, req := range backendImpl.requests {
+		if req.SourceMailboxID != "inbox" || req.DestMailboxID != "archive" || req.UserID != "user-1" {
+			t.Fatalf("copy request = %+v, want user-1 inbox -> archive", req)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -3705,6 +3774,29 @@ func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (Mailbox
 		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
 		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft},
 	}, nil
+}
+
+func (fakeBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]MessageSummary, error) {
+	return []MessageSummary{{ID: "message-copy-1", MailboxID: "inbox", UID: 9}}, nil
+}
+
+type copyBackend struct {
+	fakeBackend
+	requests []CopyMessagesRequest
+}
+
+func (b *copyBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
+	switch strings.ToLower(strings.TrimSpace(string(mailboxID))) {
+	case "archive":
+		return Mailbox{ID: "archive", Name: "Archive", UIDValidity: 2, UIDNext: 3}, nil
+	default:
+		return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
+	}
+}
+
+func (b *copyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
+	b.requests = append(b.requests, req)
+	return []MessageSummary{{ID: "message-copy-1", MailboxID: req.DestMailboxID, UID: 9}}, nil
 }
 
 func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {

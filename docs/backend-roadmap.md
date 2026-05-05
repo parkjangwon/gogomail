@@ -740,9 +740,9 @@ Implementation order:
      listener metadata for the IMAP scaffold, preparing future protocol listener
      wiring without opening the port yet.
 676. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore`
-     for SELECT-style mailbox state and event subscriptions, while MOVE and
-     EXPUNGE return an explicit unsupported mutation error until IMAP-safe
-     semantics are reviewed.
+     for SELECT-style mailbox state, service-backed COPY, and event
+     subscriptions, while MOVE and EXPUNGE return an explicit unsupported
+     mutation error until IMAP-safe destructive semantics are reviewed.
 677. Runtime storage wiring now supports `GOGOMAIL_STORAGE_BACKEND=s3` and
      `GOGOMAIL_STORAGE_BACKEND=minio` through a standard SigV4 S3-compatible
      adapter with endpoint, region, bucket, prefix, credential, session-token,
@@ -940,8 +940,10 @@ Implementation order:
      block.
 741. IMAP `SEARCH` and `UID SEARCH` now support bounded RFC
      `HEADER <field> <value>` criteria scans over the raw message header block.
-742. IMAP `COPY` and `UID COPY` now return explicit unsupported `NO` responses
-     while cross-mailbox copy semantics remain deferred.
+742. IMAP `COPY` and `UID COPY` now resolve source sequence/UID sets, validate
+     the destination mailbox, duplicate active message metadata and attachment
+     rows transactionally, assign fresh destination mailbox UIDs, and publish
+     best-effort destination `EXISTS` events through the service boundary.
 743. IMAP non-UID `STORE` now accepts bounded sequence sets/ranges and maps
      them to the same service-backed flag mutation boundary as `UID STORE`.
 744. IMAP non-UID `STORE` now supports `.SILENT` flag mutation modes and
@@ -1031,6 +1033,11 @@ Implementation order:
 773. IMAP `SELECT` and `EXAMINE` now establish mailbox event subscriptions
      before emitting selected-mailbox response data, avoiding ambiguous partial
      selection state when subscription setup fails.
+774. IMAP `COPY` and `UID COPY` now have protocol, service, and PostgreSQL
+     repository coverage for standards-shaped cross-mailbox copy semantics:
+     source UIDs remain stable, destination copies receive fresh mailbox-local
+     UIDs, copied rows pass through quota accounting, and destructive
+     MOVE/EXPUNGE behavior remains explicitly deferred.
 
 ## Deferred until backend contracts stabilize
 
