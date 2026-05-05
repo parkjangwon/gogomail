@@ -279,9 +279,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   with listener option validation, backend requirement checks, and TLS/insecure
   auth policy enforcement before the IMAP command parser is wired.
 - The IMAP server shell can serve an initial connection greeting plus
-  unauthenticated `CAPABILITY`, `NOOP`, and `LOGOUT` responses, giving TCP
-  clients a bounded RFC-shaped handshake surface before mailbox commands are
-  enabled.
+  unauthenticated `CAPABILITY`, `NOOP`, `LOGIN`, and `LOGOUT` responses, giving
+  TCP clients a bounded RFC-shaped handshake/auth surface before mailbox
+  commands are enabled.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
   IMAP server shell with greeting, `CAPABILITY`, `NOOP`, and `LOGOUT`, while
   mailbox commands remain deferred.

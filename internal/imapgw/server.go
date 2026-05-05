@@ -2,6 +2,7 @@ package imapgw
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -136,6 +137,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	if err := writer.Flush(); err != nil {
 		return err
 	}
+	var session *Session
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -147,7 +149,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		if len(line) > 8192 {
 			return fmt.Errorf("imap command line is too long")
 		}
-		done, err := s.handleUnauthenticatedLine(writer, line)
+		done, err := s.handleLine(writer, line, &session)
 		if err != nil {
 			return err
 		}
@@ -160,7 +162,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 }
 
-func (s *Server) handleUnauthenticatedLine(writer *bufio.Writer, line string) (bool, error) {
+func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session) (bool, error) {
 	fields := strings.Fields(strings.TrimRight(line, "\r\n"))
 	if len(fields) < 2 {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
@@ -177,6 +179,23 @@ func (s *Server) handleUnauthenticatedLine(writer *bufio.Writer, line string) (b
 		return false, err
 	case "NOOP":
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
+		return false, err
+	case "LOGIN":
+		if *session != nil {
+			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+			return false, err
+		}
+		if len(fields) != 4 {
+			_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
+			return false, err
+		}
+		authSession, err := s.options.Backend.Authenticate(context.Background(), fields[2], fields[3])
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO LOGIN failed\r\n")
+			return false, writeErr
+		}
+		*session = &authSession
+		_, err = writer.WriteString(tag + " OK LOGIN completed\r\n")
 		return false, err
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
