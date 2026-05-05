@@ -245,6 +245,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   parsing for display name, description, and CalendarServer/Apple calendar
   color, preserving Request-URI creation semantics, and returning `201 Created`
   plus `Location`. Slug-style path aliases remain future compatibility work.
+- CalDAV now handles `DELETE` for authenticated calendar collections, using
+  one repository transaction to soft-delete the collection and active children
+  while forbidding calendar-home and cross-user deletes. Deletion tombstones for
+  incremental sync remain incomplete.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

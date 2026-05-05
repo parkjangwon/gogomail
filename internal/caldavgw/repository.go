@@ -74,6 +74,11 @@ type DeleteObjectRequest struct {
 	ObjectName string
 }
 
+type DeleteCalendarRequest struct {
+	UserID     string
+	CalendarID string
+}
+
 func (r *Repository) CreateCalendar(ctx context.Context, req CreateCalendarRequest) (Calendar, error) {
 	if r == nil || r.db == nil {
 		return Calendar{}, fmt.Errorf("database handle is required")
@@ -439,6 +444,57 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, si
 	return object, nil
 }
 
+func (r *Repository) DeleteCalendar(ctx context.Context, req DeleteCalendarRequest) (Calendar, error) {
+	if r == nil || r.db == nil {
+		return Calendar{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateDeleteCalendarRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Calendar{}, fmt.Errorf("begin CalDAV calendar delete: %w", err)
+	}
+	defer tx.Rollback()
+	const query = `
+UPDATE caldav_calendars
+SET status = 'deleted', deleted_at = now(), updated_at = now()
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'
+RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
+	var calendar Calendar
+	err = tx.QueryRowContext(ctx, query, req.UserID, req.CalendarID).Scan(
+		&calendar.ID,
+		&calendar.UserID,
+		&calendar.Name,
+		&calendar.Color,
+		&calendar.Description,
+		&calendar.SyncToken,
+		&calendar.CreatedAt,
+		&calendar.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Calendar{}, fmt.Errorf("CalDAV calendar not found")
+		}
+		return Calendar{}, fmt.Errorf("delete CalDAV calendar: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE caldav_calendar_objects
+SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND status = 'active'`, req.UserID, req.CalendarID); err != nil {
+		return Calendar{}, fmt.Errorf("delete CalDAV calendar objects: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Calendar{}, fmt.Errorf("commit CalDAV calendar delete: %w", err)
+	}
+	return calendar, nil
+}
+
 func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarRequest, string, string, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
@@ -621,6 +677,18 @@ func ValidateDeleteObjectRequest(req DeleteObjectRequest) (DeleteObjectRequest, 
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, objectName, "delete", time.Now().UTC().Format(time.RFC3339Nano))
 	return DeleteObjectRequest{UserID: userID, CalendarID: calendarID, ObjectName: objectName}, syncToken, nil
+}
+
+func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarRequest, error) {
+	userID, err := validateCalDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return DeleteCalendarRequest{}, err
+	}
+	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
+	if err != nil {
+		return DeleteCalendarRequest{}, err
+	}
+	return DeleteCalendarRequest{UserID: userID, CalendarID: calendarID}, nil
 }
 
 func lockActiveCalendar(ctx context.Context, tx *sql.Tx, userID string, calendarID string) error {

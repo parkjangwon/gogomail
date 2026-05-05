@@ -157,6 +157,13 @@ creation body parser is bounded and namespace-aware for `displayname`,
 human-readable slug aliases need a separate storage/path design before they can
 be advertised safely to clients.
 
+Calendar collection `DELETE` is also owned by the gateway and maps to a
+repository transaction that soft-deletes the collection and active child
+objects together. This keeps WebDAV lifecycle behavior out of product APIs and
+prepares the future sync-change-log boundary, but stale-token clients still
+need tombstone/change-log support before deletion deltas can be reported
+incrementally.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles
