@@ -810,6 +810,9 @@ The platform hardening sprint completed the following:
   requested mailbox metadata fields.
 - IMAP `LIST` filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
+- IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
+  `\Noselect` and `/` delimiter metadata for clients that probe namespace
+  delimiters through LIST-compatible commands.
 - IMAP `SELECT`/`EXAMINE` emit `[PERMANENTFLAGS]` response codes for writable
   versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` emit RFC-shaped untagged `RECENT` counts alongside

@@ -998,6 +998,9 @@ Implementation order:
 762. IMAP `SEARCH` and `UID SEARCH` now accept sequence-set criteria such as
      `2:*`, letting clients intersect standard search predicates with selected
      mailbox sequence ranges.
+763. IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
+     `\Noselect` and `/` delimiter metadata for clients that probe namespace
+     delimiters through LIST-compatible commands.
 
 ## Deferred until backend contracts stabilize
 
