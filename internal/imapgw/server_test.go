@@ -1092,7 +1092,7 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 		"a3 OK MOVE completed\r\n",
 		"* 1 EXPUNGE\r\n",
 		"a4 OK UID MOVE completed\r\n",
-		"a5 NO APPEND is not supported\r\n",
+		"a5 BAD APPEND requires mailbox and literal\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

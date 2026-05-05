@@ -1727,7 +1727,7 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 
 func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string, literal *string, state *imapConnState) (bool, error) {
 	if literal == nil {
-		_, err := writer.WriteString(tag + " NO APPEND is not supported\r\n")
+		_, err := writer.WriteString(tag + " BAD APPEND requires mailbox and literal\r\n")
 		return false, err
 	}
 	if len(fields) < 4 {

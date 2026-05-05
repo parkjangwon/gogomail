@@ -1098,6 +1098,10 @@ Implementation order:
 789. IMAP `APPEND` now maps quota-ledger `mailbox full` failures to a
      client-visible `NO [OVERQUOTA]` response code, so standards-aware clients
      can distinguish quota exhaustion from generic append failures.
+790. IMAP `APPEND` now rejects commands without a synchronizing literal as a
+     syntax `BAD` response instead of reporting the command as unsupported,
+     reflecting that APPEND is implemented but requires an RFC-shaped literal
+     payload.
 
 ## Deferred until backend contracts stabilize
 
