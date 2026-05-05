@@ -865,7 +865,7 @@ func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, 
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
 	for _, href := range report.Hrefs {
-		resource, err := ParseResourcePath(href)
+		resource, err := ParseResourceHref(href)
 		if err != nil || resource.Kind != ResourceCalendarObject || resource.UserID != userID || !multigetHrefInScope(requestResource, resource) {
 			responses = append(responses, notFoundResponse(href, report.Properties))
 			continue

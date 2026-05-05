@@ -61,6 +61,37 @@ func TestParseResourcePathRejectsUnsafeOrUnsupportedPaths(t *testing.T) {
 	}
 }
 
+func TestParseResourceHrefAcceptsAbsoluteURIPath(t *testing.T) {
+	t.Parallel()
+
+	got, err := ParseResourceHref("https://calendar.example.test/caldav/calendars/user-1/work/event-1.ics")
+	if err != nil {
+		t.Fatalf("ParseResourceHref returned error: %v", err)
+	}
+	want := ResourcePath{Kind: ResourceCalendarObject, UserID: "user-1", CalendarID: "work", ObjectName: "event-1.ics"}
+	if got != want {
+		t.Fatalf("ParseResourceHref = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseResourceHrefRejectsQueryAndFragment(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{
+		"https://calendar.example.test/caldav/calendars/user-1/work/event-1.ics?download=1",
+		"https://calendar.example.test/caldav/calendars/user-1/work/event-1.ics#part",
+	} {
+		value := value
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ParseResourceHref(value); err == nil {
+				t.Fatalf("ParseResourceHref(%q) error = nil, want rejection", value)
+			}
+		})
+	}
+}
+
 func TestBuildCalDAVPaths(t *testing.T) {
 	t.Parallel()
 
