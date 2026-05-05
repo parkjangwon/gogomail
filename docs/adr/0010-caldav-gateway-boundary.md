@@ -76,6 +76,11 @@ ad-hoc line parser. The gateway still applies gogomail-specific storage
 constraints around body size, supported top-level components, UID cardinality,
 and component/property counts before accepting a calendar object.
 
+WebDAV XML responses are generated through a dedicated `multistatus` builder
+that keeps per-property statuses explicit. This avoids scattering raw XML
+construction across future `PROPFIND` and `REPORT` handlers and preserves the
+mixed-success property semantics WebDAV clients expect.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

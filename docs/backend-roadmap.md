@@ -2032,6 +2032,10 @@ Implementation order:
       from `.ics` bodies while rejecting missing/duplicate UIDs, multiple
       supported top-level calendar components, and excessive
       component/property counts before storage.
+1042. CalDAV WebDAV response groundwork now has a reusable `multistatus`
+      builder with per-property `propstat` statuses plus principal,
+      calendar-home, calendar-collection, and calendar-object discovery
+      properties needed by future PROPFIND and REPORT handlers.
 
 ## Deferred until backend contracts stabilize
 

@@ -191,6 +191,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `github.com/emersion/go-ical`, deriving/verifying UID and component metadata
   while bounding supported component count, property count, UID size, and stored
   body bytes.
+- CalDAV WebDAV response generation now has a reusable `multistatus` builder
+  with per-property `propstat` statuses and discovery properties for
+  principals, calendar collections, and calendar objects before protocol
+  handlers are advertised.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
