@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP service UID validation hardening)
+Last updated: 2026-05-05 (updated after IMAP service UID set validation hardening)
 
 ## Current phase
 
@@ -1283,6 +1283,9 @@ The platform hardening sprint completed the following:
 - IMAP service-backed `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
   reject zero UIDs before repository or storage work, keeping direct service
   callers aligned with RFC 3501's positive UID model.
+- IMAP service-backed `STORE`, `COPY`, and `MOVE` calls reject empty UID sets
+  before repository work, while `EXPUNGE` preserves nil UID sets for `CLOSE`
+  style "all deleted messages" semantics.
 - IMAP selected-mailbox `APPEND` now prefers the backend-returned appended
   message sequence number for the untagged `EXISTS` count, falling back to a
   local increment only when precise sequence metadata is unavailable.

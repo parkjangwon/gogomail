@@ -828,6 +828,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP service-backed `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
   reject zero UIDs before repository or storage work, keeping direct callers
   aligned with RFC 3501's positive UID model.
+- IMAP service-backed `STORE`, `COPY`, and `MOVE` calls reject empty UID sets
+  before repository work, while `EXPUNGE` preserves nil UID sets for `CLOSE`
+  style "all deleted messages" semantics.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

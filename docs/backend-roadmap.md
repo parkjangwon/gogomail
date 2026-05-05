@@ -1641,6 +1641,9 @@ Implementation order:
 940. IMAP service-backed `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
      now reject zero UIDs before repository or storage work, keeping direct
      service callers aligned with RFC 3501's positive UID model.
+941. IMAP service-backed `STORE`, `COPY`, and `MOVE` calls now reject empty UID
+     sets before repository work, while `EXPUNGE` preserves nil UID sets for
+     `CLOSE`-style "all deleted messages" semantics.
 
 ## Deferred until backend contracts stabilize
 

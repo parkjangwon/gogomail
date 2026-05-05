@@ -684,7 +684,7 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
 		return nil, err
 	}
-	if err := validateIMAPUIDs(req.UIDs); err != nil {
+	if err := validateNonEmptyIMAPUIDs(req.UIDs); err != nil {
 		return nil, err
 	}
 	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince)
@@ -873,7 +873,7 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 	if err := validateServiceResourceID("dest_mailbox_id", destMailboxID); err != nil {
 		return nil, err
 	}
-	if err := validateIMAPUIDs(req.UIDs); err != nil {
+	if err := validateNonEmptyIMAPUIDs(req.UIDs); err != nil {
 		return nil, err
 	}
 	summaries, err := repo.CopyIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
@@ -903,7 +903,7 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 	if err := validateServiceResourceID("dest_mailbox_id", destMailboxID); err != nil {
 		return nil, err
 	}
-	if err := validateIMAPUIDs(req.UIDs); err != nil {
+	if err := validateNonEmptyIMAPUIDs(req.UIDs); err != nil {
 		return nil, err
 	}
 	results, err := repo.MoveIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
@@ -947,6 +947,13 @@ func validateIMAPUIDs(uids []imapgw.UID) error {
 		}
 	}
 	return nil
+}
+
+func validateNonEmptyIMAPUIDs(uids []imapgw.UID) error {
+	if len(uids) == 0 {
+		return fmt.Errorf("uids are required")
+	}
+	return validateIMAPUIDs(uids)
 }
 
 func imapMoveSourceSummaries(results []imapgw.MoveMessageResult) []imapgw.MessageSummary {
