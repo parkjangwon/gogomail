@@ -319,6 +319,9 @@ Current state:
   address JSON into RFC-shaped ENVELOPE address lists, so repository-backed
   `FETCH ENVELOPE`, address search, and address sort paths share the same
   recipient metadata as Mail API storage.
+- `FETCH`/`UID FETCH` now applies RFC 3501 `\Seen` side effects for successful
+  `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads, while
+  `BODY.PEEK[...]` and `RFC822.HEADER` remain preview-safe and non-mutating.
 - `CAPABILITY` now advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
   `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes when

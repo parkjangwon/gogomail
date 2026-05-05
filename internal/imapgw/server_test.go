@@ -17,6 +17,7 @@ import (
 	"net"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -3974,6 +3975,86 @@ func TestServerHandlesFetchBodyStructure(t *testing.T) {
 	}
 }
 
+func TestServerFetchBodySetsSeenButPeekDoesNot(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &bodyFetchSeenBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 FETCH 1 BODY.PEEK[]\r\n")); err != nil {
+		t.Fatalf("write peek fetch: %v", err)
+	}
+	for _, expected := range []string{
+		"* 1 FETCH (UID 7 FLAGS () RFC822.SIZE 11 BODY[] {11}\r\n",
+		"hello world)\r\n",
+		"a3 OK FETCH completed\r\n",
+	} {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read peek fetch response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("peek fetch response = %q, want %q", line, expected)
+		}
+	}
+	if got := backendImpl.storeCalls(); got != 0 {
+		t.Fatalf("store calls after BODY.PEEK = %d, want 0", got)
+	}
+
+	if _, err := client.Write([]byte("a4 FETCH 1 BODY[]\r\n")); err != nil {
+		t.Fatalf("write body fetch: %v", err)
+	}
+	for _, expected := range []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen) RFC822.SIZE 11 BODY[] {11}\r\n",
+		"hello world)\r\n",
+		"a4 OK FETCH completed\r\n",
+	} {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read body fetch response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("body fetch response = %q, want %q", line, expected)
+		}
+	}
+	if got := backendImpl.storeCalls(); got != 1 {
+		t.Fatalf("store calls after BODY[] = %d, want 1", got)
+	}
+
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesFetchMacros(t *testing.T) {
 	t.Parallel()
 
@@ -5894,6 +5975,55 @@ func (staleStoreBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([
 		{ID: "message-8", UID: 8, SequenceNumber: 2, Flags: MessageFlags{Read: false}, ModSeq: 29},
 	}
 	return summaries, &StoreModifiedError{UIDs: []UID{8}, Summaries: summaries}
+}
+
+type bodyFetchSeenBackend struct {
+	fakeBackend
+
+	mu    sync.Mutex
+	seen  bool
+	calls int
+}
+
+func (b *bodyFetchSeenBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Message, error) {
+	b.mu.Lock()
+	seen := b.seen
+	b.mu.Unlock()
+	return Message{
+		Summary: MessageSummary{
+			ID:             "message-7",
+			UID:            req.UID,
+			SequenceNumber: 1,
+			Flags:          MessageFlags{Read: seen},
+			Size:           11,
+			ModSeq:         17,
+		},
+		Body: io.NopCloser(strings.NewReader("hello world")),
+	}, nil
+}
+
+func (b *bodyFetchSeenBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
+	if req.Mode != StoreFlagsAdd || !req.Flags.Read || len(req.UIDs) != 1 || req.UIDs[0] != 7 {
+		return nil, fmt.Errorf("unexpected store flags request: %+v", req)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.seen = true
+	b.calls++
+	return []MessageSummary{{
+		ID:             "message-7",
+		UID:            7,
+		SequenceNumber: 1,
+		Flags:          MessageFlags{Read: true},
+		Size:           11,
+		ModSeq:         18,
+	}}, nil
+}
+
+func (b *bodyFetchSeenBackend) storeCalls() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.calls
 }
 
 func (fakeBackend) AppendMessage(context.Context, AppendMessageRequest) (AppendMessageResult, error) {

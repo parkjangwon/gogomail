@@ -3049,6 +3049,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	}
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
+	setsSeen := imapFetchSetsSeen(items)
 	for _, uid := range uids {
 		fetchReq := FetchMessageRequest{
 			UserID:    state.session.UserID,
@@ -3132,6 +3133,15 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_ = body.Close()
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
+			}
+			if setsSeen {
+				var err error
+				summary, err = s.markFetchSeen(context.Background(), state, summary)
+				if err != nil {
+					_ = body.Close()
+					_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
+					return false, writeErr
+				}
 			}
 			if requestsMIMEPart {
 				literal, found, err := readIMAPMIMEPartLiteral(body, partRequest)
@@ -3273,6 +3283,39 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	}
 	_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
+}
+
+func (s *Server) markFetchSeen(ctx context.Context, state *imapConnState, summary MessageSummary) (MessageSummary, error) {
+	if state == nil || state.readOnly || summary.Flags.Read || summary.UID == 0 {
+		return summary, nil
+	}
+	if s == nil || s.options.Backend == nil {
+		return summary, fmt.Errorf("imap backend is required")
+	}
+	updated, err := s.options.Backend.StoreFlags(ctx, StoreFlagsRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		UIDs:      []UID{summary.UID},
+		Flags:     MessageFlags{Read: true},
+		Mode:      StoreFlagsAdd,
+	})
+	if err != nil {
+		return summary, err
+	}
+	summary.Flags.Read = true
+	for _, item := range updated {
+		if item.UID != summary.UID {
+			continue
+		}
+		if item.ModSeq > summary.ModSeq {
+			summary.ModSeq = item.ModSeq
+		}
+		if item.SequenceNumber != 0 {
+			summary.SequenceNumber = item.SequenceNumber
+		}
+		break
+	}
+	return summary, nil
 }
 
 func parseIMAPUIDSet(value string) ([]UID, bool) {
@@ -3456,6 +3499,24 @@ func imapFetchRequestsBody(items []string) bool {
 		token := strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
 		if token == "BODY[]" || token == "BODY.PEEK[]" || token == "RFC822" {
 			return true
+		}
+	}
+	return false
+}
+
+func imapFetchSetsSeen(items []string) bool {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			switch {
+			case token == "RFC822" || token == "RFC822.TEXT" || strings.HasPrefix(token, "RFC822.TEXT<"):
+				return true
+			case token == "RFC822.HEADER" || strings.HasPrefix(token, "RFC822.HEADER<"):
+				continue
+			case strings.HasPrefix(token, "BODY.PEEK["):
+				continue
+			case strings.HasPrefix(token, "BODY["):
+				return true
+			}
 		}
 	}
 	return false

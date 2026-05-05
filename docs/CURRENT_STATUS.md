@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after service-backed IMAP envelope recipient hydration)
+Last updated: 2026-05-05 (updated after IMAP BODY fetch seen-state semantics)
 
 ## Current phase
 
@@ -869,6 +869,10 @@ The platform hardening sprint completed the following:
   `Bcc` address JSON into RFC-shaped ENVELOPE address lists, keeping real
   repository-backed `FETCH ENVELOPE`, address search, and address sort behavior
   aligned with the advertised protocol surface.
+- IMAP `FETCH`/`UID FETCH` now apply RFC 3501 `\Seen` side effects for
+  successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads while
+  preserving `BODY.PEEK[...]` and `RFC822.HEADER` as non-mutating preview
+  requests.
 - IMAP `CAPABILITY` advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
   `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes
