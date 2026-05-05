@@ -40,6 +40,7 @@ type Repository interface {
 	BulkMoveThreads(ctx context.Context, req maildb.BulkThreadMoveRequest) (maildb.BulkThreadMoveResult, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
+	BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDeleteRequest) (maildb.BulkThreadDeleteResult, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
 	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
 	DeletePushDevice(ctx context.Context, userID string, id string) error
@@ -1239,6 +1240,34 @@ func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessage
 	return updated, nil
 }
 
+func (s *Service) BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDeleteRequest) (int64, error) {
+	req = normalizeBulkThreadDeleteRequest(req)
+	if err := maildb.ValidateBulkThreadDeleteRequest(req); err != nil {
+		return 0, err
+	}
+	repo, ok := s.repository.(interface {
+		ListMessageIDsForThreads(context.Context, string, []string) ([]string, error)
+		BulkDeleteThreads(context.Context, maildb.BulkThreadDeleteRequest) (maildb.BulkThreadDeleteResult, error)
+	})
+	if !ok {
+		return 0, fmt.Errorf("thread delete repository is required")
+	}
+	messageIDs, err := repo.ListMessageIDsForThreads(ctx, req.UserID, req.ThreadIDs)
+	if err != nil {
+		return 0, err
+	}
+	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, req.UserID, messageIDs)
+	if err != nil {
+		return 0, err
+	}
+	result, err := repo.BulkDeleteThreads(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids)
+	return result.Updated, nil
+}
+
 func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
 	repo, ok := s.repository.(interface {
 		ListPushDevices(context.Context, string, int) ([]maildb.PushDevice, error)
@@ -2190,6 +2219,12 @@ func normalizeBulkThreadMoveRequest(req maildb.BulkThreadMoveRequest) maildb.Bul
 func normalizeBulkMessageDeleteRequest(req maildb.BulkMessageDeleteRequest) maildb.BulkMessageDeleteRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	return req
+}
+
+func normalizeBulkThreadDeleteRequest(req maildb.BulkThreadDeleteRequest) maildb.BulkThreadDeleteRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.ThreadIDs = normalizeStringList(req.ThreadIDs)
 	return req
 }
 

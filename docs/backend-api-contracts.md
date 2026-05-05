@@ -226,6 +226,9 @@ request and only affect active messages owned by the authenticated user.
 - `POST /api/v1/messages/bulk/delete`
   - Body: `{"message_ids":["..."]}`
   - Response: `{"status":"ok","updated":2}`
+- `POST /api/v1/threads/bulk/delete`
+  - Body: `{"thread_ids":["..."]}`
+  - Response: `{"status":"ok","updated":5}`
 
 Bulk endpoints reject missing, blank, duplicate, over-limit, CR/LF-bearing, or
 oversized message/thread IDs instead of silently ignoring ambiguous client
@@ -235,7 +238,10 @@ message IDs are used for best-effort IMAP flag notifications. Thread folder
 moves validate the destination folder, move every active message in matching
 conversations, invalidate affected IMAP UID rows in the same database
 transaction, and publish best-effort IMAP expunge events from the pre-move UID
-snapshot.
+snapshot. Thread deletes soft-delete every active message in matching
+conversations, invalidate affected IMAP UID rows, decrement stored-byte quota in
+the same transaction, and publish best-effort IMAP expunge events from the
+pre-delete UID snapshot.
 
 ## Compose requests
 

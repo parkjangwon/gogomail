@@ -122,6 +122,41 @@ func TestBulkMoveThreadsSQLUpdatesActiveThreadMessages(t *testing.T) {
 	}
 }
 
+func TestValidateBulkThreadDeleteRequestRejectsUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []BulkThreadDeleteRequest{
+		{UserID: "user-1", ThreadIDs: []string{"thread-1", "thread-1"}},
+		{UserID: "user-1", ThreadIDs: []string{"thread-1\r\nthread-2"}},
+		{UserID: "user-1", ThreadIDs: []string{strings.Repeat("x", maxMailboxResourceIDBytes+1)}},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(strings.Join(req.ThreadIDs, ","), func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateBulkThreadDeleteRequest(req); err == nil {
+				t.Fatalf("ValidateBulkThreadDeleteRequest accepted unsafe request %+v", req)
+			}
+		})
+	}
+}
+
+func TestBulkDeleteThreadsSQLDeletesActiveThreadMessages(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"COALESCE(thread_id, id)::text IN",
+		"jsonb_array_elements_text($2::jsonb)",
+		"status = 'deleted'",
+		"RETURNING id::text, COALESCE(size, 0)",
+	} {
+		if !strings.Contains(bulkDeleteThreadsSQL, want) {
+			t.Fatalf("bulk thread delete SQL does not include %q:\n%s", want, bulkDeleteThreadsSQL)
+		}
+	}
+}
+
 func TestValidateBulkMessageMoveRequestRejectsTooManyIDs(t *testing.T) {
 	t.Parallel()
 

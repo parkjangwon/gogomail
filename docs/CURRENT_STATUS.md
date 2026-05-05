@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after thread bulk move actions)
+Last updated: 2026-05-06 (updated after thread bulk delete actions)
 
 ## Current phase
 
@@ -111,6 +111,10 @@ guidance.
 - Mail API now supports bounded thread-level folder moves, validating
   destination folders, invalidating affected IMAP UID rows transactionally, and
   publishing best-effort IMAP expunge events from the pre-move UID snapshot.
+- Mail API now supports bounded thread-level soft deletes, deleting every
+  active message in selected conversations while invalidating IMAP UID rows,
+  decrementing quota transactionally, and publishing best-effort IMAP expunge
+  events from the pre-delete UID snapshot.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.
