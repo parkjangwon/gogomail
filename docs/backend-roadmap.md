@@ -797,10 +797,13 @@ Implementation order:
      unauthenticated `CAPABILITY`, `NOOP`, `LOGIN`, and `LOGOUT` responses,
      giving TCP clients a bounded RFC-shaped handshake/auth surface before
      mailbox commands are enabled.
-691. `gogomail --mode=imap` now opens the configured TCP listener and serves the
-     IMAP server shell with greeting, `CAPABILITY`, `NOOP`, and `LOGOUT`, while
-     mailbox commands remain deferred.
-692. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
+691. Authenticated IMAP `SELECT` now maps to `imapgw.MailboxSessionStore`,
+     returning permanent flags, `EXISTS`, `UIDVALIDITY`, `UIDNEXT`, and
+     read-write completion metadata from the service-backed mailbox state.
+692. `gogomail --mode=imap` now opens the configured TCP listener and serves the
+     IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`,
+     and `LOGOUT`, while FETCH, STORE, IDLE, MOVE, and EXPUNGE remain deferred.
+693. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.
 
