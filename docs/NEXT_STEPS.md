@@ -298,6 +298,9 @@ Current state:
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
   success for passing messages, and `[MODIFIED uid-set]` stale-write responses.
+- `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
+  parameter and mark the session CONDSTORE-aware without advertising the full
+  extension prematurely.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,

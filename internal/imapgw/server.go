@@ -368,8 +368,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		if len(fields) != 3 {
-			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom\r\n")
+		condstore, ok := imapSelectCondstore(fields[3:])
+		if len(fields) < 3 || !ok {
+			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
 			return false, err
 		}
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
@@ -415,6 +416,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
+		if condstore {
+			state.condstoreAware = true
+		}
 		state.events = events
 		state.cancelEvents = cancel
 		if state.readOnly {
@@ -3654,6 +3658,17 @@ func imapListPattern(reference string, pattern string) string {
 		return pattern
 	}
 	return strings.TrimRight(reference, "/") + "/" + pattern
+}
+
+func imapSelectCondstore(fields []string) (bool, bool) {
+	if len(fields) == 0 {
+		return false, true
+	}
+	tokens := imapFetchNormalizedTokens(fields)
+	if len(tokens) != 1 || tokens[0] != "CONDSTORE" {
+		return false, false
+	}
+	return true, true
 }
 
 func imapMailboxMatchesPattern(name string, pattern string) bool {

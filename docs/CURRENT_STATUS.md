@@ -847,6 +847,9 @@ The platform hardening sprint completed the following:
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
   passing updates and returning `[MODIFIED uid-set]` for stale messages.
+- IMAP `SELECT` and `EXAMINE` accept the RFC 4551-shaped `(CONDSTORE)`
+  parameter and mark the session CONDSTORE-aware without advertising the full
+  extension prematurely.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
