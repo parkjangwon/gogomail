@@ -1495,9 +1495,9 @@ The platform hardening sprint completed the following:
   `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
   before returning `NO mailbox must be selected` for valid commands issued
   outside selected state.
-- Authenticated selected-state no-argument commands now reject extra arguments
-  on `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
-  selected-mailbox state errors for well-formed commands.
+- Selected-state no-argument commands now reject extra arguments on `CHECK`,
+  `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
+  or selected-mailbox state errors for well-formed commands.
 - IMAP `STARTTLS` now rejects extra arguments before TLS availability or
   authentication-state checks, preserving no-argument command syntax diagnostics
   during capability probing.

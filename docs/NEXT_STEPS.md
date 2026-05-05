@@ -40,9 +40,9 @@ Current state:
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
-- Authenticated selected-state no-argument commands validate extra arguments
-  on `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
-  selected-mailbox state errors.
+- Selected-state no-argument commands validate extra arguments on `CHECK`,
+  `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
+  or selected-mailbox state errors.
 - `STARTTLS` validates its no-argument syntax before TLS availability and
   authentication-state checks.
 - Authenticated `UID` dispatch validates subcommand arity and destination
