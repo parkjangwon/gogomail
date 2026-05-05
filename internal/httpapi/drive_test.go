@@ -23,14 +23,14 @@ func TestDriveListNodesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterDriveRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=parent-1&status=active&node_type=folder&q=%20Report%20&sort=updated&limit=25", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&status=active&node_type=folder&q=%20Report%20&sort=updated&all_parents=true&limit=25", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.listReq.UserID != "user-1" || service.listReq.ParentID != "parent-1" || service.listReq.Status != "active" || service.listReq.NodeType != drive.NodeTypeFolder || service.listReq.Query != "Report" || service.listReq.Sort != drive.NodeSortUpdated || service.listReq.Limit != 25 {
+	if service.listReq.UserID != "user-1" || service.listReq.ParentID != "" || service.listReq.Status != "active" || service.listReq.NodeType != drive.NodeTypeFolder || service.listReq.Query != "Report" || service.listReq.Sort != drive.NodeSortUpdated || !service.listReq.AllParents || service.listReq.Limit != 25 {
 		t.Fatalf("list request = %+v, want query-backed request", service.listReq)
 	}
 	var body struct {
@@ -41,6 +41,22 @@ func TestDriveListNodesHandler(t *testing.T) {
 	}
 	if len(body.Nodes) != 1 || body.Nodes[0].ID != "node-1" {
 		t.Fatalf("nodes = %+v", body.Nodes)
+	}
+}
+
+func TestDriveListNodesHandlerRejectsAmbiguousAllParents(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=parent-1&all_parents=true", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

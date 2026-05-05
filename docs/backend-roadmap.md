@@ -1998,6 +1998,10 @@ Implementation order:
 1034. IMAP command reading now supports bounded literals in non-final command
       positions and multiple literals in one command, aligning literalized
       LOGIN/string arguments with the advertised `LITERAL+` capability.
+1035. Webmail Drive node listing now accepts `all_parents=true` for whole-user
+      Drive search/list views while rejecting ambiguous `parent_id`
+      combinations, giving production compose file pickers and Drive browsers a
+      backend-backed broad search mode without client-side folder crawling.
 
 ## Deferred until backend contracts stabilize
 

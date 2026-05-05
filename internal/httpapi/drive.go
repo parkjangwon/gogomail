@@ -43,7 +43,7 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "parent_id", "status", "node_type", "q", "sort", "limit") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "parent_id", "status", "node_type", "q", "sort", "all_parents", "limit") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -70,18 +70,27 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		if !ok {
 			return
 		}
+		allParents, ok := parseBoolQueryDefaultFalse(w, r, "all_parents")
+		if !ok {
+			return
+		}
+		if allParents && parentID != "" {
+			writeError(w, http.StatusBadRequest, "parent_id cannot be combined with all_parents")
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
 		}
 		nodes, err := service.ListNodes(r.Context(), drive.ListNodesRequest{
-			UserID:   userID,
-			ParentID: parentID,
-			Status:   status,
-			NodeType: nodeType,
-			Query:    searchQuery,
-			Sort:     sortMode,
-			Limit:    limit,
+			UserID:     userID,
+			ParentID:   parentID,
+			Status:     status,
+			NodeType:   nodeType,
+			Query:      searchQuery,
+			Sort:       sortMode,
+			AllParents: allParents,
+			Limit:      limit,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())

@@ -164,6 +164,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   ordering for webmail and admin Drive browsers.
 - Drive node list surfaces now expose `node_type=folder|file` filters, and
   webmail capabilities advertise the supported node types.
+- Webmail Drive node listing can now opt into `all_parents=true` whole-user
+  Drive search/list views while rejecting ambiguous `parent_id` combinations,
+  giving production compose file pickers a backend-backed search mode.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
