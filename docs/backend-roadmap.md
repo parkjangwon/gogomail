@@ -1591,6 +1591,10 @@ Implementation order:
      covered, pinning `GOGOMAIL_STORAGE_BACKEND=minio` to path-style requests,
      preserving ordinary S3 virtual-hosted defaults, and honoring the explicit
      `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` override.
+927. IMAP `BODY[TEXT]`, `BODY.PEEK[TEXT]`, and `RFC822.TEXT` section literal
+     reads now enforce the same bounded text-literal ceiling as other IMAP
+     body fetch paths, rejecting oversized section bodies before unbounded
+     allocation.
 
 ## Deferred until backend contracts stabilize
 

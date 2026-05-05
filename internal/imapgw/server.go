@@ -4770,11 +4770,7 @@ func readIMAPSectionLiteral(reader io.Reader, wantHeader bool) ([]byte, error) {
 				if wantHeader {
 					return data[:end], nil
 				}
-				rest, err := io.ReadAll(reader)
-				if err != nil {
-					return nil, err
-				}
-				return append(data[end:], rest...), nil
+				return readRemainingIMAPSectionText(data[end:], reader)
 			}
 		}
 		if err != nil {
@@ -4787,6 +4783,21 @@ func readIMAPSectionLiteral(reader io.Reader, wantHeader bool) ([]byte, error) {
 			return nil, err
 		}
 	}
+}
+
+func readRemainingIMAPSectionText(prefix []byte, reader io.Reader) ([]byte, error) {
+	if len(prefix) > maxIMAPSearchLiteralBytes {
+		return nil, fmt.Errorf("imap text literal exceeds limit")
+	}
+	remainingLimit := maxIMAPSearchLiteralBytes - len(prefix)
+	rest, err := io.ReadAll(io.LimitReader(reader, int64(remainingLimit)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) > remainingLimit {
+		return nil, fmt.Errorf("imap text literal exceeds limit")
+	}
+	return append(prefix, rest...), nil
 }
 
 func imapHeaderEnd(value []byte) int {

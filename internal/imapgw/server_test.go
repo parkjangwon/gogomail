@@ -7480,6 +7480,10 @@ func TestReadIMAPSectionLiteral(t *testing.T) {
 	if string(text) != "body" {
 		t.Fatalf("text = %q", text)
 	}
+	oversized := "Subject: Hi\r\n\r\n" + strings.Repeat("x", maxIMAPSearchLiteralBytes+1)
+	if _, err := readIMAPSectionLiteral(strings.NewReader(oversized), false); err == nil {
+		t.Fatal("readIMAPSectionLiteral accepted oversized text literal")
+	}
 }
 
 func TestFilterIMAPHeaderFields(t *testing.T) {
