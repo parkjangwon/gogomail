@@ -87,7 +87,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -755,6 +755,77 @@ func TestAdminDriveUploadSessionsHandler(t *testing.T) {
 		service.lastDriveUploadSessionList.UserID != "user-1" ||
 		service.lastDriveUploadSessionList.Status != drive.UploadSessionStatusUploading {
 		t.Fatalf("lastDriveUploadSessionList = %+v", service.lastDriveUploadSessionList)
+	}
+}
+
+func TestAdminDriveNodesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		driveNodes: []drive.Node{{
+			ID:       "node-1",
+			UserID:   "user-1",
+			ParentID: "parent-1",
+			Name:     "Reports",
+			Type:     drive.NodeTypeFolder,
+			Status:   drive.NodeStatusActive,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-nodes?limit=5&user_id=%20user-1%20&parent_id=%20parent-1%20&status=active", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Nodes []drive.Node `json:"drive_nodes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Nodes) != 1 || body.Nodes[0].ID != "node-1" {
+		t.Fatalf("nodes = %+v", body.Nodes)
+	}
+	if service.lastDriveNodeList.Limit != 5 ||
+		service.lastDriveNodeList.UserID != "user-1" ||
+		service.lastDriveNodeList.ParentID != "parent-1" ||
+		service.lastDriveNodeList.Status != drive.NodeStatusActive {
+		t.Fatalf("lastDriveNodeList = %+v", service.lastDriveNodeList)
+	}
+}
+
+func TestAdminDriveNodesHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/drive-nodes?user_id=user%0Abad",
+		"/admin/v1/drive-nodes?status=missing&user_id=user-1",
+		"/admin/v1/drive-nodes?cursor=opaque&user_id=user-1",
+		"/admin/v1/drive-nodes",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDriveNodeList.Limit != 0 {
+				t.Fatalf("list was called: %+v", service.lastDriveNodeList)
+			}
+		})
 	}
 }
 
@@ -6374,6 +6445,7 @@ type fakeAdminService struct {
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
+	driveNodes                                  []drive.Node
 	driveUploadSessions                         []drive.UploadSession
 	apiUsageExportHandoff                       maildb.APIUsageExportHandoffView
 	apiUsageExportArtifact                      maildb.APIUsageExportArtifactView
@@ -6451,6 +6523,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListBefore      time.Time
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
+	lastDriveNodeList                           drive.ListNodesRequest
 	lastDriveUploadSessionList                  drive.ListUploadSessionsRequest
 	lastDriveUploadCleanupBefore                time.Time
 	lastDriveUploadCleanupLimit                 int
@@ -6718,6 +6791,12 @@ func (f *fakeAdminService) ListDriveUploadSessions(_ context.Context, req drive.
 	f.lastDriveUploadSessionList = req
 	f.lastLimit = req.Limit
 	return f.driveUploadSessions, nil
+}
+
+func (f *fakeAdminService) ListDriveNodes(_ context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {
+	f.lastDriveNodeList = req
+	f.lastLimit = req.Limit
+	return f.driveNodes, nil
 }
 
 func (f *fakeAdminService) CountStaleDriveUploadSessions(_ context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error) {

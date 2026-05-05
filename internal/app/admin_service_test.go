@@ -213,6 +213,30 @@ func TestAdminServiceListDriveUploadSessionsDelegatesToDrive(t *testing.T) {
 	}
 }
 
+func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
+	t.Parallel()
+
+	driveStore := &fakeAdminDrive{
+		nodes: []drive.Node{{ID: "node-1", UserID: "user-1", Name: "Reports", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive}},
+	}
+	service := adminService{drive: driveStore}
+	nodes, err := service.ListDriveNodes(t.Context(), drive.ListNodesRequest{
+		UserID:   " user-1 ",
+		ParentID: " parent-1 ",
+		Status:   " active ",
+		Limit:    5,
+	})
+	if err != nil {
+		t.Fatalf("ListDriveNodes returned error: %v", err)
+	}
+	if len(nodes) != 1 || nodes[0].ID != "node-1" {
+		t.Fatalf("nodes = %+v", nodes)
+	}
+	if driveStore.lastNodeReq.UserID != "user-1" || driveStore.lastNodeReq.ParentID != "parent-1" || driveStore.lastNodeReq.Status != drive.NodeStatusActive || driveStore.lastNodeReq.Limit != 5 {
+		t.Fatalf("lastNodeReq = %+v", driveStore.lastNodeReq)
+	}
+}
+
 func TestAdminServiceDriveUploadCleanupPreviewDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -408,17 +432,24 @@ type fakeAdminAttachmentCleanup struct {
 }
 
 type fakeAdminDrive struct {
+	nodes           []drive.Node
 	sessions        []drive.UploadSession
 	count           drive.StaleUploadSessionCount
 	failures        []drive.ObjectCleanupFailure
 	resolvedFailure drive.ObjectCleanupFailure
 	retryResult     drive.RetryObjectCleanupFailuresResult
 	retryErr        error
+	lastNodeReq     drive.ListNodesRequest
 	lastReq         drive.ListUploadSessionsRequest
 	lastCleanupReq  drive.ExpireUploadSessionsRequest
 	lastFailureReq  drive.ListObjectCleanupFailuresRequest
 	lastResolveReq  drive.ResolveObjectCleanupFailureRequest
 	lastRetryReq    drive.ListObjectCleanupFailuresRequest
+}
+
+func (f *fakeAdminDrive) ListNodes(_ context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {
+	f.lastNodeReq = req
+	return f.nodes, nil
 }
 
 func (f *fakeAdminDrive) ListUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {

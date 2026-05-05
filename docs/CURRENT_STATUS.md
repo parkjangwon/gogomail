@@ -354,6 +354,9 @@ guidance.
 - Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
   user scope plus status/limit filters, and admin capabilities mark Drive
   upload-session inspection available for operator consoles.
+- Admin API now exposes `GET /admin/v1/drive-nodes` with required user scope
+  plus parent/status/limit filters so operator consoles can inspect a user's
+  Drive inventory through bounded backend contracts.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.
