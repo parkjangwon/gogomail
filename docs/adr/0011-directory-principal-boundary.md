@@ -39,9 +39,11 @@ standards-shaped method semantics.
   and testable outside CalDAV.
 - Alias-to-principal lookup is now shared and can be reused by mail routing,
   attendee resolution, admin consoles, and future shared inbox flows.
-- Future effective membership checks, resource-booking policy, and delegation
-  models can grow in Directory/Identity without forcing CalDAV, CardDAV, Drive,
-  and webmail to invent parallel principal semantics.
+- Direct group-membership checks are now shared and auditable before recursive
+  membership expansion or policy decisions are introduced.
+- Future effective membership expansion, resource-booking policy, and
+  delegation models can grow in Directory/Identity without forcing CalDAV,
+  CardDAV, Drive, and webmail to invent parallel principal semantics.
 - Shared calendars, delegated access, resource booking, attendee resolution,
   and auto-complete remain gated until Directory/Identity and Contacts/CardDAV
   semantics are implemented beyond active user lookup.

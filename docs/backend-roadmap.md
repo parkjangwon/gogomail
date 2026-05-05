@@ -2270,6 +2270,10 @@ Implementation order:
       organization, group, or resource principals, with active aliases enforced
       as globally unique normalized addresses for predictable mail, attendee,
       and admin-console lookup semantics.
+1096. Directory/Identity can check direct active group membership for user,
+      organization, group, and resource principals, creating an auditable read
+      boundary before recursive membership expansion, delegation, or resource
+      booking policy are exposed.
 
 ## Deferred until backend contracts stabilize
 
@@ -2281,8 +2285,8 @@ Implementation order:
 - IMAP
 - CalDAV public/client-ready compatibility
 - Directory/Identity expansion for delegated relationships, effective
-  membership checks, and resource booking policy beyond the initial principal
-  tables, resolver, and alias lookup
+  membership expansion, and resource booking policy beyond the initial
+  principal tables, resolver, alias lookup, and direct membership checks
 - Contacts/CardDAV boundary for personal contacts, external people, and
   address-book metadata
 - Notification & Sync boundary for domain events, reminders, devices, quiet

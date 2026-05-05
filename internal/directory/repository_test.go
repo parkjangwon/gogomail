@@ -110,6 +110,45 @@ func TestNormalizeResolveAliasRequestRejectsInvalidAddresses(t *testing.T) {
 	}
 }
 
+func TestNormalizeCheckGroupMembershipRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCheckGroupMembershipRequest(CheckGroupMembershipRequest{
+		GroupID:    " group-1 ",
+		MemberKind: " USER ",
+		MemberID:   " user-1 ",
+		ActiveOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckGroupMembershipRequest returned error: %v", err)
+	}
+	if got.GroupID != "group-1" || got.MemberKind != PrincipalKindUser || got.MemberID != "user-1" || !got.ActiveOnly {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCheckGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []CheckGroupMembershipRequest{
+		{MemberKind: PrincipalKindUser, MemberID: "user-1"},
+		{GroupID: "group-1", MemberKind: PrincipalKindUser},
+		{GroupID: "group\n1", MemberKind: PrincipalKindUser, MemberID: "user-1"},
+		{GroupID: "group-1", MemberKind: "calendar", MemberID: "user-1"},
+		{GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user\n1"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.GroupID+"/"+req.MemberID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeCheckGroupMembershipRequest(req); err == nil {
+				t.Fatalf("NormalizeCheckGroupMembershipRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestRepositoryResolvePrincipalRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
@@ -123,6 +162,19 @@ func TestRepositoryResolveAliasRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewRepository(nil).ResolveAlias(context.Background(), ResolveAliasRequest{Address: "ops@example.com"})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryCheckDirectGroupMembershipRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).CheckDirectGroupMembership(context.Background(), CheckGroupMembershipRequest{
+		GroupID:    "group-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-1",
+	})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)
 	}

@@ -87,6 +87,33 @@ WHERE lower(a.alias_address_ace) = $1
 	return alias, nil
 }
 
+func (r *Repository) CheckDirectGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCheckGroupMembershipRequest(req)
+	if err != nil {
+		return false, err
+	}
+	const query = `
+SELECT EXISTS (
+  SELECT 1
+  FROM directory_group_memberships m
+  JOIN directory_groups g ON g.id = m.group_id
+  JOIN domains d ON d.id = g.domain_id
+  JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
+  WHERE m.group_id = $1::uuid
+    AND m.member_kind = $2
+    AND m.member_id = $3::uuid
+    AND ($4::boolean = false OR (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+)`
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, query, req.GroupID, req.MemberKind, req.MemberID, req.ActiveOnly).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check direct group membership: %w", err)
+	}
+	return exists, nil
+}
+
 func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
 	const query = `
 SELECT u.id::text,

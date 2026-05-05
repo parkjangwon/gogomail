@@ -57,6 +57,13 @@ type ResolveAliasRequest struct {
 	ActiveOnly bool
 }
 
+type CheckGroupMembershipRequest struct {
+	GroupID    string
+	MemberKind string
+	MemberID   string
+	ActiveOnly bool
+}
+
 func NormalizePrincipalKind(kind string) (string, error) {
 	kind = strings.TrimSpace(strings.ToLower(kind))
 	if kind == "" {
@@ -115,5 +122,24 @@ func NormalizeResolveAliasRequest(req ResolveAliasRequest) (ResolveAliasRequest,
 		return ResolveAliasRequest{}, fmt.Errorf("alias address must not contain line breaks")
 	}
 	req.Address = address
+	return req, nil
+}
+
+func NormalizeCheckGroupMembershipRequest(req CheckGroupMembershipRequest) (CheckGroupMembershipRequest, error) {
+	groupID, err := NormalizePrincipalID(req.GroupID)
+	if err != nil {
+		return CheckGroupMembershipRequest{}, fmt.Errorf("group id: %w", err)
+	}
+	memberID, err := NormalizePrincipalID(req.MemberID)
+	if err != nil {
+		return CheckGroupMembershipRequest{}, fmt.Errorf("member id: %w", err)
+	}
+	memberKind, err := NormalizePrincipalKind(req.MemberKind)
+	if err != nil {
+		return CheckGroupMembershipRequest{}, err
+	}
+	req.GroupID = groupID
+	req.MemberID = memberID
+	req.MemberKind = memberKind
 	return req, nil
 }
