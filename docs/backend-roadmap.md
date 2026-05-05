@@ -1498,6 +1498,9 @@ Implementation order:
 900. IMAP UID and message sequence-set numbers now require digit-only atoms,
      rejecting signed values such as `UID FETCH +7` and `FETCH +1` before
      command execution.
+901. IMAP MIME body-part paths and partial body fetch windows now require
+     digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
+     `BODY[]<+12.34>` before fetch processing.
 
 ## Deferred until backend contracts stabilize
 

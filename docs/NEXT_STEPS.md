@@ -123,6 +123,9 @@ Current state:
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
 - IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
   signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
+- IMAP MIME body-part paths and partial body fetch windows require digit-only
+  number atoms, rejecting signed forms such as `BODY[+1]` and
+  `BODY[]<+12.34>` before fetch processing.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

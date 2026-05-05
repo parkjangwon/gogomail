@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UID/sequence number hardening)
+Last updated: 2026-05-05 (updated after IMAP partial body number hardening)
 
 ## Current phase
 
@@ -243,6 +243,9 @@ guidance.
 - IMAP UID and message sequence-set numbers now require digit-only atoms,
   rejecting signed values such as `UID FETCH +7` and `FETCH +1` before command
   execution.
+- IMAP MIME body-part paths and partial body fetch windows now require
+  digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
+  `BODY[]<+12.34>` before fetch processing.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

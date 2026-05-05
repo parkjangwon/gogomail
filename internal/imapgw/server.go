@@ -2302,13 +2302,8 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 
 func parseIMAPSearchSize(value string) (int64, bool) {
 	value = strings.TrimSpace(value)
-	if value == "" {
+	if !imapNumberAtomDigitsOnly(value) {
 		return 0, false
-	}
-	for i := 0; i < len(value); i++ {
-		if value[i] < '0' || value[i] > '9' {
-			return 0, false
-		}
 	}
 	size, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || size < 0 {
@@ -2336,13 +2331,8 @@ func parseIMAPSearchModSeq(criteria []string) (uint64, int, bool) {
 
 func parseIMAPModSeqValue(value string) (uint64, bool) {
 	value = strings.TrimSpace(value)
-	if value == "" {
+	if !imapNumberAtomDigitsOnly(value) {
 		return 0, false
-	}
-	for i := 0; i < len(value); i++ {
-		if value[i] < '0' || value[i] > '9' {
-			return 0, false
-		}
 	}
 	modseq, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
@@ -2361,6 +2351,18 @@ func imapSearchModSeqEntryTypeValid(value string) bool {
 	default:
 		return false
 	}
+}
+
+func imapNumberAtomDigitsOnly(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func imapSearchSizeResults(messages []MessageSummary, uidMode bool, criterion string, size int64) []uint32 {
@@ -3796,13 +3798,8 @@ func imapSavedSearchUIDs(state *imapConnState) []UID {
 
 func parseIMAPUIDSetNumber(value string) (UID, bool) {
 	value = strings.TrimSpace(value)
-	if value == "" {
+	if !imapNumberAtomDigitsOnly(value) {
 		return 0, false
-	}
-	for i := 0; i < len(value); i++ {
-		if value[i] < '0' || value[i] > '9' {
-			return 0, false
-		}
 	}
 	uid64, err := strconv.ParseUint(value, 10, 32)
 	if err != nil || uid64 == 0 {
@@ -4198,6 +4195,9 @@ func parseIMAPMIMEPartPath(value string) ([]int, bool) {
 	}
 	path := make([]int, 0, len(parts))
 	for _, part := range parts {
+		if !imapNumberAtomDigitsOnly(part) {
+			return nil, false
+		}
 		number, err := strconv.Atoi(part)
 		if err != nil || number <= 0 {
 			return nil, false
@@ -4215,6 +4215,9 @@ func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
 	}
 	offsetText, countText, ok := strings.Cut(token[start+1:end], ".")
 	if !ok {
+		return imapPartialBodyRequest{}, false
+	}
+	if !imapNumberAtomDigitsOnly(offsetText) || !imapNumberAtomDigitsOnly(countText) {
 		return imapPartialBodyRequest{}, false
 	}
 	offset, err := strconv.ParseUint(offsetText, 10, 63)
