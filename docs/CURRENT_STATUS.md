@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP INBOX rename guard)
+Last updated: 2026-05-05 (updated after IMAP command atom validation)
 
 ## Current phase
 
@@ -1484,6 +1484,9 @@ The platform hardening sprint completed the following:
 - IMAP mailbox rename handling now rejects attempts to rename any mailbox to
   `INBOX`, keeping the special INBOX namespace out of generic folder mutation
   paths.
+- IMAP command dispatch now validates command and UID subcommand atoms before
+  routing, so atom-special-bearing command names are rejected as malformed
+  syntax instead of falling through as unknown commands.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

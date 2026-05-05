@@ -1335,6 +1335,9 @@ Implementation order:
      attempts before backend folder mutation, keeping INBOX special semantics
      out of ordinary rename flows alongside existing create/delete/source-INBOX
      guardrails.
+856. IMAP command dispatch now validates command and UID subcommand atoms before
+     routing, rejecting atom-special-bearing command names as malformed syntax
+     instead of reporting them as unknown commands.
 
 ## Deferred until backend contracts stabilize
 

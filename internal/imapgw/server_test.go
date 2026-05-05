@@ -282,6 +282,60 @@ func TestServerRejectsControlCharactersInAtoms(t *testing.T) {
 	}
 }
 
+func TestServerRejectsMalformedCommandAtoms(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 CAPABILITY)\r\na2 LOGIN user@example.com secret\r\na3 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write malformed command atom setup: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD malformed command\r\n" {
+		t.Fatalf("malformed command response = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a4 UID FETCH] 7 (FLAGS)\r\na5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write malformed uid subcommand: %v", err)
+	}
+	want := []string{
+		"a4 BAD malformed command\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a5 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read malformed command atom response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("malformed command atom response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStartTLS(t *testing.T) {
 	t.Parallel()
 

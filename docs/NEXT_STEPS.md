@@ -30,6 +30,9 @@ Current state:
 - IMAP mailbox mutation handling rejects `CREATE INBOX`, `DELETE INBOX`,
   `RENAME INBOX ...`, and `RENAME ... INBOX`, keeping the special INBOX
   namespace out of generic folder mutation paths.
+- IMAP command dispatch validates command and UID subcommand atoms before
+  routing so malformed atom-special-bearing command names do not fall through
+  as unknown commands.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
