@@ -1804,6 +1804,10 @@ Implementation order:
      cleanup-failure records, deletes referenced objects through configured
      storage stores, resolves successful records, and re-records failed
      attempts with fresh bounded diagnostics.
+981. Drive cleanup retry can now run as a first-class backend worker mode,
+     `drive-cleanup-worker`, with validated interval/batch/run-once
+     configuration and shared storage adapter wiring for local/NFS, MinIO, and
+     S3-compatible deployments.
 
 ## Deferred until backend contracts stabilize
 

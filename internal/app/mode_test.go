@@ -16,6 +16,7 @@ func TestParseModeAcceptsKnownBackendModes(t *testing.T) {
 		{name: "outbound mta", raw: "outbound-mta", want: ModeOutboundMTA},
 		{name: "delivery worker", raw: "delivery-worker", want: ModeDeliveryWorker},
 		{name: "attachment cleanup worker", raw: "attachment-cleanup-worker", want: ModeAttachmentCleanup},
+		{name: "drive cleanup worker", raw: "drive-cleanup-worker", want: ModeDriveCleanup},
 		{name: "search index worker", raw: "search-index-worker", want: ModeSearchIndexWorker},
 		{name: "api metering worker", raw: "api-metering-worker", want: ModeAPIMeteringWorker},
 		{name: "api usage retention worker", raw: "api-usage-retention-worker", want: ModeAPIUsageRetention},

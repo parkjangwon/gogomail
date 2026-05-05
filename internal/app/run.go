@@ -29,6 +29,7 @@ import (
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/dkim"
+	"github.com/gogomail/gogomail/internal/drive"
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
@@ -94,6 +95,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runPushNotificationWorker(ctx, cfg, logger)
 	case ModeAttachmentCleanup:
 		return runAttachmentCleanupWorker(ctx, cfg, logger)
+	case ModeDriveCleanup:
+		return runDriveCleanupWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
@@ -113,6 +116,10 @@ type attachmentCleanupRunner interface {
 type attachmentCleanupResult struct {
 	ExpiredUploads  int
 	ExpiredSessions int
+}
+
+type driveCleanupRunner interface {
+	RetryObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
 }
 
 type apiUsageRetentionRunner interface {
@@ -312,6 +319,31 @@ func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *
 	return runAttachmentCleanupLoop(ctx, service, cfg.AttachmentCleanupInterval, cfg.AttachmentCleanupStaleAge, cfg.AttachmentCleanupBatchSize, logger)
 }
 
+func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	store, err := objectStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	stores := map[string]storage.Store{
+		strings.ToLower(strings.TrimSpace(cfg.StorageBackend)): store,
+	}
+	if strings.EqualFold(cfg.StorageBackend, "minio") {
+		stores["s3"] = store
+	}
+	service := drive.NewService(drive.NewRepository(db), stores)
+	if cfg.DriveCleanupRunOnce {
+		_, err := retryDriveObjectCleanupOnce(ctx, service, cfg.DriveCleanupBatchSize, logger)
+		return err
+	}
+	return runDriveCleanupLoop(ctx, service, cfg.DriveCleanupInterval, cfg.DriveCleanupBatchSize, logger)
+}
+
 func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -421,6 +453,57 @@ func runAttachmentCleanupLoop(ctx context.Context, cleaner attachmentCleanupRunn
 			}
 		}
 	}
+}
+
+func runDriveCleanupLoop(ctx context.Context, cleaner driveCleanupRunner, interval time.Duration, batchSize int, logger *slog.Logger) error {
+	if cleaner == nil {
+		return fmt.Errorf("drive cleanup service is required")
+	}
+	if interval <= 0 {
+		return fmt.Errorf("drive cleanup interval must be positive")
+	}
+	if batchSize <= 0 {
+		return fmt.Errorf("drive cleanup batch size must be positive")
+	}
+	if _, err := retryDriveObjectCleanupOnce(ctx, cleaner, batchSize, logger); err != nil && logger != nil {
+		logger.Error("drive cleanup failed", "error", err)
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if _, err := retryDriveObjectCleanupOnce(ctx, cleaner, batchSize, logger); err != nil && logger != nil {
+				logger.Error("drive cleanup failed", "error", err)
+			}
+		}
+	}
+}
+
+func retryDriveObjectCleanupOnce(ctx context.Context, cleaner driveCleanupRunner, batchSize int, logger *slog.Logger) (drive.RetryObjectCleanupFailuresResult, error) {
+	if cleaner == nil {
+		return drive.RetryObjectCleanupFailuresResult{}, fmt.Errorf("drive cleanup service is required")
+	}
+	if batchSize <= 0 {
+		return drive.RetryObjectCleanupFailuresResult{}, fmt.Errorf("drive cleanup batch size must be positive")
+	}
+	result, err := cleaner.RetryObjectCleanupFailures(ctx, drive.ListObjectCleanupFailuresRequest{
+		Status: drive.ObjectCleanupFailureStatusPending,
+		Limit:  batchSize,
+	})
+	if logger != nil {
+		logger.Info(
+			"drive cleanup completed",
+			"scanned", result.Scanned,
+			"deleted", result.Deleted,
+			"resolved", result.Resolved,
+			"failed", result.Failed,
+			"limit", batchSize,
+		)
+	}
+	return result, err
 }
 
 func cleanupStaleAttachmentUploadsOnce(ctx context.Context, cleaner attachmentCleanupRunner, now func() time.Time, staleAge time.Duration, batchSize int, logger *slog.Logger) (attachmentCleanupResult, error) {

@@ -75,6 +75,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE", "")
+	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_INTERVAL", "")
+	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE", "")
+	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_RUN_ONCE", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN", "")
@@ -292,6 +295,15 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AttachmentCleanupRunOnce {
 		t.Fatal("AttachmentCleanupRunOnce = true, want false")
 	}
+	if cfg.DriveCleanupInterval != 15*time.Minute {
+		t.Fatalf("DriveCleanupInterval = %s, want 15m", cfg.DriveCleanupInterval)
+	}
+	if cfg.DriveCleanupBatchSize != 100 {
+		t.Fatalf("DriveCleanupBatchSize = %d, want 100", cfg.DriveCleanupBatchSize)
+	}
+	if cfg.DriveCleanupRunOnce {
+		t.Fatal("DriveCleanupRunOnce = true, want false")
+	}
 	if cfg.RcptRateLimitPerMinute != 60 {
 		t.Fatalf("RcptRateLimitPerMinute = %d, want 60", cfg.RcptRateLimitPerMinute)
 	}
@@ -467,6 +479,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_STALE_AGE", "48h")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_BATCH_SIZE", "250")
 	t.Setenv("GOGOMAIL_ATTACHMENT_CLEANUP_RUN_ONCE", "true")
+	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_INTERVAL", "30m")
+	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE", "75")
+	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_RUN_ONCE", "true")
 	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_INTERVAL", "12h")
 	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE", "720h")
 	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE", "500")
@@ -649,6 +664,15 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if !cfg.AttachmentCleanupRunOnce {
 		t.Fatal("AttachmentCleanupRunOnce = false, want true")
+	}
+	if cfg.DriveCleanupInterval != 30*time.Minute {
+		t.Fatalf("DriveCleanupInterval = %s, want 30m", cfg.DriveCleanupInterval)
+	}
+	if cfg.DriveCleanupBatchSize != 75 {
+		t.Fatalf("DriveCleanupBatchSize = %d, want 75", cfg.DriveCleanupBatchSize)
+	}
+	if !cfg.DriveCleanupRunOnce {
+		t.Fatal("DriveCleanupRunOnce = false, want true")
 	}
 	if cfg.APIUsageRetentionInterval != 12*time.Hour {
 		t.Fatalf("APIUsageRetentionInterval = %s, want 12h", cfg.APIUsageRetentionInterval)

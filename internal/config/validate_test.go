@@ -483,6 +483,28 @@ func TestValidateRejectsInvalidAttachmentCleanupConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidDriveCleanupConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "nonpositive interval", mutate: func(cfg *Config) { cfg.DriveCleanupInterval = 0 }},
+		{name: "nonpositive batch size", mutate: func(cfg *Config) { cfg.DriveCleanupBatchSize = 0 }},
+		{name: "oversized batch size", mutate: func(cfg *Config) { cfg.DriveCleanupBatchSize = maxDriveCleanupBatchSize + 1 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid drive cleanup config rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T) {
 	tests := []struct {
 		name   string

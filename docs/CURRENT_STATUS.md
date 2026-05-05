@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive cleanup retry service)
+Last updated: 2026-05-06 (updated after Drive cleanup worker mode)
 
 ## Current phase
 
@@ -281,6 +281,9 @@ guidance.
   cleanup-failure records, deletes each referenced object through configured
   storage stores, resolves successful records, and re-records failed attempts
   so retry diagnostics remain fresh and bounded.
+- Drive cleanup retry can now run as a first-class backend worker mode,
+  `drive-cleanup-worker`, with validated interval/batch/run-once config and
+  local/MinIO/S3-compatible storage wiring through the shared storage adapter.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
