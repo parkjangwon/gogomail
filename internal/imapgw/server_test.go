@@ -1362,6 +1362,69 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerRejectsArgumentsForSelectedStateNoArgCommands(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &closeBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 CHECK extra\r\na4 CLOSE extra\r\na5 UNSELECT extra\r\na6 EXPUNGE 1:*\r\na7 FETCH 1 (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write no-arg command arguments: %v", err)
+	}
+	want := []string{
+		"a3 BAD CHECK does not accept arguments\r\n",
+		"a4 BAD CLOSE does not accept arguments\r\n",
+		"a5 BAD UNSELECT does not accept arguments\r\n",
+		"a6 BAD EXPUNGE does not accept arguments\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"a7 OK FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read no-arg command response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("no-arg command response = %q, want %q", line, expected)
+		}
+	}
+	if backendImpl.expungeCount != 0 {
+		t.Fatalf("malformed no-arg commands expunge count = %d, want 0", backendImpl.expungeCount)
+	}
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerCloseReadOnlyMailboxDoesNotExpunge(t *testing.T) {
 	t.Parallel()
 

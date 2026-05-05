@@ -564,6 +564,10 @@ Current state:
   `RENAME` now return tagged `[NONEXISTENT]` response codes instead of generic
   command failures, so clients can distinguish absent folders from transient
   backend failures.
+- Selected-state no-argument commands `CHECK`, `CLOSE`, `UNSELECT`, and
+  `EXPUNGE` now reject extra arguments with tagged `BAD` responses instead of
+  ignoring malformed input, protecting destructive expunge handling from
+  ambiguous client commands.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
