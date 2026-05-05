@@ -140,10 +140,10 @@ func (c Config) Validate() error {
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", c.StorageS3AccessKeyID, 4096); err != nil {
 			return err
 		}
-		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY", c.StorageS3SecretAccessKey, 4096); err != nil {
+		if err := validateS3CredentialNoWhitespace("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY", c.StorageS3SecretAccessKey, 4096, true); err != nil {
 			return err
 		}
-		if err := validateBoundedNoCRLF("GOGOMAIL_STORAGE_S3_SESSION_TOKEN", c.StorageS3SessionToken, 8192); err != nil {
+		if err := validateS3CredentialNoWhitespace("GOGOMAIL_STORAGE_S3_SESSION_TOKEN", c.StorageS3SessionToken, 8192, false); err != nil {
 			return err
 		}
 	}
@@ -652,6 +652,22 @@ func validateRequiredBoundedNoCRLF(name string, value string, maxBytes int) erro
 		return fmt.Errorf("%s is required", name)
 	}
 	return validateBoundedNoCRLF(name, value, maxBytes)
+}
+
+func validateS3CredentialNoWhitespace(name string, value string, maxBytes int, required bool) error {
+	if required && value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	if value == "" {
+		return nil
+	}
+	if strings.ContainsAny(value, " \t\r\n") {
+		return fmt.Errorf("%s cannot contain whitespace", name)
+	}
+	if len(value) > maxBytes {
+		return fmt.Errorf("%s is too long", name)
+	}
+	return nil
 }
 
 func validateExportManifestSignerKeyID(value string, backend string) error {

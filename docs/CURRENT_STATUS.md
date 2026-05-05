@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP MODSEQ entry-type quote rejection)
+Last updated: 2026-05-05 (updated after S3 credential config whitespace rejection)
 
 ## Current phase
 
@@ -181,9 +181,9 @@ guidance.
   aligning compatible-provider cleanup behavior with local/NFS idempotent
   deletes.
 - S3-compatible secret access keys and session tokens now reject spaces, tabs,
-  and line breaks during adapter construction, surfacing copied env/config
-  credential mistakes before readiness probes or runtime PUT/GET requests fail
-  with opaque authentication errors.
+  and line breaks during config validation and adapter construction, surfacing
+  copied env/config credential mistakes before readiness probes or runtime
+  PUT/GET requests fail with opaque authentication errors.
 - Local/NFS-style storage writes now stage through unique temporary files in
   the target directory before `rename`, avoiding fixed `.tmp` collisions while
   preserving atomic object replacement semantics.

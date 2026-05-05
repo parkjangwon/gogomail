@@ -145,8 +145,9 @@ Current state:
   keeping lifecycle cleanup idempotent across AWS S3, MinIO-style endpoints,
   and local/NFS storage.
 - S3-compatible secret access keys and session tokens reject spaces, tabs, and
-  line breaks during adapter construction, making copied env/config credential
-  mistakes fail fast before runtime S3 authentication errors.
+  line breaks during config validation and adapter construction, making copied
+  env/config credential mistakes fail fast before runtime S3 authentication
+  errors.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default `gogomail` bucket for local S3-compatible runs.
