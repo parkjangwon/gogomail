@@ -881,7 +881,8 @@ Implementation order:
      for `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`, streaming only
      the requested byte window.
 719. IMAP `SEARCH` and `UID SEARCH` now support common flag criteria: `SEEN`,
-     `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, and `UNANSWERED`.
+     `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, `UNANSWERED`, `DRAFT`, and
+     `UNDRAFT`.
 720. IMAP `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
      `BODY.PEEK[HEADER.FIELDS (...)]`, returning bounded header literals with
      only the requested fields and continuations.

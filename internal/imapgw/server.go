@@ -761,7 +761,7 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 	}
 	if len(criteria) == 1 {
 		switch strings.ToUpper(criteria[0]) {
-		case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED":
+		case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED", "DRAFT", "UNDRAFT":
 			return imapSearchFlagResults(messages, uidMode, strings.ToUpper(criteria[0])), true
 		}
 	}
@@ -851,6 +851,10 @@ func imapMessageMatchesFlagSearch(summary MessageSummary, criterion string) bool
 		return summary.Flags.Answered
 	case "UNANSWERED":
 		return !summary.Flags.Answered
+	case "DRAFT":
+		return summary.Flags.Draft || strings.EqualFold(strings.TrimSpace(summary.Flags.Status), "draft")
+	case "UNDRAFT":
+		return !summary.Flags.Draft && !strings.EqualFold(strings.TrimSpace(summary.Flags.Status), "draft")
 	default:
 		return false
 	}

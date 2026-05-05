@@ -832,7 +832,7 @@ The platform hardening sprint completed the following:
 - IMAP `FETCH`/`UID FETCH` can stream bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,
-  and answered client views.
+  answered, and draft client views.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS.NOT (...)]` and
