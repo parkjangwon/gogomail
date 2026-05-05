@@ -260,7 +260,13 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
 		if state.readOnly {
+			if _, err := writer.WriteString("* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n"); err != nil {
+				return false, err
+			}
 			_, err = writer.WriteString(tag + " OK [READ-ONLY] EXAMINE completed\r\n")
+			return false, err
+		}
+		if _, err := writer.WriteString("* OK [PERMANENTFLAGS " + imapFlagList(mailboxState.PermanentFlags) + "] Permanent flags\r\n"); err != nil {
 			return false, err
 		}
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")

@@ -848,6 +848,9 @@ Implementation order:
 707. IMAP `LIST` now applies basic mailbox pattern matching for exact names,
      `*`, and `%`, and matches against sanitized wire names before emitting
      quoted mailbox responses.
+708. IMAP `SELECT` and `EXAMINE` now emit `[PERMANENTFLAGS]` response codes,
+     advertising writable flags for read-write selections and no permanent
+     flags for read-only `EXAMINE` state.
 
 ## Deferred until backend contracts stabilize
 
