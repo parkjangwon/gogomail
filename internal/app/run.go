@@ -1550,18 +1550,23 @@ func objectStoreForConfig(cfg config.Config) (configuredObjectStore, error) {
 	case "local":
 		return storage.NewLocalStore(cfg.MailstoreRoot), nil
 	case "s3", "minio":
-		return storage.NewS3Store(storage.S3Options{
-			Endpoint:        cfg.StorageS3Endpoint,
-			Region:          cfg.StorageS3Region,
-			Bucket:          cfg.StorageS3Bucket,
-			Prefix:          cfg.StorageS3Prefix,
-			AccessKeyID:     cfg.StorageS3AccessKeyID,
-			SecretAccessKey: cfg.StorageS3SecretAccessKey,
-			SessionToken:    cfg.StorageS3SessionToken,
-			ForcePathStyle:  cfg.StorageS3ForcePathStyle || backend == "minio",
-		})
+		return storage.NewS3Store(s3OptionsForConfig(cfg, backend))
 	default:
 		return nil, fmt.Errorf("unsupported storage backend %q", cfg.StorageBackend)
+	}
+}
+
+func s3OptionsForConfig(cfg config.Config, backend string) storage.S3Options {
+	backend = strings.ToLower(strings.TrimSpace(backend))
+	return storage.S3Options{
+		Endpoint:        cfg.StorageS3Endpoint,
+		Region:          cfg.StorageS3Region,
+		Bucket:          cfg.StorageS3Bucket,
+		Prefix:          cfg.StorageS3Prefix,
+		AccessKeyID:     cfg.StorageS3AccessKeyID,
+		SecretAccessKey: cfg.StorageS3SecretAccessKey,
+		SessionToken:    cfg.StorageS3SessionToken,
+		ForcePathStyle:  cfg.StorageS3ForcePathStyle || backend == "minio",
 	}
 }
 

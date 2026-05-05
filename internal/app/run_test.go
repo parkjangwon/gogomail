@@ -167,6 +167,48 @@ func TestObjectStoreForConfigBuildsMinIOBackend(t *testing.T) {
 	}
 }
 
+func TestS3OptionsForConfigPinsMinIOPathStyle(t *testing.T) {
+	t.Parallel()
+
+	opts := s3OptionsForConfig(config.Config{
+		StorageS3Endpoint:        "http://localhost:9000",
+		StorageS3Region:          "us-east-1",
+		StorageS3Bucket:          "gogomail",
+		StorageS3AccessKeyID:     "access",
+		StorageS3SecretAccessKey: "secret",
+	}, " minio ")
+	if !opts.ForcePathStyle {
+		t.Fatal("minio backend should force path-style requests")
+	}
+}
+
+func TestS3OptionsForConfigPreservesS3PathStyleOverride(t *testing.T) {
+	t.Parallel()
+
+	opts := s3OptionsForConfig(config.Config{
+		StorageS3Endpoint:        "https://s3.us-east-1.amazonaws.com",
+		StorageS3Region:          "us-east-1",
+		StorageS3Bucket:          "gogomail",
+		StorageS3AccessKeyID:     "access",
+		StorageS3SecretAccessKey: "secret",
+	}, "s3")
+	if opts.ForcePathStyle {
+		t.Fatal("s3 backend should preserve virtual-hosted addressing by default")
+	}
+
+	opts = s3OptionsForConfig(config.Config{
+		StorageS3Endpoint:        "https://s3.us-east-1.amazonaws.com",
+		StorageS3Region:          "us-east-1",
+		StorageS3Bucket:          "gogomail",
+		StorageS3AccessKeyID:     "access",
+		StorageS3SecretAccessKey: "secret",
+		StorageS3ForcePathStyle:  true,
+	}, "s3")
+	if !opts.ForcePathStyle {
+		t.Fatal("s3 backend should honor explicit path-style override")
+	}
+}
+
 func TestDKIMKeyProviderMapsRepositoryKey(t *testing.T) {
 	t.Parallel()
 

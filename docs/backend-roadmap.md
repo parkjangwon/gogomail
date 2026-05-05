@@ -1587,6 +1587,10 @@ Implementation order:
      alias for `GOGOMAIL_MAILSTORE_ROOT`, with the legacy mailstore variable
      taking precedence when both are set, keeping documented local/NFS setup
      snippets aligned with runtime config loading.
+926. App-level S3-compatible storage option construction is now isolated and
+     covered, pinning `GOGOMAIL_STORAGE_BACKEND=minio` to path-style requests,
+     preserving ordinary S3 virtual-hosted defaults, and honoring the explicit
+     `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` override.
 
 ## Deferred until backend contracts stabilize
 
