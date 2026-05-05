@@ -802,11 +802,13 @@ Implementation order:
      read-write completion metadata from the service-backed mailbox state.
 692. Authenticated IMAP `LIST` now maps to the service-backed mailbox list and
      returns sanitized quoted mailbox names with hierarchy delimiters.
-693. `gogomail --mode=imap` now opens the configured TCP listener and serves the
+693. Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
+     RFC822 size metadata from the service-backed message fetch boundary.
+694. `gogomail --mode=imap` now opens the configured TCP listener and serves the
      IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `LIST`,
-     `SELECT`, and `LOGOUT`, while FETCH, STORE, IDLE, MOVE, and EXPUNGE remain
-     deferred.
-694. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
+     `SELECT`, metadata `UID FETCH`, and `LOGOUT`, while body/header FETCH,
+     STORE, IDLE, MOVE, and EXPUNGE remain deferred.
+695. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.
 

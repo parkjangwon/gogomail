@@ -328,6 +328,67 @@ func TestServerHandlesListAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 UID FETCH 7 (FLAGS RFC822.SIZE)\r\n")); err != nil {
+		t.Fatalf("write login/uid fetch before select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 NO mailbox must be selected\r\n" {
+		t.Fatalf("preselect fetch line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write select: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a4 UID FETCH 7 (FLAGS RFC822.SIZE)\r\n")); err != nil {
+		t.Fatalf("write uid fetch: %v", err)
+	}
+	want := []string{
+		"* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 1234)\r\n",
+		"a4 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
@@ -350,7 +411,7 @@ func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]Message
 }
 
 func (fakeBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
-	return Message{Summary: MessageSummary{ID: "message-1", UID: 1}, Body: io.NopCloser(strings.NewReader(""))}, nil
+	return Message{Summary: MessageSummary{ID: "message-1", UID: 7, Flags: MessageFlags{Read: true, Starred: true}, Size: 1234}, Body: io.NopCloser(strings.NewReader(""))}, nil
 }
 
 func (fakeBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]MessageSummary, error) {
