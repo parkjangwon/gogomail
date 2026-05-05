@@ -29,6 +29,11 @@ Submission-style authentication:
 
 - IMAP `LOGIN` and `AUTHENTICATE PLAIN` map to a backend authenticator that
   validates local user credentials against stored `password_hash` values.
+- SASL PLAIN authorization identities are not treated as delegated authority by
+  default. Empty authorization identity values derive the session identity from
+  the authenticated user, and non-empty authorization identity values must
+  match the authentication identity until a future authenticator contract can
+  explicitly authorize delegation.
 - Authenticated sessions resolve to `imapgw.Session` with stable `UserID`,
   username, domain, and display-name metadata.
 - JWT bearer tokens are not accepted by the IMAP protocol listener. Webmail

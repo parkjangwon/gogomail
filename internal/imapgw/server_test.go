@@ -7578,10 +7578,24 @@ func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
 		"not-base64",
 		base64.StdEncoding.EncodeToString([]byte("user@example.com\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00\x00secret")),
+		base64.StdEncoding.EncodeToString([]byte("delegate@example.com\x00user@example.com\x00secret")),
 	} {
 		if username, password, ok := decodeSASLPlain(value); ok {
 			t.Fatalf("decodeSASLPlain(%q) = %q %q true, want rejection", value, username, password)
 		}
+	}
+}
+
+func TestDecodeSASLPlainAcceptsMatchingAuthorizationIdentity(t *testing.T) {
+	t.Parallel()
+
+	value := base64.StdEncoding.EncodeToString([]byte("user@example.com\x00user@example.com\x00secret"))
+	username, password, ok := decodeSASLPlain(value)
+	if !ok {
+		t.Fatal("decodeSASLPlain rejected matching authzid/authcid")
+	}
+	if username != "user@example.com" || password != "secret" {
+		t.Fatalf("decodeSASLPlain = %q %q, want user@example.com secret", username, password)
 	}
 }
 
