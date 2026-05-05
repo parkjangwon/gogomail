@@ -316,6 +316,9 @@ guidance.
 - Mail API now exposes `POST /api/v1/drive/upload-sessions`, returning stable
   `drive_upload_session` envelopes for frontend clients that need to declare
   Drive upload metadata before body transfer/finalization.
+- Mail API now exposes `GET /api/v1/drive/upload-sessions/{id}`, giving
+  frontend clients a stable upload-session status refresh path before body
+  retry/finalize routes are added.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

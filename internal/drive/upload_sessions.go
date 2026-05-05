@@ -52,6 +52,11 @@ type CreateUploadSessionRequest struct {
 	ExpiresAt      time.Time
 }
 
+type GetUploadSessionRequest struct {
+	UserID    string
+	SessionID string
+}
+
 func NewUploadID() (string, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
@@ -114,6 +119,18 @@ func ValidateCreateUploadSessionRequest(req CreateUploadSessionRequest, now time
 		StorageBackend: storageBackend,
 		ExpiresAt:      expiresAt.UTC(),
 	}, nil
+}
+
+func ValidateGetUploadSessionRequest(req GetUploadSessionRequest) (GetUploadSessionRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return GetUploadSessionRequest{}, err
+	}
+	sessionID, err := validateDriveID("session_id", req.SessionID, true)
+	if err != nil {
+		return GetUploadSessionRequest{}, err
+	}
+	return GetUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
 }
 
 func ValidateUploadSessionStatus(status string) (string, error) {

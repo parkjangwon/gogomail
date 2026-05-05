@@ -382,6 +382,8 @@ Current state:
 - Mail API now exposes `POST /api/v1/drive/upload-sessions` for creating
   pending Drive upload sessions with declared size, storage backend, and
   optional RFC3339 expiration.
+- Mail API now exposes `GET /api/v1/drive/upload-sessions/{id}` for upload
+  session status refresh and retry-state hydration.
 
 Next:
 

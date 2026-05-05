@@ -1840,6 +1840,9 @@ Implementation order:
      production Drive clients create pending upload-session envelopes with
      declared size, storage backend, MIME type, parent folder, and optional
      RFC3339 expiration before body transfer and finalization.
+991. Mail API now exposes `GET /api/v1/drive/upload-sessions/{id}`, giving
+     production Drive clients a stable upload-session status refresh path for
+     retry and future resumable-upload state.
 
 ## Deferred until backend contracts stabilize
 
