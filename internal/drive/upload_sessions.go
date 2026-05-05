@@ -57,6 +57,11 @@ type GetUploadSessionRequest struct {
 	SessionID string
 }
 
+type CancelUploadSessionRequest struct {
+	UserID    string
+	SessionID string
+}
+
 func NewUploadID() (string, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
@@ -122,15 +127,31 @@ func ValidateCreateUploadSessionRequest(req CreateUploadSessionRequest, now time
 }
 
 func ValidateGetUploadSessionRequest(req GetUploadSessionRequest) (GetUploadSessionRequest, error) {
-	userID, err := validateDriveID("user_id", req.UserID, true)
-	if err != nil {
-		return GetUploadSessionRequest{}, err
-	}
-	sessionID, err := validateDriveID("session_id", req.SessionID, true)
+	userID, sessionID, err := validateUploadSessionIdentity(req.UserID, req.SessionID)
 	if err != nil {
 		return GetUploadSessionRequest{}, err
 	}
 	return GetUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
+}
+
+func ValidateCancelUploadSessionRequest(req CancelUploadSessionRequest) (CancelUploadSessionRequest, error) {
+	userID, sessionID, err := validateUploadSessionIdentity(req.UserID, req.SessionID)
+	if err != nil {
+		return CancelUploadSessionRequest{}, err
+	}
+	return CancelUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
+}
+
+func validateUploadSessionIdentity(userIDValue string, sessionIDValue string) (string, string, error) {
+	userID, err := validateDriveID("user_id", userIDValue, true)
+	if err != nil {
+		return "", "", err
+	}
+	sessionID, err := validateDriveID("session_id", sessionIDValue, true)
+	if err != nil {
+		return "", "", err
+	}
+	return userID, sessionID, nil
 }
 
 func ValidateUploadSessionStatus(status string) (string, error) {

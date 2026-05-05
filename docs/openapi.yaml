@@ -166,6 +166,17 @@ paths:
           $ref: "#/components/responses/DriveUploadSession"
         default:
           $ref: "#/components/responses/Error"
+    delete:
+      operationId: cancelDriveUploadSession
+      summary: Cancel a Drive upload session
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUploadSession"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/files/finalize:
     post:
       operationId: finalizeDriveFileFromObject

@@ -319,6 +319,9 @@ guidance.
 - Mail API now exposes `GET /api/v1/drive/upload-sessions/{id}`, giving
   frontend clients a stable upload-session status refresh path before body
   retry/finalize routes are added.
+- Mail API now exposes `DELETE /api/v1/drive/upload-sessions/{id}`, allowing
+  clients to explicitly cancel pending/uploading/failed Drive upload sessions
+  instead of waiting for expiry cleanup.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
