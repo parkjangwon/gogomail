@@ -371,9 +371,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   address-book collection, and contact-object resources, with cross-user,
   `Depth: infinity`, malformed XML, and contact-object depth guards. The
   PostgreSQL repository satisfies that discovery store through the shared
-  Directory principal resolver. Client-ready CardDAV remains gated on
-  auth/listener wiring, REPORT execution, sync handlers, object
-  `GET`/`PUT`/`DELETE`, broader vCard compatibility, and native-client tests.
+  Directory principal resolver. Internal REPORT execution now covers
+  `addressbook-multiget`, `addressbook-query`, and `sync-collection`, including
+  scoped href handling, optional `address-data`, current sync-token emission,
+  bounded change reads since a stored sync token, and deleted contact 404
+  responses. Client-ready CardDAV remains gated on auth/listener wiring,
+  object `GET`/`PUT`/`DELETE`, richer CardDAV filter semantics, broader vCard
+  compatibility, and native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

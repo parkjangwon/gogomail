@@ -75,6 +75,29 @@ func TestValidateAddressBookReadRequests(t *testing.T) {
 	}
 }
 
+func TestValidateListAddressBookChangesSinceRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateListAddressBookChangesSinceRequest(ListAddressBookChangesSinceRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		SyncToken:     " sync-123 ",
+		Limit:         2000,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListAddressBookChangesSinceRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.AddressBookID != "book-1" || req.SyncToken != "sync-123" || req.Limit != 1000 {
+		t.Fatalf("request = %+v", req)
+	}
+	if _, err := ValidateListAddressBookChangesSinceRequest(ListAddressBookChangesSinceRequest{UserID: "user-1", AddressBookID: "book-1"}); err == nil {
+		t.Fatal("ValidateListAddressBookChangesSinceRequest accepted missing sync token")
+	}
+	if _, err := ValidateListAddressBookChangesSinceRequest(ListAddressBookChangesSinceRequest{UserID: "user-1", AddressBookID: "book-1", SyncToken: "bad\nsync"}); err == nil {
+		t.Fatal("ValidateListAddressBookChangesSinceRequest accepted unsafe sync token")
+	}
+}
+
 func TestValidateUpsertContactObjectRequest(t *testing.T) {
 	t.Parallel()
 
