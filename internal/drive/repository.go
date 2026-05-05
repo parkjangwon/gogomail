@@ -211,7 +211,7 @@ func ValidateCreateFileFromObjectRequest(req CreateFileFromObjectRequest) (Creat
 	if err != nil {
 		return CreateFileFromObjectRequest{}, "", err
 	}
-	storagePath, err := storage.ValidateObjectPath(req.StoragePath)
+	storagePath, err := validateUserObjectPath(userID, req.StoragePath)
 	if err != nil {
 		return CreateFileFromObjectRequest{}, "", fmt.Errorf("unsafe storage path %q: %w", req.StoragePath, err)
 	}

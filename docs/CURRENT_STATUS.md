@@ -2025,6 +2025,9 @@ The platform hardening sprint completed the following:
 - Drive upload-session finalization, staged-object finalization, and file copy
   now map quota exhaustion to HTTP 507 `insufficient_storage`, giving webmail
   clients a precise storage-pressure response.
+- Drive file finalize, download, and copy paths now enforce that stored object
+  keys remain under the owning user's `drive/users/{user_id}/...` prefix before
+  storage adapter access, tightening tenant isolation at the storage boundary.
 
 Next focus areas:
 

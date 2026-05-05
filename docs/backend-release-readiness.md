@@ -1562,6 +1562,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify Drive copy UX respects the advertised `max_copy_nodes` cap when calling `POST /api/v1/drive/nodes/{id}/copy` for files or folder trees.
 - Verify Drive cleanup-failure operations include node-less copied-object cleanup rows caused by failed copy metadata creation.
 - Verify Drive clients treat HTTP 507 `insufficient_storage` from finalize/copy paths as quota pressure, distinct from validation failures.
+- Verify Drive clients only pass storage paths returned by the authenticated user's staged/upload-session endpoints; finalize rejects object keys outside that user's `drive/users/{user_id}/...` prefix.
 
 ## Intentionally out of scope for this release slice
 

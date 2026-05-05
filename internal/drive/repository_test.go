@@ -59,7 +59,7 @@ func TestValidateCreateFileFromObjectRequest(t *testing.T) {
 		ParentID:       " parent-1 ",
 		Name:           "  Report.PDF  ",
 		StorageBackend: " s3 ",
-		StoragePath:    "drive/user-1/report.pdf",
+		StoragePath:    "drive/users/user-1/staging/upload-1",
 		MIMEType:       "",
 		ChecksumSHA256: strings.Repeat("A", 64),
 	})
@@ -69,7 +69,7 @@ func TestValidateCreateFileFromObjectRequest(t *testing.T) {
 	if req.NodeID != "node-1" || req.UserID != "user-1" || req.ParentID != "parent-1" || req.Name != "Report.PDF" {
 		t.Fatalf("request = %+v, want trimmed identity fields", req)
 	}
-	if req.StorageBackend != "s3" || req.StoragePath != "drive/user-1/report.pdf" {
+	if req.StorageBackend != "s3" || req.StoragePath != "drive/users/user-1/staging/upload-1" {
 		t.Fatalf("storage fields = %q/%q", req.StorageBackend, req.StoragePath)
 	}
 	if req.MIMEType != "application/octet-stream" {
@@ -87,13 +87,14 @@ func TestValidateCreateFileFromObjectRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
 	tests := []CreateFileFromObjectRequest{
-		{Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf"},
-		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "", StoragePath: "drive/user-1/report.pdf"},
-		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3\nbad", StoragePath: "drive/user-1/report.pdf"},
+		{Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/users/user-1/staging/upload-1"},
+		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "", StoragePath: "drive/users/user-1/staging/upload-1"},
+		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3\nbad", StoragePath: "drive/users/user-1/staging/upload-1"},
 		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "../bad"},
-		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf", MIMEType: "text/plain\nbad"},
-		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf", ChecksumSHA256: "not-sha"},
-		{NodeID: "node\n1", UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/user-1/report.pdf"},
+		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/users/user-2/staging/upload-1"},
+		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/users/user-1/staging/upload-1", MIMEType: "text/plain\nbad"},
+		{UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/users/user-1/staging/upload-1", ChecksumSHA256: "not-sha"},
+		{NodeID: "node\n1", UserID: "user-1", Name: "Report.pdf", StorageBackend: "s3", StoragePath: "drive/users/user-1/staging/upload-1"},
 	}
 	for _, tc := range tests {
 		tc := tc

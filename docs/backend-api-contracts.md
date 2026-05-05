@@ -208,7 +208,8 @@ or development `user_id` fallback path as webmail mail routes:
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",
   "mime_type","checksum_sha256"}`. Quota exhaustion maps to HTTP 507
-  `insufficient_storage`.
+  `insufficient_storage`. The storage path must stay under the authenticated
+  user's `drive/users/{user_id}/...` object prefix.
 - `PUT /api/v1/drive/files/staged/{upload_id}/body` streams a bounded object
   body into the requested `storage_backend`, derives a stable
   `drive/users/{user_id}/staging/{upload_id}` key, returns
