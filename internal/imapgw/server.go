@@ -799,7 +799,7 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 				return nil, false
 			}
 			return imapSearchDateResults(messages, uidMode, strings.ToUpper(criteria[0]), day), true
-		case "FROM", "SUBJECT":
+		case "FROM", "TO", "CC", "BCC", "SUBJECT":
 			return imapSearchTextResults(messages, uidMode, strings.ToUpper(criteria[0]), criteria[1]), true
 		}
 	}
@@ -931,17 +931,27 @@ func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, quer
 	case "SUBJECT":
 		return strings.Contains(strings.ToLower(summary.Envelope.Subject), query)
 	case "FROM":
-		for _, address := range summary.Envelope.From {
-			if strings.Contains(strings.ToLower(address.Name), query) ||
-				strings.Contains(strings.ToLower(address.Mailbox), query) ||
-				strings.Contains(strings.ToLower(address.Host), query) {
-				return true
-			}
-		}
-		return false
+		return imapAddressListContains(summary.Envelope.From, query)
+	case "TO":
+		return imapAddressListContains(summary.Envelope.To, query)
+	case "CC":
+		return imapAddressListContains(summary.Envelope.Cc, query)
+	case "BCC":
+		return imapAddressListContains(summary.Envelope.Bcc, query)
 	default:
 		return false
 	}
+}
+
+func imapAddressListContains(addresses []Address, query string) bool {
+	for _, address := range addresses {
+		if strings.Contains(strings.ToLower(address.Name), query) ||
+			strings.Contains(strings.ToLower(address.Mailbox), query) ||
+			strings.Contains(strings.ToLower(address.Host), query) {
+			return true
+		}
+	}
+	return false
 }
 
 func imapSearchResultSuffix(results []uint32) string {
