@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive cleanup-failure retry API)
+Last updated: 2026-05-06 (updated after IMAP forwarded keyword search)
 
 ## Current phase
 
@@ -1425,8 +1425,8 @@ The platform hardening sprint completed the following:
   recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
 - IMAP `SEARCH`/`UID SEARCH` supports `KEYWORD` and `UNKEYWORD` criteria with
-  validated keyword atoms, returning no custom-keyword matches until durable
-  user keyword storage exists and treating active messages as unkeyworded.
+  validated keyword atoms, mapping the webmail `forwarded` state to an IMAP
+  keyword while unknown custom keywords wait for durable user keyword storage.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded partial windows over
