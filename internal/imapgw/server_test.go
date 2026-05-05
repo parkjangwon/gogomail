@@ -483,6 +483,55 @@ func TestServerValidatesSelectedNoArgSyntaxBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerValidatesSelectedNoArgSyntaxBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 CHECK extra\r\na2 IDLE extra\r\na3 CLOSE extra\r\na4 UNSELECT extra\r\na5 EXPUNGE 1:*\r\na6 CHECK\r\na7 IDLE\r\na8 CLOSE\r\na9 UNSELECT\r\na10 EXPUNGE\r\na11 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write selected no-arg auth commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD CHECK does not accept arguments\r\n",
+		"a2 BAD IDLE does not accept arguments\r\n",
+		"a3 BAD CLOSE does not accept arguments\r\n",
+		"a4 BAD UNSELECT does not accept arguments\r\n",
+		"a5 BAD EXPUNGE does not accept arguments\r\n",
+		"a6 NO authentication required\r\n",
+		"a7 NO authentication required\r\n",
+		"a8 NO authentication required\r\n",
+		"a9 NO authentication required\r\n",
+		"a10 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a11 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected no-arg auth response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected no-arg auth response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStartTLS(t *testing.T) {
 	t.Parallel()
 

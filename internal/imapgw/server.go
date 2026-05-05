@@ -548,12 +548,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	case "COPY":
 		return s.handleCopy(writer, tag, fields, state)
 	case "CHECK":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD CHECK does not accept arguments\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if state.selectedMailbox == "" {
@@ -563,12 +563,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK CHECK completed\r\n")
 		return false, err
 	case "IDLE":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD IDLE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if state.selectedMailbox == "" {
@@ -579,12 +579,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString("+ idling\r\n")
 		return false, err
 	case "CLOSE":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD CLOSE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if state.selectedMailbox == "" {
@@ -593,12 +593,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		return s.handleClose(writer, tag, state)
 	case "UNSELECT":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD UNSELECT does not accept arguments\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if state.selectedMailbox == "" {
@@ -613,12 +613,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK UNSELECT completed\r\n")
 		return false, err
 	case "EXPUNGE":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD EXPUNGE does not accept arguments\r\n")
+			return false, err
+		}
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if state.selectedMailbox == "" {

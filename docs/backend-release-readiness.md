@@ -1087,8 +1087,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `FETCH`/`STORE`/`COPY`/`MOVE`/`SEARCH`/`SORT`/`THREAD` syntax before selected
   mailbox state errors, keeping parser diagnostics precise for client authors.
 - IMAP selected-state no-argument commands reject extra arguments before
-  selected-mailbox state errors, keeping destructive lifecycle commands from
-  hiding malformed input behind state responses.
+  authentication and selected-mailbox state errors, keeping destructive
+  lifecycle commands from hiding malformed input behind state responses.
 - IMAP `STARTTLS` rejects malformed extra-argument commands before availability
   and state checks, keeping TLS capability probing diagnostics precise.
 - IMAP authenticated `UID` dispatch validates state-independent subcommand

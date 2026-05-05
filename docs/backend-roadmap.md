@@ -1351,7 +1351,7 @@ Implementation order:
      outside selected state.
 860. IMAP selected-state no-argument commands now reject extra arguments on
      `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
-     selected-mailbox state errors for well-formed commands.
+     authentication or selected-mailbox state errors for well-formed commands.
 861. IMAP `STARTTLS` now validates its no-argument syntax before TLS
      availability and authentication-state checks, preserving precise `BAD`
      diagnostics for malformed upgrade attempts.
@@ -1371,6 +1371,10 @@ Implementation order:
      options, status item lists, or modified UTF-7 mailbox names before
      authentication failures, preserving precise tagged `BAD` diagnostics while
      valid unauthenticated commands still return `NO authentication required`.
+866. IMAP selected-state no-argument commands now validate extra arguments on
+     `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before authentication
+     failures too, preserving precise tagged `BAD` diagnostics while valid
+     unauthenticated commands still return `NO authentication required`.
 
 ## Deferred until backend contracts stabilize
 
