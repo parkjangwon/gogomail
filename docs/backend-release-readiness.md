@@ -306,6 +306,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
   backend selectors accept only `none` or `redis`, preventing typos from
   silently disabling operational controls.
+- RCPT rate-limit and outbox relay batch, poll, and max-attempt settings are
+  validated as positive values during startup config validation, surfacing
+  relay/limit misconfiguration before workers start.
 - HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses
   are validated as TCP `host:port` values at startup, surfacing bind
   configuration mistakes before runtime listener setup.

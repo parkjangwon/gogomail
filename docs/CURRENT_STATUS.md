@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after delivery SMTP hello validation)
+Last updated: 2026-05-05 (updated after relay operational limit validation)
 
 ## Current phase
 
@@ -697,6 +697,9 @@ The platform hardening sprint completed the following:
 - Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
   backend selectors now accept only `none` or `redis`, preventing typos from
   silently disabling operational controls.
+- RCPT rate-limit and outbox relay batch, poll, and max-attempt settings are
+  now validated as positive values during startup config validation, surfacing
+  relay/limit misconfiguration before workers start.
 - HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses
   are now validated as TCP `host:port` values at startup, surfacing bind
   configuration mistakes before runtime listener setup.

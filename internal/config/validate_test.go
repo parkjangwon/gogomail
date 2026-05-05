@@ -87,6 +87,28 @@ func TestValidateRejectsUnknownRedisFeatureBackends(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNonpositiveRelayOperationalLimits(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "rcpt rate limit", mutate: func(cfg *Config) { cfg.RcptRateLimitPerMinute = 0 }},
+		{name: "outbox batch size", mutate: func(cfg *Config) { cfg.OutboxRelayBatchSize = 0 }},
+		{name: "outbox poll interval", mutate: func(cfg *Config) { cfg.OutboxRelayPollInterval = -time.Second }},
+		{name: "outbox max attempts", mutate: func(cfg *Config) { cfg.OutboxRelayMaxAttempts = 0 }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want relay operational limit rejection")
+			}
+		})
+	}
+}
+
 func TestValidateAcceptsRedisFeatureBackends(t *testing.T) {
 	cfg := Load()
 	cfg.DedupBackend = "redis"
