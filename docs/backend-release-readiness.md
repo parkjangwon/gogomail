@@ -85,6 +85,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive now has an internal service workflow for permanent delete that combines
   committed metadata/quota deletion with backend object cleanup and preserves
   cleanup progress for retryable failure reporting.
+- Drive object paths are now generated through canonical helpers for staged
+  uploads, committed node objects, and user cleanup prefixes, keeping future
+  Drive storage layout scoped and portable across storage backends.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
