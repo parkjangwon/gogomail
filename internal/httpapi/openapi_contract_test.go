@@ -577,7 +577,10 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 			wants = append(wants, "application/octet-stream:", "type: string", "format: binary")
 		}
 		if route == "GET /drive/nodes/{id}/download" {
-			wants = append(wants, "name: Range", "\"206\":", "Content-Range:", "Accept-Ranges:")
+			wants = append(wants, "name: Range", "\"206\":", "Content-Range:", "Accept-Ranges:", "X-Gogomail-Drive-SHA256:", "^[0-9a-f]{64}$")
+		}
+		if route == "HEAD /drive/nodes/{id}/download" {
+			wants = append(wants, "X-Gogomail-Drive-SHA256:", "^[0-9a-f]{64}$")
 		}
 		for _, want := range wants {
 			if !strings.Contains(block, want) {

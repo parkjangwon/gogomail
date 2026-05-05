@@ -438,6 +438,9 @@ Current state:
   request and return `206 Partial Content` through the shared local/NFS and
   S3-compatible `GetRange` storage primitive; webmail capabilities advertise
   `node_range_download`.
+- Mail API Drive download, range-download, and download-header responses now
+  expose sanitized `X-Gogomail-Drive-SHA256` when a node has a recorded
+  whole-object digest.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

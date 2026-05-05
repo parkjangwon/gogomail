@@ -1935,6 +1935,11 @@ Implementation order:
       authentication and before mutating session extension state, so RFC
       5161-shaped syntax errors remain distinct from well-formed unsupported
       capabilities or unauthenticated enable attempts.
+1018. Drive download, byte-range download, and `HEAD` download metadata
+      responses now emit sanitized `X-Gogomail-Drive-SHA256` when the file node
+      carries a recorded whole-object digest, giving webmail and automation
+      clients a backend-neutral integrity signal across local/NFS, MinIO, and
+      S3-compatible storage.
 
 ## Deferred until backend contracts stabilize
 

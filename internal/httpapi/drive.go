@@ -586,6 +586,9 @@ func writeDriveFileDownloadHeaders(w http.ResponseWriter, node drive.Node) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Accept-Ranges", "bytes")
+	if sha256Hex := safeSHA256Header(node.ChecksumSHA256); sha256Hex != "" {
+		w.Header().Set("X-Gogomail-Drive-SHA256", sha256Hex)
+	}
 	if node.Size >= 0 {
 		w.Header().Set("Content-Length", strconv.FormatInt(node.Size, 10))
 	}

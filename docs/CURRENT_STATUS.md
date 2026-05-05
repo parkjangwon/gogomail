@@ -380,6 +380,10 @@ guidance.
   shared local/NFS and S3-compatible `GetRange` storage contract, giving
   production webmail clients resumable download and media-preview building
   blocks without backend-specific object access.
+- Drive download, range-download, and download-header responses now expose a
+  sanitized `X-Gogomail-Drive-SHA256` header when file metadata carries a
+  stored whole-object digest, giving clients an integrity check without
+  trusting backend-specific ETags.
 - IMAP `ENABLE` now rejects malformed capability atoms before authentication
   or session mutation, keeping RFC 5161 syntax failures distinct from valid
   unauthenticated enable attempts.
