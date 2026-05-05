@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -120,6 +121,52 @@ func TestLocalStorePutUsesUniqueTemporaryObject(t *testing.T) {
 	if string(got) != "fresh body" {
 		t.Fatalf("stored body = %q", got)
 	}
+}
+
+func TestLocalStorePutHonorsContextCancellationDuringCopy(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	store := NewLocalStore(root)
+	ctx, cancel := context.WithCancel(context.Background())
+	body := cancelingReader{
+		cancel: cancel,
+		chunks: []string{"partial", " body"},
+	}
+	objectPath := "mailstore/company/domain/message.eml"
+
+	err := store.Put(ctx, objectPath, &body)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Put err = %v, want context.Canceled", err)
+	}
+	if _, err := store.Get(context.Background(), objectPath); err == nil {
+		t.Fatal("Get succeeded after canceled Put")
+	}
+	matches, err := filepath.Glob(filepath.Join(root, "mailstore/company/domain", ".message.eml.*.tmp"))
+	if err != nil {
+		t.Fatalf("glob temp objects: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("temporary objects left behind after canceled Put: %v", matches)
+	}
+}
+
+type cancelingReader struct {
+	cancel context.CancelFunc
+	chunks []string
+	index  int
+}
+
+func (r *cancelingReader) Read(p []byte) (int, error) {
+	if r.index >= len(r.chunks) {
+		return 0, io.EOF
+	}
+	if r.index == 0 {
+		r.cancel()
+	}
+	chunk := r.chunks[r.index]
+	r.index++
+	return copy(p, chunk), nil
 }
 
 func TestLocalStoreDeleteIsIdempotentForMissingObjects(t *testing.T) {

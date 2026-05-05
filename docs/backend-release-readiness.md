@@ -296,6 +296,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Local/NFS-style storage writes now stage through unique temporary files in
   the destination directory before `rename`, avoiding fixed `.tmp` collisions
   while preserving atomic replacement semantics for local deployments.
+- Local/NFS-style storage writes now honor context cancellation during body
+  copy, cleaning staged temp objects and avoiding partial object commits after a
+  canceled request.
 - Local/NFS storage configuration requires a non-empty bounded
   `GOGOMAIL_MAILSTORE_ROOT` without line breaks when
   `GOGOMAIL_STORAGE_BACKEND=local`, so broken filesystem roots fail during
