@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP MODSEQ quote rejection)
+Last updated: 2026-05-05 (updated after IMAP MODSEQ entry-type quote rejection)
 
 ## Current phase
 
@@ -228,6 +228,9 @@ guidance.
 - IMAP `SEARCH`/`UID SEARCH` `MODSEQ` numeric thresholds now reject malformed
   values that still contain quote characters after command parsing, so broken
   inputs such as `MODSEQ 20"` are not silently normalized.
+- IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types now reject malformed atoms
+  that still contain quote characters after command parsing, preventing broken
+  `MODSEQ "/flags/\\Seen" all" 17` style inputs from being silently normalized.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
