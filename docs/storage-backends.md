@@ -147,7 +147,9 @@ matching `Content-Range` but truncates the response body before the requested
 byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 When a range reader is consumed successfully and closed, gogomail drains a
 small bounded response remainder so normal oversized partial responses can
-still reuse HTTP connections without exposing extra bytes to callers.
+still reuse HTTP connections without exposing extra bytes to callers. The same
+bounded drain applies when callers close before consuming the requested range,
+helping preview/cancel paths reuse connections without unbounded cleanup reads.
 S3-compatible `Copy` uses a signed server-side copy request with an escaped
 `x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
 duplicate objects without pulling object bytes through gogomail.

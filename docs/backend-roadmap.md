@@ -2194,6 +2194,9 @@ Implementation order:
       successfully consumed range reader is closed, improving HTTP connection
       reuse for oversized partial responses while preserving the exact
       caller-visible byte window.
+1077. S3-compatible `GetRange` now also bounded-drains unread range bytes when
+      callers close early, improving connection reuse for preview/cancel paths
+      without allowing unbounded cleanup reads.
 
 ## Deferred until backend contracts stabilize
 

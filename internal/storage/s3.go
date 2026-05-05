@@ -560,9 +560,7 @@ func (r *exactReadCloser) Read(p []byte) (int, error) {
 }
 
 func (r *exactReadCloser) Close() error {
-	if r.remaining <= 0 {
-		_, _ = io.Copy(io.Discard, io.LimitReader(r.reader, maxS3ResponseDrainBytes))
-	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(r.reader, maxS3ResponseDrainBytes))
 	return r.closer.Close()
 }
 

@@ -1529,6 +1529,9 @@ Current state:
 - S3-compatible `GetRange` now drains a small bounded remainder on successful
   range-reader close so oversized partial responses can still reuse HTTP
   connections without exposing extra bytes to callers.
+- S3-compatible `GetRange` now also drains a small bounded remainder when
+  callers close before consuming the requested range, helping preview/cancel
+  paths reuse HTTP connections.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
