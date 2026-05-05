@@ -299,6 +299,9 @@ Current state:
   trees from the selected-mailbox search result while keeping `REFERENCES`
   unadvertised until its Message-ID normalization and ancestry algorithm can be
   implemented without compatibility shortcuts.
+- RFC 5256 base-subject extraction now decodes RFC 2047 encoded-word subjects
+  before stripping reply/forward artifacts, improving internationalized
+  `SORT SUBJECT` and `THREAD ORDEREDSUBJECT` compatibility.
 - `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata, matching client namespace delimiter
   probes before persistent subscription storage exists.

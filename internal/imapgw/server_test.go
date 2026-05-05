@@ -3394,9 +3394,11 @@ func TestIMAPBaseSubjectFollowsRFC5256Prefixes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"Re: [team] Fwd: Hello (fwd)": "Hello",
-		"[fwd: Re: Project Update]":   "Project Update",
-		"  [list] Re:   Archive  ":    "Archive",
+		"Re: [team] Fwd: Hello (fwd)":          "Hello",
+		"[fwd: Re: Project Update]":            "Project Update",
+		"  [list] Re:   Archive  ":             "Archive",
+		"=?UTF-8?Q?Re=3A_Project_Update?=":     "Project Update",
+		"=?UTF-8?B?UmU6IFByb2plY3QgVXBkYXRl?=": "Project Update",
 	}
 	for input, want := range tests {
 		if got := imapBaseSubject(input); got != want {

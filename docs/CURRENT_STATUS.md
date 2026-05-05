@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP THREAD=ORDEREDSUBJECT support)
+Last updated: 2026-05-05 (updated after IMAP RFC 2047 base-subject decoding)
 
 ## Current phase
 
@@ -848,6 +848,10 @@ The platform hardening sprint completed the following:
   return RFC-shaped ordered-subject thread trees while leaving the more complex
   `REFERENCES` algorithm unadvertised until its Message-ID normalization and
   ancestry rules are implemented.
+- IMAP RFC 5256 base-subject handling decodes RFC 2047 encoded-word subjects
+  before removing reply/forward artifacts, keeping internationalized
+  `SORT SUBJECT` and `THREAD ORDEREDSUBJECT` behavior aligned with compatible
+  clients.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.
