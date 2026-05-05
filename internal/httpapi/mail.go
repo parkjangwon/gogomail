@@ -57,6 +57,7 @@ type MessageService interface {
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
+	BulkSetThreadFlag(ctx context.Context, req maildb.BulkThreadFlagRequest) (int64, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
@@ -113,6 +114,7 @@ type webmailCapabilities struct {
 type webmailBulkActionCapabilities struct {
 	MaxMessageIDs int  `json:"max_message_ids"`
 	Flags         bool `json:"flags"`
+	ThreadFlags   bool `json:"thread_flags"`
 	Move          bool `json:"move"`
 	Delete        bool `json:"delete"`
 }
@@ -193,6 +195,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		BulkActions: webmailBulkActionCapabilities{
 			MaxMessageIDs: maildb.BulkMessageMaxIDs,
 			Flags:         true,
+			ThreadFlags:   true,
 			Move:          true,
 			Delete:        true,
 		},
@@ -671,6 +674,32 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			"has_more":    page.HasMore,
 			"next_cursor": page.NextCursor,
 		})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/threads/bulk/flags", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		var req maildb.BulkThreadFlagRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.UserID = userID
+		updated, err := service.BulkSetThreadFlag(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "updated": updated})
 	})
 
 	mux.HandleFunc("GET /api/v1/messages/{id}/delivery-status", func(w http.ResponseWriter, r *http.Request) {

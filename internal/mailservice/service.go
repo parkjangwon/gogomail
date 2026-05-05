@@ -34,6 +34,7 @@ type Repository interface {
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
+	BulkSetThreadFlag(ctx context.Context, req maildb.BulkThreadFlagRequest) (maildb.BulkThreadFlagResult, error)
 	MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error
 	BulkMoveMessages(ctx context.Context, req maildb.BulkMessageMoveRequest) (int64, error)
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
@@ -1118,6 +1119,25 @@ func (s *Service) BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessage
 	return updated, nil
 }
 
+func (s *Service) BulkSetThreadFlag(ctx context.Context, req maildb.BulkThreadFlagRequest) (int64, error) {
+	req = normalizeBulkThreadFlagRequest(req)
+	if err := maildb.ValidateBulkThreadFlagRequest(req); err != nil {
+		return 0, err
+	}
+	repo, ok := s.repository.(interface {
+		BulkSetThreadFlag(context.Context, maildb.BulkThreadFlagRequest) (maildb.BulkThreadFlagResult, error)
+	})
+	if !ok {
+		return 0, fmt.Errorf("thread flag repository is required")
+	}
+	result, err := repo.BulkSetThreadFlag(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	_ = s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, req.UserID, result.MessageIDs)
+	return result.Updated, nil
+}
+
 func (s *Service) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
@@ -2113,6 +2133,13 @@ func validateServiceResourceID(field string, id string) error {
 func normalizeBulkMessageFlagRequest(req maildb.BulkMessageFlagRequest) maildb.BulkMessageFlagRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	req.Flag = strings.TrimSpace(req.Flag)
+	return req
+}
+
+func normalizeBulkThreadFlagRequest(req maildb.BulkThreadFlagRequest) maildb.BulkThreadFlagRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.ThreadIDs = normalizeStringList(req.ThreadIDs)
 	req.Flag = strings.TrimSpace(req.Flag)
 	return req
 }

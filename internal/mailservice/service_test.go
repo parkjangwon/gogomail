@@ -1626,6 +1626,45 @@ func TestBulkSetMessageFlagPublishesIMAPFlagEvents(t *testing.T) {
 	}
 }
 
+func TestBulkSetThreadFlagPublishesIMAPFlagEvents(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		bulkThreadFlagResult: maildb.BulkThreadFlagResult{
+			Updated:    2,
+			MessageIDs: []string{"msg-1", "msg-2"},
+		},
+		imapUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, ModSeq: 3},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	updated, err := service.BulkSetThreadFlag(context.Background(), maildb.BulkThreadFlagRequest{
+		UserID:    " user-1 ",
+		ThreadIDs: []string{" thread-1 ", " thread-2 "},
+		Flag:      " read ",
+		Value:     true,
+	})
+	if err != nil {
+		t.Fatalf("BulkSetThreadFlag returned error: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if repo.lastBulkThreadFlag.UserID != "user-1" || repo.lastBulkThreadFlag.Flag != "read" || len(repo.lastBulkThreadFlag.ThreadIDs) != 2 || repo.lastBulkThreadFlag.ThreadIDs[0] != "thread-1" || repo.lastBulkThreadFlag.ThreadIDs[1] != "thread-2" {
+		t.Fatalf("bulk thread flag request = %#v", repo.lastBulkThreadFlag)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
+	}
+	if len(events.events) != 2 || events.events[0].UID != 12 || events.events[1].UID != 13 {
+		t.Fatalf("events = %#v, want two flags events", events.events)
+	}
+}
+
 func TestMoveMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	t.Parallel()
 
@@ -2060,6 +2099,7 @@ type fakeRepository struct {
 	attachments                    []maildb.Attachment
 	list                           []maildb.MessageSummary
 	draftSearchResults             []maildb.MessageDetail
+	bulkThreadFlagResult           maildb.BulkThreadFlagResult
 	messagesByID                   []maildb.MessageSummary
 	suppressed                     []string
 	domainPolicy                   maildb.DomainPolicyView
@@ -2124,13 +2164,14 @@ type fakeRepository struct {
 	lastDraftSearchQuery           maildb.DraftSearchQuery
 	lastFlagMessageID              string
 	lastFlag                       string
+	lastBulkFlag                   maildb.BulkMessageFlagRequest
+	lastBulkThreadFlag             maildb.BulkThreadFlagRequest
+	lastBulkMove                   maildb.BulkMessageMoveRequest
+	lastBulkDelete                 maildb.BulkMessageDeleteRequest
 	lastMutationUserID             string
 	lastMoveMessageID              string
 	lastMoveFolderID               string
 	lastDeleteMessageID            string
-	lastBulkFlag                   maildb.BulkMessageFlagRequest
-	lastBulkMove                   maildb.BulkMessageMoveRequest
-	lastBulkDelete                 maildb.BulkMessageDeleteRequest
 	lastPageCursor                 maildb.MessageListCursor
 	lastHydrateIDs                 []string
 	lastSentDraftID                string
@@ -2405,6 +2446,14 @@ func (f *fakeRepository) SetMessageFlag(_ context.Context, userID string, messag
 func (f *fakeRepository) BulkSetMessageFlag(_ context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
 	f.lastBulkFlag = req
 	return int64(len(req.MessageIDs)), nil
+}
+
+func (f *fakeRepository) BulkSetThreadFlag(_ context.Context, req maildb.BulkThreadFlagRequest) (maildb.BulkThreadFlagResult, error) {
+	f.lastBulkThreadFlag = req
+	if f.bulkThreadFlagResult.Updated != 0 || len(f.bulkThreadFlagResult.MessageIDs) > 0 {
+		return f.bulkThreadFlagResult, nil
+	}
+	return maildb.BulkThreadFlagResult{Updated: int64(len(req.ThreadIDs)), MessageIDs: []string{"msg-thread"}}, nil
 }
 
 func (f *fakeRepository) MoveMessage(_ context.Context, userID string, messageID string, folderID string) error {

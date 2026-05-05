@@ -358,7 +358,7 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	if got.MaxListLimit != maildb.MessageListMaxLimit {
 		t.Fatalf("max list limit = %d, want %d", got.MaxListLimit, maildb.MessageListMaxLimit)
 	}
-	if got.BulkActions.MaxMessageIDs != maildb.BulkMessageMaxIDs || !got.BulkActions.Flags || !got.BulkActions.Move || !got.BulkActions.Delete {
+	if got.BulkActions.MaxMessageIDs != maildb.BulkMessageMaxIDs || !got.BulkActions.Flags || !got.BulkActions.ThreadFlags || !got.BulkActions.Move || !got.BulkActions.Delete {
 		t.Fatalf("bulk actions = %#v", got.BulkActions)
 	}
 	if got.Compose.MaxRecipients != mailservice.MaxComposeRecipients || got.Compose.MaxAttachmentIDs != mailservice.MaxComposeAttachments {
@@ -1186,6 +1186,33 @@ func TestBulkSetMessageFlagsHandler(t *testing.T) {
 	}
 	if len(service.lastBulkFlag.MessageIDs) != 2 {
 		t.Fatalf("message ids = %+v", service.lastBulkFlag.MessageIDs)
+	}
+}
+
+func TestBulkSetThreadFlagsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/threads/bulk/flags?user_id=user-1", strings.NewReader(`{
+		"thread_ids":["thread-1","thread-2"],
+		"flag":"read",
+		"value":true
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastBulkThreadFlag.UserID != "user-1" || service.lastBulkThreadFlag.Flag != "read" || !service.lastBulkThreadFlag.Value {
+		t.Fatalf("lastBulkThreadFlag = %+v", service.lastBulkThreadFlag)
+	}
+	if len(service.lastBulkThreadFlag.ThreadIDs) != 2 {
+		t.Fatalf("thread ids = %+v", service.lastBulkThreadFlag.ThreadIDs)
 	}
 }
 
@@ -2880,6 +2907,7 @@ type fakeMessageService struct {
 	lastFlag                    string
 	lastFlagValue               bool
 	lastBulkFlag                maildb.BulkMessageFlagRequest
+	lastBulkThreadFlag          maildb.BulkThreadFlagRequest
 	lastBulkMove                maildb.BulkMessageMoveRequest
 	lastBulkDelete              maildb.BulkMessageDeleteRequest
 	lastListFilter              maildb.MessageListFilter
@@ -2991,6 +3019,11 @@ func (f *fakeMessageService) SetMessageFlag(_ context.Context, userID string, me
 func (f *fakeMessageService) BulkSetMessageFlag(_ context.Context, req maildb.BulkMessageFlagRequest) (int64, error) {
 	f.lastBulkFlag = req
 	return int64(len(req.MessageIDs)), nil
+}
+
+func (f *fakeMessageService) BulkSetThreadFlag(_ context.Context, req maildb.BulkThreadFlagRequest) (int64, error) {
+	f.lastBulkThreadFlag = req
+	return int64(len(req.ThreadIDs)), nil
 }
 
 func (f *fakeMessageService) MoveMessage(_ context.Context, userID string, messageID string, folderID string) error {

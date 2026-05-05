@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after mailbox list preview summaries)
+Last updated: 2026-05-06 (updated after thread bulk flag actions)
 
 ## Current phase
 
@@ -105,6 +105,9 @@ guidance.
   `preview` string sourced from the asynchronous search-document read model,
   letting production webmail lists render body context without opening and
   parsing stored `.eml` objects on the list hot path.
+- Mail API now supports bounded thread-level bulk flag updates for
+  conversation-list read/starred/answered/forwarded actions, while publishing
+  best-effort IMAP flag events for the updated messages.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.
