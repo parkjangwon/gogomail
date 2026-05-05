@@ -776,6 +776,53 @@ func TestServerFiltersListByPattern(t *testing.T) {
 	}
 }
 
+func TestServerHandlesLsubAfterLogin(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LSUB \"\" \"INBOX\"\r\n")); err != nil {
+		t.Fatalf("write login/lsub: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LSUB (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"a2 OK LSUB completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read lsub response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("lsub response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStatusAfterLogin(t *testing.T) {
 	t.Parallel()
 
