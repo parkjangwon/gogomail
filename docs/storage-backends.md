@@ -63,6 +63,9 @@ certificate compatibility guidance for dotted bucket names.
 Object keys are path-escaped segment by segment so literal `+` characters stay
 encoded as `%2B`, preserving object identity and SigV4 canonical paths across
 AWS S3, MinIO, and strict compatible providers.
+For file-backed or otherwise seekable upload bodies, gogomail sets a precise
+`Content-Length` without buffering the object in memory, improving PUT
+compatibility while preserving streaming-first storage paths.
 
 ## Integration verification
 

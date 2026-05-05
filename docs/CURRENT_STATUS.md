@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3 plus-key escaping)
+Last updated: 2026-05-05 (updated after S3 seekable upload lengths)
 
 ## Current phase
 
@@ -173,6 +173,10 @@ guidance.
 - S3-compatible object key escaping now preserves literal `+` characters as
   `%2B` in segment-escaped paths, keeping object identity and SigV4 canonical
   request paths aligned across AWS S3, MinIO, and strict compatible providers.
+- S3-compatible uploads now set a deterministic `Content-Length` for seekable
+  PUT bodies without buffering the object in memory, improving compatibility
+  for file-backed mail and attachment writes while preserving streaming-first
+  storage paths.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -195,7 +195,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
   region, bucket, prefix, credential, and session-token settings. S3 request
   paths preserve literal `+` characters as `%2B` so object identity and SigV4
-  canonical paths do not drift for plus-bearing mail object keys.
+  canonical paths do not drift for plus-bearing mail object keys. Seekable PUT
+  bodies also get deterministic `Content-Length` values without object
+  buffering, improving S3-compatible provider behavior for file-backed mail and
+  attachment writes.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

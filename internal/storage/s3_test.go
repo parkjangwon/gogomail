@@ -170,6 +170,58 @@ func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
 	}
 }
 
+func TestS3StoreSetsContentLengthForSeekablePutBody(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+	body := &seekableTestReader{reader: strings.NewReader("hello world")}
+	if _, err := body.Seek(6, io.SeekStart); err != nil {
+		t.Fatalf("seek body: %v", err)
+	}
+	req, err := store.newRequest(context.Background(), http.MethodPut, "messages/msg-1.eml", body)
+	if err != nil {
+		t.Fatalf("newRequest returned error: %v", err)
+	}
+	if req.ContentLength != 5 {
+		t.Fatalf("ContentLength = %d, want 5", req.ContentLength)
+	}
+	pos, err := body.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatalf("seek current: %v", err)
+	}
+	if pos != 6 {
+		t.Fatalf("body position = %d, want 6", pos)
+	}
+	if !strings.Contains(req.Header.Get("Authorization"), "SignedHeaders=host;x-amz-content-sha256;x-amz-date") {
+		t.Fatalf("Authorization = %q, want signed request", req.Header.Get("Authorization"))
+	}
+}
+
+type seekableTestReader struct {
+	reader *strings.Reader
+}
+
+func (r *seekableTestReader) Read(p []byte) (int, error) {
+	return r.reader.Read(p)
+}
+
+func (r *seekableTestReader) Seek(offset int64, whence int) (int64, error) {
+	return r.reader.Seek(offset, whence)
+}
+
 func TestS3StoreUsesPathStyleForDottedHTTPSBucket(t *testing.T) {
 	t.Parallel()
 

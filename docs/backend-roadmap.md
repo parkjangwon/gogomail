@@ -1422,6 +1422,10 @@ Implementation order:
      `%2B` in segment-escaped request paths, preventing plus-bearing mail
      object keys from being rewritten as spaces and keeping SigV4 canonical
      paths aligned with stored object identity.
+878. S3-compatible PUT requests now set deterministic `Content-Length` values
+     for seekable upload bodies without buffering object contents, improving
+     AWS S3/MinIO-compatible behavior for file-backed mail and attachment
+     writes while preserving streaming-first storage hot paths.
 
 ## Deferred until backend contracts stabilize
 

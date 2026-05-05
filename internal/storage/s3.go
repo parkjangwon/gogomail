@@ -181,6 +181,9 @@ func (s *S3Store) newRequest(ctx context.Context, method string, objectPath stri
 	if err != nil {
 		return nil, fmt.Errorf("create s3 request: %w", err)
 	}
+	if err := setS3ContentLength(req, body); err != nil {
+		return nil, err
+	}
 	req.Header.Set("x-amz-content-sha256", "UNSIGNED-PAYLOAD")
 	req.Header.Set("x-amz-date", s.now().UTC().Format("20060102T150405Z"))
 	if s.sessionToken != "" {
@@ -205,6 +208,32 @@ func (s *S3Store) objectURL(objectPath string) url.URL {
 	target.Path = basePath + "/" + key
 	target.RawPath = escapedBasePath + "/" + escapedKey
 	return target
+}
+
+func setS3ContentLength(req *http.Request, body io.Reader) error {
+	if req == nil || req.Method != http.MethodPut || body == nil || req.ContentLength > 0 {
+		return nil
+	}
+	seeker, ok := body.(io.Seeker)
+	if !ok {
+		return nil
+	}
+	current, err := seeker.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return fmt.Errorf("determine s3 body position: %w", err)
+	}
+	end, err := seeker.Seek(0, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("determine s3 body length: %w", err)
+	}
+	if _, err := seeker.Seek(current, io.SeekStart); err != nil {
+		return fmt.Errorf("restore s3 body position: %w", err)
+	}
+	if end < current {
+		return fmt.Errorf("s3 body length is invalid")
+	}
+	req.ContentLength = end - current
+	return nil
 }
 
 func (s *S3Store) key(objectPath string) string {
