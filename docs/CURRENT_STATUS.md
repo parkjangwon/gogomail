@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP SEARCHRES SAVE failure handling)
+Last updated: 2026-05-05 (updated after IMAP FETCH failure response alignment)
 
 ## Current phase
 
@@ -1051,6 +1051,9 @@ The platform hardening sprint completed the following:
   `Bcc` address JSON into RFC-shaped ENVELOPE address lists, keeping real
   repository-backed `FETCH ENVELOPE`, address search, and address sort behavior
   aligned with the advertised protocol surface.
+- IMAP shared fetch failure paths now tag failures with the command actually
+  issued by the client, so regular `FETCH` failures no longer surface as
+  `UID FETCH failed` responses while UID fetches retain UID-specific wording.
 - IMAP `FETCH`/`UID FETCH` now apply RFC 3501 `\Seen` side effects for
   successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads while
   preserving `BODY.PEEK[...]` and `RFC822.HEADER` as non-mutating preview

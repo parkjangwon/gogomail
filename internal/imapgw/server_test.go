@@ -4695,6 +4695,61 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerFetchFailuresUseIssuedCommandName(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fetchFailureBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 FETCH 1 (FLAGS)\r\na4 UID FETCH 7 (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write failing fetch commands: %v", err)
+	}
+	want := []string{
+		"a3 NO FETCH failed\r\n",
+		"a4 NO UID FETCH failed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read failing fetch response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("failing fetch response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRoutesMalformedUIDSubcommandsToSpecificHandlers(t *testing.T) {
 	t.Parallel()
 
@@ -8862,6 +8917,14 @@ func (b searchSaveFailureBackend) FetchMessage(ctx context.Context, req FetchMes
 		return Message{}, errors.New("search body fetch failed")
 	}
 	return b.fakeBackend.FetchMessage(ctx, req)
+}
+
+type fetchFailureBackend struct {
+	fakeBackend
+}
+
+func (fetchFailureBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
+	return Message{}, errors.New("fetch failed")
 }
 
 func testMultipartBody() string {

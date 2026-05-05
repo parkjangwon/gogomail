@@ -542,6 +542,9 @@ Current state:
   address JSON into RFC-shaped ENVELOPE address lists, so repository-backed
   `FETCH ENVELOPE`, address search, and address sort paths share the same
   recipient metadata as Mail API storage.
+- Shared fetch failure paths now use the issued command name in tagged
+  failures, keeping regular `FETCH` failures distinct from `UID FETCH`
+  failures in client-visible responses.
 - `FETCH`/`UID FETCH` now applies RFC 3501 `\Seen` side effects for successful
   `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads, while
   `BODY.PEEK[...]` and `RFC822.HEADER` remain preview-safe and non-mutating.

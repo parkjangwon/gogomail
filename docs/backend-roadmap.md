@@ -1652,6 +1652,9 @@ Implementation order:
      when the save-requested search fails with tagged `NO`, while tagged `BAD`
      searches leave the previous result untouched, aligning the advertised
      SEARCHRES capability with RFC 5182 failure semantics.
+944. IMAP shared fetch failure paths now preserve the issued command name in
+     tagged `NO` responses, so regular `FETCH` failures do not surface as
+     `UID FETCH failed` while `UID FETCH` keeps UID-specific wording.
 
 ## Deferred until backend contracts stabilize
 

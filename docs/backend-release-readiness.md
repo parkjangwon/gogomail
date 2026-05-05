@@ -551,6 +551,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, enabling standard mailbox list metadata reads.
+- IMAP shared fetch failure paths now preserve the issued command name in
+  tagged `NO` responses, so regular `FETCH` failures do not report
+  `UID FETCH failed` while UID fetch failures retain UID-specific wording.
 - IMAP `FETCH`/`UID FETCH` now follows RFC 3501 `\Seen` side-effect semantics:
   successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads mark the
   message seen through the service-backed flag boundary, while `BODY.PEEK[...]`
