@@ -56,6 +56,11 @@ Current state:
   argument shape or modified UTF-7 mailbox names before authentication
   failures, while well-formed unauthenticated commands still return
   `NO authentication required`.
+- Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
+  `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
+  or modified UTF-7 mailbox names before authentication failures, while
+  well-formed unauthenticated commands still return `NO authentication
+  required`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

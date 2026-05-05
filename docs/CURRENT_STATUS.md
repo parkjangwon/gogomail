@@ -1513,6 +1513,11 @@ The platform hardening sprint completed the following:
   `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before
   authentication failures, while valid unauthenticated commands still return
   `NO authentication required`.
+- IMAP selected-mailbox discovery commands now validate malformed `NAMESPACE`,
+  `SELECT`, `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status
+  item lists, or modified UTF-7 mailbox names before authentication failures,
+  while valid unauthenticated commands still return `NO authentication
+  required`.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
