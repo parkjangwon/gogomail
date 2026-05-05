@@ -1502,6 +1502,9 @@ Current state:
 - CalDAV object `PUT` now rejects explicit non-`text/calendar` media types
   before iCalendar parsing, while still allowing clients that omit
   `Content-Type`.
+- CalDAV object `PUT` now enforces `If-Match: *` as an existing-resource
+  precondition, preventing accidental object creation through conditional
+  overwrite requests.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
