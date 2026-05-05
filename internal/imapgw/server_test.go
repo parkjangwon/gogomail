@@ -535,6 +535,50 @@ func TestServerValidatesSelectedActionSyntaxBeforeAuthentication(t *testing.T) {
 	}
 }
 
+func TestServerValidatesAppendSyntaxBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 APPEND\r\na2 APPEND inbox BAD\r\na3 APPEND &Jjo! {5+}\r\nhello\r\na4 APPEND inbox BAD {5+}\r\nhello\r\na5 APPEND inbox {5+}\r\nhello\r\na6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write append auth commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD APPEND requires mailbox and literal\r\n",
+		"a2 BAD APPEND requires mailbox and literal\r\n",
+		"a3 BAD APPEND mailbox name is not valid modified UTF-7\r\n",
+		"a4 BAD APPEND options are unsupported\r\n",
+		"a5 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a6 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read append auth response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("append auth response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	t.Parallel()
 

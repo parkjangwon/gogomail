@@ -1102,6 +1102,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `UID` dispatch validates state-independent subcommand syntax before
   authentication and selected-mailbox errors, keeping arity and mailbox-name
   diagnostics visible to clients even before `LOGIN`, `SELECT`, or `EXAMINE`.
+- IMAP `APPEND` validates missing literals, malformed append options, and
+  modified UTF-7 mailbox names before authentication errors, while valid
+  unauthenticated appends still consume the RFC literal and return
+  `NO authentication required` before backend storage.
 - IMAP authentication commands validate malformed `LOGIN` arity and unsupported
   `AUTHENTICATE` mechanisms before plaintext privacy-required failures, keeping
   auth handshake diagnostics precise without weakening TLS-required policy.
