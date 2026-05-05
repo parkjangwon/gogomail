@@ -107,6 +107,11 @@ The first runtime wiring starts a discovery-only CalDAV HTTP listener for
 compatibility until REPORT handling, object GET/PUT/DELETE, scheduling
 semantics, and compatibility tests are completed.
 
+REPORT request parsing is kept in the gateway boundary and validates
+handler-critical shape early: required query filters, multiget hrefs,
+free-busy UTC time ranges, sync-collection level, and bounded sync limits.
+Handlers can therefore focus on storage reads and WebDAV response semantics.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

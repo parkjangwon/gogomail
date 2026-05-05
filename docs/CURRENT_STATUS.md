@@ -2095,6 +2095,11 @@ The platform hardening sprint completed the following:
   Basic-auth resolver. The runtime is discovery-only at this stage; full
   CalDAV client-ready compatibility still depends on REPORT/PUT/DELETE and
   broader compatibility coverage.
+- CalDAV REPORT parsing now validates more protocol shape before handlers run:
+  `calendar-query` requires a filter and extracts nested CalDAV time ranges,
+  `calendar-multiget` requires bounded hrefs, `free-busy-query` requires a UTC
+  time range, and `sync-collection` requires supported `sync-level=1` plus a
+  bounded optional `limit`.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

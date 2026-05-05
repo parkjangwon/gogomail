@@ -203,6 +203,8 @@ func TestParseReportCollectsPropertiesHrefsAndSyncToken(t *testing.T) {
 
 	const body = `<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
   <D:sync-token> sync-123 </D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>25</D:nresults></D:limit>
   <D:prop><D:getetag/><C:calendar-data/></D:prop>
   <D:href> /caldav/calendars/user/work/event.ics </D:href>
 </D:sync-collection>`
@@ -216,8 +218,45 @@ func TestParseReportCollectsPropertiesHrefsAndSyncToken(t *testing.T) {
 	if len(req.Hrefs) != 1 || req.Hrefs[0] != "/caldav/calendars/user/work/event.ics" {
 		t.Fatalf("hrefs = %+v", req.Hrefs)
 	}
+	if req.SyncLevel != "1" {
+		t.Fatalf("sync level = %q", req.SyncLevel)
+	}
+	if req.Limit != 25 {
+		t.Fatalf("limit = %d", req.Limit)
+	}
 	if len(req.Properties) != 2 {
 		t.Fatalf("properties = %+v, want 2", req.Properties)
+	}
+}
+
+func TestParseReportCollectsCalendarQueryTimeRange(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if !req.HasFilter {
+		t.Fatal("HasFilter = false, want true")
+	}
+	if req.TimeRange == nil {
+		t.Fatal("TimeRange = nil")
+	}
+	if got := req.TimeRange.Start.Format("20060102T150405Z"); got != "20260506T000000Z" {
+		t.Fatalf("start = %s", got)
+	}
+	if got := req.TimeRange.End.Format("20060102T150405Z"); got != "20260507T000000Z" {
+		t.Fatalf("end = %s", got)
 	}
 }
 
@@ -225,11 +264,19 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"empty body":      ``,
-		"unknown root":    `<D:expand-property xmlns:D="DAV:"/>`,
-		"wrong namespace": `<calendar-query/>`,
-		"nested href":     `<D:sync-collection xmlns:D="DAV:"><D:href><D:x/></D:href></D:sync-collection>`,
-		"too many hrefs":  `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">` + strings.Repeat("<D:href>/x.ics</D:href>", MaxWebDAVHrefs+1) + `</C:calendar-multiget>`,
+		"empty body":         ``,
+		"unknown root":       `<D:expand-property xmlns:D="DAV:"/>`,
+		"wrong namespace":    `<calendar-query/>`,
+		"nested href":        `<D:sync-collection xmlns:D="DAV:"><D:href><D:x/></D:href></D:sync-collection>`,
+		"too many hrefs":     `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">` + strings.Repeat("<D:href>/x.ics</D:href>", MaxWebDAVHrefs+1) + `</C:calendar-multiget>`,
+		"multiget no href":   `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:calendar-multiget>`,
+		"query no filter":    `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:calendar-query>`,
+		"free busy no range": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"/>`,
+		"sync no level":      `<D:sync-collection xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync bad level":     `<D:sync-collection xmlns:D="DAV:"><D:sync-level>infinity</D:sync-level></D:sync-collection>`,
+		"bad range order":    `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"><C:time-range start="20260507T000000Z" end="20260506T000000Z"/></C:free-busy-query>`,
+		"bad range utc":      `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"><C:time-range start="20260506T000000" end="20260507T000000Z"/></C:free-busy-query>`,
+		"bad limit":          `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:limit><D:nresults>0</D:nresults></D:limit></D:sync-collection>`,
 	}
 	for name, body := range tests {
 		name, body := name, body

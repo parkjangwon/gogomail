@@ -214,6 +214,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   CalDAV repository and Basic-auth resolver. It is not yet advertised as
   client-ready because REPORT and object mutation/read handlers are still
   incomplete.
+- CalDAV REPORT parsing now enforces core request-shape preconditions for
+  calendar query, multiget, free-busy, and sync-collection requests before
+  handler logic is added.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
