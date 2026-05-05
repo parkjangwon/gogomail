@@ -3437,7 +3437,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		}
 		message, err := s.options.Backend.FetchMessage(context.Background(), fetchReq)
 		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
+			_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 			return false, writeErr
 		}
 		summary := message.Summary
@@ -3499,18 +3499,18 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		}
 		sequenceNumber, ok := imapSequenceNumber(summary)
 		if !ok {
-			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
+			_, err := writer.WriteString(tag + " NO " + completionCommand + " sequence number is unavailable\r\n")
 			return false, err
 		}
 		if requestsLiteral {
 			if message.Body == nil {
-				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
+				_, err := writer.WriteString(tag + " NO " + completionCommand + " body is unavailable\r\n")
 				return false, err
 			}
 			body := message.Body
 			if summary.Size < 0 {
 				_ = body.Close()
-				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
+				_, err := writer.WriteString(tag + " NO " + completionCommand + " body size is unavailable\r\n")
 				return false, err
 			}
 			if setsSeen {
@@ -3518,7 +3518,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				summary, err = s.markFetchSeen(context.Background(), state, summary)
 				if err != nil {
 					_ = body.Close()
-					_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
+					_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 					return false, writeErr
 				}
 			}
@@ -3531,7 +3531,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					return false, err
 				}
 				if !found {
-					_, err := writer.WriteString(tag + " NO UID FETCH body section is unavailable\r\n")
+					_, err := writer.WriteString(tag + " NO " + completionCommand + " body section is unavailable\r\n")
 					return false, err
 				}
 				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
