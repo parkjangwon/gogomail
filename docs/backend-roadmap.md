@@ -1317,6 +1317,9 @@ Implementation order:
 850. IMAP `LIST ... RETURN (STATUS (...))` now also requires a parenthesized
      status item list, rejecting malformed `RETURN (STATUS MESSAGES)` before
      mailbox listing work.
+851. IMAP command dispatch now rejects malformed tags containing atom-special
+     characters with untagged `BAD` responses before command handling,
+     avoiding ambiguous tagged replies for invalid client command tags.
 
 ## Deferred until backend contracts stabilize
 

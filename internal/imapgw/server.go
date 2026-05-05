@@ -273,6 +273,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		return false, err
 	}
 	tag := fields[0]
+	if !imapTagValid(tag) {
+		_, err := writer.WriteString("* BAD malformed command\r\n")
+		return false, err
+	}
 	command := strings.ToUpper(fields[1])
 	switch command {
 	case "CAPABILITY":
@@ -5718,6 +5722,23 @@ func imapCommandArgumentString(line string) string {
 		return ""
 	}
 	return strings.TrimSpace(rest[second:])
+}
+
+func imapTagValid(tag string) bool {
+	if tag == "" {
+		return false
+	}
+	for i := 0; i < len(tag); i++ {
+		switch tag[i] {
+		case '(', ')', '{', ' ', '\t', '%', '*', '"', '\\', ']':
+			return false
+		default:
+			if tag[i] < 0x20 || tag[i] == 0x7f {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func imapIDArgumentsValid(argument string) bool {
