@@ -2083,6 +2083,11 @@ func imapUIDSetResponse(uids []UID) string {
 }
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
+	changedSince, requestsChangedSince, changedSinceOK := imapFetchChangedSince(items)
+	if !changedSinceOK {
+		_, err := writer.WriteString(tag + " BAD FETCH CHANGEDSINCE modifier is invalid\r\n")
+		return false, err
+	}
 	items = imapExpandFetchItems(items)
 	requestsBody := imapFetchRequestsBody(items)
 	partial, requestsPartialBody := imapFetchPartialBody(items)
@@ -2098,7 +2103,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	partialHeaderFieldsNot, requestsPartialHeaderFieldsNot := imapFetchPartialHeaderFieldsNot(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
-	requestsModSeq := imapFetchRequestsModSeq(items)
+	requestsModSeq := requestsChangedSince || imapFetchRequestsModSeq(items)
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
 	for _, uid := range uids {
@@ -2115,6 +2120,14 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		summary := message.Summary
 		if summary.UID == 0 {
 			summary.UID = uid
+		}
+		if requestsChangedSince && summary.ModSeq <= changedSince {
+			if message.Body != nil {
+				if err := message.Body.Close(); err != nil {
+					return false, err
+				}
+			}
+			continue
 		}
 		requestsLiteral := requestsBody || requestsPartialBody || requestsPartialSection || requestsMIMEPart || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
 		bodyAttribute := ""
@@ -2975,6 +2988,40 @@ func imapFetchRequestsModSeq(items []string) bool {
 	return imapFetchRequestsToken(items, "MODSEQ")
 }
 
+func imapFetchChangedSince(items []string) (uint64, bool, bool) {
+	tokens := imapFetchNormalizedTokens(items)
+	var threshold uint64
+	found := false
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i] != "CHANGEDSINCE" {
+			continue
+		}
+		if found || i+1 >= len(tokens) {
+			return 0, false, false
+		}
+		modseq, ok := parseIMAPModSeqValue(tokens[i+1])
+		if !ok {
+			return 0, false, false
+		}
+		threshold = modseq
+		found = true
+		i++
+	}
+	return threshold, found, true
+}
+
+func imapFetchNormalizedTokens(items []string) []string {
+	tokens := make([]string, 0, len(items))
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			if token != "" {
+				tokens = append(tokens, token)
+			}
+		}
+	}
+	return tokens
+}
+
 func imapFetchRequestsBodyStructure(items []string) bool {
 	return imapFetchRequestsToken(items, "BODYSTRUCTURE")
 }
@@ -2984,11 +3031,9 @@ func imapFetchRequestsBodyAttribute(items []string) bool {
 }
 
 func imapFetchRequestsToken(items []string, want string) bool {
-	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
-			if token == want {
-				return true
-			}
+	for _, token := range imapFetchNormalizedTokens(items) {
+		if token == want {
+			return true
 		}
 	}
 	return false
