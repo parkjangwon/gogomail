@@ -1737,6 +1737,11 @@ Implementation order:
      S3-compatible backends, using local directory walks and signed
      `ListObjectsV2` remotely so future Drive, lifecycle, and reconciliation
      workflows can page through object metadata without backend-specific code.
+966. Shared storage now exposes object `Move` across local/NFS and
+     S3-compatible backends, using filesystem rename semantics locally and
+     signed S3 server-side copy plus source delete remotely so future Drive and
+     lifecycle workflows can relocate objects through one backend-neutral
+     contract while respecting S3's non-atomic rename model.
 
 ## Deferred until backend contracts stabilize
 

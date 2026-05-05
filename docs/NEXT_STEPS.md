@@ -207,8 +207,8 @@ Current state:
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.
 - The storage interface is backend-neutral (`Put`, `Get`, `Stat`, `Copy`,
-  `List`, `Delete`) and object paths share strict canonical key validation
-  before adapter use.
+  `Move`, `List`, `Delete`) and object paths share strict canonical key
+  validation before adapter use.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
@@ -244,6 +244,11 @@ Current state:
 - S3-compatible deletes treat `404 Not Found` as already-cleaned success,
   keeping lifecycle cleanup idempotent across AWS S3, MinIO-style endpoints,
   and local/NFS storage.
+- Local/NFS and S3-compatible storage expose a shared object `Move` contract
+  for future Drive/file relocation workflows. Local/NFS uses efficient
+  filesystem rename semantics; S3-compatible storage uses signed server-side
+  copy followed by source delete, so callers should treat post-copy failures as
+  duplicate-cleanup work instead of relying on atomic rename semantics.
 - S3-compatible secret access keys and session tokens reject spaces, tabs, and
   line breaks during config validation and adapter construction, making copied
   env/config credential mistakes fail fast before runtime S3 authentication

@@ -46,6 +46,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Restore actions best-effort assign IMAP UIDs and publish `EXISTS` events for
   restored active messages, so connected IMAP clients can observe webmail
   recovery actions without a separate operator backfill step.
+- Shared storage exposes backend-neutral `Stat`, `Copy`, `Move`, and bounded
+  `List` primitives across local/NFS and S3-compatible backends, preparing
+  attachment lifecycle, future Drive, and object reconciliation work without
+  binding product code to filesystem or S3 APIs directly. S3-compatible moves
+  are documented as copy-then-delete rather than atomic rename.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

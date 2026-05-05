@@ -218,6 +218,33 @@ func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) 
 	return nil
 }
 
+func (s *S3Store) Move(ctx context.Context, sourcePath string, destPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	sourceObjectPath, err := ValidateObjectPath(sourcePath)
+	if err != nil {
+		return fmt.Errorf("unsafe source storage path %q: %w", sourcePath, err)
+	}
+	destObjectPath, err := ValidateObjectPath(destPath)
+	if err != nil {
+		return fmt.Errorf("unsafe destination storage path %q: %w", destPath, err)
+	}
+	if sourceObjectPath == destObjectPath {
+		return nil
+	}
+	if err := s.Copy(ctx, sourceObjectPath, destObjectPath); err != nil {
+		return fmt.Errorf("copy source storage object for move: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.Delete(ctx, sourceObjectPath); err != nil {
+		return fmt.Errorf("delete source storage object after move: %w", err)
+	}
+	return nil
+}
+
 func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, error) {
 	prefix, err := ValidateObjectPrefix(opts.Prefix)
 	if err != nil {
