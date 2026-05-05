@@ -2028,9 +2028,6 @@ func imapParseMIMEPartRequestToken(token string) (imapMIMEPartRequest, bool) {
 		}
 		path = append(path, value)
 	}
-	if len(path) == 1 && path[0] == 1 && !mimeSection {
-		return imapMIMEPartRequest{}, false
-	}
 	req := imapMIMEPartRequest{path: path, mime: mimeSection}
 	if suffix := token[closeIdx+1:]; suffix != "" {
 		if !strings.HasPrefix(suffix, "<") {
@@ -2090,12 +2087,31 @@ func readIMAPMIMEPartLiteral(reader io.Reader, req imapMIMEPartRequest) ([]byte,
 	}
 	message, err := stdmail.ReadMessage(bytes.NewReader(data))
 	if err != nil {
+		if len(req.path) == 1 && req.path[0] == 1 && !req.mime {
+			if req.partial.count > 0 {
+				data = imapPartialLiteral(data, req.partial)
+			}
+			return data, true, nil
+		}
 		return nil, false, nil
 	}
 	mediaType, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
 	if err != nil || !strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
 		if len(req.path) == 1 && req.path[0] == 1 && req.mime {
 			return []byte("\r\n"), true, nil
+		}
+		if len(req.path) == 1 && req.path[0] == 1 && !req.mime {
+			literal, err := io.ReadAll(io.LimitReader(message.Body, maxIMAPSearchLiteralBytes+1))
+			if err != nil {
+				return nil, false, err
+			}
+			if len(literal) > maxIMAPSearchLiteralBytes {
+				return nil, false, fmt.Errorf("imap mime part literal exceeds limit")
+			}
+			if req.partial.count > 0 {
+				literal = imapPartialLiteral(literal, req.partial)
+			}
+			return literal, true, nil
 		}
 		return nil, false, nil
 	}
