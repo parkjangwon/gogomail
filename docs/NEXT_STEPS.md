@@ -1395,6 +1395,10 @@ Current state:
   Drive search/list views, and webmail capabilities advertise the mode so
   production compose file pickers can search user Drive inventory without
   crawling folders client-side.
+- Drive share-link metadata now exists behind `drive_share_links` plus
+  authenticated Mail API create/list/revoke routes. Raw share tokens are
+  create-response-only, with persisted hashes/suffixes preparing future public
+  resolution and compose-side Drive file insertion.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1404,6 +1408,13 @@ Current state:
 
 Next:
 
+- Add a CalDAV module ADR and protocol scaffold modeled after IMAP: RFC-first,
+  client-compatibility-first, high-performance calendar storage/sync boundaries
+  for future webmail calendar UI and Apple/Android/Windows/macOS CalDAV/iCalendar
+  clients.
+- Add public Drive share-link resolution/download routes with strict token hash
+  lookup, expiry/revocation checks, no-store headers, and range-download reuse
+  before generated compose links are sent outside authenticated webmail.
 - Add a concrete cloud KMS adapter, or deploy the remote-Ed25519 signer service,
   before invoices or hard Open API limits depend on completed export batches.
 - Keep scheduled API usage retention dry-run in pre-production until production

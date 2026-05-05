@@ -175,34 +175,38 @@ type webmailAttachmentCapabilities struct {
 }
 
 type webmailDriveCapabilities struct {
-	Nodes                    bool     `json:"nodes"`
-	NodeNameSearch           bool     `json:"node_name_search"`
-	NodeAllParentsSearch     bool     `json:"node_all_parents_search"`
-	NodeTypeFilter           bool     `json:"node_type_filter"`
-	SupportedNodeTypes       []string `json:"supported_node_types"`
-	NodeSortControls         bool     `json:"node_sort_controls"`
-	SupportedNodeSorts       []string `json:"supported_node_sorts"`
-	NodeDetail               bool     `json:"node_detail"`
-	NodeDownload             bool     `json:"node_download"`
-	NodeRangeDownload        bool     `json:"node_range_download"`
-	CopyNodes                bool     `json:"copy_nodes"`
-	MaxCopyNodes             int      `json:"max_copy_nodes"`
-	UsageSummary             bool     `json:"usage_summary"`
-	CreateFolders            bool     `json:"create_folders"`
-	RenameNodes              bool     `json:"rename_nodes"`
-	MoveNodes                bool     `json:"move_nodes"`
-	TrashRestore             bool     `json:"trash_restore"`
-	PermanentDelete          bool     `json:"permanent_delete"`
-	UploadSessions           bool     `json:"upload_sessions"`
-	ListUploadSessions       bool     `json:"list_upload_sessions"`
-	UploadSessionBody        bool     `json:"upload_session_body"`
-	UploadSessionChecksum    bool     `json:"upload_session_checksum"`
-	FinalizeUploadSessions   bool     `json:"finalize_upload_sessions"`
-	CancelUploadSessions     bool     `json:"cancel_upload_sessions"`
-	ResumableChunkedUploads  bool     `json:"resumable_chunked_uploads"`
-	MaxUploadSessionBytes    int64    `json:"max_upload_session_bytes"`
-	MaxSessionTTLSeconds     int64    `json:"max_session_ttl_seconds"`
-	DefaultSessionTTLSeconds int64    `json:"default_session_ttl_seconds"`
+	Nodes                      bool     `json:"nodes"`
+	NodeNameSearch             bool     `json:"node_name_search"`
+	NodeAllParentsSearch       bool     `json:"node_all_parents_search"`
+	NodeTypeFilter             bool     `json:"node_type_filter"`
+	SupportedNodeTypes         []string `json:"supported_node_types"`
+	NodeSortControls           bool     `json:"node_sort_controls"`
+	SupportedNodeSorts         []string `json:"supported_node_sorts"`
+	NodeDetail                 bool     `json:"node_detail"`
+	NodeDownload               bool     `json:"node_download"`
+	NodeRangeDownload          bool     `json:"node_range_download"`
+	CopyNodes                  bool     `json:"copy_nodes"`
+	MaxCopyNodes               int      `json:"max_copy_nodes"`
+	ShareLinks                 bool     `json:"share_links"`
+	ShareLinkPermissions       []string `json:"share_link_permissions"`
+	MaxShareLinkTTLSeconds     int64    `json:"max_share_link_ttl_seconds"`
+	DefaultShareLinkTTLSeconds int64    `json:"default_share_link_ttl_seconds"`
+	UsageSummary               bool     `json:"usage_summary"`
+	CreateFolders              bool     `json:"create_folders"`
+	RenameNodes                bool     `json:"rename_nodes"`
+	MoveNodes                  bool     `json:"move_nodes"`
+	TrashRestore               bool     `json:"trash_restore"`
+	PermanentDelete            bool     `json:"permanent_delete"`
+	UploadSessions             bool     `json:"upload_sessions"`
+	ListUploadSessions         bool     `json:"list_upload_sessions"`
+	UploadSessionBody          bool     `json:"upload_session_body"`
+	UploadSessionChecksum      bool     `json:"upload_session_checksum"`
+	FinalizeUploadSessions     bool     `json:"finalize_upload_sessions"`
+	CancelUploadSessions       bool     `json:"cancel_upload_sessions"`
+	ResumableChunkedUploads    bool     `json:"resumable_chunked_uploads"`
+	MaxUploadSessionBytes      int64    `json:"max_upload_session_bytes"`
+	MaxSessionTTLSeconds       int64    `json:"max_session_ttl_seconds"`
+	DefaultSessionTTLSeconds   int64    `json:"default_session_ttl_seconds"`
 }
 
 type webmailPushCapabilities struct {
@@ -286,34 +290,38 @@ func currentWebmailCapabilities() webmailCapabilities {
 			MaxSessionTTLSeconds:    int64(mailservice.MaxAttachmentUploadSessionTTL.Seconds()),
 		},
 		Drive: webmailDriveCapabilities{
-			Nodes:                    true,
-			NodeNameSearch:           true,
-			NodeAllParentsSearch:     true,
-			NodeTypeFilter:           true,
-			SupportedNodeTypes:       []string{drive.NodeTypeFolder, drive.NodeTypeFile},
-			NodeSortControls:         true,
-			SupportedNodeSorts:       []string{drive.NodeSortName, drive.NodeSortUpdated, drive.NodeSortCreated, drive.NodeSortSize},
-			NodeDetail:               true,
-			NodeDownload:             true,
-			NodeRangeDownload:        true,
-			CopyNodes:                true,
-			MaxCopyNodes:             drive.MaxDriveCopyNodes,
-			UsageSummary:             true,
-			CreateFolders:            true,
-			RenameNodes:              true,
-			MoveNodes:                true,
-			TrashRestore:             true,
-			PermanentDelete:          true,
-			UploadSessions:           true,
-			ListUploadSessions:       true,
-			UploadSessionBody:        true,
-			UploadSessionChecksum:    true,
-			FinalizeUploadSessions:   true,
-			CancelUploadSessions:     true,
-			ResumableChunkedUploads:  false,
-			MaxUploadSessionBytes:    drive.MaxUploadSessionBytes,
-			MaxSessionTTLSeconds:     int64(drive.MaxUploadSessionTTL.Seconds()),
-			DefaultSessionTTLSeconds: int64(drive.DefaultUploadSessionTTL.Seconds()),
+			Nodes:                      true,
+			NodeNameSearch:             true,
+			NodeAllParentsSearch:       true,
+			NodeTypeFilter:             true,
+			SupportedNodeTypes:         []string{drive.NodeTypeFolder, drive.NodeTypeFile},
+			NodeSortControls:           true,
+			SupportedNodeSorts:         []string{drive.NodeSortName, drive.NodeSortUpdated, drive.NodeSortCreated, drive.NodeSortSize},
+			NodeDetail:                 true,
+			NodeDownload:               true,
+			NodeRangeDownload:          true,
+			CopyNodes:                  true,
+			MaxCopyNodes:               drive.MaxDriveCopyNodes,
+			ShareLinks:                 true,
+			ShareLinkPermissions:       []string{drive.ShareLinkPermissionView, drive.ShareLinkPermissionDownload},
+			MaxShareLinkTTLSeconds:     int64(drive.MaxShareLinkTTL.Seconds()),
+			DefaultShareLinkTTLSeconds: int64(drive.DefaultShareLinkTTL.Seconds()),
+			UsageSummary:               true,
+			CreateFolders:              true,
+			RenameNodes:                true,
+			MoveNodes:                  true,
+			TrashRestore:               true,
+			PermanentDelete:            true,
+			UploadSessions:             true,
+			ListUploadSessions:         true,
+			UploadSessionBody:          true,
+			UploadSessionChecksum:      true,
+			FinalizeUploadSessions:     true,
+			CancelUploadSessions:       true,
+			ResumableChunkedUploads:    false,
+			MaxUploadSessionBytes:      drive.MaxUploadSessionBytes,
+			MaxSessionTTLSeconds:       int64(drive.MaxUploadSessionTTL.Seconds()),
+			DefaultSessionTTLSeconds:   int64(drive.DefaultUploadSessionTTL.Seconds()),
 		},
 		PushNotifications: webmailPushCapabilities{
 			Devices:   true,

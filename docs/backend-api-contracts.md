@@ -248,6 +248,19 @@ or development `user_id` fallback path as webmail mail routes:
   preallocated Drive node UUID for both the committed object path and inserted
   `drive_nodes.id`, keeping object keys and metadata identifiers aligned across
   storage backends. Quota exhaustion maps to HTTP 507 `insufficient_storage`.
+- `POST /api/v1/drive/nodes/{id}/share-links` creates an active share-link
+  record for an active Drive file from optional `{"permission","expires_at"}`
+  and returns `{"drive_share_link":{...}}`. Permissions are `view` or
+  `download`; `expires_at` is optional RFC3339, defaults server-side, and is
+  capped by the advertised Drive share-link TTL. The raw bearer token is
+  returned only in the creation response; only its SHA-256 hash and short suffix
+  are persisted.
+- `GET /api/v1/drive/share-links` returns
+  `{"drive_share_links":[...]}` with bounded `node_id`, `status=active|revoked`,
+  and `limit` filters for authenticated users. List responses never return raw
+  share tokens.
+- `DELETE /api/v1/drive/share-links/{id}` revokes an active authenticated-user
+  share link and returns `{"drive_share_link":{...}}` with `status=revoked`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

@@ -2039,6 +2039,10 @@ The platform hardening sprint completed the following:
   Drive search/list views while rejecting ambiguous `parent_id` combinations,
   and webmail capabilities advertise the whole-tree search mode for production
   file pickers and compose-side Drive insertion flows.
+- Drive now has a first authenticated share-link metadata boundary:
+  `drive_share_links` stores user/file-scoped token hashes, bounded suffixes,
+  permissions, status, and expiry; Mail API routes can create, list, and revoke
+  links while returning raw share tokens only in the create response.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
