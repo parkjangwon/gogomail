@@ -1833,6 +1833,9 @@ Implementation order:
      `internal/drive` validation contract for upload identity, parent folder,
      declared size, MIME type, storage backend, lifecycle status, and bounded
      expiration before resumable Drive upload APIs are exposed.
+989. Drive upload-session creation now has a repository/service boundary for
+     recording pending sessions under active users and optional active parent
+     folders with backend-neutral storage metadata and bounded expiration.
 
 ## Deferred until backend contracts stabilize
 
