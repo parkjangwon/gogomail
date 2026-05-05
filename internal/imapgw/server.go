@@ -910,6 +910,15 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			return imapMessageMatchesTextSearch(summary, criterion, strings.ToLower(strings.Trim(query, `"`))), nil
 		}, 2, true
+	case "HEADER":
+		if len(criteria) < 3 {
+			return nil, 0, false
+		}
+		fieldName := strings.Trim(criteria[1], `"`)
+		query := strings.ToLower(strings.Trim(criteria[2], `"`))
+		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return server.imapMessageMatchesHeaderSearch(ctx, state, summary, fieldName, query)
+		}, 3, true
 	case "BODY", "TEXT":
 		if len(criteria) < 2 {
 			return nil, 0, false
@@ -1191,6 +1200,50 @@ func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapCo
 		return false, err
 	}
 	return strings.Contains(strings.ToLower(string(literal)), query), nil
+}
+
+func (s *Server) imapMessageMatchesHeaderSearch(ctx context.Context, state *imapConnState, summary MessageSummary, fieldName string, query string) (bool, error) {
+	if s == nil || state == nil || state.session == nil || strings.TrimSpace(fieldName) == "" || summary.UID == 0 {
+		return false, nil
+	}
+	message, err := s.options.Backend.FetchMessage(ctx, FetchMessageRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		UID:       summary.UID,
+	})
+	if err != nil {
+		return false, err
+	}
+	if message.Body == nil {
+		return false, nil
+	}
+	defer message.Body.Close()
+	header, err := readIMAPSearchHeader(message.Body)
+	if err != nil {
+		return false, err
+	}
+	fieldLiteral := filterIMAPHeaderFields(header, []string{fieldName}, false)
+	if strings.TrimSpace(string(fieldLiteral)) == "" {
+		return false, nil
+	}
+	return strings.Contains(strings.ToLower(string(fieldLiteral)), query), nil
+}
+
+func readIMAPSearchHeader(reader io.Reader) ([]byte, error) {
+	if reader == nil {
+		return nil, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(reader, maxIMAPSearchLiteralBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxIMAPSearchLiteralBytes {
+		data = data[:maxIMAPSearchLiteralBytes]
+	}
+	if end := imapHeaderEnd(data); end >= 0 {
+		return data[:end], nil
+	}
+	return data, nil
 }
 
 func readIMAPSearchLiteral(reader io.Reader, bodyOnly bool) ([]byte, error) {

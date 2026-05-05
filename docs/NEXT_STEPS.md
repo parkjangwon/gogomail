@@ -299,6 +299,8 @@ Current state:
   `SUBJECT` substring criteria over selected-mailbox summaries.
 - `SEARCH`/`UID SEARCH` now supports bounded `BODY` and `TEXT` raw-message
   criteria scans, with `BODY` excluding the RFC 5322 header block.
+- `SEARCH`/`UID SEARCH` now supports bounded RFC `HEADER <field> <value>`
+  criteria scans over the raw message header block.
 - `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER` criteria
   over message `RFC822.SIZE` metadata.
 - Authenticated `NAMESPACE` now advertises the personal namespace and `/`
