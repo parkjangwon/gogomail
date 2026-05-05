@@ -964,6 +964,42 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestAppendIMAPMessageRejectsUnsafeIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		userID    imapgw.UserID
+		mailboxID imapgw.MailboxID
+	}{
+		{name: "user crlf", userID: "user-1\r\nbad", mailboxID: "inbox"},
+		{name: "user too long", userID: imapgw.UserID(strings.Repeat("u", maxServiceResourceIDBytes+1)), mailboxID: "inbox"},
+		{name: "mailbox crlf", userID: "user-1", mailboxID: "inbox\nbad"},
+		{name: "mailbox too long", userID: "user-1", mailboxID: imapgw.MailboxID(strings.Repeat("m", maxServiceResourceIDBytes+1))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &fakeRepository{}
+			service := New(repo, storage.NewLocalStore(t.TempDir()))
+			appendBody := "Subject: hi\r\n\r\nhello"
+
+			_, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
+				UserID:    tc.userID,
+				MailboxID: tc.mailboxID,
+				Size:      int64(len(appendBody)),
+				Body:      strings.NewReader(appendBody),
+			})
+			if err == nil {
+				t.Fatal("AppendIMAPMessage accepted unsafe identifier")
+			}
+			if repo.lastIMAPAppendUserID != "" || repo.lastIMAPAppendMailboxID != "" {
+				t.Fatalf("append target lookup = %q/%q, want no repository work", repo.lastIMAPAppendUserID, repo.lastIMAPAppendMailboxID)
+			}
+		})
+	}
+}
+
 func TestAppendIMAPMessageRejectsLiteralSizeMismatch(t *testing.T) {
 	t.Parallel()
 

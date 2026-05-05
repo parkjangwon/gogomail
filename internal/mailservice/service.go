@@ -651,11 +651,11 @@ func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessag
 	}
 	req.UserID = imapgw.UserID(strings.TrimSpace(string(req.UserID)))
 	req.MailboxID = imapgw.MailboxID(strings.TrimSpace(string(req.MailboxID)))
-	if req.UserID == "" {
-		return imapgw.AppendMessageResult{}, fmt.Errorf("user_id is required")
+	if err := validateServiceResourceID("user_id", string(req.UserID)); err != nil {
+		return imapgw.AppendMessageResult{}, err
 	}
-	if req.MailboxID == "" {
-		return imapgw.AppendMessageResult{}, fmt.Errorf("mailbox_id is required")
+	if err := validateServiceResourceID("mailbox_id", string(req.MailboxID)); err != nil {
+		return imapgw.AppendMessageResult{}, err
 	}
 	if req.Body == nil {
 		return imapgw.AppendMessageResult{}, fmt.Errorf("append body is required")

@@ -1619,6 +1619,10 @@ Implementation order:
 934. IMAP `APPEND` internaldate parsing now accepts RFC 3501 space-padded
      one-digit date-days such as `" 5-May-2026 ..."`, improving compatibility
      with clients that emit the formal `date-day-fixed` grammar.
+935. IMAP APPEND service validation now rejects CR/LF-bearing or oversized
+     user and mailbox identifiers before repository lookup, spooling, parsing,
+     storage, or quota work, keeping direct service callers aligned with the
+     protocol boundary's defensive posture.
 
 ## Deferred until backend contracts stabilize
 
