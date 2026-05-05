@@ -299,6 +299,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   malformed quoted controls and unsupported synchronizing literal tokens.
 - IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication,
   aligning the first command surface with RFC client state expectations.
+- IMAP `AUTHENTICATE PLAIN` now supports the standard continuation response and
+  SASL PLAIN credential decoding, so the advertised `AUTH=PLAIN` mechanism has
+  a real protocol implementation.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses use IMAP sequence

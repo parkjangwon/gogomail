@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"io"
 	"net"
 	"strings"
@@ -260,6 +261,64 @@ func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesAuthenticatePlain(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN\r\n")); err != nil {
+		t.Fatalf("write authenticate: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read continuation: %v", err)
+	}
+	if line != "+ \r\n" {
+		t.Fatalf("continuation = %q", line)
+	}
+	response := base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret"))
+	if _, err := client.Write([]byte(response + "\r\n")); err != nil {
+		t.Fatalf("write authenticate response: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read authenticate completion: %v", err)
+	}
+	if line != "a1 OK AUTHENTICATE completed\r\n" {
+		t.Fatalf("authenticate completion = %q", line)
+	}
+	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write capability: %v", err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1\r\n" {
+		t.Fatalf("authenticated capability = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
+		t.Fatalf("capability completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
 	_, _ = reader.ReadString('\n')
@@ -620,6 +679,21 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6}"); err == nil {
 		t.Fatal("parseIMAPFields accepted unsupported literal")
+	}
+}
+
+func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{
+		"",
+		"not-base64",
+		base64.StdEncoding.EncodeToString([]byte("user@example.com\x00secret")),
+		base64.StdEncoding.EncodeToString([]byte("\x00\x00secret")),
+	} {
+		if username, password, ok := decodeSASLPlain(value); ok {
+			t.Fatalf("decodeSASLPlain(%q) = %q %q true, want rejection", value, username, password)
+		}
 	}
 }
 
