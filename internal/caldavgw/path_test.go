@@ -13,6 +13,7 @@ func TestParseResourcePath(t *testing.T) {
 		want ResourcePath
 	}{
 		{path: "/.well-known/caldav", want: ResourcePath{Kind: ResourceWellKnown}},
+		{path: "/caldav/", want: ResourcePath{Kind: ResourceRoot}},
 		{path: "/caldav/principals/user-1/", want: ResourcePath{Kind: ResourcePrincipal, UserID: "user-1"}},
 		{path: "/caldav/calendars/user-1/", want: ResourcePath{Kind: ResourceCalendarHome, UserID: "user-1"}},
 		{path: "/caldav/calendars/user-1/work/", want: ResourcePath{Kind: ResourceCalendarCollection, UserID: "user-1", CalendarID: "work"}},

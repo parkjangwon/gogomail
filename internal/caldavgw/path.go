@@ -81,6 +81,9 @@ func ParseResourcePath(raw string) (ResourcePath, error) {
 	if parsed == WellKnownCalDAVPath {
 		return ResourcePath{Kind: ResourceWellKnown}, nil
 	}
+	if parsed == RootPath || parsed == RootPath+"/" {
+		return ResourcePath{Kind: ResourceRoot}, nil
+	}
 	segments := splitPathSegments(parsed)
 	if len(segments) == 0 || segments[0] != "caldav" {
 		return ResourcePath{}, fmt.Errorf("unsupported caldav path")
