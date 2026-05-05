@@ -2007,6 +2007,11 @@ Implementation order:
       only on creation, while persisted state stores token hashes, short
       suffixes, permission, expiry, and revoke status for future public link
       resolution and compose-side Drive insertion.
+1037. CalDAV work now has ADR 0010, a `caldav` runtime scaffold, and an
+      `internal/caldavgw` gateway boundary for RFC/WebDAV standards, advertised
+      DAV tokens, principal paths, calendar-home paths, calendar collections,
+      and `.ics` object paths before storage or public protocol handlers are
+      enabled.
 
 ## Deferred until backend contracts stabilize
 
@@ -2016,5 +2021,6 @@ Implementation order:
 - etcd
 - Vault
 - IMAP
+- CalDAV protocol listener completion
 - Vendor push notification delivery adapters
 - Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.

@@ -85,6 +85,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runEventWorker(ctx, cfg, logger)
 	case ModeIMAP:
 		return runIMAPGateway(ctx, cfg, logger)
+	case ModeCalDAV:
+		return waitForShutdown(ctx, logger, mode)
 	case ModeSearchIndexWorker:
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:

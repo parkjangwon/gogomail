@@ -171,6 +171,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Mail API create/list/revoke routes, with raw bearer tokens returned only on
   creation and persisted state limited to token hashes, suffixes, permissions,
   expiry, and revoke status.
+- CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
+  and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical
+  principal/calendar/object path parsing before WebDAV handlers are advertised.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

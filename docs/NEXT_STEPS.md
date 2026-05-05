@@ -1399,6 +1399,10 @@ Current state:
   authenticated Mail API create/list/revoke routes. Raw share tokens are
   create-response-only, with persisted hashes/suffixes preparing future public
   resolution and compose-side Drive file insertion.
+- CalDAV module work has started: ADR 0010 records the standards-first gateway
+  boundary, `gogomail --mode=caldav` is a runtime scaffold, and
+  `internal/caldavgw` owns RFC/WebDAV method tokens plus principal, calendar
+  home, collection, and `.ics` object path parsing.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1408,10 +1412,10 @@ Current state:
 
 Next:
 
-- Add a CalDAV module ADR and protocol scaffold modeled after IMAP: RFC-first,
-  client-compatibility-first, high-performance calendar storage/sync boundaries
-  for future webmail calendar UI and Apple/Android/Windows/macOS CalDAV/iCalendar
-  clients.
+- Continue CalDAV with PostgreSQL calendar/calendar-object migrations,
+  iCalendar parser/serializer selection, ETag/sync-token storage, bounded
+  WebDAV XML parsing, and `OPTIONS`/`PROPFIND` discovery handlers before
+  advertising client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

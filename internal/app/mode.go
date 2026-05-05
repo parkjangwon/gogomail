@@ -24,6 +24,7 @@ const (
 	ModeOutboxRelay       Mode = "outbox-relay"
 	ModeEventWorker       Mode = "event-worker"
 	ModeIMAP              Mode = "imap"
+	ModeCalDAV            Mode = "caldav"
 	ModeAuthServer        Mode = "auth-server"
 	ModeMailAPI           Mode = "mail-api"
 	ModeAdminAPI          Mode = "admin-api"
@@ -45,6 +46,7 @@ var knownModes = map[Mode]struct{}{
 	ModeOutboxRelay:       {},
 	ModeEventWorker:       {},
 	ModeIMAP:              {},
+	ModeCalDAV:            {},
 	ModeAuthServer:        {},
 	ModeMailAPI:           {},
 	ModeAdminAPI:          {},
