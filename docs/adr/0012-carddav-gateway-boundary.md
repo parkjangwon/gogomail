@@ -30,9 +30,12 @@ address-book change logs. The first repository methods create/list/get
 address-book collections through active user/domain/company scope and record
 creation changes transactionally. The first vCard validator checks BEGIN/END
 structure, VERSION, UID, FN, folded lines, content-line caps, body caps, and
-nested VCARD rejection. Contact-object repository methods, REPORT handling,
-sync handlers, auth, broader vCard compatibility, and HTTP listener wiring will
-be added only when their semantics are implemented and tested.
+nested VCARD rejection. Contact-object repository methods can upsert/list/get/
+delete `.vcf` resources under active address-book scope, enforce UID alignment,
+compute strong ETags, honor optional observed ETags before overwrite, refresh
+sync tokens, and record durable changes transactionally. REPORT handling, sync
+handlers, auth, broader vCard compatibility, and HTTP listener wiring will be
+added only when their semantics are implemented and tested.
 
 ## Consequences
 

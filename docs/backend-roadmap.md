@@ -2298,6 +2298,12 @@ Implementation order:
       one VERSION, required UID/FN, folded content-line handling, line/body
       caps, and nested VCARD rejection before contact-object repository writes
       are exposed.
+1102. CardDAV contact-object repository methods now upsert/list/get/delete
+      active `.vcf` resources under active address-book scope, enforce vCard
+      UID alignment, compute strong ETags, honor optional observed ETags before
+      overwrite, refresh address-book sync tokens, and record
+      `contact-upserted`/`contact-deleted` changes in the same transaction as
+      the object mutation.
 
 ## Deferred until backend contracts stabilize
 
@@ -2311,10 +2317,9 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV contact-object repository methods, REPORT/sync behavior,
-  auth, broader vCard compatibility, and native-client compatibility beyond the
-  initial path/href, storage metadata, address-book repository, and bounded
-  vCard 4.0 validation boundary
+- Contacts/CardDAV REPORT/sync behavior, auth, broader vCard compatibility, and
+  native-client compatibility beyond the initial path/href, storage metadata,
+  repository, and bounded vCard 4.0 validation boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters

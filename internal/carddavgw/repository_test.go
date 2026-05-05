@@ -75,6 +75,120 @@ func TestValidateAddressBookReadRequests(t *testing.T) {
 	}
 }
 
+func TestValidateUpsertContactObjectRequest(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n")
+	etag, err := ContactObjectETag(body)
+	if err != nil {
+		t.Fatalf("ContactObjectETag returned error: %v", err)
+	}
+	req, gotETag, syncToken, err := ValidateUpsertContactObjectRequest(UpsertContactObjectRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		ObjectName:    " contact-1.vcf ",
+		UID:           " contact-1 ",
+		VCard:         body,
+		ObservedETag:  etag,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpsertContactObjectRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.AddressBookID != "book-1" || req.ObjectName != "contact-1.vcf" {
+		t.Fatalf("request ids = %+v", req)
+	}
+	if req.UID != "contact-1" || req.ObservedETag != etag {
+		t.Fatalf("request metadata = %+v", req)
+	}
+	if gotETag != etag {
+		t.Fatalf("etag = %q, want %q", gotETag, etag)
+	}
+	if !strings.HasPrefix(syncToken, "sync-") {
+		t.Fatalf("sync token = %q", syncToken)
+	}
+}
+
+func TestValidateUpsertContactObjectRequestUsesVCardUIDWhenRequestUIDEmpty(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n")
+	req, _, _, err := ValidateUpsertContactObjectRequest(UpsertContactObjectRequest{
+		UserID:        "user-1",
+		AddressBookID: "book-1",
+		ObjectName:    "contact-1.vcf",
+		VCard:         body,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpsertContactObjectRequest returned error: %v", err)
+	}
+	if req.UID != "contact-1" {
+		t.Fatalf("uid = %q", req.UID)
+	}
+}
+
+func TestValidateUpsertContactObjectRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	validBody := []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n")
+	tests := []UpsertContactObjectRequest{
+		{AddressBookID: "book-1", ObjectName: "contact-1.vcf", VCard: validBody},
+		{UserID: "user-1", ObjectName: "contact-1.vcf", VCard: validBody},
+		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.txt", VCard: validBody},
+		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", UID: "other", VCard: validBody},
+		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", VCard: []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Contact\r\nEND:VCARD\r\n")},
+		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", VCard: validBody, ObservedETag: `"ABC"`},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.ObjectName+"/"+req.UID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, _, err := ValidateUpsertContactObjectRequest(req); err == nil {
+				t.Fatalf("ValidateUpsertContactObjectRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
+func TestValidateContactObjectReadAndDeleteRequests(t *testing.T) {
+	t.Parallel()
+
+	list, err := ValidateListContactObjectsRequest(ListContactObjectsRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		Limit:         2000,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListContactObjectsRequest returned error: %v", err)
+	}
+	if list.UserID != "user-1" || list.AddressBookID != "book-1" || list.Status != AddressBookStatusActive || list.Limit != 1000 {
+		t.Fatalf("list request = %+v", list)
+	}
+	get, err := ValidateGetContactObjectRequest(GetContactObjectRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		ObjectName:    " contact-1.vcf ",
+		Status:        " deleted ",
+	})
+	if err != nil {
+		t.Fatalf("ValidateGetContactObjectRequest returned error: %v", err)
+	}
+	if get.UserID != "user-1" || get.AddressBookID != "book-1" || get.ObjectName != "contact-1.vcf" || get.Status != AddressBookStatusDeleted {
+		t.Fatalf("get request = %+v", get)
+	}
+	del, syncToken, err := ValidateDeleteContactObjectRequest(DeleteContactObjectRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		ObjectName:    " contact-1.vcf ",
+	})
+	if err != nil {
+		t.Fatalf("ValidateDeleteContactObjectRequest returned error: %v", err)
+	}
+	if del.UserID != "user-1" || del.AddressBookID != "book-1" || del.ObjectName != "contact-1.vcf" || !strings.HasPrefix(syncToken, "sync-") {
+		t.Fatalf("delete request = %+v sync = %q", del, syncToken)
+	}
+}
+
 func TestRepositoryAddressBookMethodsRequireDatabase(t *testing.T) {
 	t.Parallel()
 
@@ -94,6 +208,27 @@ func TestRepositoryAddressBookMethodsRequireDatabase(t *testing.T) {
 		}},
 		{name: "get", run: func() error {
 			_, err := repo.GetAddressBook(ctx, GetAddressBookRequest{UserID: "user-1", AddressBookID: "book-1"})
+			return err
+		}},
+		{name: "upsert contact", run: func() error {
+			_, err := repo.UpsertContactObject(ctx, UpsertContactObjectRequest{
+				UserID:        "user-1",
+				AddressBookID: "book-1",
+				ObjectName:    "contact-1.vcf",
+				VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"),
+			})
+			return err
+		}},
+		{name: "list contacts", run: func() error {
+			_, err := repo.ListContactObjects(ctx, ListContactObjectsRequest{UserID: "user-1", AddressBookID: "book-1"})
+			return err
+		}},
+		{name: "get contact", run: func() error {
+			_, err := repo.GetContactObject(ctx, GetContactObjectRequest{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf"})
+			return err
+		}},
+		{name: "delete contact", run: func() error {
+			_, err := repo.DeleteContactObject(ctx, DeleteContactObjectRequest{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf"})
 			return err
 		}},
 	}
