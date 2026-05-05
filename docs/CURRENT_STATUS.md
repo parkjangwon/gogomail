@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV object HTTP I/O)
+Last updated: 2026-05-06 (updated after CardDAV runtime wiring)
 
 ## Current phase
 
@@ -61,9 +61,11 @@ discovery handler, bounded REPORT request parsing, and internal REPORT
 execution for `addressbook-query`, `addressbook-multiget`, and
 `sync-collection`. It remains gated on mutation handlers, auth/listener
 wiring, richer vCard/filter compatibility, and native-client tests. The handler
-is deliberately backend-only and does not yet make CardDAV public/client-ready.
-WebDAV multistatus response building is available for CardDAV principal,
-address-book collection, contact-object, REPORT, and sync responses.
+is deliberately experimental and does not yet make CardDAV public/client-ready.
+`gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
+Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
+response building is available for CardDAV principal, address-book collection,
+contact-object, REPORT, and sync responses.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2386,6 +2388,13 @@ The platform hardening sprint completed the following:
   create/update/delete to standard 201/204/precondition outcomes. This remains
   backend-only until auth/listener wiring and native-client compatibility tests
   are in place.
+- CardDAV now has Basic-auth and runtime wiring. `gogomail --mode=carddav`
+  opens a dedicated HTTP server on `GOGOMAIL_CARDDAV_ADDR` (default `:8082`),
+  reuses the Submission password verifier through `internal/carddavgw`, and
+  rejects insecure Basic auth in production through
+  `GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH=false`. This enables deployment smoke
+  testing of the CardDAV gateway while keeping public/client-ready status gated
+  on richer filters, vCard compatibility, and native-client verification.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2412,6 +2421,6 @@ Next focus areas:
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
 8. Extend CardDAV from internal discovery into authenticated client workflows:
-   add auth/listener wiring, richer CardDAV filter semantics, broader vCard
-   compatibility, and native-client tests before webmail contacts, attendee
-   auto-complete, or public native CardDAV compatibility are exposed.
+   add richer CardDAV filter semantics, broader vCard compatibility, and
+   native-client tests before webmail contacts, attendee auto-complete, or
+   public native CardDAV compatibility are exposed.

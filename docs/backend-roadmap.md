@@ -2335,6 +2335,12 @@ Implementation order:
       handling, vCard validation through the repository write path, and
       standard 201/204/304/412 outcomes for create, update, delete, and
       conditional reads.
+1108. CardDAV now has runtime wiring: `gogomail --mode=carddav` starts a
+      dedicated HTTP listener on `GOGOMAIL_CARDDAV_ADDR`, uses CardDAV Basic
+      auth backed by the existing Submission password verifier, rejects
+      production insecure Basic auth through
+      `GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH`, and shares the existing HTTP
+      server timeout/header guardrails.
 
 ## Deferred until backend contracts stabilize
 
@@ -2348,9 +2354,9 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV authenticated listener wiring, richer CardDAV filter
-  semantics, broader vCard compatibility, and native-client compatibility
-  beyond the internal discovery/REPORT/object I/O, path/href, storage metadata,
+- Contacts/CardDAV richer CardDAV filter semantics, broader vCard
+  compatibility, and native-client compatibility beyond the experimental
+  runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,
   repository, bounded vCard 4.0 validation, REPORT parsing, and multistatus
   response boundaries
 - Notification & Sync boundary for domain events, reminders, devices, quiet

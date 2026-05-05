@@ -21,6 +21,7 @@ func TestValidateRejectsProductionInsecureIMAPAuth(t *testing.T) {
 	cfg.SubmissionAllowInsecureAuth = false
 	cfg.IMAPAllowInsecureAuth = true
 	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want production insecure IMAP auth rejection")
 	}
@@ -32,8 +33,21 @@ func TestValidateRejectsProductionInsecureCalDAVAuth(t *testing.T) {
 	cfg.SubmissionAllowInsecureAuth = false
 	cfg.IMAPAllowInsecureAuth = false
 	cfg.CalDAVAllowInsecureAuth = true
+	cfg.CardDAVAllowInsecureAuth = false
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want production insecure CalDAV auth rejection")
+	}
+}
+
+func TestValidateRejectsProductionInsecureCardDAVAuth(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = true
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want production insecure CardDAV auth rejection")
 	}
 }
 
@@ -59,6 +73,7 @@ func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
 			cfg.SubmissionAllowInsecureAuth = false
 			cfg.IMAPAllowInsecureAuth = false
 			cfg.CalDAVAllowInsecureAuth = false
+			cfg.CardDAVAllowInsecureAuth = false
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("Validate() error = %v", err)
 			}
@@ -315,6 +330,8 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
 		{name: "caldav missing port", mutate: func(cfg *Config) { cfg.CalDAVAddr = "localhost" }},
 		{name: "caldav newline", mutate: func(cfg *Config) { cfg.CalDAVAddr = ":8081\nbad" }},
+		{name: "carddav missing port", mutate: func(cfg *Config) { cfg.CardDAVAddr = "localhost" }},
+		{name: "carddav newline", mutate: func(cfg *Config) { cfg.CardDAVAddr = ":8082\nbad" }},
 		{name: "imap tls cert newline", mutate: func(cfg *Config) { cfg.IMAPTLSCertFile = "cert.pem\nbad" }},
 		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
 		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
@@ -415,6 +432,9 @@ func TestValidateRejectsHTTPWebhooksInProduction(t *testing.T) {
 			cfg := Load()
 			cfg.Environment = "production"
 			cfg.SubmissionAllowInsecureAuth = false
+			cfg.IMAPAllowInsecureAuth = false
+			cfg.CalDAVAllowInsecureAuth = false
+			cfg.CardDAVAllowInsecureAuth = false
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
 				t.Fatal("Validate() error = nil, want production http webhook rejection")
@@ -429,6 +449,7 @@ func TestValidateAcceptsHTTPSWebhooksInProduction(t *testing.T) {
 	cfg.SubmissionAllowInsecureAuth = false
 	cfg.IMAPAllowInsecureAuth = false
 	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
 	cfg.AttachmentScanBackend = "webhook"
 	cfg.AttachmentScanWebhookURL = "https://scanner.example/scan"
 	cfg.PushNotifyBackend = "webhook"

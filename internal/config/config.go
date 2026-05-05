@@ -31,6 +31,8 @@ type Config struct {
 	IMAPNotifyConsumerDeadLetterStream  string
 	CalDAVAddr                          string
 	CalDAVAllowInsecureAuth             bool
+	CardDAVAddr                         string
+	CardDAVAllowInsecureAuth            bool
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxRecipients             int
@@ -209,6 +211,8 @@ func Load() Config {
 		IMAPNotifyConsumerDeadLetterStream:  strings.TrimSpace(os.Getenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM")),
 		CalDAVAddr:                          envOrDefault("GOGOMAIL_CALDAV_ADDR", ":8081"),
 		CalDAVAllowInsecureAuth:             boolEnvOrDefault("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		CardDAVAddr:                         envOrDefault("GOGOMAIL_CARDDAV_ADDR", ":8082"),
+		CardDAVAllowInsecureAuth:            boolEnvOrDefault("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxRecipients:             intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),

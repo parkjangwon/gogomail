@@ -26,6 +26,7 @@ func TestParseModeAcceptsKnownBackendModes(t *testing.T) {
 		{name: "event worker", raw: "event-worker", want: ModeEventWorker},
 		{name: "imap", raw: "imap", want: ModeIMAP},
 		{name: "caldav", raw: "caldav", want: ModeCalDAV},
+		{name: "carddav", raw: "carddav", want: ModeCardDAV},
 		{name: "auth server", raw: "auth-server", want: ModeAuthServer},
 		{name: "mail api", raw: "mail-api", want: ModeMailAPI},
 		{name: "admin api", raw: "admin-api", want: ModeAdminAPI},
