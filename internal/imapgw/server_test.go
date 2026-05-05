@@ -1635,7 +1635,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\n")); err != nil {
 		t.Fatalf("write flag search: %v", err)
 	}
 	want := []string{
@@ -1651,6 +1651,12 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 		"a7 OK SEARCH completed\r\n",
 		"* SEARCH 7 8\r\n",
 		"a8 OK UID SEARCH completed\r\n",
+		"* SEARCH\r\n",
+		"a9 OK SEARCH completed\r\n",
+		"* SEARCH 7 8\r\n",
+		"a10 OK UID SEARCH completed\r\n",
+		"* SEARCH\r\n",
+		"a11 OK SEARCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -1661,7 +1667,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("flag search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a12 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
