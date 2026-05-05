@@ -302,6 +302,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - DSN/bounce generation now honors RFC 3461 `RET=HDRS` by attaching bounded,
   sanitized original message headers as a `text/rfc822-headers` report part
   when delivery events carry a safe original `.eml` storage path.
+- DSN/bounce generation also honors RFC 3461 `RET=FULL` by attaching the
+  bounded original `.eml` as a `message/rfc822` report part after validating
+  the stored object key and message parseability.
 - DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext identity metadata before it can reach outbound SMTP command generation or RFC 3464 report composition.
 - Delivery partial-failure handling preserves recipient-level retry/bounce decisions even when every RCPT is rejected.
 - Attachment upload storage paths reject absolute, parent-traversal, backslash,

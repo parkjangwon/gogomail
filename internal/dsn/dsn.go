@@ -40,6 +40,7 @@ type Report struct {
 	Date            time.Time
 	Recipients      []RecipientStatus
 	OriginalHeaders []OriginalHeader
+	OriginalMessage []byte
 }
 
 func Compose(report Report) (outbound.ComposedMessage, error) {
@@ -99,6 +100,14 @@ func Compose(report Report) (outbound.ComposedMessage, error) {
 			}
 		}
 		buf.WriteString("\r\n")
+	}
+	if len(report.OriginalMessage) > 0 {
+		buf.WriteString("--" + boundary + "\r\n")
+		buf.WriteString("Content-Type: message/rfc822\r\n\r\n")
+		buf.Write(report.OriginalMessage)
+		if !bytes.HasSuffix(report.OriginalMessage, []byte("\r\n")) {
+			buf.WriteString("\r\n")
+		}
 	}
 	buf.WriteString("--" + boundary + "--\r\n")
 

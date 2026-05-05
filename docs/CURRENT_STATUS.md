@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after OpenAPI YAML validity guardrails)
+Last updated: 2026-05-05 (updated after DSN RET=FULL returned-message support)
 
 ## Current phase
 
@@ -496,11 +496,15 @@ guidance.
 - SMTPUTF8 declared correctly on outbound MAIL FROM for all internationalized
   addresses, and outbound delivery now fails closed with a permanent SMTPUTF8
   error when the remote MTA does not advertise SMTPUTF8.
-- DSN composition supports an optional sanitized `text/rfc822-headers` returned
-  header part, preparing RFC 3464 `RET=HDRS` wiring without header injection.
+- DSN composition supports optional `text/rfc822-headers` and `message/rfc822`
+  returned-content parts for RFC 3464 reports, keeping header-only returns
+  sanitized while allowing bounded full-message returns.
 - Bounce DSN generation now honors `RET=HDRS` when the delivery event carries a
   safe original message storage path, reading bounded original EML headers and
   attaching them as sanitized `text/rfc822-headers` content.
+- Bounce DSN generation now also honors `RET=FULL` by attaching the bounded
+  original `.eml` as `message/rfc822` after validating the stored object key and
+  message parseability.
 - Migration guardrails now require every SQL migration to declare explicit
   goose Up/Down sections, and legacy API-usage, push, IMAP, and audit-index
   migrations have been normalized to that structure without changing their
