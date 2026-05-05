@@ -286,8 +286,9 @@ Current state:
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` for exclude-style header reads.
-- `SEARCH`/`UID SEARCH` now supports `SINCE` and `BEFORE` date criteria over
-  message `INTERNALDATE`.
+- `SEARCH`/`UID SEARCH` now supports `SINCE`, `BEFORE`, and `ON` over message
+  `INTERNALDATE`, plus `SENTSINCE`, `SENTBEFORE`, and `SENTON` over envelope
+  dates.
 - `SEARCH`/`UID SEARCH` now supports basic `FROM`, `TO`, `CC`, `BCC`, and
   `SUBJECT` substring criteria over selected-mailbox summaries.
 - Authenticated `NAMESPACE` now advertises the personal namespace and `/`
