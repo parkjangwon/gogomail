@@ -896,11 +896,10 @@ Implementation order:
 724. IMAP now supports authenticated `NAMESPACE`, advertising a personal
      namespace with `/` hierarchy delimiter for client mailbox discovery.
 725. IMAP now supports authenticated `LSUB` over the same mailbox pattern
-     matching path as `LIST`, returning subscribed-compatible mailbox responses
-     while persistent subscription storage remains future work.
+     matching path as `LIST`, returning subscribed-compatible mailbox
+     responses.
 726. IMAP now accepts authenticated `SUBSCRIBE` and `UNSUBSCRIBE` after mailbox
-     existence checks, keeping client subscription flows unblocked while
-     persistent subscription storage remains future work.
+     existence checks, keeping client subscription flows unblocked.
 727. IMAP now advertises and supports the RFC 2971-style `ID` command, returning
      a bounded server identity response for client compatibility diagnostics.
 728. IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox
@@ -1180,6 +1179,10 @@ Implementation order:
 813. IMAP `LIST` now derives RFC 3348 `\HasChildren` / `\HasNoChildren`
      attributes from mailbox parent/path metadata instead of marking every
      mailbox leaf-only, giving hierarchical clients accurate expansion hints.
+814. IMAP `SUBSCRIBE` and `UNSUBSCRIBE` now persist mailbox subscription names
+     through the service/repository boundary, and `LSUB` returns the saved set
+     while retaining deleted mailbox names with `\Noselect` and honoring the
+     RFC 3501 `%` hierarchy parent response case.
 
 ## Deferred until backend contracts stabilize
 

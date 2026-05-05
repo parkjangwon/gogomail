@@ -481,14 +481,14 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and `/` hierarchy delimiter.
 - IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
   namespace command so client discovery matches the supported command surface.
-- IMAP now supports authenticated `LSUB` over the same mailbox pattern matching
-  path as `LIST`, while persistent subscription storage remains future work.
+- IMAP now persists authenticated `SUBSCRIBE`/`UNSUBSCRIBE` mailbox
+  subscriptions and returns the saved set from `LSUB` instead of every visible
+  mailbox.
 - IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.
-- IMAP now accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox
-  existence checks, keeping subscription-management clients from failing before
-  persistent subscription storage is added.
+- IMAP `LSUB` retains subscribed names after mailbox deletion with `\Noselect`
+  and covers the RFC 3501 `%` hierarchy parent response case.
 - IMAP now advertises and supports `ID`, returning a bounded server identity
   response for compatibility diagnostics.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state

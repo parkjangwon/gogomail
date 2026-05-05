@@ -38,8 +38,20 @@ func (fakeComposedBackend) ListMailboxes(context.Context, ListMailboxesRequest) 
 	return []Mailbox{{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}}, nil
 }
 
+func (fakeComposedBackend) ListSubscribedMailboxes(context.Context, ListMailboxesRequest) ([]MailboxSubscription, error) {
+	return []MailboxSubscription{{Name: "INBOX", Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, Exists: true}}, nil
+}
+
 func (fakeComposedBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, nil
+}
+
+func (fakeComposedBackend) SubscribeMailbox(context.Context, UserID, MailboxID) (MailboxSubscription, error) {
+	return MailboxSubscription{Name: "INBOX", Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, Exists: true}, nil
+}
+
+func (fakeComposedBackend) UnsubscribeMailbox(context.Context, UserID, MailboxID) error {
+	return nil
 }
 
 func (fakeComposedBackend) CreateMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {

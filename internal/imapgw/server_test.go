@@ -2224,7 +2224,7 @@ func TestServerFiltersListByPattern(t *testing.T) {
 func TestServerHandlesLsubAfterLogin(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: subscriptionBackend{}, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -2247,6 +2247,101 @@ func TestServerHandlesLsubAfterLogin(t *testing.T) {
 	}
 	want := []string{
 		"* LSUB (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"a2 OK LSUB completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read lsub response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("lsub response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerLsubIncludesMissingSubscriptionNames(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: subscriptionBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LSUB \"\" \"*\"\r\n")); err != nil {
+		t.Fatalf("write login/lsub: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LSUB (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"* LSUB (\\Noselect) \"/\" \"Retired\"\r\n",
+		"a2 OK LSUB completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read lsub response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("lsub response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerLsubPercentReturnsSubscribedParentName(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: hierarchySubscriptionBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LSUB \"\" \"%\"\r\n")); err != nil {
+		t.Fatalf("write login/lsub: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LSUB (\\Noselect) \"/\" \"Projects\"\r\n",
 		"a2 OK LSUB completed\r\n",
 	}
 	for _, expected := range want {
@@ -2320,7 +2415,8 @@ func TestServerListsHierarchyRoot(t *testing.T) {
 func TestServerHandlesSubscriptionCommandsAfterLogin(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	backendImpl := &subscriptionCommandBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -2353,6 +2449,88 @@ func TestServerHandlesSubscriptionCommandsAfterLogin(t *testing.T) {
 		}
 	}
 	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if backendImpl.subscribed != "inbox" || backendImpl.unsubscribed != "inbox" {
+		t.Fatalf("subscription calls = %q/%q, want inbox/inbox", backendImpl.subscribed, backendImpl.unsubscribed)
+	}
+}
+
+func TestServerRejectsSubscriptionCommandsBeforeLogin(t *testing.T) {
+	t.Parallel()
+
+	for _, command := range []string{
+		`LSUB "" "*"`,
+		`SUBSCRIBE inbox`,
+		`UNSUBSCRIBE inbox`,
+	} {
+		command := command
+		t.Run(command, func(t *testing.T) {
+			t.Parallel()
+
+			server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+			if err != nil {
+				t.Fatalf("NewServer returned error: %v", err)
+			}
+			client, backend := net.Pipe()
+			defer client.Close()
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- server.ServeConn(backend)
+			}()
+
+			reader := bufio.NewReader(client)
+			if _, err := reader.ReadString('\n'); err != nil {
+				t.Fatalf("read greeting: %v", err)
+			}
+			if _, err := client.Write([]byte("a1 " + command + "\r\na2 LOGOUT\r\n")); err != nil {
+				t.Fatalf("write command/logout: %v", err)
+			}
+			if line, err := reader.ReadString('\n'); err != nil || line != "a1 NO authentication required\r\n" {
+				t.Fatalf("command response = %q err = %v", line, err)
+			}
+			_, _ = reader.ReadString('\n')
+			_, _ = reader.ReadString('\n')
+			if err := <-errCh; err != nil {
+				t.Fatalf("ServeConn returned error: %v", err)
+			}
+		})
+	}
+}
+
+func TestServerRejectsMalformedSubscriptionCommand(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SUBSCRIBE\r\n")); err != nil {
+		t.Fatalf("write malformed subscribe: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD SUBSCRIBE requires a mailbox atom\r\n" {
+		t.Fatalf("subscribe response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -5024,6 +5202,43 @@ type childMailboxBackend struct {
 	fakeBackend
 }
 
+type subscriptionBackend struct {
+	fakeBackend
+}
+
+func (subscriptionBackend) ListSubscribedMailboxes(context.Context, ListMailboxesRequest) ([]MailboxSubscription, error) {
+	return []MailboxSubscription{
+		{Name: "INBOX", Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, Exists: true},
+		{Name: "Retired"},
+	}, nil
+}
+
+type hierarchySubscriptionBackend struct {
+	fakeBackend
+}
+
+func (hierarchySubscriptionBackend) ListSubscribedMailboxes(context.Context, ListMailboxesRequest) ([]MailboxSubscription, error) {
+	return []MailboxSubscription{
+		{Name: "Projects/2026"},
+	}, nil
+}
+
+type subscriptionCommandBackend struct {
+	fakeBackend
+	subscribed   MailboxID
+	unsubscribed MailboxID
+}
+
+func (b *subscriptionCommandBackend) SubscribeMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (MailboxSubscription, error) {
+	b.subscribed = mailboxID
+	return MailboxSubscription{Name: string(mailboxID), Mailbox: Mailbox{ID: mailboxID, Name: string(mailboxID)}, Exists: true}, nil
+}
+
+func (b *subscriptionCommandBackend) UnsubscribeMailbox(_ context.Context, _ UserID, mailboxID MailboxID) error {
+	b.unsubscribed = mailboxID
+	return nil
+}
+
 func (childMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
 	return []Mailbox{
 		{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2},
@@ -5048,6 +5263,12 @@ func (fakeBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailb
 	}, nil
 }
 
+func (fakeBackend) ListSubscribedMailboxes(context.Context, ListMailboxesRequest) ([]MailboxSubscription, error) {
+	return []MailboxSubscription{
+		{Name: "INBOX", Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, Exists: true},
+	}, nil
+}
+
 func (fakeBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
 	switch strings.ToLower(strings.TrimSpace(string(mailboxID))) {
 	case "archive":
@@ -5055,6 +5276,14 @@ func (fakeBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) 
 	default:
 		return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
 	}
+}
+
+func (fakeBackend) SubscribeMailbox(context.Context, UserID, MailboxID) (MailboxSubscription, error) {
+	return MailboxSubscription{Name: "INBOX", Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, Exists: true}, nil
+}
+
+func (fakeBackend) UnsubscribeMailbox(context.Context, UserID, MailboxID) error {
+	return nil
 }
 
 func (fakeBackend) CreateMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
