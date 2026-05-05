@@ -272,6 +272,8 @@ Current state:
   including the non-extensible `BODY` attribute for `FULL`.
 - `FETCH`/`UID FETCH` now support bounded header-only literals for
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
+- Non-UID `FETCH` now uses the same bounded header literal path as `UID FETCH`
+  for `BODY[HEADER]` and `RFC822.HEADER`.
 - `FETCH`/`UID FETCH` now support text-only section literals for `BODY[TEXT]`,
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - `FETCH`/`UID FETCH` now support conservative single-part text literals for
