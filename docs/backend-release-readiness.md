@@ -1071,6 +1071,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command atom validation covers the command name and UID subcommand name
   dispatch boundary, preserving precise malformed-command behavior before
   backend or feature dispatch.
+- IMAP UID dispatch validates authenticated syntax before selected-mailbox
+  state so malformed UID commands produce `BAD` responses instead of being
+  hidden behind state errors.
 
 ## Must verify before release cut
 
