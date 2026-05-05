@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -20,6 +21,9 @@ var (
 	PropCurrentUserPrincipal          = XMLName{Space: DAVNamespace, Local: "current-user-principal"}
 	PropPrincipalCollectionSet        = XMLName{Space: DAVNamespace, Local: "principal-collection-set"}
 	PropPrincipalURL                  = XMLName{Space: DAVNamespace, Local: "principal-URL"}
+	PropOwner                         = XMLName{Space: DAVNamespace, Local: "owner"}
+	PropCreationDate                  = XMLName{Space: DAVNamespace, Local: "creationdate"}
+	PropGetLastModified               = XMLName{Space: DAVNamespace, Local: "getlastmodified"}
 	PropGetETag                       = XMLName{Space: DAVNamespace, Local: "getetag"}
 	PropGetContentType                = XMLName{Space: DAVNamespace, Local: "getcontenttype"}
 	PropGetContentLength              = XMLName{Space: DAVNamespace, Local: "getcontentlength"}
@@ -86,6 +90,7 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropPrincipalCollectionSet, Value: PropertyValue{Hrefs: []string{PrincipalsPrefix + "/"}}, Found: true},
 		{Name: PropPrincipalURL, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
+		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropCalendarHomeSet, Value: PropertyValue{Hrefs: []string{principal.CalendarHomePath}}, Found: true},
 	}
 }
@@ -95,10 +100,15 @@ func CalendarHomeProperties(userID string) ([]PropertyResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	principalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: "Calendars"}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection}}, Found: true},
 		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{home}}, Found: true},
+		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 	}, nil
 }
 
@@ -106,9 +116,16 @@ func CalendarCollectionProperties(userID string, calendar Calendar) ([]PropertyR
 	if _, err := CalendarCollectionPath(userID, calendar.ID); err != nil {
 		return nil, err
 	}
+	principalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: calendar.Name}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeCalendar}}, Found: true},
+		webDAVTimeProperty(PropCreationDate, calendar.CreatedAt, formatWebDAVCreationDate),
+		webDAVTimeProperty(PropGetLastModified, calendar.UpdatedAt, formatHTTPDate),
+		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropCalendarDescription, Value: PropertyValue{Text: calendar.Description}, Found: true},
 		{Name: PropCalendarColor, Value: PropertyValue{Text: calendar.Color}, Found: calendar.Color != ""},
 		{Name: PropSupportedCalendarComponentSet, Value: PropertyValue{CalendarComponents: []string{ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY}}, Found: true},
@@ -132,12 +149,34 @@ func CalendarObjectProperties(userID string, object CalendarObject) ([]PropertyR
 	if _, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName); err != nil {
 		return nil, err
 	}
+	principalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
 	return []PropertyResult{
 		{Name: PropGetETag, Value: PropertyValue{Text: object.ETag}, Found: true},
 		{Name: PropGetContentType, Value: PropertyValue{Text: "text/calendar; charset=utf-8"}, Found: true},
 		{Name: PropGetContentLength, Value: PropertyValue{Text: strconv.FormatInt(object.Size, 10)}, Found: true},
+		webDAVTimeProperty(PropCreationDate, object.CreatedAt, formatWebDAVCreationDate),
+		webDAVTimeProperty(PropGetLastModified, object.UpdatedAt, formatHTTPDate),
+		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropResourceType, Found: true},
 	}, nil
+}
+
+func webDAVTimeProperty(name XMLName, value time.Time, format func(time.Time) string) PropertyResult {
+	if value.IsZero() {
+		return PropertyResult{Name: name}
+	}
+	return PropertyResult{Name: name, Value: PropertyValue{Text: format(value)}, Found: true}
+}
+
+func formatWebDAVCreationDate(value time.Time) string {
+	return value.UTC().Format(time.RFC3339)
+}
+
+func formatHTTPDate(value time.Time) string {
+	return value.UTC().Format(http.TimeFormat)
 }
 
 func SelectPropfindProperties(req PropfindRequest, available []PropertyResult) []PropStatus {

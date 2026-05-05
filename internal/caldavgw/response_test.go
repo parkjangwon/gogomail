@@ -147,6 +147,8 @@ func TestSelectPropfindPropertiesSupportsPropnameAndAllpropInclude(t *testing.T)
 func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 	t.Parallel()
 
+	createdAt := time.Date(2026, 5, 6, 1, 2, 3, 0, time.UTC)
+	updatedAt := time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
 	props, err := CalendarCollectionProperties("user-1", Calendar{
 		ID:          "work",
 		UserID:      "user-1",
@@ -154,8 +156,8 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 		Color:       "#AABBCC",
 		Description: "Team calendar",
 		SyncToken:   "sync-123",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
 	})
 	if err != nil {
 		t.Fatalf("CalendarCollectionProperties returned error: %v", err)
@@ -176,6 +178,9 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 		"<C:supported-calendar-data><C:calendar-data content-type=\"text/calendar\" version=\"2.0\"></C:calendar-data></C:supported-calendar-data>",
 		"<C:max-resource-size>10485760</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",
+		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
+		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
+		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
 		"<D:supported-report-set>",
 		"<C:calendar-query></C:calendar-query>",
 		"<C:calendar-multiget></C:calendar-multiget>",
@@ -224,6 +229,7 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 			PropCurrentUserPrincipal,
 			PropPrincipalCollectionSet,
 			PropPrincipalURL,
+			PropOwner,
 			PropCalendarHomeSet,
 		},
 	}, props)
@@ -237,6 +243,7 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
 		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
 		"<D:principal-URL><D:href>/caldav/principals/user-1/</D:href></D:principal-URL>",
+		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
 		"<C:calendar-home-set><D:href>/caldav/calendars/user-1/</D:href></C:calendar-home-set>",
 	} {
 		if !strings.Contains(text, want) {
@@ -248,6 +255,8 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 func TestCalendarObjectPropertiesExposeObjectDiscovery(t *testing.T) {
 	t.Parallel()
 
+	createdAt := time.Date(2026, 5, 6, 1, 2, 3, 0, time.UTC)
+	updatedAt := time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
 	props, err := CalendarObjectProperties("user-1", CalendarObject{
 		ID:         "object-1",
 		UserID:     "user-1",
@@ -255,6 +264,8 @@ func TestCalendarObjectPropertiesExposeObjectDiscovery(t *testing.T) {
 		ObjectName: "event.ics",
 		ETag:       `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
 		Size:       128,
+		CreatedAt:  createdAt,
+		UpdatedAt:  updatedAt,
 	})
 	if err != nil {
 		t.Fatalf("CalendarObjectProperties returned error: %v", err)
@@ -272,6 +283,9 @@ func TestCalendarObjectPropertiesExposeObjectDiscovery(t *testing.T) {
 		"<D:getetag>&#34;0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef&#34;</D:getetag>",
 		"<D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>",
 		"<D:getcontentlength>128</D:getcontentlength>",
+		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
+		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
+		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
 		"<D:resourcetype></D:resourcetype>",
 	} {
 		if !strings.Contains(text, want) {

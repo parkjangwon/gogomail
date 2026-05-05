@@ -2139,6 +2139,10 @@ Implementation order:
       objects from the same collection, calendar-home multiget may resolve
       authenticated same-user calendar-object hrefs, and out-of-scope hrefs
       render WebDAV 404 propstats without returning object metadata.
+1063. CalDAV `PROPFIND` now emits WebDAV `owner`, `creationdate`, and
+      `getlastmodified` metadata for resources where gogomail has exact stored
+      state. Owner hrefs point at the authenticated principal, creation dates
+      are UTC RFC3339 values, and last-modified values use HTTP-date format.
 
 ## Deferred until backend contracts stabilize
 
