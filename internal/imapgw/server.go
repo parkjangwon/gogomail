@@ -345,6 +345,8 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleUIDLine(writer, tag, fields, state)
 	case "FETCH":
 		return s.handleFetch(writer, tag, fields, state)
+	case "SEARCH":
+		return s.handleSearch(writer, tag, fields, state, false)
 	case "CHECK":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -534,6 +536,8 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	switch strings.ToUpper(fields[2]) {
 	case "FETCH":
 		return s.handleUIDFetch(writer, tag, fields, state)
+	case "SEARCH":
+		return s.handleSearch(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "STORE":
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
@@ -544,6 +548,107 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) < 3 {
+		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+		return false, err
+	}
+	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		Limit:     int(state.selectedMessages),
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
+		return false, writeErr
+	}
+	results, ok := imapSearchResults(fields[2:], messages, uidMode)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
+		return false, err
+	}
+	if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(results) + "\r\n"); err != nil {
+		return false, err
+	}
+	completion := "SEARCH"
+	if uidMode {
+		completion = "UID SEARCH"
+	}
+	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
+	return false, err
+}
+
+func imapSearchResults(criteria []string, messages []MessageSummary, uidMode bool) ([]uint32, bool) {
+	if len(criteria) == 0 {
+		return nil, false
+	}
+	if len(criteria) == 1 && strings.ToUpper(criteria[0]) == "ALL" {
+		return imapSearchAllResults(messages, uidMode), true
+	}
+	if len(criteria) == 2 && strings.ToUpper(criteria[0]) == "UID" {
+		uids, ok := parseIMAPUIDSet(criteria[1])
+		if !ok {
+			return nil, false
+		}
+		allowed := make(map[UID]struct{}, len(uids))
+		for _, uid := range uids {
+			allowed[uid] = struct{}{}
+		}
+		results := make([]uint32, 0, len(messages))
+		for i, summary := range messages {
+			if _, ok := allowed[summary.UID]; !ok {
+				continue
+			}
+			if uidMode {
+				results = append(results, uint32(summary.UID))
+				continue
+			}
+			sequenceNumber := summary.SequenceNumber
+			if sequenceNumber == 0 {
+				sequenceNumber = uint32(i + 1)
+			}
+			results = append(results, sequenceNumber)
+		}
+		return results, true
+	}
+	return nil, false
+}
+
+func imapSearchAllResults(messages []MessageSummary, uidMode bool) []uint32 {
+	results := make([]uint32, 0, len(messages))
+	for i, summary := range messages {
+		if uidMode {
+			results = append(results, uint32(summary.UID))
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		results = append(results, sequenceNumber)
+	}
+	return results
+}
+
+func imapSearchResultSuffix(results []uint32) string {
+	if len(results) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(results))
+	for _, result := range results {
+		parts = append(parts, strconv.FormatUint(uint64(result), 10))
+	}
+	return " " + strings.Join(parts, " ")
 }
 
 func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {

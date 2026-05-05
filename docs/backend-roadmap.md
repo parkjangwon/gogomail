@@ -874,6 +874,9 @@ Implementation order:
      polling-friendly synchronization path before full IDLE support.
 716. IMAP now advertises and accepts `IDLE`, entering continuation mode and
      draining queued selected-mailbox events when the client sends `DONE`.
+717. IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now resolve
+     against the selected mailbox message list, returning sequence numbers or
+     UIDs according to RFC command mode.
 
 ## Deferred until backend contracts stabilize
 
