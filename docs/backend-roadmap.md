@@ -708,6 +708,7 @@ Implementation order:
 648. Admin JSON mutation routes now reject unknown query parameter names before dispatch for tenant quota, domain/user lifecycle and policy, backpressure, attachment cleanup, quota correction, push outcome, trusted-relay, delivery-route, and DKIM-key mutations.
 649. OpenAPI contract tests now parse `docs/openapi.yaml` as YAML and reject stale documented routes that are not registered by the Go HTTP mux, catching generated-client blocking spec syntax errors and obsolete endpoint contracts.
 650. Bounce DSN generation now honors RFC 3461 `RET=FULL` by attaching a bounded, parse-validated original `.eml` as `message/rfc822` in generated RFC 3464 reports while preserving existing `RET=HDRS` header-only behavior.
+651. Health and service-info GET routes now reject request bodies and `Content-Type` headers before returning probe or contract metadata responses, keeping unauthenticated release probes aligned with bodyless HTTP read semantics.
 
 ## Deferred until backend contracts stabilize
 

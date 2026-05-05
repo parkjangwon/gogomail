@@ -121,6 +121,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   bodies and `Content-Type` headers before dispatch, preventing ignored payloads
   on operator reads, deletes, route verification, retry, IMAP UID backfill,
   API-usage export-batch creation, and manifest digest/signature creation.
+- Health and service-info GET routes reject request bodies and `Content-Type`
+  headers before returning probe or contract metadata responses, keeping
+  unauthenticated release probes aligned with bodyless read semantics.
 - Admin bodyless command/delete routes for IMAP UID backfill, DKIM DNS verify,
   outbox retry, DKIM deactivation, suppression deletion, trusted-relay deletion,
   and delivery-route deletion reject unknown query parameter names before

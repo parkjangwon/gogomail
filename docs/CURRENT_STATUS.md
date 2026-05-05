@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after DSN RET=FULL returned-message support)
+Last updated: 2026-05-05 (updated after health/info bodyless request guardrails)
 
 ## Current phase
 
@@ -955,6 +955,9 @@ The platform hardening sprint completed the following:
   bodies and `Content-Type` headers before dispatch, preventing ignored payloads
   on operator reads, deletes, route verification, retry, IMAP UID backfill,
   API-usage export-batch creation, and manifest digest/signature creation.
+- Health and service-info GET routes now reject request bodies and
+  `Content-Type` headers before writing probe or contract metadata responses,
+  keeping bodyless read semantics consistent across HTTP surfaces.
 - Admin bodyless command/delete routes for IMAP UID backfill, DKIM DNS verify,
   outbox retry, DKIM deactivation, suppression deletion, trusted-relay
   deletion, and delivery-route deletion now reject unknown query parameter names
