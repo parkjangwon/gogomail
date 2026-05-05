@@ -617,7 +617,8 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		if !imapMailboxMatchesPattern(displayName, pattern) {
 			continue
 		}
-		if _, err := writer.WriteString("* " + command + ` (\HasNoChildren) "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
+		attributes := imapMailboxListAttributes(mailbox)
+		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -3678,6 +3679,27 @@ func imapMailboxDisplayName(mailbox Mailbox) string {
 		return strings.TrimSpace(mailbox.Name)
 	}
 	return strings.TrimSpace(string(mailbox.ID))
+}
+
+func imapMailboxListAttributes(mailbox Mailbox) []string {
+	attributes := []string{`\HasNoChildren`}
+	switch strings.ToLower(strings.TrimSpace(mailbox.SystemType)) {
+	case "all":
+		attributes = append(attributes, `\All`)
+	case "archive":
+		attributes = append(attributes, `\Archive`)
+	case "drafts":
+		attributes = append(attributes, `\Drafts`)
+	case "flagged":
+		attributes = append(attributes, `\Flagged`)
+	case "junk", "spam":
+		attributes = append(attributes, `\Junk`)
+	case "sent":
+		attributes = append(attributes, `\Sent`)
+	case "trash":
+		attributes = append(attributes, `\Trash`)
+	}
+	return attributes
 }
 
 func imapMailboxWireName(value string) string {

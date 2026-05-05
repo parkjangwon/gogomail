@@ -1142,6 +1142,9 @@ Implementation order:
 802. IMAP now advertises `ENABLE` and accepts RFC 5161-shaped
      `ENABLE CONDSTORE`, allowing clients to mark a session CONDSTORE-aware
      before mailbox selection while leaving the capability list stable.
+803. IMAP `LIST` now emits RFC 6154 special-use attributes for system folder
+     roles such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged so
+     standards-aware clients can auto-detect default mailbox roles.
 
 ## Deferred until backend contracts stabilize
 
