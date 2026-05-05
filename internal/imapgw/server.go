@@ -802,6 +802,15 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
 		return false, err
 	}
+	criteria, charsetOK := imapSearchCriteria(fields[2:])
+	if !charsetOK {
+		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n")
+		return false, err
+	}
+	if len(criteria) == 0 {
+		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+		return false, err
+	}
 	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
@@ -811,7 +820,7 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
 	}
-	results, ok, err := s.imapSearchResults(context.Background(), state, fields[2:], messages, uidMode)
+	results, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
@@ -829,6 +838,19 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	}
 	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
 	return false, err
+}
+
+func imapSearchCriteria(criteria []string) ([]string, bool) {
+	if len(criteria) >= 2 && strings.EqualFold(criteria[0], "CHARSET") {
+		charset := strings.ToUpper(strings.Trim(criteria[1], `"`))
+		switch charset {
+		case "US-ASCII", "UTF-8":
+			return criteria[2:], true
+		default:
+			return nil, false
+		}
+	}
+	return criteria, true
 }
 
 func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool) ([]uint32, bool, error) {
