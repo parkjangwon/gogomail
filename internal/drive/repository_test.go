@@ -154,6 +154,47 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateGetNodeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateGetNodeRequest(GetNodeRequest{UserID: " user-1 ", NodeID: " node-1 ", Status: " Trashed "})
+	if err != nil {
+		t.Fatalf("ValidateGetNodeRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.NodeID != "node-1" || req.Status != NodeStatusTrashed {
+		t.Fatalf("request = %+v, want trimmed status-normalized request", req)
+	}
+	defaulted, err := ValidateGetNodeRequest(GetNodeRequest{UserID: "user-1", NodeID: "node-1"})
+	if err != nil {
+		t.Fatalf("ValidateGetNodeRequest default returned error: %v", err)
+	}
+	if defaulted.Status != NodeStatusActive {
+		t.Fatalf("defaulted request = %+v, want active status", defaulted)
+	}
+}
+
+func TestValidateGetNodeRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []GetNodeRequest{
+		{NodeID: "node-1"},
+		{UserID: "user-1"},
+		{UserID: "user\n1", NodeID: "node-1"},
+		{UserID: "user-1", NodeID: "node\n1"},
+		{UserID: "user-1", NodeID: "node-1", Status: "archived"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.NodeID+"-"+tc.Status, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateGetNodeRequest(tc); err == nil {
+				t.Fatalf("ValidateGetNodeRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidateTrashNodeRequest(t *testing.T) {
 	t.Parallel()
 

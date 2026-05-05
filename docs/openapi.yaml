@@ -185,6 +185,23 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /drive/nodes/{id}:
+    get:
+      operationId: getDriveNode
+      summary: Get a Drive node
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, trashed, deleted]
+            default: active
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
     delete:
       operationId: permanentlyDeleteDriveNode
       summary: Permanently delete a trashed Drive node

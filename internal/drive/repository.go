@@ -62,6 +62,12 @@ type ListNodesRequest struct {
 	Limit    int
 }
 
+type GetNodeRequest struct {
+	UserID string
+	NodeID string
+	Status string
+}
+
 type TrashNodeRequest struct {
 	UserID string
 	NodeID string
@@ -193,6 +199,26 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 		Status:   status,
 		Limit:    limit,
 	}, nil
+}
+
+func ValidateGetNodeRequest(req GetNodeRequest) (GetNodeRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return GetNodeRequest{}, err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return GetNodeRequest{}, err
+	}
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = NodeStatusActive
+	}
+	status, err = ValidateNodeStatus(status)
+	if err != nil {
+		return GetNodeRequest{}, err
+	}
+	return GetNodeRequest{UserID: userID, NodeID: nodeID, Status: status}, nil
 }
 
 func ValidateTrashNodeRequest(req TrashNodeRequest) (TrashNodeRequest, error) {
@@ -436,6 +462,68 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate drive nodes: %w", err)
 	}
 	return nodes, nil
+}
+
+func (r *Repository) GetNode(ctx context.Context, req GetNodeRequest) (Node, error) {
+	if r == nil || r.db == nil {
+		return Node{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateGetNodeRequest(req)
+	if err != nil {
+		return Node{}, err
+	}
+	const query = `
+SELECT
+  n.id::text,
+  n.company_id::text,
+  n.domain_id::text,
+  n.user_id::text,
+  COALESCE(n.parent_id::text, ''),
+  n.node_type,
+  n.name,
+  n.normalized_name,
+  n.mime_type,
+  n.size,
+  n.storage_backend,
+  n.storage_path,
+  n.checksum_sha256,
+  n.status,
+  n.created_at,
+  n.updated_at
+FROM drive_nodes n
+JOIN users u ON u.id = n.user_id
+JOIN domains d ON d.id = u.domain_id
+WHERE n.id = $2::uuid
+  AND n.user_id = $1::uuid
+  AND n.status = $3
+  AND u.status = 'active'
+  AND d.status = 'active'`
+	var node Node
+	err = r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, req.Status).Scan(
+		&node.ID,
+		&node.CompanyID,
+		&node.DomainID,
+		&node.UserID,
+		&node.ParentID,
+		&node.Type,
+		&node.Name,
+		&node.NormalizedName,
+		&node.MIMEType,
+		&node.Size,
+		&node.StorageBackend,
+		&node.StoragePath,
+		&node.ChecksumSHA256,
+		&node.Status,
+		&node.CreatedAt,
+		&node.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Node{}, fmt.Errorf("drive node not found")
+		}
+		return Node{}, fmt.Errorf("get drive node: %w", err)
+	}
+	return node, nil
 }
 
 func (r *Repository) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {

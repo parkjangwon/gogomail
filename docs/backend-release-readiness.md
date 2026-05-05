@@ -79,6 +79,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
+- Drive single-node metadata can now be read through the Mail API with bounded
+  status filtering, giving future detail panels and post-edit refreshes a
+  stable response envelope.
 - Drive can now move active file/folder metadata into trash recursively without
   deleting object bytes or decrementing quota immediately, giving the future
   product a recoverable delete path before permanent cleanup is exposed.

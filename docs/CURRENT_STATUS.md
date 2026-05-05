@@ -285,10 +285,11 @@ guidance.
   `drive-cleanup-worker`, with validated interval/batch/run-once config and
   local/MinIO/S3-compatible storage wiring through the shared storage adapter.
 - Mail API now exposes the first Drive HTTP routes for production webmail
-  integration: bounded node listing, folder creation, trash, restore, and
-  permanent delete. The routes use the existing user auth/fallback path,
-  shared Drive repository/service boundaries, and OpenAPI-documented response
-  envelopes without starting frontend implementation.
+  integration: bounded node listing, single-node metadata reads, folder
+  creation, trash, restore, and permanent delete. The routes use the existing
+  user auth/fallback path, shared Drive repository/service boundaries, and
+  OpenAPI-documented response envelopes without starting frontend
+  implementation.
 - Mail API also exposes `POST /api/v1/drive/files/finalize`, letting a
   previously staged object become quota-accounted Drive file metadata through
   the shared storage `Stat` contract and Drive file-finalize repository

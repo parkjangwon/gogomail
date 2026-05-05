@@ -13,6 +13,7 @@ type DriveService interface {
 	CreateFileFromObject(ctx context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error)
 	StoreStagedObject(ctx context.Context, req drive.StoreStagedObjectRequest) (drive.StagedObject, error)
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
+	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
@@ -55,6 +56,29 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_nodes": nodes})
+	})
+
+	mux.HandleFunc("GET /api/v1/drive/nodes/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id", "status") {
+			return
+		}
+		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		status, ok := parseBoundedHTTPQuery(w, r, "status", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		node, err := service.GetNode(r.Context(), drive.GetNodeRequest{UserID: userID, NodeID: nodeID, Status: status})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_node": node})
 	})
 
 	mux.HandleFunc("POST /api/v1/drive/folders", func(w http.ResponseWriter, r *http.Request) {

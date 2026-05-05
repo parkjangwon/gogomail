@@ -1826,6 +1826,9 @@ Implementation order:
 986. Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/parent`, letting
      production Drive clients move active files and folders into destination
      folders or back to root while rejecting self/subtree cycles.
+987. Mail API now exposes `GET /api/v1/drive/nodes/{id}` with bounded status
+     filtering, giving production Drive clients a stable single-node metadata
+     refresh path after edits and selections.
 
 ## Deferred until backend contracts stabilize
 

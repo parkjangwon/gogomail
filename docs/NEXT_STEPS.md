@@ -361,8 +361,8 @@ Current state:
   validated interval or in run-once mode, using the configured local/NFS,
   MinIO, or S3-compatible object store.
 - Mail API now exposes first Drive HTTP routes for bounded node listing, folder
-  creation, trash, restore, and permanent delete, with OpenAPI response
-  envelopes and the existing user auth/fallback path.
+  creation, single-node metadata reads, trash, restore, and permanent delete,
+  with OpenAPI response envelopes and the existing user auth/fallback path.
 - Mail API now exposes `POST /api/v1/drive/files/finalize` for converting a
   staged object into quota-accounted Drive file metadata through the shared
   storage `Stat` contract.
