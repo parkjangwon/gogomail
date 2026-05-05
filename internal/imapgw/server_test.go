@@ -128,6 +128,29 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	}
 }
 
+func TestServerServeStopsWhenListenerCloses(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: "127.0.0.1:0", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(listener)
+	}()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("listener close returned error: %v", err)
+	}
+	if err := <-errCh; err != ErrServerClosed {
+		t.Fatalf("Serve returned %v, want ErrServerClosed", err)
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
