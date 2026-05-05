@@ -1368,6 +1368,10 @@ Current state:
 - Mail API attachment downloads now expose a bodyless `HEAD` metadata probe,
   returning safe download headers and storage-object size before production
   webmail clients decide to stream attachment bytes.
+- Drive file copy now has a production API slice via
+  `POST /api/v1/drive/nodes/{id}/copy`, using storage `Copy` for local/NFS,
+  MinIO, and S3-compatible backends while keeping folder recursive copy as a
+  later expansion.
 
 Next:
 

@@ -369,6 +369,45 @@ func TestValidateMoveNodeRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateCopyNodeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, normalizedName, err := ValidateCopyNodeRequest(CopyNodeRequest{UserID: " user-1 ", NodeID: " node-1 ", ParentID: " parent-1 ", Name: " Report Copy.pdf "})
+	if err != nil {
+		t.Fatalf("ValidateCopyNodeRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.NodeID != "node-1" || req.ParentID != "parent-1" || req.Name != "Report Copy.pdf" {
+		t.Fatalf("request = %+v, want trimmed fields", req)
+	}
+	if normalizedName != "report copy.pdf" {
+		t.Fatalf("normalized name = %q, want report copy.pdf", normalizedName)
+	}
+}
+
+func TestValidateCopyNodeRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []CopyNodeRequest{
+		{NodeID: "node-1", ParentID: "parent-1", Name: "Report.pdf"},
+		{UserID: "user-1", ParentID: "parent-1", Name: "Report.pdf"},
+		{UserID: "user\n1", NodeID: "node-1", ParentID: "parent-1", Name: "Report.pdf"},
+		{UserID: "user-1", NodeID: "node\n1", ParentID: "parent-1", Name: "Report.pdf"},
+		{UserID: "user-1", NodeID: "node-1", ParentID: "parent\n1", Name: "Report.pdf"},
+		{UserID: "user-1", NodeID: "node-1", ParentID: "parent-1", Name: ""},
+		{UserID: "user-1", NodeID: "node-1", ParentID: "parent-1", Name: "Reports/2026"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.NodeID+"-"+tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, err := ValidateCopyNodeRequest(tc); err == nil {
+				t.Fatalf("ValidateCopyNodeRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidatePermanentDeleteNodeRequest(t *testing.T) {
 	t.Parallel()
 

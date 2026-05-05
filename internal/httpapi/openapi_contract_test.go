@@ -234,6 +234,7 @@ func TestOpenAPIDraftDocumentsDriveCapabilityLimits(t *testing.T) {
 		"upload_sessions",
 		"node_download",
 		"node_range_download",
+		"copy_nodes",
 		"list_upload_sessions",
 		"upload_session_body",
 		"upload_session_checksum",
@@ -327,6 +328,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /drive/nodes/{id}/restore":                             "#/components/responses/DriveNodeUpdate",
 		"PATCH /drive/nodes/{id}/name":                               "#/components/responses/DriveNode",
 		"PATCH /drive/nodes/{id}/parent":                             "#/components/responses/DriveNode",
+		"POST /drive/nodes/{id}/copy":                                "#/components/responses/DriveNode",
 		"GET /mailbox/overview":                                      "#/components/responses/MailboxOverview",
 		"GET /messages":                                              "#/components/responses/MessageListPage",
 		"GET /search":                                                "#/components/responses/MessageList",
@@ -1195,6 +1197,7 @@ func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
 		"GET /drive/nodes/{id}",
 		"HEAD /drive/nodes/{id}/download",
 		"GET /drive/nodes/{id}/download",
+		"POST /drive/nodes/{id}/copy",
 		"GET /drive/usage",
 	} {
 		block, ok := operations[route]

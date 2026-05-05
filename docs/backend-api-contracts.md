@@ -224,6 +224,13 @@ or development `user_id` fallback path as webmail mail routes:
   `{"parent_id"}` and returns `{"drive_node":{...}}`; an omitted or empty
   `parent_id` moves the node to the Drive root, and repository checks prevent
   moves into the node's own active subtree.
+- `POST /api/v1/drive/nodes/{id}/copy` copies an active Drive file through the
+  configured storage backend from `{"parent_id","name"}` and returns
+  `{"drive_node":{...}}`. The first production slice is file-only: folders are
+  rejected before object work. The service verifies the source object, copies it
+  through the backend-neutral storage `Copy` contract, creates quota-accounted
+  file metadata, and best-effort deletes the copied object if metadata creation
+  fails.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

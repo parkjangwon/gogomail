@@ -59,3 +59,18 @@ func TestValidateNodeTypeAndStatus(t *testing.T) {
 		t.Fatal("ValidateNodeStatus accepted unsupported status")
 	}
 }
+
+func TestNewNodeIDReturnsUUIDv4(t *testing.T) {
+	t.Parallel()
+
+	id, err := NewNodeID()
+	if err != nil {
+		t.Fatalf("NewNodeID returned error: %v", err)
+	}
+	if _, err := validateDriveID("node_id", id, true); err != nil {
+		t.Fatalf("NewNodeID = %q is not a valid drive ID: %v", id, err)
+	}
+	if len(id) != 36 || id[14] != '4' {
+		t.Fatalf("NewNodeID = %q, want UUIDv4 format", id)
+	}
+}

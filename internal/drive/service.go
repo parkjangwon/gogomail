@@ -383,6 +383,48 @@ func (s *Service) MoveNode(ctx context.Context, req MoveNodeRequest) (Node, erro
 	return s.repo.MoveNode(ctx, req)
 }
 
+func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	req, _, err := ValidateCopyNodeRequest(req)
+	if err != nil {
+		return Node{}, err
+	}
+	source, sourcePath, store, err := s.driveFileObject(ctx, OpenFileRequest{UserID: req.UserID, NodeID: req.NodeID})
+	if err != nil {
+		return Node{}, err
+	}
+	if _, err := store.Stat(ctx, sourcePath); err != nil {
+		return Node{}, fmt.Errorf("stat source drive file object: %w", err)
+	}
+	newNodeID, err := NewNodeID()
+	if err != nil {
+		return Node{}, err
+	}
+	destPath, err := BuildNodeObjectPath(req.UserID, newNodeID)
+	if err != nil {
+		return Node{}, err
+	}
+	if err := store.Copy(ctx, sourcePath, destPath); err != nil {
+		return Node{}, fmt.Errorf("copy drive file object: %w", err)
+	}
+	node, err := s.repo.CreateFileFromObject(ctx, store, CreateFileFromObjectRequest{
+		UserID:         req.UserID,
+		ParentID:       req.ParentID,
+		Name:           req.Name,
+		StorageBackend: source.StorageBackend,
+		StoragePath:    destPath,
+		MIMEType:       source.MIMEType,
+		ChecksumSHA256: source.ChecksumSHA256,
+	})
+	if err != nil {
+		_ = store.Delete(ctx, destPath)
+		return Node{}, err
+	}
+	return node, nil
+}
+
 func (s *Service) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNodeRequest) (PermanentDeleteServiceResult, error) {
 	if s == nil || s.repo == nil {
 		return PermanentDeleteServiceResult{}, fmt.Errorf("drive repository is required")

@@ -137,6 +137,13 @@ type MoveNodeRequest struct {
 	ParentID string
 }
 
+type CopyNodeRequest struct {
+	UserID   string
+	NodeID   string
+	ParentID string
+	Name     string
+}
+
 type PermanentDeleteNodeRequest struct {
 	UserID string
 	NodeID string
@@ -342,6 +349,30 @@ func ValidateMoveNodeRequest(req MoveNodeRequest) (MoveNodeRequest, error) {
 		return MoveNodeRequest{}, fmt.Errorf("parent_id must not equal node_id")
 	}
 	return MoveNodeRequest{UserID: userID, NodeID: nodeID, ParentID: parentID}, nil
+}
+
+func ValidateCopyNodeRequest(req CopyNodeRequest) (CopyNodeRequest, string, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return CopyNodeRequest{}, "", err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return CopyNodeRequest{}, "", err
+	}
+	parentID, err := validateDriveID("parent_id", req.ParentID, false)
+	if err != nil {
+		return CopyNodeRequest{}, "", err
+	}
+	name, err := ValidateNodeName(req.Name)
+	if err != nil {
+		return CopyNodeRequest{}, "", err
+	}
+	normalizedName, err := NormalizeNodeName(name)
+	if err != nil {
+		return CopyNodeRequest{}, "", err
+	}
+	return CopyNodeRequest{UserID: userID, NodeID: nodeID, ParentID: parentID, Name: name}, normalizedName, nil
 }
 
 func ValidatePermanentDeleteNodeRequest(req PermanentDeleteNodeRequest) (PermanentDeleteNodeRequest, error) {

@@ -732,6 +732,35 @@ func TestDriveMoveNodeHandler(t *testing.T) {
 	}
 }
 
+func TestDriveCopyNodeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{node: drive.Node{ID: "copy-1", UserID: "user-1", ParentID: "parent-2", Name: "Report Copy.pdf", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/copy?user_id=user-1", strings.NewReader(`{"parent_id":"parent-2","name":"Report Copy.pdf"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.copyReq.UserID != "user-1" || service.copyReq.NodeID != "node-1" || service.copyReq.ParentID != "parent-2" || service.copyReq.Name != "Report Copy.pdf" {
+		t.Fatalf("copy request = %+v, want request body/user/node", service.copyReq)
+	}
+	var body struct {
+		Node drive.Node `json:"drive_node"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Node.ID != "copy-1" || body.Node.Name != "Report Copy.pdf" {
+		t.Fatalf("node = %+v", body.Node)
+	}
+}
+
 func TestDriveHandlersRejectBadRequests(t *testing.T) {
 	t.Parallel()
 
@@ -756,6 +785,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},
 		{name: "rename invalid json", req: httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/name?user_id=user-1", strings.NewReader(`{`))},
 		{name: "move invalid json", req: httptest.NewRequest(http.MethodPatch, "/api/v1/drive/nodes/node-1/parent?user_id=user-1", strings.NewReader(`{`))},
+		{name: "copy invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/copy?user_id=user-1", strings.NewReader(`{`))},
 		{name: "trash body rejected", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/trash?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "delete unsafe id", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/nodes/node%0A1?user_id=user-1", nil)},
 	}
@@ -808,6 +838,7 @@ type fakeDriveService struct {
 	restoreReq                drive.RestoreNodeRequest
 	renameReq                 drive.RenameNodeRequest
 	moveReq                   drive.MoveNodeRequest
+	copyReq                   drive.CopyNodeRequest
 	deleteReq                 drive.PermanentDeleteNodeRequest
 }
 
@@ -975,6 +1006,14 @@ func (f *fakeDriveService) RenameNode(_ context.Context, req drive.RenameNodeReq
 
 func (f *fakeDriveService) MoveNode(_ context.Context, req drive.MoveNodeRequest) (drive.Node, error) {
 	f.moveReq = req
+	if f.err != nil {
+		return drive.Node{}, f.err
+	}
+	return f.node, nil
+}
+
+func (f *fakeDriveService) CopyNode(_ context.Context, req drive.CopyNodeRequest) (drive.Node, error) {
+	f.copyReq = req
 	if f.err != nil {
 		return drive.Node{}, f.err
 	}
