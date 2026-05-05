@@ -5437,7 +5437,7 @@ func TestServerSearchResClearsSavedResultsOnSaveNo(t *testing.T) {
 func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: flagSearchBackend{}, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -6913,6 +6913,61 @@ func TestServerHandlesStoreAfterSelect(t *testing.T) {
 		}
 		if line != expected {
 			t.Fatalf("store response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerStoresForwardedKeywordFlagAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: forwardedPermanentFlagsBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 STORE 1 +FLAGS (Forwarded)\r\n")); err != nil {
+		t.Fatalf("write forwarded store: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (Forwarded))\r\n",
+		"a3 OK STORE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read forwarded store response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("forwarded store response = %q, want %q", line, expected)
 		}
 	}
 	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
@@ -8825,9 +8880,19 @@ func (fakeBackend) RenameMailbox(context.Context, UserID, MailboxID, MailboxID) 
 
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{
-		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}, To: []Address{{Name: "Target User", Mailbox: "target", Host: "example.com"}}, Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Read: true, Starred: true, Forwarded: true}, Size: 11, ModSeq: 17},
+		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}, To: []Address{{Name: "Target User", Mailbox: "target", Host: "example.com"}}, Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Read: true, Starred: true}, Size: 11, ModSeq: 17},
 		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Archive", From: []Address{{Name: "Archive Bot", Mailbox: "archive", Host: "example.net"}}, Cc: []Address{{Name: "Review Desk", Mailbox: "review", Host: "example.com"}}, Bcc: []Address{{Name: "Hidden Desk", Mailbox: "hidden", Host: "example.com"}}, Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Draft: true}, Size: 42, ModSeq: 23},
 	}, nil
+}
+
+type flagSearchBackend struct {
+	fakeBackend
+}
+
+func (flagSearchBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
+	messages, _ := (fakeBackend{}).ListMessages(context.Background(), ListMessagesRequest{})
+	messages[0].Flags.Forwarded = true
+	return messages, nil
 }
 
 type threadBackend struct {
@@ -9087,12 +9152,23 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 			modified = append(modified, uid)
 			continue
 		}
-		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}, ModSeq: modseq})
+		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Forwarded: req.Flags.Forwarded, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}, ModSeq: modseq})
 	}
 	if len(modified) > 0 {
 		return summaries, &StoreModifiedError{UIDs: modified, Summaries: summaries}
 	}
 	return summaries, nil
+}
+
+type forwardedPermanentFlagsBackend struct {
+	fakeBackend
+}
+
+func (forwardedPermanentFlagsBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDraft, FlagDeleted},
+	}, nil
 }
 
 type limitedPermanentFlagsBackend struct {

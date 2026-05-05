@@ -3,11 +3,12 @@ package imapgw
 import "strings"
 
 const (
-	FlagSeen     = `\Seen`
-	FlagFlagged  = `\Flagged`
-	FlagAnswered = `\Answered`
-	FlagDraft    = `\Draft`
-	FlagDeleted  = `\Deleted`
+	FlagSeen      = `\Seen`
+	FlagFlagged   = `\Flagged`
+	FlagAnswered  = `\Answered`
+	FlagForwarded = `Forwarded`
+	FlagDraft     = `\Draft`
+	FlagDeleted   = `\Deleted`
 )
 
 type MessageFlags struct {
@@ -35,6 +36,9 @@ func MapMessageFlags(flags MessageFlags) []string {
 	if flags.Answered {
 		imapFlags = append(imapFlags, FlagAnswered)
 	}
+	if flags.Forwarded {
+		imapFlags = append(imapFlags, FlagForwarded)
+	}
 	if flags.Draft || strings.EqualFold(strings.TrimSpace(flags.Status), "draft") {
 		imapFlags = append(imapFlags, FlagDraft)
 	}
@@ -52,6 +56,8 @@ func ApplyIMAPFlag(flags MessageFlags, imapFlag string, value bool) (MessageFlag
 		flags.Starred = value
 	case FlagAnswered:
 		flags.Answered = value
+	case FlagForwarded:
+		flags.Forwarded = value
 	case FlagDraft:
 		flags.Draft = value
 		if value {
@@ -75,6 +81,8 @@ func MailFlagForIMAPFlag(imapFlag string) (string, bool) {
 		return "starred", true
 	case FlagAnswered:
 		return "answered", true
+	case FlagForwarded:
+		return "forwarded", true
 	default:
 		return "", false
 	}
@@ -88,6 +96,8 @@ func CanonicalIMAPFlag(flag string) string {
 		return FlagFlagged
 	case `\answered`:
 		return FlagAnswered
+	case `forwarded`, `$forwarded`:
+		return FlagForwarded
 	case `\draft`:
 		return FlagDraft
 	case `\deleted`:

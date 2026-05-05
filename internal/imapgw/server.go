@@ -2175,8 +2175,8 @@ func imapSearchKeywordValid(value string) bool {
 }
 
 func imapMessageMatchesKeywordSearch(summary MessageSummary, keyword string) bool {
-	switch strings.ToLower(strings.TrimSpace(keyword)) {
-	case "forwarded":
+	switch CanonicalIMAPFlag(keyword) {
+	case FlagForwarded:
 		return summary.Flags.Forwarded
 	default:
 		return false
@@ -5628,6 +5628,8 @@ func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 			flags.Starred = true
 		case FlagAnswered:
 			flags.Answered = true
+		case FlagForwarded:
+			flags.Forwarded = true
 		case FlagDraft:
 			flags.Draft = true
 		case FlagDeleted:
@@ -5644,7 +5646,7 @@ func imapPermanentFlagSet(flags []string) map[string]struct{} {
 	permitted := make(map[string]struct{}, len(flags))
 	for _, raw := range flags {
 		switch name := CanonicalIMAPFlag(raw); name {
-		case FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted:
+		case FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDraft, FlagDeleted:
 			permitted[name] = struct{}{}
 		}
 	}

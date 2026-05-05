@@ -1935,14 +1935,15 @@ type imapMessageRow struct {
 }
 
 type imapStoreFlagChanges struct {
-	Read     *bool
-	Starred  *bool
-	Answered *bool
-	Deleted  *bool
+	Read      *bool
+	Starred   *bool
+	Answered  *bool
+	Forwarded *bool
+	Deleted   *bool
 }
 
 func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) (imapStoreFlagChanges, error) {
-	if flags.Forwarded || flags.Draft || strings.TrimSpace(flags.Status) != "" {
+	if flags.Draft || strings.TrimSpace(flags.Status) != "" {
 		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flag set")
 	}
 	var changes imapStoreFlagChanges
@@ -1957,6 +1958,9 @@ func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMo
 		if flags.Answered {
 			changes.Answered = boolPointer(true)
 		}
+		if flags.Forwarded {
+			changes.Forwarded = boolPointer(true)
+		}
 		if flags.Deleted {
 			changes.Deleted = boolPointer(true)
 		}
@@ -1970,6 +1974,9 @@ func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMo
 		if flags.Answered {
 			changes.Answered = boolPointer(false)
 		}
+		if flags.Forwarded {
+			changes.Forwarded = boolPointer(false)
+		}
 		if flags.Deleted {
 			changes.Deleted = boolPointer(false)
 		}
@@ -1977,11 +1984,12 @@ func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMo
 		changes.Read = boolPointer(flags.Read)
 		changes.Starred = boolPointer(flags.Starred)
 		changes.Answered = boolPointer(flags.Answered)
+		changes.Forwarded = boolPointer(flags.Forwarded)
 		changes.Deleted = boolPointer(flags.Deleted)
 	default:
 		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flags mode %q", mode)
 	}
-	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil && changes.Deleted == nil {
+	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil && changes.Forwarded == nil && changes.Deleted == nil {
 		return imapStoreFlagChanges{}, fmt.Errorf("imap flags are required")
 	}
 	return changes, nil
@@ -1998,10 +2006,13 @@ func applyIMAPStoreFlagChanges(row imapMessageRow, changes imapStoreFlagChanges)
 	if changes.Answered != nil {
 		next.Answered = *changes.Answered
 	}
+	if changes.Forwarded != nil {
+		next.Forwarded = *changes.Forwarded
+	}
 	if changes.Deleted != nil {
 		next.Deleted = *changes.Deleted
 	}
-	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered || next.Deleted != row.Deleted
+	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered || next.Forwarded != row.Forwarded || next.Deleted != row.Deleted
 }
 
 func boolPointer(value bool) *bool {
@@ -2183,16 +2194,19 @@ UPDATE messages
 SET flags = jsonb_set(
       jsonb_set(
         jsonb_set(
-          jsonb_set(flags, '{read}', to_jsonb($2::boolean), true),
-          '{starred}', to_jsonb($3::boolean), true
+          jsonb_set(
+            jsonb_set(flags, '{read}', to_jsonb($2::boolean), true),
+            '{starred}', to_jsonb($3::boolean), true
+          ),
+          '{answered}', to_jsonb($4::boolean), true
         ),
-        '{answered}', to_jsonb($4::boolean), true
+        '{forwarded}', to_jsonb($5::boolean), true
       ),
-      '{imap_deleted}', to_jsonb($5::boolean), true
+      '{imap_deleted}', to_jsonb($6::boolean), true
     ),
     updated_at = now()
 WHERE id = $1::uuid`
-	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered, row.Deleted); err != nil {
+	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered, row.Forwarded, row.Deleted); err != nil {
 		return fmt.Errorf("update imap message flags: %w", err)
 	}
 

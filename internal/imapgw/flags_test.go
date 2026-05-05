@@ -13,7 +13,7 @@ func TestMapMessageFlagsUsesRFC3501SystemFlags(t *testing.T) {
 		Deleted:   true,
 		Forwarded: true,
 	})
-	want := []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDeleted}
+	want := []string{FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDeleted}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("MapMessageFlags() = %#v, want %#v", got, want)
 	}
@@ -60,6 +60,11 @@ func TestApplyIMAPFlagMapsKnownMutableFlags(t *testing.T) {
 		t.Fatalf("ApplyIMAPFlag(Answered) = %#v, %v; want answered true", flags, ok)
 	}
 
+	flags, ok = ApplyIMAPFlag(flags, `forwarded`, true)
+	if !ok || !flags.Forwarded {
+		t.Fatalf("ApplyIMAPFlag(Forwarded) = %#v, %v; want forwarded true", flags, ok)
+	}
+
 	flags, ok = ApplyIMAPFlag(flags, `\Draft`, true)
 	if !ok || !flags.Draft || flags.Status != "draft" {
 		t.Fatalf("ApplyIMAPFlag(Draft) = %#v, %v; want draft status", flags, ok)
@@ -82,6 +87,7 @@ func TestMailFlagForIMAPFlagExposesOnlyPersistedMailboxFlags(t *testing.T) {
 		`\Seen`:     "read",
 		`\Flagged`:  "starred",
 		`\Answered`: "answered",
+		`Forwarded`: "forwarded",
 	}
 	for imapFlag, want := range tests {
 		got, ok := MailFlagForIMAPFlag(imapFlag)
