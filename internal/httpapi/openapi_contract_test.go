@@ -510,7 +510,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, params := range map[string][]string{
-		"GET /messages":                                        {"limit", "cursor", "folder_id", "read", "starred"},
+		"GET /messages":                                        {"limit", "cursor", "folder_id", "read", "starred", "has_attachment"},
 		"GET /search":                                          {"limit", "q", "folder_id", "from", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
 		"GET /drafts/search":                                   {"limit", "cursor", "q", "from", "subject", "has_attachment"},
 		"GET /companies":                                       {"limit", "status"},
@@ -590,7 +590,7 @@ func TestOpenAPIDraftKeepsThreadListParametersScoped(t *testing.T) {
 	if !ok {
 		t.Fatal("OpenAPI operation GET /threads is missing")
 	}
-	for _, want := range []string{"#/components/parameters/Limit", "name: cursor", "name: read", "name: starred"} {
+	for _, want := range []string{"#/components/parameters/Limit", "name: cursor", "name: read", "name: starred", "name: has_attachment"} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("GET /threads must document %q, got:\n%s", want, block)
 		}

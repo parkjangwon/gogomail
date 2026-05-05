@@ -384,7 +384,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -417,9 +417,14 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		hasAttachment, ok := parseOptionalBoolQuery(w, r, "has_attachment")
+		if !ok {
+			return
+		}
 		messages, err := service.ListMessagesPage(r.Context(), userID, folderID, limit, cursor, maildb.MessageListFilter{
-			Read:    read,
-			Starred: starred,
+			Read:          read,
+			Starred:       starred,
+			HasAttachment: hasAttachment,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -543,7 +548,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "read", "starred") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "read", "starred", "has_attachment") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -571,9 +576,14 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		hasAttachment, ok := parseOptionalBoolQuery(w, r, "has_attachment")
+		if !ok {
+			return
+		}
 		threads, err := service.ListThreadsPage(r.Context(), userID, limit, cursor, maildb.ThreadListFilter{
-			Read:    read,
-			Starred: starred,
+			Read:          read,
+			Starred:       starred,
+			HasAttachment: hasAttachment,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

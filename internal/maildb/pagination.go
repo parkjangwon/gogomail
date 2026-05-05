@@ -18,8 +18,9 @@ type MessageListCursor struct {
 }
 
 type MessageListFilter struct {
-	Read    *bool
-	Starred *bool
+	Read          *bool
+	Starred       *bool
+	HasAttachment *bool
 }
 
 type MessageListPage struct {
@@ -35,8 +36,9 @@ type ThreadListCursor struct {
 }
 
 type ThreadListFilter struct {
-	Read    *bool
-	Starred *bool
+	Read          *bool
+	Starred       *bool
+	HasAttachment *bool
 }
 
 type ThreadListPage struct {

@@ -1059,12 +1059,13 @@ Next:
 - Mail API now exposes `GET /api/v1/mailbox/overview` as a lightweight
   production webmail chrome bootstrap read for aggregate total/unread/starred
   counts, stored-size totals, and system-folder ID shortcuts.
-- Mail API message list pagination now accepts optional `read=true|false` and
-  `starred=true|false` filters for fast unread/read/starred webmail views
-  without forcing clients through full-text search.
-- Mail API thread list pagination now accepts optional `read=true|false` and
-  `starred=true|false` filters, with `read=false` representing conversations
-  that still contain unread messages.
+- Mail API message list pagination now accepts optional `read=true|false`,
+  `starred=true|false`, and `has_attachment=true|false` filters for fast
+  unread/read/starred/attachment webmail views without forcing clients through
+  full-text search.
+- Mail API thread list pagination now accepts optional `read=true|false`,
+  `starred=true|false`, and `has_attachment=true|false` filters, with
+  `read=false` representing conversations that still contain unread messages.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

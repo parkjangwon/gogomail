@@ -480,6 +480,7 @@ WHERE user_id = $1
   AND ($2 = '' OR folder_id::text = $2)
   AND ($6::boolean IS NULL OR COALESCE((flags->>'read')::boolean, false) = $6::boolean)
   AND ($7::boolean IS NULL OR COALESCE((flags->>'starred')::boolean, false) = $7::boolean)
+  AND ($8::boolean IS NULL OR has_attachment = $8::boolean)
   AND (
     $4 = ''
     OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
@@ -498,6 +499,7 @@ LIMIT $5`
 		limit,
 		filter.Read,
 		filter.Starred,
+		filter.HasAttachment,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list message page: %w", err)

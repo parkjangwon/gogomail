@@ -194,7 +194,8 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 	read := false
 	starred := true
-	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}, maildb.MessageListFilter{Read: &read, Starred: &starred}); err != nil {
+	hasAttachment := true
+	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}, maildb.MessageListFilter{Read: &read, Starred: &starred, HasAttachment: &hasAttachment}); err != nil {
 		t.Fatalf("ListMessagesPage returned error: %v", err)
 	}
 	if _, err := service.ListThreads(context.Background(), " user-1 ", 10); err != nil {
@@ -230,6 +231,9 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 	if repo.lastPageFilter.Read == nil || *repo.lastPageFilter.Read || repo.lastPageFilter.Starred == nil || !*repo.lastPageFilter.Starred {
 		t.Fatalf("page filter = %#v", repo.lastPageFilter)
+	}
+	if repo.lastPageFilter.HasAttachment == nil || !*repo.lastPageFilter.HasAttachment {
+		t.Fatalf("page attachment filter = %#v", repo.lastPageFilter)
 	}
 	if repo.lastListThreadsUserID != "user-1" {
 		t.Fatalf("list threads user = %q", repo.lastListThreadsUserID)
@@ -3124,7 +3128,8 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	threadCursor := maildb.ThreadListCursor{ID: "11111111-1111-1111-1111-111111111111"}
 	read := false
 	starred := true
-	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{Read: &read, Starred: &starred}); err != nil {
+	hasAttachment := true
+	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{Read: &read, Starred: &starred, HasAttachment: &hasAttachment}); err != nil {
 		t.Fatalf("ListThreadsPage returned error: %v", err)
 	}
 	if repo.lastListThreadsCursor.ID != threadCursor.ID {
@@ -3132,6 +3137,9 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	}
 	if repo.lastListThreadsFilter.Read == nil || *repo.lastListThreadsFilter.Read || repo.lastListThreadsFilter.Starred == nil || !*repo.lastListThreadsFilter.Starred {
 		t.Fatalf("thread filter = %#v", repo.lastListThreadsFilter)
+	}
+	if repo.lastListThreadsFilter.HasAttachment == nil || !*repo.lastListThreadsFilter.HasAttachment {
+		t.Fatalf("thread attachment filter = %#v", repo.lastListThreadsFilter)
 	}
 	messageCursor := maildb.MessageListCursor{ID: "22222222-2222-2222-2222-222222222222"}
 	if _, err := service.ListThreadMessagesPage(context.Background(), "user-1", "thread-1", 10, messageCursor); err != nil {
