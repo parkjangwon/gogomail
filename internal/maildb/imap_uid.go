@@ -920,6 +920,173 @@ WHERE user_id = $1::uuid
 	return summaries, nil
 }
 
+func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	sourceMailboxID = strings.TrimSpace(sourceMailboxID)
+	destMailboxID = strings.TrimSpace(destMailboxID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if sourceMailboxID == "" {
+		return nil, fmt.Errorf("source_mailbox_id is required")
+	}
+	if destMailboxID == "" {
+		return nil, fmt.Errorf("dest_mailbox_id is required")
+	}
+	if sourceMailboxID == destMailboxID {
+		return nil, fmt.Errorf("source and destination mailbox must differ")
+	}
+	if len(uids) == 0 {
+		return nil, nil
+	}
+	if len(uids) > 500 {
+		return nil, fmt.Errorf("too many uids")
+	}
+	for _, uid := range uids {
+		if uid == 0 {
+			return nil, fmt.Errorf("uid must not be zero")
+		}
+	}
+	rawUIDs, err := json.Marshal(uids)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap move uids: %w", err)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin imap move transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var destExists bool
+	if err := tx.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM folders
+  WHERE id = $1::uuid
+    AND user_id = $2::uuid
+)`, destMailboxID, userID).Scan(&destExists); err != nil {
+		return nil, fmt.Errorf("validate imap move destination mailbox: %w", err)
+	}
+	if !destExists {
+		return nil, fmt.Errorf("destination mailbox %q not found", destMailboxID)
+	}
+
+	const query = `
+WITH input AS (
+  SELECT value::bigint AS uid
+  FROM jsonb_array_elements_text($3::jsonb)
+)
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  m.status,
+  i.uid,
+  i.modseq
+FROM input
+JOIN imap_message_uid i
+  ON i.uid = input.uid
+ AND i.user_id = $1::uuid
+ AND i.mailbox_id = $2::uuid
+JOIN messages m
+  ON m.id = i.message_id
+ AND m.user_id = $1::uuid
+ AND m.folder_id = $2::uuid
+ AND m.status = 'active'
+ORDER BY i.uid
+FOR UPDATE OF i, m`
+	rows, err := tx.QueryContext(ctx, query, userID, sourceMailboxID, string(rawUIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list imap move messages: %w", err)
+	}
+	var messageIDs []string
+	summaries := make([]imapgw.MessageSummary, 0, len(uids))
+	for rows.Next() {
+		var row imapMessageRow
+		var messageUID IMAPMessageUID
+		if err := rows.Scan(
+			&row.ID,
+			&row.MailboxID,
+			&row.RFCMessageID,
+			&row.Subject,
+			&row.FromAddr,
+			&row.FromName,
+			&row.InternalDate,
+			&row.Size,
+			&row.Read,
+			&row.Starred,
+			&row.Answered,
+			&row.Forwarded,
+			&row.Draft,
+			&row.Deleted,
+			&row.Status,
+			&messageUID.UID,
+			&messageUID.ModSeq,
+		); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan imap move message: %w", err)
+		}
+		messageUID.MessageID = imapgw.MessageID(row.ID)
+		messageUID.MailboxID = imapgw.MailboxID(row.MailboxID)
+		summary := imapMessageFromRow(row, messageUID)
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, sourceMailboxID, messageUID.UID)
+		if err != nil {
+			rows.Close()
+			return nil, err
+		}
+		summary.SequenceNumber = sequenceNumber
+		summaries = append(summaries, summary)
+		messageIDs = append(messageIDs, row.ID)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close imap move rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap move rows: %w", err)
+	}
+	if len(messageIDs) == 0 {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit empty imap move transaction: %w", err)
+		}
+		return nil, nil
+	}
+	rawMessageIDs, err := json.Marshal(messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap move message ids: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET folder_id = $3::uuid,
+    updated_at = now()
+WHERE user_id = $1::uuid
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'active'`, userID, string(rawMessageIDs), destMailboxID); err != nil {
+		return nil, fmt.Errorf("move imap messages: %w", err)
+	}
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, messageIDs); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit imap move transaction: %w", err)
+	}
+	return summaries, nil
+}
+
 func (r *Repository) ExistingIMAPMessageUIDs(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

@@ -2,7 +2,6 @@ package mailservice
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gogomail/gogomail/internal/imapgw"
 )
@@ -71,8 +70,8 @@ func (a IMAPStoreAdapter) CopyMessages(ctx context.Context, req imapgw.CopyMessa
 	return a.service.CopyIMAPMessages(ctx, req)
 }
 
-func (a IMAPStoreAdapter) MoveMessages(context.Context, imapgw.MoveMessagesRequest) ([]imapgw.MessageSummary, error) {
-	return nil, fmt.Errorf("%w: MOVE is deferred until IMAP-safe mailbox mutation semantics are implemented", imapgw.ErrUnsupportedMailboxMutation)
+func (a IMAPStoreAdapter) MoveMessages(ctx context.Context, req imapgw.MoveMessagesRequest) ([]imapgw.MessageSummary, error) {
+	return a.service.MoveIMAPMessages(ctx, req)
 }
 
 func (a IMAPStoreAdapter) Expunge(ctx context.Context, req imapgw.ExpungeRequest) ([]imapgw.MessageSummary, error) {

@@ -242,13 +242,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag mutation, bounded UID backfill, move/delete UID invalidation, and
   same-active-mailbox idempotency checks.
 - `mailservice` now exposes IMAP mailbox/message listing, raw fetch, flag store,
-  COPY, EXPUNGE, UID backfill, and mailbox-event subscription through service
+  COPY, MOVE, EXPUNGE, UID backfill, and mailbox-event subscription through service
   methods plus an `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping
   protocol wiring off direct `maildb` internals.
 - `IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore` for mailbox
-  selection, service-backed COPY/EXPUNGE, and event subscription, while MOVE
-  returns an explicit unsupported mutation error until move semantics are
-  reviewed.
+  selection, service-backed COPY/MOVE/EXPUNGE, and event subscription.
 - Admin API exposes bounded IMAP UID backfill by user/mailbox for future
   operator/bootstrap runs without enabling an IMAP protocol listener.
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
@@ -271,8 +269,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - ADR 0008 records the IMAP authentication/session contract: protocol auth uses
   a dedicated adapter over local user password hashes, JWT remains HTTP-only,
   production auth requires TLS policy review, `\Deleted` is a protocol flag
-  separate from gogomail soft-delete status, and MOVE stays explicitly
-  unsupported until IMAP-safe move semantics are accepted.
+  separate from gogomail soft-delete status, and MOVE is modeled as source
+  expunge semantics plus a destination folder transition with fresh mailbox UIDs.
 - `mailservice.NewIMAPAuthenticatorAdapter` maps the existing Submission/local
   password authentication boundary into `imapgw.Session` values, giving the
   listener a protocol-native authenticator without coupling IMAP to JWT
@@ -464,8 +462,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   selected mailbox, validate the destination mailbox, duplicate active message
   metadata and attachment rows transactionally, assign fresh destination
   mailbox UIDs, and publish best-effort destination `EXISTS` events.
-- IMAP `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
-  responses while mailbox mutation/import semantics remain deferred.
+- IMAP `MOVE` and `UID MOVE` now resolve source sequence/UID sets through the
+  selected mailbox, validate a different destination mailbox, move active
+  messages transactionally, remove source mailbox UID rows, emit RFC-shaped
+  source `EXPUNGE` responses, and publish best-effort source expunge events.
+  `APPEND` remains explicitly unsupported.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

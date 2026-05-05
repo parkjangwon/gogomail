@@ -191,9 +191,8 @@ Current state:
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for protocol listener
   wiring through the service boundary.
 - `mailservice.IMAPStoreAdapter` also satisfies `imapgw.MailboxSessionStore`
-  for SELECT-style mailbox state, service-backed COPY/EXPUNGE, and
-  mailbox-event subscription. MOVE intentionally returns an explicit
-  unsupported mutation error until move semantics are reviewed.
+  for SELECT-style mailbox state, service-backed COPY/MOVE/EXPUNGE, and
+  mailbox-event subscription.
 - `gogomail --mode=imap` is now a separate gateway that opens the
   service-backed IMAP store adapter, wires a process-local mailbox event broker
   for future IDLE sessions, and serves the configured TCP protocol listener.
@@ -208,8 +207,8 @@ Current state:
 - ADR 0008 accepts the IMAP authentication/session direction: use a dedicated
   protocol auth adapter over local user password hashes, keep JWT out of IMAP,
   require TLS policy review before production enablement, keep `\Deleted`
-  separate from gogomail soft-delete status, and continue rejecting MOVE until
-  IMAP-safe move semantics exist.
+  separate from gogomail soft-delete status, and handle MOVE as an IMAP
+  source-expunge plus destination folder transition with fresh destination UIDs.
 - `mailservice.NewIMAPAuthenticatorAdapter` now maps the existing
   Submission/local-password authentication boundary into `imapgw.Session`
   values, giving the listener a protocol-native authenticator without coupling
@@ -393,8 +392,10 @@ Current state:
   the destination mailbox, duplicate active message metadata and attachment
   rows transactionally, assign fresh destination mailbox UIDs, and publish
   best-effort destination `EXISTS` events through the service boundary.
-- `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
-  responses while mailbox mutation/import semantics remain deferred.
+- `MOVE` and `UID MOVE` now resolve source sequence/UID sets through the
+  selected mailbox, validate a different destination mailbox, move active
+  messages transactionally, remove source mailbox UID rows, and emit RFC-shaped
+  source `EXPUNGE` responses. `APPEND` remains explicitly unsupported.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder

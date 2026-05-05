@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP COPY groundwork)
+Last updated: 2026-05-05 (updated after IMAP MOVE support)
 
 ## Current phase
 
@@ -793,9 +793,7 @@ The platform hardening sprint completed the following:
   protocol listener can depend on the gateway interface while still routing
   through service methods.
 - `IMAPStoreAdapter` now also satisfies `imapgw.MailboxSessionStore` for
-  mailbox selection, service-backed COPY/EXPUNGE, and event subscription, while
-  MOVE returns an explicit unsupported mutation error until move semantics are
-  reviewed.
+  mailbox selection, service-backed COPY/MOVE/EXPUNGE, and event subscription.
 - IMAP `UID FETCH` and `UID STORE` untagged `FETCH` responses use message
   sequence numbers per RFC 3501 while keeping the requested UID in response
   attributes, and `RFC822.SIZE` metadata requests do not trigger body streaming.
@@ -945,8 +943,10 @@ The platform hardening sprint completed the following:
   and attachment rows transactionally, assign fresh destination mailbox UIDs,
   and publish best-effort destination `EXISTS` events through the service
   boundary.
-- IMAP `MOVE`, `UID MOVE`, and `APPEND` return explicit unsupported `NO`
-  responses while mailbox mutation/import semantics remain deferred.
+- IMAP `MOVE` and `UID MOVE` resolve source sequence/UID sets through the
+  selected mailbox, validate a different destination mailbox, move active
+  messages transactionally, remove source mailbox UID rows, and emit RFC-shaped
+  source `EXPUNGE` responses. `APPEND` remains explicitly unsupported.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
