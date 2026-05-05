@@ -1605,6 +1605,9 @@ Implementation order:
      writer/searcher calls now share bounded response drain-and-close cleanup,
      improving HTTP connection reuse for external adapters without allowing
      oversized response bodies to stall cleanup.
+931. Remote Ed25519 API-usage export manifest signer calls now use the shared
+     bounded response drain-and-close helper, improving keep-alive reuse for
+     external KMS-backed signer services without unbounded cleanup reads.
 
 ## Deferred until backend contracts stabilize
 

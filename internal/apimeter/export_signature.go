@@ -216,7 +216,7 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 	if err != nil {
 		return ExportManifestSignature{}, fmt.Errorf("call remote signer: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return ExportManifestSignature{}, fmt.Errorf("remote signer returned status %d: %s", resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}

@@ -1102,7 +1102,8 @@ Current state:
 - Manifest signature verification now goes through an
   `ExportManifestSignatureVerifier` interface. Local-HMAC and Ed25519 verifiers
   are wired today; remote Ed25519 lets an external KMS-backed signing service
-  plug in without coupling gogomail to a specific vendor SDK.
+  plug in without coupling gogomail to a specific vendor SDK. Remote signer
+  HTTP responses use the shared bounded drain-and-close cleanup path.
 - Admin API exposes API usage export capabilities, including signer backend,
   signer key ID, verifier availability, production signature readiness, and
   billing/verified-billing support flags.
