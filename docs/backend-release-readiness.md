@@ -270,6 +270,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `REPORT calendar-multiget` now scopes hrefs to the request resource,
   preventing collection-level multiget requests from returning sibling
   collection objects while still allowing calendar-home same-user hrefs.
+- CalDAV `PROPFIND` now returns exact WebDAV `owner`, `creationdate`, and
+  `getlastmodified` metadata for calendar collections and objects, with
+  principal owner hrefs and standards-shaped timestamp formatting.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

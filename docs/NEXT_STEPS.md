@@ -1492,6 +1492,10 @@ Current state:
 - CalDAV `calendar-multiget` now respects request-resource scope: collection
   requests cannot fetch sibling collection objects, while calendar-home
   requests remain able to resolve authenticated same-user object hrefs.
+- CalDAV `PROPFIND` now exposes WebDAV `owner`, `creationdate`, and
+  `getlastmodified` for calendar collections and objects when backed by stored
+  metadata, improving native-client discovery without inventing ACL/delegation
+  semantics.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
