@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after full IMAP read-only mutation validation)
+Last updated: 2026-05-05 (updated after IMAP INBOX rename guard)
 
 ## Current phase
 
@@ -1481,6 +1481,9 @@ The platform hardening sprint completed the following:
   command-specific tagged `BAD` responses before valid mutations are rejected
   with `NO mailbox is read-only`, including invalid UID/sequence sets, STORE
   modes/flags, and modified UTF-7 destination mailbox names.
+- IMAP mailbox rename handling now rejects attempts to rename any mailbox to
+  `INBOX`, keeping the special INBOX namespace out of generic folder mutation
+  paths.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
