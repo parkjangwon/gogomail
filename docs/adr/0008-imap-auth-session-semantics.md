@@ -62,5 +62,6 @@ Submission-style authentication:
 - TLS policy must be reviewed and wired before production IMAP enablement.
 - A first TCP listener can safely start with authenticated LIST, SELECT, UID
   FETCH, UID STORE, COPY, MOVE, mailbox CRUD, and IDLE-oriented subscription
-  support. UIDPLUS/COPYUID-style response metadata remains a future
-  compatibility enhancement.
+  support. UIDPLUS is advertised for implemented UID EXPUNGE and COPYUID
+  response metadata, while APPENDUID remains out of scope until APPEND is
+  accepted.

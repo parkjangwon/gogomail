@@ -390,8 +390,9 @@ Current state:
   expunge events through the service boundary.
 - `COPY` and `UID COPY` now resolve source message sequence/UID sets, validate
   the destination mailbox, duplicate active message metadata and attachment
-  rows transactionally, assign fresh destination mailbox UIDs, and publish
-  best-effort destination `EXISTS` events through the service boundary.
+  rows transactionally, assign fresh destination mailbox UIDs, return UIDPLUS
+  `[COPYUID ...]` response codes when destination UIDs are available, and
+  publish best-effort destination `EXISTS` events through the service boundary.
 - `MOVE` and `UID MOVE` now resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
   messages transactionally, remove source mailbox UID rows, and emit RFC-shaped

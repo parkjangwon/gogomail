@@ -112,7 +112,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE SASL-IR AUTH=PLAIN\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -178,7 +178,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE STARTTLS LOGINDISABLED\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE STARTTLS LOGINDISABLED\r\n" {
 		t.Fatalf("pre-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK CAPABILITY completed\r\n" {
@@ -193,7 +193,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a3 STARTTLS\r\n")); err != nil {
 		t.Fatalf("write starttls: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
 		t.Fatalf("starttls line = %q err = %v", line, err)
 	}
 	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
@@ -204,7 +204,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := tlsClient.Write([]byte("a4 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write tls capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE SASL-IR AUTH=PLAIN\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("post-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK CAPABILITY completed\r\n" {
@@ -278,7 +278,7 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read authenticated capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE\r\n" {
 		t.Fatalf("authenticated capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -508,7 +508,7 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -764,7 +764,7 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT MOVE\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE UNSELECT UIDPLUS MOVE\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -1041,8 +1041,8 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 		t.Fatalf("write copy commands: %v", err)
 	}
 	want := []string{
-		"a3 OK COPY completed\r\n",
-		"a4 OK UID COPY completed\r\n",
+		"a3 OK [COPYUID 2 7,8 9,10] COPY completed\r\n",
+		"a4 OK [COPYUID 2 7 11] UID COPY completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -3823,6 +3823,7 @@ func (fakeBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]Message
 type copyBackend struct {
 	fakeBackend
 	requests []CopyMessagesRequest
+	nextUID  UID
 }
 
 func (b *copyBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
@@ -3836,7 +3837,15 @@ func (b *copyBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxI
 
 func (b *copyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
 	b.requests = append(b.requests, req)
-	return []MessageSummary{{ID: "message-copy-1", MailboxID: req.DestMailboxID, UID: 9}}, nil
+	if b.nextUID == 0 {
+		b.nextUID = 9
+	}
+	summaries := make([]MessageSummary, 0, len(req.UIDs))
+	for range req.UIDs {
+		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-copy-%d", b.nextUID)), MailboxID: req.DestMailboxID, UID: b.nextUID})
+		b.nextUID++
+	}
+	return summaries, nil
 }
 
 func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {
