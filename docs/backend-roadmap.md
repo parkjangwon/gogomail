@@ -722,6 +722,7 @@ Implementation order:
 662. Redis-backed RCPT rate-limit keys now normalize remote addresses to the remote host/IP bucket instead of the full `ip:port`, preventing source-port churn from bypassing recipient abuse controls.
 663. Authenticated Submission now applies enforcing per-domain recipient caps during `RCPT TO`, not only after `DATA`, giving clients earlier SMTP feedback before message streaming/spooling.
 664. Mail API detail reads that auto-mark unread messages as read now publish best-effort IMAP `flags` events for UID-visible messages after a successful read-flag write, keeping future IMAP subscribers aligned with webmail reads.
+665. Runtime config validation now requires Redis worker stream, group, and consumer-name settings for event, search-index, API-metering, push-notification, and delivery workers to be non-empty, CR/LF-free, and size-bounded, surfacing worker identity mistakes before consumer construction.
 
 ## Deferred until backend contracts stabilize
 

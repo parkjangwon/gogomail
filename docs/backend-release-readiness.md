@@ -248,6 +248,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   allowing normal transient retries first. Event, search-index, API-metering,
   push-notification, and delivery workers expose per-worker max-delivery and
   dead-letter-stream settings.
+- Redis worker stream, group, and consumer-name settings for event,
+  search-index, API-metering, push-notification, and delivery workers are
+  required, CR/LF-rejected, and size-bounded during startup config validation,
+  surfacing worker identity mistakes before consumer construction.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing or oversized event names before worker dispatch.
 - Redis stream event decoding trims outbox id, partition key, and payload
