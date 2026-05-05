@@ -1965,6 +1965,10 @@ Implementation order:
 1024. IMAP `AUTHENTICATE PLAIN` cancellation now returns the RFC 3501 tagged
       `BAD` completion while leaving the unauthenticated session usable for
       follow-up commands.
+1025. IMAP SASL PLAIN decoding now rejects mismatched non-empty authorization
+      identities until delegated authorization is explicitly modeled in the
+      backend authenticator boundary, while still accepting omitted or matching
+      identities.
 
 ## Deferred until backend contracts stabilize
 

@@ -1154,6 +1154,9 @@ func decodeSASLPlain(value string) (string, string, bool) {
 	if len(parts) != 3 || parts[1] == "" {
 		return "", "", false
 	}
+	if parts[0] != "" && parts[0] != parts[1] {
+		return "", "", false
+	}
 	return parts[1], parts[2], true
 }
 
