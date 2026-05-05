@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP client-scale set validation)
+Last updated: 2026-05-05 (updated after IMAP bounded text-section fetch hardening)
 
 ## Current phase
 
@@ -1116,8 +1116,9 @@ The platform hardening sprint completed the following:
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - IMAP non-UID `FETCH` uses the same bounded header literal path as `UID FETCH`
   for `BODY[HEADER]` and `RFC822.HEADER`.
-- IMAP `FETCH`/`UID FETCH` can stream text-only literals for `BODY[TEXT]`,
-  `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
+- IMAP `FETCH`/`UID FETCH` can stream bounded text-only literals for
+  `BODY[TEXT]`, `BODY.PEEK[TEXT]`, and `RFC822.TEXT`, with regression coverage
+  rejecting oversized section bodies before unbounded allocation.
 - IMAP `FETCH`/`UID FETCH` can stream conservative single-part text literals
   for `BODY[1]` and `BODY.PEEK[1]`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded top-level multipart body-section
