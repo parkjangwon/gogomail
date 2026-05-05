@@ -1195,6 +1195,10 @@ Implementation order:
      `LIST ... RETURN (STATUS (...))` emits requested `STATUS` data after each
      matching selectable mailbox, reducing standards-aware client folder-list
      round trips.
+818. IMAP `CAPABILITY` now advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)`
+     and `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses
+     with requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and
+     CONDSTORE `MODSEQ` data.
 
 ## Deferred until backend contracts stabilize
 

@@ -377,6 +377,10 @@ Current state:
 - `SEARCH`/`UID SEARCH` now accepts parenthesized search-key groups, combining
   grouped predicates with RFC default AND semantics and allowing grouped
   operands inside `OR`.
+- `CAPABILITY` now advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)` and
+  `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses with
+  requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and
+  CONDSTORE `MODSEQ` data.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `FETCH`/`UID FETCH` now supports bounded partial section literals for common

@@ -366,6 +366,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   when requested, surfacing durable per-message mod-sequences.
 - IMAP `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria and
   append the highest matched mod-sequence to non-empty SEARCH responses.
+- IMAP `CAPABILITY` now advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)`
+  and `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses with
+  requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and
+  CONDSTORE `MODSEQ` data.
 - IMAP `FETCH`/`UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
   modifiers, filtering responses to messages with greater per-message
   mod-sequences and implicitly returning `MODSEQ` attributes.
