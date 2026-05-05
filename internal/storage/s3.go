@@ -390,6 +390,10 @@ func ValidateS3Endpoint(endpointValue string) (*url.URL, error) {
 	if endpoint.RawQuery != "" || endpoint.Fragment != "" {
 		return nil, fmt.Errorf("s3 endpoint must not contain query or fragment")
 	}
+	escapedPath := strings.ToLower(endpoint.EscapedPath())
+	if strings.Contains(escapedPath, "%2f") || strings.Contains(escapedPath, "%5c") {
+		return nil, fmt.Errorf("s3 endpoint path must not contain encoded path separators")
+	}
 	if err := validateS3EndpointPath(endpoint.Path); err != nil {
 		return nil, err
 	}
