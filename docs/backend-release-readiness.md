@@ -203,6 +203,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - The PostgreSQL CalDAV repository now implements that discovery store boundary
   for active principal lookup and calendar/object list/get reads, leaving
   runtime listener activation gated on auth/TLS review and compatibility tests.
+- CalDAV Basic authentication groundwork now reuses the Submission
+  authenticator and rejects non-TLS credential use unless explicitly allowed
+  for development, preparing native CalDAV clients without query-parameter
+  identity fallback in production.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

@@ -2083,6 +2083,10 @@ The platform hardening sprint completed the following:
 - The PostgreSQL CalDAV repository now satisfies the discovery store boundary,
   including active principal lookup through active user/domain/company scope and
   calendar/object list/get adapters for the internal `PROPFIND` handler.
+- CalDAV now has a Basic-auth user resolver that reuses the existing
+  authenticated Submission password verifier boundary, requires TLS or an
+  HTTPS forwarding signal unless explicitly allowed for development, and
+  returns the authenticated user ID for future native CalDAV clients.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

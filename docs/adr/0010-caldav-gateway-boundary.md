@@ -91,6 +91,12 @@ The PostgreSQL repository is adapted to the discovery store interface inside
 `internal/caldavgw`, so runtime wiring can use the same tested handler boundary
 without coupling WebDAV XML generation to raw SQL call sites.
 
+CalDAV authentication is expected to use HTTP Basic authentication over TLS for
+native client compatibility. The first resolver reuses the existing
+authenticated Submission password verifier so CalDAV, IMAP, SMTP Submission,
+and future account APIs can converge on one local-password source instead of
+inventing a separate calendar credential path.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

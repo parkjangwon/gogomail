@@ -2045,6 +2045,10 @@ Implementation order:
       boundary with active principal lookup and calendar/object list/get
       adapters, preparing `PROPFIND` runtime wiring without exposing the public
       listener yet.
+1045. CalDAV Basic authentication groundwork now reuses the existing
+      authenticated Submission password verifier boundary, requires TLS or an
+      HTTPS forwarding signal unless explicitly allowed for development, and
+      resolves authenticated user IDs for future native-client runtime wiring.
 
 ## Deferred until backend contracts stabilize
 
