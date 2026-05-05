@@ -199,6 +199,11 @@ guidance.
 - Local and S3-compatible storage writes now reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.
+- Local/NFS and S3-compatible storage now expose a shared object `Stat`
+  contract, allowing future Drive, lifecycle, and verification paths to inspect
+  canonical keys, byte size, and backend metadata without streaming object
+  bodies. The S3-compatible adapter implements this with signed `HEAD`
+  requests.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

@@ -269,7 +269,10 @@ S3-compatible storage expose the same stored object keys to Mail and Admin APIs.
 Deployments can switch to `GOGOMAIL_STORAGE_BACKEND=s3` for AWS S3-compatible
 storage or `GOGOMAIL_STORAGE_BACKEND=minio` for path-style local MinIO, using
 endpoint, region, bucket, prefix, credential, and session-token settings without
-changing HTTP response envelopes.
+changing HTTP response envelopes. The shared storage contract also supports
+bodyless object `Stat` across local/NFS and S3-compatible backends so future
+Drive, lifecycle, and verification paths can inspect object size and backend
+metadata without changing public object keys or reading object bodies.
 Pending uploads can be canceled through `DELETE /api/v1/attachments/{id}`;
 successful cancellation is user-scoped, only applies to unbound `uploading`
 attachments, marks the row `deleted`, releases the reserved quota, and removes

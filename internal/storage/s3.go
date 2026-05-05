@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -132,6 +133,39 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 	return resp.Body, nil
 }
 
+func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, error) {
+	req, err := s.newRequest(ctx, http.MethodHead, objectPath, nil)
+	if err != nil {
+		return ObjectInfo{}, err
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: %w", err)
+	}
+	defer drainAndCloseS3Body(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return ObjectInfo{}, s3StatusError("stat", resp)
+	}
+	size := resp.ContentLength
+	if size < 0 {
+		size, err = parseS3ContentLength(resp.Header.Get("Content-Length"))
+		if err != nil {
+			return ObjectInfo{}, err
+		}
+	}
+	objectPath, err = ValidateObjectPath(objectPath)
+	if err != nil {
+		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", objectPath, err)
+	}
+	return ObjectInfo{
+		Path:         objectPath,
+		Size:         size,
+		ContentType:  strings.TrimSpace(resp.Header.Get("Content-Type")),
+		ETag:         strings.Trim(strings.TrimSpace(resp.Header.Get("ETag")), `"`),
+		LastModified: parseHTTPTime(resp.Header.Get("Last-Modified")),
+	}, nil
+}
+
 func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	req, err := s.newRequest(ctx, http.MethodDelete, objectPath, nil)
 	if err != nil {
@@ -249,6 +283,26 @@ func setS3ContentLength(req *http.Request, body io.Reader) error {
 	}
 	req.ContentLength = end - current
 	return nil
+}
+
+func parseS3ContentLength(value string) (int64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return -1, fmt.Errorf("stat s3 object: content length is required")
+	}
+	size, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || size < 0 {
+		return -1, fmt.Errorf("stat s3 object: invalid content length")
+	}
+	return size, nil
+}
+
+func parseHTTPTime(value string) time.Time {
+	parsed, err := http.ParseTime(strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }
 
 func (s *S3Store) key(objectPath string) string {

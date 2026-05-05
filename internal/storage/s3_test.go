@@ -48,6 +48,12 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		case http.MethodGet:
 			_, _ = w.Write([]byte("hello"))
+		case http.MethodHead:
+			w.Header().Set("Content-Length", "5")
+			w.Header().Set("Content-Type", "message/rfc822")
+			w.Header().Set("ETag", `"etag-1"`)
+			w.Header().Set("Last-Modified", "Tue, 05 May 2026 12:00:00 GMT")
+			w.WriteHeader(http.StatusOK)
 		case http.MethodDelete:
 			w.WriteHeader(http.StatusNoContent)
 		default:
@@ -89,6 +95,13 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	if string(got) != "hello" {
 		t.Fatalf("get body = %q", got)
 	}
+	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.Path != "messages/msg-1.eml" || info.Size != 5 || info.ContentType != "message/rfc822" || info.ETag != "etag-1" || info.LastModified.IsZero() {
+		t.Fatalf("object info = %+v", info)
+	}
 	if err := store.Delete(context.Background(), "messages/msg-1.eml"); err != nil {
 		t.Fatalf("Delete returned error: %v", err)
 	}
@@ -96,6 +109,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	want := []string{
 		"PUT /gogomail/mail/messages/msg-1.eml",
 		"GET /gogomail/mail/messages/msg-1.eml",
+		"HEAD /gogomail/mail/messages/msg-1.eml",
 		"DELETE /gogomail/mail/messages/msg-1.eml",
 	}
 	mu.Lock()
@@ -150,8 +164,38 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	if _, err := store.Get(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Get err = %v, want context.Canceled", err)
 	}
+	if _, err := store.Stat(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Stat err = %v, want context.Canceled", err)
+	}
 	if err := store.Delete(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Delete err = %v, want context.Canceled", err)
+	}
+}
+
+func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Length": []string{"not-a-size"}},
+				ContentLength: -1,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "content length") {
+		t.Fatalf("Stat err = %v, want content length rejection", err)
 	}
 }
 
@@ -232,6 +276,16 @@ type failingRoundTripper struct {
 func (rt failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 	rt.t.Fatal("RoundTrip called for canceled S3 request")
 	return nil, nil
+}
+
+type staticRoundTripper struct {
+	resp *http.Response
+}
+
+func (rt staticRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp := *rt.resp
+	resp.Request = req
+	return &resp, nil
 }
 
 func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {
@@ -436,6 +490,9 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 	if err := store.Put(context.Background(), "../bad", strings.NewReader("bad")); err == nil {
 		t.Fatal("Put accepted unsafe object path")
+	}
+	if _, err := store.Stat(context.Background(), "../bad"); err == nil {
+		t.Fatal("Stat accepted unsafe object path")
 	}
 }
 
@@ -781,5 +838,12 @@ func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	}
 	if string(got) != body {
 		t.Fatalf("body = %q, want %q", got, body)
+	}
+	info, err := store.Stat(ctx, objectPath)
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.Path != objectPath || info.Size != int64(len(body)) {
+		t.Fatalf("object info = %+v", info)
 	}
 }

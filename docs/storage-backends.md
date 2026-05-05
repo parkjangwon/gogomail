@@ -4,6 +4,12 @@ gogomail stores raw `.eml` objects, attachments, exports, and readiness probes
 through the shared storage interface. Deployments can switch backends by
 configuration without changing stored object keys.
 
+The shared interface supports `Put`, `Get`, `Stat`, and `Delete`. `Stat`
+returns object size and optional backend metadata without streaming the object
+body, using filesystem metadata on local/NFS storage and signed `HEAD` requests
+on S3-compatible storage. Future Drive and lifecycle modules should prefer
+`Stat` for existence/size checks instead of reading object bodies.
+
 ## Local filesystem or NFS
 
 Local storage is the default and can point at a normal disk path or an
@@ -27,6 +33,8 @@ Canceled write contexts stop body copy, remove the staged temp object, and do
 not commit partial data.
 Deletes are idempotent for missing objects, matching S3-style cleanup behavior
 so lifecycle workers behave consistently across storage backends.
+`Stat` reports the canonical object key, byte size, and filesystem
+last-modified time without opening the file body.
 
 ## Local MinIO
 
@@ -95,6 +103,9 @@ compatibility while preserving streaming-first storage paths.
 Deletes are idempotent for missing objects, including `404 Not Found` responses
 from compatible providers, so lifecycle cleanup behaves consistently across
 AWS S3, MinIO-style endpoints, and local/NFS storage.
+S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
+object key, byte size, content type, ETag, and last-modified timestamp when the
+provider supplies them.
 S3 `PUT`, failed `GET`, and `DELETE` responses drain a small bounded body
 window before close so normal S3/MinIO responses can reuse HTTP connections
 without letting oversized responses stall cleanup. Local/NFS and S3 readiness

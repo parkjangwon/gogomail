@@ -96,6 +96,33 @@ func (s *LocalStore) Get(ctx context.Context, path string) (io.ReadCloser, error
 	return file, nil
 }
 
+func (s *LocalStore) Stat(ctx context.Context, path string) (ObjectInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return ObjectInfo{}, err
+	}
+
+	objectPath, err := ValidateObjectPath(path)
+	if err != nil {
+		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", path, err)
+	}
+	fullPath, err := s.safePath(objectPath)
+	if err != nil {
+		return ObjectInfo{}, err
+	}
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return ObjectInfo{}, fmt.Errorf("stat storage object: %w", err)
+	}
+	if info.IsDir() {
+		return ObjectInfo{}, fmt.Errorf("storage object is a directory")
+	}
+	return ObjectInfo{
+		Path:         objectPath,
+		Size:         info.Size(),
+		LastModified: info.ModTime(),
+	}, nil
+}
+
 func (s *LocalStore) Delete(ctx context.Context, path string) error {
 	if err := ctx.Err(); err != nil {
 		return err
