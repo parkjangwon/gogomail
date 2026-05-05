@@ -1434,6 +1434,9 @@ Implementation order:
      tabs, and line breaks during adapter construction, making copied
      environment/config credential mistakes fail before runtime S3
      authentication attempts.
+881. Local/NFS-style storage writes now stage data through unique temporary
+     files in the destination directory before `rename`, avoiding fixed `.tmp`
+     collisions while preserving atomic object replacement semantics.
 
 ## Deferred until backend contracts stabilize
 

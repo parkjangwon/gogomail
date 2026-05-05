@@ -190,6 +190,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail/Admin HTTP readiness now includes a real configured-storage
   write/read/delete probe, and unsupported HTTP storage backends fail fast
   instead of silently falling back to local storage wiring.
+- Local/NFS-style storage writes now stage through unique temporary files in
+  the destination directory before `rename`, avoiding fixed `.tmp` collisions
+  while preserving atomic replacement semantics for local deployments.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object

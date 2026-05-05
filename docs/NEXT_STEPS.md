@@ -80,6 +80,9 @@ Current state:
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
+- Local/NFS-style storage writes stage data through unique temporary files in
+  the destination directory before `rename`, avoiding fixed `.tmp` collisions
+  while preserving atomic object replacement semantics.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
   paths share strict canonical key validation before adapter use.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and
