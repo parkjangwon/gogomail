@@ -4839,7 +4839,7 @@ func TestServerHandlesUIDFetchChangedSinceAfterSelect(t *testing.T) {
 			t.Fatalf("read login/select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS) (CHANGEDSINCE 17)\r\na4 UID FETCH 7 (FLAGS) (CHANGEDSINCE nope)\r\na5 UID FETCH 7 (FLAGS) (CHANGEDSINCE +17)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS) (CHANGEDSINCE 17)\r\na4 UID FETCH 7 (FLAGS) (CHANGEDSINCE nope)\r\na5 UID FETCH 7 (FLAGS) (CHANGEDSINCE +17)\r\na6 UID FETCH 7 (FLAGS) CHANGEDSINCE 17\r\na7 UID FETCH 7 (FLAGS) (CHANGEDSINCE 17))\r\n")); err != nil {
 		t.Fatalf("write uid fetch changedsince: %v", err)
 	}
 	want := []string{
@@ -4847,6 +4847,8 @@ func TestServerHandlesUIDFetchChangedSinceAfterSelect(t *testing.T) {
 		"a3 OK UID FETCH completed\r\n",
 		"a4 BAD FETCH CHANGEDSINCE modifier is invalid\r\n",
 		"a5 BAD FETCH CHANGEDSINCE modifier is invalid\r\n",
+		"a6 BAD FETCH CHANGEDSINCE modifier is invalid\r\n",
+		"a7 BAD FETCH CHANGEDSINCE modifier is invalid\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

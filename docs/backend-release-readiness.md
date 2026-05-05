@@ -198,6 +198,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
   validate RFC-shaped header field names instead of trimming stray brackets,
   rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+- IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
+  parenthesized modifier form and rejects bare or over-closed variants such as
+  `FETCH 7 FLAGS CHANGEDSINCE 17`.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

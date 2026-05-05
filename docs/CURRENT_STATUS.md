@@ -270,6 +270,9 @@ guidance.
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists now
   validate RFC-shaped header field names instead of trimming stray brackets,
   rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+- IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
+  parenthesized modifier form and rejects bare or over-closed variants such as
+  `FETCH 7 FLAGS CHANGEDSINCE 17`.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
