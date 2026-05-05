@@ -419,7 +419,12 @@ func (s *Service) CopyNode(ctx context.Context, req CopyNodeRequest) (Node, erro
 		ChecksumSHA256: source.ChecksumSHA256,
 	})
 	if err != nil {
-		_ = store.Delete(ctx, destPath)
+		if cleanupErr := store.Delete(ctx, destPath); cleanupErr != nil {
+			if recordErr := s.recordCopiedObjectCleanupFailure(ctx, req.UserID, source.StorageBackend, destPath, cleanupErr); recordErr != nil {
+				return Node{}, fmt.Errorf("record drive copy cleanup failure after metadata error %v and cleanup error %v: %w", err, cleanupErr, recordErr)
+			}
+			return Node{}, fmt.Errorf("create copied drive file metadata: %v; cleanup copied object: %w", err, cleanupErr)
+		}
 		return Node{}, err
 	}
 	return node, nil
@@ -510,6 +515,19 @@ func (s *Service) recordObjectCleanupFailure(ctx context.Context, deleted Perman
 		StorageBackend: objectErr.StorageBackend,
 		StoragePath:    objectErr.StoragePath,
 		LastError:      objectErr.Err.Error(),
+	})
+	return err
+}
+
+func (s *Service) recordCopiedObjectCleanupFailure(ctx context.Context, userID string, storageBackend string, storagePath string, cleanupErr error) error {
+	if s == nil || s.cleanupFailureRecorder == nil {
+		return nil
+	}
+	_, err := s.cleanupFailureRecorder.RecordObjectCleanupFailure(ctx, ObjectCleanupFailure{
+		UserID:         userID,
+		StorageBackend: storageBackend,
+		StoragePath:    storagePath,
+		LastError:      cleanupErr.Error(),
 	})
 	return err
 }

@@ -230,7 +230,9 @@ or development `user_id` fallback path as webmail mail routes:
   rejected before object work. The service verifies the source object, copies it
   through the backend-neutral storage `Copy` contract, creates quota-accounted
   file metadata, and best-effort deletes the copied object if metadata creation
-  fails.
+  fails. If that cleanup delete also fails, the Drive cleanup-failure queue
+  records the copied object path without a node id so operators can retry or
+  resolve storage drift explicitly.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

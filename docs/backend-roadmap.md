@@ -1950,6 +1950,10 @@ Implementation order:
       `Copy` contract, creating quota-accounted file metadata, advertising
       `copy_nodes` to webmail clients, and cleaning up the copied object when
       metadata creation fails.
+1021. Drive file copy now records cleanup-failure rows when metadata creation
+      fails after an object copy and the copied object cannot be deleted,
+      preserving operator-visible storage drift instead of losing it as a
+      best-effort cleanup warning.
 
 ## Deferred until backend contracts stabilize
 
