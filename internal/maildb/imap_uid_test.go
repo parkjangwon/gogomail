@@ -142,6 +142,21 @@ func TestNormalizeIMAPUIDBackfillLimit(t *testing.T) {
 	}
 }
 
+func TestNormalizeIMAPMailboxLookupName(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		`"INBOX"`:         "inbox",
+		"/Archive/2026/":  "archive/2026",
+		" Archive\t2026 ": "archive 2026",
+	}
+	for input, want := range tests {
+		if got := normalizeIMAPMailboxLookupName(input); got != want {
+			t.Fatalf("normalizeIMAPMailboxLookupName(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestIMAPUIDBackfillAuditDetailSamplesAssignments(t *testing.T) {
 	t.Parallel()
 

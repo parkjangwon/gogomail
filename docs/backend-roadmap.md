@@ -1022,6 +1022,9 @@ Implementation order:
      `BODY.PEEK[HEADER.FIELDS.NOT (...)]` literals.
 770. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
      multipart body-section literals such as `BODY.PEEK[2]<4.4>`.
+771. IMAP mailbox lookup now resolves wire names such as `INBOX` and
+     `Archive/2026` to the stored mailbox ID before selected-mailbox state is
+     used by follow-up commands.
 
 ## Deferred until backend contracts stabilize
 
