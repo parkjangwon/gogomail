@@ -833,7 +833,8 @@ Current state:
   treating active messages as old.
 - `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria with
   validated keyword atoms. The existing webmail `forwarded` state now maps to
-  a searchable IMAP keyword while unknown custom keywords still return no
+  an IMAP `Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and
+  permitted `STORE` mutations while unknown custom keywords still return no
   matches until durable user keyword storage exists.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.

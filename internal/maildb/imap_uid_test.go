@@ -94,19 +94,19 @@ func TestIMAPStoreFlagChangesForModes(t *testing.T) {
 		want  imapStoreFlagChanges
 	}{
 		"add": {
-			flags: imapgw.MessageFlags{Read: true, Starred: true, Deleted: true},
+			flags: imapgw.MessageFlags{Read: true, Starred: true, Forwarded: true, Deleted: true},
 			mode:  imapgw.StoreFlagsAdd,
-			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(true), Deleted: boolPtr(true)},
+			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(true), Forwarded: boolPtr(true), Deleted: boolPtr(true)},
 		},
 		"remove": {
-			flags: imapgw.MessageFlags{Answered: true, Deleted: true},
+			flags: imapgw.MessageFlags{Answered: true, Forwarded: true, Deleted: true},
 			mode:  imapgw.StoreFlagsRemove,
-			want:  imapStoreFlagChanges{Answered: boolPtr(false), Deleted: boolPtr(false)},
+			want:  imapStoreFlagChanges{Answered: boolPtr(false), Forwarded: boolPtr(false), Deleted: boolPtr(false)},
 		},
 		"replace": {
-			flags: imapgw.MessageFlags{Read: true},
+			flags: imapgw.MessageFlags{Read: true, Forwarded: true},
 			mode:  imapgw.StoreFlagsReplace,
-			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(false), Answered: boolPtr(false), Deleted: boolPtr(false)},
+			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(false), Answered: boolPtr(false), Forwarded: boolPtr(true), Deleted: boolPtr(false)},
 		},
 	}
 	for name, tt := range tests {
@@ -132,24 +132,27 @@ func TestIMAPStoreFlagChangesRejectsDraftModel(t *testing.T) {
 }
 
 func TestApplyIMAPStoreFlagChangesReportsActualMutation(t *testing.T) {
-	row := imapMessageRow{Read: true, Starred: false, Answered: false, Deleted: false}
+	row := imapMessageRow{Read: true, Starred: false, Answered: false, Forwarded: false, Deleted: false}
 	next, changed := applyIMAPStoreFlagChanges(row, imapStoreFlagChanges{
-		Read:     boolPtr(true),
-		Starred:  boolPtr(true),
-		Answered: boolPtr(false),
-		Deleted:  boolPtr(true),
+		Read:      boolPtr(true),
+		Starred:   boolPtr(true),
+		Answered:  boolPtr(false),
+		Forwarded: boolPtr(true),
+		Deleted:   boolPtr(true),
 	})
 	if !changed {
 		t.Fatal("applyIMAPStoreFlagChanges reported no change")
 	}
-	if !next.Read || !next.Starred || next.Answered || !next.Deleted {
-		t.Fatalf("next flags = read:%v starred:%v answered:%v deleted:%v", next.Read, next.Starred, next.Answered, next.Deleted)
+	if !next.Read || !next.Starred || next.Answered || !next.Forwarded || !next.Deleted {
+		t.Fatalf("next flags = read:%v starred:%v answered:%v forwarded:%v deleted:%v", next.Read, next.Starred, next.Answered, next.Forwarded, next.Deleted)
 	}
 
 	_, changed = applyIMAPStoreFlagChanges(next, imapStoreFlagChanges{
-		Read:     boolPtr(true),
-		Starred:  boolPtr(true),
-		Answered: boolPtr(false),
+		Read:      boolPtr(true),
+		Starred:   boolPtr(true),
+		Answered:  boolPtr(false),
+		Forwarded: boolPtr(true),
+		Deleted:   boolPtr(true),
 	})
 	if changed {
 		t.Fatal("applyIMAPStoreFlagChanges reported change for identical flags")

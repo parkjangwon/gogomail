@@ -1425,8 +1425,9 @@ The platform hardening sprint completed the following:
   recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
 - IMAP `SEARCH`/`UID SEARCH` supports `KEYWORD` and `UNKEYWORD` criteria with
-  validated keyword atoms, mapping the webmail `forwarded` state to an IMAP
-  keyword while unknown custom keywords wait for durable user keyword storage.
+  validated keyword atoms, and the webmail `forwarded` state is exposed as an
+  IMAP `Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and
+  permitted `STORE` mutations.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded partial windows over

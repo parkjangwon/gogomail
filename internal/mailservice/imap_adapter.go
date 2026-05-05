@@ -76,6 +76,7 @@ func (a IMAPStoreAdapter) SelectMailbox(ctx context.Context, req imapgw.SelectMa
 			imapgw.FlagSeen,
 			imapgw.FlagFlagged,
 			imapgw.FlagAnswered,
+			imapgw.FlagForwarded,
 			imapgw.FlagDraft,
 			imapgw.FlagDeleted,
 		},
