@@ -41,6 +41,24 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	if info.Path != path || info.Size != int64(len("Subject: hello\r\n\r\nbody")) || info.LastModified.IsZero() {
 		t.Fatalf("object info = %+v", info)
 	}
+	copyPath := "mailstore/company/domain/user/2026/05/message-copy.eml"
+	if err := store.Copy(ctx, path, copyPath); err != nil {
+		t.Fatalf("Copy returned error: %v", err)
+	}
+	copied, err := store.Get(ctx, copyPath)
+	if err != nil {
+		t.Fatalf("Get copied object returned error: %v", err)
+	}
+	copiedBody, err := io.ReadAll(copied)
+	if err != nil {
+		t.Fatalf("read copied object: %v", err)
+	}
+	if err := copied.Close(); err != nil {
+		t.Fatalf("close copied object: %v", err)
+	}
+	if string(copiedBody) != "Subject: hello\r\n\r\nbody" {
+		t.Fatalf("copied body = %q", copiedBody)
+	}
 
 	if err := store.Delete(ctx, path); err != nil {
 		t.Fatalf("Delete returned error: %v", err)
@@ -228,6 +246,12 @@ func TestLocalStoreRejectsAmbiguousObjectKeys(t *testing.T) {
 		}
 		if _, err := store.Stat(context.Background(), objectPath); err == nil {
 			t.Fatalf("Stat accepted ambiguous object key %q", objectPath)
+		}
+		if err := store.Copy(context.Background(), objectPath, "mailstore/copy.eml"); err == nil {
+			t.Fatalf("Copy accepted ambiguous source object key %q", objectPath)
+		}
+		if err := store.Copy(context.Background(), "mailstore/source.eml", objectPath); err == nil {
+			t.Fatalf("Copy accepted ambiguous destination object key %q", objectPath)
 		}
 		if err := store.Delete(context.Background(), objectPath); err == nil {
 			t.Fatalf("Delete accepted ambiguous object key %q", objectPath)

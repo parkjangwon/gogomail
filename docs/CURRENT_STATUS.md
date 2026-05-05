@@ -204,6 +204,10 @@ guidance.
   canonical keys, byte size, and backend metadata without streaming object
   bodies. The S3-compatible adapter implements this with signed `HEAD`
   requests.
+- Local/NFS and S3-compatible storage now expose a shared object `Copy`
+  contract. Local/NFS copies stream through the same atomic temporary-file
+  commit path as normal writes, while S3-compatible copies use signed
+  server-side copy requests with escaped `x-amz-copy-source` values.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

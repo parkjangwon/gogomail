@@ -1719,6 +1719,10 @@ Implementation order:
      S3-compatible backends, using filesystem metadata locally and signed
      S3 `HEAD` requests remotely so future Drive, lifecycle, and verification
      paths can inspect object size/metadata without streaming bodies.
+961. Shared storage now exposes object `Copy` across local/NFS and
+     S3-compatible backends, using atomic temporary-file commits locally and
+     signed S3 server-side copy remotely so future Drive and lifecycle
+     workflows can duplicate objects without caller-side body streaming.
 
 ## Deferred until backend contracts stabilize
 

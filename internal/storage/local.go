@@ -123,6 +123,33 @@ func (s *LocalStore) Stat(ctx context.Context, path string) (ObjectInfo, error) 
 	}, nil
 }
 
+func (s *LocalStore) Copy(ctx context.Context, sourcePath string, destPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	sourceObjectPath, err := ValidateObjectPath(sourcePath)
+	if err != nil {
+		return fmt.Errorf("unsafe source storage path %q: %w", sourcePath, err)
+	}
+	destObjectPath, err := ValidateObjectPath(destPath)
+	if err != nil {
+		return fmt.Errorf("unsafe destination storage path %q: %w", destPath, err)
+	}
+	if sourceObjectPath == destObjectPath {
+		return nil
+	}
+
+	source, err := s.Get(ctx, sourceObjectPath)
+	if err != nil {
+		return fmt.Errorf("open source storage object: %w", err)
+	}
+	defer source.Close()
+	if err := s.Put(ctx, destObjectPath, source); err != nil {
+		return fmt.Errorf("copy storage object: %w", err)
+	}
+	return nil
+}
+
 func (s *LocalStore) Delete(ctx context.Context, path string) error {
 	if err := ctx.Err(); err != nil {
 		return err

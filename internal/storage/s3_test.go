@@ -34,6 +34,15 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 		}
 		switch r.Method {
 		case http.MethodPut:
+			if source := r.Header.Get("x-amz-copy-source"); source != "" {
+				if source != "/gogomail/mail/messages/msg-1.eml" {
+					t.Errorf("x-amz-copy-source = %q", source)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				t.Errorf("read put body: %v", err)
@@ -102,6 +111,9 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	if info.Path != "messages/msg-1.eml" || info.Size != 5 || info.ContentType != "message/rfc822" || info.ETag != "etag-1" || info.LastModified.IsZero() {
 		t.Fatalf("object info = %+v", info)
 	}
+	if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-1-copy.eml"); err != nil {
+		t.Fatalf("Copy returned error: %v", err)
+	}
 	if err := store.Delete(context.Background(), "messages/msg-1.eml"); err != nil {
 		t.Fatalf("Delete returned error: %v", err)
 	}
@@ -110,6 +122,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 		"PUT /gogomail/mail/messages/msg-1.eml",
 		"GET /gogomail/mail/messages/msg-1.eml",
 		"HEAD /gogomail/mail/messages/msg-1.eml",
+		"PUT /gogomail/mail/messages/msg-1-copy.eml",
 		"DELETE /gogomail/mail/messages/msg-1.eml",
 	}
 	mu.Lock()
@@ -166,6 +179,9 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 	if _, err := store.Stat(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Stat err = %v, want context.Canceled", err)
+	}
+	if err := store.Copy(ctx, "messages/msg-1.eml", "messages/msg-2.eml"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Copy err = %v, want context.Canceled", err)
 	}
 	if err := store.Delete(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Delete err = %v, want context.Canceled", err)
@@ -350,6 +366,21 @@ func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
 	if strings.Contains(req.URL.EscapedPath(), "%20") {
 		t.Fatalf("request path encoded plus as space: %q", req.URL.EscapedPath())
 	}
+	copyReq, err := store.newRequestWithHeaders(context.Background(), http.MethodPut, "messages/msg+2.eml", nil, map[string]string{
+		"x-amz-copy-source": store.copySource("messages/msg+1.eml"),
+	})
+	if err != nil {
+		t.Fatalf("copy request returned error: %v", err)
+	}
+	if got, want := copyReq.URL.EscapedPath(), "/base%2Bproxy/gogomail/mail%2Barchive/messages/msg%2B2.eml"; got != want {
+		t.Fatalf("copy destination path = %q, want %q", got, want)
+	}
+	if got, want := copyReq.Header.Get("x-amz-copy-source"), "/gogomail/mail%2Barchive/messages/msg%2B1.eml"; got != want {
+		t.Fatalf("copy source = %q, want %q", got, want)
+	}
+	if !strings.Contains(copyReq.Header.Get("Authorization"), "x-amz-copy-source") {
+		t.Fatalf("Authorization = %q, want copy source signed", copyReq.Header.Get("Authorization"))
+	}
 }
 
 func TestS3StoreSetsContentLengthForSeekablePutBody(t *testing.T) {
@@ -493,6 +524,12 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 	if _, err := store.Stat(context.Background(), "../bad"); err == nil {
 		t.Fatal("Stat accepted unsafe object path")
+	}
+	if err := store.Copy(context.Background(), "../bad", "messages/good.eml"); err == nil {
+		t.Fatal("Copy accepted unsafe source object path")
+	}
+	if err := store.Copy(context.Background(), "messages/good.eml", "../bad"); err == nil {
+		t.Fatal("Copy accepted unsafe destination object path")
 	}
 }
 
@@ -845,5 +882,28 @@ func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	}
 	if info.Path != objectPath || info.Size != int64(len(body)) {
 		t.Fatalf("object info = %+v", info)
+	}
+	copyPath := objectPath + ".copy"
+	if err := store.Copy(ctx, objectPath, copyPath); err != nil {
+		t.Fatalf("Copy returned error: %v", err)
+	}
+	defer func() {
+		if err := store.Delete(ctx, copyPath); err != nil {
+			t.Fatalf("Delete copy cleanup returned error: %v", err)
+		}
+	}()
+	copied, err := store.Get(ctx, copyPath)
+	if err != nil {
+		t.Fatalf("Get copied object returned error: %v", err)
+	}
+	copiedBody, err := io.ReadAll(copied)
+	if err != nil {
+		t.Fatalf("read copied body: %v", err)
+	}
+	if err := copied.Close(); err != nil {
+		t.Fatalf("close copied body: %v", err)
+	}
+	if string(copiedBody) != body {
+		t.Fatalf("copied body = %q, want %q", copiedBody, body)
 	}
 }

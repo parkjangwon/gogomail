@@ -272,7 +272,10 @@ endpoint, region, bucket, prefix, credential, and session-token settings without
 changing HTTP response envelopes. The shared storage contract also supports
 bodyless object `Stat` across local/NFS and S3-compatible backends so future
 Drive, lifecycle, and verification paths can inspect object size and backend
-metadata without changing public object keys or reading object bodies.
+metadata without changing public object keys or reading object bodies. It also
+supports object `Copy` across the same backends so future Drive and lifecycle
+workflows can duplicate objects without changing public object-key semantics or
+forcing caller-side body streaming.
 Pending uploads can be canceled through `DELETE /api/v1/attachments/{id}`;
 successful cancellation is user-scoped, only applies to unbound `uploading`
 attachments, marks the row `deleted`, releases the reserved quota, and removes
