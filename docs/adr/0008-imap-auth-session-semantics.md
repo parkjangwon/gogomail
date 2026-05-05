@@ -41,10 +41,11 @@ Submission-style authentication:
   subscription state inside the protocol gateway. It must call
   `imapgw.Store`/`imapgw.MailboxSessionStore` instead of reaching directly into
   `maildb`.
-- `\Deleted`, MOVE, and EXPUNGE remain explicitly unsupported until a separate
-  IMAP-safe delete/mutation model is accepted. Protocol handlers must surface
-  clear `NO`/unsupported responses rather than mapping them onto HTTP
-  soft-delete behavior.
+- IMAP `\Deleted` is a protocol flag stored separately from gogomail's
+  soft-delete message status. `EXPUNGE` may delete only messages that have
+  this IMAP-specific flag in the selected mailbox, and must remove stale
+  mailbox UID rows in the same transaction. MOVE remains explicitly unsupported
+  until a separate IMAP-safe move model is accepted.
 
 ## Consequences
 
@@ -57,5 +58,6 @@ Submission-style authentication:
   mailbox storage contracts.
 - TLS policy must be reviewed and wired before production IMAP enablement.
 - A first TCP listener can safely start with authenticated LIST, SELECT, UID
-  FETCH, UID STORE, and IDLE-oriented subscription support while continuing to
-  reject MOVE/EXPUNGE deliberately.
+  FETCH, UID STORE, COPY, mailbox CRUD, and IDLE-oriented subscription support.
+  MOVE remains deliberately unsupported until mailbox-local UID, event, and
+  source/destination mutation semantics are accepted.

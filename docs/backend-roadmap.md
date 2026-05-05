@@ -740,9 +740,9 @@ Implementation order:
      listener metadata for the IMAP scaffold, preparing future protocol listener
      wiring without opening the port yet.
 676. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore`
-     for SELECT-style mailbox state, service-backed COPY, and event
-     subscriptions, while MOVE and EXPUNGE return an explicit unsupported
-     mutation error until IMAP-safe destructive semantics are reviewed.
+     for SELECT-style mailbox state, service-backed COPY/EXPUNGE, and event
+     subscriptions, while MOVE returns an explicit unsupported mutation error
+     until move semantics are reviewed.
 677. Runtime storage wiring now supports `GOGOMAIL_STORAGE_BACKEND=s3` and
      `GOGOMAIL_STORAGE_BACKEND=minio` through a standard SigV4 S3-compatible
      adapter with endpoint, region, bucket, prefix, credential, session-token,
@@ -906,9 +906,10 @@ Implementation order:
      a bounded server identity response for client compatibility diagnostics.
 728. IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox
      state and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
-729. IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit `NO` unsupported
-     responses instead of generic parser failures while `\Deleted` semantics
-     remain intentionally deferred.
+729. IMAP `EXPUNGE` and `UID EXPUNGE` now delete only messages marked with the
+     IMAP-specific `\Deleted` flag, emit RFC-shaped untagged sequence-number
+     `EXPUNGE` responses, remove stale mailbox UID rows, and publish
+     best-effort expunge events.
 730. IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
      advertising it only before authentication and removing it after the
      connection upgrades.
@@ -1044,8 +1045,12 @@ Implementation order:
      standards-shaped mailbox management compatibility while keeping hierarchy
      semantics constrained by the current flat folder model.
 776. IMAP `\Deleted` is now a first-class protocol flag in the gateway and
-     repository flag store, giving future `EXPUNGE` work a standards-shaped
-     marker without conflating it with gogomail's soft-delete message status.
+     repository flag store, giving `EXPUNGE` a standards-shaped marker without
+     conflating it with gogomail's soft-delete message status.
+777. IMAP `EXPUNGE` and `UID EXPUNGE` now have protocol, service, repository,
+     and optional PostgreSQL integration coverage for deleting only
+     `\Deleted`-marked active messages while preserving sequence-number wire
+     semantics.
 
 ## Deferred until backend contracts stabilize
 

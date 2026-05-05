@@ -892,7 +892,7 @@ func TestServerHandlesUnselectAfterSelect(t *testing.T) {
 	}
 }
 
-func TestServerRejectsUnsupportedExpunge(t *testing.T) {
+func TestServerHandlesExpunge(t *testing.T) {
 	t.Parallel()
 
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
@@ -925,8 +925,10 @@ func TestServerRejectsUnsupportedExpunge(t *testing.T) {
 		t.Fatalf("write expunge: %v", err)
 	}
 	want := []string{
-		"a3 NO EXPUNGE is not supported\r\n",
-		"a4 NO UID EXPUNGE is not supported\r\n",
+		"* 1 EXPUNGE\r\n",
+		"a3 OK EXPUNGE completed\r\n",
+		"* 1 EXPUNGE\r\n",
+		"a4 OK UID EXPUNGE completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -3834,8 +3836,8 @@ func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]Message
 	return nil, ErrUnsupportedMailboxMutation
 }
 
-func (fakeBackend) Expunge(context.Context, ExpungeRequest) ([]UID, error) {
-	return nil, ErrUnsupportedMailboxMutation
+func (fakeBackend) Expunge(context.Context, ExpungeRequest) ([]MessageSummary, error) {
+	return []MessageSummary{{ID: "message-7", MailboxID: "inbox", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Deleted: true}}}, nil
 }
 
 func (fakeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {

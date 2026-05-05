@@ -81,7 +81,7 @@ func (fakeComposedBackend) MoveMessages(context.Context, MoveMessagesRequest) ([
 	return []MessageSummary{{ID: "message-1", UID: 1}}, nil
 }
 
-func (fakeComposedBackend) Expunge(context.Context, ExpungeRequest) ([]UID, error) {
+func (fakeComposedBackend) Expunge(context.Context, ExpungeRequest) ([]MessageSummary, error) {
 	return nil, nil
 }
 

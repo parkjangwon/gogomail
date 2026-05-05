@@ -494,8 +494,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
-		_, err := writer.WriteString(tag + " NO EXPUNGE is not supported\r\n")
-		return false, err
+		if state.readOnly {
+			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+			return false, err
+		}
+		return s.writeExpungeResponses(writer, tag, state, nil, "EXPUNGE")
 	case "MOVE":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -837,8 +840,11 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		}
 		return s.handleUIDStore(writer, tag, fields, state)
 	case "EXPUNGE":
-		_, err := writer.WriteString(tag + " NO UID EXPUNGE is not supported\r\n")
-		return false, err
+		if state.readOnly {
+			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+			return false, err
+		}
+		return s.handleUIDExpunge(writer, tag, fields, state)
 	case "COPY":
 		return s.handleUIDCopy(writer, tag, fields, state)
 	case "MOVE":
@@ -1542,6 +1548,19 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[4]), "UID COPY")
 }
 
+func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
+		return false, err
+	}
+	uids, ok := parseIMAPUIDSet(fields[3])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires a positive UID set\r\n")
+		return false, err
+	}
+	return s.writeExpungeResponses(writer, tag, state, uids, "UID EXPUNGE")
+}
+
 func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -1615,6 +1634,42 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
+	}
+	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+	return false, err
+}
+
+func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
+	summaries, err := s.options.Backend.Expunge(context.Background(), ExpungeRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		UIDs:      uids,
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+		return false, writeErr
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].SequenceNumber < summaries[j].SequenceNumber
+	})
+	for i, summary := range summaries {
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			_, err := writer.WriteString(tag + " NO " + completionCommand + " sequence number is unavailable\r\n")
+			return false, err
+		}
+		adjusted := sequenceNumber - uint32(i)
+		if adjusted == 0 {
+			adjusted = 1
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* %d EXPUNGE\r\n", adjusted)); err != nil {
+			return false, err
+		}
+	}
+	if uint32(len(summaries)) >= state.selectedMessages {
+		state.selectedMessages = 0
+	} else {
+		state.selectedMessages -= uint32(len(summaries))
 	}
 	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err

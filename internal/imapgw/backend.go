@@ -70,7 +70,7 @@ type MailboxSessionStore interface {
 	SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error)
 	CopyMessages(ctx context.Context, req CopyMessagesRequest) ([]MessageSummary, error)
 	MoveMessages(ctx context.Context, req MoveMessagesRequest) ([]MessageSummary, error)
-	Expunge(ctx context.Context, req ExpungeRequest) ([]UID, error)
+	Expunge(ctx context.Context, req ExpungeRequest) ([]MessageSummary, error)
 	Subscribe(ctx context.Context, userID UserID, mailboxID MailboxID) (<-chan MailboxEvent, func(), error)
 }
 

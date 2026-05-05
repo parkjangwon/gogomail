@@ -772,6 +772,154 @@ ORDER BY source.rn`
 	return summaries, nil
 }
 
+func (r *Repository) ExpungeIMAPMessages(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	mailboxID = strings.TrimSpace(mailboxID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if mailboxID == "" {
+		return nil, fmt.Errorf("mailbox_id is required")
+	}
+	if len(uids) > 500 {
+		return nil, fmt.Errorf("too many uids")
+	}
+	for _, uid := range uids {
+		if uid == 0 {
+			return nil, fmt.Errorf("uid must not be zero")
+		}
+	}
+	rawUIDs, err := json.Marshal(uids)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap expunge uids: %w", err)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin imap expunge transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	const query = `
+WITH input AS (
+  SELECT value::bigint AS uid
+  FROM jsonb_array_elements_text($4::jsonb)
+)
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  m.status,
+  i.uid,
+  i.modseq
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.user_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+  AND COALESCE((m.flags->>'imap_deleted')::boolean, false) = true
+  AND ($3::bool = false OR i.uid IN (SELECT uid FROM input))
+ORDER BY i.uid
+FOR UPDATE OF i, m`
+	rows, err := tx.QueryContext(ctx, query, userID, mailboxID, len(uids) > 0, string(rawUIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list imap expunge messages: %w", err)
+	}
+	var messageIDs []string
+	var totalSize int64
+	summaries := make([]imapgw.MessageSummary, 0)
+	for rows.Next() {
+		var row imapMessageRow
+		var messageUID IMAPMessageUID
+		if err := rows.Scan(
+			&row.ID,
+			&row.MailboxID,
+			&row.RFCMessageID,
+			&row.Subject,
+			&row.FromAddr,
+			&row.FromName,
+			&row.InternalDate,
+			&row.Size,
+			&row.Read,
+			&row.Starred,
+			&row.Answered,
+			&row.Forwarded,
+			&row.Draft,
+			&row.Deleted,
+			&row.Status,
+			&messageUID.UID,
+			&messageUID.ModSeq,
+		); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan imap expunge message: %w", err)
+		}
+		messageUID.MessageID = imapgw.MessageID(row.ID)
+		messageUID.MailboxID = imapgw.MailboxID(row.MailboxID)
+		summary := imapMessageFromRow(row, messageUID)
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, mailboxID, messageUID.UID)
+		if err != nil {
+			rows.Close()
+			return nil, err
+		}
+		summary.SequenceNumber = sequenceNumber
+		summaries = append(summaries, summary)
+		messageIDs = append(messageIDs, row.ID)
+		totalSize += row.Size
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close imap expunge rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap expunge rows: %w", err)
+	}
+	if len(messageIDs) == 0 {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit empty imap expunge transaction: %w", err)
+		}
+		return nil, nil
+	}
+	rawMessageIDs, err := json.Marshal(messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap expunge message ids: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET status = 'deleted',
+    deleted_at = now(),
+    updated_at = now()
+WHERE user_id = $1::uuid
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'active'`, userID, string(rawMessageIDs)); err != nil {
+		return nil, fmt.Errorf("expunge imap messages: %w", err)
+	}
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, messageIDs); err != nil {
+		return nil, err
+	}
+	if err := decrementUserQuota(ctx, tx, userID, totalSize); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit imap expunge transaction: %w", err)
+	}
+	return summaries, nil
+}
+
 func (r *Repository) ExistingIMAPMessageUIDs(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

@@ -75,8 +75,8 @@ func (a IMAPStoreAdapter) MoveMessages(context.Context, imapgw.MoveMessagesReque
 	return nil, fmt.Errorf("%w: MOVE is deferred until IMAP-safe mailbox mutation semantics are implemented", imapgw.ErrUnsupportedMailboxMutation)
 }
 
-func (a IMAPStoreAdapter) Expunge(context.Context, imapgw.ExpungeRequest) ([]imapgw.UID, error) {
-	return nil, fmt.Errorf("%w: EXPUNGE is deferred until IMAP-safe delete semantics are implemented", imapgw.ErrUnsupportedMailboxMutation)
+func (a IMAPStoreAdapter) Expunge(ctx context.Context, req imapgw.ExpungeRequest) ([]imapgw.MessageSummary, error) {
+	return a.service.ExpungeIMAPMessages(ctx, req)
 }
 
 func (a IMAPStoreAdapter) Subscribe(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (<-chan imapgw.MailboxEvent, func(), error) {
