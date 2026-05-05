@@ -126,7 +126,7 @@ LIMIT 1`
 		&folder.Starred,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return imapgw.Mailbox{}, fmt.Errorf("imap mailbox %q not found", mailboxID)
+			return imapgw.Mailbox{}, fmt.Errorf("%w: %q", imapgw.ErrMailboxNotFound, mailboxID)
 		}
 		return imapgw.Mailbox{}, fmt.Errorf("get imap mailbox: %w", err)
 	}
@@ -481,7 +481,7 @@ SELECT EXISTS (
 		return nil, fmt.Errorf("validate imap copy destination mailbox: %w", err)
 	}
 	if !destExists {
-		return nil, fmt.Errorf("destination mailbox %q not found", destMailboxID)
+		return nil, fmt.Errorf("%w: destination %q", imapgw.ErrMailboxNotFound, destMailboxID)
 	}
 	const ensureState = `
 INSERT INTO imap_mailbox_state (mailbox_id, user_id)
@@ -972,7 +972,7 @@ SELECT EXISTS (
 		return nil, fmt.Errorf("validate imap move destination mailbox: %w", err)
 	}
 	if !destExists {
-		return nil, fmt.Errorf("destination mailbox %q not found", destMailboxID)
+		return nil, fmt.Errorf("%w: destination %q", imapgw.ErrMailboxNotFound, destMailboxID)
 	}
 
 	const query = `
