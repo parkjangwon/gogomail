@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP forwarded keyword search)
+Last updated: 2026-05-06 (updated after Drive file download API)
 
 ## Current phase
 
@@ -368,6 +368,11 @@ guidance.
   upload-session dashboard summaries.
 - Mail API now exposes `GET /api/v1/drive/usage`, and webmail capabilities
   advertise the usage summary surface for future Drive storage cards.
+- Mail API now exposes `GET /api/v1/drive/nodes/{id}/download`, streaming
+  active Drive file bytes from the configured local/NFS, MinIO, or S3-compatible
+  backend with bounded identity validation, safe attachment headers,
+  `Cache-Control: no-store`, and `X-Content-Type-Options: nosniff`; webmail
+  capabilities advertise `node_download`.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.

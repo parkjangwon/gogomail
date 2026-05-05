@@ -232,6 +232,7 @@ func TestOpenAPIDraftDocumentsDriveCapabilityLimits(t *testing.T) {
 		"maximum: " + strconv.FormatInt(int64(drive.MaxUploadSessionTTL.Seconds()), 10),
 		"maximum: " + strconv.FormatInt(int64(drive.DefaultUploadSessionTTL.Seconds()), 10),
 		"upload_sessions",
+		"node_download",
 		"list_upload_sessions",
 		"upload_session_body",
 		"upload_session_checksum",
@@ -308,6 +309,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /folders/{id}":                                       "#/components/responses/Status",
 		"GET /drive/nodes":                                           "#/components/responses/DriveNodeList",
 		"GET /drive/nodes/{id}":                                      "#/components/responses/DriveNode",
+		"GET /drive/nodes/{id}/download":                             "",
 		"GET /drive/usage":                                           "#/components/responses/DriveUsageSummary",
 		"POST /drive/folders":                                        "#/components/responses/DriveNode",
 		"GET /drive/upload-sessions":                                 "#/components/responses/DriveUploadSessionList",
@@ -556,16 +558,21 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	}
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
-	block, ok := operations["GET /messages/{id}/attachments/{attachment_id}/download"]
-	if !ok {
-		t.Fatal("OpenAPI operation GET /messages/{id}/attachments/{attachment_id}/download is missing")
-	}
-	if strings.Contains(block, "application/json:") {
-		t.Fatal("attachment download must not declare application/json")
-	}
-	for _, want := range []string{"application/octet-stream:", "type: string", "format: binary", "Content-Disposition:", "Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"} {
-		if !strings.Contains(block, want) {
-			t.Fatalf("attachment download must document %q", want)
+	for _, route := range []string{
+		"GET /messages/{id}/attachments/{attachment_id}/download",
+		"GET /drive/nodes/{id}/download",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if strings.Contains(block, "application/json:") {
+			t.Fatalf("%s must not declare application/json", route)
+		}
+		for _, want := range []string{"application/octet-stream:", "type: string", "format: binary", "Content-Disposition:", "Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"} {
+			if !strings.Contains(block, want) {
+				t.Fatalf("%s must document %q", route, want)
+			}
 		}
 	}
 }
@@ -1167,6 +1174,9 @@ func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
 		"GET /push-devices",
 		"POST /push-devices",
 		"DELETE /push-devices/{id}",
+		"GET /drive/nodes",
+		"GET /drive/nodes/{id}",
+		"GET /drive/nodes/{id}/download",
 		"GET /drive/usage",
 	} {
 		block, ok := operations[route]

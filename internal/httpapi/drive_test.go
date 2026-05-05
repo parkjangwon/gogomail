@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -65,6 +66,46 @@ func TestDriveGetNodeHandler(t *testing.T) {
 	}
 	if body.Node.ID != "node-1" {
 		t.Fatalf("node = %+v", body.Node)
+	}
+}
+
+func TestDriveDownloadNodeHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{download: drive.FileDownload{
+		Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "보고서.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Body: io.NopCloser(strings.NewReader("content")),
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.openReq.UserID != "user-1" || service.openReq.NodeID != "node-1" {
+		t.Fatalf("open request = %+v, want user/node", service.openReq)
+	}
+	if rec.Body.String() != "content" {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/pdf" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `filename*=UTF-8''%EB%B3%B4%EA%B3%A0%EC%84%9C.pdf`) {
+		t.Fatalf("Content-Disposition = %q", got)
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", got)
+	}
+	if got := rec.Header().Get("Content-Length"); got != "7" {
+		t.Fatalf("Content-Length = %q", got)
 	}
 }
 
@@ -537,6 +578,8 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "list unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&typo=true", nil)},
 		{name: "list duplicate parent", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=a&parent_id=b", nil)},
 		{name: "get unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1?user_id=user-1&typo=true", nil)},
+		{name: "download body rejected", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1/download?user_id=user-1", strings.NewReader(`{}`))},
+		{name: "download unsafe id", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node%0A1/download?user_id=user-1", nil)},
 		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
 		{name: "upload session invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{`))},
 		{name: "upload session invalid expires", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{"name":"Report.pdf","storage_backend":"s3","expires_at":"tomorrow"}`))},
@@ -577,9 +620,11 @@ type fakeDriveService struct {
 	staged                    drive.StagedObject
 	uploadSession             drive.UploadSession
 	uploadSessions            []drive.UploadSession
+	download                  drive.FileDownload
 	usageSummary              drive.UsageSummary
 	err                       error
 	getReq                    drive.GetNodeRequest
+	openReq                   drive.OpenFileRequest
 	usageReq                  drive.GetUsageSummaryRequest
 	getUploadSessionReq       drive.GetUploadSessionRequest
 	listUploadSessionReq      drive.ListUploadSessionsRequest
@@ -620,6 +665,20 @@ func (f *fakeDriveService) GetNode(_ context.Context, req drive.GetNodeRequest) 
 		return drive.Node{}, f.err
 	}
 	return f.node, nil
+}
+
+func (f *fakeDriveService) OpenFile(_ context.Context, req drive.OpenFileRequest) (drive.FileDownload, error) {
+	f.openReq = req
+	if f.err != nil {
+		return drive.FileDownload{}, f.err
+	}
+	if f.download.Body != nil {
+		return f.download, nil
+	}
+	return drive.FileDownload{
+		Node: drive.Node{ID: "node-1", UserID: req.UserID, Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Body: io.NopCloser(strings.NewReader("content")),
+	}, nil
 }
 
 func (f *fakeDriveService) GetUsageSummary(_ context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error) {
