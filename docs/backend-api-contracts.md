@@ -832,7 +832,7 @@ expression and bounded list limits. Draft rows are intentionally excluded from
 `GET /api/v1/search`; compose UIs use the separate
 `GET /api/v1/drafts/search` contract, which searches active draft subject,
 sender, recipient JSON, draft body text, and attachment state with newest
-draft-updated ordering. Search clients can opt into `sort=relevance`,
+draft-updated ordering and opaque cursor pagination. Search clients can opt into `sort=relevance`,
 `include_rank=true`, and `include_highlights=true` while newest-first ordering
 remains the default for active messages.
 `search-index-worker` can also write received-message documents to OpenSearch with

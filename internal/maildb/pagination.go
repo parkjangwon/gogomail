@@ -36,6 +36,13 @@ type ThreadListPage struct {
 	NextCursor string          `json:"next_cursor,omitempty"`
 }
 
+type DraftListPage struct {
+	Drafts     []MessageDetail `json:"drafts"`
+	Limit      int             `json:"limit"`
+	HasMore    bool            `json:"has_more"`
+	NextCursor string          `json:"next_cursor,omitempty"`
+}
+
 func NewMessageListPage(messages []MessageSummary, requestedLimit int) (MessageListPage, error) {
 	limit := NormalizeMessageListLimit(requestedLimit)
 	hasMore := len(messages) > limit
@@ -57,6 +64,32 @@ func NewMessageListPage(messages []MessageSummary, requestedLimit int) (MessageL
 	next, err := EncodeMessageListCursor(MessageListCursor{At: last.ReceivedAt, ID: last.ID})
 	if err != nil {
 		return MessageListPage{}, err
+	}
+	page.NextCursor = next
+	return page, nil
+}
+
+func NewDraftListPage(drafts []MessageDetail, requestedLimit int) (DraftListPage, error) {
+	limit := NormalizeMessageListLimit(requestedLimit)
+	hasMore := len(drafts) > limit
+	if hasMore {
+		drafts = drafts[:limit]
+	}
+	page := DraftListPage{
+		Drafts:  drafts,
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if len(drafts) == 0 {
+		return page, nil
+	}
+	last := drafts[len(drafts)-1]
+	if last.ID == "" || last.ReceivedAt.IsZero() {
+		return page, nil
+	}
+	next, err := EncodeMessageListCursor(MessageListCursor{At: last.ReceivedAt, ID: last.ID})
+	if err != nil {
+		return DraftListPage{}, err
 	}
 	page.NextCursor = next
 	return page, nil

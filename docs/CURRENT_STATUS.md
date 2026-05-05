@@ -64,8 +64,8 @@ guidance.
 - Outbox event detail responses expose full stored `last_error` by id while
   still omitting raw payload bodies.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
-  attachments, cursor-paginated thread lists/thread messages, plus user-scoped
-  sent-message delivery/bounce status.
+  attachments, cursor-paginated thread lists/thread messages and draft search,
+  plus user-scoped sent-message delivery/bounce status.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

@@ -108,13 +108,13 @@ Current state:
 - Draft rows remain out of `GET /api/v1/search`; draft lookup now has a
   separate compose-focused `GET /api/v1/drafts/search` API over active draft
   subject, sender, recipients, body text, and attachment state, ordered by
-  latest draft update. This keeps active-message Postgres/OpenSearch relevance
-  semantics aligned while giving compose UIs a bounded search path.
+  latest draft update with opaque cursor pagination. This keeps active-message
+  Postgres/OpenSearch relevance semantics aligned while giving compose UIs a
+  bounded search path.
 
 Next:
 
-- Add optional draft-search pagination or cursoring only if compose UX needs
-  more than the existing bounded list limit.
+- Add saved-search style draft filters only if compose UX needs them.
 
 ### 3. IMAP gateway planning
 

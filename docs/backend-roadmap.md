@@ -700,6 +700,7 @@ Implementation order:
 640. Event, search-index, API-metering, push-notification, and delivery workers now expose per-worker Redis consumer max-delivery and dead-letter-stream configuration, making poison-event handling tunable without code changes.
 641. IMAP UID assignment now reuses existing UIDs only when the message is still active in the same user/mailbox and treats stale moved/deleted `mail.stored` events as no-ops, preventing cross-mailbox UID reuse and permanent retries from legitimate mailbox races.
 642. Mail API thread list and per-thread message reads now support opaque cursor pagination with `limit`, `has_more`, and `next_cursor`, making large conversation mailboxes navigable without client-side full-list scans.
+643. Mail API draft search now supports opaque cursor pagination with `limit`, `has_more`, and `next_cursor`, making large compose draft lists navigable without loading every active draft.
 
 ## Deferred until backend contracts stabilize
 

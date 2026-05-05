@@ -112,6 +112,29 @@ func TestNewThreadListPageBuildsNextCursor(t *testing.T) {
 	}
 }
 
+func TestNewDraftListPageBuildsNextCursor(t *testing.T) {
+	t.Parallel()
+
+	drafts := []MessageDetail{
+		{ID: "11111111-1111-1111-1111-111111111111", ReceivedAt: time.Date(2026, 5, 4, 2, 0, 0, 0, time.UTC)},
+		{ID: "22222222-2222-2222-2222-222222222222", ReceivedAt: time.Date(2026, 5, 4, 1, 0, 0, 0, time.UTC)},
+	}
+	page, err := NewDraftListPage(drafts, 1)
+	if err != nil {
+		t.Fatalf("NewDraftListPage returned error: %v", err)
+	}
+	if !page.HasMore || len(page.Drafts) != 1 || page.Drafts[0].ID != "11111111-1111-1111-1111-111111111111" {
+		t.Fatalf("page = %+v", page)
+	}
+	cursor, err := DecodeMessageListCursor(page.NextCursor)
+	if err != nil {
+		t.Fatalf("DecodeMessageListCursor returned error: %v", err)
+	}
+	if cursor.ID != "11111111-1111-1111-1111-111111111111" {
+		t.Fatalf("cursor = %+v", cursor)
+	}
+}
+
 func TestDecodeMessageListCursorRejectsNonUUIDID(t *testing.T) {
 	t.Parallel()
 
