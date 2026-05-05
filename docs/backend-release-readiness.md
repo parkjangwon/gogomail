@@ -143,6 +143,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH UID <sequence-set>` and `UID SEARCH UID <sequence-set>` resolve
   `*` UID ranges against the selected mailbox's visible UIDs, aligning
   search-key filtering with UID command range handling.
+- IMAP command tag validation rejects `+` in tags before command routing,
+  matching RFC 3501 tag grammar and avoiding ambiguity with continuation
+  protocol markers.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

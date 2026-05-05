@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UID SEARCH star handling)
+Last updated: 2026-05-05 (updated after IMAP command tag plus rejection)
 
 ## Current phase
 
@@ -214,6 +214,9 @@ guidance.
 - IMAP `SEARCH UID <sequence-set>` and `UID SEARCH UID <sequence-set>` now
   resolve `*` UID ranges against the selected mailbox's visible UIDs, aligning
   search-key filtering with UID command range handling.
+- IMAP command tag validation now rejects `+` in tags before command routing,
+  matching RFC 3501 tag grammar and avoiding ambiguity with continuation
+  protocol markers.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

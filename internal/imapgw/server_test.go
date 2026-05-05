@@ -218,10 +218,11 @@ func TestServerRejectsMalformedCommandTags(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("* NOOP\r\na]1 NOOP\r\na*1 NOOP\r\na2 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("* NOOP\r\na]1 NOOP\r\na*1 NOOP\r\na+1 NOOP\r\na2 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write malformed tags: %v", err)
 	}
 	want := []string{
+		"* BAD malformed command\r\n",
 		"* BAD malformed command\r\n",
 		"* BAD malformed command\r\n",
 		"* BAD malformed command\r\n",
