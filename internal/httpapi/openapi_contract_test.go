@@ -362,6 +362,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"PUT /attachments/upload-sessions/{id}/body":                 "#/components/responses/AttachmentUploadSession",
 		"POST /attachments/upload-sessions/{id}/finalize":            "#/components/responses/Attachment",
 		"GET /messages/{id}/attachments":                             "#/components/responses/AttachmentList",
+		"HEAD /messages/{id}/attachments/{attachment_id}/download":   "",
 		"GET /push-devices":                                          "#/components/responses/PushDeviceList",
 		"POST /push-devices":                                         "#/components/responses/PushDevice",
 		"DELETE /push-devices/{id}":                                  "#/components/responses/IDStatus",
@@ -561,6 +562,7 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for _, route := range []string{
+		"HEAD /messages/{id}/attachments/{attachment_id}/download",
 		"GET /messages/{id}/attachments/{attachment_id}/download",
 		"HEAD /drive/nodes/{id}/download",
 		"GET /drive/nodes/{id}/download",
@@ -772,6 +774,7 @@ func TestOpenAPIDraftUsesReusableNestedPathParameters(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, refs := range map[string][]string{
+		"HEAD /messages/{id}/attachments/{attachment_id}/download":                                               {"#/components/parameters/PathID", "#/components/parameters/AttachmentID"},
 		"GET /messages/{id}/attachments/{attachment_id}/download":                                                {"#/components/parameters/PathID", "#/components/parameters/AttachmentID"},
 		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}":                                        {"#/components/parameters/DigestID"},
 		"GET /api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification":                           {"#/components/parameters/DigestID"},
@@ -1168,6 +1171,7 @@ func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
 		"POST /messages/bulk/restore",
 		"POST /threads/bulk/restore",
 		"GET /messages/{id}/attachments",
+		"HEAD /messages/{id}/attachments/{attachment_id}/download",
 		"GET /messages/{id}/attachments/{attachment_id}/download",
 		"POST /messages/send",
 		"POST /drafts",

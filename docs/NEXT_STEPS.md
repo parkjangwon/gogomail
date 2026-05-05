@@ -1365,6 +1365,9 @@ Current state:
 - Restore actions now best-effort assign IMAP UIDs and publish `EXISTS` events
   for restored active messages, keeping connected IMAP clients closer to
   webmail recovery state without a separate backfill pass.
+- Mail API attachment downloads now expose a bodyless `HEAD` metadata probe,
+  returning safe download headers and storage-object size before production
+  webmail clients decide to stream attachment bytes.
 
 Next:
 

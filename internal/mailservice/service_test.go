@@ -523,6 +523,17 @@ func TestAttachmentReadMethodsNormalizeIDs(t *testing.T) {
 	if repo.lastAttachmentUserID != "user-1" || repo.lastAttachmentMessageID != "msg-1" || repo.lastAttachmentID != "att-1" {
 		t.Fatalf("open attachment ids = %q/%q/%q", repo.lastAttachmentUserID, repo.lastAttachmentMessageID, repo.lastAttachmentID)
 	}
+
+	metadata, err := service.StatAttachment(context.Background(), " user-1 ", " msg-1 ", " att-1 ")
+	if err != nil {
+		t.Fatalf("StatAttachment returned error: %v", err)
+	}
+	if metadata.Object.Size != int64(len("content")) {
+		t.Fatalf("attachment object size = %d", metadata.Object.Size)
+	}
+	if repo.lastAttachmentUserID != "user-1" || repo.lastAttachmentMessageID != "msg-1" || repo.lastAttachmentID != "att-1" {
+		t.Fatalf("stat attachment ids = %q/%q/%q", repo.lastAttachmentUserID, repo.lastAttachmentMessageID, repo.lastAttachmentID)
+	}
 }
 
 func TestOpenAttachmentRejectsUnsafeStoredBodyPath(t *testing.T) {
@@ -554,6 +565,9 @@ func TestAttachmentReadMethodsRejectUnsafeIDs(t *testing.T) {
 	}
 	if _, err := service.OpenAttachment(context.Background(), "user-1", "msg-1", "att-1\nbad"); err == nil {
 		t.Fatal("OpenAttachment accepted newline-bearing attachment ID")
+	}
+	if _, err := service.StatAttachment(context.Background(), "user-1", "msg-1", "att-1\nbad"); err == nil {
+		t.Fatal("StatAttachment accepted newline-bearing attachment ID")
 	}
 	if repo.lastAttachmentID != "" || repo.lastAttachmentMessageID != "" {
 		t.Fatalf("repository was called with attachment IDs %q/%q", repo.lastAttachmentMessageID, repo.lastAttachmentID)

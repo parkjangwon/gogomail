@@ -2000,6 +2000,10 @@ The platform hardening sprint completed the following:
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
+- Mail API attachment downloads now support `HEAD` metadata probes, validating
+  the same message/attachment/storage-object boundary as `GET` and returning
+  safe `Content-Disposition`, object-backed `Content-Length`, `no-store`, and
+  `nosniff` headers without streaming bytes.
 
 Next focus areas:
 

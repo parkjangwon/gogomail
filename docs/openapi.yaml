@@ -867,6 +867,38 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /messages/{id}/attachments/{attachment_id}/download:
+    head:
+      operationId: headMessageAttachmentDownload
+      summary: Inspect attachment download headers
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/AttachmentID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: Attachment download headers
+          headers:
+            Content-Disposition:
+              description: Attachment disposition with safe filename fallback and UTF-8 filename* when available.
+              schema:
+                type: string
+            Content-Length:
+              description: Stored attachment object size in bytes.
+              schema:
+                type: integer
+                format: int64
+            Cache-Control:
+              description: Private attachment downloads are not cacheable by shared clients.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for attachment bytes.
+              schema:
+                type: string
+                enum: [nosniff]
+        default:
+          $ref: "#/components/responses/Error"
     get:
       operationId: downloadMessageAttachment
       summary: Download an attachment
@@ -882,6 +914,11 @@ paths:
               description: Attachment disposition with safe filename fallback and UTF-8 filename* when available.
               schema:
                 type: string
+            Content-Length:
+              description: Attachment size in bytes when known.
+              schema:
+                type: integer
+                format: int64
             Cache-Control:
               description: Private attachment downloads are not cacheable by shared clients.
               schema:
