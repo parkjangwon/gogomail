@@ -12,10 +12,17 @@ type ObjectCleanupFailureRecorder interface {
 	RecordObjectCleanupFailure(context.Context, ObjectCleanupFailure) (ObjectCleanupFailure, error)
 }
 
+type ObjectCleanupFailureStore interface {
+	ObjectCleanupFailureRecorder
+	ListObjectCleanupFailures(context.Context, ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error)
+	ResolveObjectCleanupFailure(context.Context, ResolveObjectCleanupFailureRequest) (ObjectCleanupFailure, error)
+}
+
 type Service struct {
 	repo                   *Repository
 	stores                 map[string]storage.Store
 	cleanupFailureRecorder ObjectCleanupFailureRecorder
+	cleanupFailureStore    ObjectCleanupFailureStore
 }
 
 type PermanentDeleteServiceResult struct {
@@ -23,12 +30,24 @@ type PermanentDeleteServiceResult struct {
 	Cleanup         ObjectCleanupResult
 }
 
+type RetryObjectCleanupFailuresResult struct {
+	Scanned  int
+	Deleted  int
+	Resolved int
+	Failed   int
+}
+
 func NewService(repo *Repository, stores map[string]storage.Store) *Service {
 	copiedStores := make(map[string]storage.Store, len(stores))
 	for backend, store := range stores {
 		copiedStores[backend] = store
 	}
-	return &Service{repo: repo, stores: copiedStores}
+	service := &Service{repo: repo, stores: copiedStores}
+	if repo != nil {
+		service.cleanupFailureRecorder = repo
+		service.cleanupFailureStore = repo
+	}
+	return service
 }
 
 func (s *Service) WithObjectCleanupFailureRecorder(recorder ObjectCleanupFailureRecorder) *Service {
@@ -36,6 +55,15 @@ func (s *Service) WithObjectCleanupFailureRecorder(recorder ObjectCleanupFailure
 		return nil
 	}
 	s.cleanupFailureRecorder = recorder
+	return s
+}
+
+func (s *Service) WithObjectCleanupFailureStore(store ObjectCleanupFailureStore) *Service {
+	if s == nil {
+		return nil
+	}
+	s.cleanupFailureStore = store
+	s.cleanupFailureRecorder = store
 	return s
 }
 
@@ -58,6 +86,40 @@ func (s *Service) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNo
 			return result, fmt.Errorf("record drive object cleanup failure after cleanup error %v: %w", err, recordErr)
 		}
 		return result, fmt.Errorf("cleanup permanently deleted drive objects: %w", err)
+	}
+	return result, nil
+}
+
+func (s *Service) RetryObjectCleanupFailures(ctx context.Context, req ListObjectCleanupFailuresRequest) (RetryObjectCleanupFailuresResult, error) {
+	if s == nil || s.cleanupFailureStore == nil {
+		return RetryObjectCleanupFailuresResult{}, fmt.Errorf("drive cleanup failure store is required")
+	}
+	req.Status = ObjectCleanupFailureStatusPending
+	failures, err := s.cleanupFailureStore.ListObjectCleanupFailures(ctx, req)
+	if err != nil {
+		return RetryObjectCleanupFailuresResult{}, err
+	}
+	result := RetryObjectCleanupFailuresResult{Scanned: len(failures)}
+	for _, failure := range failures {
+		cleanup, err := CleanupDeletedObjects(ctx, s.stores, []DeletedObject{{
+			StorageBackend: failure.StorageBackend,
+			StoragePath:    failure.StoragePath,
+		}})
+		result.Deleted += cleanup.Deleted
+		if err != nil {
+			result.Failed++
+			if recordErr := s.recordObjectCleanupFailure(ctx, PermanentDeleteResult{Root: Node{ID: failure.NodeID, UserID: failure.UserID}}, err); recordErr != nil {
+				return result, fmt.Errorf("record drive object cleanup retry failure after cleanup error %v: %w", err, recordErr)
+			}
+			continue
+		}
+		if _, err := s.cleanupFailureStore.ResolveObjectCleanupFailure(ctx, ResolveObjectCleanupFailureRequest{ID: failure.ID}); err != nil {
+			return result, err
+		}
+		result.Resolved++
+	}
+	if result.Failed > 0 {
+		return result, fmt.Errorf("retry drive object cleanup: %d failures remain", result.Failed)
 	}
 	return result, nil
 }

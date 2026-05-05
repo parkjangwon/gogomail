@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive cleanup failure queue reads)
+Last updated: 2026-05-06 (updated after Drive cleanup retry service)
 
 ## Current phase
 
@@ -277,6 +277,10 @@ guidance.
   methods with status/user filters, oldest-first pending ordering, limit caps,
   and pending-only resolution, preparing retry workers and admin visibility
   without exposing HTTP contracts yet.
+- Drive now has an internal cleanup retry service method that lists pending
+  cleanup-failure records, deletes each referenced object through configured
+  storage stores, resolves successful records, and re-records failed attempts
+  so retry diagnostics remain fresh and bounded.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

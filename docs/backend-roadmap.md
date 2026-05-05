@@ -1800,6 +1800,10 @@ Implementation order:
      methods with status/user filters, oldest-first pending ordering, limit
      caps, and pending-only resolution so retry workers and admin surfaces can
      inspect and close cleanup drift without direct SQL access.
+980. Drive now has an internal cleanup retry service method that lists pending
+     cleanup-failure records, deletes referenced objects through configured
+     storage stores, resolves successful records, and re-records failed
+     attempts with fresh bounded diagnostics.
 
 ## Deferred until backend contracts stabilize
 
