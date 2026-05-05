@@ -297,6 +297,8 @@ Current state:
   MIME parts without fetching the full message.
 - `FETCH`/`UID FETCH` now supports bounded nested multipart body-section
   literals such as `BODY[1.2]` with a capped MIME part path depth.
+- `FETCH`/`UID FETCH` now supports bounded partial windows over multipart
+  body-section literals such as `BODY.PEEK[2]<4.4>`.
 - `FETCH`/`UID FETCH` now answers conservative single-part MIME header requests
   for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - `FETCH`/`UID FETCH` now streams actual multipart child MIME headers for

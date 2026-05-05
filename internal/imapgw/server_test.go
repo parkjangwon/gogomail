@@ -3301,7 +3301,31 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 UID FETCH 11 BODY.PEEK[1.MIME]\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 UID FETCH 11 BODY.PEEK[2]<4.4>\r\n")); err != nil {
+		t.Fatalf("write uid fetch partial part: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read partial part literal header: %v", err)
+	}
+	wantPrefix = fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[2]<4> {4}\r\n", bodySize)
+	if line != wantPrefix {
+		t.Fatalf("partial part literal header = %q, want %q", line, wantPrefix)
+	}
+	partialPart := make([]byte, 4)
+	if _, err := io.ReadFull(reader, partialPart); err != nil {
+		t.Fatalf("read partial part literal: %v", err)
+	}
+	if string(partialPart) != "REFU" {
+		t.Fatalf("partial part literal = %q", partialPart)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("partial part close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
+		t.Fatalf("partial part completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 UID FETCH 11 BODY.PEEK[1.MIME]\r\n")); err != nil {
 		t.Fatalf("write uid fetch part mime: %v", err)
 	}
 	header := "Content-Transfer-Encoding: 7bit\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n"
@@ -3323,10 +3347,10 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
 		t.Fatalf("part mime close = %q err = %v", line, err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "a6 OK UID FETCH completed\r\n" {
 		t.Fatalf("part mime completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

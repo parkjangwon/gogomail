@@ -1020,6 +1020,8 @@ Implementation order:
      `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
      `BODY[HEADER.FIELDS.NOT (...)]`, and
      `BODY.PEEK[HEADER.FIELDS.NOT (...)]` literals.
+770. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
+     multipart body-section literals such as `BODY.PEEK[2]<4.4>`.
 
 ## Deferred until backend contracts stabilize
 
