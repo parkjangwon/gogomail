@@ -119,6 +119,21 @@ func TestSelectReportPropertiesSeparatesFoundAndMissing(t *testing.T) {
 	}
 }
 
+func TestContactObjectDataPropertyProjectsRequestedProperties(t *testing.T) {
+	t.Parallel()
+
+	prop := ContactObjectDataPropertyWithProperties([]byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEMAIL:one@example.com\r\nEND:VCARD\r\n"), []string{"FN"})
+	if !prop.Found {
+		t.Fatal("projected address-data not found")
+	}
+	if !strings.Contains(prop.Value.Text, "BEGIN:VCARD\r\n") || !strings.Contains(prop.Value.Text, "VERSION:4.0\r\n") || !strings.Contains(prop.Value.Text, "FN:Contact One\r\n") || !strings.Contains(prop.Value.Text, "END:VCARD\r\n") {
+		t.Fatalf("projected vcard missing required/requested lines:\n%s", prop.Value.Text)
+	}
+	if strings.Contains(prop.Value.Text, "EMAIL:") || strings.Contains(prop.Value.Text, "UID:") {
+		t.Fatalf("projected vcard included unrequested data:\n%s", prop.Value.Text)
+	}
+}
+
 func TestSelectPropfindPropertiesSupportsPropfindModes(t *testing.T) {
 	t.Parallel()
 

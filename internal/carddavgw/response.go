@@ -68,11 +68,55 @@ type PropStatus struct {
 }
 
 func ContactObjectDataProperty(body []byte) PropertyResult {
+	return ContactObjectDataPropertyWithProperties(body, nil)
+}
+
+func ContactObjectDataPropertyWithProperties(body []byte, properties []string) PropertyResult {
+	text := string(body)
+	if len(properties) > 0 {
+		if projected, err := projectVCardProperties(text, properties); err == nil {
+			text = projected
+		}
+	}
 	return PropertyResult{
 		Name:  PropAddressData,
-		Value: PropertyValue{Text: string(body)},
+		Value: PropertyValue{Text: text},
 		Found: len(body) > 0,
 	}
+}
+
+func projectVCardProperties(raw string, properties []string) (string, error) {
+	wanted := make(map[string]struct{}, len(properties))
+	for _, property := range properties {
+		name, err := normalizeVCardName(property, "address-data property")
+		if err != nil {
+			return "", err
+		}
+		wanted[name] = struct{}{}
+	}
+	lines, err := unfoldVCardLines(raw)
+	if err != nil {
+		return "", err
+	}
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		parsed, err := parseVCardContentLineParts(line)
+		if err != nil {
+			return "", err
+		}
+		switch parsed.Name {
+		case "BEGIN", "VERSION", "END":
+			out = append(out, line)
+		default:
+			if _, ok := wanted[parsed.Name]; ok {
+				out = append(out, line)
+			}
+		}
+	}
+	if len(out) == 0 {
+		return "", fmt.Errorf("projected vcard is empty")
+	}
+	return strings.Join(out, "\r\n") + "\r\n", nil
 }
 
 func PrincipalProperties(principal Principal) []PropertyResult {

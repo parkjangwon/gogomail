@@ -299,13 +299,9 @@ func parseVCardContentLineParts(line string) (vCardContentLine, error) {
 		namePart = namePart[dot+1:]
 	}
 	namePart = strings.ToUpper(strings.TrimSpace(namePart))
-	if namePart == "" {
-		return vCardContentLine{}, fmt.Errorf("property name is required")
-	}
-	for _, r := range namePart {
-		if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
-			return vCardContentLine{}, fmt.Errorf("property name is invalid")
-		}
+	namePart, err = normalizeVCardName(namePart, "property")
+	if err != nil {
+		return vCardContentLine{}, err
 	}
 	params := make(map[string][]string)
 	for _, rawParam := range segments[1:] {
@@ -319,6 +315,22 @@ func parseVCardContentLineParts(line string) (vCardContentLine, error) {
 		params[key] = append(params[key], values...)
 	}
 	return vCardContentLine{Name: namePart, Params: params, Value: value}, nil
+}
+
+func normalizeVCardName(value string, label string) (string, error) {
+	name := strings.ToUpper(strings.TrimSpace(value))
+	if name == "" {
+		return "", fmt.Errorf("%s name is required", label)
+	}
+	if len(name) > 64 || strings.ContainsAny(name, "\r\n") {
+		return "", fmt.Errorf("%s name is invalid", label)
+	}
+	for _, r := range name {
+		if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+			return "", fmt.Errorf("%s name is invalid", label)
+		}
+	}
+	return name, nil
 }
 
 func splitVCardContentLineName(raw string) ([]string, error) {
@@ -352,14 +364,9 @@ func parseVCardParam(raw string) (string, []string, bool, error) {
 	if eq <= 0 {
 		return "", nil, false, nil
 	}
-	name := strings.ToUpper(strings.TrimSpace(raw[:eq]))
-	if name == "" {
-		return "", nil, false, fmt.Errorf("parameter name is required")
-	}
-	for _, r := range name {
-		if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
-			return "", nil, false, fmt.Errorf("parameter name is invalid")
-		}
+	name, err := normalizeVCardName(raw[:eq], "parameter")
+	if err != nil {
+		return "", nil, false, err
 	}
 	values, err := splitVCardParamValues(raw[eq+1:])
 	if err != nil {

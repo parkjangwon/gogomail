@@ -383,7 +383,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `negate-condition`, while rejecting unsupported collations or malformed
   text-match attributes. Query filtering also parses vCard content-line
   parameters for `param-filter` existence, `is-not-defined`, and parameter
-  text-match checks. Contact-object `GET`, `HEAD`, `PUT`, and
+  text-match checks. REPORT `address-data` can project returned vCards to
+  requested property names while preserving structural BEGIN/VERSION/END lines.
+  Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition
   handling, and repository-backed vCard validation. CardDAV runtime wiring now provides

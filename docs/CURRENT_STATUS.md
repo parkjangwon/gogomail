@@ -66,9 +66,11 @@ the RFC 6352 default `i;unicode-casemap` collation plus `equals`, `contains`,
 `starts-with`, `ends-with`, and `negate-condition` text-match attributes, and
 evaluates nested `param-filter` entries against parsed vCard parameter values.
 It now honors RFC 6352 `test=anyof|allof` composition on the top-level
-`filter` and individual `prop-filter` elements. It remains gated on broader
-vCard compatibility and native-client tests. The handler is deliberately
-experimental and does not yet make CardDAV public/client-ready.
+`filter` and individual `prop-filter` elements. REPORT `address-data` can now
+project returned vCards to requested property names while preserving structural
+BEGIN/VERSION/END lines. It remains gated on broader vCard compatibility and
+native-client tests. The handler is deliberately experimental and does not yet
+make CardDAV public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,
@@ -2390,7 +2392,10 @@ The platform hardening sprint completed the following:
   unsupported collations instead of silently changing semantics, and supports
   `equals`, `contains`, `starts-with`, `ends-with`, and `negate-condition`.
   Param-filter evaluation parses vCard content-line parameters and matches
-  parameter existence, absence, or text-match values. The repository can
+  parameter existence, absence, or text-match values. REPORT `address-data`
+  responses can project returned vCards to requested property names, keeping
+  structural BEGIN/VERSION/END lines present while omitting unrequested contact
+  properties. The repository can
   list address-book changes since a stored sync token and rejects missing or
   unsafe sync tokens before SQL work. This still does not advertise public
   native-client compatibility because broader vCard compatibility and client
