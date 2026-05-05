@@ -169,6 +169,11 @@ The documented client contract is `1 <= limit <= 200`, defaulting to `50`.
 Message listing returns opaque `next_cursor`; clients must not parse or
 manufacture cursors. Incoming cursor strings are bounded before decode so
 malformed or oversized tokens fail before allocating decoded payloads.
+`GET /api/v1/messages` accepts optional `read=true|false` and
+`starred=true|false` filters in addition to `folder_id`, `limit`, and `cursor`.
+Boolean filters reject malformed or repeated scalar values before service
+dispatch, allowing webmail clients to render unread/read and starred/unstarred
+quick views without invoking full-text search.
 
 Search query, folder, sender, and subject filters are whitespace-normalized and
 reject CR/LF-bearing or oversized values before either Postgres or OpenSearch

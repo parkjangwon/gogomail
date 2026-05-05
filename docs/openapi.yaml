@@ -133,6 +133,16 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: read
+          in: query
+          schema:
+            type: boolean
+          description: Optional read-state filter. Use false for unread messages.
+        - name: starred
+          in: query
+          schema:
+            type: boolean
+          description: Optional starred-state filter.
       responses:
         "200":
           $ref: "#/components/responses/MessageListPage"
@@ -3825,7 +3835,7 @@ components:
               type: array
               items:
                 type: string
-                enum: [q, folder_id, from, subject, has_attachment, since, before]
+                enum: [q, folder_id, from, subject, has_attachment, since, before, read, starred]
             highlights:
               type: boolean
             opaque_cursors:

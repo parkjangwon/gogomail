@@ -47,7 +47,7 @@ type MessageService interface {
 	DeleteFolder(ctx context.Context, userID string, folderID string) error
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
-	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
+	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor, filter maildb.MessageListFilter) ([]maildb.MessageSummary, error)
 	ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error)
 	ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error)
 	ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error)
@@ -213,7 +213,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		Search: webmailSearchCapabilities{
 			Messages:       true,
 			Drafts:         true,
-			Filters:        []string{"q", "folder_id", "from", "subject", "has_attachment", "since", "before"},
+			Filters:        []string{"q", "folder_id", "from", "subject", "has_attachment", "since", "before", "read", "starred"},
 			Highlights:     true,
 			OpaqueCursors:  true,
 			MaxQueryBytes:  maxHTTPQueryBytes,
@@ -384,7 +384,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -409,7 +409,18 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
-		messages, err := service.ListMessagesPage(r.Context(), userID, folderID, limit, cursor)
+		read, ok := parseOptionalBoolQuery(w, r, "read")
+		if !ok {
+			return
+		}
+		starred, ok := parseOptionalBoolQuery(w, r, "starred")
+		if !ok {
+			return
+		}
+		messages, err := service.ListMessagesPage(r.Context(), userID, folderID, limit, cursor, maildb.MessageListFilter{
+			Read:    read,
+			Starred: starred,
+		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

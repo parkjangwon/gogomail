@@ -17,6 +17,11 @@ type MessageListCursor struct {
 	ID string    `json:"id"`
 }
 
+type MessageListFilter struct {
+	Read    *bool
+	Starred *bool
+}
+
 type MessageListPage struct {
 	Messages   []MessageSummary `json:"messages"`
 	Limit      int              `json:"limit"`

@@ -192,7 +192,9 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	if _, err := service.ListMessagesInFolder(context.Background(), " user-1 ", " inbox ", 10); err != nil {
 		t.Fatalf("ListMessagesInFolder returned error: %v", err)
 	}
-	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}); err != nil {
+	read := false
+	starred := true
+	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}, maildb.MessageListFilter{Read: &read, Starred: &starred}); err != nil {
 		t.Fatalf("ListMessagesPage returned error: %v", err)
 	}
 	if _, err := service.ListThreads(context.Background(), " user-1 ", 10); err != nil {
@@ -225,6 +227,9 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 	if repo.lastPageUserID != "user-1" || repo.lastPageFolderID != "inbox" {
 		t.Fatalf("page ids = %q/%q", repo.lastPageUserID, repo.lastPageFolderID)
+	}
+	if repo.lastPageFilter.Read == nil || *repo.lastPageFilter.Read || repo.lastPageFilter.Starred == nil || !*repo.lastPageFilter.Starred {
+		t.Fatalf("page filter = %#v", repo.lastPageFilter)
 	}
 	if repo.lastListThreadsUserID != "user-1" {
 		t.Fatalf("list threads user = %q", repo.lastListThreadsUserID)
@@ -331,7 +336,7 @@ func TestMailboxListMethodsRejectUnsafeResourceIDs(t *testing.T) {
 		{
 			name: "page folder",
 			run: func(service *Service) error {
-				_, err := service.ListMessagesPage(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1), 10, maildb.MessageListCursor{})
+				_, err := service.ListMessagesPage(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1), 10, maildb.MessageListCursor{}, maildb.MessageListFilter{})
 				return err
 			},
 		},
@@ -369,7 +374,7 @@ func TestListMethodsNormalizeLimits(t *testing.T) {
 	if repo.lastListMessagesInFolderLimit != maildb.MessageListMaxLimit {
 		t.Fatalf("list messages in folder limit = %d", repo.lastListMessagesInFolderLimit)
 	}
-	_, _ = service.ListMessagesPage(context.Background(), "user-1", "inbox", -1, maildb.MessageListCursor{})
+	_, _ = service.ListMessagesPage(context.Background(), "user-1", "inbox", -1, maildb.MessageListCursor{}, maildb.MessageListFilter{})
 	if repo.lastPageLimit != maildb.MessageListDefaultLimit {
 		t.Fatalf("page limit = %d", repo.lastPageLimit)
 	}
@@ -2076,6 +2081,7 @@ type fakeRepository struct {
 	lastPageUserID                 string
 	lastPageFolderID               string
 	lastPageLimit                  int
+	lastPageFilter                 maildb.MessageListFilter
 	lastListThreadsUserID          string
 	lastListThreadsLimit           int
 	lastListThreadsCursor          maildb.ThreadListCursor
@@ -2171,11 +2177,12 @@ func (f *fakeRepository) ListMessagesInFolder(_ context.Context, userID string, 
 	return nil, nil
 }
 
-func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+func (f *fakeRepository) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor, filter maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
 	f.lastPageUserID = userID
 	f.lastPageFolderID = folderID
 	f.lastPageLimit = limit
 	f.lastPageCursor = cursor
+	f.lastPageFilter = filter
 	return []maildb.MessageSummary{{ID: "msg-page"}}, nil
 }
 
@@ -3095,7 +3102,7 @@ func TestListMessagesPageDelegatesCursor(t *testing.T) {
 	repo := &fakeRepository{}
 	service := New(repo, nil)
 	cursor := maildb.MessageListCursor{ID: "11111111-1111-1111-1111-111111111111"}
-	messages, err := service.ListMessagesPage(context.Background(), "user-1", "", 10, cursor)
+	messages, err := service.ListMessagesPage(context.Background(), "user-1", "", 10, cursor, maildb.MessageListFilter{})
 	if err != nil {
 		t.Fatalf("ListMessagesPage returned error: %v", err)
 	}
