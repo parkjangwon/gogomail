@@ -74,6 +74,59 @@ func TestListMessagesHandler(t *testing.T) {
 	}
 }
 
+func TestListMessagesHandlerSupportsReadAndStarredFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&read=false&starred=true", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastListFilter.Read == nil || *service.lastListFilter.Read {
+		t.Fatalf("read filter = %#v", service.lastListFilter.Read)
+	}
+	if service.lastListFilter.Starred == nil || !*service.lastListFilter.Starred {
+		t.Fatalf("starred filter = %#v", service.lastListFilter.Starred)
+	}
+}
+
+func TestListMessagesHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/messages?user_id=user-1&read=maybe",
+		"/api/v1/messages?user_id=user-1&starred=maybe",
+		"/api/v1/messages?user_id=user-1&read=true&read=false",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastUserID != "" {
+				t.Fatalf("handler dispatched despite invalid filters: %+v", service.lastListFilter)
+			}
+		})
+	}
+}
+
 func TestMailHandlersRejectDuplicateScalarQuery(t *testing.T) {
 	t.Parallel()
 
@@ -2746,6 +2799,7 @@ type fakeMessageService struct {
 	lastBulkFlag                maildb.BulkMessageFlagRequest
 	lastBulkMove                maildb.BulkMessageMoveRequest
 	lastBulkDelete              maildb.BulkMessageDeleteRequest
+	lastListFilter              maildb.MessageListFilter
 	lastSearch                  maildb.MessageSearchQuery
 	lastDraftSearch             maildb.DraftSearchQuery
 	lastLimit                   int
@@ -2791,10 +2845,11 @@ func (f *fakeMessageService) ListMessagesInFolder(_ context.Context, userID stri
 	return f.list, nil
 }
 
-func (f *fakeMessageService) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, _ maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+func (f *fakeMessageService) ListMessagesPage(_ context.Context, userID string, folderID string, limit int, _ maildb.MessageListCursor, filter maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
 	f.lastUserID = userID
 	f.lastFolderID = folderID
 	f.lastLimit = limit
+	f.lastListFilter = filter
 	return f.list, nil
 }
 

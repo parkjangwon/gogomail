@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after mailbox overview API)
+Last updated: 2026-05-05 (updated after message list read/starred filters)
 
 ## Current phase
 
@@ -86,6 +86,10 @@ guidance.
 - Mail API exposes `GET /api/v1/mailbox/overview` so production webmail chrome
   can render aggregate total/unread/starred/size counts and system-folder ID
   shortcuts without duplicating folder-list aggregation in every client.
+- Mail API message lists now support optional `read=true|false` and
+  `starred=true|false` filters alongside folder and cursor controls, enabling
+  production webmail quick views such as unread, read, starred, and unstarred
+  without switching to full-text search.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

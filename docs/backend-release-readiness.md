@@ -12,6 +12,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API exposes `GET /api/v1/mailbox/overview` so production webmail chrome
   can render total/unread/starred/size badges and system-folder shortcuts from
   one user-scoped bootstrap read.
+- Mail API message lists support optional `read=true|false` and
+  `starred=true|false` filters for fast unread/read/starred webmail views while
+  retaining opaque cursor pagination and folder scoping.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

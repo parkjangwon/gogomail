@@ -1681,6 +1681,10 @@ Implementation order:
      webmail chrome a user-scoped aggregate read for total, unread, starred,
      and stored-size counters plus system-folder ID shortcuts without requiring
      each frontend client to duplicate folder-list aggregation.
+951. Mail API message list pagination now accepts optional `read=true|false`
+     and `starred=true|false` filters, enabling fast unread/read/starred
+     production webmail views while preserving folder scoping, opaque cursors,
+     and bounded boolean query validation.
 
 ## Deferred until backend contracts stabilize
 

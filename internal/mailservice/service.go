@@ -30,7 +30,7 @@ type Repository interface {
 	DeleteFolder(ctx context.Context, userID string, folderID string) error
 	ListMessages(ctx context.Context, userID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
-	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
+	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor, filter maildb.MessageListFilter) ([]maildb.MessageSummary, error)
 	GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error)
 	SetMessageFlag(ctx context.Context, userID string, messageID string, flag string, value bool) error
 	BulkSetMessageFlag(ctx context.Context, req maildb.BulkMessageFlagRequest) (int64, error)
@@ -192,7 +192,7 @@ func (s *Service) ListMessagesInFolder(ctx context.Context, userID string, folde
 	return s.repository.ListMessagesInFolder(ctx, userID, folderID, limit)
 }
 
-func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor, filter maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
 	if folderID != "" {
@@ -201,7 +201,7 @@ func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID 
 		}
 	}
 	limit = maildb.NormalizeMessageListLimit(limit)
-	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor)
+	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor, filter)
 }
 
 func (s *Service) ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error) {
