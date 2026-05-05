@@ -863,6 +863,9 @@ Implementation order:
 712. IMAP `FETCH`/`UID FETCH` can now stream bounded header-only literals for
      `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`, stopping at the
      RFC message header/body separator instead of returning the full message.
+713. IMAP `FETCH`/`UID FETCH` now supports `BODY[TEXT]`, `BODY.PEEK[TEXT]`, and
+     `RFC822.TEXT` section literals by streaming only the message body after the
+     header separator.
 
 ## Deferred until backend contracts stabilize
 

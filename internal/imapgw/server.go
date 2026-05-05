@@ -498,6 +498,7 @@ func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnStat
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
 	requestsBody := imapFetchRequestsBody(items)
 	requestsHeader := imapFetchRequestsHeader(items)
+	requestsText := imapFetchRequestsText(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
@@ -520,7 +521,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
 			return false, err
 		}
-		if requestsBody || requestsHeader {
+		if requestsBody || requestsHeader || requestsText {
 			if message.Body == nil {
 				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
 				return false, err
@@ -531,8 +532,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
 			}
-			if requestsHeader {
-				header, err := readIMAPHeaderLiteral(body)
+			if requestsHeader || requestsText {
+				literal, err := readIMAPSectionLiteral(body, requestsHeader)
 				if err != nil {
 					_ = body.Close()
 					return false, err
@@ -541,10 +542,14 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					return false, err
 				}
 				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyStructure)
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[HEADER] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), len(header))); err != nil {
+				section := "TEXT"
+				if requestsHeader {
+					section = "HEADER"
+				}
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), section, len(literal))); err != nil {
 					return false, err
 				}
-				if _, err := writer.Write(header); err != nil {
+				if _, err := writer.Write(literal); err != nil {
 					return false, err
 				}
 				if _, err := writer.WriteString(")\r\n"); err != nil {
@@ -722,25 +727,45 @@ func imapFetchRequestsHeader(items []string) bool {
 	return false
 }
 
-func readIMAPHeaderLiteral(reader io.Reader) ([]byte, error) {
+func imapFetchRequestsText(items []string) bool {
+	for _, item := range items {
+		token := strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
+		if token == "BODY[TEXT]" || token == "BODY.PEEK[TEXT]" || token == "RFC822.TEXT" {
+			return true
+		}
+	}
+	return false
+}
+
+func readIMAPSectionLiteral(reader io.Reader, wantHeader bool) ([]byte, error) {
 	const maxHeaderBytes = 1 << 20
 
-	var header []byte
+	var data []byte
 	buffer := make([]byte, 4096)
 	for {
 		n, err := reader.Read(buffer)
 		if n > 0 {
-			header = append(header, buffer[:n]...)
-			if len(header) > maxHeaderBytes {
+			data = append(data, buffer[:n]...)
+			if len(data) > maxHeaderBytes {
 				return nil, fmt.Errorf("imap header literal exceeds limit")
 			}
-			if end := imapHeaderEnd(header); end >= 0 {
-				return header[:end], nil
+			if end := imapHeaderEnd(data); end >= 0 {
+				if wantHeader {
+					return data[:end], nil
+				}
+				rest, err := io.ReadAll(reader)
+				if err != nil {
+					return nil, err
+				}
+				return append(data[end:], rest...), nil
 			}
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return header, nil
+				if wantHeader {
+					return data, nil
+				}
+				return nil, nil
 			}
 			return nil, err
 		}
