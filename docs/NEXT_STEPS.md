@@ -1014,6 +1014,10 @@ Current state:
   literals such as `APPEND ... {n+}` without an extra continuation round trip,
   while preserving the existing synchronizing literal path for conservative
   clients.
+- IMAP command reading now supports bounded literals in non-final command
+  positions and multiple literals in one command, so literalized credentials,
+  mailbox names, and search strings are no longer constrained to terminal
+  APPEND-style framing.
 - `AUTHENTICATE PLAIN` now supports `SASL-IR` initial responses, reducing
   authentication round trips for compatible IMAP clients.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
