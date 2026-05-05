@@ -1090,6 +1090,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
   authentication errors too, preserving precise tagged `BAD` diagnostics during
   client state-machine probing.
+- IMAP search-oriented selected-state commands validate malformed `SEARCH`,
+  `SORT`, and `THREAD` argument shape, return options, and sort/thread
+  argument lists before authentication errors too, preserving precise tagged
+  `BAD` diagnostics during capability and state-machine probing.
 - IMAP selected-state no-argument commands reject extra arguments before
   authentication and selected-mailbox state errors, keeping destructive
   lifecycle commands from hiding malformed input behind state responses.

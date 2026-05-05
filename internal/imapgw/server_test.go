@@ -486,6 +486,55 @@ func TestServerValidatesSelectedActionSyntaxBeforeAuthentication(t *testing.T) {
 	}
 }
 
+func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH ALL\r\na9 SORT (DATE) UTF-8 ALL\r\na10 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na11 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write search auth commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD SEARCH requires criteria\r\n",
+		"a2 BAD SEARCH return options are unsupported\r\n",
+		"a3 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a4 BAD SORT arguments are unsupported\r\n",
+		"a5 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a6 BAD THREAD requires algorithm, charset, and search criteria\r\n",
+		"a7 NO authentication required\r\n",
+		"a8 NO authentication required\r\n",
+		"a9 NO authentication required\r\n",
+		"a10 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a11 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read search auth response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("search auth response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerValidatesSelectedNoArgSyntaxBeforeSelectedState(t *testing.T) {
 	t.Parallel()
 
