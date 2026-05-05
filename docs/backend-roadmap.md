@@ -1969,6 +1969,9 @@ Implementation order:
       identities until delegated authorization is explicitly modeled in the
       backend authenticator boundary, while still accepting omitted or matching
       identities.
+1026. IMAP `LOGIN` and `AUTHENTICATE` failures now include RFC 5530
+      `[AUTHENTICATIONFAILED]` response codes, improving common client and
+      migration-tool handling of invalid credentials.
 
 ## Deferred until backend contracts stabilize
 

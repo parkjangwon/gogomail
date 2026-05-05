@@ -1614,7 +1614,9 @@ The platform hardening sprint completed the following:
   the existing protocol auth adapter. Non-empty SASL PLAIN authorization
   identities are accepted only when they match the authentication identity,
   preventing delegated auth requests from being silently ignored until the
-  backend contract explicitly supports them.
+  backend contract explicitly supports them. Failed `LOGIN` and
+  `AUTHENTICATE` attempts include RFC 5530 `[AUTHENTICATIONFAILED]` response
+  codes for client-readable auth diagnostics.
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce client auth round trips.
 - `gogomail --mode=imap` initializes the service-backed IMAP store adapter,

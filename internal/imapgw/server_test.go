@@ -1007,6 +1007,37 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	}
 }
 
+func TestServerLoginFailureIncludesAuthenticationFailedCode(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: authFailureBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com wrong\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write login/logout: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 NO [AUTHENTICATIONFAILED] LOGIN failed\r\n" {
+		t.Fatalf("login failure = %q err = %v", line, err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesNamespaceAfterLogin(t *testing.T) {
 	t.Parallel()
 
@@ -2161,6 +2192,38 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	}
 	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerAuthenticatePlainFailureIncludesAuthenticationFailedCode(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: authFailureBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	response := base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00wrong"))
+	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN " + response + "\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write authenticate/logout: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 NO [AUTHENTICATIONFAILED] AUTHENTICATE failed\r\n" {
+		t.Fatalf("authenticate failure = %q err = %v", line, err)
 	}
 	_, _ = reader.ReadString('\n')
 	_, _ = reader.ReadString('\n')
@@ -8705,6 +8768,14 @@ type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
 	return Session{UserID: "user-1", Username: "user@example.com"}, nil
+}
+
+type authFailureBackend struct {
+	fakeBackend
+}
+
+func (authFailureBackend) Authenticate(context.Context, string, string) (Session, error) {
+	return Session{}, fmt.Errorf("invalid credentials")
 }
 
 type specialUseBackend struct {
