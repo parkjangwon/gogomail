@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV DELETE If-Match star checks)
+Last updated: 2026-05-06 (updated after CalDAV Last-Modified cache revalidation)
 
 ## Current phase
 
@@ -2212,6 +2212,10 @@ The platform hardening sprint completed the following:
 - CalDAV calendar object `DELETE` now treats `If-Match: *` as an
   existing-resource precondition, returning HTTP 412 for missing `.ics`
   resources instead of surfacing a plain not-found result.
+- CalDAV calendar object `GET` and `HEAD` now emit `Last-Modified` from stored
+  object update time and honor `If-Modified-Since` revalidation with
+  second-precision comparisons, avoiding unnecessary `.ics` body streaming for
+  timestamp-valid client caches.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

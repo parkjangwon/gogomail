@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DiscoveryStore interface {
@@ -243,6 +244,11 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
+	if objectNotModifiedSince(r.Header.Get("If-Modified-Since"), object.UpdatedAt) {
+		writeCalendarObjectNotModifiedHeaders(w, object)
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	writeCalendarObjectHeaders(w, object)
 	w.WriteHeader(http.StatusOK)
 	if r.Method != MethodHead {
@@ -409,12 +415,18 @@ func writeCalendarObjectHeaders(w http.ResponseWriter, object CalendarObject) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Length", strconv.FormatInt(object.Size, 10))
+	if !object.UpdatedAt.IsZero() {
+		w.Header().Set("Last-Modified", formatHTTPDate(object.UpdatedAt))
+	}
 }
 
 func writeCalendarObjectNotModifiedHeaders(w http.ResponseWriter, object CalendarObject) {
 	w.Header().Set("ETag", object.ETag)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if !object.UpdatedAt.IsZero() {
+		w.Header().Set("Last-Modified", formatHTTPDate(object.UpdatedAt))
+	}
 }
 
 func ifNoneMatchMatches(header string, etag string) bool {
@@ -451,6 +463,19 @@ func ifMatchMatches(header string, etag string) bool {
 		}
 	}
 	return false
+}
+
+func objectNotModifiedSince(header string, updatedAt time.Time) bool {
+	header = strings.TrimSpace(header)
+	if header == "" || updatedAt.IsZero() || strings.ContainsAny(header, "\r\n") {
+		return false
+	}
+	since, err := http.ParseTime(header)
+	if err != nil {
+		return false
+	}
+	lastModified := updatedAt.UTC().Truncate(time.Second)
+	return !lastModified.After(since.UTC())
 }
 
 func validateCalendarPutContentType(value string) error {

@@ -289,6 +289,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar object `DELETE` now treats `If-Match: *` as an
   existing-resource precondition and returns HTTP 412 when the target `.ics`
   resource is missing.
+- CalDAV calendar object `GET` and `HEAD` now emit `Last-Modified` from stored
+  object update time and honor `If-Modified-Since` timestamp revalidation with
+  second-precision comparisons.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
