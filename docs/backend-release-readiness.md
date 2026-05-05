@@ -365,7 +365,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   reads reject blank, CR/LF-bearing, or oversized message/attachment
   identifiers before repository/storage dispatch.
 - `docs/backend-api-contracts.md` stages the backend-only OpenAPI contract source.
-- `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against backend contract version drift, registered-route drift, dangling component references, request-body omissions, response envelope reference drift, message flag enum drift, list limit contract drift, and thread-list parameter leakage.
+- `docs/openapi.yaml` provides the first backend-only OpenAPI 3.1 draft and is guarded against YAML syntax errors, backend contract version drift, registered-route drift, stale documented routes, dangling component references, request-body omissions, response envelope reference drift, message flag enum drift, list limit contract drift, and thread-list parameter leakage.
 - OpenAPI response components now document the Mail/Admin JSON envelope keys used by generated clients, including admin queue, IMAP UID backfill, delivery attempt, exhausted-attempt, suppression, DKIM, domain, and user read models.
 - OpenAPI operations now carry stable lower-camel `operationId` values and default reusable Error responses for protected/mutable operations, reducing generated-client naming and error-decoding drift.
 - OpenAPI now documents and tests the API usage ledger `tenant_id`, `principal_id`, `from`, and `to` filters that runtime handlers already accept, keeping generated billing/export clients aligned with Admin API behavior.
