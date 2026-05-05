@@ -573,6 +573,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `CAPABILITY` now advertises RFC 5182 `SEARCHRES`; `SEARCH RETURN (SAVE)`
   stores the selected-session search result so `$` can be reused by subsequent
   sequence-set and UID-set commands without a client round trip.
+- IMAP `SEARCH RETURN (SAVE)` clears the selected-session `$` result when the
+  save-requested search fails with tagged `NO`, while tagged `BAD` searches
+  keep the previous result untouched per RFC 5182.
 - IMAP `FETCH`/`UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
   modifiers, filtering responses to messages with greater per-message
   mod-sequences and implicitly returning `MODSEQ` attributes.

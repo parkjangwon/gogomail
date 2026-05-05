@@ -1277,6 +1277,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	if state.session == nil {
+		if returnOptions.save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
@@ -1293,6 +1296,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	if state.selectedMailbox == "" {
+		if returnOptions.save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
@@ -1314,6 +1320,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	}
 	results, highestModSeq, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode, requestsModSeq)
 	if err != nil {
+		if returnOptions.save {
+			state.savedSearch = nil
+		}
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
 	}

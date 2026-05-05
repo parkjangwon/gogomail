@@ -5321,6 +5321,64 @@ func TestServerSearchResSavesAndReusesResults(t *testing.T) {
 	}
 }
 
+func TestServerSearchResClearsSavedResultsOnSaveNo(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: searchSaveFailureBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) UNSEEN\r\na4 FETCH $ (FLAGS)\r\na5 SEARCH RETURN (SAVE) BODY missing\r\na6 FETCH $ (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write searchres failure commands: %v", err)
+	}
+	want := []string{
+		"a3 OK SEARCH completed\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
+		"a4 OK FETCH completed\r\n",
+		"a5 NO SEARCH failed\r\n",
+		"a6 OK FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read searchres failure response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("searchres failure response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -8793,6 +8851,17 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		},
 		Body: io.NopCloser(strings.NewReader(body)),
 	}, nil
+}
+
+type searchSaveFailureBackend struct {
+	fakeBackend
+}
+
+func (b searchSaveFailureBackend) FetchMessage(ctx context.Context, req FetchMessageRequest) (Message, error) {
+	if req.UID == 7 {
+		return Message{}, errors.New("search body fetch failed")
+	}
+	return b.fakeBackend.FetchMessage(ctx, req)
 }
 
 func testMultipartBody() string {
