@@ -802,6 +802,8 @@ The platform hardening sprint completed the following:
   `BODY.PEEK[]` for clients that batch reads without read-flag side effects.
 - IMAP non-UID `FETCH` accepts bounded sequence sets, including `*`, and maps
   them through the selected mailbox list before returning fetch responses.
+- IMAP `EXAMINE` supports read-only mailbox selection and blocks `UID STORE`
+  mutations in that state.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

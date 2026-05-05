@@ -836,6 +836,9 @@ Implementation order:
 703. IMAP `FETCH` now accepts bounded message sequence sets, including `*`,
      resolves them through the selected mailbox message list, and returns the
      same RFC-shaped untagged `FETCH` metadata/body responses as `UID FETCH`.
+704. IMAP `EXAMINE` now shares the mailbox selection response path with
+     `SELECT`, returns `[READ-ONLY]`, and prevents `UID STORE` mutations while a
+     mailbox is selected read-only.
 
 ## Deferred until backend contracts stabilize
 
