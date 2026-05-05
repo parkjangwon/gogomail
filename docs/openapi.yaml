@@ -1286,6 +1286,17 @@ paths:
           $ref: "#/components/responses/DriveUploadCleanupCandidates"
         default:
           $ref: "#/components/responses/Error"
+  /drive-upload-cleanup/runs:
+    post:
+      operationId: runAdminDriveUploadCleanup
+      summary: Run stale Drive upload session cleanup once
+      requestBody:
+        $ref: "#/components/requestBodies/AttachmentCleanupRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUploadCleanupRun"
+        default:
+          $ref: "#/components/responses/Error"
   /attachment-cleanup/runs:
     post:
       operationId: runAdminAttachmentCleanup
@@ -2902,6 +2913,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveUploadCleanupCandidatesEnvelope"
+    DriveUploadCleanupRun:
+      description: Drive upload cleanup run envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveUploadCleanupRunEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -4029,6 +4046,38 @@ components:
       properties:
         drive_upload_cleanup_candidates:
           $ref: "#/components/schemas/DriveUploadCleanupCandidates"
+    DriveUploadCleanupRun:
+      type: object
+      required: [expired_sessions, session_candidate_count, session_limited_count, expired_session_count, before, limit]
+      properties:
+        expired_sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveUploadSession"
+        session_candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        session_limited_count:
+          type: integer
+          format: int64
+          minimum: 0
+        expired_session_count:
+          type: integer
+          minimum: 0
+        before:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    DriveUploadCleanupRunEnvelope:
+      type: object
+      required: [drive_upload_cleanup_run]
+      properties:
+        drive_upload_cleanup_run:
+          $ref: "#/components/schemas/DriveUploadCleanupRun"
     DriveUploadSessionCreateRequest:
       type: object
       required: [name, declared_size, storage_backend]

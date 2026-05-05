@@ -42,6 +42,7 @@ type adminService struct {
 		ListUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 		CountStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) (drive.StaleUploadSessionCount, error)
 		ListStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
+		ExpireUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 	}
 	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
@@ -310,6 +311,46 @@ func (s adminService) ListStaleDriveUploadSessions(ctx context.Context, before t
 		return nil, err
 	}
 	return s.drive.ListStaleUploadSessions(ctx, req)
+}
+
+func (s adminService) RunDriveUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error) {
+	if s.drive == nil {
+		return nil, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateExpireUploadSessionsRequest(drive.ExpireUploadSessionsRequest{Before: before, Limit: limit})
+	if err != nil {
+		return nil, err
+	}
+	expired, err := s.drive.ExpireUploadSessions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if s.audit != nil {
+		detail, err := attachmentCleanupAuditDetail("drive_upload_sessions", before, limit, driveSessionAuditIDs(expired))
+		if err != nil {
+			return nil, err
+		}
+		if err := s.audit.Insert(ctx, audit.Log{
+			Category:   "admin",
+			Action:     "drive_upload_cleanup.sessions_run",
+			TargetType: "drive_upload_cleanup",
+			Result:     "completed",
+			Detail:     detail,
+		}); err != nil {
+			return nil, fmt.Errorf("record drive upload cleanup audit: %w", err)
+		}
+	}
+	return expired, nil
+}
+
+func driveSessionAuditIDs(sessions []drive.UploadSession) []string {
+	ids := make([]string, 0, len(sessions))
+	for _, session := range sessions {
+		if strings.TrimSpace(session.ID) != "" {
+			ids = append(ids, session.ID)
+		}
+	}
+	return ids
 }
 
 func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

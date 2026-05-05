@@ -827,6 +827,44 @@ func TestAdminDriveUploadCleanupCandidatesHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDriveUploadCleanupRunHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		staleDriveUploadSessionCount: drive.StaleUploadSessionCount{TotalCount: 2, LimitedCount: 2},
+		expiredDriveUploadSessions: []drive.UploadSession{{
+			ID:             "session-1",
+			UserID:         "user-1",
+			UploadID:       "upload-1",
+			Name:           "Report.pdf",
+			Status:         drive.UploadSessionStatusExpired,
+			StorageBackend: "s3",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/drive-upload-cleanup/runs", strings.NewReader(`{
+		"before":"2020-05-06T12:00:00Z",
+		"limit":25
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{`"drive_upload_cleanup_run"`, `"expired_sessions"`, `"id":"session-1"`, `"session_candidate_count":2`, `"expired_session_count":1`, `"limit":25`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body = %s, want %s", rec.Body.String(), want)
+		}
+	}
+	if !service.lastDriveUploadCleanupBefore.Equal(time.Date(2020, 5, 6, 12, 0, 0, 0, time.UTC)) || service.lastDriveUploadCleanupLimit != 25 {
+		t.Fatalf("cleanup request = %s/%d", service.lastDriveUploadCleanupBefore, service.lastDriveUploadCleanupLimit)
+	}
+}
+
 func TestAdminAttachmentUploadSessionsHandlerRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 
@@ -6190,6 +6228,7 @@ type fakeAdminService struct {
 	staleAttachmentSessionCandidates            []maildb.StaleAttachmentUploadSessionCandidate
 	staleDriveUploadSessionCount                drive.StaleUploadSessionCount
 	staleDriveUploadSessions                    []drive.UploadSession
+	expiredDriveUploadSessions                  []drive.UploadSession
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
@@ -6517,6 +6556,12 @@ func (f *fakeAdminService) ListStaleDriveUploadSessions(_ context.Context, befor
 	f.lastDriveUploadCleanupBefore = before
 	f.lastDriveUploadCleanupLimit = limit
 	return f.staleDriveUploadSessions, nil
+}
+
+func (f *fakeAdminService) RunDriveUploadSessionCleanup(_ context.Context, before time.Time, limit int) ([]drive.UploadSession, error) {
+	f.lastDriveUploadCleanupBefore = before
+	f.lastDriveUploadCleanupLimit = limit
+	return f.expiredDriveUploadSessions, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error) {
