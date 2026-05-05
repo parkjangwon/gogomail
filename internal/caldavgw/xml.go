@@ -5,7 +5,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -16,6 +18,7 @@ const (
 	MaxWebDAVXMLDepth     = 64
 	MaxWebDAVProperties   = 256
 	MaxWebDAVHrefs        = 2048
+	MaxWebDAVReportLimit  = 1000
 )
 
 type Depth string
@@ -174,6 +177,15 @@ type ReportRequest struct {
 	Properties []XMLName
 	Hrefs      []string
 	SyncToken  string
+	SyncLevel  string
+	Limit      int
+	TimeRange  *TimeRange
+	HasFilter  bool
+}
+
+type TimeRange struct {
+	Start time.Time
+	End   time.Time
 }
 
 func ParseReport(r io.Reader) (ReportRequest, error) {
@@ -230,6 +242,31 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 					return ReportRequest{}, err
 				}
 				req.SyncToken = strings.TrimSpace(token)
+			case sameXMLName(tok.Name, DAVNamespace, "sync-level"):
+				level, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.SyncLevel = strings.TrimSpace(level)
+			case sameXMLName(tok.Name, DAVNamespace, "limit"):
+				limit, err := parseLimitElement(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.Limit = limit
+			case sameXMLName(tok.Name, CalDAVNamespace, "filter"):
+				req.HasFilter = true
+				timeRange, err := parseFilterElement(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.TimeRange = timeRange
+			case sameXMLName(tok.Name, CalDAVNamespace, "time-range"):
+				timeRange, err := parseTimeRangeElement(dec, tok)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.TimeRange = &timeRange
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return ReportRequest{}, err
@@ -240,10 +277,38 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				if err := rejectTrailingXML(dec); err != nil {
 					return ReportRequest{}, err
 				}
+				if err := validateReportRequest(req); err != nil {
+					return ReportRequest{}, err
+				}
 				return req, nil
 			}
 		}
 	}
+}
+
+func validateReportRequest(req ReportRequest) error {
+	switch req.Kind {
+	case ReportCalendarQuery:
+		if !req.HasFilter {
+			return fmt.Errorf("calendar-query REPORT requires a filter element")
+		}
+	case ReportCalendarMulti:
+		if len(req.Hrefs) == 0 {
+			return fmt.Errorf("calendar-multiget REPORT requires at least one href")
+		}
+	case ReportFreeBusyQuery:
+		if req.TimeRange == nil {
+			return fmt.Errorf("free-busy-query REPORT requires a time-range")
+		}
+	case ReportSyncCollection:
+		if req.SyncLevel == "" {
+			return fmt.Errorf("sync-collection REPORT requires sync-level")
+		}
+		if req.SyncLevel != "1" {
+			return fmt.Errorf("unsupported sync-level %q", req.SyncLevel)
+		}
+	}
+	return nil
 }
 
 func readBoundedXMLBody(r io.Reader) ([]byte, error) {
@@ -328,6 +393,119 @@ func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
 			}
 		}
 	}
+}
+
+func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (*TimeRange, error) {
+	var found *TimeRange
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil, fmt.Errorf("unterminated filter element")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode filter element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, CalDAVNamespace, "time-range") {
+				timeRange, err := parseTimeRangeElement(dec, tok)
+				if err != nil {
+					return nil, err
+				}
+				found = &timeRange
+				continue
+			}
+			nested, err := parseFilterElement(dec, tok.Name)
+			if err != nil {
+				return nil, err
+			}
+			if nested != nil {
+				found = nested
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, filterName) {
+				return found, nil
+			}
+		}
+	}
+}
+
+func parseTimeRangeElement(dec *xml.Decoder, start xml.StartElement) (TimeRange, error) {
+	var rawStart, rawEnd string
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "start":
+			rawStart = strings.TrimSpace(attr.Value)
+		case "end":
+			rawEnd = strings.TrimSpace(attr.Value)
+		}
+	}
+	if rawStart == "" || rawEnd == "" {
+		return TimeRange{}, fmt.Errorf("time-range requires start and end")
+	}
+	if strings.ContainsAny(rawStart+rawEnd, "\r\n") {
+		return TimeRange{}, fmt.Errorf("time-range values must not contain line breaks")
+	}
+	startTime, err := parseICalendarUTC(rawStart)
+	if err != nil {
+		return TimeRange{}, fmt.Errorf("invalid time-range start: %w", err)
+	}
+	endTime, err := parseICalendarUTC(rawEnd)
+	if err != nil {
+		return TimeRange{}, fmt.Errorf("invalid time-range end: %w", err)
+	}
+	if !startTime.Before(endTime) {
+		return TimeRange{}, fmt.Errorf("time-range start must be before end")
+	}
+	if err := skipElement(dec, start.Name); err != nil {
+		return TimeRange{}, err
+	}
+	return TimeRange{Start: startTime, End: endTime}, nil
+}
+
+func parseLimitElement(dec *xml.Decoder, name xml.Name) (int, error) {
+	var limit int
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return 0, fmt.Errorf("unterminated limit element")
+		}
+		if err != nil {
+			return 0, err
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if !sameXMLName(tok.Name, DAVNamespace, "nresults") {
+				if err := skipElement(dec, tok.Name); err != nil {
+					return 0, err
+				}
+				continue
+			}
+			raw, err := readSimpleElementText(dec, tok.Name)
+			if err != nil {
+				return 0, err
+			}
+			value, err := strconv.Atoi(strings.TrimSpace(raw))
+			if err != nil || value <= 0 {
+				return 0, fmt.Errorf("limit nresults must be a positive integer")
+			}
+			if value > MaxWebDAVReportLimit {
+				return 0, fmt.Errorf("limit nresults exceeds %d", MaxWebDAVReportLimit)
+			}
+			limit = value
+		case xml.EndElement:
+			if sameName(tok.Name, name) {
+				return limit, nil
+			}
+		}
+	}
+}
+
+func parseICalendarUTC(value string) (time.Time, error) {
+	if !strings.HasSuffix(value, "Z") {
+		return time.Time{}, fmt.Errorf("timestamp must be UTC")
+	}
+	return time.Parse("20060102T150405Z", value)
 }
 
 func readSimpleElementText(dec *xml.Decoder, name xml.Name) (string, error) {

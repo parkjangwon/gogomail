@@ -2056,6 +2056,10 @@ Implementation order:
       listener backed by the CalDAV PostgreSQL repository and Basic-auth
       resolver, while full client-ready compatibility remains gated on REPORT,
       GET/PUT/DELETE object semantics, and broader compatibility tests.
+1048. CalDAV REPORT parsing now validates core handler preconditions for
+      `calendar-query`, `calendar-multiget`, `free-busy-query`, and
+      `sync-collection`, including required filters, hrefs, UTC time ranges,
+      supported `sync-level=1`, and bounded sync limits before handler logic.
 
 ## Deferred until backend contracts stabilize
 
