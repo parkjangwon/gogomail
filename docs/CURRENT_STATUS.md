@@ -833,6 +833,8 @@ The platform hardening sprint completed the following:
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,
   and answered client views.
+- IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
+  `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

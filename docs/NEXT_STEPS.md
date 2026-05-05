@@ -282,6 +282,8 @@ Current state:
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN` and
   `FLAGGED` for standard client unread/starred views.
+- `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
+  `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
@@ -294,8 +296,8 @@ Next:
 
 - Extend IMAP IDLE to stream events while the connection is waiting, instead of
   draining only when `DONE` arrives.
-- Add header field subset fetch and richer MIME-tree `BODYSTRUCTURE` support
-  for higher-fidelity client previews.
+- Add `HEADER.FIELDS.NOT` and richer MIME-tree `BODYSTRUCTURE` support for
+  higher-fidelity client previews.
 
 Frontend note:
 
