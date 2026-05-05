@@ -898,6 +898,9 @@ Implementation order:
 725. IMAP now supports authenticated `LSUB` over the same mailbox pattern
      matching path as `LIST`, returning subscribed-compatible mailbox responses
      while persistent subscription storage remains future work.
+726. IMAP now accepts authenticated `SUBSCRIBE` and `UNSUBSCRIBE` after mailbox
+     existence checks, keeping client subscription flows unblocked while
+     persistent subscription storage remains future work.
 
 ## Deferred until backend contracts stabilize
 

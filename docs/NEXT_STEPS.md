@@ -294,6 +294,9 @@ Current state:
   hierarchy delimiter for mailbox discovery.
 - Authenticated `LSUB` now returns subscribed-compatible mailbox responses over
   the same pattern matching path as `LIST`.
+- Authenticated `SUBSCRIBE`/`UNSUBSCRIBE` now validate mailbox existence and
+  complete successfully while persistent subscription storage remains future
+  work.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

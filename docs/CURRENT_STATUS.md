@@ -845,6 +845,8 @@ The platform hardening sprint completed the following:
   delimiter discovery.
 - IMAP supports authenticated `LSUB` over the same mailbox pattern matching path
   as `LIST`.
+- IMAP accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox existence
+  checks while persistent subscription storage remains future work.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

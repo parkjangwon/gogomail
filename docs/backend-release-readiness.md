@@ -358,6 +358,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and `/` hierarchy delimiter.
 - IMAP now supports authenticated `LSUB` over the same mailbox pattern matching
   path as `LIST`, while persistent subscription storage remains future work.
+- IMAP now accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox
+  existence checks, keeping subscription-management clients from failing before
+  persistent subscription storage is added.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
