@@ -15,6 +15,7 @@ const (
 	maxExportManifestSignerKeyIDBytes      = 200
 	maxExportManifestSignerCredentialBytes = 4096
 	maxOpenSearchCredentialBytes           = 4096
+	maxDeliverySmartHostCredentialBytes    = 4096
 	maxWebhookTokenBytes                   = 4096
 	maxAttachmentCleanupBatchSize          = 1000
 	minHTTPMaxHeaderBytes                  = 4 << 10
@@ -380,6 +381,18 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.DeliverySmartHost) == "" && (strings.TrimSpace(c.DeliverySmartHostUsername) != "" || strings.TrimSpace(c.DeliverySmartHostPassword) != "" || strings.TrimSpace(c.DeliverySmartHostIdentity) != "" || c.DeliverySmartHostPort > 0 || strings.TrimSpace(c.DeliverySmartHostTLSMode) != "" || c.DeliverySmartHostImplicitTLS) {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMARTHOST is required when smart-host options are set")
+	}
+	if strings.TrimSpace(c.DeliverySmartHostPassword) != "" && strings.TrimSpace(c.DeliverySmartHostUsername) == "" {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_SMARTHOST_USERNAME is required when GOGOMAIL_DELIVERY_SMARTHOST_PASSWORD is set")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_DELIVERY_SMARTHOST_USERNAME", c.DeliverySmartHostUsername, maxDeliverySmartHostCredentialBytes); err != nil {
+		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_DELIVERY_SMARTHOST_PASSWORD", c.DeliverySmartHostPassword, maxDeliverySmartHostCredentialBytes); err != nil {
+		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_DELIVERY_SMARTHOST_IDENTITY", c.DeliverySmartHostIdentity, maxDeliverySmartHostCredentialBytes); err != nil {
+		return err
 	}
 	if c.DeliverySmartHostImplicitTLS && strings.EqualFold(strings.TrimSpace(c.DeliverySmartHostTLSMode), "disable") {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMARTHOST_IMPLICIT_TLS cannot be used with disabled smart-host TLS")

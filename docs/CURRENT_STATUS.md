@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after OpenSearch error preview sanitization)
+Last updated: 2026-05-05 (updated after smart-host credential validation)
 
 ## Current phase
 
@@ -28,6 +28,9 @@ guidance.
 - Outbound SMTP delivery with direct MX, smart-host, TLS policy, retry, and
   partial recipient failure handling. Admin-created delivery routes reject
   impossible TLS/auth combinations before relay routes are stored.
+  Static smart-host configuration now rejects password-only auth plus
+  CR/LF-bearing or oversized auth username, password, and identity values during
+  startup config validation.
 - DSN/bounce handling with RFC 3461/3464-oriented metadata, null reverse-path,
   `NOTIFY=NEVER`, deterministic outbox dedupe, retry-exhaustion failure
   notifications, and loop-risk reduction.
