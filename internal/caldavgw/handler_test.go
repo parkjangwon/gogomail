@@ -1032,6 +1032,19 @@ func TestHandlerDeleteRejectsETagMismatch(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteRejectsIfMatchStarForMissingObject(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/missing.ics", nil)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerDeleteAcceptsListedETag(t *testing.T) {
 	t.Parallel()
 

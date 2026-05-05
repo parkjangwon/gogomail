@@ -2163,6 +2163,9 @@ Implementation order:
       before `If-None-Match` cache revalidation, and object `DELETE` now uses
       shared strong ETag list matching so comma-listed conditional-delete
       headers interoperate with WebDAV clients.
+1069. CalDAV calendar object `DELETE` now treats `If-Match: *` as an
+      existing-resource precondition, returning HTTP 412 for missing `.ics`
+      resources before attempting repository deletion.
 
 ## Deferred until backend contracts stabilize
 

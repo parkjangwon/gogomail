@@ -1510,6 +1510,8 @@ Current state:
 - CalDAV object `GET`/`HEAD` now reject stale `If-Match` preconditions before
   cache revalidation, and object `DELETE` now accepts comma-listed strong
   `If-Match` ETags for better WebDAV client compatibility.
+- CalDAV object `DELETE` now enforces `If-Match: *` as an existing-resource
+  precondition, returning HTTP 412 for missing resources.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
