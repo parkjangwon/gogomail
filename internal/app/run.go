@@ -130,15 +130,17 @@ type apiUsageRetentionResult struct {
 type imapGatewayRuntime struct {
 	service *mailservice.Service
 	store   mailservice.IMAPStoreAdapter
+	backend mailservice.IMAPBackendAdapter
 	events  *imapgw.MailboxEventBroker
 }
 
-func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store) imapGatewayRuntime {
+func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator) imapGatewayRuntime {
 	events := imapgw.NewMailboxEventBroker(32)
 	service := mailservice.New(repository, store).WithIMAPMailboxEvents(events)
 	return imapGatewayRuntime{
 		service: service,
 		store:   mailservice.NewIMAPStoreAdapter(service),
+		backend: mailservice.NewIMAPBackendAdapter(authenticator, service),
 		events:  events,
 	}
 }
@@ -154,13 +156,14 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
-	runtime := newIMAPGatewayRuntime(maildb.NewRepository(db), store)
+	repository := maildb.NewRepository(db)
+	runtime := newIMAPGatewayRuntime(repository, store, repository)
 	logger.Info(
 		"imap gateway scaffold ready",
 		"mode", ModeIMAP,
 		"addr", cfg.IMAPAddr,
 		"mailbox_event_broker", runtime.events != nil,
-		"store_adapter", "service",
+		"backend_adapter", "service",
 		"protocol_listener", "deferred",
 	)
 	return waitForShutdown(ctx, logger, ModeIMAP)

@@ -761,6 +761,9 @@ Implementation order:
      Submission/local-password authentication boundary into `imapgw.Session`
      values, giving the future listener a protocol-native authenticator without
      coupling IMAP to JWT middleware.
+681. `mailservice.NewIMAPBackendAdapter` now composes the protocol authenticator
+     with the service-backed store/session adapter, giving the future TCP
+     listener a single `imapgw.Backend` boundary.
 
 ## Deferred until backend contracts stabilize
 

@@ -167,7 +167,7 @@ func TestDKIMKeyProviderMapsRepositoryKey(t *testing.T) {
 func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
 	t.Parallel()
 
-	runtime := newIMAPGatewayRuntime(nil, nil)
+	runtime := newIMAPGatewayRuntime(nil, nil, nil)
 	if runtime.service == nil {
 		t.Fatal("service is nil")
 	}
@@ -176,6 +176,9 @@ func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
 	}
 	if _, err := runtime.store.ListMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: "user-1"}); err == nil || !strings.Contains(err.Error(), "imap mailbox repository is required") {
 		t.Fatalf("store adapter was not wired through service boundary: %v", err)
+	}
+	if _, err := runtime.backend.Authenticate(context.Background(), "user@example.com", "secret"); err == nil || !strings.Contains(err.Error(), "imap authenticator is required") {
+		t.Fatalf("backend authenticator was not wired through IMAP boundary: %v", err)
 	}
 
 	events, cancel, err := runtime.service.SubscribeIMAPMailbox(context.Background(), "user-1", "inbox")

@@ -263,6 +263,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   password authentication boundary into `imapgw.Session` values, giving the
   future listener a protocol-native authenticator without coupling IMAP to JWT
   middleware.
+- `mailservice.NewIMAPBackendAdapter` composes the protocol authenticator with
+  the service-backed store/session adapter, so the future TCP listener can take
+  one `imapgw.Backend` boundary.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event
