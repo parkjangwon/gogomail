@@ -397,12 +397,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			ReadOnly:  command == "EXAMINE",
 		})
 		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
+			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 			return false, writeErr
 		}
 		events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, mailboxState.ID)
 		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
+			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 			return false, writeErr
 		}
 		if _, err := writer.WriteString("* FLAGS " + imapFlagList(mailboxState.PermanentFlags) + "\r\n"); err != nil {

@@ -563,6 +563,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-mailbox `EXPUNGE` events delivered through `NOOP` or `IDLE`
   adjust saved SEARCHRES `$` sequence numbers the same way explicit `EXPUNGE`
   commands do, keeping subsequent `$` reuse aligned with visible mailbox state.
+- IMAP `EXAMINE` setup failures return `NO EXAMINE failed` instead of
+  `NO SELECT failed`, keeping tagged failure responses aligned with the
+  selected-mailbox command clients actually issued.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.
