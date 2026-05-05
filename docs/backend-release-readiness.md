@@ -1082,6 +1082,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   hiding malformed input behind state responses.
 - IMAP `STARTTLS` rejects malformed extra-argument commands before availability
   and state checks, keeping TLS capability probing diagnostics precise.
+- IMAP authenticated `UID` dispatch validates state-independent subcommand
+  syntax before selected-mailbox errors, keeping arity and mailbox-name
+  diagnostics visible to clients even before `SELECT`/`EXAMINE`.
 
 ## Must verify before release cut
 

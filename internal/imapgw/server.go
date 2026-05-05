@@ -1171,6 +1171,9 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
 	}
+	if handled, done, err := s.validateUIDSubcommandSyntax(writer, tag, fields, subcommand); handled {
+		return done, err
+	}
 	if state.selectedMailbox == "" {
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
@@ -1205,6 +1208,45 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, fields []string, subcommand string) (bool, bool, error) {
+	switch subcommand {
+	case "FETCH":
+		if len(fields) < 5 {
+			_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
+			return true, false, err
+		}
+	case "STORE":
+		if len(fields) < 6 {
+			_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
+			return true, false, err
+		}
+	case "EXPUNGE":
+		if len(fields) != 4 {
+			_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
+			return true, false, err
+		}
+	case "COPY":
+		if len(fields) != 5 {
+			_, err := writer.WriteString(tag + " BAD UID COPY requires UID set and destination mailbox\r\n")
+			return true, false, err
+		}
+		if _, ok := imapDecodeMailboxName(fields[4]); !ok {
+			_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n")
+			return true, false, err
+		}
+	case "MOVE":
+		if len(fields) != 5 {
+			_, err := writer.WriteString(tag + " BAD UID MOVE requires UID set and destination mailbox\r\n")
+			return true, false, err
+		}
+		if _, ok := imapDecodeMailboxName(fields[4]); !ok {
+			_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n")
+			return true, false, err
+		}
+	}
+	return false, false, nil
 }
 
 func imapUIDSubcommandKnown(subcommand string) bool {

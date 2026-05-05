@@ -45,6 +45,9 @@ Current state:
   selected-mailbox state errors.
 - `STARTTLS` validates its no-argument syntax before TLS availability and
   authentication-state checks.
+- Authenticated `UID` dispatch validates subcommand arity and destination
+  mailbox-name syntax before selected-mailbox state for `FETCH`, `STORE`,
+  `EXPUNGE`, `COPY`, and `MOVE`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
