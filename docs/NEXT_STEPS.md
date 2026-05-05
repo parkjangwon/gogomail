@@ -187,9 +187,9 @@ Current state:
 - S3-compatible storage requests reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
-- S3-compatible readiness probes read the verification object through a tight
-  expected-size bound, preventing malformed or proxy-inflated probe responses
-  from allocating unbounded memory during health checks.
+- Local/NFS and S3-compatible readiness probes read the verification object
+  through a tight expected-size bound, preventing malformed or proxy-inflated
+  probe responses from allocating unbounded memory during health checks.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
   paths share strict canonical key validation before adapter use.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and

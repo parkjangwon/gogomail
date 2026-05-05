@@ -114,7 +114,7 @@ func (s *LocalStore) Check(ctx context.Context) error {
 		_ = s.Delete(ctx, objectPath)
 		return fmt.Errorf("read readiness probe: %w", err)
 	}
-	got, readErr := io.ReadAll(readCloser)
+	got, readErr := readStorageCheckBody(readCloser, len(body))
 	closeErr := readCloser.Close()
 	if readErr != nil {
 		_ = s.Delete(ctx, objectPath)
