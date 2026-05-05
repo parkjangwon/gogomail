@@ -311,6 +311,27 @@ func TestHandlerReportAddressBookQueryFiltersSpecificVCardProperty(t *testing.T)
 	}
 }
 
+func TestHandlerReportAddressBookQueryHonorsTextMatchAttributes(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="EMAIL"><C:text-match match-type="equals" negate-condition="yes">contact-one@example.com</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-2.vcf</D:href>") {
+		t.Fatalf("query REPORT missing negated EMAIL match:\n%s", text)
+	}
+	if strings.Contains(text, "contact-1.vcf") {
+		t.Fatalf("query REPORT ignored negate-condition or equals match-type:\n%s", text)
+	}
+}
+
 func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	t.Parallel()
 

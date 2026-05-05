@@ -49,8 +49,12 @@ Internal REPORT execution now covers the parsed `addressbook-multiget`,
 `addressbook-query`, and `sync-collection` shapes. Multiget scopes hrefs to the
 requested home or collection, query execution preserves the first
 `prop-filter` name and applies the current bounded `text-match` filter to
-parsed unfolded vCard property values, and sync execution can return full
-snapshots or bounded change rows since a stored sync token.
+parsed unfolded vCard property values. The first text-match evaluator supports
+the RFC 6352 default `i;unicode-casemap` collation, `equals`, `contains`,
+`starts-with`, `ends-with`, and `negate-condition`, while rejecting unsupported
+collations rather than pretending a different matching semantic is equivalent.
+Sync execution can return full snapshots or bounded change rows since a stored
+sync token.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
@@ -62,7 +66,7 @@ The first runtime wiring starts `gogomail --mode=carddav` on a dedicated
 default, shares the existing Submission password verifier, permits insecure
 Basic auth only when explicitly configured for non-production environments, and
 reuses the existing HTTP server timeout/header guardrails. Richer CardDAV
-filter-tree/collation semantics, broader vCard compatibility, and
+filter-tree/param-filter semantics, broader vCard compatibility, and
 native-client verification will be added only when their semantics are
 implemented and tested.
 
@@ -73,5 +77,5 @@ implemented and tested.
 - Future CalDAV attendee and resource lookup can depend on Directory plus
   Contacts/CardDAV without inventing private person models.
 - Public CardDAV compatibility remains out of scope until authenticated
-  native-client testing, broader filter-tree/collation semantics, and broader
+  native-client testing, broader filter-tree/param-filter semantics, and broader
   vCard compatibility are implemented.

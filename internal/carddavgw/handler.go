@@ -577,7 +577,7 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
-		if !contactObjectMatchesFilter(object, report.FilterProperty, report.TextMatch) {
+		if !contactObjectMatchesFilter(object, report.Filter) {
 			continue
 		}
 		props, err := ContactObjectProperties(userID, object)
@@ -596,29 +596,53 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	return responses, nil
 }
 
-func contactObjectMatchesFilter(object ContactObject, propertyName string, text string) bool {
-	text = strings.TrimSpace(text)
-	if text == "" {
+func contactObjectMatchesFilter(object ContactObject, filter AddressBookQueryFilter) bool {
+	if !filter.HasPropFilter && !filter.HasTextMatch {
 		return true
 	}
-	propertyName = strings.ToUpper(strings.TrimSpace(propertyName))
+	propertyName := strings.ToUpper(strings.TrimSpace(filter.PropertyName))
 	if propertyName == "" {
-		return strings.Contains(strings.ToLower(string(object.VCard)), strings.ToLower(text))
+		return textMatchApplies(string(object.VCard), filter.TextMatch)
 	}
 	lines, err := unfoldVCardLines(string(object.VCard))
 	if err != nil {
 		return false
 	}
+	propertyExists := false
 	for _, line := range lines {
 		name, value, err := parseVCardContentLine(line)
 		if err != nil {
 			continue
 		}
-		if name == propertyName && strings.Contains(strings.ToLower(value), strings.ToLower(text)) {
+		if name != propertyName {
+			continue
+		}
+		propertyExists = true
+		if !filter.HasTextMatch || textMatchApplies(value, filter.TextMatch) {
 			return true
 		}
 	}
-	return false
+	return propertyExists && !filter.HasTextMatch
+}
+
+func textMatchApplies(value string, match CardDAVTextMatch) bool {
+	needle := strings.ToLower(match.Text)
+	haystack := strings.ToLower(value)
+	var matched bool
+	switch match.MatchType {
+	case TextMatchEquals:
+		matched = haystack == needle
+	case TextMatchStartsWith:
+		matched = strings.HasPrefix(haystack, needle)
+	case TextMatchEndsWith:
+		matched = strings.HasSuffix(haystack, needle)
+	default:
+		matched = strings.Contains(haystack, needle)
+	}
+	if match.Negate {
+		return !matched
+	}
+	return matched
 }
 
 func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {

@@ -167,8 +167,33 @@ func TestParseReportCollectsAddressBookQueryTextMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseReport returned error: %v", err)
 	}
-	if !req.HasFilter || req.FilterProperty != "FN" || req.TextMatch != "Alice" {
+	if !req.HasFilter || req.Filter.PropertyName != "FN" || !req.Filter.HasTextMatch || req.Filter.TextMatch.Text != "Alice" {
 		t.Fatalf("filter = %+v", req)
+	}
+	if req.Filter.TextMatch.Collation != TextMatchUnicodeCasemap || req.Filter.TextMatch.MatchType != TextMatchContains || req.Filter.TextMatch.Negate {
+		t.Fatalf("text-match defaults = %+v", req.Filter.TextMatch)
+	}
+}
+
+func TestParseReportCollectsAddressBookQueryTextMatchAttributes(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <C:filter>
+    <C:prop-filter name="EMAIL">
+      <C:text-match collation="i;unicode-casemap" match-type="ends-with" negate-condition="yes">example.net</C:text-match>
+    </C:prop-filter>
+  </C:filter>
+</C:addressbook-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if req.Filter.PropertyName != "EMAIL" || !req.Filter.HasTextMatch {
+		t.Fatalf("filter = %+v", req.Filter)
+	}
+	if req.Filter.TextMatch.Text != "example.net" || req.Filter.TextMatch.MatchType != TextMatchEndsWith || req.Filter.TextMatch.Collation != TextMatchUnicodeCasemap || !req.Filter.TextMatch.Negate {
+		t.Fatalf("text-match = %+v", req.Filter.TextMatch)
 	}
 }
 
@@ -185,6 +210,9 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level></D:sync-collection>`,
 		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"text match line break":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:text-match>A&#x0A;B</C:text-match></C:filter></C:addressbook-query>`,
+		"bad match type":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match match-type="wildcard">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"bad negate condition":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match negate-condition="maybe">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"unsupported collation":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match collation="i;octet">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"malformed xml":          `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter></C:addressbook-query>`,
