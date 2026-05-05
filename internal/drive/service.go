@@ -26,15 +26,15 @@ type Service struct {
 }
 
 type PermanentDeleteServiceResult struct {
-	PermanentDelete PermanentDeleteResult
-	Cleanup         ObjectCleanupResult
+	PermanentDelete PermanentDeleteResult `json:"permanent_delete"`
+	Cleanup         ObjectCleanupResult   `json:"cleanup"`
 }
 
 type RetryObjectCleanupFailuresResult struct {
-	Scanned  int
-	Deleted  int
-	Resolved int
-	Failed   int
+	Scanned  int `json:"scanned"`
+	Deleted  int `json:"deleted"`
+	Resolved int `json:"resolved"`
+	Failed   int `json:"failed"`
 }
 
 func NewService(repo *Repository, stores map[string]storage.Store) *Service {

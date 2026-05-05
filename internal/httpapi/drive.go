@@ -11,6 +11,7 @@ import (
 type DriveService interface {
 	CreateFolder(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error)
 	CreateFileFromObject(ctx context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error)
+	StoreStagedObject(ctx context.Context, req drive.StoreStagedObjectRequest) (drive.StagedObject, error)
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
@@ -118,6 +119,37 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
+	})
+
+	mux.HandleFunc("PUT /api/v1/drive/files/staged/{upload_id}/body", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id", "storage_backend") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		uploadID, ok := parseBoundedHTTPPathValue(w, r, "upload_id")
+		if !ok {
+			return
+		}
+		storageBackend, ok := parseBoundedHTTPQuery(w, r, "storage_backend", true, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		body := http.MaxBytesReader(w, r.Body, drive.MaxDriveStagedObjectBytes+1)
+		staged, err := service.StoreStagedObject(r.Context(), drive.StoreStagedObjectRequest{
+			UserID:         userID,
+			UploadID:       uploadID,
+			StorageBackend: storageBackend,
+			Body:           body,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_staged_object": staged})
 	})
 
 	mux.HandleFunc("POST /api/v1/drive/nodes/{id}/trash", func(w http.ResponseWriter, r *http.Request) {

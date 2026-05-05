@@ -1816,6 +1816,10 @@ Implementation order:
      previously staged object to become quota-accounted Drive file metadata via
      the shared storage `Stat` contract and Drive file-finalize repository
      boundary.
+984. Mail API now exposes `PUT /api/v1/drive/files/staged/{upload_id}/body`,
+     streaming bounded Drive object bodies to local/NFS, MinIO, or
+     S3-compatible storage, deriving canonical staging keys, and returning
+     size/SHA-256 metadata for file finalization.
 
 ## Deferred until backend contracts stabilize
 

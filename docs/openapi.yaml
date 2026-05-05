@@ -154,6 +154,36 @@ paths:
           $ref: "#/components/responses/DriveNode"
         default:
           $ref: "#/components/responses/Error"
+  /drive/files/staged/{upload_id}/body:
+    put:
+      operationId: storeDriveStagedObjectBody
+      summary: Store a staged Drive object body
+      parameters:
+        - name: upload_id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - name: storage_backend
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveStagedObject"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/nodes/{id}:
     delete:
       operationId: permanentlyDeleteDriveNode
@@ -2682,6 +2712,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveDeleteEnvelope"
+    DriveStagedObject:
+      description: Drive staged object envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveStagedObjectEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -3658,6 +3694,35 @@ components:
                 deleted:
                   type: integer
                   minimum: 0
+    DriveStagedObject:
+      type: object
+      required: [user_id, upload_id, storage_backend, storage_path, size, checksum_sha256]
+      properties:
+        user_id:
+          type: string
+        upload_id:
+          type: string
+          maxLength: 200
+        storage_backend:
+          type: string
+          maxLength: 64
+        storage_path:
+          type: string
+          maxLength: 1024
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 26214400
+        checksum_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+    DriveStagedObjectEnvelope:
+      type: object
+      required: [drive_staged_object]
+      properties:
+        drive_staged_object:
+          $ref: "#/components/schemas/DriveStagedObject"
     DriveFolderCreateRequest:
       type: object
       required: [name]

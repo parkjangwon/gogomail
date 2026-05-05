@@ -21,22 +21,22 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 type Node struct {
-	ID             string
-	CompanyID      string
-	DomainID       string
-	UserID         string
-	ParentID       string
-	Type           string
-	Name           string
-	NormalizedName string
-	MIMEType       string
-	Size           int64
-	StorageBackend string
-	StoragePath    string
-	ChecksumSHA256 string
-	Status         string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             string    `json:"id"`
+	CompanyID      string    `json:"company_id,omitempty"`
+	DomainID       string    `json:"domain_id,omitempty"`
+	UserID         string    `json:"user_id"`
+	ParentID       string    `json:"parent_id,omitempty"`
+	Type           string    `json:"node_type"`
+	Name           string    `json:"name"`
+	NormalizedName string    `json:"normalized_name"`
+	MIMEType       string    `json:"mime_type,omitempty"`
+	Size           int64     `json:"size"`
+	StorageBackend string    `json:"storage_backend,omitempty"`
+	StoragePath    string    `json:"storage_path,omitempty"`
+	ChecksumSHA256 string    `json:"checksum_sha256,omitempty"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type CreateFolderRequest struct {
@@ -78,15 +78,15 @@ type PermanentDeleteNodeRequest struct {
 }
 
 type DeletedObject struct {
-	StorageBackend string
-	StoragePath    string
+	StorageBackend string `json:"storage_backend"`
+	StoragePath    string `json:"storage_path"`
 }
 
 type PermanentDeleteResult struct {
-	Root          Node
-	DeletedNodes  int64
-	ReleasedBytes int64
-	Objects       []DeletedObject
+	Root          Node            `json:"root"`
+	DeletedNodes  int64           `json:"deleted_nodes"`
+	ReleasedBytes int64           `json:"released_bytes"`
+	Objects       []DeletedObject `json:"objects,omitempty"`
 }
 
 func ValidateCreateFolderRequest(req CreateFolderRequest) (CreateFolderRequest, string, error) {

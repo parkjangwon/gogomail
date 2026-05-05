@@ -366,12 +366,15 @@ Current state:
 - Mail API now exposes `POST /api/v1/drive/files/finalize` for converting a
   staged object into quota-accounted Drive file metadata through the shared
   storage `Stat` contract.
+- Mail API now exposes `PUT /api/v1/drive/files/staged/{upload_id}/body` for
+  bounded direct staged object uploads, returning canonical storage path, size,
+  and SHA-256 for the finalize request.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive direct upload/session HTTP contracts on top of the staged object
-  path layout so clients can create the object that finalize consumes.
+- Add Drive upload-session contracts on top of staged object uploads so clients
+  can reserve quota, retry large objects, and surface resumable upload state.
 
 ### 2. Message threading and search
 

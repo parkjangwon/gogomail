@@ -164,6 +164,12 @@ or development `user_id` fallback path as webmail mail routes:
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",
   "mime_type","checksum_sha256"}`.
+- `PUT /api/v1/drive/files/staged/{upload_id}/body` streams a bounded object
+  body into the requested `storage_backend`, derives a stable
+  `drive/users/{user_id}/staging/{upload_id}` key, returns
+  `{"drive_staged_object":{...}}` with `storage_path`, `size`, and
+  `checksum_sha256`, and lets finalize consume the stored object without
+  re-uploading it.
 - `POST /api/v1/drive/nodes/{id}/trash` moves a node tree to trash and returns
   `{"drive_node":{...},"updated":N}`.
 - `POST /api/v1/drive/nodes/{id}/restore` restores a restorable trashed node
@@ -172,9 +178,9 @@ or development `user_id` fallback path as webmail mail routes:
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.
 
-Drive direct upload/session routes are intentionally separate future contracts
-so staged object creation, checksum behavior, quota reservation, and frontend
-upload ergonomics can be documented precisely before exposure.
+Drive resumable/session routes remain intentionally separate future contracts
+so quota reservation, chunking behavior, retries, and frontend upload ergonomics
+can be documented precisely before exposure.
 
 `GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap
 surface for future production operator consoles. It returns

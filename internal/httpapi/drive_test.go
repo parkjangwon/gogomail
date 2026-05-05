@@ -87,6 +87,44 @@ func TestDriveFinalizeFileHandler(t *testing.T) {
 	}
 }
 
+func TestDriveStoreStagedObjectHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{staged: drive.StagedObject{
+		UserID:         "user-1",
+		UploadID:       "upload-1",
+		StorageBackend: "s3",
+		StoragePath:    "drive/users/user-1/staging/upload-1",
+		Size:           11,
+		ChecksumSHA256: strings.Repeat("a", 64),
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1&storage_backend=s3", strings.NewReader("hello drive"))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.stagedReq.UserID != "user-1" || service.stagedReq.UploadID != "upload-1" || service.stagedReq.StorageBackend != "s3" || service.stagedReq.Body == nil {
+		t.Fatalf("staged request = %+v, want upload identity/body", service.stagedReq)
+	}
+	var body struct {
+		Staged drive.StagedObject `json:"drive_staged_object"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Staged.StoragePath != "drive/users/user-1/staging/upload-1" {
+		t.Fatalf("staged = %+v", body.Staged)
+	}
+	if got := rec.Body.String(); !strings.Contains(got, `"storage_path":"drive/users/user-1/staging/upload-1"`) || strings.Contains(got, "StoragePath") {
+		t.Fatalf("response body = %s, want snake_case staged object fields", got)
+	}
+}
+
 func TestDriveLifecycleHandlers(t *testing.T) {
 	t.Parallel()
 
@@ -166,6 +204,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "list duplicate parent", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=a&parent_id=b", nil)},
 		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
 		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
+		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},
 		{name: "trash body rejected", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/trash?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "delete unsafe id", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/nodes/node%0A1?user_id=user-1", nil)},
 	}
@@ -191,10 +230,12 @@ type fakeDriveService struct {
 	node       drive.Node
 	folder     drive.Node
 	file       drive.Node
+	staged     drive.StagedObject
 	err        error
 	listReq    drive.ListNodesRequest
 	createReq  drive.CreateFolderRequest
 	fileReq    drive.CreateFileFromObjectRequest
+	stagedReq  drive.StoreStagedObjectRequest
 	trashReq   drive.TrashNodeRequest
 	restoreReq drive.RestoreNodeRequest
 	deleteReq  drive.PermanentDeleteNodeRequest
@@ -222,6 +263,14 @@ func (f *fakeDriveService) CreateFileFromObject(_ context.Context, req drive.Cre
 		return drive.Node{}, f.err
 	}
 	return f.file, nil
+}
+
+func (f *fakeDriveService) StoreStagedObject(_ context.Context, req drive.StoreStagedObjectRequest) (drive.StagedObject, error) {
+	f.stagedReq = req
+	if f.err != nil {
+		return drive.StagedObject{}, f.err
+	}
+	return f.staged, nil
 }
 
 func (f *fakeDriveService) TrashNode(_ context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error) {
