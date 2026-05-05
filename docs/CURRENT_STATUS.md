@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after remote signer error preview sanitization)
+Last updated: 2026-05-05 (updated after webhook token and status diagnostics hardening)
 
 ## Current phase
 
@@ -308,6 +308,9 @@ guidance.
 - Remote Ed25519 manifest signer status-error diagnostics now collapse signer
   response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
   external signer errors from leaking into export/billing diagnostics.
+- Attachment scan and push-notification webhooks now reject CR/LF-bearing
+  configured tokens or endpoints and collapse non-2xx HTTP response bodies into
+  bounded one-line UTF-8 previews before surfacing delivery failures.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate

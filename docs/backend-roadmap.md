@@ -730,6 +730,9 @@ Implementation order:
 670. Runtime config validation now rejects static smart-host password-only auth plus CR/LF-bearing or oversized auth username, password, and identity values, matching Admin delivery-route guardrails before delivery worker startup.
 671. Admin delivery-route creation now rejects oversized farm, SMTP hello, pool, description, and relay auth identity/username/password metadata before route storage or audit work.
 672. Remote Ed25519 manifest signer status-error diagnostics now collapse signer response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing external signer errors from leaking into export/billing diagnostics.
+673. Attachment scanner and push-notification webhook senders now reject CR/LF-bearing
+    configured tokens or endpoints and collapse non-2xx response bodies into bounded
+    one-line UTF-8 previews before surfacing endpoint failures.
 
 ## Deferred until backend contracts stabilize
 

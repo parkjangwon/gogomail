@@ -133,7 +133,7 @@ func TestWebhookSinkReturnsHTTPFailure(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusBadGateway)
+		http.Error(w, "push failed\ntrace-id: abc", http.StatusBadGateway)
 	}))
 	defer server.Close()
 
@@ -142,8 +142,37 @@ func TestWebhookSinkReturnsHTTPFailure(t *testing.T) {
 		t.Fatalf("NewWebhookSink returned error: %v", err)
 	}
 	err = sink.EnqueuePush(context.Background(), Notification{MessageID: "msg-1", UserID: "user-1"})
-	if err == nil || !strings.Contains(err.Error(), "HTTP 502") {
+	if err == nil ||
+		!strings.Contains(err.Error(), "HTTP 502") ||
+		!strings.Contains(err.Error(), "push failed trace-id: abc") ||
+		strings.ContainsAny(err.Error(), "\r\n") {
 		t.Fatalf("EnqueuePush error = %v, want HTTP 502", err)
+	}
+}
+
+func TestNewWebhookSinkRejectsTokenWithLineBreak(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("request should not be made when token is invalid")
+	}))
+	defer server.Close()
+
+	if _, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Token: "push-token\nabc", Client: server.Client()}); err == nil {
+		t.Fatal("NewWebhookSink accepted token with line break")
+	}
+}
+
+func TestNewWebhookSinkRejectsEndpointWithLineBreak(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("request should not be made when endpoint is invalid")
+	}))
+	defer server.Close()
+
+	if _, err := NewWebhookSink(WebhookOptions{Endpoint: "http://push.example/send\r\npath", Token: "token", Client: server.Client()}); err == nil {
+		t.Fatal("NewWebhookSink accepted endpoint with line break")
 	}
 }
 

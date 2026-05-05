@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/webhook"
 )
 
 type OpenSearchOptions struct {
@@ -32,7 +33,6 @@ type OpenSearchIndexer struct {
 const (
 	maxOpenSearchMetadataBytes   = 1000
 	maxOpenSearchCredentialBytes = 4096
-	maxOpenSearchErrorBodyBytes  = 512
 )
 
 func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
@@ -112,7 +112,7 @@ func (i OpenSearchIndexer) IndexMessage(ctx context.Context, doc Document) error
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("index opensearch message %q: status %d: %s", messageID, resp.StatusCode, openSearchErrorBodyPreview(resp.Body))
+		return fmt.Errorf("index opensearch message %q: status %d: %s", messageID, resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}
 	return nil
 }
@@ -154,21 +154,9 @@ func (i OpenSearchIndexer) EnsureIndex(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("ensure opensearch index %q: status %d: %s", i.index, resp.StatusCode, openSearchErrorBodyPreview(resp.Body))
+		return fmt.Errorf("ensure opensearch index %q: status %d: %s", i.index, resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}
 	return nil
-}
-
-func openSearchErrorBodyPreview(body io.Reader) string {
-	raw, _ := io.ReadAll(io.LimitReader(body, maxOpenSearchErrorBodyBytes))
-	preview := strings.ToValidUTF8(strings.TrimSpace(string(raw)), "")
-	preview = strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
-			return ' '
-		}
-		return r
-	}, preview)
-	return strings.Join(strings.Fields(preview), " ")
 }
 
 func normalizeOpenSearchIndex(index string) (string, error) {

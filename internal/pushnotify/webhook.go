@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/gogomail/gogomail/internal/webhook"
 )
 
 const (
@@ -34,6 +36,9 @@ type WebhookSink struct {
 
 func NewWebhookSink(opts WebhookOptions) (*WebhookSink, error) {
 	endpoint := strings.TrimSpace(opts.Endpoint)
+	if strings.ContainsAny(endpoint, "\r\n") {
+		return nil, fmt.Errorf("push notification webhook endpoint cannot contain line breaks")
+	}
 	parsed, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("push notification webhook endpoint must be a valid URL: %w", err)
@@ -45,7 +50,11 @@ func NewWebhookSink(opts WebhookOptions) (*WebhookSink, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &WebhookSink{endpoint: endpoint, token: strings.TrimSpace(opts.Token), client: client}, nil
+	token, err := webhook.NormalizeWebhookToken(opts.Token, maxWebhookTokenBytes)
+	if err != nil {
+		return nil, fmt.Errorf("push notification webhook token: %w", err)
+	}
+	return &WebhookSink{endpoint: endpoint, token: token, client: client}, nil
 }
 
 func (s *WebhookSink) EnqueuePush(ctx context.Context, notification Notification) error {
@@ -71,6 +80,9 @@ func (s *WebhookSink) EnqueuePush(ctx context.Context, notification Notification
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if preview := webhook.ErrorBodyPreview(resp.Body, 512); preview != "" {
+			return fmt.Errorf("push notification webhook returned HTTP %d: %s", resp.StatusCode, preview)
+		}
 		return fmt.Errorf("push notification webhook returned HTTP %d", resp.StatusCode)
 	}
 	return nil

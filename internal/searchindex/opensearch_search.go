@@ -11,6 +11,8 @@ import (
 	"path"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/gogomail/gogomail/internal/webhook"
 )
 
 const (
@@ -91,7 +93,7 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("search opensearch messages: status %d: %s", resp.StatusCode, openSearchErrorBodyPreview(resp.Body))
+		return nil, fmt.Errorf("search opensearch messages: status %d: %s", resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}
 
 	result, err := decodeOpenSearchSearchResponse(resp.Body)

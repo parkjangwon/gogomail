@@ -67,6 +67,56 @@ func TestWebhookScannerRejectsOversizedResponse(t *testing.T) {
 	}
 }
 
+func TestNewWebhookScannerRejectsEndpointWithLineBreak(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("request should not be made when endpoint is invalid")
+	}))
+	defer server.Close()
+
+	if _, err := NewWebhookScanner(WebhookOptions{Endpoint: "http://scanner.example/scan\npath", Client: server.Client()}); err == nil {
+		t.Fatal("NewWebhookScanner accepted endpoint with line break")
+	}
+}
+
+func TestWebhookScannerReturnsHTTPFailure(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "scanner failed\ntrace-id: abc", http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	if err != nil {
+		t.Fatalf("NewWebhookScanner returned error: %v", err)
+	}
+	_, err = scanner.ScanAttachments(context.Background(), Request{
+		EnvelopeFrom: "sender@example.com",
+		Recipients:   []string{"user@example.net"},
+	})
+	if err == nil ||
+		!strings.Contains(err.Error(), "HTTP 502") ||
+		!strings.Contains(err.Error(), "scanner failed trace-id: abc") ||
+		strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("ScanAttachments error = %v, want HTTP 502 with sanitized body", err)
+	}
+}
+
+func TestNewWebhookScannerRejectsTokenWithLineBreak(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("request should not be made when token is invalid")
+	}))
+	defer server.Close()
+
+	if _, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Token: "scanner-token\rabc", Client: server.Client()}); err == nil {
+		t.Fatal("NewWebhookScanner accepted token with line break")
+	}
+}
+
 func TestWebhookScannerBoundsRequestPayload(t *testing.T) {
 	t.Parallel()
 
