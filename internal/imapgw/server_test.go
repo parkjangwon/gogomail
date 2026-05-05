@@ -2875,7 +2875,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\na5 LIST \"\" * RETURN (STATUS MESSAGES)\r\n")); err != nil {
 		t.Fatalf("write list-status: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
@@ -2893,6 +2893,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 		"* STATUS \"Sent\" (MESSAGES 5 SIZE 2048)\r\n",
 		"a3 OK LIST completed\r\n",
 		"a4 BAD LIST requires reference and mailbox pattern atoms\r\n",
+		"a5 BAD LIST requires reference and mailbox pattern atoms\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -2903,7 +2904,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 			t.Fatalf("list-status response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP STATUS item-list validation)
+Last updated: 2026-05-05 (updated after IMAP LIST-STATUS item-list validation)
 
 ## Current phase
 
@@ -834,7 +834,8 @@ The platform hardening sprint completed the following:
   `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
 - IMAP `CAPABILITY` advertises RFC 5819 `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata after each
-  matching selectable mailbox.
+  matching selectable mailbox, and rejects malformed `RETURN (STATUS MESSAGES)`
+  style status item lists before mailbox listing work.
 - IMAP `CAPABILITY` advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return per-mailbox total active message octets without
   fetching every message's `RFC822.SIZE`.
