@@ -252,6 +252,7 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 		"<C:supported-address-data><C:address-data content-type=\"text/vcard\" version=\"4.0\"></C:address-data></C:supported-address-data>",
 		"<C:max-resource-size>5242880</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",
+		"<CS:getctag>sync-123</CS:getctag>",
 		"<D:owner><D:href>/carddav/principals/user-1/</D:href></D:owner>",
 		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>",
 		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",

@@ -90,6 +90,10 @@ CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
 contact objects additionally advertise `DAV:write-content` because object
 `PUT`/`DELETE` semantics exist. Collection/property/ACL write privileges remain
 unadvertised until their exact WebDAV semantics are implemented.
+Address-book collection discovery also exposes the CalendarServer-compatible
+`getctag` extension from the same durable sync token used for WebDAV
+`sync-token`, improving legacy native-client change detection without adding a
+second collection-version source of truth.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
