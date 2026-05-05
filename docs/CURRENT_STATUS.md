@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP selected no-arg validation)
+Last updated: 2026-05-05 (updated after IMAP any-state no-arg validation)
 
 ## Current phase
 
@@ -1121,6 +1121,9 @@ The platform hardening sprint completed the following:
   `EXPUNGE` now reject extra arguments with tagged `BAD` responses instead of
   ignoring malformed input; this prevents accidental destructive expunge work
   from malformed `EXPUNGE` commands.
+- IMAP any-state no-argument commands `CAPABILITY`, `NOOP`, and `LOGOUT` now
+  reject extra arguments with tagged `BAD` responses instead of silently
+  ignoring them or ending the session for malformed logout attempts.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response
