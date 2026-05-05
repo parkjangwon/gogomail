@@ -441,6 +441,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` can now return RFC 3501-shaped
   `BODY[n.HEADER]` and `BODY[n.TEXT]` literals for `message/rfc822` parts,
   including forwarded-message attachments inside multipart messages.
+- IMAP `FETCH`/`UID FETCH` can now return `BODY[n.HEADER.FIELDS (...)]` and
+  `BODY[n.HEADER.FIELDS.NOT (...)]` subsets for `message/rfc822` parts, so
+  clients can preview forwarded-message headers without fetching whole nested
+  headers.
 - IMAP combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the
   raw message for MIME metadata while preserving the original reader for
   literal streaming, so common preview/header fetch batches keep rich structure
