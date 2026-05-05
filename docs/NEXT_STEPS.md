@@ -280,6 +280,8 @@ Current state:
   selected mailbox message list.
 - `SEARCH`/`UID SEARCH` can combine supported criteria with RFC default AND
   semantics, including `ALL` plus flag, date, size, address, and UID filters.
+- `SEARCH`/`UID SEARCH` supports RFC `NOT` and binary `OR` criteria
+  composition over the supported search predicate set.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,

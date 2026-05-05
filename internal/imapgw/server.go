@@ -791,6 +791,29 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 	switch criterion {
 	case "ALL":
 		return nil, 1, true
+	case "NOT":
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:])
+		if !ok {
+			return nil, 0, false
+		}
+		if predicate == nil {
+			return func(MessageSummary, int) bool { return false }, consumed + 1, true
+		}
+		return func(summary MessageSummary, index int) bool {
+			return !predicate(summary, index)
+		}, consumed + 1, true
+	case "OR":
+		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:])
+		if !ok {
+			return nil, 0, false
+		}
+		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:])
+		if !ok {
+			return nil, 0, false
+		}
+		return func(summary MessageSummary, index int) bool {
+			return imapSearchPredicateMatches(left, summary, index) || imapSearchPredicateMatches(right, summary, index)
+		}, 1 + leftConsumed + rightConsumed, true
 	case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED", "DRAFT", "UNDRAFT":
 		return func(summary MessageSummary, _ int) bool {
 			return imapMessageMatchesFlagSearch(summary, criterion)
@@ -857,9 +880,16 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 	}
 }
 
+func imapSearchPredicateMatches(predicate imapSearchPredicate, summary MessageSummary, index int) bool {
+	if predicate == nil {
+		return true
+	}
+	return predicate(summary, index)
+}
+
 func imapMessageMatchesSearchPredicates(summary MessageSummary, index int, predicates []imapSearchPredicate) bool {
 	for _, predicate := range predicates {
-		if !predicate(summary, index) {
+		if !imapSearchPredicateMatches(predicate, summary, index) {
 			return false
 		}
 	}
