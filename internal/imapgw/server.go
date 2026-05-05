@@ -730,6 +730,10 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD CREATE requires mailbox name\r\n")
 		return false, err
 	}
+	if imapMailboxNameIsINBOX(fields[2]) {
+		_, err := writer.WriteString(tag + " NO CREATE cannot create INBOX\r\n")
+		return false, err
+	}
 	if _, err := s.options.Backend.CreateMailbox(context.Background(), state.session.UserID, MailboxID(fields[2])); err != nil {
 		_, writeErr := writer.WriteString(tag + " NO CREATE failed\r\n")
 		return false, writeErr
@@ -745,6 +749,10 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 	}
 	if len(fields) != 3 {
 		_, err := writer.WriteString(tag + " BAD DELETE requires mailbox name\r\n")
+		return false, err
+	}
+	if imapMailboxNameIsINBOX(fields[2]) {
+		_, err := writer.WriteString(tag + " NO DELETE cannot delete INBOX\r\n")
 		return false, err
 	}
 	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
@@ -775,12 +783,20 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " BAD RENAME requires source and destination mailbox names\r\n")
 		return false, err
 	}
+	if imapMailboxNameIsINBOX(fields[2]) {
+		_, err := writer.WriteString(tag + " NO RENAME INBOX special semantics are not supported\r\n")
+		return false, err
+	}
 	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]), MailboxID(fields[3])); err != nil {
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
 	}
 	_, err := writer.WriteString(tag + " OK RENAME completed\r\n")
 	return false, err
+}
+
+func imapMailboxNameIsINBOX(name string) bool {
+	return strings.EqualFold(strings.TrimSpace(name), "INBOX")
 }
 
 func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fields []string, state *imapConnState, command string) (bool, error) {

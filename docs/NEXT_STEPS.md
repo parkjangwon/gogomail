@@ -485,6 +485,10 @@ Current state:
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder
   validation/storage constraints.
+- `CREATE INBOX` and `DELETE INBOX` now return explicit RFC 3501-shaped `NO`
+  failures, and `RENAME INBOX` is rejected instead of being treated like a
+  generic folder rename until its required special message-moving semantics are
+  implemented.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
