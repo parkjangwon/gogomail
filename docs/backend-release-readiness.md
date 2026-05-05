@@ -383,6 +383,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads mark the
   message seen through the service-backed flag boundary, while `BODY.PEEK[...]`
   and `RFC822.HEADER` do not mutate read state.
+- IMAP `FETCH`/`UID FETCH` now preserves RFC 3501 `RFC822`,
+  `RFC822.HEADER`, and `RFC822.TEXT` response data item names on the wire
+  instead of exposing their internal `BODY[...]` equivalents.
 - IMAP `CAPABILITY` now advertises `CONDSTORE` and `ENABLE` after the RFC
   4551-shaped mod-sequence fetch/search/status/select/store paths were wired
   through durable mailbox/message state; RFC 5161-shaped `ENABLE CONDSTORE`

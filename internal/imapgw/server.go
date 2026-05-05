@@ -3217,7 +3217,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				if requestsPartialHeaderFieldsNot {
 					partialSuffix = fmt.Sprintf("<%d>", partialHeaderFieldsNot.offset)
 				}
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s]%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), section, partialSuffix, len(literal))); err != nil {
+				itemName := imapSectionLiteralResponseName(items, section)
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s %s%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), itemName, partialSuffix, len(literal))); err != nil {
 					return false, err
 				}
 				if _, err := writer.Write(literal); err != nil {
@@ -3258,7 +3259,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				continue
 			}
-			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), summary.Size)); err != nil {
+			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s %s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), imapFullBodyLiteralResponseName(items), summary.Size)); err != nil {
 				_ = body.Close()
 				return false, err
 			}
@@ -3520,6 +3521,31 @@ func imapFetchSetsSeen(items []string) bool {
 		}
 	}
 	return false
+}
+
+func imapFullBodyLiteralResponseName(items []string) string {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			if token == "RFC822" {
+				return "RFC822"
+			}
+		}
+	}
+	return "BODY[]"
+}
+
+func imapSectionLiteralResponseName(items []string, section string) string {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			if section == "HEADER" && (token == "RFC822.HEADER" || strings.HasPrefix(token, "RFC822.HEADER<")) {
+				return "RFC822.HEADER"
+			}
+			if section == "TEXT" && (token == "RFC822.TEXT" || strings.HasPrefix(token, "RFC822.TEXT<")) {
+				return "RFC822.TEXT"
+			}
+		}
+	}
+	return "BODY[" + section + "]"
 }
 
 func imapExpandFetchItems(items []string) []string {
