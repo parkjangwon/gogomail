@@ -706,6 +706,7 @@ Implementation order:
 646. Mail API mutation routes now reject unknown query parameter names before dispatch, and JSON-backed compose, draft, attachment-reservation, and send mutations honor the documented development-only `user_id` query fallback when JWT auth is disabled.
 647. Admin bodyless command/delete routes now reject unknown query parameter names before dispatch for IMAP UID backfill, DKIM DNS verification, outbox retry, DKIM deactivation, suppression deletion, trusted-relay deletion, and delivery-route deletion, preventing ignored operator intent flags on sensitive actions.
 648. Admin JSON mutation routes now reject unknown query parameter names before dispatch for tenant quota, domain/user lifecycle and policy, backpressure, attachment cleanup, quota correction, push outcome, trusted-relay, delivery-route, and DKIM-key mutations.
+649. OpenAPI contract tests now parse `docs/openapi.yaml` as YAML and reject stale documented routes that are not registered by the Go HTTP mux, catching generated-client blocking spec syntax errors and obsolete endpoint contracts.
 
 ## Deferred until backend contracts stabilize
 

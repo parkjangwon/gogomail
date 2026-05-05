@@ -10,7 +10,27 @@ import (
 
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"go.yaml.in/yaml/v3"
 )
+
+func TestOpenAPIDraftIsParseableYAML(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	var doc map[string]any
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("OpenAPI draft must be parseable YAML: %v", err)
+	}
+	if doc["openapi"] != "3.1.0" {
+		t.Fatalf("OpenAPI draft version = %v, want 3.1.0", doc["openapi"])
+	}
+	if _, ok := doc["paths"].(map[string]any); !ok {
+		t.Fatal("OpenAPI draft must contain a paths object")
+	}
+}
 
 func TestOpenAPIDraftUsesBackendContractVersion(t *testing.T) {
 	t.Parallel()
@@ -39,6 +59,27 @@ func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		t.Fatalf("OpenAPI draft is missing registered routes:\n%s", strings.Join(missing, "\n"))
+	}
+}
+
+func TestOpenAPIDraftDoesNotExposeUnregisteredRoutes(t *testing.T) {
+	t.Parallel()
+
+	registered := make(map[string]bool)
+	for _, route := range extractRegisteredRoutes(t, "mail.go", "admin.go", "health.go") {
+		registered[route] = true
+	}
+	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
+
+	var stale []string
+	for route := range documented {
+		if !registered[route] {
+			stale = append(stale, route)
+		}
+	}
+	if len(stale) > 0 {
+		sort.Strings(stale)
+		t.Fatalf("OpenAPI draft exposes unregistered routes:\n%s", strings.Join(stale, "\n"))
 	}
 }
 

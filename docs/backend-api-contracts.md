@@ -10,6 +10,9 @@ The OpenAPI draft is intentionally guarded by backend tests. If a Go HTTP route,
 backend contract version, request body, supported message flag, list limit, or
 component reference changes, update the implementation and `docs/openapi.yaml`
 in the same commit.
+The draft must remain parseable OpenAPI YAML and must not expose routes that are
+not registered by the Go HTTP mux, so generated clients cannot be built from a
+syntactically invalid or stale endpoint contract.
 
 For generated-client stability, every documented operation has a stable
 lower-camel `operationId`, protected/mutable operations reuse the default

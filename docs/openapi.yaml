@@ -6097,7 +6097,7 @@ components:
         password_hash:
           type: string
           maxLength: 4096
-          description: Optional pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures.
+          description: "Optional pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures."
         quota_limit:
           type: integer
           format: int64
@@ -6109,7 +6109,7 @@ components:
         password_hash:
           type: string
           maxLength: 4096
-          description: Pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures.
+          description: "Pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures."
     StatusUpdateRequest:
       type: object
       required: [status]

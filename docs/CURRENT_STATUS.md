@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Admin mutation query guardrails)
+Last updated: 2026-05-05 (updated after OpenAPI YAML validity guardrails)
 
 ## Current phase
 
@@ -508,10 +508,12 @@ guidance.
 - OpenAPI draft with route, request body, response envelope, operationId, and
   component reference drift tests. Path parameters, Mail search/Admin query filters,
   request schemas, response envelopes, and status enums are contract-tested for
-  generated-client readiness. Thread list parameters are guarded against
-  accidental Admin/API-usage filter leakage. Non-JSON download/export responses
-  are guarded so NDJSON streams and binary attachments are not modeled as JSON
-  envelopes. All schemas are kept in sync with Go types.
+  generated-client readiness. The draft is parsed as YAML and checked for stale
+  documented routes that are not registered by the Go HTTP mux. Thread list
+  parameters are guarded against accidental Admin/API-usage filter leakage.
+  Non-JSON download/export responses are guarded so NDJSON streams and binary
+  attachments are not modeled as JSON envelopes. All schemas are kept in sync
+  with Go types.
 - Admin token authorization and API metering admin-token classification compare
   fixed-length SHA-256 digests of trimmed token values for both bearer tokens
   and `X-Admin-Token`.
