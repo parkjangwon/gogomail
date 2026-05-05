@@ -4856,16 +4856,15 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 FETCH 1:* (FLAGS RFC822.SIZE)\r\na4 FETCH 999 (FLAGS)\r\na5 FETCH 2:999 (FLAGS)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 FETCH 1:* (FLAGS RFC822.SIZE)\r\na4 FETCH 999 (FLAGS)\r\na5 FETCH 1:999 (FLAGS)\r\n")); err != nil {
 		t.Fatalf("write fetch: %v", err)
 	}
 	want := []string{
 		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
 		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
 		"a3 OK FETCH completed\r\n",
-		"a4 OK FETCH completed\r\n",
-		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
-		"a5 OK FETCH completed\r\n",
+		"a4 BAD FETCH requires a valid message sequence set\r\n",
+		"a5 BAD FETCH requires a valid message sequence set\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -7094,15 +7093,11 @@ func TestParseIMAPSequenceSet(t *testing.T) {
 			t.Fatalf("sequence set = %v, want %v", got, want)
 		}
 	}
-	got, ok = parseIMAPSequenceSet("4,2:9", 3)
-	if !ok {
-		t.Fatal("parseIMAPSequenceSet rejected valid out-of-range sequence set")
+	for _, value := range []string{"4", "1:4"} {
+		if got, ok := parseIMAPSequenceSet(value, 3); ok {
+			t.Fatalf("parseIMAPSequenceSet(%q, 3) = %v true, want out-of-range rejection", value, got)
+		}
 	}
-	want = []uint32{2, 3}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("out-of-range sequence set = %v, want %v", got, want)
-	}
-
 	for _, value := range []string{"", "0", "4", "1:4", "bad", "*"} {
 		if got, ok := parseIMAPSequenceSet(value, 0); ok {
 			t.Fatalf("parseIMAPSequenceSet(%q, 0) = %v true, want rejection", value, got)
