@@ -5478,7 +5478,7 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH LARGER 20\r\na4 UID SEARCH SMALLER 20\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH LARGER 20\r\na4 UID SEARCH SMALLER 20\r\na5 SEARCH LARGER +20\r\na6 UID SEARCH SMALLER +20\r\n")); err != nil {
 		t.Fatalf("write size search: %v", err)
 	}
 	want := []string{
@@ -5486,6 +5486,8 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 		"a3 OK SEARCH completed\r\n",
 		"* SEARCH 7\r\n",
 		"a4 OK UID SEARCH completed\r\n",
+		"a5 BAD SEARCH criteria are unsupported\r\n",
+		"a6 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5496,7 +5498,7 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 			t.Fatalf("size search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
