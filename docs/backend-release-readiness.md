@@ -330,6 +330,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `REPORT` now validates malformed Depth values and rejects
   `Depth: infinity` before XML body reads, making unsupported traversal
   semantics cheap and consistent across implemented REPORT handlers.
+- CalDAV `calendar-multiget` now accepts absolute URI hrefs from native
+  clients by normalizing only the URI path through the existing CalDAV scope
+  checks, while rejecting query, fragment, opaque, or unsafe href forms.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

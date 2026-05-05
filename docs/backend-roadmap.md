@@ -2217,6 +2217,10 @@ Implementation order:
       `Depth: infinity` before reading XML request bodies, keeping unsupported
       WebDAV traversal semantics out of calendar-query, calendar-multiget,
       sync-collection, and free-busy-query hot paths.
+1083. CalDAV `calendar-multiget` now accepts absolute URI hrefs from native
+      clients by normalizing only the URI path through the existing CalDAV
+      parser and same-user/same-collection scope checks, while rejecting query,
+      fragment, opaque, or unsafe href forms.
 
 ## Deferred until backend contracts stabilize
 

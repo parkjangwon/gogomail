@@ -197,6 +197,32 @@ func TestHandlerReportCalendarMultiget(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarMultigetAcceptsAbsoluteHref(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:href>https://calendar.example.test/caldav/calendars/user-1/work/event-1.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>",
+		"<C:calendar-data>BEGIN:VCALENDAR",
+		"UID:event-1@example.com",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("calendar-multiget absolute href missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerReportCalendarMultigetReturnsPropertyNotFoundForMissingHref(t *testing.T) {
 	t.Parallel()
 

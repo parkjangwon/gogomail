@@ -121,6 +121,30 @@ func ParseResourcePath(raw string) (ResourcePath, error) {
 	return ResourcePath{}, fmt.Errorf("unsupported caldav path")
 }
 
+func ParseResourceHref(raw string) (ResourcePath, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ResourcePath{}, fmt.Errorf("caldav href is required")
+	}
+	if strings.ContainsAny(raw, "\r\n") {
+		return ResourcePath{}, fmt.Errorf("caldav href must not contain line breaks")
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return ResourcePath{}, fmt.Errorf("decode caldav href: %w", err)
+	}
+	if parsed.IsAbs() {
+		if parsed.Opaque != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return ResourcePath{}, fmt.Errorf("caldav href must not include opaque data, query, or fragment")
+		}
+		raw = parsed.EscapedPath()
+		if raw == "" {
+			raw = parsed.Path
+		}
+	}
+	return ParseResourcePath(raw)
+}
+
 func splitPathSegments(value string) []string {
 	value = strings.Trim(value, "/")
 	if value == "" {
