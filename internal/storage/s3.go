@@ -349,7 +349,24 @@ func ValidateS3Endpoint(endpointValue string) (*url.URL, error) {
 	if endpoint.RawQuery != "" || endpoint.Fragment != "" {
 		return nil, fmt.Errorf("s3 endpoint must not contain query or fragment")
 	}
+	if err := validateS3EndpointPath(endpoint.Path); err != nil {
+		return nil, err
+	}
 	return endpoint, nil
+}
+
+func validateS3EndpointPath(endpointPath string) error {
+	if endpointPath == "" || endpointPath == "/" {
+		return nil
+	}
+	relativePath := strings.TrimSuffix(strings.TrimPrefix(endpointPath, "/"), "/")
+	if relativePath == "" {
+		return fmt.Errorf("s3 endpoint path must be canonical")
+	}
+	if _, err := ValidateObjectPath(relativePath); err != nil {
+		return fmt.Errorf("s3 endpoint path: %w", err)
+	}
+	return nil
 }
 
 func ValidateS3Region(region string) error {

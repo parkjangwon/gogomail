@@ -130,7 +130,7 @@ func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
 func TestValidateRejectsAmbiguousS3Endpoint(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "s3"
-	cfg.StorageS3Endpoint = "http://localhost:9000?bucket=gogomail"
+	cfg.StorageS3Endpoint = "http://localhost:9000/proxy//s3"
 	cfg.StorageS3Region = "us-east-1"
 	cfg.StorageS3Bucket = "gogomail"
 	cfg.StorageS3AccessKeyID = "access"
