@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after local storage unique temp writes)
+Last updated: 2026-05-05 (updated after local storage idempotent deletes)
 
 ## Current phase
 
@@ -184,6 +184,9 @@ guidance.
 - Local/NFS-style storage writes now stage through unique temporary files in
   the target directory before `rename`, avoiding fixed `.tmp` collisions while
   preserving atomic object replacement semantics.
+- Local/NFS-style storage deletes now treat already-missing objects as success,
+  aligning cleanup semantics with S3-compatible delete behavior across storage
+  backends.
 - IMAP `LIST`/`LSUB` CHILDREN attributes now infer immediate parents from
   nested `FullPath` values when backend rows do not carry `ParentID`, so deeper
   hierarchies such as `Projects/2026/Jan` still mark `Projects/2026` with

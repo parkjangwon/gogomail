@@ -100,6 +100,15 @@ func TestLocalStorePutUsesUniqueTemporaryObject(t *testing.T) {
 	}
 }
 
+func TestLocalStoreDeleteIsIdempotentForMissingObjects(t *testing.T) {
+	t.Parallel()
+
+	store := NewLocalStore(t.TempDir())
+	if err := store.Delete(context.Background(), "mailstore/company/domain/missing.eml"); err != nil {
+		t.Fatalf("Delete returned error for missing object: %v", err)
+	}
+}
+
 func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
 	t.Parallel()
 
