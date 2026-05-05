@@ -98,6 +98,9 @@ Current state:
 - IMAP command tag validation rejects `+` in tags before command routing,
   matching RFC 3501 tag grammar and avoiding ambiguity with continuation
   protocol markers.
+- IMAP `SEARCH`/`UID SEARCH` date criteria reject malformed date atoms that
+  still contain quote characters after command parsing, so broken inputs such
+  as `SINCE 05-May-2026"` are not silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

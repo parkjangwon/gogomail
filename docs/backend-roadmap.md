@@ -1465,6 +1465,9 @@ Implementation order:
 890. IMAP command tag validation now rejects `+` in tags before command
      routing, matching RFC 3501 tag grammar and avoiding ambiguity with
      continuation protocol markers.
+891. IMAP `SEARCH`/`UID SEARCH` date criteria now reject malformed date atoms
+     that still contain quote characters after command parsing, preventing
+     broken `SINCE 05-May-2026"` style inputs from being silently normalized.
 
 ## Deferred until backend contracts stabilize
 

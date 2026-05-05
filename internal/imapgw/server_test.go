@@ -5397,7 +5397,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH SINCE 05-May-2026\r\na4 UID SEARCH BEFORE 05-May-2026\r\na5 SEARCH ON 05-May-2026\r\na6 UID SEARCH SENTON 03-May-2026\r\na7 SEARCH SENTSINCE 04-May-2026\r\na8 UID SEARCH SENTBEFORE 04-May-2026\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH SINCE 05-May-2026\r\na4 UID SEARCH BEFORE 05-May-2026\r\na5 SEARCH ON 05-May-2026\r\na6 UID SEARCH SENTON 03-May-2026\r\na7 SEARCH SENTSINCE 04-May-2026\r\na8 UID SEARCH SENTBEFORE 04-May-2026\r\na9 SEARCH SINCE 05-May-2026\"\r\n")); err != nil {
 		t.Fatalf("write date search: %v", err)
 	}
 	want := []string{
@@ -5413,6 +5413,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 		"a7 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a8 OK UID SEARCH completed\r\n",
+		"a9 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5423,7 +5424,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 			t.Fatalf("date search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

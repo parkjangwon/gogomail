@@ -2288,7 +2288,10 @@ func imapMessageMatchesSentDateSearch(summary MessageSummary, criterion string, 
 }
 
 func parseIMAPSearchDate(value string) (time.Time, bool) {
-	day, err := time.Parse("02-Jan-2006", strings.Trim(value, `"`))
+	if strings.Contains(value, `"`) {
+		return time.Time{}, false
+	}
+	day, err := time.Parse("02-Jan-2006", strings.TrimSpace(value))
 	if err != nil {
 		return time.Time{}, false
 	}
