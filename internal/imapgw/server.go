@@ -617,12 +617,13 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
 		return false, err
 	}
+	children := imapMailboxChildren(mailboxes)
 	for _, mailbox := range mailboxes {
 		displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
 		if !imapMailboxMatchesPattern(displayName, pattern) {
 			continue
 		}
-		attributes := imapMailboxListAttributes(mailbox)
+		attributes := imapMailboxListAttributes(mailbox, children[mailbox.ID])
 		if specialUseOnly && len(attributes) == 1 {
 			continue
 		}
@@ -3773,8 +3774,11 @@ func imapMailboxDisplayName(mailbox Mailbox) string {
 	return strings.TrimSpace(string(mailbox.ID))
 }
 
-func imapMailboxListAttributes(mailbox Mailbox) []string {
+func imapMailboxListAttributes(mailbox Mailbox, hasChildren bool) []string {
 	attributes := []string{`\HasNoChildren`}
+	if hasChildren {
+		attributes[0] = `\HasChildren`
+	}
 	switch strings.ToLower(strings.TrimSpace(mailbox.SystemType)) {
 	case "all":
 		attributes = append(attributes, `\All`)
@@ -3792,6 +3796,35 @@ func imapMailboxListAttributes(mailbox Mailbox) []string {
 		attributes = append(attributes, `\Trash`)
 	}
 	return attributes
+}
+
+func imapMailboxChildren(mailboxes []Mailbox) map[MailboxID]bool {
+	children := make(map[MailboxID]bool)
+	byWireName := make(map[string]MailboxID, len(mailboxes))
+	for _, mailbox := range mailboxes {
+		if mailbox.ID == "" {
+			continue
+		}
+		wireName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
+		if wireName != "" {
+			byWireName[strings.ToLower(wireName)] = mailbox.ID
+		}
+	}
+	for _, mailbox := range mailboxes {
+		if mailbox.ParentID != "" {
+			children[mailbox.ParentID] = true
+			continue
+		}
+		wireName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
+		parentName, _, ok := strings.Cut(strings.ToLower(wireName), "/")
+		if !ok || parentName == "" {
+			continue
+		}
+		if parentID, ok := byWireName[parentName]; ok {
+			children[parentID] = true
+		}
+	}
+	return children
 }
 
 func imapListCommandFields(fields []string, subscribed bool) ([]string, bool, bool) {

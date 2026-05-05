@@ -1177,6 +1177,9 @@ Implementation order:
 812. IMAP `CAPABILITY` now advertises RFC 3348 `CHILDREN` alongside the
      existing `\HasNoChildren` LIST attributes, keeping mailbox hierarchy
      discovery signals consistent for standards-aware clients.
+813. IMAP `LIST` now derives RFC 3348 `\HasChildren` / `\HasNoChildren`
+     attributes from mailbox parent/path metadata instead of marking every
+     mailbox leaf-only, giving hierarchical clients accurate expansion hints.
 
 ## Deferred until backend contracts stabilize
 
