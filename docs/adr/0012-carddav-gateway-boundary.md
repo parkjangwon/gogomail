@@ -37,9 +37,16 @@ sync tokens, and record durable changes transactionally. REPORT parsing
 recognizes bounded `addressbook-query`, `addressbook-multiget`, and
 `sync-collection` request bodies before handlers are exposed. WebDAV
 multistatus response building can render CardDAV principal, address-book,
-contact-object, REPORT, and sync metadata. Discovery/REPORT handlers, sync
-handlers, auth, broader vCard compatibility, and HTTP listener wiring will be
-added only when their semantics are implemented and tested.
+contact-object, REPORT, and sync metadata.
+
+The first internal discovery handler exposes only RFC 6764/WebDAV-style
+`/.well-known/carddav`, `OPTIONS`, and bounded `PROPFIND` behavior over the
+CardDAV resource model. It delegates active user principal lookup to the shared
+Directory resolver, rejects cross-user resources, rejects `Depth: infinity`,
+and requires contact-object discovery to use `Depth: 0`. REPORT execution,
+object `GET`/`PUT`/`DELETE`, sync-change reads, auth, broader vCard
+compatibility, and HTTP listener wiring will be added only when their
+semantics are implemented and tested.
 
 ## Consequences
 
@@ -47,6 +54,6 @@ added only when their semantics are implemented and tested.
   CRUD side table.
 - Future CalDAV attendee and resource lookup can depend on Directory plus
   Contacts/CardDAV without inventing private person models.
-- Public CardDAV compatibility remains out of scope until vCard validation,
-  address-book storage, REPORT behavior, sync, auth, and native-client tests
-  are implemented.
+- Public CardDAV compatibility remains out of scope until authenticated
+  listener wiring, REPORT behavior, object mutation/read behavior, sync,
+  broader vCard compatibility, and native-client tests are implemented.

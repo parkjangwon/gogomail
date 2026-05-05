@@ -365,9 +365,15 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-query`, `addressbook-multiget`, and `sync-collection` bodies,
   including properties, hrefs, sync token/level, limits, and a first text-match
   filter. WebDAV multistatus response building can render CardDAV principal,
-  address-book, contact-object, REPORT, and sync metadata. Client-ready CardDAV
-  remains gated on discovery/REPORT handlers, sync handlers, auth/listener
-  wiring, broader vCard compatibility, and native-client tests.
+  address-book, contact-object, REPORT, and sync metadata. An internal
+  RFC 6764/WebDAV-style discovery handler now covers `/.well-known/carddav`,
+  `OPTIONS`, and bounded `PROPFIND` over root, principal, address-book home,
+  address-book collection, and contact-object resources, with cross-user,
+  `Depth: infinity`, malformed XML, and contact-object depth guards. The
+  PostgreSQL repository satisfies that discovery store through the shared
+  Directory principal resolver. Client-ready CardDAV remains gated on
+  auth/listener wiring, REPORT execution, sync handlers, object
+  `GET`/`PUT`/`DELETE`, broader vCard compatibility, and native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

@@ -5,6 +5,84 @@ import (
 	"testing"
 )
 
+func TestParseDepth(t *testing.T) {
+	t.Parallel()
+
+	got, err := ParseDepth("", DepthZero)
+	if err != nil {
+		t.Fatalf("ParseDepth returned error: %v", err)
+	}
+	if got != DepthZero {
+		t.Fatalf("depth = %q, want %q", got, DepthZero)
+	}
+	if got, err := ParseDepth("1", DepthZero); err != nil || got != DepthOne {
+		t.Fatalf("ParseDepth(1) = %q, %v", got, err)
+	}
+	if got, err := ParseDepth("infinity", DepthZero); err != nil || got != DepthInfinity {
+		t.Fatalf("ParseDepth(infinity) = %q, %v", got, err)
+	}
+	for _, value := range []string{"2", "1\n", ""} {
+		value := value
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ParseDepth(value, ""); err == nil {
+				t.Fatalf("ParseDepth(%q) error = nil, want rejection", value)
+			}
+		})
+	}
+}
+
+func TestParsePropfind(t *testing.T) {
+	t.Parallel()
+
+	req, err := ParsePropfind(strings.NewReader(" \n\t "))
+	if err != nil {
+		t.Fatalf("ParsePropfind empty returned error: %v", err)
+	}
+	if req.Kind != PropfindAllProp {
+		t.Fatalf("empty kind = %q, want %q", req.Kind, PropfindAllProp)
+	}
+
+	const body = `<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:prop><D:getetag/><C:address-data/></D:prop></D:propfind>`
+	req, err = ParsePropfind(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParsePropfind prop returned error: %v", err)
+	}
+	want := []XMLName{{Space: DAVNamespace, Local: "getetag"}, {Space: CardDAVNamespace, Local: "address-data"}}
+	if req.Kind != PropfindProp || len(req.Properties) != len(want) {
+		t.Fatalf("request = %+v, want kind %q props %+v", req, PropfindProp, want)
+	}
+	for i := range want {
+		if req.Properties[i] != want[i] {
+			t.Fatalf("property %d = %+v, want %+v", i, req.Properties[i], want[i])
+		}
+	}
+}
+
+func TestParsePropfindRejectsInvalidShapes(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"wrong root":            `<D:sync-collection xmlns:D="DAV:"/>`,
+		"multiple modes":        `<D:propfind xmlns:D="DAV:"><D:allprop/><D:propname/></D:propfind>`,
+		"empty prop":            `<D:propfind xmlns:D="DAV:"><D:prop/></D:propfind>`,
+		"include before mode":   `<D:propfind xmlns:D="DAV:"><D:include><D:getetag/></D:include></D:propfind>`,
+		"unsupported element":   `<D:propfind xmlns:D="DAV:"><D:foo/></D:propfind>`,
+		"multiple roots":        `<D:propfind xmlns:D="DAV:"/><D:propfind xmlns:D="DAV:"/>`,
+		"malformed":             `<D:propfind xmlns:D="DAV:"><D:allprop></D:propfind>`,
+		"unsupported directive": `<!DOCTYPE propfind><D:propfind xmlns:D="DAV:"/>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ParsePropfind(strings.NewReader(body)); err == nil {
+				t.Fatal("ParsePropfind error = nil, want rejection")
+			}
+		})
+	}
+}
+
 func TestParseReportRecognizesCardDAVAndSyncReports(t *testing.T) {
 	t.Parallel()
 

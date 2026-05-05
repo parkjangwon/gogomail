@@ -2315,6 +2315,13 @@ Implementation order:
       address-book collection metadata, contact-object metadata, requested
       `address-data`, supported reports, supported vCard data types, sync
       tokens, and per-property 404 propstats.
+1105. CardDAV now has an internal RFC 6764/WebDAV-style discovery handler for
+      `/.well-known/carddav`, `OPTIONS`, and bounded `PROPFIND` across root,
+      principal, address-book home, address-book collection, and contact-object
+      resources. The handler rejects cross-user paths, `Depth: infinity`,
+      malformed WebDAV XML, and contact-object discovery above `Depth: 0`;
+      the PostgreSQL repository satisfies the discovery store by resolving
+      active user principals through the shared Directory layer.
 
 ## Deferred until backend contracts stabilize
 
@@ -2328,10 +2335,11 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV discovery/REPORT/sync handlers, auth, broader vCard
-  compatibility, and native-client compatibility beyond the initial path/href,
-  storage metadata, repository, bounded vCard 4.0 validation, REPORT parsing,
-  and multistatus response boundary
+- Contacts/CardDAV authenticated listener wiring, REPORT execution, sync
+  handlers, object `GET`/`PUT`/`DELETE`, broader vCard compatibility, and
+  native-client compatibility beyond the internal discovery, path/href, storage
+  metadata, repository, bounded vCard 4.0 validation, REPORT parsing, and
+  multistatus response boundaries
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
