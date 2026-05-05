@@ -730,6 +730,29 @@ func TestHandlerGetCalendarObjectHonorsIfMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectHonorsIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.objects[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
+	handler := NewHandler(store, fixedUser("user-1"))
+	for _, method := range []string{MethodGet, MethodHead} {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(method, "/caldav/calendars/user-1/work/event-1.ics", nil)
+			req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
+			req.Header.Set("If-None-Match", store.objects[0].ETag)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusPreconditionFailed {
+				t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandlerGetCalendarObjectIgnoresNonMatchingIfNoneMatch(t *testing.T) {
 	t.Parallel()
 

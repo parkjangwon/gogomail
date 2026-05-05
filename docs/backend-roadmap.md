@@ -2178,6 +2178,10 @@ Implementation order:
       requested byte length even when a provider returns an oversized
       `206 Partial Content` body, aligning remote range reads with local/NFS
       semantics for Drive, attachment, and IMAP partial-read callers.
+1073. CalDAV calendar object `GET` and `HEAD` now honor
+      `If-Unmodified-Since` before cache revalidation, returning HTTP 412 for
+      stale timestamp read preconditions instead of incorrectly falling through
+      to `If-None-Match` or `If-Modified-Since`.
 
 ## Deferred until backend contracts stabilize
 
