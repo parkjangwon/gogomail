@@ -177,6 +177,9 @@ guidance.
   PUT bodies without buffering the object in memory, improving compatibility
   for file-backed mail and attachment writes while preserving streaming-first
   storage paths.
+- S3-compatible deletes now treat `404 Not Found` as already-cleaned success,
+  aligning compatible-provider cleanup behavior with local/NFS idempotent
+  deletes.
 - S3-compatible secret access keys and session tokens now reject spaces, tabs,
   and line breaks during adapter construction, surfacing copied env/config
   credential mistakes before readiness probes or runtime PUT/GET requests fail

@@ -76,6 +76,9 @@ AWS S3, MinIO, and strict compatible providers.
 For file-backed or otherwise seekable upload bodies, gogomail sets a precise
 `Content-Length` without buffering the object in memory, improving PUT
 compatibility while preserving streaming-first storage paths.
+Deletes are idempotent for missing objects, including `404 Not Found` responses
+from compatible providers, so lifecycle cleanup behaves consistently across
+AWS S3, MinIO-style endpoints, and local/NFS storage.
 
 ## Integration verification
 
