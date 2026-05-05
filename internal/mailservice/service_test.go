@@ -834,6 +834,38 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		imapAppendResult: imapgw.AppendMessageResult{
+			Summary:     imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 44},
+			UIDValidity: 12,
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	got, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
+		UserID:    " user-1 ",
+		MailboxID: " inbox ",
+		Size:      11,
+		Body:      strings.NewReader("hello world"),
+	})
+	if err != nil {
+		t.Fatalf("AppendIMAPMessage returned error: %v", err)
+	}
+	if got.Summary.UID != 44 || got.UIDValidity != 12 {
+		t.Fatalf("append result = %#v, want repository result", got)
+	}
+	if repo.lastIMAPAppend.UserID != "user-1" || repo.lastIMAPAppend.MailboxID != "inbox" || repo.lastIMAPAppend.Size != 11 {
+		t.Fatalf("append request = %#v, want trimmed ids and size", repo.lastIMAPAppend)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 {
+		t.Fatalf("events = %#v, want exists event", events.events)
+	}
+}
+
 func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -1380,6 +1412,7 @@ type fakeRepository struct {
 	detail                         maildb.MessageDetail
 	imapMessage                    maildb.IMAPStoredMessage
 	imapFlagSummaries              []imapgw.MessageSummary
+	imapAppendResult               imapgw.AppendMessageResult
 	imapCopySummaries              []imapgw.MessageSummary
 	imapMoveSummaries              []imapgw.MessageSummary
 	imapExpungeSummaries           []imapgw.MessageSummary
@@ -1479,6 +1512,7 @@ type fakeRepository struct {
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
 	lastIMAPFlagUserID             string
 	lastIMAPFlagMailboxID          string
+	lastIMAPAppend                 imapgw.AppendMessageRequest
 	lastIMAPCopyUserID             string
 	lastIMAPCopySourceMailboxID    string
 	lastIMAPCopyDestMailboxID      string
@@ -1650,6 +1684,11 @@ func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailbo
 	f.lastIMAPFlags = flags
 	f.lastIMAPFlagMode = mode
 	return f.imapFlagSummaries, nil
+}
+
+func (f *fakeRepository) AppendIMAPMessage(_ context.Context, req imapgw.AppendMessageRequest) (imapgw.AppendMessageResult, error) {
+	f.lastIMAPAppend = req
+	return f.imapAppendResult, nil
 }
 
 func (f *fakeRepository) CopyIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {

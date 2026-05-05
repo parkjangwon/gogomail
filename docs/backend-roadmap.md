@@ -1081,6 +1081,11 @@ Implementation order:
      carrying UIDVALIDITY and the assigned message UID, allowing successful
      backend storage to emit `[APPENDUID uidvalidity uid]` as required for
      strong client synchronization.
+786. `mailservice` now routes IMAP `APPEND` through an append-capable
+     repository boundary when present, trims authenticated user/mailbox ids, and
+     publishes best-effort destination `EXISTS` events for successful append
+     results while preserving explicit unsupported responses for deployments
+     without repository-backed APPEND storage.
 
 ## Deferred until backend contracts stabilize
 

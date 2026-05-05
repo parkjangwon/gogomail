@@ -953,9 +953,11 @@ The platform hardening sprint completed the following:
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
   optional flag-list, optional internal date-time, literal body, and size after
   bounded literal framing. The boundary now returns UIDPLUS-ready append
-  metadata so successful storage can emit `[APPENDUID uidvalidity uid]`;
-  service-backed storage intentionally returns an explicit unsupported response
-  until the repository/storage append model is accepted.
+  metadata so successful storage can emit `[APPENDUID uidvalidity uid]`; the
+  service layer now delegates to an append-capable repository and publishes
+  best-effort destination `EXISTS` events, while deployments without that
+  repository/storage implementation still return an explicit unsupported
+  response.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
