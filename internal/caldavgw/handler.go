@@ -239,6 +239,10 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 		return
 	}
+	if objectModifiedSince(r.Header.Get("If-Unmodified-Since"), object.UpdatedAt) {
+		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
+		return
+	}
 	if ifNoneMatchMatches(r.Header.Get("If-None-Match"), object.ETag) {
 		writeCalendarObjectNotModifiedHeaders(w, object)
 		w.WriteHeader(http.StatusNotModified)

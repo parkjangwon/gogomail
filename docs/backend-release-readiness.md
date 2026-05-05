@@ -299,6 +299,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   requested byte length even if a compatible provider sends an oversized
   `206 Partial Content` body, aligning remote range reads with local/NFS
   adapter guarantees.
+- CalDAV calendar object `GET` and `HEAD` now honor `If-Unmodified-Since`
+  before ETag/date cache revalidation, returning HTTP 412 when timestamp
+  preconditions are stale.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
