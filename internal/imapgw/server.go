@@ -930,7 +930,7 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 			}
 			return imapSearchPredicateMatches(ctx, server, state, right, summary, index)
 		}, 1 + leftConsumed + rightConsumed, true
-	case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED", "DRAFT", "UNDRAFT":
+	case "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED", "DRAFT", "UNDRAFT", "DELETED", "UNDELETED":
 		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			return imapMessageMatchesFlagSearch(summary, criterion), nil
 		}, 1, true
@@ -1077,6 +1077,10 @@ func imapMessageMatchesFlagSearch(summary MessageSummary, criterion string) bool
 		return summary.Flags.Draft || strings.EqualFold(strings.TrimSpace(summary.Flags.Status), "draft")
 	case "UNDRAFT":
 		return !summary.Flags.Draft && !strings.EqualFold(strings.TrimSpace(summary.Flags.Status), "draft")
+	case "DELETED":
+		return false
+	case "UNDELETED":
+		return true
 	default:
 		return false
 	}
