@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP EXAMINE failure response handling)
+Last updated: 2026-05-05 (updated after IMAP UID subcommand error routing)
 
 ## Current phase
 
@@ -1106,6 +1106,10 @@ The platform hardening sprint completed the following:
 - IMAP `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
   `NO SELECT failed`, keeping tagged failure responses aligned with the command
   clients actually issued.
+- IMAP malformed `UID` subcommands now route to their specific handlers when
+  the subcommand is recognized, so incomplete `UID SEARCH`, `UID FETCH`,
+  `UID STORE`, `UID EXPUNGE`, and `UID COPY` requests receive precise tagged
+  `BAD` responses instead of a generic `UID command not implemented` failure.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response
