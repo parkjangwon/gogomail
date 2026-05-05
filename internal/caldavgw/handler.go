@@ -198,6 +198,10 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav calendar already exists", http.StatusMethodNotAllowed)
 		return
 	}
+	if _, err := ValidateCalendarPathID(resource.CalendarID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	req, err := ParseMKCalendar(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

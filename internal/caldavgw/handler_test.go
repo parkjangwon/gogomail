@@ -2,6 +2,7 @@ package caldavgw
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -935,6 +936,23 @@ func TestHandlerMkcalendarRejectsUnsafePathID(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarRejectsUnsafePathIDBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/not-a-uuid/", body)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
 func TestHandlerProppatchUpdatesCalendarCollectionProperties(t *testing.T) {
 	t.Parallel()
 
@@ -1207,6 +1225,22 @@ type fakeDiscoveryStore struct {
 	calendars []Calendar
 	objects   []CalendarObject
 	changes   []CalendarChange
+}
+
+type readTrackingReader struct {
+	data  string
+	reads int
+	pos   int
+}
+
+func (r *readTrackingReader) Read(p []byte) (int, error) {
+	r.reads++
+	if r.pos >= len(r.data) {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data[r.pos:])
+	r.pos += n
+	return n, nil
 }
 
 func newFakeDiscoveryStore() *fakeDiscoveryStore {
