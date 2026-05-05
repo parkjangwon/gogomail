@@ -100,6 +100,9 @@ func (c Config) Validate() error {
 	if c.DeliveryTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_TIMEOUT must be positive")
 	}
+	if strings.TrimSpace(c.DeliverySMTPHello) == "" || strings.ContainsAny(c.DeliverySMTPHello, " \t\r\n") {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_SMTP_HELLO must be a non-empty hostname without whitespace")
+	}
 	if c.SMTPMaxDKIMVerifications <= 0 {
 		return fmt.Errorf("GOGOMAIL_SMTP_MAX_DKIM_VERIFICATIONS must be positive")
 	}

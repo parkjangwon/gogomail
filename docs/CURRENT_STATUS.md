@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after OpenSearch index validation)
+Last updated: 2026-05-05 (updated after delivery SMTP hello validation)
 
 ## Current phase
 
@@ -703,6 +703,9 @@ The platform hardening sprint completed the following:
 - Delivery retry delay schedules and maximum delay caps are now validated as
   positive durations, preventing retry jobs from being exhausted accidentally
   or scheduled in the past by malformed runtime configuration.
+- `GOGOMAIL_DELIVERY_SMTP_HELLO` is now validated as a non-empty
+  whitespace-free hostname during startup config validation, surfacing outbound
+  SMTP EHLO configuration mistakes before delivery worker startup.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
   token, requires HTTPS in production, and is wired only at SMTP
