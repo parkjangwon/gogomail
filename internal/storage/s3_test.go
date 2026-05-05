@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -121,5 +122,69 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 	if err := store.Put(context.Background(), "../bad", strings.NewReader("bad")); err == nil {
 		t.Fatal("Put accepted unsafe object path")
+	}
+}
+
+func TestS3StoreIntegrationRoundTrip(t *testing.T) {
+	endpoint := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_ENDPOINT"))
+	bucket := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_BUCKET"))
+	accessKeyID := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_ACCESS_KEY_ID"))
+	secretAccessKey := os.Getenv("GOGOMAIL_TEST_S3_SECRET_ACCESS_KEY")
+	if endpoint == "" || bucket == "" || accessKeyID == "" || secretAccessKey == "" {
+		t.Skip("set GOGOMAIL_TEST_S3_ENDPOINT, GOGOMAIL_TEST_S3_BUCKET, GOGOMAIL_TEST_S3_ACCESS_KEY_ID, and GOGOMAIL_TEST_S3_SECRET_ACCESS_KEY to run S3-compatible storage integration coverage")
+	}
+
+	region := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_REGION"))
+	if region == "" {
+		region = "us-east-1"
+	}
+	prefix := strings.Trim(strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_PREFIX")), "/")
+	if prefix == "" {
+		prefix = "gogomail-test"
+	}
+	forcePathStyle := true
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_FORCE_PATH_STYLE")), "false") {
+		forcePathStyle = false
+	}
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        endpoint,
+		Region:          region,
+		Bucket:          bucket,
+		Prefix:          prefix,
+		AccessKeyID:     accessKeyID,
+		SecretAccessKey: secretAccessKey,
+		SessionToken:    os.Getenv("GOGOMAIL_TEST_S3_SESSION_TOKEN"),
+		ForcePathStyle:  forcePathStyle,
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	ctx := context.Background()
+	objectPath := "integration/" + strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().UTC().Format("20060102150405.000000000") + ".txt"
+	body := "gogomail s3 integration\n"
+	if err := store.Put(ctx, objectPath, strings.NewReader(body)); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	defer func() {
+		if err := store.Delete(ctx, objectPath); err != nil {
+			t.Fatalf("Delete cleanup returned error: %v", err)
+		}
+	}()
+
+	readCloser, err := store.Get(ctx, objectPath)
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	got, err := io.ReadAll(readCloser)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if err := readCloser.Close(); err != nil {
+		t.Fatalf("close body: %v", err)
+	}
+	if string(got) != body {
+		t.Fatalf("body = %q, want %q", got, body)
 	}
 }

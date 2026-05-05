@@ -748,6 +748,10 @@ Implementation order:
      adapter with endpoint, region, bucket, prefix, credential, session-token,
      and path-style settings, while preserving local filesystem/NFS storage as
      the default backend.
+678. Optional S3-compatible integration coverage can now exercise real
+     `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
+     `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables
+     are configured.
 
 ## Deferred until backend contracts stabilize
 

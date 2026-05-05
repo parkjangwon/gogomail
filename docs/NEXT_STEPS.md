@@ -32,8 +32,10 @@ Current state:
 
 Next:
 
-- Add optional integration coverage against MinIO or another S3-compatible test
-  endpoint before relying on S3 storage for production release gates.
+- Run optional integration coverage against MinIO or another S3-compatible test
+  endpoint by setting `GOGOMAIL_TEST_S3_ENDPOINT`,
+  `GOGOMAIL_TEST_S3_BUCKET`, `GOGOMAIL_TEST_S3_ACCESS_KEY_ID`, and
+  `GOGOMAIL_TEST_S3_SECRET_ACCESS_KEY`.
 
 ### 1. Hierarchical quota ledger
 
