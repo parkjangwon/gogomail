@@ -2029,6 +2029,8 @@ The platform hardening sprint completed the following:
 - Drive node listing now supports explicit `sort=name|updated|created|size`
   controls on both webmail and admin APIs while preserving folder-first
   ordering for production Drive browser ergonomics.
+- Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
+  inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
   permanent-delete cleanup, cleanup-failure retry, download, and copy paths now
   enforce that stored object keys remain under the owning user's

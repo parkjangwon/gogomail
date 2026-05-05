@@ -1989,6 +1989,9 @@ Implementation order:
 1031. Drive node list APIs now accept `sort=name|updated|created|size` for
       webmail and admin surfaces while preserving folder-first ordering,
       enabling production browser controls without frontend-specific coupling.
+1032. Admin Drive node listing now accepts `all_parents=true` for whole-user
+      Drive inventory search while rejecting ambiguous `parent_id` combinations,
+      giving operator consoles a single backend query for broad file lookup.
 
 ## Deferred until backend contracts stabilize
 

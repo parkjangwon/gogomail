@@ -77,12 +77,13 @@ type CreateFileFromObjectRequest struct {
 }
 
 type ListNodesRequest struct {
-	UserID   string
-	ParentID string
-	Status   string
-	Query    string
-	Sort     string
-	Limit    int
+	UserID     string
+	ParentID   string
+	Status     string
+	Query      string
+	Sort       string
+	AllParents bool
+	Limit      int
 }
 
 type GetUsageSummaryRequest struct {
@@ -261,14 +262,18 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 	if err != nil {
 		return ListNodesRequest{}, err
 	}
+	if req.AllParents && parentID != "" {
+		return ListNodesRequest{}, fmt.Errorf("parent_id cannot be combined with all_parents")
+	}
 	limit := normalizeDriveListLimit(req.Limit)
 	return ListNodesRequest{
-		UserID:   userID,
-		ParentID: parentID,
-		Status:   status,
-		Query:    query,
-		Sort:     sortMode,
-		Limit:    limit,
+		UserID:     userID,
+		ParentID:   parentID,
+		Status:     status,
+		Query:      query,
+		Sort:       sortMode,
+		AllParents: req.AllParents,
+		Limit:      limit,
 	}, nil
 }
 
@@ -525,12 +530,13 @@ WHERE user_id = $1::uuid
   AND status = $3
   AND ($5 = '' OR normalized_name LIKE '%' || $5 || '%' ESCAPE '\')
   AND (
-    (NULLIF($2, '') IS NULL AND parent_id IS NULL)
+    $6::boolean
+    OR (NULLIF($2, '') IS NULL AND parent_id IS NULL)
     OR parent_id = NULLIF($2, '')::uuid
   )
 ORDER BY ` + driveNodeListOrderBy(req.Sort) + `
 LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query))
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query), req.AllParents)
 	if err != nil {
 		return nil, fmt.Errorf("list drive nodes: %w", err)
 	}

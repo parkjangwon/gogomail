@@ -650,7 +650,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 		"GET /drive/upload-sessions":                           {"limit", "status"},
 		"GET /attachment-upload-sessions":                      {"limit", "user_id", "draft_id", "status"},
 		"GET /drive-upload-sessions":                           {"limit", "user_id", "status"},
-		"GET /drive-nodes":                                     {"limit", "user_id", "parent_id", "status", "q", "sort"},
+		"GET /drive-nodes":                                     {"limit", "user_id", "parent_id", "status", "q", "sort", "all_parents"},
 		"GET /drive-nodes/{id}":                                {"id", "user_id", "status"},
 		"GET /drive-usage":                                     {"user_id"},
 		"GET /drive-cleanup-failures":                          {"limit", "user_id", "status"},
