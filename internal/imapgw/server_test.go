@@ -1564,6 +1564,74 @@ func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	}
 }
 
+func TestServerNoopIncludesModSeqForCondstoreAwareSession(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &eventBackend{events: make(chan MailboxEvent, 2)}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 7 (MODSEQ)\r\n")); err != nil {
+		t.Fatalf("write uid fetch modseq: %v", err)
+	}
+	for _, expected := range []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 MODSEQ (17))\r\n",
+		"a3 OK UID FETCH completed\r\n",
+	} {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch modseq response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch modseq response = %q, want %q", line, expected)
+		}
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}
+	if _, err := client.Write([]byte("a4 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop: %v", err)
+	}
+	for _, expected := range []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) MODSEQ (17))\r\n",
+		"a4 OK NOOP completed\r\n",
+	} {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read noop response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("noop response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	t.Parallel()
 
@@ -3654,6 +3722,60 @@ func TestServerHandlesStoreAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerStoreIncludesModSeqForCondstoreAwareSession(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 7 (MODSEQ)\r\na4 UID STORE 7 +FLAGS (\\Seen)\r\n")); err != nil {
+		t.Fatalf("write uid fetch/store: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 MODSEQ (17))\r\n",
+		"a3 OK UID FETCH completed\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (27))\r\n",
+		"a4 OK UID STORE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch/store response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch/store response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStoreSilentAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -4427,7 +4549,7 @@ func testNestedMultipartBody() string {
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
 	summaries := make([]MessageSummary, 0, len(req.UIDs))
 	for _, uid := range req.UIDs {
-		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}})
+		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}, ModSeq: uint64(uid + 20)})
 	}
 	return summaries, nil
 }

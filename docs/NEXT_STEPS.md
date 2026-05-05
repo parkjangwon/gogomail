@@ -292,6 +292,9 @@ Current state:
 - `FETCH`/`UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE` modifiers,
   returning only messages with greater per-message mod-sequences and
   implicitly adding `MODSEQ` attributes.
+- Sessions now become CONDSTORE-aware after `FETCH MODSEQ`,
+  `FETCH CHANGEDSINCE`, `SEARCH MODSEQ`, or `STATUS HIGHESTMODSEQ`; subsequent
+  flag `FETCH` event/STORE echo responses include `MODSEQ`.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
