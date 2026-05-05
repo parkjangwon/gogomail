@@ -1303,6 +1303,10 @@ Implementation order:
 846. IMAP `SELECT` and `EXAMINE` now emit `[UIDNOTSTICKY]` when selected
      mailbox state marks UIDs as non-sticky, keeping UIDPLUS-adjacent clients
      aware of mailbox UID persistence guarantees.
+847. IMAP selected-state no-argument commands `CHECK`, `CLOSE`, `UNSELECT`,
+     and `EXPUNGE` now reject extra arguments with tagged `BAD` responses
+     instead of ignoring malformed input, protecting destructive expunge
+     handling from ambiguous client commands.
 
 ## Deferred until backend contracts stabilize
 

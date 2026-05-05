@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UIDNOTSTICKY selection metadata)
+Last updated: 2026-05-05 (updated after IMAP selected no-arg validation)
 
 ## Current phase
 
@@ -1117,6 +1117,10 @@ The platform hardening sprint completed the following:
   and `RENAME` now return tagged `[NONEXISTENT]` response codes instead of
   generic command failures, making absent folder state machine-readable for
   standards-aware clients.
+- IMAP selected-state no-argument commands `CHECK`, `CLOSE`, `UNSELECT`, and
+  `EXPUNGE` now reject extra arguments with tagged `BAD` responses instead of
+  ignoring malformed input; this prevents accidental destructive expunge work
+  from malformed `EXPUNGE` commands.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response
