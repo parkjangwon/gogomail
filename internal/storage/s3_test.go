@@ -201,6 +201,10 @@ func TestValidateS3EndpointRejectsAmbiguousTargets(t *testing.T) {
 		"http://access:secret@localhost:9000",
 		"http://localhost:9000?region=us-east-1",
 		"http://localhost:9000#bucket",
+		"http://localhost:9000//proxy",
+		"http://localhost:9000/proxy//s3",
+		"http://localhost:9000/proxy/../s3",
+		"http://localhost:9000/proxy/./s3",
 		"http://localhost:9000\nx",
 	} {
 		endpoint := endpoint
@@ -211,6 +215,18 @@ func TestValidateS3EndpointRejectsAmbiguousTargets(t *testing.T) {
 				t.Fatalf("ValidateS3Endpoint(%q) error = nil, want rejection", endpoint)
 			}
 		})
+	}
+}
+
+func TestValidateS3EndpointAcceptsCanonicalBasePath(t *testing.T) {
+	t.Parallel()
+
+	endpoint, err := ValidateS3Endpoint(" http://localhost:9000/proxy/s3/ ")
+	if err != nil {
+		t.Fatalf("ValidateS3Endpoint returned error: %v", err)
+	}
+	if endpoint.Scheme != "http" || endpoint.Host != "localhost:9000" || endpoint.Path != "/proxy/s3/" {
+		t.Fatalf("endpoint = %s", endpoint.String())
 	}
 }
 
