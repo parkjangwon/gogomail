@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP sequence-set bounds enforcement)
+Last updated: 2026-05-05 (updated after IMAP quoted-string parse hardening)
 
 ## Current phase
 
@@ -201,6 +201,9 @@ guidance.
 - IMAP message sequence sets now explicitly reject sequence numbers above the
   selected mailbox size with tagged `BAD` responses, preserving RFC 3501 bounds
   behavior for `FETCH`, `STORE`, `COPY`, and `MOVE` sequence arguments.
+- IMAP quoted-string parsing now rejects adjacent tokens after a closing quote
+  and unsupported backslash escapes before authentication or backend work,
+  keeping command tokenization aligned with RFC 3501 quoted-special handling.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -82,6 +82,9 @@ Current state:
   or unbalanced flag lists instead of silently trimming stray parentheses.
 - IMAP message sequence sets reject numbers above the selected mailbox size
   with tagged `BAD` responses, preserving RFC 3501 bounds behavior.
+- IMAP quoted-string parsing rejects adjacent tokens after a closing quote and
+  unsupported backslash escapes before authentication or backend work, keeping
+  command tokenization aligned with RFC 3501 quoted-special handling.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

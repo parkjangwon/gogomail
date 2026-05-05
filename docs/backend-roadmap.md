@@ -1449,6 +1449,9 @@ Implementation order:
 885. S3-compatible deletes now treat `404 Not Found` as already-cleaned
      success, aligning compatible-provider lifecycle cleanup with local/NFS
      idempotent delete semantics.
+886. IMAP quoted-string parsing now rejects adjacent tokens after a closing
+     quote and unsupported backslash escapes before authentication or backend
+     work, aligning command tokenization with RFC 3501 quoted-special handling.
 
 ## Deferred until backend contracts stabilize
 

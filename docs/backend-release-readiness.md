@@ -130,6 +130,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP message sequence sets reject values above the selected mailbox size with
   tagged `BAD` responses, preserving RFC 3501 bounds behavior for sequence
   arguments.
+- IMAP quoted-string parsing rejects adjacent tokens after a closing quote and
+  unsupported backslash escapes before authentication or backend work, keeping
+  command tokenization aligned with RFC 3501 quoted-special handling.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
