@@ -825,6 +825,8 @@ The platform hardening sprint completed the following:
 - IMAP `FETCH`/`UID FETCH` can stream text-only literals for `BODY[TEXT]`,
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
+- IMAP non-UID `STORE` accepts bounded sequence sets/ranges and maps them to
+  the same service-backed flag mutation boundary as `UID STORE`.
 - IMAP `NOOP` drains queued selected-mailbox events into untagged `EXISTS` and
   flag `FETCH` updates.
 - IMAP advertises and accepts `IDLE`, entering continuation mode and streaming
