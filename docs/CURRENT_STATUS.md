@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Local/NFS write cancellation hardening)
+Last updated: 2026-05-05 (updated after webmail capability bootstrap API)
 
 ## Current phase
 
@@ -75,6 +75,10 @@ guidance.
 - Mail APIs for folders, messages, flags, bulk operations, drafts, send, and
   attachments, cursor-paginated thread lists/thread messages and draft search,
   plus user-scoped sent-message delivery/bounce status.
+- Mail API exposes `GET /api/v1/webmail/capabilities` so a production webmail
+  frontend can discover backend contract version, active/planned modules, list
+  limits, supported message flags, bulk-action bounds, compose/search/thread,
+  attachment, and push-device capabilities without hard-coding server limits.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

@@ -203,11 +203,37 @@ func TestOpenAPIDraftDocumentsAttachmentUploadLimits(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsWebmailCapabilityLimits(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	block := extractOpenAPIComponentBlock(t, string(raw), "schemas", "WebmailCapabilities")
+	for _, want := range []string{
+		"maximum: " + strconv.Itoa(maildb.MessageListMaxLimit),
+		"maximum: " + strconv.Itoa(maildb.BulkMessageMaxIDs),
+		"maximum: " + strconv.Itoa(mailservice.MaxComposeRecipients),
+		"maximum: " + strconv.Itoa(mailservice.MaxComposeSubjectBytes),
+		"maximum: " + strconv.Itoa(mailservice.MaxComposeTextBodyBytes),
+		"maximum: " + strconv.Itoa(mailservice.MaxComposeAttachments),
+		"enum: [new, reply, forward]",
+		"enum: [available]",
+		"enum: [planned]",
+	} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("WebmailCapabilities schema must document %q", want)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	t.Parallel()
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, responseRef := range map[string]string{
+		"GET /webmail/capabilities":                                  "#/components/responses/WebmailCapabilities",
 		"GET /folders":                                               "#/components/responses/FolderList",
 		"POST /folders":                                              "#/components/responses/Folder",
 		"PATCH /folders/{id}":                                        "#/components/responses/Folder",
@@ -795,6 +821,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 	}
 	draft := string(raw)
 	for schema, key := range map[string]string{
+		"WebmailCapabilitiesEnvelope":                         "webmail_capabilities",
 		"FolderListEnvelope":                                  "folders",
 		"FolderEnvelope":                                      "folder",
 		"MessageListPageEnvelope":                             "messages",
@@ -933,6 +960,7 @@ func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for _, route := range []string{
+		"GET /webmail/capabilities",
 		"GET /folders",
 		"POST /folders",
 		"PATCH /folders/{id}",

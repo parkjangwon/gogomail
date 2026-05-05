@@ -52,6 +52,7 @@ Successful collection responses keep a stable top-level plural key:
 Successful resource responses keep a stable singular key:
 
 - `{"message":{...}}`
+- `{"webmail_capabilities":{...}}`
 - `{"delivery_status":{...}}`
 - `{"draft":{...}}`
 - `{"attachment":{...}}`
@@ -133,6 +134,20 @@ including health and service-info envelopes, also return
 - Domain and user lifecycle status mutations persist `domain.status_update` and
   `user.status_update` admin audit rows with bounded JSON detail in the same
   database transaction as the status change.
+
+## Webmail capability bootstrap
+
+`GET /api/v1/webmail/capabilities` is the authenticated/fallback-user bootstrap
+surface for future production webmail clients. It returns
+`{"webmail_capabilities":{...}}` with the backend contract version, available
+mail module, planned Drive module marker, list pagination cap, supported
+message flags, bulk-action max item count, folder/thread/draft support,
+compose limits and intents, search controls, attachment upload capabilities,
+and push-device platforms.
+
+Clients should use this endpoint to enable controls and validate local form
+limits instead of copying backend constants into the frontend. The route is a
+read-only capability surface and does not dispatch repository work.
 
 ## Pagination
 

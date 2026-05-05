@@ -143,6 +143,13 @@ func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
 		dispatched func(*fakeMessageService) bool
 	}{
 		{
+			name: "webmail capabilities",
+			path: "/api/v1/webmail/capabilities?user_id=user-1&deep=true",
+			dispatched: func(service *fakeMessageService) bool {
+				return service.lastUserID != ""
+			},
+		},
+		{
 			name: "folders",
 			path: "/api/v1/folders?user_id=user-1&typo=true",
 			dispatched: func(service *fakeMessageService) bool {
@@ -247,6 +254,48 @@ func TestMailReadHandlersRejectUnknownQueryParameters(t *testing.T) {
 				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
 			}
 		})
+	}
+}
+
+func TestWebmailCapabilitiesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/webmail/capabilities?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body webmailCapabilitiesEnvelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	got := body.WebmailCapabilities
+	if got.ContractVersion != BackendContractVersion {
+		t.Fatalf("contract version = %q, want %q", got.ContractVersion, BackendContractVersion)
+	}
+	if got.Modules["mail"] != "available" || got.Modules["drive"] != "planned" {
+		t.Fatalf("modules = %#v", got.Modules)
+	}
+	if got.MaxListLimit != maildb.MessageListMaxLimit {
+		t.Fatalf("max list limit = %d, want %d", got.MaxListLimit, maildb.MessageListMaxLimit)
+	}
+	if got.BulkActions.MaxMessageIDs != maildb.BulkMessageMaxIDs || !got.BulkActions.Flags || !got.BulkActions.Move || !got.BulkActions.Delete {
+		t.Fatalf("bulk actions = %#v", got.BulkActions)
+	}
+	if got.Compose.MaxRecipients != mailservice.MaxComposeRecipients || got.Compose.MaxAttachmentIDs != mailservice.MaxComposeAttachments {
+		t.Fatalf("compose caps = %#v", got.Compose)
+	}
+	if !got.Attachments.UploadSessions || got.Attachments.MaxAttachmentBytes != mailservice.MaxAttachmentUploadBytes {
+		t.Fatalf("attachment caps = %#v", got.Attachments)
+	}
+	if service.lastUserID != "" {
+		t.Fatalf("capability read should not dispatch service calls, lastUserID = %q", service.lastUserID)
 	}
 }
 

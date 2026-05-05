@@ -5,6 +5,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 ## Ready or materially advanced
 
 - Mail API exposes folder list/create/rename/delete, message list/detail, move/delete, flag updates, attachment list/download, draft save/update/delete, direct send, and draft send.
+- Mail API exposes `GET /api/v1/webmail/capabilities` so production webmail
+  clients can discover backend contract version, available/planned modules,
+  supported flags/actions, and compose/search/attachment/push limits without
+  hard-coded frontend constants.
 - Mail API exposes cursor-paginated thread list and thread-message read models for conversation-style webmail rendering, and draft search uses the same opaque cursor envelope for compose-scale draft lists.
 - `gogomail --mode=all-in-one` registers Mail API and Admin API routes in the
   same HTTP process for small-deployment and local release smoke coverage.
