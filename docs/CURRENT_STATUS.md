@@ -847,6 +847,8 @@ The platform hardening sprint completed the following:
   as `LIST`.
 - IMAP accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox existence
   checks while persistent subscription storage remains future work.
+- IMAP advertises and supports `ID`, returning a bounded gogomail server
+  identity response.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
