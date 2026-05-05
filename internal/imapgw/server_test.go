@@ -5992,6 +5992,87 @@ func TestServerHandlesMessageRFC822NestedMultipartPartFetch(t *testing.T) {
 	}
 }
 
+func TestServerHandlesMalformedMessageRFC822SectionFetch(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 16 BODY.PEEK[1.HEADER]\r\n")); err != nil {
+		t.Fatalf("write uid fetch malformed message header: %v", err)
+	}
+	bodySize := len(testMalformedMessageRFC822Body())
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read malformed message header literal header: %v", err)
+	}
+	wantPrefix := fmt.Sprintf("* 10 FETCH (UID 16 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.HEADER] {2}\r\n", bodySize)
+	if line != wantPrefix {
+		t.Fatalf("malformed message header literal header = %q, want %q", line, wantPrefix)
+	}
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(reader, header); err != nil {
+		t.Fatalf("read malformed message header literal: %v", err)
+	}
+	if string(header) != "\r\n" {
+		t.Fatalf("malformed message header literal = %q", header)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("malformed message header close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("malformed message header completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 UID FETCH 16 BODY.PEEK[1.TEXT]\r\n")); err != nil {
+		t.Fatalf("write uid fetch malformed message text: %v", err)
+	}
+	textLiteral := "not a header line\r\nstill raw"
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read malformed message text literal header: %v", err)
+	}
+	wantPrefix = fmt.Sprintf("* 10 FETCH (UID 16 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.TEXT] {%d}\r\n", bodySize, len(textLiteral))
+	if line != wantPrefix {
+		t.Fatalf("malformed message text literal header = %q, want %q", line, wantPrefix)
+	}
+	text := make([]byte, len(textLiteral))
+	if _, err := io.ReadFull(reader, text); err != nil {
+		t.Fatalf("read malformed message text literal: %v", err)
+	}
+	if string(text) != textLiteral {
+		t.Fatalf("malformed message text literal = %q, want %q", text, textLiteral)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("malformed message text close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("malformed message text completion = %q err = %v", line, err)
+	}
+}
+
 func TestServerHandlesMultipartMessageRFC822SectionFetch(t *testing.T) {
 	t.Parallel()
 
@@ -6609,6 +6690,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		body = testMessageRFC822NestedMultipartBody()
 		size = int64(len(body))
 	}
+	if req.UID == 16 {
+		body = testMalformedMessageRFC822Body()
+		size = int64(len(body))
+	}
 	return Message{
 		Summary: MessageSummary{
 			ID:             "message-1",
@@ -6720,6 +6805,15 @@ func testMessageRFC822NestedMultipartBody() string {
 		"<b>html</b>",
 		"--nested-alt--",
 		"",
+	}, "\r\n")
+}
+
+func testMalformedMessageRFC822Body() string {
+	return strings.Join([]string{
+		"Content-Type: message/rfc822",
+		"",
+		"not a header line",
+		"still raw",
 	}, "\r\n")
 }
 

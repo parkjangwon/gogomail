@@ -3926,8 +3926,8 @@ func readIMAPMIMEPartLiteral(reader io.Reader, req imapMIMEPartRequest) ([]byte,
 			return literal, true, nil
 		}
 		if req.messageSection != "" && len(req.path) == 1 && req.path[0] == 1 && mediaType == "message/rfc822" {
-			literal, err := readIMAPMessageSectionLiteral(message.Body, req)
-			if err != nil {
+			literal, found, err := readIMAPMIMEPartLiteralFromMessage(message.Body, nil, req)
+			if err != nil || !found {
 				return nil, false, err
 			}
 			if req.partial.count > 0 {
@@ -3990,8 +3990,8 @@ func readIMAPMIMEPartLiteralFromMultipart(reader *multipart.Reader, path []int, 
 				if err != nil || strings.ToLower(mediaType) != "message/rfc822" {
 					return nil, false, nil
 				}
-				literal, err := readIMAPMessageSectionLiteral(part, req)
-				if err != nil {
+				literal, found, err := readIMAPMIMEPartLiteralFromMessage(part, nil, req)
+				if err != nil || !found {
 					return nil, false, err
 				}
 				return literal, true, nil
@@ -4025,19 +4025,22 @@ func readIMAPMIMEPartLiteralFromMultipart(reader *multipart.Reader, path []int, 
 }
 
 func readIMAPMIMEPartLiteralFromMessage(reader io.Reader, path []int, req imapMIMEPartRequest) ([]byte, bool, error) {
-	message, err := stdmail.ReadMessage(reader)
+	data, err := io.ReadAll(io.LimitReader(reader, maxIMAPSearchLiteralBytes+1))
 	if err != nil {
-		return nil, false, nil
+		return nil, false, err
+	}
+	if len(data) > maxIMAPSearchLiteralBytes {
+		return nil, false, fmt.Errorf("imap message/rfc822 literal exceeds limit")
 	}
 	if req.messageSection != "" {
 		if len(path) != 0 {
 			return nil, false, nil
 		}
-		literal, err := readIMAPMessageSectionLiteral(message.Body, req)
-		if err != nil {
-			return nil, false, err
-		}
-		return literal, true, nil
+		return readIMAPRawMessageSectionLiteral(data, req), true, nil
+	}
+	message, err := stdmail.ReadMessage(bytes.NewReader(data))
+	if err != nil {
+		return readIMAPMalformedMessageLiteral(data, path, req)
 	}
 	if len(path) == 0 {
 		return nil, false, nil
@@ -4065,6 +4068,43 @@ func readIMAPMIMEPartLiteralFromMessage(reader io.Reader, path []int, req imapMI
 		return nil, false, nil
 	}
 	return readIMAPMIMEPartLiteralFromMultipart(multipart.NewReader(message.Body, boundary), path, imapMIMEPartRequest{mime: req.mime})
+}
+
+func readIMAPRawMessageSectionLiteral(data []byte, req imapMIMEPartRequest) []byte {
+	end := imapHeaderEnd(data)
+	if end < 0 {
+		if req.messageSection == "TEXT" {
+			return data
+		}
+		return []byte("\r\n")
+	}
+	if req.messageSection == "TEXT" {
+		return data[end:]
+	}
+	header := data[:end]
+	if len(req.messageHeaderFields) > 0 {
+		header = filterIMAPHeaderFields(header, req.messageHeaderFields, req.messageHeaderNot)
+	}
+	return header
+}
+
+func readIMAPMalformedMessageLiteral(data []byte, path []int, req imapMIMEPartRequest) ([]byte, bool, error) {
+	if req.messageSection != "" {
+		if len(path) != 0 {
+			return nil, false, nil
+		}
+		if req.messageSection == "TEXT" {
+			return data, true, nil
+		}
+		return []byte("\r\n"), true, nil
+	}
+	if len(path) == 1 && path[0] == 1 {
+		if req.mime {
+			return []byte("\r\n"), true, nil
+		}
+		return data, true, nil
+	}
+	return nil, false, nil
 }
 
 func readIMAPMessageSectionLiteral(reader io.Reader, req imapMIMEPartRequest) ([]byte, error) {
