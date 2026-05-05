@@ -22,6 +22,7 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 		imapMailboxes:        []imapgw.Mailbox{{ID: "inbox", Name: "INBOX"}},
 		imapMessages:         []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12}},
 		imapFlagSummaries:    []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12}},
+		imapAppendResult:     imapgw.AppendMessageResult{Summary: imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 13}, UIDValidity: 1},
 		imapMoveSummaries:    []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
 		imapMessage:          maildb.IMAPStoredMessage{Summary: imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12}, StoragePath: "messages/msg-1.eml"},
 		imapExpungeSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
@@ -57,6 +58,9 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 	}
 	if summaries, err := adapter.StoreFlags(context.Background(), imapgw.StoreFlagsRequest{UserID: "user-1", MailboxID: "inbox", UIDs: []imapgw.UID{12}, Flags: imapgw.MessageFlags{Read: true}, Mode: imapgw.StoreFlagsAdd}); err != nil || len(summaries) != 1 {
 		t.Fatalf("StoreFlags = %#v, %v", summaries, err)
+	}
+	if result, err := adapter.AppendMessage(context.Background(), imapgw.AppendMessageRequest{UserID: "user-1", MailboxID: "inbox", Size: 11, Body: strings.NewReader("hello world")}); err != nil || result.Summary.UID != 13 {
+		t.Fatalf("AppendMessage = %#v, %v", result, err)
 	}
 	if summaries, err := adapter.MoveMessages(context.Background(), imapgw.MoveMessagesRequest{UserID: "user-1", SourceMailboxID: "inbox", DestMailboxID: "archive", UIDs: []imapgw.UID{12}}); err != nil || len(summaries) != 1 {
 		t.Fatalf("MoveMessages = %#v, %v", summaries, err)
