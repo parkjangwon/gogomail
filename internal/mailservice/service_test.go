@@ -608,6 +608,45 @@ func TestSubscribeIMAPMailboxUsesEventBroker(t *testing.T) {
 	}
 }
 
+func TestIMAPStoreAdapterSelectsMailboxState(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapMailboxes: []imapgw.Mailbox{{ID: "inbox", Name: "INBOX", UIDValidity: 42, UIDNext: 99}},
+	}
+	adapter := NewIMAPStoreAdapter(New(repo, nil))
+
+	state, err := adapter.SelectMailbox(context.Background(), imapgw.SelectMailboxRequest{
+		UserID:    " user-1 ",
+		MailboxID: " inbox ",
+	})
+	if err != nil {
+		t.Fatalf("SelectMailbox returned error: %v", err)
+	}
+	if state.ID != "inbox" || state.UIDValidity != 42 || state.UIDNext != 99 {
+		t.Fatalf("state = %#v, want mailbox UID state", state)
+	}
+	if repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" {
+		t.Fatalf("select ids = %q/%q", repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
+	}
+	wantFlags := []string{imapgw.FlagSeen, imapgw.FlagFlagged, imapgw.FlagAnswered, imapgw.FlagDraft}
+	if strings.Join(state.PermanentFlags, ",") != strings.Join(wantFlags, ",") {
+		t.Fatalf("PermanentFlags = %#v, want %#v", state.PermanentFlags, wantFlags)
+	}
+}
+
+func TestIMAPStoreAdapterRejectsDeferredMailboxMutations(t *testing.T) {
+	t.Parallel()
+
+	adapter := NewIMAPStoreAdapter(New(&fakeRepository{}, nil))
+	if _, err := adapter.MoveMessages(context.Background(), imapgw.MoveMessagesRequest{}); !errors.Is(err, imapgw.ErrUnsupportedMailboxMutation) {
+		t.Fatalf("MoveMessages error = %v, want unsupported mutation", err)
+	}
+	if _, err := adapter.Expunge(context.Background(), imapgw.ExpungeRequest{}); !errors.Is(err, imapgw.ErrUnsupportedMailboxMutation) {
+		t.Fatalf("Expunge error = %v, want unsupported mutation", err)
+	}
+}
+
 func TestBackfillIMAPMailboxUIDsDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
