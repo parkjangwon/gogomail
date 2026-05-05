@@ -180,6 +180,7 @@ type ReportRequest struct {
 	SyncLevel  string
 	Limit      int
 	TimeRange  *TimeRange
+	TimeRanges int
 	HasFilter  bool
 }
 
@@ -266,6 +267,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				if err != nil {
 					return ReportRequest{}, err
 				}
+				req.TimeRanges++
 				req.TimeRange = &timeRange
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
@@ -299,6 +301,9 @@ func validateReportRequest(req ReportRequest) error {
 	case ReportFreeBusyQuery:
 		if req.TimeRange == nil {
 			return fmt.Errorf("free-busy-query REPORT requires a time-range")
+		}
+		if req.TimeRanges != 1 {
+			return fmt.Errorf("free-busy-query REPORT requires exactly one time-range")
 		}
 	case ReportSyncCollection:
 		if req.SyncLevel == "" {

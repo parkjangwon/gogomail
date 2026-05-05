@@ -252,6 +252,10 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if report.Kind == ReportFreeBusyQuery {
+		h.serveFreeBusyReport(w, r, userID, resource, report)
+		return
+	}
 	responses, err := h.reportResponses(r.Context(), userID, resource, report)
 	if err != nil {
 		var invalidSyncToken InvalidSyncTokenError
@@ -342,6 +346,37 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusMultiStatus)
+	_, _ = w.Write(body)
+}
+
+func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath, report ReportRequest) {
+	if resource.Kind != ResourceCalendarCollection {
+		http.Error(w, "free-busy-query requires a calendar collection resource", http.StatusForbidden)
+		return
+	}
+	if report.TimeRange == nil {
+		http.Error(w, "free-busy-query requires a time-range", http.StatusBadRequest)
+		return
+	}
+	depth, err := ParseDepth(r.Header.Get("Depth"), DepthZero)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if depth == DepthInfinity {
+		http.Error(w, "Depth: infinity is not supported for free-busy-query", http.StatusForbidden)
+		return
+	}
+	body, err := h.freeBusyCalendar(r.Context(), userID, resource, *report.TimeRange, depth == DepthOne)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }
 
@@ -520,6 +555,28 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, nil
+}
+
+func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource ResourcePath, timeRange TimeRange, includeChildren bool) ([]byte, error) {
+	if _, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID); err != nil {
+		return nil, err
+	}
+	if !includeChildren {
+		return BuildFreeBusyCalendar(userID, resource.CalendarID, timeRange, nil)
+	}
+	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	if err != nil {
+		return nil, err
+	}
+	var periods []BusyPeriod
+	for _, object := range objects {
+		objectPeriods, err := CalendarObjectBusyPeriods(object.ICS, timeRange)
+		if err != nil {
+			return nil, err
+		}
+		periods = append(periods, objectPeriods...)
+	}
+	return BuildFreeBusyCalendar(userID, resource.CalendarID, timeRange, periods)
 }
 
 func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
