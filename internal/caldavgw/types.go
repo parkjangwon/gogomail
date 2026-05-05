@@ -83,6 +83,17 @@ type CalendarObject struct {
 	UpdatedAt  time.Time
 }
 
+type CalendarChange struct {
+	ID         int64
+	UserID     string
+	CalendarID string
+	ObjectName string
+	ETag       string
+	Action     string
+	SyncToken  string
+	ChangedAt  time.Time
+}
+
 type Store interface {
 	GetPrincipal(userID string) (Principal, error)
 	ListCalendars(userID string) ([]Calendar, error)

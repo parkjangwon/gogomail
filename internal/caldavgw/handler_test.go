@@ -276,6 +276,41 @@ func TestHandlerReportSyncCollectionRejectsStaleToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionReturnsDeletedObjectTombstone(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	if _, err := store.DeleteObject(context.Background(), DeleteObjectRequest{
+		UserID:     "user-1",
+		CalendarID: "work",
+		ObjectName: "event-1.ics",
+	}); err != nil {
+		t.Fatalf("DeleteObject setup failed: %v", err)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>",
+		"<D:status>HTTP/1.1 404 Not Found</D:status>",
+		"<D:sync-token>sync-",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("sync tombstone response missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsTruncatingLimit(t *testing.T) {
 	t.Parallel()
 
@@ -631,6 +666,7 @@ type fakeDiscoveryStore struct {
 	principal Principal
 	calendars []Calendar
 	objects   []CalendarObject
+	changes   []CalendarChange
 }
 
 func newFakeDiscoveryStore() *fakeDiscoveryStore {
@@ -664,6 +700,14 @@ func newFakeDiscoveryStore() *fakeDiscoveryStore {
 			ICS:        eventICS,
 			CreatedAt:  now,
 			UpdatedAt:  now,
+		}},
+		changes: []CalendarChange{{
+			ID:         1,
+			UserID:     "user-1",
+			CalendarID: "work",
+			SyncToken:  "sync-calendar",
+			Action:     "collection-created",
+			ChangedAt:  now,
 		}},
 	}
 }
@@ -733,10 +777,12 @@ func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectReq
 			object.ID = existing.ID
 			object.CreatedAt = existing.CreatedAt
 			s.objects[i] = object
+			s.recordChange(validated.UserID, validated.CalendarID, "object-upserted", validated.ObjectName, etag)
 			return object, nil
 		}
 	}
 	s.objects = append(s.objects, object)
+	s.recordChange(validated.UserID, validated.CalendarID, "object-upserted", validated.ObjectName, etag)
 	return object, nil
 }
 
@@ -773,6 +819,7 @@ func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectReq
 	for i, object := range s.objects {
 		if object.UserID == validated.UserID && object.CalendarID == validated.CalendarID && object.ObjectName == validated.ObjectName {
 			s.objects = append(s.objects[:i], s.objects[i+1:]...)
+			s.recordChange(validated.UserID, validated.CalendarID, "object-deleted", validated.ObjectName, object.ETag)
 			return object, nil
 		}
 	}
@@ -795,10 +842,59 @@ func (s *fakeDiscoveryStore) DeleteCalendar(_ context.Context, req DeleteCalenda
 				objects = append(objects, object)
 			}
 			s.objects = objects
+			s.recordChange(validated.UserID, validated.CalendarID, "collection-deleted", "", "")
 			return calendar, nil
 		}
 	}
 	return Calendar{}, errFakeNotFound
+}
+
+func (s *fakeDiscoveryStore) ListCalendarChangesSince(_ context.Context, req ListChangesSinceRequest) ([]CalendarChange, error) {
+	validated, err := ValidateListChangesSinceRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	marker := int64(0)
+	for _, change := range s.changes {
+		if change.UserID == validated.UserID && change.CalendarID == validated.CalendarID && change.SyncToken == validated.SyncToken {
+			marker = change.ID
+			break
+		}
+	}
+	if marker == 0 {
+		return nil, InvalidSyncTokenError{Token: validated.SyncToken}
+	}
+	var changes []CalendarChange
+	for _, change := range s.changes {
+		if change.UserID == validated.UserID && change.CalendarID == validated.CalendarID && change.ID > marker {
+			changes = append(changes, change)
+		}
+	}
+	if validated.Limit < len(changes) {
+		changes = changes[:validated.Limit]
+	}
+	return changes, nil
+}
+
+func (s *fakeDiscoveryStore) recordChange(userID string, calendarID string, action string, objectName string, etag string) {
+	token := CalendarSyncToken(userID, calendarID, action, objectName, etag, time.Now().UTC().Format(time.RFC3339Nano))
+	for i := range s.calendars {
+		if s.calendars[i].UserID == userID && s.calendars[i].ID == calendarID {
+			s.calendars[i].SyncToken = token
+			s.calendars[i].UpdatedAt = time.Now()
+			break
+		}
+	}
+	s.changes = append(s.changes, CalendarChange{
+		ID:         int64(len(s.changes) + 1),
+		UserID:     userID,
+		CalendarID: calendarID,
+		ObjectName: objectName,
+		ETag:       etag,
+		Action:     action,
+		SyncToken:  token,
+		ChangedAt:  time.Now(),
+	})
 }
 
 type fakeNotFoundError struct{}

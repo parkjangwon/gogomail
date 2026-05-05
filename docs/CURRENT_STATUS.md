@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV calendar collection delete)
+Last updated: 2026-05-06 (updated after CalDAV sync change log)
 
 ## Current phase
 
@@ -2140,6 +2140,14 @@ The platform hardening sprint completed the following:
   transaction while rejecting calendar-home or cross-user deletes. Durable
   tombstone/change-log support is still needed before incremental sync can
   report collection/object deletions to stale-token clients.
+- CalDAV now has a durable calendar sync-change table for RFC 6578-style
+  `sync-collection` deltas. Calendar create/upsert/delete paths record sync
+  markers in the same transaction as object mutations, migrated calendars get a
+  baseline marker on first object change, stale-but-known sync tokens can return
+  changed object properties or response-level `404 Not Found` tombstones, and
+  unknown tokens still fail with DAV `valid-sync-token`. Collection-deletion
+  sync for already-deleted collections and long-history retention policy remain
+  future work.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

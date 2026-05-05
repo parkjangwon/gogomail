@@ -249,6 +249,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   one repository transaction to soft-delete the collection and active children
   while forbidding calendar-home and cross-user deletes. Deletion tombstones for
   incremental sync remain incomplete.
+- CalDAV now persists sync-change rows for calendar creation and object
+  upsert/delete mutations, and `REPORT sync-collection` can return
+  stale-but-known object updates plus response-level 404 tombstones. Unknown
+  tokens still produce DAV `valid-sync-token`; collection-deletion deltas and
+  sync retention policy remain incomplete.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

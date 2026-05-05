@@ -79,6 +79,13 @@ type DeleteCalendarRequest struct {
 	CalendarID string
 }
 
+type ListChangesSinceRequest struct {
+	UserID     string
+	CalendarID string
+	SyncToken  string
+	Limit      int
+}
+
 func (r *Repository) CreateCalendar(ctx context.Context, req CreateCalendarRequest) (Calendar, error) {
 	if r == nil || r.db == nil {
 		return Calendar{}, fmt.Errorf("database handle is required")
@@ -87,6 +94,11 @@ func (r *Repository) CreateCalendar(ctx context.Context, req CreateCalendarReque
 	if err != nil {
 		return Calendar{}, err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Calendar{}, fmt.Errorf("begin CalDAV calendar create: %w", err)
+	}
+	defer tx.Rollback()
 	const query = `
 WITH active_user AS (
   SELECT u.id AS user_id, d.id AS domain_id, c.id AS company_id
@@ -105,7 +117,7 @@ SELECT company_id, domain_id, user_id, $2, $3, $4, $5, $6
 FROM active_user
 RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
 	var calendar Calendar
-	err = r.db.QueryRowContext(ctx, query,
+	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
 		req.Name,
 		normalizedName,
@@ -128,6 +140,12 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 		}
 		return Calendar{}, fmt.Errorf("create CalDAV calendar: %w", err)
 	}
+	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
+		return Calendar{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Calendar{}, fmt.Errorf("commit CalDAV calendar create: %w", err)
+	}
 	return calendar, nil
 }
 
@@ -139,6 +157,11 @@ func (r *Repository) CreateCalendarAtPath(ctx context.Context, req CreateCalenda
 	if err != nil {
 		return Calendar{}, err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Calendar{}, fmt.Errorf("begin CalDAV calendar create: %w", err)
+	}
+	defer tx.Rollback()
 	const query = `
 WITH active_user AS (
   SELECT u.id AS user_id, d.id AS domain_id, c.id AS company_id
@@ -157,7 +180,7 @@ SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7
 FROM active_user
 RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
 	var calendar Calendar
-	err = r.db.QueryRowContext(ctx, query,
+	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
 		req.CalendarID,
 		req.Name,
@@ -180,6 +203,12 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 			return Calendar{}, fmt.Errorf("active user not found")
 		}
 		return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
+	}
+	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
+		return Calendar{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Calendar{}, fmt.Errorf("commit CalDAV calendar create: %w", err)
 	}
 	return calendar, nil
 }
@@ -268,6 +297,9 @@ func (r *Repository) UpsertObject(ctx context.Context, req UpsertObjectRequest) 
 	if err := lockActiveCalendar(ctx, tx, req.UserID, req.CalendarID); err != nil {
 		return CalendarObject{}, err
 	}
+	if err := ensureCalendarSyncMarker(ctx, tx, req.UserID, req.CalendarID); err != nil {
+		return CalendarObject{}, err
+	}
 	if req.ObservedETag != "" {
 		if err := ensureObjectETag(ctx, tx, req.UserID, req.CalendarID, req.ObjectName, req.ObservedETag); err != nil {
 			return CalendarObject{}, err
@@ -312,6 +344,9 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, si
 		return CalendarObject{}, fmt.Errorf("upsert CalDAV object: %w", err)
 	}
 	if err := updateCalendarSyncToken(ctx, tx, req.UserID, req.CalendarID, syncToken); err != nil {
+		return CalendarObject{}, err
+	}
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "object-upserted", req.ObjectName, etag); err != nil {
 		return CalendarObject{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -408,6 +443,9 @@ func (r *Repository) DeleteObject(ctx context.Context, req DeleteObjectRequest) 
 	if err := lockActiveCalendar(ctx, tx, req.UserID, req.CalendarID); err != nil {
 		return CalendarObject{}, err
 	}
+	if err := ensureCalendarSyncMarker(ctx, tx, req.UserID, req.CalendarID); err != nil {
+		return CalendarObject{}, err
+	}
 	const query = `
 UPDATE caldav_calendar_objects
 SET status = 'deleted', deleted_at = now(), updated_at = now()
@@ -436,6 +474,9 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, etag, si
 		return CalendarObject{}, fmt.Errorf("delete CalDAV object: %w", err)
 	}
 	if err := updateCalendarSyncToken(ctx, tx, req.UserID, req.CalendarID, syncToken); err != nil {
+		return CalendarObject{}, err
+	}
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "object-deleted", req.ObjectName, object.ETag); err != nil {
 		return CalendarObject{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -489,10 +530,73 @@ WHERE user_id = $1::uuid
   AND status = 'active'`, req.UserID, req.CalendarID); err != nil {
 		return Calendar{}, fmt.Errorf("delete CalDAV calendar objects: %w", err)
 	}
+	syncToken := CalendarSyncToken(req.UserID, req.CalendarID, "collection-delete", time.Now().UTC().Format(time.RFC3339Nano))
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "collection-deleted", "", ""); err != nil {
+		return Calendar{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return Calendar{}, fmt.Errorf("commit CalDAV calendar delete: %w", err)
 	}
 	return calendar, nil
+}
+
+func (r *Repository) ListCalendarChangesSince(ctx context.Context, req ListChangesSinceRequest) ([]CalendarChange, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListChangesSinceRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+WITH marker AS (
+  SELECT id
+  FROM caldav_calendar_sync_changes
+  WHERE user_id = $1::uuid
+    AND calendar_id = $2::uuid
+    AND sync_token = $3
+)
+SELECT c.id, c.user_id::text, c.calendar_id::text, c.object_name, c.etag, c.action, c.sync_token, c.changed_at
+FROM caldav_calendar_sync_changes c
+JOIN marker m ON c.id > m.id
+WHERE c.user_id = $1::uuid
+  AND c.calendar_id = $2::uuid
+ORDER BY c.id ASC
+LIMIT $4`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.CalendarID, req.SyncToken, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list CalDAV sync changes: %w", err)
+	}
+	defer rows.Close()
+	var changes []CalendarChange
+	for rows.Next() {
+		var change CalendarChange
+		if err := rows.Scan(&change.ID, &change.UserID, &change.CalendarID, &change.ObjectName, &change.ETag, &change.Action, &change.SyncToken, &change.ChangedAt); err != nil {
+			return nil, fmt.Errorf("scan CalDAV sync change: %w", err)
+		}
+		changes = append(changes, change)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CalDAV sync changes: %w", err)
+	}
+	if len(changes) == 0 {
+		var markerExists bool
+		err := r.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM caldav_calendar_sync_changes
+  WHERE user_id = $1::uuid
+    AND calendar_id = $2::uuid
+    AND sync_token = $3
+)`, req.UserID, req.CalendarID, req.SyncToken).Scan(&markerExists)
+		if err != nil {
+			return nil, fmt.Errorf("check CalDAV sync marker: %w", err)
+		}
+		if !markerExists {
+			return nil, InvalidSyncTokenError{Token: req.SyncToken}
+		}
+	}
+	return changes, nil
 }
 
 func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarRequest, string, string, error) {
@@ -691,6 +795,25 @@ func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarReq
 	return DeleteCalendarRequest{UserID: userID, CalendarID: calendarID}, nil
 }
 
+func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSinceRequest, error) {
+	userID, err := validateCalDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return ListChangesSinceRequest{}, err
+	}
+	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
+	if err != nil {
+		return ListChangesSinceRequest{}, err
+	}
+	syncToken := strings.TrimSpace(req.SyncToken)
+	if syncToken == "" {
+		return ListChangesSinceRequest{}, fmt.Errorf("sync token is required")
+	}
+	if len(syncToken) > 128 || strings.ContainsAny(syncToken, "\r\n") {
+		return ListChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
+	}
+	return ListChangesSinceRequest{UserID: userID, CalendarID: calendarID, SyncToken: syncToken, Limit: normalizeCalDAVLimit(req.Limit)}, nil
+}
+
 func lockActiveCalendar(ctx context.Context, tx *sql.Tx, userID string, calendarID string) error {
 	var id string
 	err := tx.QueryRowContext(ctx, `
@@ -747,6 +870,46 @@ WHERE user_id = $1::uuid
 	}
 	if affected != 1 {
 		return fmt.Errorf("CalDAV calendar not found")
+	}
+	return nil
+}
+
+type syncChangeExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func insertCalendarSyncChange(ctx context.Context, execer syncChangeExecer, userID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
+	_, err := execer.ExecContext(ctx, `
+INSERT INTO caldav_calendar_sync_changes (
+  user_id, calendar_id, sync_token, action, object_name, etag
+) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`, userID, calendarID, syncToken, action, objectName, etag)
+	if err != nil {
+		return fmt.Errorf("insert CalDAV sync change: %w", err)
+	}
+	return nil
+}
+
+func ensureCalendarSyncMarker(ctx context.Context, tx *sql.Tx, userID string, calendarID string) error {
+	var token string
+	err := tx.QueryRowContext(ctx, `
+SELECT sync_token
+FROM caldav_calendars
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'`, userID, calendarID).Scan(&token)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("CalDAV calendar not found")
+		}
+		return fmt.Errorf("read CalDAV sync marker: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO caldav_calendar_sync_changes (
+  user_id, calendar_id, sync_token, action
+) VALUES ($1::uuid, $2::uuid, $3, 'collection-created')
+ON CONFLICT (calendar_id, sync_token) DO NOTHING`, userID, calendarID, token)
+	if err != nil {
+		return fmt.Errorf("ensure CalDAV sync marker: %w", err)
 	}
 	return nil
 }
