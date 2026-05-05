@@ -5463,7 +5463,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\na12 SEARCH KEYWORD custom\r\na13 UID SEARCH UNKEYWORD custom\r\na14 SEARCH KEYWORD bad%flag\r\na15 SEARCH KEYWORD custom\"\r\na16 UID SEARCH UNKEYWORD custom\"\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\na12 SEARCH KEYWORD custom\r\na13 UID SEARCH UNKEYWORD custom\r\na14 SEARCH KEYWORD forwarded\r\na15 UID SEARCH UNKEYWORD forwarded\r\na16 SEARCH KEYWORD bad%flag\r\na17 SEARCH KEYWORD custom\"\r\na18 UID SEARCH UNKEYWORD custom\"\r\n")); err != nil {
 		t.Fatalf("write flag search: %v", err)
 	}
 	want := []string{
@@ -5489,7 +5489,11 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 		"a12 OK SEARCH completed\r\n",
 		"* SEARCH 7 8\r\n",
 		"a13 OK UID SEARCH completed\r\n",
-		"a14 BAD SEARCH criteria are unsupported\r\n",
+		"* SEARCH 1\r\n",
+		"a14 OK SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a15 OK UID SEARCH completed\r\n",
+		"a16 BAD SEARCH criteria are unsupported\r\n",
 		"* BAD malformed command\r\n",
 		"* BAD malformed command\r\n",
 	}
@@ -5502,7 +5506,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("flag search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a17 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a19 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -8821,7 +8825,7 @@ func (fakeBackend) RenameMailbox(context.Context, UserID, MailboxID, MailboxID) 
 
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{
-		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}, To: []Address{{Name: "Target User", Mailbox: "target", Host: "example.com"}}, Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Read: true, Starred: true}, Size: 11, ModSeq: 17},
+		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}, To: []Address{{Name: "Target User", Mailbox: "target", Host: "example.com"}}, Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Read: true, Starred: true, Forwarded: true}, Size: 11, ModSeq: 17},
 		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Archive", From: []Address{{Name: "Archive Bot", Mailbox: "archive", Host: "example.net"}}, Cc: []Address{{Name: "Review Desk", Mailbox: "review", Host: "example.com"}}, Bcc: []Address{{Name: "Hidden Desk", Mailbox: "hidden", Host: "example.com"}}, Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Draft: true}, Size: 42, ModSeq: 23},
 	}, nil
 }

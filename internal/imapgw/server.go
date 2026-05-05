@@ -2097,8 +2097,13 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 		if len(criteria) < 2 || !imapSearchKeywordValid(criteria[1]) {
 			return nil, 0, false
 		}
-		return func(_ context.Context, _ *Server, _ *imapConnState, _ MessageSummary, _ int) (bool, error) {
-			return criterion == "UNKEYWORD", nil
+		keyword := criteria[1]
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			matches := imapMessageMatchesKeywordSearch(summary, keyword)
+			if criterion == "UNKEYWORD" {
+				return !matches, nil
+			}
+			return matches, nil
 		}, 2, true
 	case "FROM", "TO", "CC", "BCC", "SUBJECT":
 		if len(criteria) < 2 {
@@ -2167,6 +2172,15 @@ func imapSearchKeywordValid(value string) bool {
 		return false
 	}
 	return true
+}
+
+func imapMessageMatchesKeywordSearch(summary MessageSummary, keyword string) bool {
+	switch strings.ToLower(strings.TrimSpace(keyword)) {
+	case "forwarded":
+		return summary.Flags.Forwarded
+	default:
+		return false
+	}
 }
 
 func imapSearchStringArgument(value string) (string, bool) {

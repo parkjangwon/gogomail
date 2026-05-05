@@ -1910,6 +1910,10 @@ Implementation order:
 1011. Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`
       for audited bounded retry of pending Drive object cleanup failures, with
       scanned/deleted/resolved/failed counts for operator consoles.
+1012. IMAP `SEARCH` and `UID SEARCH` `KEYWORD`/`UNKEYWORD` now map the
+      existing webmail `forwarded` message state to a searchable IMAP keyword,
+      improving client compatibility while durable arbitrary keyword storage
+      remains deferred.
 
 ## Deferred until backend contracts stabilize
 
