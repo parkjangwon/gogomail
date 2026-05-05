@@ -2293,6 +2293,11 @@ Implementation order:
       behind active user/domain/company scope, normalize names, bound list
       limits, and insert durable `addressbook-created` change rows in the same
       transaction as collection creation.
+1101. CardDAV vCard validation now performs bounded RFC 6350-oriented vCard
+      4.0 checks for contact objects, including BEGIN/END structure, exactly
+      one VERSION, required UID/FN, folded content-line handling, line/body
+      caps, and nested VCARD rejection before contact-object repository writes
+      are exposed.
 
 ## Deferred until backend contracts stabilize
 
@@ -2306,10 +2311,10 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV contact-object repository methods, bounded vCard semantic
-  validation, REPORT/sync behavior, auth, and native-client compatibility
-  beyond the initial path/href, storage metadata, and address-book repository
-  boundary
+- Contacts/CardDAV contact-object repository methods, REPORT/sync behavior,
+  auth, broader vCard compatibility, and native-client compatibility beyond the
+  initial path/href, storage metadata, address-book repository, and bounded
+  vCard 4.0 validation boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters

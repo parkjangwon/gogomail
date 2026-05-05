@@ -17,7 +17,15 @@ const (
 	MaxContactObjectUIDBytes       = 255
 	MaxContactObjectNameBytes      = 200
 	MaxContactObjectBytes          = 5 << 20
+	MaxVCardContentLineBytes       = 8192
+	MaxVCardContentLines           = 4096
 )
+
+type VCardMetadata struct {
+	UID     string
+	Version string
+	FN      string
+}
 
 func NormalizeAddressBookName(name string) (string, error) {
 	name, err := ValidateAddressBookName(name)
@@ -130,6 +138,70 @@ func ContactObjectETag(vcard []byte) (string, error) {
 	return `"` + hex.EncodeToString(sum[:]) + `"`, nil
 }
 
+func ValidateVCardObject(vcard []byte) (VCardMetadata, error) {
+	if len(vcard) == 0 {
+		return VCardMetadata{}, fmt.Errorf("vcard body is required")
+	}
+	if len(vcard) > MaxContactObjectBytes {
+		return VCardMetadata{}, fmt.Errorf("vcard body is too large")
+	}
+	lines, err := unfoldVCardLines(string(vcard))
+	if err != nil {
+		return VCardMetadata{}, err
+	}
+	if len(lines) < 4 {
+		return VCardMetadata{}, fmt.Errorf("vcard requires BEGIN, VERSION, FN, and END lines")
+	}
+	if !strings.EqualFold(lines[0], "BEGIN:VCARD") {
+		return VCardMetadata{}, fmt.Errorf("vcard must begin with BEGIN:VCARD")
+	}
+	if !strings.EqualFold(lines[len(lines)-1], "END:VCARD") {
+		return VCardMetadata{}, fmt.Errorf("vcard must end with END:VCARD")
+	}
+	var meta VCardMetadata
+	for i, line := range lines[1 : len(lines)-1] {
+		name, value, err := parseVCardContentLine(line)
+		if err != nil {
+			return VCardMetadata{}, fmt.Errorf("vcard line %d: %w", i+2, err)
+		}
+		switch name {
+		case "BEGIN", "END":
+			return VCardMetadata{}, fmt.Errorf("nested vcard components are not supported")
+		case "VERSION":
+			if meta.Version != "" {
+				return VCardMetadata{}, fmt.Errorf("vcard must contain exactly one VERSION")
+			}
+			meta.Version = strings.TrimSpace(value)
+		case "UID":
+			if meta.UID != "" {
+				return VCardMetadata{}, fmt.Errorf("vcard must contain at most one UID")
+			}
+			uid, err := ValidateContactObjectUID(value)
+			if err != nil {
+				return VCardMetadata{}, err
+			}
+			meta.UID = uid
+		case "FN":
+			if strings.TrimSpace(value) == "" {
+				return VCardMetadata{}, fmt.Errorf("vcard FN is required")
+			}
+			if meta.FN == "" {
+				meta.FN = strings.TrimSpace(value)
+			}
+		}
+	}
+	if meta.Version != "4.0" {
+		return VCardMetadata{}, fmt.Errorf("vcard VERSION must be 4.0")
+	}
+	if meta.UID == "" {
+		return VCardMetadata{}, fmt.Errorf("vcard UID is required")
+	}
+	if meta.FN == "" {
+		return VCardMetadata{}, fmt.Errorf("vcard FN is required")
+	}
+	return meta, nil
+}
+
 func ValidateContactObjectETag(etag string) (string, error) {
 	etag = strings.TrimSpace(etag)
 	if len(etag) != 66 || etag[0] != '"' || etag[len(etag)-1] != '"' {
@@ -146,4 +218,76 @@ func ValidateContactObjectETag(etag string) (string, error) {
 func AddressBookSyncToken(parts ...string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return "sync-" + hex.EncodeToString(sum[:])[:32]
+}
+
+func unfoldVCardLines(raw string) ([]string, error) {
+	raw = strings.TrimSuffix(raw, "\r\n")
+	raw = strings.TrimSuffix(raw, "\n")
+	if raw == "" {
+		return nil, fmt.Errorf("vcard body is required")
+	}
+	rawLines := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
+	if len(rawLines) > MaxVCardContentLines {
+		return nil, fmt.Errorf("vcard contains too many content lines")
+	}
+	lines := make([]string, 0, len(rawLines))
+	for i, line := range rawLines {
+		if strings.Contains(line, "\r") {
+			return nil, fmt.Errorf("vcard line %d contains bare carriage return", i+1)
+		}
+		if len(line) > MaxVCardContentLineBytes {
+			return nil, fmt.Errorf("vcard line %d is too long", i+1)
+		}
+		if line == "" {
+			continue
+		}
+		if line[0] == ' ' || line[0] == '\t' {
+			if len(lines) == 0 {
+				return nil, fmt.Errorf("vcard line %d folds without a previous line", i+1)
+			}
+			unfolded := lines[len(lines)-1] + line[1:]
+			if len(unfolded) > MaxVCardContentLineBytes {
+				return nil, fmt.Errorf("vcard unfolded line %d is too long", i+1)
+			}
+			lines[len(lines)-1] = unfolded
+			continue
+		}
+		lines = append(lines, line)
+	}
+	if len(lines) > MaxVCardContentLines {
+		return nil, fmt.Errorf("vcard contains too many content lines")
+	}
+	return lines, nil
+}
+
+func parseVCardContentLine(line string) (string, string, error) {
+	if line == "" {
+		return "", "", fmt.Errorf("content line is empty")
+	}
+	separator := strings.IndexByte(line, ':')
+	if separator <= 0 {
+		return "", "", fmt.Errorf("content line missing value separator")
+	}
+	rawName := line[:separator]
+	value := line[separator+1:]
+	if strings.ContainsAny(rawName, "\r\n") || strings.ContainsAny(value, "\r\n") {
+		return "", "", fmt.Errorf("content line contains line breaks")
+	}
+	namePart := rawName
+	if semi := strings.IndexByte(namePart, ';'); semi >= 0 {
+		namePart = namePart[:semi]
+	}
+	if dot := strings.LastIndexByte(namePart, '.'); dot >= 0 {
+		namePart = namePart[dot+1:]
+	}
+	namePart = strings.ToUpper(strings.TrimSpace(namePart))
+	if namePart == "" {
+		return "", "", fmt.Errorf("property name is required")
+	}
+	for _, r := range namePart {
+		if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+			return "", "", fmt.Errorf("property name is invalid")
+		}
+	}
+	return namePart, value, nil
 }
