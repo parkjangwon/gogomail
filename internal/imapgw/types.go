@@ -95,6 +95,8 @@ type MailboxStore interface {
 	ListMailboxes(ctx context.Context, req ListMailboxesRequest) ([]Mailbox, error)
 	GetMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) (Mailbox, error)
 	CreateMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) (Mailbox, error)
+	DeleteMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) error
+	RenameMailbox(ctx context.Context, userID UserID, mailboxID MailboxID, newMailboxID MailboxID) (Mailbox, error)
 }
 
 type MessageStore interface {

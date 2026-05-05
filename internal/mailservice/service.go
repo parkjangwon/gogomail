@@ -501,6 +501,29 @@ func (s *Service) CreateIMAPMailbox(ctx context.Context, userID imapgw.UserID, m
 	return s.GetIMAPMailbox(ctx, imapgw.UserID(user), imapgw.MailboxID(folder.ID))
 }
 
+func (s *Service) DeleteIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) error {
+	user := strings.TrimSpace(string(userID))
+	mailbox, err := s.GetIMAPMailbox(ctx, imapgw.UserID(user), mailboxID)
+	if err != nil {
+		return err
+	}
+	return s.DeleteFolder(ctx, user, string(mailbox.ID))
+}
+
+func (s *Service) RenameIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID, newMailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
+	user := strings.TrimSpace(string(userID))
+	mailbox, err := s.GetIMAPMailbox(ctx, imapgw.UserID(user), mailboxID)
+	if err != nil {
+		return imapgw.Mailbox{}, err
+	}
+	name := strings.Trim(strings.TrimSpace(string(newMailboxID)), "/")
+	folder, err := s.RenameFolder(ctx, user, string(mailbox.ID), name)
+	if err != nil {
+		return imapgw.Mailbox{}, err
+	}
+	return s.GetIMAPMailbox(ctx, imapgw.UserID(user), imapgw.MailboxID(folder.ID))
+}
+
 func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
 		ListIMAPMessages(context.Context, string, string, int, imapgw.UID) ([]imapgw.MessageSummary, error)
