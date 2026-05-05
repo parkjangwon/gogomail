@@ -162,6 +162,17 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		if err := writer.Flush(); err != nil {
 			return err
 		}
+		if state.startTLS {
+			tlsConn := tls.Server(conn, s.options.TLSConfig)
+			if err := tlsConn.Handshake(); err != nil {
+				return err
+			}
+			conn = tlsConn
+			reader = bufio.NewReaderSize(conn, 8192)
+			writer = bufio.NewWriter(conn)
+			state.startTLS = false
+			state.tlsActive = true
+		}
 		if done {
 			return nil
 		}
@@ -175,6 +186,8 @@ type imapConnState struct {
 	readOnly         bool
 	pendingAuthTag   string
 	pendingIdleTag   string
+	startTLS         bool
+	tlsActive        bool
 	events           <-chan MailboxEvent
 	cancelEvents     func()
 }
@@ -219,6 +232,22 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			return false, err
 		}
 		_, err := writer.WriteString(tag + " OK ID completed\r\n")
+		return false, err
+	case "STARTTLS":
+		if state.session != nil {
+			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+			return false, err
+		}
+		if state.tlsActive || s.options.TLSConfig == nil {
+			_, err := writer.WriteString(tag + " BAD STARTTLS is unavailable\r\n")
+			return false, err
+		}
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD STARTTLS does not accept arguments\r\n")
+			return false, err
+		}
+		state.startTLS = true
+		_, err := writer.WriteString(tag + " OK Begin TLS negotiation now\r\n")
 		return false, err
 	case "NAMESPACE":
 		if state.session == nil {
@@ -1495,6 +1524,9 @@ func maxInt64(a int64, b int64) int64 {
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
 	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "UNSELECT"}
+	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
+		capabilities = append(capabilities, "STARTTLS")
+	}
 	if state == nil || state.session == nil {
 		capabilities = append(capabilities, "AUTH=PLAIN")
 	}

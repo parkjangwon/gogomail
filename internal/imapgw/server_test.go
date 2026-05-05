@@ -3,10 +3,16 @@ package imapgw
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"strings"
 	"testing"
@@ -143,6 +149,64 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if line != "a3 OK LOGOUT completed\r\n" {
 		t.Fatalf("logout completion = %q", line)
 	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesStartTLS(t *testing.T) {
+	t.Parallel()
+
+	serverTLS := testIMAPTLSConfig(t)
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, TLSConfig: serverTLS})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if line, err := reader.ReadString('\n'); err != nil || line != "* OK gogomail IMAP4rev1 service ready\r\n" {
+		t.Fatalf("greeting = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write capability: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT STARTTLS AUTH=PLAIN\r\n" {
+		t.Fatalf("pre-tls capability = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK CAPABILITY completed\r\n" {
+		t.Fatalf("pre-tls capability completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 STARTTLS\r\n")); err != nil {
+		t.Fatalf("write starttls: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK Begin TLS negotiation now\r\n" {
+		t.Fatalf("starttls line = %q err = %v", line, err)
+	}
+	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
+	if err := tlsClient.Handshake(); err != nil {
+		t.Fatalf("client handshake: %v", err)
+	}
+	reader = bufio.NewReader(tlsClient)
+	if _, err := tlsClient.Write([]byte("a3 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write tls capability: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT AUTH=PLAIN\r\n" {
+		t.Fatalf("post-tls capability = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK CAPABILITY completed\r\n" {
+		t.Fatalf("post-tls capability completion = %q err = %v", line, err)
+	}
+	if _, err := tlsClient.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}
@@ -332,6 +396,35 @@ func TestServerHandlesIDCommand(t *testing.T) {
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}
+}
+
+func testIMAPTLSConfig(t *testing.T) *tls.Config {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create cert: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("load key pair: %v", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 }
 
 func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
