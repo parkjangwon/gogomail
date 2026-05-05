@@ -1560,7 +1560,11 @@ Implementation order:
 919. S3-compatible storage requests now reject canceled contexts before
      object-key validation, SigV4 signing, or HTTP dispatch, aligning
      cancellation behavior with local/NFS storage and avoiding wasted request
-     work.
+     setup.
+920. IMAP UID set resolution now also intersects comma-separated selected
+     UID sets with visible message UIDs, so sparse client requests such as
+     `UID FETCH 1,7,999` return existing messages and skip missing UIDs instead
+     of failing the whole command.
 
 ## Deferred until backend contracts stabilize
 
