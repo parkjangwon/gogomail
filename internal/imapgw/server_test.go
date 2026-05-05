@@ -4306,8 +4306,8 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 		"a8 BAD SUBSCRIBE requires a mailbox atom\r\n",
 		"a9 BAD SUBSCRIBE mailbox name is not valid modified UTF-7\r\n",
 		"a10 NO authentication required\r\n",
-		"a11 BAD LIST mailbox pattern is not valid modified UTF-7\r\n",
-		"a12 BAD LSUB mailbox pattern is not valid modified UTF-7\r\n",
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
 		"a13 OK LOGOUT completed\r\n",
 	}
@@ -5078,10 +5078,10 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"* SEARCH 1 2\r\n",
 		"a28 OK SEARCH completed\r\n",
 		"a29 BAD SEARCH criteria are unsupported\r\n",
-		"a30 BAD SEARCH criteria are unsupported\r\n",
-		"a31 BAD SEARCH criteria are unsupported\r\n",
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
 		"a32 BAD SEARCH criteria are unsupported\r\n",
-		"a33 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5145,7 +5145,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 		"a6 OK SORT completed\r\n",
 		"a7 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
 		"a8 BAD SORT arguments are unsupported\r\n",
-		"a9 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5222,8 +5222,8 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 		"a4 OK UID THREAD completed\r\n",
 		"a5 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
 		"a6 BAD THREAD algorithm is unsupported\r\n",
-		"a7 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
-		"a8 BAD THREAD algorithm is unsupported\r\n",
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5373,8 +5373,8 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 		"* SEARCH 7 8\r\n",
 		"a13 OK UID SEARCH completed\r\n",
 		"a14 BAD SEARCH criteria are unsupported\r\n",
-		"a15 BAD SEARCH criteria are unsupported\r\n",
-		"a16 BAD SEARCH criteria are unsupported\r\n",
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5440,7 +5440,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 		"a7 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a8 OK UID SEARCH completed\r\n",
-		"a9 BAD SEARCH criteria are unsupported\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5549,7 +5549,7 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH SUBJECT IMAP\r\na4 UID SEARCH FROM archive\r\na5 SEARCH TO target\r\na6 UID SEARCH CC review\r\na7 SEARCH BCC hidden\r\na8 SEARCH SUBJECT IMAP\"\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH SUBJECT IMAP\r\na4 UID SEARCH FROM archive\r\na5 SEARCH TO target\r\na6 UID SEARCH CC review\r\na7 SEARCH BCC hidden\r\na8 SEARCH SUBJECT \"Project \\\"Q2\\\"\"\r\na9 SEARCH SUBJECT IMAP\"\r\n")); err != nil {
 		t.Fatalf("write text search: %v", err)
 	}
 	want := []string{
@@ -5563,7 +5563,9 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 		"a6 OK UID SEARCH completed\r\n",
 		"* SEARCH 2\r\n",
 		"a7 OK SEARCH completed\r\n",
-		"a8 BAD SEARCH criteria are unsupported\r\n",
+		"* SEARCH\r\n",
+		"a8 OK SEARCH completed\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5574,7 +5576,7 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 			t.Fatalf("text search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -5625,8 +5627,8 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 		"a5 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a6 OK UID SEARCH completed\r\n",
-		"a7 BAD SEARCH criteria are unsupported\r\n",
-		"a8 BAD SEARCH criteria are unsupported\r\n",
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -7104,6 +7106,9 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFields(`a1 LOGIN user"bad secret`); err == nil {
 		t.Fatal("parseIMAPFields accepted quote character inside atom")
+	}
+	if _, err := parseIMAPFields(`a1 SEARCH SUBJECT IMAP"`); err == nil {
+		t.Fatal("parseIMAPFields accepted dangling quote character at atom end")
 	}
 	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6}"); err == nil {
 		t.Fatal("parseIMAPFields accepted unsupported literal")

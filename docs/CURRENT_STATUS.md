@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP LIST pattern quote hardening)
+Last updated: 2026-05-05 (updated after IMAP dangling atom quote hardening)
 
 ## Current phase
 
@@ -255,13 +255,18 @@ guidance.
 - IMAP `SEARCH`/`UID SEARCH` text, body, and header string arguments now reject
   malformed atoms that still contain quote characters after command parsing,
   preventing broken values such as `SUBJECT IMAP"` from being normalized.
+- IMAP `SEARCH` text arguments now preserve valid RFC quoted-special escaped
+  quotes from proper quoted strings, so standards-shaped searches such as
+  `SUBJECT "Project \"Q2\""` remain compatible while malformed atom quotes are
+  rejected by command parsing.
 - IMAP `SEARCH`/`UID SEARCH` `KEYWORD` and `UNKEYWORD` criteria now reject
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
   silently normalized.
-- IMAP `LIST` and `LSUB` reference/pattern atoms now reject malformed values
-  that still contain quote characters after command parsing, preventing broken
-  mailbox patterns such as `INBOX"` from being silently normalized.
+- IMAP command tokenization now rejects dangling quote characters at the end of
+  unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
+  `LIST "" INBOX"` from reaching command-specific normalization while
+  preserving valid escaped quotes inside proper quoted strings.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
