@@ -32,6 +32,10 @@ type CalendarDeleter interface {
 	DeleteCalendar(ctx context.Context, req DeleteCalendarRequest) (Calendar, error)
 }
 
+type SyncChangeStore interface {
+	ListCalendarChangesSince(ctx context.Context, req ListChangesSinceRequest) ([]CalendarChange, error)
+}
+
 type UserResolver func(*http.Request) (string, error)
 
 type Handler struct {
@@ -694,7 +698,7 @@ func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, re
 	}
 	if report.SyncToken != "" {
 		if report.SyncToken != calendar.SyncToken {
-			return nil, InvalidSyncTokenError{Token: report.SyncToken}
+			return h.syncChangeResponses(ctx, userID, resource, report)
 		}
 		return nil, nil
 	}
@@ -718,6 +722,58 @@ func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, re
 		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
 		if err != nil {
 			return nil, err
+		}
+		responses = append(responses, responseForProperties(href, propfind, props))
+	}
+	return responses, nil
+}
+
+func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+	store, ok := h.Store.(SyncChangeStore)
+	if !ok {
+		return nil, InvalidSyncTokenError{Token: report.SyncToken}
+	}
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	changes, err := store.ListCalendarChangesSince(ctx, ListChangesSinceRequest{
+		UserID:     userID,
+		CalendarID: resource.CalendarID,
+		SyncToken:  report.SyncToken,
+		Limit:      limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if report.Limit > 0 && len(changes) == report.Limit {
+		return nil, fmt.Errorf("sync-collection limit may truncate change results")
+	}
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	responses := make([]MultiStatusResponse, 0, len(changes))
+	for _, change := range changes {
+		if change.Action == "collection-deleted" {
+			continue
+		}
+		href, err := CalendarObjectPath(userID, change.CalendarID, change.ObjectName)
+		if err != nil {
+			return nil, err
+		}
+		if change.Action == "object-deleted" {
+			responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
+			continue
+		}
+		object, err := h.Store.LookupCalendarObject(ctx, userID, change.CalendarID, change.ObjectName)
+		if err != nil {
+			responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
+			continue
+		}
+		props, err := CalendarObjectProperties(userID, object)
+		if err != nil {
+			return nil, err
+		}
+		if containsXMLName(report.Properties, PropCalendarData) {
+			props = append(props, CalendarObjectDataProperty(object.ICS))
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}

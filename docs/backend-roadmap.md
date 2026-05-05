@@ -2099,6 +2099,12 @@ Implementation order:
       forbidden. Incremental sync tombstones/change logs remain the next
       compatibility step before stale-token clients can receive deletion
       deltas.
+1056. CalDAV now has a durable sync-change log for RFC 6578-style
+      `sync-collection` deltas. Calendar creation and object upsert/delete
+      paths record sync markers in the same mutation transaction, older
+      calendars get a baseline marker on first object change, stale-but-known
+      sync tokens return changed object properties or response-level 404
+      tombstones, and unknown tokens still return DAV `valid-sync-token`.
 
 ## Deferred until backend contracts stabilize
 

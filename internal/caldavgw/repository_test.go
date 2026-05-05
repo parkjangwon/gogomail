@@ -203,6 +203,21 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 	if _, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{UserID: "user-1"}); err == nil {
 		t.Fatal("ValidateDeleteCalendarRequest accepted missing calendar id")
 	}
+	changes, err := ValidateListChangesSinceRequest(ListChangesSinceRequest{
+		UserID:     " user-1 ",
+		CalendarID: " calendar-1 ",
+		SyncToken:  " sync-123 ",
+		Limit:      5000,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListChangesSinceRequest returned error: %v", err)
+	}
+	if changes.SyncToken != "sync-123" || changes.Limit != 1000 {
+		t.Fatalf("changes request = %+v", changes)
+	}
+	if _, err := ValidateListChangesSinceRequest(ListChangesSinceRequest{UserID: "user-1", CalendarID: "calendar-1"}); err == nil {
+		t.Fatal("ValidateListChangesSinceRequest accepted missing sync token")
+	}
 }
 
 func TestValidateCalendarObjectName(t *testing.T) {

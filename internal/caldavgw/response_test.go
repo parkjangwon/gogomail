@@ -77,6 +77,23 @@ func TestBuildSyncCollectionXMLRendersRootSyncToken(t *testing.T) {
 	}
 }
 
+func TestBuildMultiStatusXMLRendersResponseStatus(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildSyncCollectionXML([]MultiStatusResponse{{
+		Href:   "/caldav/calendars/user-1/work/missing.ics",
+		Status: http.StatusNotFound,
+	}}, "sync-123")
+	if err != nil {
+		t.Fatalf("BuildSyncCollectionXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	if !strings.Contains(text, "<D:status>HTTP/1.1 404 Not Found</D:status>") {
+		t.Fatalf("response status missing:\n%s", text)
+	}
+}
+
 func TestSelectPropfindPropertiesSeparatesFoundAndMissing(t *testing.T) {
 	t.Parallel()
 

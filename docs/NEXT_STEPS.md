@@ -1468,6 +1468,10 @@ Current state:
 - CalDAV now handles `DELETE` on authenticated calendar collection paths,
   deleting the collection and active child objects through one repository
   transaction while keeping calendar-home and cross-user deletes forbidden.
+- CalDAV now records durable sync-change rows for calendar creation and object
+  upsert/delete paths, allowing `REPORT sync-collection` to answer
+  stale-but-known tokens with object updates and response-level 404 tombstones
+  instead of always forcing a full resync.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1478,7 +1482,7 @@ Current state:
 Next:
 
 - Continue CalDAV with recurrence-aware calendar-query/free-busy expansion,
-  sync tombstone/change-log support, VFREEBUSY source-object support,
+  sync retention/collection-deletion deltas, VFREEBUSY source-object support,
   slug/path-alias support for friendlier MKCALENDAR clients, scheduling
   semantics, and broader compatibility tests before advertising client-ready
   compatibility.

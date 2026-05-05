@@ -164,6 +164,14 @@ prepares the future sync-change-log boundary, but stale-token clients still
 need tombstone/change-log support before deletion deltas can be reported
 incrementally.
 
+The sync-change-log boundary is durable PostgreSQL state, not an in-memory
+gateway cache. Calendar creation and object mutation transactions append sync
+markers keyed by collection token; `sync-collection` can then turn
+stale-but-known tokens into changed object responses or response-level 404
+tombstones. Unknown tokens still fail with `valid-sync-token`, which is safer
+than fabricating an incomplete delta after retention gaps or unsupported
+history.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

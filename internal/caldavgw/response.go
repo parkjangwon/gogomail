@@ -68,6 +68,7 @@ type CalendarDataType struct {
 
 type MultiStatusResponse struct {
 	Href      string
+	Status    int
 	PropStats []PropStatus
 }
 
@@ -226,6 +227,12 @@ func encodeResponse(enc *xml.Encoder, response MultiStatusResponse) error {
 	}
 	if err := encodeTextElement(enc, "D:href", response.Href); err != nil {
 		return err
+	}
+	if response.Status != 0 {
+		if err := encodeTextElement(enc, "D:status", "HTTP/1.1 "+strconv.Itoa(response.Status)+" "+http.StatusText(response.Status)); err != nil {
+			return err
+		}
+		return enc.EncodeToken(start.End())
 	}
 	for _, propstat := range response.PropStats {
 		if err := encodePropStatus(enc, propstat); err != nil {
