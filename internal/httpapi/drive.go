@@ -2,7 +2,9 @@ package httpapi
 
 import (
 	"context"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +24,7 @@ type DriveService interface {
 	FinalizeUploadSession(ctx context.Context, req drive.FinalizeUploadSessionRequest) (drive.Node, error)
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
+	OpenFile(ctx context.Context, req drive.OpenFileRequest) (drive.FileDownload, error)
 	GetUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
@@ -93,6 +96,34 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_node": node})
+	})
+
+	mux.HandleFunc("GET /api/v1/drive/nodes/{id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		download, err := service.OpenFile(r.Context(), drive.OpenFileRequest{UserID: userID, NodeID: nodeID})
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		defer download.Body.Close()
+		w.Header().Set("Content-Type", attachmentContentType(download.Node.MIMEType))
+		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Node.Name))
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if download.Node.Size > 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(download.Node.Size, 10))
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, download.Body)
 	})
 
 	mux.HandleFunc("GET /api/v1/drive/usage", func(w http.ResponseWriter, r *http.Request) {

@@ -305,6 +305,38 @@ paths:
           $ref: "#/components/responses/DriveDelete"
         default:
           $ref: "#/components/responses/Error"
+  /drive/nodes/{id}/download:
+    get:
+      operationId: downloadDriveNode
+      summary: Download an active Drive file
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: Drive file bytes.
+          headers:
+            Content-Disposition:
+              description: Attachment filename for the Drive node, including RFC 5987 filename* when needed.
+              schema:
+                type: string
+            Cache-Control:
+              description: Drive file downloads are user data and must not be stored by shared caches.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for Drive file downloads.
+              schema:
+                type: string
+                enum: [nosniff]
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
   /drive/usage:
     get:
       operationId: getDriveUsageSummary
@@ -5058,13 +5090,15 @@ components:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
         drive:
           type: object
-          required: [nodes, node_name_search, node_detail, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          required: [nodes, node_name_search, node_detail, node_download, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
           properties:
             nodes:
               type: boolean
             node_name_search:
               type: boolean
             node_detail:
+              type: boolean
+            node_download:
               type: boolean
             usage_summary:
               type: boolean

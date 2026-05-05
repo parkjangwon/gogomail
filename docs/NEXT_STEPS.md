@@ -426,6 +426,9 @@ Current state:
 - Mail API now exposes `GET /api/v1/drive/usage`, and webmail capabilities
   advertise `usage_summary`, so production Drive panels can show per-user quota
   and storage summaries without admin routes.
+- Mail API now exposes `GET /api/v1/drive/nodes/{id}/download`, streaming
+  active Drive file bytes through the configured storage backend with safe
+  download headers, and webmail capabilities advertise `node_download`.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

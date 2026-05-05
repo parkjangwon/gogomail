@@ -1918,6 +1918,10 @@ Implementation order:
       `$Forwarded` keyword in `FETCH FLAGS`, accepts it through permitted
       `STORE`/`UID STORE` flag mutations, and persists it through the existing
       message flag JSON model.
+1014. Mail API now exposes `GET /api/v1/drive/nodes/{id}/download` for active
+      Drive files, streaming object bytes from the configured local/NFS,
+      MinIO, or S3-compatible backend with safe attachment/no-store/nosniff
+      headers and webmail `node_download` capability discovery.
 
 ## Deferred until backend contracts stabilize
 

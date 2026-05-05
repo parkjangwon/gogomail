@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -90,6 +91,16 @@ type GetNodeRequest struct {
 	UserID string
 	NodeID string
 	Status string
+}
+
+type OpenFileRequest struct {
+	UserID string
+	NodeID string
+}
+
+type FileDownload struct {
+	Node Node
+	Body io.ReadCloser
 }
 
 type TrashNodeRequest struct {
