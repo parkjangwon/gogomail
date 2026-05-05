@@ -328,13 +328,16 @@ Current state:
 - `internal/drive.Repository.TrashNode` can mark an active file/folder and its
   active descendants as trashed in one transaction, preserving object bytes and
   quota usage for future restore or delayed permanent deletion.
+- `internal/drive.Repository.RestoreNode` can mark a trashed file/folder and
+  its trashed descendants active again in one transaction, clearing `trashed_at`
+  while keeping active sibling name conflicts protected by the database
+  uniqueness constraint.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive restore and permanent-delete flows against `drive_nodes`, using
-  storage `DeletePrefix` and quota decrement semantics before exposing HTTP API
-  routes.
+- Add Drive permanent-delete flows against `drive_nodes`, using storage
+  `DeletePrefix` and quota decrement semantics before exposing HTTP API routes.
 - Add Drive service and HTTP contracts only after repository create/list/delete
   flows are stable enough to document in OpenAPI.
 

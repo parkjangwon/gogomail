@@ -67,6 +67,11 @@ type TrashNodeRequest struct {
 	NodeID string
 }
 
+type RestoreNodeRequest struct {
+	UserID string
+	NodeID string
+}
+
 func ValidateCreateFolderRequest(req CreateFolderRequest) (CreateFolderRequest, string, error) {
 	userID, err := validateDriveID("user_id", req.UserID, true)
 	if err != nil {
@@ -171,6 +176,18 @@ func ValidateTrashNodeRequest(req TrashNodeRequest) (TrashNodeRequest, error) {
 		return TrashNodeRequest{}, err
 	}
 	return TrashNodeRequest{UserID: userID, NodeID: nodeID}, nil
+}
+
+func ValidateRestoreNodeRequest(req RestoreNodeRequest) (RestoreNodeRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return RestoreNodeRequest{}, err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return RestoreNodeRequest{}, err
+	}
+	return RestoreNodeRequest{UserID: userID, NodeID: nodeID}, nil
 }
 
 func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) (Node, error) {
@@ -372,6 +389,36 @@ func (r *Repository) TrashNode(ctx context.Context, req TrashNodeRequest) (Node,
 	return root, updated, nil
 }
 
+func (r *Repository) RestoreNode(ctx context.Context, req RestoreNodeRequest) (Node, int64, error) {
+	if r == nil || r.db == nil {
+		return Node{}, 0, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateRestoreNodeRequest(req)
+	if err != nil {
+		return Node{}, 0, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Node{}, 0, fmt.Errorf("begin restore drive node transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	root, err := lockTrashedDriveNode(ctx, tx, req.UserID, req.NodeID)
+	if err != nil {
+		return Node{}, 0, err
+	}
+	updated, err := restoreDriveNodeTree(ctx, tx, req.UserID, req.NodeID)
+	if err != nil {
+		return Node{}, 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Node{}, 0, fmt.Errorf("commit restore drive node transaction: %w", err)
+	}
+	root.Status = NodeStatusActive
+	root.UpdatedAt = time.Now().UTC()
+	return root, updated, nil
+}
+
 func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Store, req CreateFileFromObjectRequest) (Node, error) {
 	if r == nil || r.db == nil {
 		return Node{}, fmt.Errorf("database handle is required")
@@ -412,6 +459,68 @@ func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Sto
 	}
 	if err := tx.Commit(); err != nil {
 		return Node{}, fmt.Errorf("commit create drive file transaction: %w", err)
+	}
+	return node, nil
+}
+
+func lockTrashedDriveNode(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (Node, error) {
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM drive_nodes
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+  AND status = 'trashed'
+  AND (
+    parent_id IS NULL
+    OR EXISTS (
+      SELECT 1
+      FROM drive_nodes parent
+      WHERE parent.id = drive_nodes.parent_id
+        AND parent.user_id = $2::uuid
+        AND parent.status = 'active'
+    )
+  )
+FOR UPDATE`
+	var node Node
+	err := tx.QueryRowContext(ctx, query, nodeID, userID).Scan(
+		&node.ID,
+		&node.CompanyID,
+		&node.DomainID,
+		&node.UserID,
+		&node.ParentID,
+		&node.Type,
+		&node.Name,
+		&node.NormalizedName,
+		&node.MIMEType,
+		&node.Size,
+		&node.StorageBackend,
+		&node.StoragePath,
+		&node.ChecksumSHA256,
+		&node.Status,
+		&node.CreatedAt,
+		&node.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Node{}, fmt.Errorf("restorable trashed drive node not found")
+		}
+		return Node{}, fmt.Errorf("lock trashed drive node: %w", err)
 	}
 	return node, nil
 }
@@ -498,6 +607,50 @@ WHERE id IN (SELECT id FROM tree)`
 	}
 	if updated == 0 {
 		return 0, fmt.Errorf("active drive node not found")
+	}
+	return updated, nil
+}
+
+func restoreDriveNodeTree(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (int64, error) {
+	const query = `
+WITH RECURSIVE tree AS (
+  SELECT id
+  FROM drive_nodes
+  WHERE id = $2::uuid
+    AND user_id = $1::uuid
+    AND status = 'trashed'
+    AND (
+      parent_id IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM drive_nodes parent
+        WHERE parent.id = drive_nodes.parent_id
+          AND parent.user_id = $1::uuid
+          AND parent.status = 'active'
+      )
+    )
+  UNION ALL
+  SELECT child.id
+  FROM drive_nodes child
+  JOIN tree ON child.parent_id = tree.id
+  WHERE child.user_id = $1::uuid
+    AND child.status = 'trashed'
+)
+UPDATE drive_nodes
+SET status = 'active',
+    trashed_at = NULL,
+    updated_at = now()
+WHERE id IN (SELECT id FROM tree)`
+	result, err := tx.ExecContext(ctx, query, userID, nodeID)
+	if err != nil {
+		return 0, fmt.Errorf("restore drive node tree: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count restored drive nodes: %w", err)
+	}
+	if updated == 0 {
+		return 0, fmt.Errorf("restorable trashed drive node not found")
 	}
 	return updated, nil
 }

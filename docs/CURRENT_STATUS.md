@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive trash boundary)
+Last updated: 2026-05-06 (updated after Drive restore boundary)
 
 ## Current phase
 
@@ -249,6 +249,10 @@ guidance.
 - Drive now has an internal trash repository mutation that marks an active
   node and active descendants as trashed in one transaction, preserving object
   bytes and quota usage for future restore or delayed permanent deletion.
+- Drive now has an internal restore repository mutation that marks a trashed
+  node and trashed descendants active again in one transaction, clears
+  `trashed_at`, and relies on the active sibling uniqueness constraint to keep
+  restored folder contents conflict-safe.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
