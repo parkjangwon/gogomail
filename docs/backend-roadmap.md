@@ -1638,6 +1638,9 @@ Implementation order:
      or oversized user identifiers, and create/rename reject unsafe folder
      names, before repository work, keeping Mail API folder operations aligned
      with IMAP mailbox-management guardrails.
+940. IMAP service-backed `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
+     now reject zero UIDs before repository or storage work, keeping direct
+     service callers aligned with RFC 3501's positive UID model.
 
 ## Deferred until backend contracts stabilize
 

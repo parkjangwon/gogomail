@@ -764,6 +764,9 @@ Current state:
 - Service-level IMAP read/list/subscription/backfill operations reject
   CR/LF-bearing or oversized user/mailbox identifiers before repository reads,
   storage opens, event subscriptions, or UID backfill work.
+- Service-level IMAP `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
+  reject zero UIDs before repository or storage work, keeping direct callers
+  aligned with RFC 3501's positive UID model.
 - Folder list/create/rename/delete service methods reject CR/LF-bearing or
   oversized user identifiers, and create/rename reject unsafe folder names,
   before repository work.
