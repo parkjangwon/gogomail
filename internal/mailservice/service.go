@@ -595,6 +595,23 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 	return summaries, nil
 }
 
+func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeRequest) ([]imapgw.MessageSummary, error) {
+	repo, ok := s.repository.(interface {
+		ExpungeIMAPMessages(context.Context, string, string, []imapgw.UID) ([]imapgw.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap expunge repository is required")
+	}
+	userID := strings.TrimSpace(string(req.UserID))
+	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	summaries, err := repo.ExpungeIMAPMessages(ctx, userID, mailboxID, req.UIDs)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, summaries)
+	return summaries, nil
+}
+
 func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw.MailboxEventType, userID string, summaries []imapgw.MessageSummary) error {
 	if s.imapEvents == nil || len(summaries) == 0 {
 		return nil

@@ -793,9 +793,9 @@ The platform hardening sprint completed the following:
   protocol listener can depend on the gateway interface while still routing
   through service methods.
 - `IMAPStoreAdapter` now also satisfies `imapgw.MailboxSessionStore` for
-  mailbox selection, service-backed COPY, and event subscription, while MOVE
-  and EXPUNGE return an explicit unsupported mutation error until IMAP-safe
-  destructive semantics are reviewed.
+  mailbox selection, service-backed COPY/EXPUNGE, and event subscription, while
+  MOVE returns an explicit unsupported mutation error until move semantics are
+  reviewed.
 - IMAP `UID FETCH` and `UID STORE` untagged `FETCH` responses use message
   sequence numbers per RFC 3501 while keeping the requested UID in response
   attributes, and `RFC822.SIZE` metadata requests do not trigger body streaming.
@@ -936,8 +936,10 @@ The platform hardening sprint completed the following:
   identity response.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
-- IMAP `EXPUNGE` and `UID EXPUNGE` return explicit unsupported `NO` responses
-  while destructive expunge semantics remain deferred.
+- IMAP `EXPUNGE` and `UID EXPUNGE` delete only messages marked with the
+  IMAP-specific `\Deleted` flag, emit RFC-shaped untagged sequence-number
+  `EXPUNGE` responses, remove stale mailbox UID rows, and publish best-effort
+  expunge events through the service boundary.
 - IMAP `COPY` and `UID COPY` resolve sequence/UID sets through the selected
   mailbox, validate the destination mailbox, duplicate active message metadata
   and attachment rows transactionally, assign fresh destination mailbox UIDs,

@@ -1008,6 +1008,72 @@ WHERE message_id = $1::uuid`, string(copied[0].ID)).Scan(&copiedAttachmentCount,
 	}
 }
 
+func TestPostgresIMAPExpungeDeletesOnlyMarkedUIDs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var firstID, secondID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path, flags
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<expunge-first@example.com>',
+   'expunge first', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+   100, 'mail/expunge-first.eml', '{"imap_deleted":true}'::jsonb),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<expunge-second@example.com>',
+   'expunge second', 'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz,
+   100, 'mail/expunge-second.eml', '{"imap_deleted":true}'::jsonb)
+RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&firstID); err != nil {
+		t.Fatalf("insert first expunge message: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM messages
+WHERE user_id = $1::uuid
+  AND folder_id = $2::uuid
+  AND subject = 'expunge second'`, seed.userID, seed.inboxID).Scan(&secondID); err != nil {
+		t.Fatalf("select second expunge message: %v", err)
+	}
+	firstUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	secondUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+
+	expunged, err := repo.ExpungeIMAPMessages(ctx, seed.userID, seed.inboxID, []imapgw.UID{secondUID.UID})
+	if err != nil {
+		t.Fatalf("ExpungeIMAPMessages returned error: %v", err)
+	}
+	if len(expunged) != 1 || expunged[0].UID != secondUID.UID || expunged[0].SequenceNumber != 2 {
+		t.Fatalf("expunged summaries = %#v, want second UID with pre-expunge sequence 2", expunged)
+	}
+	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, secondUID.UID); err == nil {
+		t.Fatal("GetIMAPMessage found expunged message")
+	}
+	remaining, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, firstUID.UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage remaining returned error: %v", err)
+	}
+	if string(remaining.Summary.ID) != firstID || !remaining.Summary.Flags.Deleted {
+		t.Fatalf("remaining summary = %#v, want first message still marked deleted", remaining.Summary)
+	}
+	var status string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM messages WHERE id = $1::uuid`, secondID).Scan(&status); err != nil {
+		t.Fatalf("query expunged status: %v", err)
+	}
+	if status != "deleted" {
+		t.Fatalf("expunged status = %q, want deleted", status)
+	}
+}
+
 type postgresSeed struct {
 	companyID string
 	domainID  string

@@ -191,9 +191,9 @@ Current state:
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for protocol listener
   wiring through the service boundary.
 - `mailservice.IMAPStoreAdapter` also satisfies `imapgw.MailboxSessionStore`
-  for SELECT-style mailbox state, service-backed COPY, and mailbox-event
-  subscription. MOVE and EXPUNGE intentionally return an explicit unsupported
-  mutation error until IMAP-safe destructive semantics are reviewed.
+  for SELECT-style mailbox state, service-backed COPY/EXPUNGE, and
+  mailbox-event subscription. MOVE intentionally returns an explicit
+  unsupported mutation error until move semantics are reviewed.
 - `gogomail --mode=imap` is now a separate gateway that opens the
   service-backed IMAP store adapter, wires a process-local mailbox event broker
   for future IDLE sessions, and serves the configured TCP protocol listener.
@@ -207,8 +207,9 @@ Current state:
   host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
 - ADR 0008 accepts the IMAP authentication/session direction: use a dedicated
   protocol auth adapter over local user password hashes, keep JWT out of IMAP,
-  require TLS policy review before production enablement, and continue rejecting
-  MOVE/EXPUNGE until IMAP-safe mutation semantics exist.
+  require TLS policy review before production enablement, keep `\Deleted`
+  separate from gogomail soft-delete status, and continue rejecting MOVE until
+  IMAP-safe move semantics exist.
 - `mailservice.NewIMAPAuthenticatorAdapter` now maps the existing
   Submission/local-password authentication boundary into `imapgw.Session`
   values, giving the listener a protocol-native authenticator without coupling
@@ -384,8 +385,10 @@ Current state:
   identity response.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
-- `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO` responses
-  while destructive expunge semantics remain deferred.
+- `EXPUNGE` and `UID EXPUNGE` now delete only messages marked with the
+  IMAP-specific `\Deleted` flag, emit RFC-shaped untagged sequence-number
+  `EXPUNGE` responses, remove stale mailbox UID rows, and publish best-effort
+  expunge events through the service boundary.
 - `COPY` and `UID COPY` now resolve source message sequence/UID sets, validate
   the destination mailbox, duplicate active message metadata and attachment
   rows transactionally, assign fresh destination mailbox UIDs, and publish

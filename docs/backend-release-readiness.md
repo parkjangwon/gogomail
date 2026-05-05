@@ -242,13 +242,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag mutation, bounded UID backfill, move/delete UID invalidation, and
   same-active-mailbox idempotency checks.
 - `mailservice` now exposes IMAP mailbox/message listing, raw fetch, flag store,
-  COPY, UID backfill, and mailbox-event subscription through service methods
-  plus an `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping protocol wiring
-  off direct `maildb` internals.
+  COPY, EXPUNGE, UID backfill, and mailbox-event subscription through service
+  methods plus an `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping
+  protocol wiring off direct `maildb` internals.
 - `IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore` for mailbox
-  selection, service-backed COPY, and event subscription, while MOVE and
-  EXPUNGE return an explicit unsupported mutation error until IMAP-safe
-  destructive semantics are reviewed.
+  selection, service-backed COPY/EXPUNGE, and event subscription, while MOVE
+  returns an explicit unsupported mutation error until move semantics are
+  reviewed.
 - Admin API exposes bounded IMAP UID backfill by user/mailbox for future
   operator/bootstrap runs without enabling an IMAP protocol listener.
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
@@ -270,8 +270,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
 - ADR 0008 records the IMAP authentication/session contract: protocol auth uses
   a dedicated adapter over local user password hashes, JWT remains HTTP-only,
-  production auth requires TLS policy review, and MOVE/EXPUNGE stay explicitly
-  unsupported until IMAP-safe mutation semantics are accepted.
+  production auth requires TLS policy review, `\Deleted` is a protocol flag
+  separate from gogomail soft-delete status, and MOVE stays explicitly
+  unsupported until IMAP-safe move semantics are accepted.
 - `mailservice.NewIMAPAuthenticatorAdapter` maps the existing Submission/local
   password authentication boundary into `imapgw.Session` values, giving the
   listener a protocol-native authenticator without coupling IMAP to JWT
@@ -455,8 +456,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   response for compatibility diagnostics.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
-- IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO`
-  responses while destructive expunge semantics remain deferred.
+- IMAP `EXPUNGE` and `UID EXPUNGE` now delete only messages marked with the
+  IMAP-specific `\Deleted` flag, emit RFC-shaped untagged sequence-number
+  `EXPUNGE` responses, remove stale mailbox UID rows, and publish best-effort
+  expunge events.
 - IMAP `COPY` and `UID COPY` now resolve source sequence/UID sets through the
   selected mailbox, validate the destination mailbox, duplicate active message
   metadata and attachment rows transactionally, assign fresh destination
