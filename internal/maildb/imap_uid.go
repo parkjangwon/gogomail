@@ -1326,15 +1326,16 @@ func sampleIMAPUIDBackfillAuditIDs(assigned []IMAPMessageUID) []imapUIDBackfillA
 
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 	return imapgw.Mailbox{
-		ID:          imapgw.MailboxID(folder.ID),
-		ParentID:    imapgw.MailboxID(folder.ParentID),
-		Name:        folder.Name,
-		FullPath:    folder.FullPath,
-		SystemType:  folder.SystemType,
-		UIDValidity: state.UIDValidity,
-		UIDNext:     state.UIDNext,
-		Messages:    uint32(folder.Total),
-		Unseen:      uint32(folder.Unread),
+		ID:            imapgw.MailboxID(folder.ID),
+		ParentID:      imapgw.MailboxID(folder.ParentID),
+		Name:          folder.Name,
+		FullPath:      folder.FullPath,
+		SystemType:    folder.SystemType,
+		UIDValidity:   state.UIDValidity,
+		UIDNext:       state.UIDNext,
+		HighestModSeq: state.HighestModSeq,
+		Messages:      uint32(folder.Total),
+		Unseen:        uint32(folder.Unread),
 	}
 }
 

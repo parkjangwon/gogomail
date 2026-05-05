@@ -277,7 +277,8 @@ Current state:
   distinguish writable and read-only flag state.
 - `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts alongside
   `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
-  and `UIDNEXT`.
+  `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from durable mailbox
+  UID state.
 - `UID STORE` now supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses for those requests.
 - `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`

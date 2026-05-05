@@ -14,16 +14,17 @@ type MessageID string
 type UserID string
 
 type Mailbox struct {
-	ID          MailboxID
-	ParentID    MailboxID
-	Name        string
-	FullPath    string
-	SystemType  string
-	UIDValidity uint32
-	UIDNext     UID
-	Messages    uint32
-	Recent      uint32
-	Unseen      uint32
+	ID            MailboxID
+	ParentID      MailboxID
+	Name          string
+	FullPath      string
+	SystemType    string
+	UIDValidity   uint32
+	UIDNext       UID
+	HighestModSeq uint64
+	Messages      uint32
+	Recent        uint32
+	Unseen        uint32
 }
 
 type MessageSummary struct {
