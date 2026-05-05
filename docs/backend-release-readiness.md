@@ -63,6 +63,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   tenant scope from active user metadata and validates parent folder state
   before insert, preparing the backend module without opening a frontend or
   HTTP API surface yet.
+- Drive file finalization can now verify a staged object through the shared
+  storage `Stat` contract and commit file metadata plus unified quota usage in
+  one database transaction, keeping future Drive uploads aligned with mailbox
+  and attachment quota semantics.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
