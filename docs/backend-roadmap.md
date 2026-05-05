@@ -967,6 +967,10 @@ Implementation order:
 753. IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
      parameters, content-transfer-encoding, ID, and description from bounded raw
      message headers instead of always reporting text/plain defaults.
+754. `internal/message` now exposes a bounded streaming MIME-structure parser
+     that walks multipart trees, preserves raw transfer-encoding metadata,
+     counts body octets/lines, and avoids retaining attachment payloads for
+     future IMAP `BODYSTRUCTURE` serialization.
 
 ## Deferred until backend contracts stabilize
 
