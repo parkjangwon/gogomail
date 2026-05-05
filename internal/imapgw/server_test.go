@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -1196,11 +1197,12 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID STORE 7 +FLAGS (\\Seen \\Flagged)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID STORE 7:8 +FLAGS (\\Seen \\Flagged)\r\n")); err != nil {
 		t.Fatalf("write uid store: %v", err)
 	}
 	want := []string{
 		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged))\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged))\r\n",
 		"a3 OK UID STORE completed\r\n",
 	}
 	for _, expected := range want {
@@ -1416,7 +1418,11 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 }
 
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-1", UID: req.UIDs[0], SequenceNumber: 1, Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft}}}, nil
+	summaries := make([]MessageSummary, 0, len(req.UIDs))
+	for _, uid := range req.UIDs {
+		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft}})
+	}
+	return summaries, nil
 }
 
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

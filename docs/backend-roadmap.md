@@ -866,6 +866,9 @@ Implementation order:
 713. IMAP `FETCH`/`UID FETCH` now supports `BODY[TEXT]`, `BODY.PEEK[TEXT]`, and
      `RFC822.TEXT` section literals by streaming only the message body after the
      header separator.
+714. IMAP `UID STORE` now accepts bounded UID sets and ranges, applying flag
+     mutations across multiple UIDs in one command and returning per-message
+     untagged flag updates when not using `.SILENT`.
 
 ## Deferred until backend contracts stabilize
 
