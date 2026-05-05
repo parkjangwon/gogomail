@@ -1553,6 +1553,10 @@ Implementation order:
 917. IMAP UID and message sequence-set expansion now accepts client-scale
      ranges such as `1:1000` and `1:*` while retaining an explicit expansion
      cap, reducing false `BAD` responses during mailbox synchronization.
+918. IMAP UID set resolution now intersects authenticated selected-mailbox UID
+     ranges with visible message UIDs even when the range does not contain `*`,
+     so sparse requests such as `UID FETCH 1:999` skip missing UIDs instead of
+     failing the whole command.
 
 ## Deferred until backend contracts stabilize
 

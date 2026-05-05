@@ -4905,7 +4905,7 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS RFC822.SIZE)\r\na4 UID FETCH 1:* (FLAGS RFC822.SIZE)\r\na5 UID FETCH 999:* (FLAGS RFC822.SIZE)\r\na6 UID FETCH +7 (FLAGS RFC822.SIZE)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS RFC822.SIZE)\r\na4 UID FETCH 1:* (FLAGS RFC822.SIZE)\r\na5 UID FETCH 999:* (FLAGS RFC822.SIZE)\r\na6 UID FETCH 1:999 (FLAGS RFC822.SIZE)\r\na7 UID FETCH +7 (FLAGS RFC822.SIZE)\r\n")); err != nil {
 		t.Fatalf("write uid fetch set: %v", err)
 	}
 	want := []string{
@@ -4917,7 +4917,10 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 		"a4 OK UID FETCH completed\r\n",
 		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
 		"a5 OK UID FETCH completed\r\n",
-		"a6 BAD UID FETCH requires a positive UID set\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
+		"a6 OK UID FETCH completed\r\n",
+		"a7 BAD UID FETCH requires a positive UID set\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

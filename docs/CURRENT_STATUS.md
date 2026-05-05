@@ -254,6 +254,10 @@ guidance.
 - IMAP UID and message sequence-set expansion now accepts common client-scale
   ranges such as `1:1000` and `1:*` while still enforcing an explicit expansion
   cap, reducing false `BAD` responses during mailbox synchronization.
+- IMAP UID set resolution now intersects authenticated selected-mailbox UID
+  ranges with visible message UIDs even when the range does not contain `*`, so
+  sparse requests such as `UID FETCH 1:999` skip missing UIDs instead of
+  failing the whole command.
 - IMAP MIME body-part paths and partial body fetch windows now require
   digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
   `BODY[]<+12.34>` before fetch processing.
