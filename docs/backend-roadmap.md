@@ -1320,6 +1320,9 @@ Implementation order:
 851. IMAP command dispatch now rejects malformed tags containing atom-special
      characters with untagged `BAD` responses before command handling,
      avoiding ambiguous tagged replies for invalid client command tags.
+852. IMAP command parsing now rejects control characters inside unquoted atoms,
+     matching the existing quoted-string control-character guardrail before
+     command dispatch.
 
 ## Deferred until backend contracts stabilize
 

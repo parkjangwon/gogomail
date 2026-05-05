@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP command tag validation)
+Last updated: 2026-05-05 (updated after IMAP atom control validation)
 
 ## Current phase
 
@@ -1131,6 +1131,9 @@ The platform hardening sprint completed the following:
 - IMAP command dispatch now rejects malformed tags containing atom-special
   characters with untagged `BAD` responses before command handling, avoiding
   ambiguous tagged replies for invalid client command tags.
+- IMAP command parsing now rejects control characters inside unquoted atoms,
+  aligning atom parsing with the existing quoted-string control-character
+  guardrail before command dispatch.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

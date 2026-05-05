@@ -242,6 +242,46 @@ func TestServerRejectsMalformedCommandTags(t *testing.T) {
 	}
 }
 
+func TestServerRejectsControlCharactersInAtoms(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 NO\x00OP\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write atom control: %v", err)
+	}
+	want := []string{
+		"* BAD malformed command\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a2 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read atom control response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("atom control response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStartTLS(t *testing.T) {
 	t.Parallel()
 
