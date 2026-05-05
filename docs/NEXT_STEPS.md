@@ -1382,7 +1382,8 @@ Current state:
   synchronized by passing a preallocated node UUID into the metadata insert.
 - Drive file write APIs now return HTTP 507 `insufficient_storage` for quota
   exhaustion on finalize/copy paths.
-- Drive file finalize, download, and copy paths enforce the owning user's
+- Drive file finalize, upload-session cleanup/retry-body replacement,
+  download, and copy paths enforce the owning user's
   `drive/users/{user_id}/...` object prefix before storage adapter access.
 
 Next:

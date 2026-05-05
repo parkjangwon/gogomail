@@ -634,7 +634,11 @@ func (r *Repository) FinalizeUploadSession(ctx context.Context, store storage.St
 	if session.StoragePath == "" {
 		return Node{}, fmt.Errorf("drive upload session body is required")
 	}
-	info, err := store.Stat(ctx, session.StoragePath)
+	storagePath, err := validateUserObjectPath(session.UserID, session.StoragePath)
+	if err != nil {
+		return Node{}, fmt.Errorf("drive upload session body path is invalid: %w", err)
+	}
+	info, err := store.Stat(ctx, storagePath)
 	if err != nil {
 		return Node{}, fmt.Errorf("stat drive upload session body: %w", err)
 	}
@@ -646,7 +650,7 @@ func (r *Repository) FinalizeUploadSession(ctx context.Context, store storage.St
 		ParentID:       session.ParentID,
 		Name:           session.Name,
 		StorageBackend: session.StorageBackend,
-		StoragePath:    session.StoragePath,
+		StoragePath:    storagePath,
 		MIMEType:       session.MIMEType,
 		ChecksumSHA256: session.ChecksumSHA256,
 	}

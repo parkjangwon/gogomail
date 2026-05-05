@@ -1978,9 +1978,10 @@ Implementation order:
 1028. Drive node copy now supports bounded active folder-tree copies in
       addition to files, preserving backend-neutral object copy semantics,
       quota-accounted file metadata, and cleanup on partial-copy failure.
-1029. Drive file finalize, download, and copy paths now enforce the owning
-      user's `drive/users/{user_id}/...` object prefix before storage adapter
-      access, tightening tenant isolation for local/NFS, MinIO, and S3-backed
+1029. Drive file finalize, upload-session cleanup/retry-body replacement,
+      download, and copy paths now enforce the owning user's
+      `drive/users/{user_id}/...` object prefix before storage adapter access,
+      tightening tenant isolation for local/NFS, MinIO, and S3-backed
       deployments.
 
 ## Deferred until backend contracts stabilize

@@ -7,8 +7,6 @@ import (
 	"io"
 	"strings"
 	"time"
-
-	"github.com/gogomail/gogomail/internal/storage"
 )
 
 const (
@@ -267,7 +265,8 @@ func ValidateRecordUploadSessionBodyRequest(req RecordUploadSessionBodyRequest) 
 	if storagePath == "" {
 		return RecordUploadSessionBodyRequest{}, fmt.Errorf("storage_path is required")
 	}
-	if _, err := storage.ValidateObjectPath(storagePath); err != nil {
+	storagePath, err = validateUserObjectPath(userID, storagePath)
+	if err != nil {
 		return RecordUploadSessionBodyRequest{}, fmt.Errorf("storage_path is invalid: %w", err)
 	}
 	checksum, err := validateRequiredDriveChecksum("checksum_sha256", req.ChecksumSHA256)
