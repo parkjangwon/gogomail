@@ -113,6 +113,9 @@ func (c Config) Validate() error {
 			if err := validateHTTPURL("GOGOMAIL_STORAGE_S3_ENDPOINT", c.StorageS3Endpoint); err != nil {
 				return err
 			}
+			if _, err := storage.ValidateS3Endpoint(c.StorageS3Endpoint); err != nil {
+				return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT: %w", err)
+			}
 		}
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_REGION", c.StorageS3Region, 128); err != nil {
 			return err

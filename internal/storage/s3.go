@@ -63,18 +63,9 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 	if endpointValue == "" {
 		endpointValue = "https://s3." + region + ".amazonaws.com"
 	}
-	if strings.ContainsAny(endpointValue, "\r\n") {
-		return nil, fmt.Errorf("s3 endpoint must not contain line breaks")
-	}
-	endpoint, err := url.Parse(endpointValue)
+	endpoint, err := ValidateS3Endpoint(endpointValue)
 	if err != nil {
-		return nil, fmt.Errorf("parse s3 endpoint: %w", err)
-	}
-	if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
-		return nil, fmt.Errorf("s3 endpoint must use http or https")
-	}
-	if endpoint.Host == "" {
-		return nil, fmt.Errorf("s3 endpoint host is required")
+		return nil, err
 	}
 	prefix, err := normalizeS3Prefix(opts.Prefix)
 	if err != nil {
@@ -332,6 +323,33 @@ func ValidateS3BucketName(bucket string) error {
 		}
 	}
 	return nil
+}
+
+func ValidateS3Endpoint(endpointValue string) (*url.URL, error) {
+	endpointValue = strings.TrimSpace(endpointValue)
+	if endpointValue == "" {
+		return nil, fmt.Errorf("s3 endpoint is required")
+	}
+	if strings.ContainsAny(endpointValue, "\r\n") {
+		return nil, fmt.Errorf("s3 endpoint must not contain line breaks")
+	}
+	endpoint, err := url.Parse(endpointValue)
+	if err != nil {
+		return nil, fmt.Errorf("parse s3 endpoint: %w", err)
+	}
+	if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+		return nil, fmt.Errorf("s3 endpoint must use http or https")
+	}
+	if endpoint.Host == "" {
+		return nil, fmt.Errorf("s3 endpoint host is required")
+	}
+	if endpoint.User != nil {
+		return nil, fmt.Errorf("s3 endpoint must not contain user info")
+	}
+	if endpoint.RawQuery != "" || endpoint.Fragment != "" {
+		return nil, fmt.Errorf("s3 endpoint must not contain query or fragment")
+	}
+	return endpoint, nil
 }
 
 func ValidateS3Region(region string) error {
