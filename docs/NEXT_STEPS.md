@@ -1194,6 +1194,9 @@ Current state:
 - Shared storage now supports `Copy` across local/NFS and S3-compatible
   backends, giving future Drive and lifecycle workflows a portable object
   duplication primitive without forcing caller-side read/write loops.
+- Mail API now supports single-message and bounded bulk message restore for
+  soft-deleted messages, preserving hierarchical quota checks before restored
+  messages become active again.
 
 Next:
 

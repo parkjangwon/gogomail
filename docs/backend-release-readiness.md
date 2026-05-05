@@ -38,6 +38,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API exposes bounded thread-level soft deletes for efficient
   conversation-list trash/delete workflows while preserving quota decrement,
   IMAP UID invalidation, and expunge event fanout.
+- Mail API exposes single-message and bounded bulk message restore for
+  soft-deleted messages while preserving hierarchical quota checks before
+  restored messages become active again.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

@@ -64,6 +64,8 @@ type MessageService interface {
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
 	BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDeleteRequest) (int64, error)
+	RestoreMessage(ctx context.Context, userID string, messageID string) error
+	BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (int64, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
 	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
 	DeletePushDevice(ctx context.Context, userID string, id string) error
@@ -121,6 +123,7 @@ type webmailBulkActionCapabilities struct {
 	ThreadMove    bool `json:"thread_move"`
 	Delete        bool `json:"delete"`
 	ThreadDelete  bool `json:"thread_delete"`
+	Restore       bool `json:"restore"`
 }
 
 type webmailMailboxCapabilities struct {
@@ -204,6 +207,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 			ThreadMove:    true,
 			Delete:        true,
 			ThreadDelete:  true,
+			Restore:       true,
 		},
 		MailboxActions: webmailMailboxCapabilities{
 			Folders: true,
@@ -937,6 +941,55 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		req.UserID = userID
 		updated, err := service.BulkDeleteThreads(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "updated": updated})
+	})
+
+	mux.HandleFunc("POST /api/v1/messages/{id}/restore", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		messageID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.RestoreMessage(r.Context(), userID, messageID); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	})
+
+	mux.HandleFunc("POST /api/v1/messages/bulk/restore", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+
+		var req maildb.BulkMessageRestoreRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.UserID = userID
+		updated, err := service.BulkRestoreMessages(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

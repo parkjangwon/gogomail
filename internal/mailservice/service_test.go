@@ -1756,6 +1756,41 @@ func TestDeleteMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	}
 }
 
+func TestRestoreMessageDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	if err := service.RestoreMessage(context.Background(), " user-1 ", " msg-1 "); err != nil {
+		t.Fatalf("RestoreMessage returned error: %v", err)
+	}
+	if repo.lastMutationUserID != "user-1" || repo.lastRestoreMessageID != "msg-1" {
+		t.Fatalf("restore mutation = %q/%q", repo.lastMutationUserID, repo.lastRestoreMessageID)
+	}
+}
+
+func TestBulkRestoreMessagesNormalizesRequest(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{}
+	service := New(repo, nil)
+
+	updated, err := service.BulkRestoreMessages(context.Background(), maildb.BulkMessageRestoreRequest{
+		UserID:     " user-1 ",
+		MessageIDs: []string{" msg-1 ", " msg-2 "},
+	})
+	if err != nil {
+		t.Fatalf("BulkRestoreMessages returned error: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if repo.lastBulkRestore.UserID != "user-1" || len(repo.lastBulkRestore.MessageIDs) != 2 || repo.lastBulkRestore.MessageIDs[0] != "msg-1" || repo.lastBulkRestore.MessageIDs[1] != "msg-2" {
+		t.Fatalf("bulk restore request = %#v", repo.lastBulkRestore)
+	}
+}
+
 func TestBulkMoveThreadsPublishesIMAPExpungeEvents(t *testing.T) {
 	t.Parallel()
 
@@ -2256,12 +2291,14 @@ type fakeRepository struct {
 	lastBulkThreadMove             maildb.BulkThreadMoveRequest
 	lastBulkDelete                 maildb.BulkMessageDeleteRequest
 	lastBulkThreadDelete           maildb.BulkThreadDeleteRequest
+	lastBulkRestore                maildb.BulkMessageRestoreRequest
 	lastListThreadMessageUserID    string
 	lastListThreadMessageThreadIDs []string
 	lastMutationUserID             string
 	lastMoveMessageID              string
 	lastMoveFolderID               string
 	lastDeleteMessageID            string
+	lastRestoreMessageID           string
 	lastPageCursor                 maildb.MessageListCursor
 	lastHydrateIDs                 []string
 	lastSentDraftID                string
@@ -2589,6 +2626,17 @@ func (f *fakeRepository) BulkDeleteThreads(_ context.Context, req maildb.BulkThr
 		return f.bulkThreadDeleteResult, nil
 	}
 	return maildb.BulkThreadDeleteResult{Updated: int64(len(req.ThreadIDs)), MessageIDs: []string{"msg-thread"}}, nil
+}
+
+func (f *fakeRepository) RestoreMessage(_ context.Context, userID string, messageID string) error {
+	f.lastMutationUserID = userID
+	f.lastRestoreMessageID = messageID
+	return nil
+}
+
+func (f *fakeRepository) BulkRestoreMessages(_ context.Context, req maildb.BulkMessageRestoreRequest) (int64, error) {
+	f.lastBulkRestore = req
+	return int64(len(req.MessageIDs)), nil
 }
 
 func (f *fakeRepository) ListPushDevices(_ context.Context, userID string, limit int) ([]maildb.PushDevice, error) {

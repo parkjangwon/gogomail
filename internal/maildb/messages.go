@@ -118,6 +118,11 @@ type BulkMessageDeleteRequest struct {
 	MessageIDs []string `json:"message_ids"`
 }
 
+type BulkMessageRestoreRequest struct {
+	UserID     string   `json:"user_id,omitempty"`
+	MessageIDs []string `json:"message_ids"`
+}
+
 const BulkMessageMaxIDs = 500
 const maxMailboxResourceIDBytes = 200
 const maxFolderNameBytes = 200
@@ -199,6 +204,19 @@ func ValidateBulkThreadMoveRequest(req BulkThreadMoveRequest) error {
 }
 
 func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if len(req.MessageIDs) == 0 {
+		return fmt.Errorf("message_ids is required")
+	}
+	if len(req.MessageIDs) > BulkMessageMaxIDs {
+		return fmt.Errorf("too many message_ids")
+	}
+	return validateBulkMessageIDs(req.MessageIDs)
+}
+
+func ValidateBulkMessageRestoreRequest(req BulkMessageRestoreRequest) error {
 	if strings.TrimSpace(req.UserID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
@@ -1122,6 +1140,48 @@ WHERE user_id = $1
 	return nil
 }
 
+func (r *Repository) RestoreMessage(ctx context.Context, userID string, messageID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin restore message transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var size int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(size, 0) FROM messages WHERE user_id = $1 AND id = $2 AND status = 'deleted' FOR UPDATE`,
+		userID, messageID,
+	).Scan(&size); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("message %q not found", messageID)
+		}
+		return fmt.Errorf("read message size for restore: %w", err)
+	}
+	if err := checkAndIncrementUserQuota(ctx, tx, userID, size); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET status = 'active',
+    deleted_at = NULL,
+    updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'deleted'`, userID, messageID); err != nil {
+		return fmt.Errorf("restore message: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit restore message transaction: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) BulkDeleteMessages(ctx context.Context, req BulkMessageDeleteRequest) (int64, error) {
 	if r.db == nil {
 		return 0, fmt.Errorf("database handle is required")
@@ -1175,6 +1235,75 @@ WHERE user_id = $1
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit bulk delete transaction: %w", err)
+	}
+	return affected, nil
+}
+
+func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRestoreRequest) (int64, error) {
+	if r.db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkMessageRestoreRequest(req); err != nil {
+		return 0, err
+	}
+	rawIDs, err := json.Marshal(req.MessageIDs)
+	if err != nil {
+		return 0, fmt.Errorf("encode message ids: %w", err)
+	}
+	userID := strings.TrimSpace(req.UserID)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin bulk restore transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx, `
+SELECT COALESCE(size, 0)
+FROM messages
+WHERE user_id = $1
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'deleted'
+FOR UPDATE`, userID, string(rawIDs))
+	if err != nil {
+		return 0, fmt.Errorf("list message sizes for bulk restore: %w", err)
+	}
+	var totalSize int64
+	for rows.Next() {
+		var size int64
+		if err := rows.Scan(&size); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan message size for bulk restore: %w", err)
+		}
+		totalSize += size
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close bulk restore size rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate bulk restore size rows: %w", err)
+	}
+	if err := checkAndIncrementUserQuota(ctx, tx, userID, totalSize); err != nil {
+		return 0, err
+	}
+
+	result, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET status = 'active',
+    deleted_at = NULL,
+    updated_at = now()
+WHERE user_id = $1
+  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND status = 'deleted'`, userID, string(rawIDs))
+	if err != nil {
+		return 0, fmt.Errorf("bulk restore messages: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("inspect bulk message restore: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit bulk restore transaction: %w", err)
 	}
 	return affected, nil
 }

@@ -226,6 +226,9 @@ request and only affect active messages owned by the authenticated user.
 - `POST /api/v1/messages/bulk/delete`
   - Body: `{"message_ids":["..."]}`
   - Response: `{"status":"ok","updated":2}`
+- `POST /api/v1/messages/bulk/restore`
+  - Body: `{"message_ids":["..."]}`
+  - Response: `{"status":"ok","updated":2}`
 - `POST /api/v1/threads/bulk/delete`
   - Body: `{"thread_ids":["..."]}`
   - Response: `{"status":"ok","updated":5}`
@@ -241,7 +244,9 @@ transaction, and publish best-effort IMAP expunge events from the pre-move UID
 snapshot. Thread deletes soft-delete every active message in matching
 conversations, invalidate affected IMAP UID rows, decrement stored-byte quota in
 the same transaction, and publish best-effort IMAP expunge events from the
-pre-delete UID snapshot.
+pre-delete UID snapshot. Message restores flip soft-deleted messages back to
+`active`, clear `deleted_at`, and re-check/re-increment the hierarchical quota
+ledger in the same transaction so recovery cannot bypass storage limits.
 
 ## Compose requests
 

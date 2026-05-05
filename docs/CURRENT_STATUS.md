@@ -115,6 +115,9 @@ guidance.
   active message in selected conversations while invalidating IMAP UID rows,
   decrementing quota transactionally, and publishing best-effort IMAP expunge
   events from the pre-delete UID snapshot.
+- Mail API now supports single-message and bounded bulk message restore for
+  soft-deleted messages, clearing `deleted_at` and re-checking/re-incrementing
+  the hierarchical quota ledger before messages become active again.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

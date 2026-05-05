@@ -1723,6 +1723,10 @@ Implementation order:
      S3-compatible backends, using atomic temporary-file commits locally and
      signed S3 server-side copy remotely so future Drive and lifecycle
      workflows can duplicate objects without caller-side body streaming.
+962. Mail API now exposes single-message and bounded bulk message restore for
+     soft-deleted messages, clearing `deleted_at` while re-checking and
+     re-incrementing the hierarchical quota ledger before restored messages
+     become active again.
 
 ## Deferred until backend contracts stabilize
 
