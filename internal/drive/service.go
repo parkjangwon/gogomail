@@ -540,6 +540,9 @@ func (s *Service) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNo
 	if err != nil {
 		return PermanentDeleteServiceResult{}, err
 	}
+	if err := validateDeletedObjectsBelongToUser(deleted.Root.UserID, deleted.Objects); err != nil {
+		return PermanentDeleteServiceResult{}, err
+	}
 	cleanup, err := CleanupDeletedObjects(ctx, s.stores, deleted.Objects)
 	result := PermanentDeleteServiceResult{
 		PermanentDelete: deleted,
@@ -566,10 +569,15 @@ func (s *Service) RetryObjectCleanupFailures(ctx context.Context, req ListObject
 	}
 	result := RetryObjectCleanupFailuresResult{Scanned: len(failures)}
 	for _, failure := range failures {
-		cleanup, err := CleanupDeletedObjects(ctx, s.stores, []DeletedObject{{
-			StorageBackend: failure.StorageBackend,
-			StoragePath:    failure.StoragePath,
-		}})
+		object := DeletedObject{StorageBackend: failure.StorageBackend, StoragePath: failure.StoragePath}
+		if err := validateDeletedObjectsBelongToUser(failure.UserID, []DeletedObject{object}); err != nil {
+			result.Failed++
+			if recordErr := s.recordObjectCleanupFailure(ctx, PermanentDeleteResult{Root: Node{ID: failure.NodeID, UserID: failure.UserID}}, err); recordErr != nil {
+				return result, fmt.Errorf("record drive object cleanup retry failure after validation error %v: %w", err, recordErr)
+			}
+			continue
+		}
+		cleanup, err := CleanupDeletedObjects(ctx, s.stores, []DeletedObject{object})
 		result.Deleted += cleanup.Deleted
 		if err != nil {
 			result.Failed++
@@ -601,6 +609,18 @@ func (s *Service) ResolveObjectCleanupFailure(ctx context.Context, req ResolveOb
 		return ObjectCleanupFailure{}, fmt.Errorf("drive cleanup failure store is required")
 	}
 	return s.cleanupFailureStore.ResolveObjectCleanupFailure(ctx, req)
+}
+
+func validateDeletedObjectsBelongToUser(userID string, objects []DeletedObject) error {
+	for _, object := range objects {
+		if strings.TrimSpace(object.StoragePath) == "" {
+			continue
+		}
+		if _, err := validateUserObjectPath(userID, object.StoragePath); err != nil {
+			return fmt.Errorf("drive cleanup object path is invalid: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *Service) recordObjectCleanupFailure(ctx context.Context, deleted PermanentDeleteResult, cleanupErr error) error {

@@ -150,6 +150,49 @@ func TestRetryObjectCleanupFailuresRecordsRetryFailureAndContinues(t *testing.T)
 	}
 }
 
+func TestRetryObjectCleanupFailuresRejectsWrongUserObjectPath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	queue := &recordingCleanupFailureStore{
+		failures: []ObjectCleanupFailure{{
+			ID:             "failure-1",
+			UserID:         "user-1",
+			NodeID:         "node-1",
+			StorageBackend: "s3",
+			StoragePath:    "drive/users/user-2/objects/node-1",
+		}},
+	}
+	service := NewService(nil, map[string]storage.Store{"s3": store}).WithObjectCleanupFailureStore(queue)
+
+	result, err := service.RetryObjectCleanupFailures(context.Background(), ListObjectCleanupFailuresRequest{})
+	if err == nil || !strings.Contains(err.Error(), "1 failures remain") {
+		t.Fatalf("RetryObjectCleanupFailures err = %v, want remaining failure", err)
+	}
+	if result.Scanned != 1 || result.Deleted != 0 || result.Failed != 1 || result.Resolved != 0 {
+		t.Fatalf("result = %+v, want one validation failure without delete", result)
+	}
+	if len(store.deleted) != 0 {
+		t.Fatalf("deleted paths = %v, want no delete for wrong-user path", store.deleted)
+	}
+	if queue.resolvedID != "" {
+		t.Fatalf("resolvedID = %q, want unresolved validation failure", queue.resolvedID)
+	}
+}
+
+func TestValidateDeletedObjectsBelongToUser(t *testing.T) {
+	t.Parallel()
+
+	err := validateDeletedObjectsBelongToUser("user-1", []DeletedObject{{StoragePath: "drive/users/user-1/objects/node-1"}})
+	if err != nil {
+		t.Fatalf("validateDeletedObjectsBelongToUser returned error: %v", err)
+	}
+	err = validateDeletedObjectsBelongToUser("user-1", []DeletedObject{{StoragePath: "drive/users/user-2/objects/node-1"}})
+	if err == nil {
+		t.Fatal("validateDeletedObjectsBelongToUser accepted another user's object")
+	}
+}
+
 func TestRetryObjectCleanupFailuresRequiresStore(t *testing.T) {
 	t.Parallel()
 
