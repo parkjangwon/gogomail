@@ -20,10 +20,11 @@ one backend-neutral object relocation contract: local/NFS uses filesystem
 rename semantics, while S3-compatible storage performs server-side copy
 followed by source delete. `List` returns bounded, cursor-paginated object
 metadata under a validated prefix, using a local/NFS directory walk or signed
-S3 `ListObjectsV2` requests. Future Drive and lifecycle modules should prefer
-`Stat` for existence/size checks, `GetRange` for resumable downloads and media
-preview windows, `Copy` for object duplication workflows, `Move` for file
-rename/relocation workflows, and `List` for prefix-scoped browsing,
+S3 `ListObjectsV2` requests; truncated S3 pages must include a continuation
+token before callers see the page. Future Drive and lifecycle modules should
+prefer `Stat` for existence/size checks, `GetRange` for resumable downloads
+and media preview windows, `Copy` for object duplication workflows, `Move` for
+file rename/relocation workflows, and `List` for prefix-scoped browsing,
 reconciliation, and cleanup scans.
 `storage.DeletePrefix` composes `List` and idempotent `Delete` into a bounded
 page-level cleanup helper for future Drive folder deletion, attachment
