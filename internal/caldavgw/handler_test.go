@@ -26,6 +26,9 @@ func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodPropfind) || !strings.Contains(got, MethodReport) {
 		t.Fatalf("Allow header = %q", got)
 	}
+	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodProppatch) {
+		t.Fatalf("Allow header does not advertise PROPPATCH: %q", got)
+	}
 	if got := rec.Header().Get("Allow"); !strings.Contains(got, MethodMkcalendar) {
 		t.Fatalf("Allow header does not advertise MKCALENDAR: %q", got)
 	}
@@ -580,6 +583,105 @@ func TestHandlerMkcalendarRejectsUnsafePathID(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchUpdatesCalendarCollectionProperties(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+  <D:set>
+    <D:prop>
+      <D:displayname>Product</D:displayname>
+      <C:calendar-description>Launch dates</C:calendar-description>
+      <CS:calendar-color>#112233</CS:calendar-color>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Product" || calendar.Description != "Launch dates" || calendar.Color != "#112233" {
+		t.Fatalf("calendar = %+v", calendar)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/</D:href>",
+		"<D:displayname>Product</D:displayname>",
+		"<C:calendar-description>Launch dates</C:calendar-description>",
+		"<CS:calendar-color>#112233</CS:calendar-color>",
+		"HTTP/1.1 200 OK",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerProppatchRemovesOptionalCalendarProperties(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+  <D:remove>
+    <D:prop>
+      <C:calendar-description/>
+      <CS:calendar-color/>
+    </D:prop>
+  </D:remove>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Description != "" || calendar.Color != "" {
+		t.Fatalf("calendar = %+v", calendar)
+	}
+}
+
+func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		userID string
+		target string
+		body   string
+		want   int
+	}{
+		{name: "cross user", userID: "user-2", target: "/caldav/calendars/user-1/work/", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Work</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
+		{name: "object target", userID: "user-1", target: "/caldav/calendars/user-1/work/event-1.ics", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Work</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
+		{name: "invalid body", userID: "user-1", target: "/caldav/calendars/user-1/work/", body: `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`, want: http.StatusBadRequest},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewHandler(newFakeDiscoveryStore(), fixedUser(tc.userID))
+			req := httptest.NewRequest(MethodProppatch, tc.target, strings.NewReader(tc.body))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d, body = %s", rec.Code, tc.want, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandlerPutRejectsFailedPreconditions(t *testing.T) {
 	t.Parallel()
 
@@ -850,6 +952,31 @@ func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateC
 	}
 	s.calendars = append(s.calendars, calendar)
 	return calendar, nil
+}
+
+func (s *fakeDiscoveryStore) UpdateCalendarProperties(_ context.Context, req UpdateCalendarRequest) (Calendar, error) {
+	validated, _, _, err := ValidateUpdateCalendarRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	for i, calendar := range s.calendars {
+		if calendar.UserID == validated.UserID && calendar.ID == validated.CalendarID {
+			if validated.Name != nil {
+				calendar.Name = *validated.Name
+			}
+			if validated.Color != nil {
+				calendar.Color = *validated.Color
+			}
+			if validated.Description != nil {
+				calendar.Description = *validated.Description
+			}
+			calendar.UpdatedAt = time.Now()
+			s.calendars[i] = calendar
+			s.recordChange(validated.UserID, validated.CalendarID, "collection-updated", "", "")
+			return s.calendars[i], nil
+		}
+	}
+	return Calendar{}, errFakeNotFound
 }
 
 func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectRequest) (CalendarObject, error) {

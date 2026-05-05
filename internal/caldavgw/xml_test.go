@@ -194,6 +194,82 @@ func TestParseMKCalendarRejectsWrongRoot(t *testing.T) {
 	}
 }
 
+func TestParseProppatchCollectsCalendarCollectionProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+  <D:set>
+    <D:prop>
+      <D:displayname> Product </D:displayname>
+      <C:calendar-description> Launch dates </C:calendar-description>
+      <CS:calendar-color> #112233 </CS:calendar-color>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.Name == nil || *req.Name != "Product" {
+		t.Fatalf("name = %v", req.Name)
+	}
+	if req.Description == nil || *req.Description != "Launch dates" {
+		t.Fatalf("description = %v", req.Description)
+	}
+	if req.Color == nil || *req.Color != "#112233" {
+		t.Fatalf("color = %v", req.Color)
+	}
+	if len(req.Properties) != 3 {
+		t.Fatalf("properties = %+v", req.Properties)
+	}
+}
+
+func TestParseProppatchRemovesOptionalCalendarProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:A="http://apple.com/ns/ical/">
+  <D:remove>
+    <D:prop>
+      <C:calendar-description/>
+      <A:calendar-color/>
+    </D:prop>
+  </D:remove>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.Description == nil || *req.Description != "" {
+		t.Fatalf("description = %v", req.Description)
+	}
+	if req.Color == nil || *req.Color != "" {
+		t.Fatalf("color = %v", req.Color)
+	}
+}
+
+func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"empty body":              ``,
+		"wrong root":              `<D:propfind xmlns:D="DAV:"/>`,
+		"remove displayname":      `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`,
+		"unsupported only":        `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:owner>me</D:owner></D:prop></D:set></D:propertyupdate>`,
+		"nested supported text":   `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
+		"unsupported child shape": `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ParseProppatch(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseProppatch error = nil, want rejection")
+			}
+		})
+	}
+}
+
 func TestParseReportRecognizesCalDAVAndSyncReports(t *testing.T) {
 	t.Parallel()
 

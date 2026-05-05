@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV well-known discovery)
+Last updated: 2026-05-06 (updated after CalDAV PROPPATCH collection metadata support)
 
 ## Current phase
 
@@ -27,6 +27,21 @@ Calendar work is planned as a standards-first CalDAV module, not as a
 frontend-only calendar API. The initial `internal/caldavgw` boundary and
 `caldav` runtime mode scaffold exist so future webmail calendar features and
 native CalDAV/iCalendar clients can share a protocol-correct backend.
+
+CalDAV remains an experimental/backend-only release slice: useful protocol
+building blocks now exist, but the module is not yet advertised as public
+client-ready. The next compatibility gates are recurrence expansion, scheduling
+semantics, retention-aware sync deltas, collection-deletion sync, broader
+native-client testing, and the platform boundaries below.
+
+Calendar product features must not grow as isolated CRUD. Before delegated
+calendars, shared ownership, attendees, resource booking, reminders, or
+organization calendars become public features, the project should establish
+clear Directory/Identity, Contacts/CardDAV, Notification & Sync, Search, and
+Policy/Audit boundaries. Directory is the platform/org layer for users, teams,
+groups, aliases, resources, memberships, delegation, and principal resolution;
+Contacts/CardDAV is the user-owned address-book layer for personal/external
+people and user-specific metadata.
 
 ## Completed or materially advanced
 
@@ -2152,6 +2167,13 @@ The platform hardening sprint completed the following:
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and
   `calendar-home-set` for authenticated clients.
+- CalDAV now handles WebDAV `PROPPATCH` for authenticated calendar collection
+  metadata, using bounded namespace-aware `propertyupdate` parsing and a small
+  repository update boundary for `DAV:displayname`,
+  `CALDAV:calendar-description`, and CalendarServer/Apple calendar color.
+  Updates are transactional, refresh the collection sync token, append a
+  `collection-updated` sync marker, and keep calendar objects, scheduling, and
+  product-specific policy out of the gateway path.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

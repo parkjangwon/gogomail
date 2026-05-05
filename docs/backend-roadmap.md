@@ -2109,6 +2109,20 @@ Implementation order:
       `/.well-known/caldav` to `/caldav/` and serving authenticated root
       `PROPFIND /caldav/` discovery for `current-user-principal`,
       `principal-collection-set`, and `calendar-home-set`.
+1058. CalDAV now handles WebDAV `PROPPATCH` for authenticated calendar
+      collections, parsing bounded namespace-aware `propertyupdate` bodies for
+      `DAV:displayname`, `CALDAV:calendar-description`, and
+      CalendarServer/Apple `calendar-color`. The handler rejects object/home
+      targets, keeps `displayname` non-removable, updates metadata through a
+      small repository boundary, refreshes the collection sync token, and
+      appends a durable `collection-updated` sync marker.
+1059. CalDAV release status is explicitly experimental/backend-only until
+      recurrence expansion, scheduling, sync retention, collection-deletion
+      deltas, native-client compatibility testing, and Directory/Identity,
+      Contacts/CardDAV, Notification & Sync, Search, and Policy/Audit
+      boundaries are established for public calendar semantics. Calendar must
+      not evolve into an isolated CRUD subsystem with its own private principal
+      model.
 
 ## Deferred until backend contracts stabilize
 
@@ -2118,6 +2132,12 @@ Implementation order:
 - etcd
 - Vault
 - IMAP
-- CalDAV protocol listener completion
+- CalDAV public/client-ready compatibility
+- Directory/Identity service boundary for org principals, resources, groups,
+  aliases, memberships, delegation, and principal resolution
+- Contacts/CardDAV boundary for personal contacts, external people, and
+  address-book metadata
+- Notification & Sync boundary for domain events, reminders, devices, quiet
+  hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
 - Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.

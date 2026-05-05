@@ -257,6 +257,15 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
   redirect and authenticated root `PROPFIND /caldav/` responses for principal
   and calendar-home discovery.
+- CalDAV now handles WebDAV `PROPPATCH` for authenticated calendar collection
+  metadata (`displayname`, `calendar-description`, CalendarServer/Apple
+  `calendar-color`) with bounded namespace-aware XML parsing, transactional
+  sync-token refresh, and durable `collection-updated` sync markers.
+- CalDAV remains experimental/backend-only for this release slice. Public
+  client-ready status is gated on recurrence, scheduling, retention-aware sync,
+  collection-deletion deltas, broad native-client compatibility tests, and the
+  shared Directory/Identity, Contacts/CardDAV, Notification & Sync, Search, and
+  Policy/Audit boundaries needed for shared/delegated/resource calendars.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

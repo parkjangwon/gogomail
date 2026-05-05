@@ -32,6 +32,10 @@ type CalendarDeleter interface {
 	DeleteCalendar(ctx context.Context, req DeleteCalendarRequest) (Calendar, error)
 }
 
+type CalendarUpdater interface {
+	UpdateCalendarProperties(ctx context.Context, req UpdateCalendarRequest) (Calendar, error)
+}
+
 type SyncChangeStore interface {
 	ListCalendarChangesSince(ctx context.Context, req ListChangesSinceRequest) ([]CalendarChange, error)
 }
@@ -81,6 +85,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveOptions(w)
 	case MethodPropfind:
 		h.servePropfind(w, r)
+	case MethodProppatch:
+		h.serveProppatch(w, r)
 	case MethodReport:
 		h.serveReport(w, r)
 	case MethodGet, MethodHead:
@@ -105,6 +111,53 @@ func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", target)
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusMovedPermanently)
+}
+
+func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
+	userID, resource, ok := h.resolveResourceRequest(w, r)
+	if !ok {
+		return
+	}
+	if resource.Kind != ResourceCalendarCollection {
+		http.Error(w, "PROPPATCH requires a calendar collection path", http.StatusForbidden)
+		return
+	}
+	store, ok := h.Store.(CalendarUpdater)
+	if !ok {
+		http.Error(w, "caldav calendar updater is not configured", http.StatusNotImplemented)
+		return
+	}
+	patch, err := ParseProppatch(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	calendar, err := store.UpdateCalendarProperties(r.Context(), UpdateCalendarRequest{
+		UserID:      userID,
+		CalendarID:  resource.CalendarID,
+		Name:        patch.Name,
+		Color:       patch.Color,
+		Description: patch.Description,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	href, err := CalendarCollectionPath(userID, calendar.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchResponse(href, calendar, patch.Properties)})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusMultiStatus)
+	_, _ = w.Write(body)
 }
 
 func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
@@ -606,6 +659,21 @@ func responseForProperties(href string, propfind PropfindRequest, props []Proper
 	return MultiStatusResponse{Href: href, PropStats: SelectPropfindProperties(propfind, props)}
 }
 
+func proppatchResponse(href string, calendar Calendar, properties []XMLName) MultiStatusResponse {
+	results := make([]PropertyResult, 0, len(properties))
+	for _, prop := range properties {
+		switch prop {
+		case PropDisplayName:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Name}, Found: true})
+		case PropCalendarDescription:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Description}, Found: true})
+		case PropCalendarColor:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Color}, Found: true})
+		}
+	}
+	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
+}
+
 func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
 	switch report.Kind {
 	case ReportCalendarMulti:
@@ -772,7 +840,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(changes))
 	for _, change := range changes {
-		if change.Action == "collection-deleted" {
+		if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
 			continue
 		}
 		href, err := CalendarObjectPath(userID, change.CalendarID, change.ObjectName)
@@ -842,6 +910,7 @@ func calDAVAllowHeader() string {
 	return strings.Join([]string{
 		MethodOptions,
 		MethodPropfind,
+		MethodProppatch,
 		MethodReport,
 		MethodMkcalendar,
 		MethodGet,

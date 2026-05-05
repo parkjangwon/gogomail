@@ -15,6 +15,7 @@ const (
 const (
 	MethodOptions    = "OPTIONS"
 	MethodPropfind   = "PROPFIND"
+	MethodProppatch  = "PROPPATCH"
 	MethodReport     = "REPORT"
 	MethodMkcalendar = "MKCALENDAR"
 	MethodGet        = "GET"

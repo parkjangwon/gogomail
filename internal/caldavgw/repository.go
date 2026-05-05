@@ -79,6 +79,14 @@ type DeleteCalendarRequest struct {
 	CalendarID string
 }
 
+type UpdateCalendarRequest struct {
+	UserID      string
+	CalendarID  string
+	Name        *string
+	Color       *string
+	Description *string
+}
+
 type ListChangesSinceRequest struct {
 	UserID     string
 	CalendarID string
@@ -540,6 +548,78 @@ WHERE user_id = $1::uuid
 	return calendar, nil
 }
 
+func (r *Repository) UpdateCalendarProperties(ctx context.Context, req UpdateCalendarRequest) (Calendar, error) {
+	if r == nil || r.db == nil {
+		return Calendar{}, fmt.Errorf("database handle is required")
+	}
+	req, normalizedName, syncToken, err := ValidateUpdateCalendarRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Calendar{}, fmt.Errorf("begin CalDAV calendar update: %w", err)
+	}
+	defer tx.Rollback()
+	if err := lockActiveCalendar(ctx, tx, req.UserID, req.CalendarID); err != nil {
+		return Calendar{}, err
+	}
+	if err := ensureCalendarSyncMarker(ctx, tx, req.UserID, req.CalendarID); err != nil {
+		return Calendar{}, err
+	}
+	nameValue, nameSet := optionalStringArg(req.Name)
+	colorValue, colorSet := optionalStringArg(req.Color)
+	descriptionValue, descriptionSet := optionalStringArg(req.Description)
+	const query = `
+UPDATE caldav_calendars
+SET
+  name = CASE WHEN $3 THEN $4 ELSE name END,
+  normalized_name = CASE WHEN $3 THEN $5 ELSE normalized_name END,
+  color = CASE WHEN $6 THEN $7 ELSE color END,
+  description = CASE WHEN $8 THEN $9 ELSE description END,
+  sync_token = $10,
+  updated_at = now()
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'
+RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
+	var calendar Calendar
+	err = tx.QueryRowContext(ctx, query,
+		req.UserID,
+		req.CalendarID,
+		nameSet,
+		nameValue,
+		normalizedName,
+		colorSet,
+		colorValue,
+		descriptionSet,
+		descriptionValue,
+		syncToken,
+	).Scan(
+		&calendar.ID,
+		&calendar.UserID,
+		&calendar.Name,
+		&calendar.Color,
+		&calendar.Description,
+		&calendar.SyncToken,
+		&calendar.CreatedAt,
+		&calendar.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Calendar{}, fmt.Errorf("CalDAV calendar not found")
+		}
+		return Calendar{}, fmt.Errorf("update CalDAV calendar properties: %w", err)
+	}
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "collection-updated", "", ""); err != nil {
+		return Calendar{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Calendar{}, fmt.Errorf("commit CalDAV calendar update: %w", err)
+	}
+	return calendar, nil
+}
+
 func (r *Repository) ListCalendarChangesSince(ctx context.Context, req ListChangesSinceRequest) ([]CalendarChange, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -795,6 +875,51 @@ func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarReq
 	return DeleteCalendarRequest{UserID: userID, CalendarID: calendarID}, nil
 }
 
+func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarRequest, string, string, error) {
+	userID, err := validateCalDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return UpdateCalendarRequest{}, "", "", err
+	}
+	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
+	if err != nil {
+		return UpdateCalendarRequest{}, "", "", err
+	}
+	if req.Name == nil && req.Color == nil && req.Description == nil {
+		return UpdateCalendarRequest{}, "", "", fmt.Errorf("at least one calendar property is required")
+	}
+	var normalizedName string
+	var name *string
+	if req.Name != nil {
+		value, err := ValidateCalendarName(*req.Name)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", err
+		}
+		normalizedName, err = NormalizeCalendarName(value)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", err
+		}
+		name = &value
+	}
+	var color *string
+	if req.Color != nil {
+		value, err := ValidateCalendarColor(*req.Color)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", err
+		}
+		color = &value
+	}
+	var description *string
+	if req.Description != nil {
+		value, err := ValidateCalendarDescription(*req.Description)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", err
+		}
+		description = &value
+	}
+	syncToken := CalendarSyncToken(userID, calendarID, "collection-update", time.Now().UTC().Format(time.RFC3339Nano))
+	return UpdateCalendarRequest{UserID: userID, CalendarID: calendarID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
+}
+
 func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSinceRequest, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
@@ -920,6 +1045,13 @@ func validateOptionalETag(value string) (string, error) {
 		return "", nil
 	}
 	return ValidateStrongETag(value)
+}
+
+func optionalStringArg(value *string) (string, bool) {
+	if value == nil {
+		return "", false
+	}
+	return *value, true
 }
 
 func validateCalDAVID(field string, value string, required bool) (string, error) {
