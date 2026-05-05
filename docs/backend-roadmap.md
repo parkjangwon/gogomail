@@ -1773,6 +1773,11 @@ Implementation order:
      trashed file/folder and its trashed descendants active again in one
      transaction, clears `trashed_at`, and lets the active sibling uniqueness
      constraint guard name conflicts before HTTP/API surfaces expose restore.
+974. Drive now has an internal permanent-delete repository mutation that marks
+     a trashed file/folder and its trashed descendants deleted, decrements the
+     company/domain/user quota ledger for deleted file bytes in the same
+     transaction, and returns storage object references for backend-specific
+     cleanup/reconciliation.
 
 ## Deferred until backend contracts stabilize
 

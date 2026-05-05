@@ -332,13 +332,18 @@ Current state:
   its trashed descendants active again in one transaction, clearing `trashed_at`
   while keeping active sibling name conflicts protected by the database
   uniqueness constraint.
+- `internal/drive.Repository.PermanentDeleteNode` can mark a trashed
+  file/folder and its trashed descendants deleted, release deleted file bytes
+  from the company/domain/user quota ledger, and return storage object
+  references for later backend cleanup.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive permanent-delete flows against `drive_nodes`, using storage
-  `DeletePrefix` and quota decrement semantics before exposing HTTP API routes.
-- Add Drive service and HTTP contracts only after repository create/list/delete
+- Add a Drive service layer that consumes permanent-delete object references
+  and performs bounded backend cleanup/reconciliation on top of storage
+  `Delete`/`DeletePrefix` contracts.
+- Add Drive HTTP contracts only after repository create/list/delete/restore
   flows are stable enough to document in OpenAPI.
 
 ### 2. Message threading and search
