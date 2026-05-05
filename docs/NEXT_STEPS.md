@@ -1590,12 +1590,13 @@ Next:
   friendlier MKCALENDAR clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
 - Before public shared/delegated calendar or resource-booking features,
-  establish the platform boundaries CalDAV depends on: Directory/Identity for
-  users, teams, groups, resources, aliases, memberships, delegation, and
-  principal resolution; Contacts/CardDAV for personal/external people and
-  address books; Notification & Sync for reminders, devices, quiet hours, and
-  delta fan-out; Search for unified event/person/resource lookup; and
-  Policy/Audit for retention, admin controls, and traceable calendar access.
+  extend the initial `internal/directory` principal resolver into the platform
+  boundaries CalDAV depends on: Directory/Identity for organizations, teams,
+  groups, resources, aliases, memberships, delegation, and principal
+  resolution; Contacts/CardDAV for personal/external people and address books;
+  Notification & Sync for reminders, devices, quiet hours, and delta fan-out;
+  Search for unified event/person/resource lookup; and Policy/Audit for
+  retention, admin controls, and traceable calendar access.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.
