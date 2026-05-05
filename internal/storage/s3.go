@@ -156,7 +156,7 @@ func (s *S3Store) Check(ctx context.Context) error {
 		_ = s.Delete(ctx, objectPath)
 		return fmt.Errorf("read readiness probe: %w", err)
 	}
-	got, readErr := io.ReadAll(io.LimitReader(readCloser, int64(len(body))+1))
+	got, readErr := readStorageCheckBody(readCloser, len(body))
 	closeErr := readCloser.Close()
 	if readErr != nil {
 		_ = s.Delete(ctx, objectPath)

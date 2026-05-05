@@ -61,6 +61,18 @@ func TestLocalStoreCheckProbesWritableStorage(t *testing.T) {
 	}
 }
 
+func TestReadStorageCheckBodyBoundsReadinessBody(t *testing.T) {
+	t.Parallel()
+
+	got, err := readStorageCheckBody(strings.NewReader("gogomail storage readiness\nextra"), len("gogomail storage readiness\n"))
+	if err != nil {
+		t.Fatalf("readStorageCheckBody returned error: %v", err)
+	}
+	if string(got) != "gogomail storage readiness\ne" {
+		t.Fatalf("bounded check body = %q", got)
+	}
+}
+
 func TestLocalStorePutUsesUniqueTemporaryObject(t *testing.T) {
 	t.Parallel()
 
