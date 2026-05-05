@@ -1025,6 +1025,9 @@ Implementation order:
 771. IMAP mailbox lookup now resolves wire names such as `INBOX` and
      `Archive/2026` to the stored mailbox ID before selected-mailbox state is
      used by follow-up commands.
+772. IMAP `EXAMINE` now passes read-only selection intent through the backend
+     `SelectMailboxRequest`, letting service adapters distinguish read-only
+     sessions from writable `SELECT`.
 
 ## Deferred until backend contracts stabilize
 

@@ -334,6 +334,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
 			UserID:    state.session.UserID,
 			MailboxID: MailboxID(fields[2]),
+			ReadOnly:  command == "EXAMINE",
 		})
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")

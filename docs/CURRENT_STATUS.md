@@ -804,6 +804,9 @@ The platform hardening sprint completed the following:
   them through the selected mailbox list before returning fetch responses.
 - IMAP `EXAMINE` supports read-only mailbox selection and blocks `UID STORE`
   mutations in that state.
+- IMAP `EXAMINE` passes read-only selection intent through the backend
+  `SelectMailboxRequest`, so service adapters can distinguish read-only
+  sessions from writable `SELECT`.
 - IMAP `CHECK` and `CLOSE` support selected-mailbox lifecycle handling; `CLOSE`
   clears selected state without enabling EXPUNGE/`\Deleted` behavior yet.
 - IMAP `STATUS` validates requested status data items and returns only the
