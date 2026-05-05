@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP bounded text-section fetch hardening)
+Last updated: 2026-05-05 (updated after IMAP partial-fetch grammar hardening)
 
 ## Current phase
 
@@ -282,7 +282,8 @@ guidance.
   instead of failing the whole command.
 - IMAP MIME body-part paths and partial body fetch windows now require
   digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
-  `BODY[]<+12.34>` before fetch processing.
+  `BODY[]<+12.34>`, and partial fetch counts must be non-zero as required by
+  RFC 3501 `nz-number` grammar.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject malformed
   atoms that still contain quote characters after command parsing, preventing
   broken values such as `UTF-8"` from being silently normalized.
