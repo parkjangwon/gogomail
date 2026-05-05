@@ -1,0 +1,134 @@
+package carddavgw
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestParseReportRecognizesCardDAVAndSyncReports(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+		want ReportKind
+	}{
+		{
+			name: "addressbook query",
+			body: `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"/></C:filter></C:addressbook-query>`,
+			want: ReportAddressBookQuery,
+		},
+		{
+			name: "addressbook multiget",
+			body: `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href></C:addressbook-multiget>`,
+			want: ReportAddressBookMulti,
+		},
+		{
+			name: "sync collection",
+			body: `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+			want: ReportSyncCollection,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := ParseReport(strings.NewReader(tc.body))
+			if err != nil {
+				t.Fatalf("ParseReport returned error: %v", err)
+			}
+			if req.Kind != tc.want {
+				t.Fatalf("kind = %q, want %q", req.Kind, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseReportCollectsPropertiesHrefsAndSyncToken(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:sync-token>sync-abc</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>25</D:nresults></D:limit>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</D:sync-collection>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if req.SyncToken != "sync-abc" || req.SyncLevel != "1" || req.Limit != 25 {
+		t.Fatalf("sync metadata = %+v", req)
+	}
+	want := []XMLName{
+		{Space: DAVNamespace, Local: "getetag"},
+		{Space: CardDAVNamespace, Local: "address-data"},
+	}
+	if len(req.Properties) != len(want) {
+		t.Fatalf("properties = %+v, want %+v", req.Properties, want)
+	}
+	for i := range want {
+		if req.Properties[i] != want[i] {
+			t.Fatalf("property %d = %+v, want %+v", i, req.Properties[i], want[i])
+		}
+	}
+}
+
+func TestParseReportCollectsAddressBookQueryTextMatch(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <C:filter>
+    <C:prop-filter name="FN">
+      <C:text-match collation="i;unicode-casemap"> Alice </C:text-match>
+    </C:prop-filter>
+  </C:filter>
+</C:addressbook-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if !req.HasFilter || req.TextMatch != "Alice" {
+		t.Fatalf("filter = %+v", req)
+	}
+}
+
+func TestParseReportRejectsInvalidShapes(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"empty":                  ``,
+		"wrong root":             `<D:propfind xmlns:D="DAV:"/>`,
+		"query missing filter":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
+		"multiget missing href":  `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
+		"sync missing level":     `<D:sync-collection xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync unsupported level": `<D:sync-collection xmlns:D="DAV:"><D:sync-level>infinity</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level></D:sync-collection>`,
+		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"text match line break":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:text-match>A&#x0A;B</C:text-match></C:filter></C:addressbook-query>`,
+		"malformed xml":          `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter></C:addressbook-query>`,
+		"multiple roots":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
+		"xml directive":          `<!DOCTYPE report><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query>`,
+		"too much nesting":       `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter>` + strings.Repeat("<C:x>", MaxWebDAVXMLDepth+1) + strings.Repeat("</C:x>", MaxWebDAVXMLDepth+1) + `</C:filter></C:addressbook-query>`,
+		"href nested element":    `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><D:href><D:x/></D:href></C:addressbook-multiget>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ParseReport(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseReport error = nil, want rejection")
+			}
+		})
+	}
+}
+
+func TestParseReportRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ParseReport(strings.NewReader(strings.Repeat("x", MaxWebDAVXMLBodyBytes+1))); err == nil {
+		t.Fatal("ParseReport accepted oversized body")
+	}
+}

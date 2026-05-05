@@ -2304,6 +2304,12 @@ Implementation order:
       overwrite, refresh address-book sync tokens, and record
       `contact-upserted`/`contact-deleted` changes in the same transaction as
       the object mutation.
+1103. CardDAV REPORT parsing now recognizes bounded `addressbook-query`,
+      `addressbook-multiget`, and WebDAV `sync-collection` request bodies,
+      collecting requested properties, hrefs, sync token/level, result limits,
+      and the first text-match filter while rejecting malformed, oversized,
+      deeply nested, or unsupported sync-level shapes before handlers are
+      exposed.
 
 ## Deferred until backend contracts stabilize
 
@@ -2317,9 +2323,9 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV REPORT/sync behavior, auth, broader vCard compatibility, and
+- Contacts/CardDAV REPORT/sync handlers, auth, broader vCard compatibility, and
   native-client compatibility beyond the initial path/href, storage metadata,
-  repository, and bounded vCard 4.0 validation boundary
+  repository, bounded vCard 4.0 validation, and REPORT parsing boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
