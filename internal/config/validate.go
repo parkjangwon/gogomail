@@ -47,6 +47,15 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_DEDUP_BACKEND", c.DedupBackend, "none", "redis"); err != nil {
+		return err
+	}
+	if err := validateEnum("GOGOMAIL_RATELIMIT_BACKEND", c.RateLimitBackend, "none", "redis"); err != nil {
+		return err
+	}
+	if err := validateEnum("GOGOMAIL_BACKPRESSURE_BACKEND", c.BackpressureBackend, "none", "redis"); err != nil {
+		return err
+	}
 	if strings.TrimSpace(c.SubmissionSMTPSAddr) != "" && (c.SMTPTLSCertFile == "" || c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_SMTPS_ADDR requires SMTP TLS certificate and key files")
 	}

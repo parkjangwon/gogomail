@@ -66,6 +66,37 @@ func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownRedisFeatureBackends(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "dedup", mutate: func(cfg *Config) { cfg.DedupBackend = "redsi" }},
+		{name: "rate limit", mutate: func(cfg *Config) { cfg.RateLimitBackend = "redsi" }},
+		{name: "backpressure", mutate: func(cfg *Config) { cfg.BackpressureBackend = "redsi" }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want unknown redis feature backend rejection")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsRedisFeatureBackends(t *testing.T) {
+	cfg := Load()
+	cfg.DedupBackend = "redis"
+	cfg.RateLimitBackend = " redis "
+	cfg.BackpressureBackend = "Redis"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidPushNotifyWebhookConfig(t *testing.T) {
 	tests := []struct {
 		name   string

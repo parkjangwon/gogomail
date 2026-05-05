@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after GOGOMAIL_ENV validation guardrail)
+Last updated: 2026-05-05 (updated after Redis feature backend validation)
 
 ## Current phase
 
@@ -688,6 +688,9 @@ The platform hardening sprint completed the following:
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
 - `GOGOMAIL_ENV` now accepts only `development`, `test`, or `production`, so
   environment typos cannot silently bypass production-only safety gates.
+- Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
+  backend selectors now accept only `none` or `redis`, preventing typos from
+  silently disabling operational controls.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
   token, requires HTTPS in production, and is wired only at SMTP
