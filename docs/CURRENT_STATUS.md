@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV collection mutation preconditions)
+Last updated: 2026-05-06 (updated after CalDAV REPORT Depth preflight)
 
 ## Current phase
 
@@ -2256,6 +2256,9 @@ The platform hardening sprint completed the following:
 - CalDAV collection `PROPPATCH` now uses the same collection precondition gate,
   rejecting stale `If-Unmodified-Since` and non-star `If-Match` requests before
   reading XML bodies or updating calendar metadata.
+- CalDAV `REPORT` now validates malformed and `Depth: infinity` headers before
+  reading XML bodies, applying one shared Depth gate across calendar-query,
+  calendar-multiget, sync-collection, and free-busy-query handling.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

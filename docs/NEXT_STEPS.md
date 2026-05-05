@@ -1543,6 +1543,10 @@ Current state:
 - CalDAV collection `PROPPATCH` now shares that precondition gate, rejecting
   stale metadata updates and non-star collection ETag conditions before XML
   request bodies are read or parsed.
+- CalDAV `REPORT` now rejects malformed Depth headers and `Depth: infinity`
+  before reading XML request bodies, keeping unsupported WebDAV traversal
+  semantics out of calendar-query, calendar-multiget, sync-collection, and
+  free-busy-query work.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
