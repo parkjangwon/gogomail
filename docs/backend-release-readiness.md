@@ -347,6 +347,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `SEEN`, `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, and `UNANSWERED`.
 - IMAP `FETCH`/`UID FETCH` now supports bounded `BODY[HEADER.FIELDS (...)]`
   and `BODY.PEEK[HEADER.FIELDS (...)]` literals for lightweight header reads.
+- IMAP `FETCH`/`UID FETCH` now supports bounded
+  `BODY[HEADER.FIELDS.NOT (...)]` and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
+  literals for exclude-style header reads.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

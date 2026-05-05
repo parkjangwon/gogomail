@@ -1471,6 +1471,68 @@ func TestServerHandlesUIDFetchHeaderFieldsAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesUIDFetchHeaderFieldsNotAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 9 BODY.PEEK[HEADER.FIELDS.NOT (From)]\r\n")); err != nil {
+		t.Fatalf("write uid fetch header fields not: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read header fields not literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER] {18}\r\n" {
+		t.Fatalf("header fields not literal header = %q", line)
+	}
+	header := make([]byte, 18)
+	if _, err := io.ReadFull(reader, header); err != nil {
+		t.Fatalf("read header fields not literal: %v", err)
+	}
+	if string(header) != "Subject: Hello\r\n\r\n" {
+		t.Fatalf("header fields not = %q", header)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("header fields not close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchTextAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -1748,10 +1810,15 @@ func TestReadIMAPSectionLiteral(t *testing.T) {
 func TestFilterIMAPHeaderFields(t *testing.T) {
 	t.Parallel()
 
-	got := filterIMAPHeaderFields([]byte("Subject: Hi\r\n folded\r\nFrom: sender@test\r\nTo: user@test\r\n\r\n"), []string{"subject", "to"})
+	got := filterIMAPHeaderFields([]byte("Subject: Hi\r\n folded\r\nFrom: sender@test\r\nTo: user@test\r\n\r\n"), []string{"subject", "to"}, false)
 	want := "Subject: Hi\r\n folded\r\nTo: user@test\r\n\r\n"
 	if string(got) != want {
 		t.Fatalf("filtered header = %q, want %q", got, want)
+	}
+	got = filterIMAPHeaderFields([]byte("Subject: Hi\r\nFrom: sender@test\r\nTo: user@test\r\n\r\n"), []string{"from"}, true)
+	want = "Subject: Hi\r\nTo: user@test\r\n\r\n"
+	if string(got) != want {
+		t.Fatalf("excluded header = %q, want %q", got, want)
 	}
 }
 

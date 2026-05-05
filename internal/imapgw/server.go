@@ -766,6 +766,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	requestsHeader := imapFetchRequestsHeader(items)
 	requestsText := imapFetchRequestsText(items)
 	headerFields, requestsHeaderFields := imapFetchHeaderFields(items)
+	headerFieldsNot, requestsHeaderFieldsNot := imapFetchHeaderFieldsNot(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
@@ -788,7 +789,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
 			return false, err
 		}
-		if requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsText {
+		if requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText {
 			if message.Body == nil {
 				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
 				return false, err
@@ -799,21 +800,24 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
 			}
-			if requestsHeader || requestsHeaderFields || requestsText {
-				literal, err := readIMAPSectionLiteral(body, requestsHeader || requestsHeaderFields)
+			if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText {
+				literal, err := readIMAPSectionLiteral(body, requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot)
 				if err != nil {
 					_ = body.Close()
 					return false, err
 				}
 				if requestsHeaderFields {
-					literal = filterIMAPHeaderFields(literal, headerFields)
+					literal = filterIMAPHeaderFields(literal, headerFields, false)
+				}
+				if requestsHeaderFieldsNot {
+					literal = filterIMAPHeaderFields(literal, headerFieldsNot, true)
 				}
 				if err := body.Close(); err != nil {
 					return false, err
 				}
 				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyStructure)
 				section := "TEXT"
-				if requestsHeader || requestsHeaderFields {
+				if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot {
 					section = "HEADER"
 				}
 				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), section, len(literal))); err != nil {
@@ -1061,15 +1065,28 @@ func imapFetchRequestsHeader(items []string) bool {
 }
 
 func imapFetchHeaderFields(items []string) ([]string, bool) {
+	return imapFetchHeaderFieldList(items, "HEADER.FIELDS")
+}
+
+func imapFetchHeaderFieldsNot(items []string) ([]string, bool) {
+	return imapFetchHeaderFieldList(items, "HEADER.FIELDS.NOT")
+}
+
+func imapFetchHeaderFieldList(items []string, marker string) ([]string, bool) {
 	joined := strings.ToUpper(strings.Join(items, " "))
-	marker := "HEADER.FIELDS"
 	idx := strings.Index(joined, marker)
 	if idx < 0 {
 		return nil, false
 	}
+	if marker == "HEADER.FIELDS" && strings.Contains(joined[idx:minInt(len(joined), idx+len("HEADER.FIELDS.NOT"))], "HEADER.FIELDS.NOT") {
+		return nil, false
+	}
 	start := strings.Index(joined[idx:], "(")
+	if start < 0 {
+		return nil, false
+	}
 	end := strings.Index(joined[idx+start+1:], ")")
-	if start < 0 || end < 0 {
+	if end < 0 {
 		return nil, false
 	}
 	fieldsText := joined[idx+start+1 : idx+start+1+end]
@@ -1083,7 +1100,7 @@ func imapFetchHeaderFields(items []string) ([]string, bool) {
 	return fields, len(fields) > 0
 }
 
-func filterIMAPHeaderFields(header []byte, fields []string) []byte {
+func filterIMAPHeaderFields(header []byte, fields []string, exclude bool) []byte {
 	if len(header) == 0 || len(fields) == 0 {
 		return []byte("\r\n")
 	}
@@ -1110,13 +1127,24 @@ func filterIMAPHeaderFields(header []byte, fields []string) []byte {
 			include = false
 			continue
 		}
-		_, include = allowed[strings.ToUpper(strings.TrimSpace(name))]
+		_, found := allowed[strings.ToUpper(strings.TrimSpace(name))]
+		include = found
+		if exclude {
+			include = !found
+		}
 		if include {
 			out.WriteString(line)
 		}
 	}
 	out.WriteString("\r\n")
 	return []byte(out.String())
+}
+
+func minInt(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func imapFetchRequestsText(items []string) bool {
