@@ -232,6 +232,9 @@ request and only affect active messages owned by the authenticated user.
 - `POST /api/v1/threads/bulk/delete`
   - Body: `{"thread_ids":["..."]}`
   - Response: `{"status":"ok","updated":5}`
+- `POST /api/v1/threads/bulk/restore`
+  - Body: `{"thread_ids":["..."]}`
+  - Response: `{"status":"ok","updated":5}`
 
 Bulk endpoints reject missing, blank, duplicate, over-limit, CR/LF-bearing, or
 oversized message/thread IDs instead of silently ignoring ambiguous client
@@ -247,6 +250,8 @@ the same transaction, and publish best-effort IMAP expunge events from the
 pre-delete UID snapshot. Message restores flip soft-deleted messages back to
 `active`, clear `deleted_at`, and re-check/re-increment the hierarchical quota
 ledger in the same transaction so recovery cannot bypass storage limits.
+Thread restores apply the same quota-protected reactivation across every
+soft-deleted message in selected conversations.
 
 ## Compose requests
 

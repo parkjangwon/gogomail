@@ -1197,6 +1197,8 @@ Current state:
 - Mail API now supports single-message and bounded bulk message restore for
   soft-deleted messages, preserving hierarchical quota checks before restored
   messages become active again.
+- Mail API now supports bounded thread-level restore so selected soft-deleted
+  conversations can be recovered through the same quota-protected restore path.
 
 Next:
 

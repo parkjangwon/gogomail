@@ -118,6 +118,9 @@ guidance.
 - Mail API now supports single-message and bounded bulk message restore for
   soft-deleted messages, clearing `deleted_at` and re-checking/re-incrementing
   the hierarchical quota ledger before messages become active again.
+- Mail API now supports bounded thread-level restore for soft-deleted
+  conversations, reactivating selected conversation messages only after the
+  same hierarchical quota guard used by message restore succeeds.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

@@ -1727,6 +1727,9 @@ Implementation order:
      soft-deleted messages, clearing `deleted_at` while re-checking and
      re-incrementing the hierarchical quota ledger before restored messages
      become active again.
+963. Mail API now exposes bounded thread-level restore for soft-deleted
+     conversations, giving production webmail clients a quota-protected
+     conversation recovery primitive alongside thread delete/move/flag actions.
 
 ## Deferred until backend contracts stabilize
 

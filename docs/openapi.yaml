@@ -443,6 +443,19 @@ paths:
           $ref: "#/components/responses/BulkUpdate"
         default:
           $ref: "#/components/responses/Error"
+  /threads/bulk/restore:
+    post:
+      operationId: bulkRestoreThreads
+      summary: Bounded bulk conversation restore
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/BulkThreadRestore"
+      responses:
+        "200":
+          $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/attachments:
     get:
       operationId: listMessageAttachments
@@ -3175,6 +3188,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/BulkThreadDeleteRequest"
+    BulkThreadRestore:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkThreadRestoreRequest"
     ComposeSend:
       required: true
       content:
@@ -3909,7 +3928,7 @@ components:
             enum: [read, starred, answered, forwarded]
         bulk_actions:
           type: object
-          required: [max_message_ids, flags, thread_flags, move, thread_move, delete, thread_delete, restore]
+          required: [max_message_ids, flags, thread_flags, move, thread_move, delete, thread_delete, restore, thread_restore]
           properties:
             max_message_ids:
               type: integer
@@ -3928,6 +3947,8 @@ components:
             thread_delete:
               type: boolean
             restore:
+              type: boolean
+            thread_restore:
               type: boolean
         mailbox_actions:
           type: object
@@ -6470,6 +6491,16 @@ components:
             type: string
             maxLength: 200
     BulkThreadDeleteRequest:
+      type: object
+      required: [thread_ids]
+      properties:
+        thread_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            maxLength: 200
+    BulkThreadRestoreRequest:
       type: object
       required: [thread_ids]
       properties:

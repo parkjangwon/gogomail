@@ -43,6 +43,7 @@ type Repository interface {
 	BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDeleteRequest) (maildb.BulkThreadDeleteResult, error)
 	RestoreMessage(ctx context.Context, userID string, messageID string) error
 	BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (int64, error)
+	BulkRestoreThreads(ctx context.Context, req maildb.BulkThreadRestoreRequest) (maildb.BulkThreadRestoreResult, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
 	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
 	DeletePushDevice(ctx context.Context, userID string, id string) error
@@ -1287,6 +1288,18 @@ func (s *Service) BulkRestoreMessages(ctx context.Context, req maildb.BulkMessag
 	return s.repository.BulkRestoreMessages(ctx, req)
 }
 
+func (s *Service) BulkRestoreThreads(ctx context.Context, req maildb.BulkThreadRestoreRequest) (int64, error) {
+	req = normalizeBulkThreadRestoreRequest(req)
+	if err := maildb.ValidateBulkThreadRestoreRequest(req); err != nil {
+		return 0, err
+	}
+	result, err := s.repository.BulkRestoreThreads(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	return result.Updated, nil
+}
+
 func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
 	repo, ok := s.repository.(interface {
 		ListPushDevices(context.Context, string, int) ([]maildb.PushDevice, error)
@@ -2244,6 +2257,12 @@ func normalizeBulkMessageDeleteRequest(req maildb.BulkMessageDeleteRequest) mail
 func normalizeBulkMessageRestoreRequest(req maildb.BulkMessageRestoreRequest) maildb.BulkMessageRestoreRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	return req
+}
+
+func normalizeBulkThreadRestoreRequest(req maildb.BulkThreadRestoreRequest) maildb.BulkThreadRestoreRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.ThreadIDs = normalizeStringList(req.ThreadIDs)
 	return req
 }
 
