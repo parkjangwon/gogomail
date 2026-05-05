@@ -224,6 +224,7 @@ func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 		UserID:   " user-1 ",
 		ParentID: " parent-1 ",
 		Status:   " active ",
+		Query:    " Report ",
 		Limit:    5,
 	})
 	if err != nil {
@@ -232,7 +233,7 @@ func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 	if len(nodes) != 1 || nodes[0].ID != "node-1" {
 		t.Fatalf("nodes = %+v", nodes)
 	}
-	if driveStore.lastNodeReq.UserID != "user-1" || driveStore.lastNodeReq.ParentID != "parent-1" || driveStore.lastNodeReq.Status != drive.NodeStatusActive || driveStore.lastNodeReq.Limit != 5 {
+	if driveStore.lastNodeReq.UserID != "user-1" || driveStore.lastNodeReq.ParentID != "parent-1" || driveStore.lastNodeReq.Status != drive.NodeStatusActive || driveStore.lastNodeReq.Query != "report" || driveStore.lastNodeReq.Limit != 5 {
 		t.Fatalf("lastNodeReq = %+v", driveStore.lastNodeReq)
 	}
 }

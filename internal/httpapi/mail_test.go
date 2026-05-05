@@ -368,7 +368,7 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	if !got.Attachments.UploadSessions || got.Attachments.MaxAttachmentBytes != mailservice.MaxAttachmentUploadBytes {
 		t.Fatalf("attachment caps = %#v", got.Attachments)
 	}
-	if !got.Drive.UploadSessions || !got.Drive.ListUploadSessions || !got.Drive.FinalizeUploadSessions || got.Drive.MaxUploadSessionBytes != drive.MaxUploadSessionBytes {
+	if !got.Drive.UploadSessions || !got.Drive.ListUploadSessions || !got.Drive.NodeNameSearch || !got.Drive.FinalizeUploadSessions || got.Drive.MaxUploadSessionBytes != drive.MaxUploadSessionBytes {
 		t.Fatalf("drive caps = %#v", got.Drive)
 	}
 	if service.lastUserID != "" {

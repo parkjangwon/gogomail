@@ -69,3 +69,29 @@ func ValidateNodeStatus(status string) (string, error) {
 		return "", fmt.Errorf("unsupported drive node status %q", status)
 	}
 }
+
+func validateDriveNodeSearchQuery(query string) (string, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return "", nil
+	}
+	if len(query) > MaxNodeNameBytes {
+		return "", fmt.Errorf("drive node search query is too long")
+	}
+	if strings.ContainsAny(query, "\r\n") {
+		return "", fmt.Errorf("drive node search query must not contain line breaks")
+	}
+	for _, r := range query {
+		if unicode.IsControl(r) {
+			return "", fmt.Errorf("drive node search query must not contain control characters")
+		}
+	}
+	return strings.ToLower(query), nil
+}
+
+func escapeDriveNodeLikeQuery(query string) string {
+	query = strings.ReplaceAll(query, `\`, `\\`)
+	query = strings.ReplaceAll(query, `%`, `\%`)
+	query = strings.ReplaceAll(query, `_`, `\_`)
+	return query
+}
