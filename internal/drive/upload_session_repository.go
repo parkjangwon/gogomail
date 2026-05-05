@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func (r *Repository) CreateUploadSession(ctx context.Context, req CreateUploadSessionRequest) (UploadSession, error) {
@@ -360,4 +362,156 @@ RETURNING
 		session.CanceledAt = canceledAt.Time
 	}
 	return session, nil
+}
+
+func (r *Repository) FinalizeUploadSession(ctx context.Context, store storage.Store, req FinalizeUploadSessionRequest) (Node, error) {
+	if r == nil || r.db == nil {
+		return Node{}, fmt.Errorf("database handle is required")
+	}
+	if store == nil {
+		return Node{}, fmt.Errorf("storage store is required")
+	}
+	req, err := ValidateFinalizeUploadSessionRequest(req)
+	if err != nil {
+		return Node{}, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Node{}, fmt.Errorf("begin finalize drive upload session transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	session, err := lockFinalizableUploadSession(ctx, tx, req.UserID, req.SessionID)
+	if err != nil {
+		return Node{}, err
+	}
+	if session.StoragePath == "" {
+		return Node{}, fmt.Errorf("drive upload session body is required")
+	}
+	info, err := store.Stat(ctx, session.StoragePath)
+	if err != nil {
+		return Node{}, fmt.Errorf("stat drive upload session body: %w", err)
+	}
+	if info.Size != session.ReceivedSize || info.Size != session.DeclaredSize {
+		return Node{}, fmt.Errorf("drive upload session body size mismatch")
+	}
+	createReq := CreateFileFromObjectRequest{
+		UserID:         session.UserID,
+		ParentID:       session.ParentID,
+		Name:           session.Name,
+		StorageBackend: session.StorageBackend,
+		StoragePath:    session.StoragePath,
+		MIMEType:       session.MIMEType,
+		ChecksumSHA256: session.ChecksumSHA256,
+	}
+	createReq, normalizedName, err := ValidateCreateFileFromObjectRequest(createReq)
+	if err != nil {
+		return Node{}, err
+	}
+	if err := incrementDriveQuota(ctx, tx, createReq.UserID, info.Size); err != nil {
+		return Node{}, err
+	}
+	node, err := insertDriveFileNode(ctx, tx, createReq, normalizedName, info.Size)
+	if err != nil {
+		return Node{}, err
+	}
+	if err := markUploadSessionFinalized(ctx, tx, req.UserID, req.SessionID); err != nil {
+		return Node{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Node{}, fmt.Errorf("commit finalize drive upload session transaction: %w", err)
+	}
+	return node, nil
+}
+
+func lockFinalizableUploadSession(ctx context.Context, tx *sql.Tx, userID string, sessionID string) (UploadSession, error) {
+	const query = `
+SELECT
+  s.id::text,
+  s.user_id::text,
+  COALESCE(s.parent_id::text, ''),
+  s.upload_id,
+  s.name,
+  s.declared_size,
+  s.received_size,
+  s.mime_type,
+  s.status,
+  s.storage_backend,
+  s.storage_path,
+  s.checksum_sha256,
+  s.expires_at,
+  s.created_at,
+  s.updated_at,
+  s.finalized_at,
+  s.canceled_at
+FROM drive_upload_sessions s
+JOIN users u ON u.id = s.user_id
+JOIN domains d ON d.id = u.domain_id
+WHERE s.id = $2::uuid
+  AND s.user_id = $1::uuid
+  AND u.status = 'active'
+  AND d.status = 'active'
+  AND s.status = 'uploading'
+  AND s.expires_at > now()
+FOR UPDATE`
+	var session UploadSession
+	var finalizedAt sql.NullTime
+	var canceledAt sql.NullTime
+	err := tx.QueryRowContext(ctx, query, userID, sessionID).Scan(
+		&session.ID,
+		&session.UserID,
+		&session.ParentID,
+		&session.UploadID,
+		&session.Name,
+		&session.DeclaredSize,
+		&session.ReceivedSize,
+		&session.MIMEType,
+		&session.Status,
+		&session.StorageBackend,
+		&session.StoragePath,
+		&session.ChecksumSHA256,
+		&session.ExpiresAt,
+		&session.CreatedAt,
+		&session.UpdatedAt,
+		&finalizedAt,
+		&canceledAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return UploadSession{}, fmt.Errorf("finalizable drive upload session not found")
+		}
+		return UploadSession{}, fmt.Errorf("lock drive upload session for finalize: %w", err)
+	}
+	if finalizedAt.Valid {
+		session.FinalizedAt = finalizedAt.Time
+	}
+	if canceledAt.Valid {
+		session.CanceledAt = canceledAt.Time
+	}
+	return session, nil
+}
+
+func markUploadSessionFinalized(ctx context.Context, tx *sql.Tx, userID string, sessionID string) error {
+	const query = `
+UPDATE drive_upload_sessions
+SET
+  status = 'finalized',
+  finalized_at = now(),
+  updated_at = now()
+WHERE id = $2::uuid
+  AND user_id = $1::uuid
+  AND status = 'uploading'`
+	result, err := tx.ExecContext(ctx, query, userID, sessionID)
+	if err != nil {
+		return fmt.Errorf("mark drive upload session finalized: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read drive upload session finalize count: %w", err)
+	}
+	if updated != 1 {
+		return fmt.Errorf("drive upload session finalize state changed")
+	}
+	return nil
 }

@@ -331,6 +331,10 @@ guidance.
   the retry-safe body storage service to frontend clients with an optional
   `X-Content-SHA256` integrity header and explicit `Content-Range` rejection
   until chunked/resumable semantics are specified.
+- Drive upload-session finalization now has a repository/service boundary that
+  locks a writable session, verifies the stored object size through the shared
+  storage `Stat` contract, increments quota, inserts the Drive file node, and
+  marks the session finalized in one transaction.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
