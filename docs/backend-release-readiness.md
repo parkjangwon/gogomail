@@ -125,6 +125,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   outbox retry, DKIM deactivation, suppression deletion, trusted-relay deletion,
   and delivery-route deletion reject unknown query parameter names before
   dispatch, preventing ignored `dry_run`/`force`-style operator flags.
+- Admin JSON mutation routes for tenant quotas, domain/user lifecycle and
+  policy, backpressure, attachment cleanup, quota correction, push outcomes,
+  trusted relays, delivery routes, and DKIM keys reject unknown query parameter
+  names before dispatch.
 - Mail JWT and Admin token authentication reject repeated credential headers,
   and Admin routes reject mixed `X-Admin-Token` plus bearer credentials before
   dispatch.

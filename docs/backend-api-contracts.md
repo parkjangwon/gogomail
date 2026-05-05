@@ -269,6 +269,10 @@ well, including IMAP UID backfill, DKIM DNS verify, outbox retry, DKIM
 deactivation, suppression deletion, trusted-relay deletion, and delivery-route
 deletion. Clients must not rely on ignored `dry_run`, `force`, or similar
 operator flags.
+Admin JSON mutation routes also reject unknown query parameter names when they
+do not define query controls, including tenant quota, domain/user lifecycle and
+policy, backpressure, attachment cleanup, quota correction, push outcome,
+trusted-relay, delivery-route, and DKIM-key mutations.
 Admin queue, outbox, audit, backpressure, quota, attachment-session,
 delivery-attempt, push-notification, suppression-list, trusted-relay,
 delivery-route, and DKIM read routes likewise reject query parameter names

@@ -4323,6 +4323,136 @@ func TestAdminBodylessCommandHandlersRejectUnknownQueryParameters(t *testing.T) 
 	}
 }
 
+func TestAdminJSONMutationHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		dispatched func(*fakeAdminService) bool
+	}{
+		{
+			name:   "company quota",
+			method: http.MethodPatch,
+			path:   "/admin/v1/companies/company-1/quota?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastCompanyQuota.ID != ""
+			},
+		},
+		{
+			name:   "create domain",
+			method: http.MethodPost,
+			path:   "/admin/v1/domains?validate_only=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastCreateDomain.Name != ""
+			},
+		},
+		{
+			name:   "domain status",
+			method: http.MethodPatch,
+			path:   "/admin/v1/domains/domain-1/status?force=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDomainStatus.ID != ""
+			},
+		},
+		{
+			name:   "create user",
+			method: http.MethodPost,
+			path:   "/admin/v1/users?send_invite=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastCreateUser.Username != ""
+			},
+		},
+		{
+			name:   "backpressure",
+			method: http.MethodPatch,
+			path:   "/admin/v1/backpressure?ttl=60",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastBackpressureUpdate.Level != ""
+			},
+		},
+		{
+			name:   "cleanup candidates",
+			method: http.MethodPost,
+			path:   "/admin/v1/attachment-cleanup/candidates?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return !service.lastAttachmentCleanupCountBefore.IsZero()
+			},
+		},
+		{
+			name:   "quota correction",
+			method: http.MethodPost,
+			path:   "/admin/v1/quota-reconciliation/corrections?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastQuotaCorrection.Scope != ""
+			},
+		},
+		{
+			name:   "push outcome",
+			method: http.MethodPatch,
+			path:   "/admin/v1/push-notification-attempts/attempt-1/outcome?provider=fcm",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastPushOutcome.AttemptID != ""
+			},
+		},
+		{
+			name:   "trusted relay create",
+			method: http.MethodPost,
+			path:   "/admin/v1/trusted-relays?validate_only=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastTrustedRelayList.CIDR != ""
+			},
+		},
+		{
+			name:   "delivery route create",
+			method: http.MethodPost,
+			path:   "/admin/v1/delivery-routes?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeliveryRouteList.DomainPattern != ""
+			},
+		},
+		{
+			name:   "delivery route status",
+			method: http.MethodPatch,
+			path:   "/admin/v1/delivery-routes/route-1/status?force=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeliveryRouteStatus.ID != ""
+			},
+		},
+		{
+			name:   "dkim create",
+			method: http.MethodPost,
+			path:   "/admin/v1/dkim-keys?verify=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDomainID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(`{}`))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminGetUserHandler(t *testing.T) {
 	t.Parallel()
 

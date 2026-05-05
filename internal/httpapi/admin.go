@@ -263,6 +263,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/companies/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateCompanyQuotaRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -407,6 +410,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.CreateDomainRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -423,6 +429,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/domains/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateDomainStatusRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -443,6 +452,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/domains/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateDomainQuotaRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -463,6 +475,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/domains/{id}/policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateDomainPolicyRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -538,6 +553,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.CreateUserRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -554,6 +572,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/users/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateUserStatusRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -574,6 +595,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/users/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateUserQuotaRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -594,6 +618,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/users/{id}/password-hash", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateUserPasswordHashRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -796,6 +823,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		backpressureService, ok := service.(AdminBackpressureService)
 		if !ok {
 			writeError(w, http.StatusNotFound, "backpressure backend is not configured")
@@ -853,6 +883,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/attachment-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req adminAttachmentCleanupRunRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -935,6 +968,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req adminAttachmentCleanupRunRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -1559,6 +1595,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/quota-reconciliation/corrections", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.CorrectQuotaReconciliationRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -1783,6 +1822,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/push-notification-attempts/{id}/outcome", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -1912,6 +1954,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/trusted-relays", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.CreateTrustedRelayRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -1966,6 +2011,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/delivery-routes", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.CreateDeliveryRouteRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -1998,6 +2046,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PATCH /admin/v1/delivery-routes/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var req maildb.UpdateDeliveryRouteStatusRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -2051,6 +2102,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		var input maildb.CreateDKIMKeyInput
 		if err := decodeJSONBody(r, &input); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
