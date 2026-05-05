@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV contact-object repository)
+Last updated: 2026-05-06 (updated after CardDAV REPORT parsing)
 
 ## Current phase
 
@@ -56,8 +56,10 @@ address-book creation changes. Contact-object repository methods can now
 upsert/list/get/delete `.vcf` resources through active address-book scope,
 using bounded vCard validation, strong ETags, optional observed-ETag guards,
 sync-token updates, and durable change rows. Public CardDAV compatibility
-remains gated on REPORT semantics, sync handlers, auth/listener wiring, broader
-vCard compatibility, and native-client tests.
+now has bounded REPORT request parsing for `addressbook-query`,
+`addressbook-multiget`, and `sync-collection`, but remains gated on REPORT
+handlers, sync handlers, auth/listener wiring, broader vCard compatibility, and
+native-client tests.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2342,6 +2344,11 @@ The platform hardening sprint completed the following:
   compute strong ETags, honor optional observed ETags before overwrite, refresh
   address-book sync tokens, and record `contact-upserted`/`contact-deleted`
   changes transactionally.
+- CardDAV REPORT parsing now recognizes bounded `addressbook-query`,
+  `addressbook-multiget`, and WebDAV `sync-collection` request bodies,
+  collecting requested properties, hrefs, sync token/level, limits, and first
+  text-match filter while rejecting malformed, oversized, deeply nested, or
+  unsupported sync-level shapes before handlers are exposed.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

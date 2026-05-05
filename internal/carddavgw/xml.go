@@ -1,0 +1,402 @@
+package carddavgw
+
+import (
+	"bytes"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+)
+
+const (
+	DAVNamespace     = "DAV:"
+	CardDAVNamespace = "urn:ietf:params:xml:ns:carddav"
+
+	MaxWebDAVXMLBodyBytes = 1 << 20
+	MaxWebDAVXMLDepth     = 64
+	MaxWebDAVProperties   = 256
+	MaxWebDAVHrefs        = 2048
+	MaxWebDAVReportLimit  = 1000
+)
+
+type XMLName struct {
+	Space string
+	Local string
+}
+
+type ReportKind string
+
+const (
+	ReportAddressBookQuery ReportKind = "addressbook-query"
+	ReportAddressBookMulti ReportKind = "addressbook-multiget"
+	ReportSyncCollection   ReportKind = "sync-collection"
+)
+
+type ReportRequest struct {
+	Kind       ReportKind
+	Properties []XMLName
+	Hrefs      []string
+	SyncToken  string
+	SyncLevel  string
+	Limit      int
+	HasFilter  bool
+	TextMatch  string
+}
+
+func ParseReport(r io.Reader) (ReportRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return ReportRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return ReportRequest{}, fmt.Errorf("REPORT body is required")
+	}
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return ReportRequest{}, err
+	}
+	req, err := classifyReportRoot(root.Name)
+	if err != nil {
+		return ReportRequest{}, err
+	}
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return ReportRequest{}, fmt.Errorf("unterminated REPORT body")
+		}
+		if err != nil {
+			return ReportRequest{}, fmt.Errorf("decode REPORT body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "prop"):
+				properties, err := parsePropElement(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.Properties = append(req.Properties, properties...)
+				if len(req.Properties) > MaxWebDAVProperties {
+					return ReportRequest{}, fmt.Errorf("too many WebDAV properties")
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "href"):
+				href, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				if len(req.Hrefs) >= MaxWebDAVHrefs {
+					return ReportRequest{}, fmt.Errorf("too many WebDAV hrefs")
+				}
+				req.Hrefs = append(req.Hrefs, strings.TrimSpace(href))
+			case sameXMLName(tok.Name, DAVNamespace, "sync-token"):
+				token, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.SyncToken = strings.TrimSpace(token)
+			case sameXMLName(tok.Name, DAVNamespace, "sync-level"):
+				level, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.SyncLevel = strings.TrimSpace(level)
+			case sameXMLName(tok.Name, DAVNamespace, "limit"):
+				limit, err := parseLimitElement(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.Limit = limit
+			case sameXMLName(tok.Name, CardDAVNamespace, "filter"):
+				req.HasFilter = true
+				textMatch, err := parseAddressBookFilter(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.TextMatch = textMatch
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return ReportRequest{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if err := rejectTrailingXML(dec); err != nil {
+					return ReportRequest{}, err
+				}
+				if err := validateReportRequest(req); err != nil {
+					return ReportRequest{}, err
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
+func classifyReportRoot(name xml.Name) (ReportRequest, error) {
+	switch {
+	case sameXMLName(name, CardDAVNamespace, "addressbook-query"):
+		return ReportRequest{Kind: ReportAddressBookQuery}, nil
+	case sameXMLName(name, CardDAVNamespace, "addressbook-multiget"):
+		return ReportRequest{Kind: ReportAddressBookMulti}, nil
+	case sameXMLName(name, DAVNamespace, "sync-collection"):
+		return ReportRequest{Kind: ReportSyncCollection}, nil
+	default:
+		return ReportRequest{}, fmt.Errorf("unsupported REPORT root {%s}%s", name.Space, name.Local)
+	}
+}
+
+func validateReportRequest(req ReportRequest) error {
+	switch req.Kind {
+	case ReportAddressBookQuery:
+		if !req.HasFilter {
+			return fmt.Errorf("addressbook-query REPORT requires a filter element")
+		}
+	case ReportAddressBookMulti:
+		if len(req.Hrefs) == 0 {
+			return fmt.Errorf("addressbook-multiget REPORT requires at least one href")
+		}
+	case ReportSyncCollection:
+		if req.SyncLevel == "" {
+			return fmt.Errorf("sync-collection REPORT requires sync-level")
+		}
+		if req.SyncLevel != "1" {
+			return fmt.Errorf("unsupported sync-level %q", req.SyncLevel)
+		}
+		if len(req.Properties) == 0 {
+			return fmt.Errorf("sync-collection REPORT requires at least one property")
+		}
+	}
+	return nil
+}
+
+func readBoundedXMLBody(r io.Reader) ([]byte, error) {
+	if r == nil {
+		return nil, fmt.Errorf("XML body reader is required")
+	}
+	limited := io.LimitReader(r, MaxWebDAVXMLBodyBytes+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read WebDAV XML body: %w", err)
+	}
+	if len(body) > MaxWebDAVXMLBodyBytes {
+		return nil, fmt.Errorf("WebDAV XML body exceeds %d bytes", MaxWebDAVXMLBodyBytes)
+	}
+	return body, nil
+}
+
+func newWebDAVXMLDecoder(body []byte) *xml.Decoder {
+	dec := xml.NewDecoder(bytes.NewReader(body))
+	dec.Strict = true
+	return dec
+}
+
+func nextStart(dec *xml.Decoder) (xml.StartElement, error) {
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return xml.StartElement{}, fmt.Errorf("decode XML root: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			return tok, nil
+		case xml.Directive:
+			return xml.StartElement{}, fmt.Errorf("XML directives are not supported")
+		}
+	}
+}
+
+func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
+	var properties []XMLName
+	depth := 1
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil, fmt.Errorf("unterminated prop element")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode prop element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth > MaxWebDAVXMLDepth {
+				return nil, fmt.Errorf("WebDAV XML exceeds maximum depth")
+			}
+			if len(properties) >= MaxWebDAVProperties {
+				return nil, fmt.Errorf("too many WebDAV properties")
+			}
+			properties = append(properties, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
+			if err := skipElement(dec, tok.Name); err != nil {
+				return nil, err
+			}
+			depth--
+		case xml.EndElement:
+			if sameName(tok.Name, propName) {
+				return properties, nil
+			}
+		}
+	}
+}
+
+func parseAddressBookFilter(dec *xml.Decoder, filterName xml.Name) (string, error) {
+	return parseAddressBookFilterDepth(dec, filterName, 1)
+}
+
+func parseAddressBookFilterDepth(dec *xml.Decoder, filterName xml.Name, depth int) (string, error) {
+	if depth > MaxWebDAVXMLDepth {
+		return "", fmt.Errorf("WebDAV XML exceeds maximum depth")
+	}
+	var textMatch string
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return "", fmt.Errorf("unterminated filter element")
+		}
+		if err != nil {
+			return "", fmt.Errorf("decode filter element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, CardDAVNamespace, "text-match"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return "", err
+				}
+				text = strings.TrimSpace(text)
+				if len(text) > 512 || strings.ContainsAny(text, "\r\n") {
+					return "", fmt.Errorf("CardDAV text-match is invalid")
+				}
+				if textMatch == "" {
+					textMatch = text
+				}
+			default:
+				nested, err := parseAddressBookFilterDepth(dec, tok.Name, depth+1)
+				if err != nil {
+					return "", err
+				}
+				if textMatch == "" {
+					textMatch = nested
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, filterName) {
+				return textMatch, nil
+			}
+		}
+	}
+}
+
+func parseLimitElement(dec *xml.Decoder, name xml.Name) (int, error) {
+	var limit int
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return 0, fmt.Errorf("unterminated limit element")
+		}
+		if err != nil {
+			return 0, err
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if !sameXMLName(tok.Name, DAVNamespace, "nresults") {
+				if err := skipElement(dec, tok.Name); err != nil {
+					return 0, err
+				}
+				continue
+			}
+			raw, err := readSimpleElementText(dec, tok.Name)
+			if err != nil {
+				return 0, err
+			}
+			value, err := strconv.Atoi(strings.TrimSpace(raw))
+			if err != nil || value <= 0 {
+				return 0, fmt.Errorf("limit nresults must be a positive integer")
+			}
+			if value > MaxWebDAVReportLimit {
+				return 0, fmt.Errorf("limit nresults exceeds %d", MaxWebDAVReportLimit)
+			}
+			limit = value
+		case xml.EndElement:
+			if sameName(tok.Name, name) {
+				return limit, nil
+			}
+		}
+	}
+}
+
+func readSimpleElementText(dec *xml.Decoder, name xml.Name) (string, error) {
+	var b strings.Builder
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return "", fmt.Errorf("unterminated {%s}%s element", name.Space, name.Local)
+		}
+		if err != nil {
+			return "", err
+		}
+		switch tok := tok.(type) {
+		case xml.CharData:
+			b.Write([]byte(tok))
+		case xml.StartElement:
+			return "", fmt.Errorf("{%s}%s must not contain nested elements", name.Space, name.Local)
+		case xml.EndElement:
+			if sameName(tok.Name, name) {
+				return b.String(), nil
+			}
+		}
+	}
+}
+
+func skipElement(dec *xml.Decoder, name xml.Name) error {
+	depth := 1
+	for depth > 0 {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated {%s}%s element", name.Space, name.Local)
+		}
+		if err != nil {
+			return err
+		}
+		switch tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth > MaxWebDAVXMLDepth {
+				return fmt.Errorf("WebDAV XML exceeds maximum depth")
+			}
+		case xml.EndElement:
+			depth--
+		}
+	}
+	return nil
+}
+
+func rejectTrailingXML(dec *xml.Decoder) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("decode trailing XML: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			return fmt.Errorf("multiple XML root elements are not supported")
+		case xml.CharData:
+			if len(bytes.TrimSpace(tok)) != 0 {
+				return fmt.Errorf("unexpected trailing XML character data")
+			}
+		}
+	}
+}
+
+func sameXMLName(name xml.Name, space string, local string) bool {
+	return name.Space == space && name.Local == local
+}
+
+func sameName(a xml.Name, b xml.Name) bool {
+	return a.Space == b.Space && a.Local == b.Local
+}

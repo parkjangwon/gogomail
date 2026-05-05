@@ -33,9 +33,11 @@ structure, VERSION, UID, FN, folded lines, content-line caps, body caps, and
 nested VCARD rejection. Contact-object repository methods can upsert/list/get/
 delete `.vcf` resources under active address-book scope, enforce UID alignment,
 compute strong ETags, honor optional observed ETags before overwrite, refresh
-sync tokens, and record durable changes transactionally. REPORT handling, sync
-handlers, auth, broader vCard compatibility, and HTTP listener wiring will be
-added only when their semantics are implemented and tested.
+sync tokens, and record durable changes transactionally. REPORT parsing
+recognizes bounded `addressbook-query`, `addressbook-multiget`, and
+`sync-collection` request bodies before handlers are exposed. REPORT handlers,
+sync handlers, auth, broader vCard compatibility, and HTTP listener wiring will
+be added only when their semantics are implemented and tested.
 
 ## Consequences
 
