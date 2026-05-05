@@ -178,6 +178,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   plus gateway validation for calendar metadata, supported top-level iCalendar
   components, UID bounds, strong ETags, sync-token derivation, and maximum `.ics`
   object bytes.
+- CalDAV WebDAV XML parsing now has bounded namespace-aware PROPFIND parsing,
+  safe `Depth` header validation, `allprop` `include` support, and core REPORT
+  root classification for `calendar-query`, `calendar-multiget`,
+  `free-busy-query`, and `sync-collection` before protocol handlers are
+  advertised.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

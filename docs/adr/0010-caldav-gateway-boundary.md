@@ -58,6 +58,13 @@ ETags are strong quoted SHA-256 values over the stored iCalendar bytes. Sync
 tokens are stored explicitly on calendars so WebDAV sync behavior can evolve
 without deriving client state from timestamps or list pagination.
 
+The first WebDAV XML boundary is intentionally bounded and namespace-aware. It
+parses PROPFIND request modes, `allprop` `include` properties, safe `Depth`
+header values, and the core CalDAV/WebDAV REPORT roots needed for
+`calendar-query`, `calendar-multiget`, `free-busy-query`, and
+`sync-collection`. Method handlers will build on this parser rather than
+decoding arbitrary XML in request paths.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

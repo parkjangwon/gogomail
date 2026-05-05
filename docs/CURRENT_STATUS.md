@@ -2056,6 +2056,12 @@ The platform hardening sprint completed the following:
   sync-token, component, and bounded `.ics` body constraints. `internal/caldavgw`
   also validates calendar metadata, component types, object UIDs, strong ETags,
   and sync-token derivation before WebDAV handlers are exposed.
+- CalDAV WebDAV XML parsing groundwork now accepts bounded namespace-aware
+  PROPFIND bodies (`allprop`, `propname`, `prop`, and `allprop` `include`),
+  parses safe `Depth` header values, and classifies core CalDAV/WebDAV REPORT
+  roots (`calendar-query`, `calendar-multiget`, `free-busy-query`, and
+  `sync-collection`) with body/property/href/depth limits before handlers are
+  advertised.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

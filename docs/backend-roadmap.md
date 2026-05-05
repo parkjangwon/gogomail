@@ -2016,6 +2016,12 @@ Implementation order:
       `caldav_calendar_objects` migrations plus gateway validation for calendar
       metadata, supported top-level iCalendar components, object UIDs, strong
       ETags, sync-token derivation, and bounded `.ics` object bodies.
+1039. CalDAV WebDAV XML groundwork now has bounded namespace-aware parsing for
+      PROPFIND bodies, safe `Depth` header values, `allprop` `include`
+      properties, and core REPORT root classification for CalDAV
+      `calendar-query`, `calendar-multiget`, `free-busy-query`, and WebDAV
+      `sync-collection`, with explicit body, property, href, and nesting
+      limits before method handlers are advertised.
 
 ## Deferred until backend contracts stabilize
 
