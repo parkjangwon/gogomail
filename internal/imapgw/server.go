@@ -156,14 +156,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	_, state.tlsActive = conn.(*tls.Conn)
 	defer state.closeSubscription()
 	for {
-		line, literal, err := s.readCommandLine(reader, writer, &state)
+		line, literals, err := s.readCommandLine(reader, writer, &state)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
 		}
-		done, err := s.handleLineWithLiteral(writer, line, literal, &state)
+		done, err := s.handleLineWithLiteral(writer, line, literals, &state)
 		if err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 }
 
-func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (string, *string, error) {
+func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (string, []string, error) {
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		return "", nil, err
@@ -206,34 +206,42 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
 		return line, nil, nil
 	}
-	literalSize, nonSync, ok, err := imapCommandLiteralSize(line)
-	if err != nil || !ok {
-		return line, nil, err
-	}
-	if literalSize > maxIMAPCommandLiteralBytes {
-		return "", nil, fmt.Errorf("imap command literal is too large")
-	}
-	if !nonSync {
-		if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
+	var command strings.Builder
+	command.WriteString(strings.TrimRight(line, "\r\n"))
+	literals := make([]string, 0, 1)
+	for {
+		literalSize, nonSync, ok, err := imapCommandLiteralSize(command.String())
+		if err != nil || !ok {
+			return command.String(), literals, err
+		}
+		if literalSize > maxIMAPCommandLiteralBytes {
+			return "", nil, fmt.Errorf("imap command literal is too large")
+		}
+		if !nonSync {
+			if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
+				return "", nil, err
+			}
+			if err := writer.Flush(); err != nil {
+				return "", nil, err
+			}
+		}
+		literal := make([]byte, literalSize)
+		if _, err := io.ReadFull(reader, literal); err != nil {
 			return "", nil, err
 		}
-		if err := writer.Flush(); err != nil {
+		literals = append(literals, string(literal))
+		suffix, err := reader.ReadString('\n')
+		if err != nil {
 			return "", nil, err
 		}
+		if suffix == "\r\n" || suffix == "\n" {
+			return command.String(), literals, nil
+		}
+		if command.Len()+len(suffix) > 8192 {
+			return "", nil, fmt.Errorf("imap command line is too long")
+		}
+		command.WriteString(strings.TrimRight(suffix, "\r\n"))
 	}
-	literal := make([]byte, literalSize)
-	if _, err := io.ReadFull(reader, literal); err != nil {
-		return "", nil, err
-	}
-	trailer := make([]byte, 2)
-	if _, err := io.ReadFull(reader, trailer); err != nil {
-		return "", nil, err
-	}
-	if string(trailer) != "\r\n" {
-		return "", nil, fmt.Errorf("imap command literal must be followed by CRLF")
-	}
-	value := string(literal)
-	return line, &value, nil
 }
 
 type imapConnState struct {
@@ -256,7 +264,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 	return s.handleLineWithLiteral(writer, line, nil, state)
 }
 
-func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, literal *string, state *imapConnState) (bool, error) {
+func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, literals []string, state *imapConnState) (bool, error) {
 	trimmedLine := strings.TrimRight(line, "\r\n")
 	if state.pendingIdleTag != "" {
 		return s.handleIdleDone(writer, trimmedLine, state)
@@ -264,7 +272,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	if state.pendingAuthTag != "" {
 		return s.handleAuthenticatePlainResponse(writer, trimmedLine, state)
 	}
-	fields, parseErr := parseIMAPFieldsWithLiteral(trimmedLine, literal)
+	fields, parseErr := parseIMAPFieldsWithLiteral(trimmedLine, literals)
 	if parseErr != nil {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
@@ -643,7 +651,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		return s.handleMove(writer, tag, fields, state)
 	case "APPEND":
-		return s.handleAppend(writer, tag, fields, literal, state)
+		return s.handleAppend(writer, tag, fields, literals, state)
 	case "LOGOUT":
 		if len(fields) != 2 {
 			_, err := writer.WriteString(tag + " BAD LOGOUT does not accept arguments\r\n")
@@ -2993,8 +3001,8 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(destMailbox), "MOVE")
 }
 
-func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string, literal *string, state *imapConnState) (bool, error) {
-	if literal == nil {
+func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string, literals []string, state *imapConnState) (bool, error) {
+	if len(literals) == 0 {
 		_, err := writer.WriteString(tag + " BAD APPEND requires mailbox and literal\r\n")
 		return false, err
 	}
@@ -3016,7 +3024,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
-	body := *literal
+	body := literals[len(literals)-1]
 	result, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
 		UserID:       state.session.UserID,
 		MailboxID:    MailboxID(mailboxName),
@@ -6115,8 +6123,9 @@ func parseIMAPFields(line string) ([]string, error) {
 	return parseIMAPFieldsWithLiteral(line, nil)
 }
 
-func parseIMAPFieldsWithLiteral(line string, literal *string) ([]string, error) {
+func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error) {
 	fields := make([]string, 0, 4)
+	literalIndex := 0
 	for i := 0; i < len(line); {
 		for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
 			i++
@@ -6175,16 +6184,20 @@ func parseIMAPFieldsWithLiteral(line string, literal *string) ([]string, error) 
 		}
 		field := line[start:i]
 		if imapLooksLikeLiteral(field) {
-			if literal == nil || !imapRemainingFieldsAreSpace(line[i:]) {
+			if literalIndex >= len(literals) {
 				return nil, fmt.Errorf("imap literal is not available")
 			}
-			fields = append(fields, *literal)
-			return fields, nil
+			fields = append(fields, literals[literalIndex])
+			literalIndex++
+			continue
 		}
 		if imapLooksLikeLiteralPrefix(field) {
 			return nil, fmt.Errorf("imap literal syntax is unsupported")
 		}
 		fields = append(fields, field)
+	}
+	if literalIndex != len(literals) {
+		return nil, fmt.Errorf("unused imap literal")
 	}
 	return fields, nil
 }
@@ -6338,15 +6351,6 @@ func imapParseQuotedToken(value string, start int) (string, int, bool) {
 		}
 	}
 	return "", 0, false
-}
-
-func imapRemainingFieldsAreSpace(value string) bool {
-	for i := 0; i < len(value); i++ {
-		if value[i] != ' ' && value[i] != '\t' {
-			return false
-		}
-	}
-	return true
 }
 
 func imapCommandLiteralSize(line string) (int, bool, bool, error) {

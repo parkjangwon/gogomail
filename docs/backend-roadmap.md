@@ -1995,6 +1995,9 @@ Implementation order:
 1033. Drive node list APIs now accept `node_type=folder|file` on webmail and
       admin surfaces, with webmail capabilities advertising supported node
       types for production Drive filters.
+1034. IMAP command reading now supports bounded literals in non-final command
+      positions and multiple literals in one command, aligning literalized
+      LOGIN/string arguments with the advertised `LITERAL+` capability.
 
 ## Deferred until backend contracts stabilize
 

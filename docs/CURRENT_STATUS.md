@@ -1611,6 +1611,10 @@ The platform hardening sprint completed the following:
   literals such as `APPEND ... {n+}` without an extra continuation round trip,
   while preserving the existing synchronizing literal path for conservative
   clients.
+- IMAP command reading now supports bounded literals in non-final command
+  positions and multiple literals in one command, so RFC-shaped literalized
+  credentials or string arguments parse consistently with the advertised
+  `LITERAL+` capability.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
   RFC-shaped tagged `BAD` cancellation, and SASL PLAIN credential decoding over
   the existing protocol auth adapter. Non-empty SASL PLAIN authorization

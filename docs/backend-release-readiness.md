@@ -954,6 +954,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP advertises `LITERAL+` and accepts bounded non-synchronizing command
   literals such as `APPEND ... {n+}` without an extra continuation round trip,
   while preserving synchronizing literal framing for conservative clients.
+- IMAP command framing now supports bounded literals in non-final command
+  positions and multiple literals in one command, keeping literalized
+  credentials and string arguments compatible with RFC-shaped clients.
 - IMAP accepts empty flag-lists where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
@@ -1535,6 +1538,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   modified UTF-7 mailbox names before authentication errors, while valid
   unauthenticated appends still consume the RFC literal and return
   `NO authentication required` before backend storage.
+- IMAP literalized `LOGIN` and other string-taking commands should be verified
+  with clients that send multiple synchronizing literals in one command.
 - IMAP `ENABLE` validates missing capability arguments before authentication
   errors, while valid unauthenticated enable attempts still return
   `NO authentication required` without mutating session feature state.

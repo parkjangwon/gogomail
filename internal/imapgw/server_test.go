@@ -1007,6 +1007,52 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	}
 }
 
+func TestServerLoginAcceptsMultipleSynchronizingLiterals(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN {16}\r\n")); err != nil {
+		t.Fatalf("write login literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("first literal continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("user@example.com {6}\r\n")); err != nil {
+		t.Fatalf("write login first literal: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("second literal continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("secret\r\n")); err != nil {
+		t.Fatalf("write login second literal: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("literal login = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerLoginFailureIncludesAuthenticationFailedCode(t *testing.T) {
 	t.Parallel()
 
@@ -7547,19 +7593,26 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 		t.Fatal("parseIMAPFields accepted non-synchronizing literal")
 	}
 	literal := "secret value"
-	fields, err := parseIMAPFieldsWithLiteral("a1 LOGIN user@example.com {12}", &literal)
+	fields, err := parseIMAPFieldsWithLiteral("a1 LOGIN user@example.com {12}", []string{literal})
 	if err != nil {
 		t.Fatalf("parseIMAPFieldsWithLiteral returned error: %v", err)
 	}
 	if got, want := fields, []string{"a1", "LOGIN", "user@example.com", literal}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("literal fields = %#v, want %#v", got, want)
 	}
-	fields, err = parseIMAPFieldsWithLiteral("a1 APPEND inbox {12+}", &literal)
+	fields, err = parseIMAPFieldsWithLiteral("a1 APPEND inbox {12+}", []string{literal})
 	if err != nil {
 		t.Fatalf("parseIMAPFieldsWithLiteral literal+ returned error: %v", err)
 	}
 	if got, want := fields, []string{"a1", "APPEND", "inbox", literal}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("literal+ fields = %#v, want %#v", got, want)
+	}
+	fields, err = parseIMAPFieldsWithLiteral("a1 LOGIN {16} {6}", []string{"user@example.com", "secret"})
+	if err != nil {
+		t.Fatalf("parseIMAPFieldsWithLiteral multiple literals returned error: %v", err)
+	}
+	if got, want := fields, []string{"a1", "LOGIN", "user@example.com", "secret"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("multiple literal fields = %#v, want %#v", got, want)
 	}
 	fields, err = parseIMAPFields(`a1 SEARCH SUBJECT "Project \"Q2\""`)
 	if err != nil {
