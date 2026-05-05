@@ -957,6 +957,8 @@ Implementation order:
      header requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 749. IMAP non-UID `FETCH` now uses the same bounded header literal path as
      `UID FETCH` for `BODY[HEADER]` and `RFC822.HEADER`.
+750. IMAP `STARTTLS` completion now includes an updated `[CAPABILITY ...]`
+     response code for the post-TLS command surface.
 
 ## Deferred until backend contracts stabilize
 

@@ -404,6 +404,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   deferred.
 - IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
   advertising it before authentication and removing it after upgrade.
+- IMAP `STARTTLS` completion now includes an updated `[CAPABILITY ...]`
+  response code for the post-TLS command surface.
 - IMAP plaintext sessions advertise `LOGINDISABLED` and reject
   `LOGIN`/`AUTHENTICATE` with `[PRIVACYREQUIRED]` when insecure auth is disabled
   before STARTTLS.

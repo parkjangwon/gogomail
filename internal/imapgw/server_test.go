@@ -191,7 +191,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a3 STARTTLS\r\n")); err != nil {
 		t.Fatalf("write starttls: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK Begin TLS negotiation now\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID UNSELECT SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
 		t.Fatalf("starttls line = %q err = %v", line, err)
 	}
 	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
