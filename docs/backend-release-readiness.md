@@ -37,6 +37,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   OpenSearch username/password configuration is also CR/LF-rejected and
   size-bounded during startup config validation when the OpenSearch backend is
   selected, surfacing credential formatting mistakes before worker/search setup.
+  OpenSearch index/bootstrap/search status-error diagnostics collapse backend
+  response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
+  backend errors from leaking into logs or API diagnostics.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.

@@ -146,6 +146,31 @@ func TestOpenSearchSearcherBoundsResponseBody(t *testing.T) {
 	}
 }
 
+func TestOpenSearchSearcherSanitizesServerError(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "search failed\ntrace-id: 123", http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	searcher, err := NewOpenSearchSearcher(OpenSearchOptions{
+		Endpoint: server.URL,
+		Index:    "gogomail-messages",
+		Client:   server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchSearcher returned error: %v", err)
+	}
+	_, err = searcher.SearchMessageIDs(context.Background(), OpenSearchSearchQuery{
+		UserID: "user-1",
+		Query:  "hello",
+	})
+	if err == nil || !strings.Contains(err.Error(), "502") || !strings.Contains(err.Error(), "search failed trace-id: 123") || strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("error = %q, want sanitized status error", err)
+	}
+}
+
 func TestOpenSearchSearcherRejectsTrailingResponseTokens(t *testing.T) {
 	t.Parallel()
 

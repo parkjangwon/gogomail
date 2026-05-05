@@ -726,6 +726,7 @@ Implementation order:
 666. `eventstream.NewRedisConsumer` now trims and validates Redis stream, group, and consumer identifiers as required, CR/LF-free, size-bounded values, keeping direct adapter callers aligned with runtime config validation.
 667. OpenSearch writer/searcher construction now trims usernames while preserving password bytes, and rejects CR/LF-bearing or oversized endpoint credentials before BasicAuth request headers can be generated.
 668. Runtime config validation now rejects CR/LF-bearing or oversized OpenSearch username/password configuration when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, surfacing credential formatting mistakes before worker/search setup.
+669. OpenSearch index/bootstrap/search status-error diagnostics now collapse backend response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing backend errors from leaking into logs or API diagnostics.
 
 ## Deferred until backend contracts stabilize
 

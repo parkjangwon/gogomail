@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after OpenSearch credential config validation)
+Last updated: 2026-05-05 (updated after OpenSearch error preview sanitization)
 
 ## Current phase
 
@@ -110,6 +110,9 @@ guidance.
   oversized search backend responses cannot allocate unbounded highlight or hit
   payloads in the Mail API path, and trailing JSON tokens are rejected before
   search hits are accepted.
+- OpenSearch index/bootstrap/search status-error diagnostics now collapse
+  backend response bodies into bounded one-line UTF-8 previews, preventing
+  CR/LF-bearing backend errors from leaking into logs or API diagnostics.
 - Shared EML text extraction, retained header metadata, and attachment
   metadata are bounded with UTF-8 boundary preservation; attachment filenames
   are basename-normalized, control-character cleaned, and capped before
