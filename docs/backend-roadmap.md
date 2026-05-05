@@ -1174,6 +1174,9 @@ Implementation order:
      highest mod-sequence and emit `[HIGHESTMODSEQ ...]` metadata alongside
      the move response path, keeping the advertised CONDSTORE surface aligned
      with RFC 6851 mod-sequence expectations.
+812. IMAP `CAPABILITY` now advertises RFC 3348 `CHILDREN` alongside the
+     existing `\HasNoChildren` LIST attributes, keeping mailbox hierarchy
+     discovery signals consistent for standards-aware clients.
 
 ## Deferred until backend contracts stabilize
 

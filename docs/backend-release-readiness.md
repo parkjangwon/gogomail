@@ -338,11 +338,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   by follow-up commands.
 - IMAP `LIST` now applies exact, `*`, and `%` mailbox pattern matching before
   returning sanitized quoted mailbox names.
-- IMAP `CAPABILITY` now advertises `SPECIAL-USE`; `LIST` includes RFC 6154
-  special-use attributes for system folders such as Drafts, Sent, Trash, Junk,
-  Archive, All, and Flagged when those folder roles are present in storage
-  metadata, and extended `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms
-  are accepted.
+- IMAP `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`;
+  `LIST` includes `\HasNoChildren` plus RFC 6154 special-use attributes for
+  system folders such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged
+  when those folder roles are present in storage metadata, and extended
+  `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts

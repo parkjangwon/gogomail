@@ -277,11 +277,11 @@ Current state:
   by follow-up commands.
 - `LIST` now filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
-- `CAPABILITY` now advertises `SPECIAL-USE`; `LIST` includes RFC 6154
-  special-use attributes for system folders such as Drafts, Sent, Trash, Junk,
-  Archive, All, and Flagged when those folder roles are present in storage
-  metadata, and extended `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms
-  are accepted.
+- `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`; `LIST`
+  includes `\HasNoChildren` plus RFC 6154 special-use attributes for system
+  folders such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged when
+  those folder roles are present in storage metadata, and extended
+  `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
 - `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata, matching client namespace delimiter
   probes before persistent subscription storage exists.
