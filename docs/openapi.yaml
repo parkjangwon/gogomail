@@ -248,6 +248,16 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: read
+          in: query
+          schema:
+            type: boolean
+          description: Optional conversation read-state filter. Use false for threads with unread messages.
+        - name: starred
+          in: query
+          schema:
+            type: boolean
+          description: Optional conversation starred-state filter.
       responses:
         "200":
           $ref: "#/components/responses/ThreadList"

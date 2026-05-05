@@ -790,6 +790,59 @@ func TestListThreadsHandler(t *testing.T) {
 	}
 }
 
+func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&read=false&starred=true", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastThreadFilter.Read == nil || *service.lastThreadFilter.Read {
+		t.Fatalf("read filter = %#v", service.lastThreadFilter.Read)
+	}
+	if service.lastThreadFilter.Starred == nil || !*service.lastThreadFilter.Starred {
+		t.Fatalf("starred filter = %#v", service.lastThreadFilter.Starred)
+	}
+}
+
+func TestListThreadsHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/api/v1/threads?user_id=user-1&read=maybe",
+		"/api/v1/threads?user_id=user-1&starred=maybe",
+		"/api/v1/threads?user_id=user-1&starred=true&starred=false",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeMessageService{}
+			mux := http.NewServeMux()
+			RegisterMailRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastUserID != "" {
+				t.Fatalf("handler dispatched despite invalid filters: %+v", service.lastThreadFilter)
+			}
+		})
+	}
+}
+
 func TestSearchMessagesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -2800,6 +2853,7 @@ type fakeMessageService struct {
 	lastBulkMove                maildb.BulkMessageMoveRequest
 	lastBulkDelete              maildb.BulkMessageDeleteRequest
 	lastListFilter              maildb.MessageListFilter
+	lastThreadFilter            maildb.ThreadListFilter
 	lastSearch                  maildb.MessageSearchQuery
 	lastDraftSearch             maildb.DraftSearchQuery
 	lastLimit                   int
@@ -2859,9 +2913,10 @@ func (f *fakeMessageService) ListThreads(_ context.Context, userID string, limit
 	return f.threads, nil
 }
 
-func (f *fakeMessageService) ListThreadsPage(_ context.Context, userID string, limit int, _ maildb.ThreadListCursor) ([]maildb.ThreadSummary, error) {
+func (f *fakeMessageService) ListThreadsPage(_ context.Context, userID string, limit int, _ maildb.ThreadListCursor, filter maildb.ThreadListFilter) ([]maildb.ThreadSummary, error) {
 	f.lastUserID = userID
 	f.lastLimit = limit
+	f.lastThreadFilter = filter
 	return f.threads, nil
 }
 

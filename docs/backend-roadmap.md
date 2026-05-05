@@ -1685,6 +1685,10 @@ Implementation order:
      and `starred=true|false` filters, enabling fast unread/read/starred
      production webmail views while preserving folder scoping, opaque cursors,
      and bounded boolean query validation.
+952. Mail API thread list pagination now accepts optional `read=true|false`
+     and `starred=true|false` filters, enabling conversation-level unread,
+     fully-read, starred, and unstarred quick views while preserving opaque
+     cursor pagination and bounded boolean query validation.
 
 ## Deferred until backend contracts stabilize
 

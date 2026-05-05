@@ -1062,6 +1062,9 @@ Next:
 - Mail API message list pagination now accepts optional `read=true|false` and
   `starred=true|false` filters for fast unread/read/starred webmail views
   without forcing clients through full-text search.
+- Mail API thread list pagination now accepts optional `read=true|false` and
+  `starred=true|false` filters, with `read=false` representing conversations
+  that still contain unread messages.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

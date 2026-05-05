@@ -49,7 +49,7 @@ type MessageService interface {
 	ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]maildb.MessageSummary, error)
 	ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor maildb.MessageListCursor, filter maildb.MessageListFilter) ([]maildb.MessageSummary, error)
 	ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error)
-	ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error)
+	ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor, filter maildb.ThreadListFilter) ([]maildb.ThreadSummary, error)
 	ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error)
 	ListThreadMessagesPage(ctx context.Context, userID string, threadID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
@@ -543,7 +543,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "read", "starred") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -563,7 +563,18 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		threads, err := service.ListThreadsPage(r.Context(), userID, limit, cursor)
+		read, ok := parseOptionalBoolQuery(w, r, "read")
+		if !ok {
+			return
+		}
+		starred, ok := parseOptionalBoolQuery(w, r, "starred")
+		if !ok {
+			return
+		}
+		threads, err := service.ListThreadsPage(r.Context(), userID, limit, cursor, maildb.ThreadListFilter{
+			Read:    read,
+			Starred: starred,
+		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

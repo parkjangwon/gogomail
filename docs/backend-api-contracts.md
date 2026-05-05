@@ -690,6 +690,10 @@ authenticated/fallback user id and returned in chronological order for webmail
 conversation rendering. Both thread reads support `limit` plus opaque `cursor`
 pagination and return `has_more`/`next_cursor` alongside the existing
 `threads` or `messages` arrays.
+Thread list reads also accept optional `read=true|false` and
+`starred=true|false` filters. For conversations, `read=false` means at least
+one message in the thread is unread, while `read=true` means the thread has no
+unread messages; `starred` matches conversations where any message is starred.
 Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
 attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
 outbound messages inherit the source message thread when `source_message_id` is

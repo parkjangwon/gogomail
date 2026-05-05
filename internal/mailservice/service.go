@@ -205,19 +205,19 @@ func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID 
 }
 
 func (s *Service) ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error) {
-	return s.ListThreadsPage(ctx, userID, limit, maildb.ThreadListCursor{})
+	return s.ListThreadsPage(ctx, userID, limit, maildb.ThreadListCursor{}, maildb.ThreadListFilter{})
 }
 
-func (s *Service) ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error) {
+func (s *Service) ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor, filter maildb.ThreadListFilter) ([]maildb.ThreadSummary, error) {
 	repo, ok := s.repository.(interface {
-		ListThreadsPage(context.Context, string, int, maildb.ThreadListCursor) ([]maildb.ThreadSummary, error)
+		ListThreadsPage(context.Context, string, int, maildb.ThreadListCursor, maildb.ThreadListFilter) ([]maildb.ThreadSummary, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("thread repository is required")
 	}
 	userID = strings.TrimSpace(userID)
 	limit = maildb.NormalizeMessageListLimit(limit)
-	return repo.ListThreadsPage(ctx, userID, limit, cursor)
+	return repo.ListThreadsPage(ctx, userID, limit, cursor, filter)
 }
 
 func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
