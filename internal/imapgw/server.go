@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
 	"net"
 	stdmail "net/mail"
+	"net/textproto"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1536,6 +1538,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	requestsBody := imapFetchRequestsBody(items)
 	partial, requestsPartialBody := imapFetchPartialBody(items)
 	partialSection, requestsPartialSection := imapFetchPartialSection(items)
+	partRequest, requestsMIMEPart := imapFetchMIMEPartRequest(items)
 	requestsHeader := imapFetchRequestsHeader(items)
 	requestsText := imapFetchRequestsText(items)
 	requestsPartText := imapFetchRequestsPartText(items)
@@ -1561,7 +1564,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if summary.UID == 0 {
 			summary.UID = uid
 		}
-		requestsLiteral := requestsBody || requestsPartialBody || requestsPartialSection || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
+		requestsLiteral := requestsBody || requestsPartialBody || requestsPartialSection || requestsMIMEPart || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
 		bodyAttribute := ""
 		bodyStructure := ""
 		if requestsBodyAttribute || requestsBodyStructure {
@@ -1621,6 +1624,30 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_ = body.Close()
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
+			}
+			if requestsMIMEPart {
+				literal, found, err := readIMAPMIMEPartLiteral(body, partRequest)
+				if closeErr := body.Close(); closeErr != nil && err == nil {
+					err = closeErr
+				}
+				if err != nil {
+					return false, err
+				}
+				if !found {
+					_, err := writer.WriteString(tag + " NO UID FETCH body section is unavailable\r\n")
+					return false, err
+				}
+				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s]%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), partRequest.sectionName(), partRequest.partialSuffix(), len(literal))); err != nil {
+					return false, err
+				}
+				if _, err := writer.Write(literal); err != nil {
+					return false, err
+				}
+				if _, err := writer.WriteString(")\r\n"); err != nil {
+					return false, err
+				}
+				continue
 			}
 			if requestsPartialSection || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME {
 				wantHeader := requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || partialSection.headerLike()
@@ -1888,6 +1915,30 @@ type imapPartialSectionRequest struct {
 	partial imapPartialBodyRequest
 }
 
+type imapMIMEPartRequest struct {
+	path    []int
+	mime    bool
+	partial imapPartialBodyRequest
+}
+
+func (r imapMIMEPartRequest) sectionName() string {
+	parts := make([]string, 0, len(r.path)+1)
+	for _, value := range r.path {
+		parts = append(parts, strconv.Itoa(value))
+	}
+	if r.mime {
+		parts = append(parts, "MIME")
+	}
+	return strings.Join(parts, ".")
+}
+
+func (r imapMIMEPartRequest) partialSuffix() string {
+	if r.partial.count == 0 {
+		return ""
+	}
+	return fmt.Sprintf("<%d>", r.partial.offset)
+}
+
 func (r imapPartialSectionRequest) headerLike() bool {
 	return r.section == "HEADER" || r.section == "1.MIME"
 }
@@ -1933,6 +1984,67 @@ func imapFetchPartialSection(items []string) (imapPartialSectionRequest, bool) {
 	return imapPartialSectionRequest{}, false
 }
 
+func imapFetchMIMEPartRequest(items []string) (imapMIMEPartRequest, bool) {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			req, ok := imapParseMIMEPartRequestToken(token)
+			if ok {
+				return req, true
+			}
+		}
+	}
+	return imapMIMEPartRequest{}, false
+}
+
+func imapParseMIMEPartRequestToken(token string) (imapMIMEPartRequest, bool) {
+	if strings.HasPrefix(token, "BODY.PEEK[") {
+		token = "BODY[" + strings.TrimPrefix(token, "BODY.PEEK[")
+	}
+	if !strings.HasPrefix(token, "BODY[") {
+		return imapMIMEPartRequest{}, false
+	}
+	closeIdx := strings.Index(token, "]")
+	if closeIdx < 0 {
+		return imapMIMEPartRequest{}, false
+	}
+	section := token[len("BODY["):closeIdx]
+	if section == "" || section == "HEADER" || section == "TEXT" || strings.HasPrefix(section, "HEADER.") {
+		return imapMIMEPartRequest{}, false
+	}
+	parts := strings.Split(section, ".")
+	mimeSection := false
+	if parts[len(parts)-1] == "MIME" {
+		mimeSection = true
+		parts = parts[:len(parts)-1]
+	}
+	if len(parts) == 0 {
+		return imapMIMEPartRequest{}, false
+	}
+	path := make([]int, 0, len(parts))
+	for _, part := range parts {
+		value, err := strconv.Atoi(part)
+		if err != nil || value <= 0 {
+			return imapMIMEPartRequest{}, false
+		}
+		path = append(path, value)
+	}
+	if len(path) == 1 && path[0] == 1 {
+		return imapMIMEPartRequest{}, false
+	}
+	req := imapMIMEPartRequest{path: path, mime: mimeSection}
+	if suffix := token[closeIdx+1:]; suffix != "" {
+		if !strings.HasPrefix(suffix, "<") {
+			return imapMIMEPartRequest{}, false
+		}
+		partial, ok := imapParsePartialBodyToken(token)
+		if !ok {
+			return imapMIMEPartRequest{}, false
+		}
+		req.partial = partial
+	}
+	return req, true
+}
+
 func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
 	start := strings.Index(token, "<")
 	end := strings.LastIndex(token, ">")
@@ -1963,6 +2075,103 @@ func imapPartialLiteral(literal []byte, partial imapPartialBodyRequest) []byte {
 		end = uint64(len(literal))
 	}
 	return literal[partial.offset:end]
+}
+
+func readIMAPMIMEPartLiteral(reader io.Reader, req imapMIMEPartRequest) ([]byte, bool, error) {
+	if reader == nil {
+		return nil, false, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(reader, maxIMAPSearchLiteralBytes+1))
+	if err != nil {
+		return nil, false, err
+	}
+	if len(data) > maxIMAPSearchLiteralBytes {
+		return nil, false, fmt.Errorf("imap mime part literal exceeds limit")
+	}
+	message, err := stdmail.ReadMessage(bytes.NewReader(data))
+	if err != nil {
+		return nil, false, nil
+	}
+	mediaType, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
+	if err != nil || !strings.EqualFold(mediaType, "multipart/mixed") && !strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
+		return nil, false, nil
+	}
+	boundary := strings.TrimSpace(params["boundary"])
+	if boundary == "" {
+		return nil, false, nil
+	}
+	literal, found, err := readIMAPMIMEPartLiteralFromMultipart(multipart.NewReader(message.Body, boundary), req.path, req.mime)
+	if err != nil || !found {
+		return nil, found, err
+	}
+	if req.partial.count > 0 {
+		literal = imapPartialLiteral(literal, req.partial)
+	}
+	return literal, true, nil
+}
+
+func readIMAPMIMEPartLiteralFromMultipart(reader *multipart.Reader, path []int, wantMIME bool) ([]byte, bool, error) {
+	if len(path) == 0 {
+		return nil, false, nil
+	}
+	for i := 1; ; i++ {
+		part, err := reader.NextRawPart()
+		if err == io.EOF {
+			return nil, false, nil
+		}
+		if err != nil {
+			return nil, false, err
+		}
+		if i != path[0] {
+			_ = part.Close()
+			continue
+		}
+		defer part.Close()
+		if len(path) == 1 {
+			if wantMIME {
+				return imapMIMEHeaderLiteral(part.Header), true, nil
+			}
+			literal, err := io.ReadAll(io.LimitReader(part, maxIMAPSearchLiteralBytes+1))
+			if err != nil {
+				return nil, false, err
+			}
+			if len(literal) > maxIMAPSearchLiteralBytes {
+				return nil, false, fmt.Errorf("imap mime part literal exceeds limit")
+			}
+			return literal, true, nil
+		}
+		mediaType, params, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
+		if err != nil || !strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
+			return nil, false, nil
+		}
+		boundary := strings.TrimSpace(params["boundary"])
+		if boundary == "" {
+			return nil, false, nil
+		}
+		return readIMAPMIMEPartLiteralFromMultipart(multipart.NewReader(part, boundary), path[1:], wantMIME)
+	}
+}
+
+func imapMIMEHeaderLiteral(header textproto.MIMEHeader) []byte {
+	if len(header) == 0 {
+		return []byte("\r\n")
+	}
+	keys := make([]string, 0, len(header))
+	for key := range header {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var out strings.Builder
+	for _, key := range keys {
+		for _, value := range header[key] {
+			out.WriteString(key)
+			out.WriteString(": ")
+			out.WriteString(value)
+			out.WriteString("\r\n")
+		}
+	}
+	out.WriteString("\r\n")
+	return []byte(out.String())
 }
 
 func imapFetchRequestsHeader(items []string) bool {

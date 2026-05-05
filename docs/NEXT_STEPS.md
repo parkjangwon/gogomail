@@ -292,6 +292,9 @@ Current state:
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - `FETCH`/`UID FETCH` now support conservative single-part text literals for
   `BODY[1]` and `BODY.PEEK[1]`.
+- `FETCH`/`UID FETCH` now supports bounded top-level multipart body-section
+  literals such as `BODY[2]`, letting clients read individual MIME parts
+  without fetching the full message.
 - `FETCH`/`UID FETCH` now answers conservative single-part MIME header requests
   for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - `UID STORE` now accepts bounded UID sets/ranges so clients can mutate flags in
@@ -398,8 +401,8 @@ Current state:
 
 Next:
 
-- Extend part-number-aware MIME literal fetches beyond the current conservative
-  single-part `BODY[1]` and `BODY[1.MIME]` behavior.
+- Extend MIME literal fetches to nested part paths and richer `BODY[n.MIME]`
+  responses beyond the current top-level multipart part support.
 
 Frontend note:
 

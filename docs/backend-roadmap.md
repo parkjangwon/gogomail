@@ -1007,6 +1007,9 @@ Implementation order:
 765. IMAP `FETCH` and `UID FETCH` now support bounded partial section literals
      for common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]`
      requests.
+766. IMAP `FETCH` and `UID FETCH` now support bounded top-level multipart
+     body-section literals such as `BODY[2]`, allowing clients to read
+     individual MIME parts without fetching the full message.
 
 ## Deferred until backend contracts stabilize
 
