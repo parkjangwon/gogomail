@@ -365,6 +365,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   response for compatibility diagnostics.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
+- IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO`
+  responses while `\Deleted` semantics remain deferred.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

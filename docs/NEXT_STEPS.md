@@ -301,6 +301,8 @@ Current state:
   identity response.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
+- `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO` responses
+  while `\Deleted` semantics remain deferred.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
