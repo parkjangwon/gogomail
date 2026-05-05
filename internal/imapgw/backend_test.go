@@ -47,11 +47,11 @@ func (fakeComposedBackend) ListMessages(context.Context, ListMessagesRequest) ([
 }
 
 func (fakeComposedBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
-	return Message{Summary: MessageSummary{ID: "message-1", UID: 1}, Body: io.NopCloser(strings.NewReader(""))}, nil
+	return Message{Summary: MessageSummary{ID: "message-1", UID: 1, SequenceNumber: 1}, Body: io.NopCloser(strings.NewReader(""))}, nil
 }
 
 func (fakeComposedBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-1", UID: 1, Flags: MessageFlags{Read: true}}}, nil
+	return []MessageSummary{{ID: "message-1", UID: 1, SequenceNumber: 1, Flags: MessageFlags{Read: true}}}, nil
 }
 
 func (fakeComposedBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

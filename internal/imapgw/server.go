@@ -339,6 +339,11 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 	if summary.UID == 0 {
 		summary.UID = UID(uid64)
 	}
+	sequenceNumber, ok := imapSequenceNumber(summary)
+	if !ok {
+		_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
+		return false, err
+	}
 	if imapFetchRequestsBody(fields[4:]) {
 		if message.Body == nil {
 			_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
@@ -348,7 +353,7 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 			_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 			return false, err
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d BODY[] {%d}\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size, summary.Size)); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d BODY[] {%d}\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size, summary.Size)); err != nil {
 			return false, err
 		}
 		if _, err := io.CopyN(writer, message.Body, summary.Size); err != nil {
@@ -360,7 +365,7 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 		_, err = writer.WriteString(tag + " OK UID FETCH completed\r\n")
 		return false, err
 	}
-	if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d)\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size)); err != nil {
+	if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d)\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size)); err != nil {
 		return false, err
 	}
 	_, err = writer.WriteString(tag + " OK UID FETCH completed\r\n")
@@ -368,8 +373,13 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 }
 
 func imapFetchRequestsBody(items []string) bool {
-	joined := strings.ToUpper(strings.Join(items, " "))
-	return strings.Contains(joined, "BODY[]") || strings.Contains(joined, "RFC822")
+	for _, item := range items {
+		token := strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
+		if token == "BODY[]" || token == "RFC822" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -404,12 +414,24 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		return false, writeErr
 	}
 	for _, summary := range summaries {
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()))); err != nil {
+		sequenceNumber, ok := imapSequenceNumber(summary)
+		if !ok {
+			_, err := writer.WriteString(tag + " NO UID STORE sequence number is unavailable\r\n")
+			return false, err
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()))); err != nil {
 			return false, err
 		}
 	}
 	_, err = writer.WriteString(tag + " OK UID STORE completed\r\n")
 	return false, err
+}
+
+func imapSequenceNumber(summary MessageSummary) (uint32, bool) {
+	if summary.SequenceNumber == 0 {
+		return 0, false
+	}
+	return summary.SequenceNumber, true
 }
 
 func imapStoreMode(value string) (StoreFlagsMode, bool) {

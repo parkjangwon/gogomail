@@ -445,7 +445,7 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 		t.Fatalf("write uid fetch: %v", err)
 	}
 	want := []string{
-		"* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
 		"a4 OK UID FETCH completed\r\n",
 	}
 	for _, expected := range want {
@@ -503,7 +503,7 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read body literal header: %v", err)
 	}
-	if line != "* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 BODY[] {11}\r\n" {
+	if line != "* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 BODY[] {11}\r\n" {
 		t.Fatalf("body literal header = %q", line)
 	}
 	body := make([]byte, 11)
@@ -570,7 +570,7 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 		t.Fatalf("write uid store: %v", err)
 	}
 	want := []string{
-		"* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged))\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged))\r\n",
 		"a3 OK UID STORE completed\r\n",
 	}
 	for _, expected := range want {
@@ -625,11 +625,11 @@ func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]Message
 }
 
 func (fakeBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
-	return Message{Summary: MessageSummary{ID: "message-1", UID: 7, Flags: MessageFlags{Read: true, Starred: true}, Size: 11}, Body: io.NopCloser(strings.NewReader("hello world"))}, nil
+	return Message{Summary: MessageSummary{ID: "message-1", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Read: true, Starred: true}, Size: 11}, Body: io.NopCloser(strings.NewReader("hello world"))}, nil
 }
 
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-1", UID: req.UIDs[0], Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft}}}, nil
+	return []MessageSummary{{ID: "message-1", UID: req.UIDs[0], SequenceNumber: 1, Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft}}}, nil
 }
 
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

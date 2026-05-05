@@ -820,6 +820,10 @@ Implementation order:
 698. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.
+699. IMAP `UID FETCH` and `UID STORE` responses now use RFC 3501 message
+     sequence numbers for untagged `FETCH` data while preserving the requested
+     UID inside the response attributes; `RFC822.SIZE` is treated as metadata,
+     not a body-fetch request.
 
 ## Deferred until backend contracts stabilize
 

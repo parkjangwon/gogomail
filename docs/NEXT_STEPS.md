@@ -141,10 +141,13 @@ Next:
 
 Current state:
 
-- No IMAP protocol server exists.
+- A bounded IMAP protocol server exists for the first RFC-shaped handshake,
+  authentication, mailbox state, metadata fetch, body fetch, and flag-store
+  commands.
 - Message, folder, and flag models are IMAP-compatible by design.
 - `internal/imapgw` defines native gateway DTOs, backend interfaces, mailbox
-  helpers, and RFC-shaped flag mapping without a TCP listener or DB adapter.
+  helpers, RFC-shaped flag mapping, and a bounded TCP server shell over the
+  service-backed store/session adapter.
 - `imap_mailbox_state` and `imap_message_uid` migrations define durable
   UIDVALIDITY, UIDNEXT, mailbox MODSEQ, message UID, and message MODSEQ storage.
 - `maildb` can ensure mailbox UID state and assign stable mailbox-local message
@@ -180,23 +183,22 @@ Current state:
 - Mail API single and bulk delete mutations can publish mailbox `expunge`
   events for previously UID-visible messages.
 - `mailservice` exposes IMAP mailbox/message listing and event subscription
-  methods for a future protocol listener.
+  methods for the protocol listener.
 - Admin API exposes bounded IMAP UID backfill for future operator/bootstrap
   modes without enabling an IMAP protocol listener.
 - IMAP mailbox event publication is best-effort after successful mutations, so
   future IDLE fan-out cannot make committed mail writes appear failed.
-- `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for future protocol
-  listener wiring through the service boundary.
+- `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for protocol listener
+  wiring through the service boundary.
 - `mailservice.IMAPStoreAdapter` also satisfies `imapgw.MailboxSessionStore`
   for SELECT-style mailbox state and mailbox-event subscription. MOVE and
   EXPUNGE intentionally return an explicit unsupported mutation error until
   IMAP-safe mutation semantics are reviewed.
-- `gogomail --mode=imap` is now a separate gateway scaffold that opens the
-  service-backed IMAP store adapter and wires a process-local mailbox event
-  broker for future IDLE sessions, while still deferring the TCP protocol
-  listener.
+- `gogomail --mode=imap` is now a separate gateway that opens the
+  service-backed IMAP store adapter, wires a process-local mailbox event broker
+  for future IDLE sessions, and serves the configured TCP protocol listener.
 - `GOGOMAIL_IMAP_ADDR` is loaded and validated as required TCP listener
-  metadata for the scaffold, giving the future listener a stable config key.
+  metadata for the protocol listener.
 - `GOGOMAIL_IMAP_TLS_CERT_FILE`, `GOGOMAIL_IMAP_TLS_KEY_FILE`, and
   `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH` are loaded and validated so production
   IMAP auth cannot be enabled with cleartext credential policy.
@@ -209,14 +211,13 @@ Current state:
   MOVE/EXPUNGE until IMAP-safe mutation semantics exist.
 - `mailservice.NewIMAPAuthenticatorAdapter` now maps the existing
   Submission/local-password authentication boundary into `imapgw.Session`
-  values, giving the future listener a protocol-native authenticator without
-  coupling IMAP to JWT middleware.
+  values, giving the listener a protocol-native authenticator without coupling
+  IMAP to JWT middleware.
 - `mailservice.NewIMAPBackendAdapter` composes the protocol authenticator with
-  the service-backed store/session adapter, so the future TCP listener can take
-  one `imapgw.Backend` boundary.
-- IMAP runtime now builds listener-ready server options containing address,
-  backend, TLS config, and insecure-auth policy while still deferring the actual
-  TCP protocol server.
+  the service-backed store/session adapter, so the TCP listener can take one
+  `imapgw.Backend` boundary.
+- IMAP runtime now builds server options containing address, backend, TLS
+  config, and insecure-auth policy for the TCP protocol server.
 - `internal/imapgw.NewServer` now provides a protocol-server lifecycle shell
   with listener option validation, backend requirement checks, and TLS/insecure
   auth policy enforcement before the IMAP command parser is wired.
@@ -236,7 +237,9 @@ Current state:
   malformed quoted controls.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
-  raw message fetch boundary.
+  raw message fetch boundary. Untagged `FETCH` responses now use message
+  sequence numbers, and `RFC822.SIZE` metadata requests do not trigger body
+  streaming.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

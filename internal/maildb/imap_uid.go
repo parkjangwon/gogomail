@@ -28,6 +28,10 @@ type IMAPStoredMessage struct {
 	StoragePath string
 }
 
+type imapSequenceQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 const (
 	imapUIDBackfillDefaultLimit = 500
 	imapUIDBackfillMaxLimit     = 5000
@@ -306,8 +310,14 @@ LIMIT 1`
 	if err := imapgw.ValidateMessageUID(messageUID); err != nil {
 		return IMAPStoredMessage{}, err
 	}
+	summary := imapMessageFromRow(row, messageUID)
+	sequenceNumber, err := imapSequenceNumberForUID(ctx, r.db, userID, mailboxID, uid)
+	if err != nil {
+		return IMAPStoredMessage{}, err
+	}
+	summary.SequenceNumber = sequenceNumber
 	return IMAPStoredMessage{
-		Summary:     imapMessageFromRow(row, messageUID),
+		Summary:     summary,
 		StoragePath: strings.TrimSpace(storagePath),
 	}, nil
 }
@@ -377,7 +387,13 @@ FOR UPDATE`
 			}
 			row = next
 		}
-		summaries = append(summaries, imapMessageFromRow(row, messageUID))
+		summary := imapMessageFromRow(row, messageUID)
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, mailboxID, uid)
+		if err != nil {
+			return nil, err
+		}
+		summary.SequenceNumber = sequenceNumber
+		summaries = append(summaries, summary)
 	}
 	if changedAny {
 		if err := updateIMAPMailboxModSeq(ctx, tx, mailboxID, highestModSeq); err != nil {
@@ -756,6 +772,28 @@ func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSu
 		InternalDate: row.InternalDate,
 		Size:         row.Size,
 	}
+}
+
+func imapSequenceNumberForUID(ctx context.Context, querier imapSequenceQuerier, userID string, mailboxID string, uid imapgw.UID) (uint32, error) {
+	const query = `
+SELECT COUNT(*)
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.user_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND i.uid <= $3
+  AND m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'`
+
+	var count int64
+	if err := querier.QueryRowContext(ctx, query, userID, mailboxID, int64(uid)).Scan(&count); err != nil {
+		return 0, fmt.Errorf("get imap sequence number: %w", err)
+	}
+	if count <= 0 || count > math.MaxUint32 {
+		return 0, fmt.Errorf("imap sequence number unavailable for uid %d", uid)
+	}
+	return uint32(count), nil
 }
 
 func imapEnvelopeAddress(name string, address string) []imapgw.Address {

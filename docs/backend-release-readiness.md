@@ -232,12 +232,19 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   identifiers reject blank, CR/LF-bearing, or oversized values before service
   dispatch.
 - Search relevance has backend-specific regression coverage for Postgres weighted `tsvector` ranking and OpenSearch field boosts, keeping subject/sender matches ahead of indexed body matches while preserving date-sorted defaults.
-- IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
-- IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows and message UID/MODSEQ rows, with transactional assignment helpers, first mailbox/message list adapters, raw body fetch groundwork, MODSEQ-aware flag mutation, bounded UID backfill, move/delete UID invalidation, and same-active-mailbox idempotency checks; no protocol server is in release scope yet.
+- IMAP has a backend gateway boundary package with native DTOs/interfaces,
+  mailbox state helpers, RFC-shaped flag mapping, and a bounded protocol server
+  shell for the first authenticated mailbox/read commands.
+- IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows
+  and message UID/MODSEQ rows, with transactional assignment helpers, first
+  mailbox/message list adapters, raw body fetch groundwork, RFC-correct sequence
+  numbers for `UID FETCH`/`UID STORE` untagged `FETCH` responses, MODSEQ-aware
+  flag mutation, bounded UID backfill, move/delete UID invalidation, and
+  same-active-mailbox idempotency checks.
 - `mailservice` now exposes IMAP mailbox/message listing, raw fetch, flag store,
   UID backfill, and mailbox-event subscription through service methods plus an
-  `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping future protocol wiring
-  off direct `maildb` internals.
+  `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping protocol wiring off
+  direct `maildb` internals.
 - `IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore` for mailbox
   selection and event subscription, while MOVE and EXPUNGE return an explicit
   unsupported mutation error until IMAP-safe semantics are reviewed.
@@ -249,12 +256,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `flags`/`expunge` events for UID-visible messages. Mail API detail reads
   that auto-mark unread messages as read also publish `flags` events after a
   successful read-flag write.
-- `gogomail --mode=imap` now starts an IMAP gateway scaffold that wires the
-  service-backed IMAP store adapter and process-local mailbox event broker
-  without advertising or enabling a TCP IMAP listener.
+- `gogomail --mode=imap` now starts an IMAP gateway that wires the
+  service-backed IMAP store adapter, process-local mailbox event broker, and
+  configured TCP IMAP listener.
 - Runtime config now loads and validates `GOGOMAIL_IMAP_ADDR` as required TCP
-  listener metadata for the scaffold, preparing the future protocol listener
-  without opening the port yet.
+  listener metadata for the protocol listener.
 - Runtime config also loads and validates IMAP TLS certificate/key paths plus
   `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH`, preventing production IMAP auth from
   being enabled with cleartext credential policy.
@@ -267,14 +273,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   unsupported until IMAP-safe mutation semantics are accepted.
 - `mailservice.NewIMAPAuthenticatorAdapter` maps the existing Submission/local
   password authentication boundary into `imapgw.Session` values, giving the
-  future listener a protocol-native authenticator without coupling IMAP to JWT
+  listener a protocol-native authenticator without coupling IMAP to JWT
   middleware.
 - `mailservice.NewIMAPBackendAdapter` composes the protocol authenticator with
-  the service-backed store/session adapter, so the future TCP listener can take
-  one `imapgw.Backend` boundary.
-- IMAP runtime now builds listener-ready server options containing address,
-  backend, TLS config, and insecure-auth policy while still deferring the actual
-  TCP protocol server.
+  the service-backed store/session adapter, so the TCP listener can take one
+  `imapgw.Backend` boundary.
+- IMAP runtime now builds server options containing address, backend, TLS
+  config, and insecure-auth policy for the TCP protocol server.
 - `internal/imapgw.NewServer` now provides a protocol-server lifecycle shell
   with listener option validation, backend requirement checks, and TLS/insecure
   auth policy enforcement before the IMAP command parser is wired.
@@ -294,7 +299,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   malformed quoted controls.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
-  raw message fetch boundary.
+  raw message fetch boundary. Untagged `FETCH` responses use IMAP sequence
+  numbers, and `RFC822.SIZE` alone is not treated as a body-fetch request.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
