@@ -133,6 +133,9 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 		return fmt.Errorf("delete s3 object: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return s3StatusError("delete", resp)
 	}

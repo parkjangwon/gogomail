@@ -1446,6 +1446,9 @@ Implementation order:
 884. IMAP message sequence sets now reject sequence numbers above the selected
      mailbox size with tagged `BAD` responses, preserving RFC 3501 bounds
      behavior for `FETCH`, `STORE`, `COPY`, and `MOVE` sequence arguments.
+885. S3-compatible deletes now treat `404 Not Found` as already-cleaned
+     success, aligning compatible-provider lifecycle cleanup with local/NFS
+     idempotent delete semantics.
 
 ## Deferred until backend contracts stabilize
 

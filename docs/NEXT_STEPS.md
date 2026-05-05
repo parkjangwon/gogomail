@@ -111,6 +111,9 @@ Current state:
 - S3-compatible uploads set a deterministic `Content-Length` for seekable PUT
   bodies without buffering the object in memory, improving compatibility for
   file-backed mail and attachment writes while keeping hot paths streaming-first.
+- S3-compatible deletes treat `404 Not Found` as already-cleaned success,
+  keeping lifecycle cleanup idempotent across AWS S3, MinIO-style endpoints,
+  and local/NFS storage.
 - S3-compatible secret access keys and session tokens reject spaces, tabs, and
   line breaks during adapter construction, making copied env/config credential
   mistakes fail fast before runtime S3 authentication errors.

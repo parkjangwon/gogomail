@@ -272,6 +272,37 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 }
 
+func TestS3StoreDeleteTreatsMissingObjectAsSuccess(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %s, want DELETE", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("missing"))
+	}))
+	defer server.Close()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        server.URL,
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if err := store.Delete(context.Background(), "messages/missing.eml"); err != nil {
+		t.Fatalf("Delete returned error: %v", err)
+	}
+}
+
 func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
 	t.Parallel()
 
