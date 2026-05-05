@@ -1901,6 +1901,56 @@ func TestServerHandlesListAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerListReportsSpecialUseAttributes(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: specialUseBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
+		t.Fatalf("write login/list special-use: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"* LIST (\\HasNoChildren \\Drafts) \"/\" \"Drafts\"\r\n",
+		"* LIST (\\HasNoChildren \\Sent) \"/\" \"Sent\"\r\n",
+		"* LIST (\\HasNoChildren \\Trash) \"/\" \"Trash\"\r\n",
+		"a2 OK LIST completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read special-use list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("special-use list response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerFiltersListByPattern(t *testing.T) {
 	t.Parallel()
 
@@ -4691,6 +4741,19 @@ type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
 	return Session{UserID: "user-1", Username: "user@example.com"}, nil
+}
+
+type specialUseBackend struct {
+	fakeBackend
+}
+
+func (specialUseBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
+	return []Mailbox{
+		{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2},
+		{ID: "drafts", Name: "Drafts", SystemType: "drafts", UIDValidity: 2, UIDNext: 1},
+		{ID: "sent", Name: "Sent", SystemType: "sent", UIDValidity: 3, UIDNext: 1},
+		{ID: "trash", Name: "Trash", SystemType: "trash", UIDValidity: 4, UIDNext: 1},
+	}, nil
 }
 
 func (fakeBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
