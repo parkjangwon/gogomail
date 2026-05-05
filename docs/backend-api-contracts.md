@@ -174,6 +174,9 @@ or development `user_id` fallback path as webmail mail routes:
   `{"drive_node":{...},"updated":N}`.
 - `POST /api/v1/drive/nodes/{id}/restore` restores a restorable trashed node
   tree and returns `{"drive_node":{...},"updated":N}`.
+- `PATCH /api/v1/drive/nodes/{id}/name` renames an active file or folder from
+  `{"name"}` and returns `{"drive_node":{...}}`; backend validation reuses the
+  Drive node-name normalization and active sibling uniqueness rules.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

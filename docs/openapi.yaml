@@ -220,6 +220,20 @@ paths:
           $ref: "#/components/responses/DriveNodeUpdate"
         default:
           $ref: "#/components/responses/Error"
+  /drive/nodes/{id}/name:
+    patch:
+      operationId: renameDriveNode
+      summary: Rename an active Drive node
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveNodeRename"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
@@ -3285,6 +3299,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveFileFinalizeRequest"
+    DriveNodeRename:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveNodeRenameRequest"
     MessageFlagUpdate:
       required: true
       content:
@@ -3758,6 +3778,14 @@ components:
         checksum_sha256:
           type: string
           pattern: "^[0-9a-fA-F]{64}$"
+    DriveNodeRenameRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
     MailboxOverview:
       type: object
       required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]

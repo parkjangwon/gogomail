@@ -70,6 +70,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive staged object upload now has a bounded Mail API route that writes
   directly through the configured storage adapter, computes size and SHA-256,
   and returns the canonical object reference needed by file finalization.
+- Drive active file/folder renames are exposed through a bounded Mail API route
+  that reuses repository-side name normalization and active sibling uniqueness,
+  giving future webmail Drive views a basic production editing operation.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
