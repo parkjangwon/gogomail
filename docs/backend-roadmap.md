@@ -774,6 +774,10 @@ Implementation order:
      response bodies into bounded one-line UTF-8 previews, preventing
      CR/LF-bearing object-store errors from leaking into readiness or storage
      operation diagnostics.
+685. S3-compatible bucket names are now validated with shared adapter/config
+     guardrails before runtime wiring, surfacing uppercase, undersized,
+     slash-bearing, or punctuation-adjacent deployment mistakes before storage
+     calls.
 
 ## Deferred until backend contracts stabilize
 

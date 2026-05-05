@@ -45,8 +45,8 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		return nil, fmt.Errorf("s3 region is required")
 	}
 	bucket := strings.TrimSpace(opts.Bucket)
-	if bucket == "" || strings.ContainsAny(bucket, " /\r\n") {
-		return nil, fmt.Errorf("s3 bucket is required and must not contain whitespace or slashes")
+	if err := ValidateS3BucketName(bucket); err != nil {
+		return nil, err
 	}
 	accessKeyID := strings.TrimSpace(opts.AccessKeyID)
 	if accessKeyID == "" || strings.ContainsAny(accessKeyID, "\r\n") {
@@ -284,6 +284,37 @@ func normalizeS3Prefix(prefix string) (string, error) {
 		return "", nil
 	}
 	return ValidateObjectPath(prefix)
+}
+
+func ValidateS3BucketName(bucket string) error {
+	if len(bucket) < 3 || len(bucket) > 63 {
+		return fmt.Errorf("s3 bucket name must be between 3 and 63 characters")
+	}
+	if strings.ContainsAny(bucket, " /\r\n") {
+		return fmt.Errorf("s3 bucket name must not contain whitespace, slashes, or line breaks")
+	}
+	if bucket[0] == '-' || bucket[len(bucket)-1] == '-' {
+		return fmt.Errorf("s3 bucket name must start and end with a letter or digit")
+	}
+	previousDot := false
+	for _, r := range bucket {
+		valid := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '.'
+		if !valid {
+			return fmt.Errorf("s3 bucket name contains unsupported characters")
+		}
+		if r == '.' {
+			if previousDot {
+				return fmt.Errorf("s3 bucket name must not contain adjacent dots")
+			}
+			previousDot = true
+			continue
+		}
+		previousDot = false
+	}
+	if strings.Contains(bucket, ".-") || strings.Contains(bucket, "-.") {
+		return fmt.Errorf("s3 bucket name must not contain dots next to hyphens")
+	}
+	return nil
 }
 
 func escapeS3Key(key string) string {

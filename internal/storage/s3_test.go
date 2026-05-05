@@ -125,6 +125,21 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 }
 
+func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
+	t.Parallel()
+
+	for _, bucket := range []string{"GoGoMail", "ab", "-gogomail", "gogomail-", "gogo..mail", "gogo.-mail", "gogo_mail", "gogo/mail"} {
+		bucket := bucket
+		t.Run(bucket, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateS3BucketName(bucket); err == nil {
+				t.Fatalf("ValidateS3BucketName(%q) error = nil, want rejection", bucket)
+			}
+		})
+	}
+}
+
 func TestS3StoreSanitizesStatusErrorPreview(t *testing.T) {
 	t.Parallel()
 
