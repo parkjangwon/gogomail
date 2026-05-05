@@ -333,17 +333,43 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 		return false, writeErr
 	}
 	if message.Body != nil {
-		_ = message.Body.Close()
+		defer message.Body.Close()
 	}
 	summary := message.Summary
 	if summary.UID == 0 {
 		summary.UID = UID(uid64)
+	}
+	if imapFetchRequestsBody(fields[4:]) {
+		if message.Body == nil {
+			_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
+			return false, err
+		}
+		if summary.Size < 0 {
+			_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
+			return false, err
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d BODY[] {%d}\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size, summary.Size)); err != nil {
+			return false, err
+		}
+		if _, err := io.CopyN(writer, message.Body, summary.Size); err != nil {
+			return false, err
+		}
+		if _, err := writer.WriteString(")\r\n"); err != nil {
+			return false, err
+		}
+		_, err = writer.WriteString(tag + " OK UID FETCH completed\r\n")
+		return false, err
 	}
 	if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d)\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size)); err != nil {
 		return false, err
 	}
 	_, err = writer.WriteString(tag + " OK UID FETCH completed\r\n")
 	return false, err
+}
+
+func imapFetchRequestsBody(items []string) bool {
+	joined := strings.ToUpper(strings.Join(items, " "))
+	return strings.Contains(joined, "BODY[]") || strings.Contains(joined, "RFC822")
 }
 
 func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {

@@ -807,15 +807,16 @@ Implementation order:
 694. IMAP command parsing now supports basic quoted strings with backslash
      escapes, allowing common quoted `LOGIN` credentials and mailbox atoms while
      rejecting malformed quoted controls.
-695. Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
-     RFC822 size metadata from the service-backed message fetch boundary.
+695. Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
+     RFC822 size metadata, and `BODY[]` literals streamed from the
+     service-backed raw message fetch boundary.
 696. Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
      `-FLAGS` for supported system flags to the service-backed flag mutation
      boundary and returns updated flag metadata.
 697. `gogomail --mode=imap` now opens the configured TCP listener and serves the
      IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `LIST`,
-     `SELECT`, metadata `UID FETCH`, `UID STORE`, and `LOGOUT`, while
-     body/header FETCH, IDLE, MOVE, and EXPUNGE remain deferred.
+     `SELECT`, metadata/body `UID FETCH`, `UID STORE`, and `LOGOUT`, while
+     header-part FETCH, IDLE, MOVE, and EXPUNGE remain deferred.
 698. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.

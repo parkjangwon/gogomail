@@ -445,7 +445,7 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 		t.Fatalf("write uid fetch: %v", err)
 	}
 	want := []string{
-		"* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 1234)\r\n",
+		"* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
 		"a4 OK UID FETCH completed\r\n",
 	}
 	for _, expected := range want {
@@ -458,6 +458,76 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 		}
 	}
 	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 5; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 7 BODY[]\r\n")); err != nil {
+		t.Fatalf("write uid fetch body: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read body literal header: %v", err)
+	}
+	if line != "* 7 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 BODY[] {11}\r\n" {
+		t.Fatalf("body literal header = %q", line)
+	}
+	body := make([]byte, 11)
+	if _, err := io.ReadFull(reader, body); err != nil {
+		t.Fatalf("read body literal: %v", err)
+	}
+	if string(body) != "hello world" {
+		t.Fatalf("body = %q", body)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read body literal close: %v", err)
+	}
+	if line != ")\r\n" {
+		t.Fatalf("literal close = %q", line)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read body fetch completion: %v", err)
+	}
+	if line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q", line)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -555,7 +625,7 @@ func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]Message
 }
 
 func (fakeBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
-	return Message{Summary: MessageSummary{ID: "message-1", UID: 7, Flags: MessageFlags{Read: true, Starred: true}, Size: 1234}, Body: io.NopCloser(strings.NewReader(""))}, nil
+	return Message{Summary: MessageSummary{ID: "message-1", UID: 7, Flags: MessageFlags{Read: true, Starred: true}, Size: 11}, Body: io.NopCloser(strings.NewReader("hello world"))}, nil
 }
 
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
