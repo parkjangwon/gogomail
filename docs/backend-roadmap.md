@@ -1922,6 +1922,9 @@ Implementation order:
       Drive files, streaming object bytes from the configured local/NFS,
       MinIO, or S3-compatible backend with safe attachment/no-store/nosniff
       headers and webmail `node_download` capability discovery.
+1015. Mail API now exposes `HEAD /api/v1/drive/nodes/{id}/download`, reusing
+      the same active file and storage-object validation to return download
+      headers without opening or transferring the file body.
 
 ## Deferred until backend contracts stabilize
 

@@ -167,6 +167,9 @@ or development `user_id` fallback path as webmail mail routes:
   the configured storage backend with `Content-Disposition`,
   `Cache-Control: no-store`, and `X-Content-Type-Options: nosniff`; folders,
   trashed nodes, and missing objects are rejected before bytes are streamed.
+- `HEAD /api/v1/drive/nodes/{id}/download` performs the same active-file and
+  object-existence checks but returns only download headers, including
+  `Content-Length` when the storage backend reports size.
 - `GET /api/v1/drive/usage` returns `{"drive_usage_summary":{...}}` for the
   authenticated/fallback user, exposing quota ledger values, status-scoped node
   counts and bytes, and pending/uploading/failed upload-session counts.

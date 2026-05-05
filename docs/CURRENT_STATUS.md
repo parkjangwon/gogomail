@@ -373,6 +373,9 @@ guidance.
   backend with bounded identity validation, safe attachment headers,
   `Cache-Control: no-store`, and `X-Content-Type-Options: nosniff`; webmail
   capabilities advertise `node_download`.
+- Mail API also exposes `HEAD /api/v1/drive/nodes/{id}/download` so production
+  clients can verify active file metadata and object existence without opening
+  or transferring the object body.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.
