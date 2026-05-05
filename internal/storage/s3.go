@@ -253,7 +253,22 @@ func (s *S3Store) key(objectPath string) string {
 }
 
 func s3BucketNeedsPathStyle(endpoint *url.URL, bucket string) bool {
-	return endpoint != nil && endpoint.Scheme == "https" && strings.Contains(bucket, ".")
+	if endpoint == nil {
+		return false
+	}
+	if endpoint.Scheme == "https" && strings.Contains(bucket, ".") {
+		return true
+	}
+	host := s3EndpointHostname(endpoint)
+	return host == "localhost" || net.ParseIP(host) != nil
+}
+
+func s3EndpointHostname(endpoint *url.URL) string {
+	if endpoint == nil {
+		return ""
+	}
+	host := endpoint.Hostname()
+	return strings.Trim(strings.ToLower(host), "[]")
 }
 
 func (s *S3Store) sign(req *http.Request) {

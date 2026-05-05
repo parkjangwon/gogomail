@@ -74,7 +74,11 @@ addressing stay unambiguous. Set
 `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider or local network
 does not support virtual-hosted bucket names. HTTPS endpoints automatically use
 path-style requests for bucket names that contain periods, matching AWS's
-certificate compatibility guidance for dotted bucket names.
+certificate compatibility guidance for dotted bucket names. Localhost and
+IP-address endpoints also use path-style requests automatically, so local
+MinIO or other local compatible stores do not accidentally receive
+`bucket.localhost` or `bucket.127.0.0.1` style hosts when the generic `s3`
+backend is used.
 Object keys are path-escaped segment by segment so literal `+` characters stay
 encoded as `%2B`, preserving object identity and SigV4 canonical paths across
 AWS S3, MinIO, and strict compatible providers.
