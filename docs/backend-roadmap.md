@@ -717,6 +717,7 @@ Implementation order:
 657. Runtime config validation now requires delivery retry delay schedules and maximum delay caps to be positive durations, preventing malformed retry configuration from exhausting retries immediately or scheduling jobs in the past.
 658. Runtime config validation now checks OpenSearch endpoints as HTTP(S) URLs with hosts when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, failing malformed search backend configuration before worker/search adapter construction.
 659. Runtime config validation now checks OpenSearch index names with the adapter's unsafe-character and reserved-prefix guardrails when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, failing invalid index configuration before worker/search setup.
+660. Runtime config validation now checks `GOGOMAIL_DELIVERY_SMTP_HELLO` as a non-empty whitespace-free hostname, surfacing outbound SMTP EHLO configuration mistakes before delivery worker startup.
 
 ## Deferred until backend contracts stabilize
 
