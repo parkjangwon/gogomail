@@ -1740,7 +1740,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	body := *literal
-	summary, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
+	result, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
 		UserID:       state.session.UserID,
 		MailboxID:    MailboxID(fields[2]),
 		Flags:        flags,
@@ -1756,13 +1756,18 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, writeErr := writer.WriteString(tag + " NO APPEND failed\r\n")
 		return false, writeErr
 	}
+	summary := result.Summary
 	if summary.MailboxID == state.selectedMailbox {
 		state.selectedMessages++
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
 	}
-	_, err = writer.WriteString(tag + " OK APPEND completed\r\n")
+	responseCode := ""
+	if result.UIDValidity != 0 && summary.UID != 0 {
+		responseCode = fmt.Sprintf(" [APPENDUID %d %d]", result.UIDValidity, summary.UID)
+	}
+	_, err = writer.WriteString(tag + " OK" + responseCode + " APPEND completed\r\n")
 	return false, err
 }
 

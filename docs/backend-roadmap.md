@@ -1077,6 +1077,10 @@ Implementation order:
 784. IMAP `APPEND` request parsing now accepts RFC-shaped optional flag lists and
      internal date-time values before the literal, preserving client-supplied
      initial flags and INTERNALDATE metadata in the backend request boundary.
+785. IMAP `APPEND` success responses now have a UIDPLUS-ready result boundary
+     carrying UIDVALIDITY and the assigned message UID, allowing successful
+     backend storage to emit `[APPENDUID uidvalidity uid]` as required for
+     strong client synchronization.
 
 ## Deferred until backend contracts stabilize
 

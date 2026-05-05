@@ -63,5 +63,6 @@ Submission-style authentication:
 - A first TCP listener can safely start with authenticated LIST, SELECT, UID
   FETCH, UID STORE, COPY, MOVE, mailbox CRUD, and IDLE-oriented subscription
   support. UIDPLUS is advertised for implemented UID EXPUNGE and COPYUID
-  response metadata, while APPENDUID remains out of scope until APPEND is
+  response metadata, and the APPEND boundary now carries the UIDVALIDITY/UID
+  metadata needed for APPENDUID once repository-backed APPEND storage is
   accepted.
