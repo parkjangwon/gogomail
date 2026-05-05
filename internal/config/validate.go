@@ -73,6 +73,18 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_BACKPRESSURE_BACKEND", c.BackpressureBackend, "none", "redis"); err != nil {
 		return err
 	}
+	if c.RcptRateLimitPerMinute <= 0 {
+		return fmt.Errorf("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE must be positive")
+	}
+	if c.OutboxRelayBatchSize <= 0 {
+		return fmt.Errorf("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE must be positive")
+	}
+	if c.OutboxRelayPollInterval <= 0 {
+		return fmt.Errorf("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL must be positive")
+	}
+	if c.OutboxRelayMaxAttempts <= 0 {
+		return fmt.Errorf("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS must be positive")
+	}
 	if strings.TrimSpace(c.SubmissionSMTPSAddr) != "" && (c.SMTPTLSCertFile == "" || c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_SMTPS_ADDR requires SMTP TLS certificate and key files")
 	}
