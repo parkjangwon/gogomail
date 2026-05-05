@@ -370,6 +370,9 @@ Current state:
   `BODY[n.HEADER.FIELDS.NOT (...)]` subsets for `message/rfc822` parts, so
   clients can preview forwarded-message headers without fetching whole nested
   headers.
+- `FETCH`/`UID FETCH` can now follow multipart body-part numbering inside
+  top-level `message/rfc822` parts, including nested part MIME headers such as
+  `BODY[1.2]` and `BODY[1.2.MIME]`.
 - Combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the raw
   message for MIME metadata while preserving the original reader for literal
   streaming, so common preview/header fetch batches keep rich structure
@@ -552,9 +555,8 @@ Current state:
 
 Next:
 
-- Extend MIME literal fetches with malformed `message/rfc822`, nested
-  `message/rfc822` multipart body-part numbering, and broader client fixture
-  coverage.
+- Extend MIME literal fetches with malformed `message/rfc822` and broader
+  client fixture coverage.
 
 Frontend note:
 

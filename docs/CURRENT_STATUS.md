@@ -927,6 +927,9 @@ The platform hardening sprint completed the following:
   `BODY[n.HEADER.FIELDS.NOT (...)]` subsets for `message/rfc822` parts, so
   clients can preview forwarded-message headers without fetching whole nested
   headers.
+- IMAP `FETCH`/`UID FETCH` can now follow multipart body-part numbering inside
+  top-level `message/rfc822` parts, including nested part MIME headers such as
+  `BODY[1.2]` and `BODY[1.2.MIME]`.
 - IMAP combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the
   raw message for MIME metadata while preserving the original reader for
   literal streaming, so common preview/header fetch batches keep rich structure
