@@ -233,6 +233,10 @@ Current state:
 - S3-compatible `ListObjectsV2` responses now reject `IsTruncated=true` pages
   that omit a continuation token, preventing Drive/lifecycle cleanup scans from
   accepting a page that cannot be advanced safely.
+- S3-compatible `ListObjectsV2` key decoding no longer trims provider-returned
+  object keys before prefix/object-path validation, preventing distinct
+  whitespace-bearing keys from being silently normalized into canonical
+  gogomail object paths.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction. Endpoint base paths also reject encoded path
