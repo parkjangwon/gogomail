@@ -908,9 +908,9 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
 		return false, err
 	}
-	uid64, err := strconv.ParseUint(fields[3], 10, 32)
-	if err != nil || uid64 == 0 {
-		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID\r\n")
+	uids, ok := parseIMAPUIDSet(fields[3])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
 		return false, err
 	}
 	mode, silent, ok := imapStoreMode(fields[4])
@@ -926,7 +926,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
-		UIDs:      []UID{UID(uid64)},
+		UIDs:      uids,
 		Flags:     flags,
 		Mode:      mode,
 	})

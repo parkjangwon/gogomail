@@ -270,6 +270,8 @@ Current state:
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - `FETCH`/`UID FETCH` now support text-only section literals for `BODY[TEXT]`,
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
+- `UID STORE` now accepts bounded UID sets/ranges so clients can mutate flags in
+  batches instead of issuing one command per message.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
