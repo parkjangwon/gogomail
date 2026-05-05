@@ -259,6 +259,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   a dedicated adapter over local user password hashes, JWT remains HTTP-only,
   production auth requires TLS policy review, and MOVE/EXPUNGE stay explicitly
   unsupported until IMAP-safe mutation semantics are accepted.
+- `mailservice.NewIMAPAuthenticatorAdapter` maps the existing Submission/local
+  password authentication boundary into `imapgw.Session` values, giving the
+  future listener a protocol-native authenticator without coupling IMAP to JWT
+  middleware.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event

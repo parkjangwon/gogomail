@@ -17,6 +17,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/searchindex"
+	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -644,6 +645,43 @@ func TestIMAPStoreAdapterRejectsDeferredMailboxMutations(t *testing.T) {
 	}
 	if _, err := adapter.Expunge(context.Background(), imapgw.ExpungeRequest{}); !errors.Is(err, imapgw.ErrUnsupportedMailboxMutation) {
 		t.Fatalf("Expunge error = %v, want unsupported mutation", err)
+	}
+}
+
+func TestIMAPAuthenticatorAdapterUsesSubmissionCredentials(t *testing.T) {
+	t.Parallel()
+
+	auth := fakeSubmissionAuthenticator{
+		user: smtpd.SubmissionUser{
+			UserID:      " user-1 ",
+			DomainID:    " domain-1 ",
+			Address:     " user@example.com ",
+			DisplayName: " User ",
+		},
+	}
+	adapter := NewIMAPAuthenticatorAdapter(&auth)
+
+	session, err := adapter.Authenticate(context.Background(), " user@example.com ", "secret")
+	if err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	if auth.username != "user@example.com" || auth.password != "secret" {
+		t.Fatalf("credentials = %q/%q", auth.username, auth.password)
+	}
+	if session.UserID != "user-1" || session.DomainID != "domain-1" || session.Username != "user@example.com" || session.DisplayName != "User" {
+		t.Fatalf("session = %#v", session)
+	}
+}
+
+func TestIMAPAuthenticatorAdapterRejectsUnsafeCredentials(t *testing.T) {
+	t.Parallel()
+
+	adapter := NewIMAPAuthenticatorAdapter(&fakeSubmissionAuthenticator{})
+	if _, err := adapter.Authenticate(context.Background(), "user\nbad", "secret"); err == nil {
+		t.Fatal("Authenticate accepted unsafe username")
+	}
+	if _, err := adapter.Authenticate(context.Background(), "user@example.com", "secret\nbad"); err == nil {
+		t.Fatal("Authenticate accepted unsafe password")
 	}
 }
 
@@ -1297,6 +1335,18 @@ type fakeRepository struct {
 	lastBackfillLimit              int
 	recordErr                      error
 	storeUploadSessionBodyErr      error
+}
+
+type fakeSubmissionAuthenticator struct {
+	user     smtpd.SubmissionUser
+	username string
+	password string
+}
+
+func (f *fakeSubmissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, username string, password string) (smtpd.SubmissionUser, error) {
+	f.username = username
+	f.password = password
+	return f.user, nil
 }
 
 func (f *fakeRepository) ListMessages(_ context.Context, userID string, limit int) ([]maildb.MessageSummary, error) {
