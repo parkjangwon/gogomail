@@ -278,6 +278,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `internal/imapgw.NewServer` now provides a protocol-server lifecycle shell
   with listener option validation, backend requirement checks, and TLS/insecure
   auth policy enforcement before the IMAP command parser is wired.
+- `gogomail --mode=imap` now constructs the `imapgw.Server` shell from runtime
+  options while still deferring `Listen`/`Serve` until command handling is wired.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event

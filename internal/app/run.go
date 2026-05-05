@@ -166,6 +166,15 @@ func imapServerOptionsForConfig(cfg config.Config, backend imapgw.Backend) (imap
 	}, nil
 }
 
+func newIMAPServer(opts imapServerOptions) (*imapgw.Server, error) {
+	return imapgw.NewServer(imapgw.ServerOptions{
+		Addr:              opts.Addr,
+		Backend:           opts.Backend,
+		TLSConfig:         opts.TLSConfig,
+		AllowInsecureAuth: opts.AllowInsecureAuth,
+	})
+}
+
 func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -183,6 +192,10 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
+	server, err := newIMAPServer(serverOptions)
+	if err != nil {
+		return err
+	}
 	logger.Info(
 		"imap gateway scaffold ready",
 		"mode", ModeIMAP,
@@ -191,6 +204,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"allow_insecure_auth", serverOptions.AllowInsecureAuth,
 		"mailbox_event_broker", runtime.events != nil,
 		"backend_adapter", "service",
+		"protocol_server", server != nil,
 		"protocol_listener", "deferred",
 	)
 	return waitForShutdown(ctx, logger, ModeIMAP)
