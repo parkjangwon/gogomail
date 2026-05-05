@@ -2066,6 +2066,10 @@ The platform hardening sprint completed the following:
   and calendar-object upsert/list/get/soft-delete. Object writes validate `.ics`
   resource names, UID/component metadata, strong ETags, optional observed ETags,
   object-size limits, and bump calendar sync tokens in the same transaction.
+- CalDAV object validation now uses `github.com/emersion/go-ical` for RFC 5545
+  iCalendar decoding, requiring one `VCALENDAR` with exactly one supported
+  top-level calendar component, exactly one bounded UID, and explicit
+  component/property count caps before `.ics` bodies reach storage.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

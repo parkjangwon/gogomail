@@ -187,6 +187,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   calendar create/list/get and object upsert/list/get/soft-delete, including
   `.ics` object-name validation, strong ETag generation, optional observed-ETag
   guards, and transactional sync-token updates.
+- CalDAV object writes now have RFC 5545 iCalendar decode validation through
+  `github.com/emersion/go-ical`, deriving/verifying UID and component metadata
+  while bounding supported component count, property count, UID size, and stored
+  body bytes.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

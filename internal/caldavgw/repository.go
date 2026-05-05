@@ -445,18 +445,31 @@ func ValidateUpsertObjectRequest(req UpsertObjectRequest) (UpsertObjectRequest, 
 	if err != nil {
 		return UpsertObjectRequest{}, "", "", err
 	}
-	uid, err := ValidateCalendarObjectUID(req.UID)
+	parsed, err := ParseICalendarObject(req.ICS)
 	if err != nil {
 		return UpsertObjectRequest{}, "", "", err
 	}
-	component, err := ValidateCalendarComponent(req.Component)
-	if err != nil {
-		return UpsertObjectRequest{}, "", "", err
+	uid := parsed.UID
+	if strings.TrimSpace(req.UID) != "" {
+		uid, err = ValidateCalendarObjectUID(req.UID)
+		if err != nil {
+			return UpsertObjectRequest{}, "", "", err
+		}
+		if uid != parsed.UID {
+			return UpsertObjectRequest{}, "", "", fmt.Errorf("calendar object UID does not match iCalendar body")
+		}
 	}
-	etag, err := StrongETag(req.ICS)
-	if err != nil {
-		return UpsertObjectRequest{}, "", "", err
+	component := parsed.Component
+	if strings.TrimSpace(req.Component) != "" {
+		component, err = ValidateCalendarComponent(req.Component)
+		if err != nil {
+			return UpsertObjectRequest{}, "", "", err
+		}
+		if component != parsed.Component {
+			return UpsertObjectRequest{}, "", "", fmt.Errorf("calendar object component does not match iCalendar body")
+		}
 	}
+	etag, _ := StrongETag(req.ICS)
 	observedETag, err := validateOptionalETag(req.ObservedETag)
 	if err != nil {
 		return UpsertObjectRequest{}, "", "", err
