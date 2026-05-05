@@ -913,6 +913,9 @@ WHERE user_id = $1::uuid
 	if string(remaining.Summary.ID) != secondID {
 		t.Fatalf("remaining inbox message = %q, want %q", remaining.Summary.ID, secondID)
 	}
+	if remaining.Summary.SequenceNumber != 1 {
+		t.Fatalf("remaining inbox sequence number = %d, want 1 after first message moved", remaining.Summary.SequenceNumber)
+	}
 }
 
 type postgresSeed struct {

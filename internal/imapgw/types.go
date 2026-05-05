@@ -27,13 +27,14 @@ type Mailbox struct {
 }
 
 type MessageSummary struct {
-	ID           MessageID
-	MailboxID    MailboxID
-	UID          UID
-	Envelope     Envelope
-	Flags        MessageFlags
-	InternalDate time.Time
-	Size         int64
+	ID             MessageID
+	MailboxID      MailboxID
+	UID            UID
+	SequenceNumber uint32
+	Envelope       Envelope
+	Flags          MessageFlags
+	InternalDate   time.Time
+	Size           int64
 }
 
 type Message struct {

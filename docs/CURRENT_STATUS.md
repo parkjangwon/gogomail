@@ -601,10 +601,8 @@ guidance.
 
 - Next.js shell/webmail/admin frontend implementation.
 - Built-in spam scoring or pattern filtering.
-- IMAP/POP3 protocol servers. A dependency-light `internal/imapgw` boundary now
-  records native IMAP gateway DTOs, mailbox helpers, and flag semantics; durable
-  UIDVALIDITY/UIDNEXT/MODSEQ storage, first `maildb` mailbox/message adapters,
-  and an `imap` gateway scaffold exist, but no TCP protocol server is enabled.
+- POP3 protocol server work. The future POP3 server should follow the same
+  strict RFC, performance, and client-compatibility standard as IMAP.
 - OpenSearch as the default/mandatory search backend.
 - Kafka migration.
 - etcd/Vault production control plane.
@@ -784,25 +782,27 @@ The platform hardening sprint completed the following:
 - Mail API single and bulk delete mutations can publish mailbox `expunge`
   events for previously UID-visible messages after soft-delete succeeds.
 - `mailservice` exposes IMAP mailbox/message listing and mailbox-event
-  subscription methods, keeping the future protocol listener pointed at the
-  service boundary instead of `maildb` internals.
+  subscription methods, keeping the protocol listener pointed at the service
+  boundary instead of `maildb` internals.
 - `mailservice` exposes bounded IMAP UID backfill through the same service
   boundary for future operator/bootstrap modes.
 - IMAP mailbox event publication from service mutations is best-effort, so a
   fan-out failure does not turn an already-committed mail mutation into a client
   error.
 - `mailservice` has an `IMAPStoreAdapter` that satisfies `imapgw.Store`, so a
-  future protocol listener can depend on the gateway interface while still
-  routing through service methods.
+  protocol listener can depend on the gateway interface while still routing
+  through service methods.
 - `IMAPStoreAdapter` now also satisfies `imapgw.MailboxSessionStore` for
   mailbox selection and event subscription, while MOVE and EXPUNGE return an
   explicit unsupported mutation error until IMAP-safe semantics are reviewed.
-- `gogomail --mode=imap` initializes the service-backed IMAP store adapter and
-  a process-local mailbox event broker for future IDLE/session fan-out without
-  enabling a TCP protocol listener yet.
+- IMAP `UID FETCH` and `UID STORE` untagged `FETCH` responses use message
+  sequence numbers per RFC 3501 while keeping the requested UID in response
+  attributes, and `RFC822.SIZE` metadata requests do not trigger body streaming.
+- `gogomail --mode=imap` initializes the service-backed IMAP store adapter,
+  a process-local mailbox event broker for future IDLE/session fan-out, and the
+  configured TCP protocol listener.
 - Runtime config now includes validated `GOGOMAIL_IMAP_ADDR` listener metadata
-  for the IMAP scaffold, preparing TCP listener wiring without enabling the
-  protocol server yet.
+  for the IMAP protocol listener.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
   `PartsTruncated` for pathological MIME part counts, plus address/reference
