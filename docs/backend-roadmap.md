@@ -1836,6 +1836,10 @@ Implementation order:
 989. Drive upload-session creation now has a repository/service boundary for
      recording pending sessions under active users and optional active parent
      folders with backend-neutral storage metadata and bounded expiration.
+990. Mail API now exposes `POST /api/v1/drive/upload-sessions`, letting
+     production Drive clients create pending upload-session envelopes with
+     declared size, storage backend, MIME type, parent folder, and optional
+     RFC3339 expiration before body transfer and finalization.
 
 ## Deferred until backend contracts stabilize
 

@@ -163,6 +163,10 @@ or development `user_id` fallback path as webmail mail routes:
   refresh selected metadata after edits.
 - `POST /api/v1/drive/folders` creates a folder from `{"parent_id","name"}`
   and returns `{"drive_node":{...}}`.
+- `POST /api/v1/drive/upload-sessions` creates a pending upload session from
+  `{"parent_id","name","declared_size","mime_type","storage_backend",
+  "expires_at"}` and returns `{"drive_upload_session":{...}}`; `expires_at`
+  is optional RFC3339 and defaults server-side within the Drive TTL bound.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",

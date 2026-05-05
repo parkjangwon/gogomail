@@ -82,6 +82,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session creation now has a repository/service boundary that
   validates active users, optional active parent folders, storage backend, size,
   and expiration before recording pending upload metadata.
+- Drive upload-session creation is now exposed through a Mail API route with
+  OpenAPI-documented request and response envelopes, preparing frontend clients
+  to start resumable uploads without direct staged-object path construction.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
