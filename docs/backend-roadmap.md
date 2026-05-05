@@ -946,6 +946,9 @@ Implementation order:
      them to the same service-backed flag mutation boundary as `UID STORE`.
 744. IMAP non-UID `STORE` now supports `.SILENT` flag mutation modes and
      suppresses untagged flag echo responses for those requests.
+745. IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
+     explicit unsupported `NO` responses while mailbox CRUD semantics remain
+     deferred.
 
 ## Deferred until backend contracts stabilize
 
