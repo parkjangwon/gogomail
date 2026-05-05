@@ -63,6 +63,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_DSN", "")
 	t.Setenv("GOGOMAIL_SMTP_SUPPORT_BINARYMIME", "")
 	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "")
+	t.Setenv("GOGOMAIL_STORAGE_ROOT", "")
 	t.Setenv("GOGOMAIL_LOCAL_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
@@ -398,6 +399,26 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.PushNotifyWebhookTimeout != 2*time.Second {
 		t.Fatalf("PushNotifyWebhookTimeout = %s, want 2s", cfg.PushNotifyWebhookTimeout)
+	}
+}
+
+func TestLoadAcceptsStorageRootAliasForMailstoreRoot(t *testing.T) {
+	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "")
+	t.Setenv("GOGOMAIL_STORAGE_ROOT", "/mnt/gogomail-storage")
+
+	cfg := Load()
+	if cfg.MailstoreRoot != "/mnt/gogomail-storage" {
+		t.Fatalf("MailstoreRoot = %q, want storage root alias", cfg.MailstoreRoot)
+	}
+}
+
+func TestLoadPrefersMailstoreRootOverStorageRootAlias(t *testing.T) {
+	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "/srv/gogomail-mailstore")
+	t.Setenv("GOGOMAIL_STORAGE_ROOT", "/mnt/gogomail-storage")
+
+	cfg := Load()
+	if cfg.MailstoreRoot != "/srv/gogomail-mailstore" {
+		t.Fatalf("MailstoreRoot = %q, want explicit mailstore root", cfg.MailstoreRoot)
 	}
 }
 

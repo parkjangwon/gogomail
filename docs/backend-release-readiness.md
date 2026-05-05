@@ -332,8 +332,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   adapter construction so copied env/config mistakes fail before runtime S3
   authentication attempts.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
-  configuration, and the development compose stack includes `minio-init` to
-  create the default local `gogomail` bucket.
+  configuration, including the `GOGOMAIL_STORAGE_ROOT` compatibility alias for
+  `GOGOMAIL_MAILSTORE_ROOT`, and the development compose stack includes
+  `minio-init` to create the default local `gogomail` bucket.
 - The shared HTTP server now has configurable and validated read, write, idle,
   read-header, and maximum-header guardrails for Mail/Admin/API-metered modes.
 - Admin API supports domain/user list, detail, create, and status updates plus queue, outbox-event metadata, delivery-attempt, suppression, DKIM, retry, and delete operations. Company lists support lifecycle status filters for tenant triage. Domain lists support company, status, and latest DNS-status filters for onboarding triage, and DNS-check history supports summary-status plus recent-window filters. Delivery-route lists support status, farm, and domain-pattern filters for route audits. Trusted-relay lists support CIDR and description filters for inbound relay-policy audits. Delivery-attempt lists and stats support status, recipient-domain, message-id, farm, sender, and recent-window filters for bounded retry/bounce triage; exhausted-attempt lists support the same incident filters for terminal retry triage. Suppression-list reads support domain, email, and reason filters for bounce triage. Attempt rows retain sender, enhanced-status, and RFC 3461 DSN metadata for operator diagnostics. Attempt list ordering uses a stable ID tie-breaker after timestamp ordering.

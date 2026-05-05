@@ -241,7 +241,7 @@ func Load() Config {
 		SMTPSupportRequireTLS:               boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_REQUIRETLS", false),
 		SMTPSupportDSN:                      boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_DSN", false),
 		SMTPSupportBinaryMIME:               boolEnvOrDefault("GOGOMAIL_SMTP_SUPPORT_BINARYMIME", false),
-		MailstoreRoot:                       envOrDefault("GOGOMAIL_MAILSTORE_ROOT", "var/mailstore"),
+		MailstoreRoot:                       envOrDefault("GOGOMAIL_MAILSTORE_ROOT", envOrDefault("GOGOMAIL_STORAGE_ROOT", "var/mailstore")),
 		LocalRecipients:                     splitCSV(os.Getenv("GOGOMAIL_LOCAL_RECIPIENTS")),
 		DedupBackend:                        envOrDefault("GOGOMAIL_DEDUP_BACKEND", "none"),
 		RateLimitBackend:                    envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),

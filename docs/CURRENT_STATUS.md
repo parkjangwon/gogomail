@@ -317,8 +317,9 @@ guidance.
   before item normalization, preventing malformed requests such as
   `FETCH 1 ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
-  configuration, and the development compose stack includes `minio-init` to
-  create the default local `gogomail` bucket.
+  configuration, including the `GOGOMAIL_STORAGE_ROOT` compatibility alias for
+  `GOGOMAIL_MAILSTORE_ROOT`, and the development compose stack includes
+  `minio-init` to create the default local `gogomail` bucket.
 - HTTP server runtime guardrails are configurable and validated: read, write,
   idle, read-header timeout, and maximum header bytes are wired into the shared
   Mail/Admin/API-metered HTTP server.
