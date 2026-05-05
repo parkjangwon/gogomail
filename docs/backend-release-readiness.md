@@ -306,6 +306,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
   backend selectors accept only `none` or `redis`, preventing typos from
   silently disabling operational controls.
+- Redis-backed RCPT rate-limit keys normalize remote addresses to the remote
+  host/IP bucket instead of the full `ip:port`, preventing source-port churn
+  from bypassing recipient abuse controls.
 - RCPT rate-limit and outbox relay batch, poll, and max-attempt settings are
   validated as positive values during startup config validation, surfacing
   relay/limit misconfiguration before workers start.

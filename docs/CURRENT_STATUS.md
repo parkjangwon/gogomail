@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after relay operational limit validation)
+Last updated: 2026-05-05 (updated after RCPT rate-limit host bucketing)
 
 ## Current phase
 
@@ -697,6 +697,9 @@ The platform hardening sprint completed the following:
 - Redis-backed deduplication, recipient rate limiting, and SMTP backpressure
   backend selectors now accept only `none` or `redis`, preventing typos from
   silently disabling operational controls.
+- Redis-backed RCPT rate-limit keys now normalize remote addresses to the
+  remote host/IP bucket instead of the full `ip:port`, preventing source-port
+  churn from bypassing recipient abuse controls.
 - RCPT rate-limit and outbox relay batch, poll, and max-attempt settings are
   now validated as positive values during startup config validation, surfacing
   relay/limit misconfiguration before workers start.

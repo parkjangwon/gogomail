@@ -719,6 +719,7 @@ Implementation order:
 659. Runtime config validation now checks OpenSearch index names with the adapter's unsafe-character and reserved-prefix guardrails when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, failing invalid index configuration before worker/search setup.
 660. Runtime config validation now checks `GOGOMAIL_DELIVERY_SMTP_HELLO` as a non-empty whitespace-free hostname, surfacing outbound SMTP EHLO configuration mistakes before delivery worker startup.
 661. Runtime config validation now requires RCPT rate-limit and outbox relay batch, poll, and max-attempt settings to be positive, surfacing relay/limit misconfiguration before workers start.
+662. Redis-backed RCPT rate-limit keys now normalize remote addresses to the remote host/IP bucket instead of the full `ip:port`, preventing source-port churn from bypassing recipient abuse controls.
 
 ## Deferred until backend contracts stabilize
 

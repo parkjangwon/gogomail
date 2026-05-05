@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"context"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -41,9 +42,20 @@ func (l *RedisLimiter) Allow(ctx context.Context, key smtpd.RateLimitKey) (bool,
 }
 
 func redisKey(key smtpd.RateLimitKey) string {
-	remoteAddr := strings.TrimSpace(key.RemoteAddr)
+	return "ratelimit:" + string(key.Stage) + ":" + rateLimitRemoteBucket(key.RemoteAddr)
+}
+
+func rateLimitRemoteBucket(remoteAddr string) string {
+	remoteAddr = strings.TrimSpace(remoteAddr)
 	if remoteAddr == "" {
-		remoteAddr = "unknown"
+		return "unknown"
 	}
-	return "ratelimit:" + string(key.Stage) + ":" + remoteAddr
+	if addr, err := netip.ParseAddr(remoteAddr); err == nil {
+		return addr.Unmap().String()
+	}
+	addrPort, err := netip.ParseAddrPort(remoteAddr)
+	if err != nil {
+		return "unknown"
+	}
+	return addrPort.Addr().Unmap().String()
 }
