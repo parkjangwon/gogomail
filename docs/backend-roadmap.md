@@ -2274,6 +2274,10 @@ Implementation order:
       organization, group, and resource principals, creating an auditable read
       boundary before recursive membership expansion, delegation, or resource
       booking policy are exposed.
+1097. Directory/Identity effective group-membership checks now expand nested
+      groups through a bounded recursive query with an explicit depth cap and
+      cycle guard, preventing unbounded principal graph traversal before the
+      result is used for delegated access or resource-booking policy.
 
 ## Deferred until backend contracts stabilize
 
@@ -2285,8 +2289,8 @@ Implementation order:
 - IMAP
 - CalDAV public/client-ready compatibility
 - Directory/Identity expansion for delegated relationships, effective
-  membership expansion, and resource booking policy beyond the initial
-  principal tables, resolver, alias lookup, and direct membership checks
+  access grants, and resource booking policy beyond the initial principal
+  tables, resolver, alias lookup, and bounded membership expansion
 - Contacts/CardDAV boundary for personal contacts, external people, and
   address-book metadata
 - Notification & Sync boundary for domain events, reminders, devices, quiet

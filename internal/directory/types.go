@@ -19,7 +19,9 @@ const (
 	ResourceTypeVehicle   = "vehicle"
 	ResourceTypeOther     = "other"
 
-	MaxPrincipalIDBytes = 200
+	MaxPrincipalIDBytes       = 200
+	MaxGroupMembershipDepth   = 16
+	DefaultMembershipMaxDepth = 8
 )
 
 type Principal struct {
@@ -62,6 +64,7 @@ type CheckGroupMembershipRequest struct {
 	MemberKind string
 	MemberID   string
 	ActiveOnly bool
+	MaxDepth   int
 }
 
 func NormalizePrincipalKind(kind string) (string, error) {
@@ -141,5 +144,14 @@ func NormalizeCheckGroupMembershipRequest(req CheckGroupMembershipRequest) (Chec
 	req.GroupID = groupID
 	req.MemberID = memberID
 	req.MemberKind = memberKind
+	if req.MaxDepth < 0 {
+		return CheckGroupMembershipRequest{}, fmt.Errorf("membership max depth must not be negative")
+	}
+	if req.MaxDepth == 0 {
+		req.MaxDepth = DefaultMembershipMaxDepth
+	}
+	if req.MaxDepth > MaxGroupMembershipDepth {
+		return CheckGroupMembershipRequest{}, fmt.Errorf("membership max depth is too large")
+	}
 	return req, nil
 }

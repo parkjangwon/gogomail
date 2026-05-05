@@ -114,6 +114,47 @@ SELECT EXISTS (
 	return exists, nil
 }
 
+func (r *Repository) CheckEffectiveGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCheckGroupMembershipRequest(req)
+	if err != nil {
+		return false, err
+	}
+	const query = `
+WITH RECURSIVE group_tree(group_id, depth, path) AS (
+  SELECT $1::uuid, 0, ARRAY[$1::uuid]
+  UNION ALL
+  SELECT m.member_id, group_tree.depth + 1, group_tree.path || m.member_id
+  FROM group_tree
+  JOIN directory_group_memberships m ON m.group_id = group_tree.group_id
+  JOIN directory_groups nested_group ON nested_group.id = m.member_id
+  JOIN domains d ON d.id = nested_group.domain_id
+  JOIN companies c ON c.id = nested_group.company_id AND c.id = d.company_id
+  WHERE m.member_kind = 'group'
+    AND group_tree.depth < $5
+    AND NOT m.member_id = ANY(group_tree.path)
+    AND ($4::boolean = false OR (m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+)
+SELECT EXISTS (
+  SELECT 1
+  FROM group_tree
+  JOIN directory_group_memberships m ON m.group_id = group_tree.group_id
+  JOIN directory_groups owning_group ON owning_group.id = m.group_id
+  JOIN domains d ON d.id = owning_group.domain_id
+  JOIN companies c ON c.id = owning_group.company_id AND c.id = d.company_id
+  WHERE m.member_kind = $2
+    AND m.member_id = $3::uuid
+    AND ($4::boolean = false OR (m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+)`
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, query, req.GroupID, req.MemberKind, req.MemberID, req.ActiveOnly, req.MaxDepth).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check effective group membership: %w", err)
+	}
+	return exists, nil
+}
+
 func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
 	const query = `
 SELECT u.id::text,

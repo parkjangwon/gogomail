@@ -41,9 +41,11 @@ standards-shaped method semantics.
   attendee resolution, admin consoles, and future shared inbox flows.
 - Direct group-membership checks are now shared and auditable before recursive
   membership expansion or policy decisions are introduced.
-- Future effective membership expansion, resource-booking policy, and
-  delegation models can grow in Directory/Identity without forcing CalDAV,
-  CardDAV, Drive, and webmail to invent parallel principal semantics.
+- Effective membership expansion is bounded by depth and guarded against cycles
+  before any product module can use it for access policy.
+- Future resource-booking policy and delegation models can grow in
+  Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
+  invent parallel principal semantics.
 - Shared calendars, delegated access, resource booking, attendee resolution,
   and auto-complete remain gated until Directory/Identity and Contacts/CardDAV
   semantics are implemented beyond active user lookup.
