@@ -228,12 +228,37 @@ func TestOpenAPIDraftDocumentsWebmailCapabilityLimits(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsAdminConsoleCapabilityLimits(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	block := extractOpenAPIComponentBlock(t, string(raw), "schemas", "AdminConsoleCapabilities")
+	for _, want := range []string{
+		"maximum: " + strconv.Itoa(maildb.MessageListMaxLimit),
+		"maximum: " + strconv.Itoa(maildb.AttachmentCleanupMaxLimit),
+		"maximum: " + strconv.Itoa(maildb.APIUsageLedgerRetentionMaxLimit),
+		"enum: [available]",
+		"enum: [planned]",
+		"api_usage_export",
+		"imap_uid_backfill",
+		"rejects_ambiguous_auth",
+	} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("AdminConsoleCapabilities schema must document %q", want)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 	t.Parallel()
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, responseRef := range map[string]string{
 		"GET /webmail/capabilities":                                  "#/components/responses/WebmailCapabilities",
+		"GET /console/capabilities":                                  "#/components/responses/AdminConsoleCapabilities",
 		"GET /folders":                                               "#/components/responses/FolderList",
 		"POST /folders":                                              "#/components/responses/Folder",
 		"PATCH /folders/{id}":                                        "#/components/responses/Folder",
@@ -822,6 +847,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 	draft := string(raw)
 	for schema, key := range map[string]string{
 		"WebmailCapabilitiesEnvelope":                         "webmail_capabilities",
+		"AdminConsoleCapabilitiesEnvelope":                    "admin_console_capabilities",
 		"FolderListEnvelope":                                  "folders",
 		"FolderEnvelope":                                      "folder",
 		"MessageListPageEnvelope":                             "messages",

@@ -169,6 +169,110 @@ type AdminBackpressureService interface {
 	UpdateBackpressure(ctx context.Context, req backpressure.StateUpdate) (backpressure.State, error)
 }
 
+type adminConsoleCapabilitiesEnvelope struct {
+	AdminConsoleCapabilities adminConsoleCapabilities `json:"admin_console_capabilities"`
+}
+
+type adminConsoleCapabilities struct {
+	ContractVersion string                            `json:"contract_version"`
+	Modules         map[string]string                 `json:"modules"`
+	Limits          adminConsoleLimits                `json:"limits"`
+	Tenancy         adminConsoleTenancyCapabilities   `json:"tenancy"`
+	Operations      adminConsoleOperationCapabilities `json:"operations"`
+	Security        adminConsoleSecurityCapabilities  `json:"security"`
+}
+
+type adminConsoleLimits struct {
+	MaxListLimit                 int `json:"max_list_limit"`
+	MaxAttachmentCleanupLimit    int `json:"max_attachment_cleanup_limit"`
+	MaxAPIUsageRetentionRunLimit int `json:"max_api_usage_retention_run_limit"`
+}
+
+type adminConsoleTenancyCapabilities struct {
+	Companies      bool `json:"companies"`
+	Domains        bool `json:"domains"`
+	Users          bool `json:"users"`
+	Quotas         bool `json:"quotas"`
+	DomainPolicies bool `json:"domain_policies"`
+	DNSChecks      bool `json:"dns_checks"`
+	DKIMKeys       bool `json:"dkim_keys"`
+}
+
+type adminConsoleOperationCapabilities struct {
+	QueueStats              bool `json:"queue_stats"`
+	OutboxEvents            bool `json:"outbox_events"`
+	AuditLogs               bool `json:"audit_logs"`
+	AuditIntegrity          bool `json:"audit_integrity"`
+	Backpressure            bool `json:"backpressure"`
+	AttachmentCleanup       bool `json:"attachment_cleanup"`
+	AttachmentUploadSession bool `json:"attachment_upload_sessions"`
+	QuotaReconciliation     bool `json:"quota_reconciliation"`
+	DeliveryAttempts        bool `json:"delivery_attempts"`
+	DeliveryRoutes          bool `json:"delivery_routes"`
+	TrustedRelays           bool `json:"trusted_relays"`
+	SuppressionList         bool `json:"suppression_list"`
+	PushNotificationTriage  bool `json:"push_notification_triage"`
+	APIUsage                bool `json:"api_usage"`
+	APIUsageExport          bool `json:"api_usage_export"`
+	IMAPUIDBackfill         bool `json:"imap_uid_backfill"`
+}
+
+type adminConsoleSecurityCapabilities struct {
+	AdminTokenHeader     bool `json:"admin_token_header"`
+	BearerToken          bool `json:"bearer_token"`
+	RejectsAmbiguousAuth bool `json:"rejects_ambiguous_auth"`
+	NoStoreJSON          bool `json:"no_store_json"`
+}
+
+func currentAdminConsoleCapabilities() adminConsoleCapabilities {
+	return adminConsoleCapabilities{
+		ContractVersion: BackendContractVersion,
+		Modules: map[string]string{
+			"mail":  "available",
+			"admin": "available",
+			"drive": "planned",
+		},
+		Limits: adminConsoleLimits{
+			MaxListLimit:                 maildb.MessageListMaxLimit,
+			MaxAttachmentCleanupLimit:    maildb.AttachmentCleanupMaxLimit,
+			MaxAPIUsageRetentionRunLimit: maildb.APIUsageLedgerRetentionMaxLimit,
+		},
+		Tenancy: adminConsoleTenancyCapabilities{
+			Companies:      true,
+			Domains:        true,
+			Users:          true,
+			Quotas:         true,
+			DomainPolicies: true,
+			DNSChecks:      true,
+			DKIMKeys:       true,
+		},
+		Operations: adminConsoleOperationCapabilities{
+			QueueStats:              true,
+			OutboxEvents:            true,
+			AuditLogs:               true,
+			AuditIntegrity:          true,
+			Backpressure:            true,
+			AttachmentCleanup:       true,
+			AttachmentUploadSession: true,
+			QuotaReconciliation:     true,
+			DeliveryAttempts:        true,
+			DeliveryRoutes:          true,
+			TrustedRelays:           true,
+			SuppressionList:         true,
+			PushNotificationTriage:  true,
+			APIUsage:                true,
+			APIUsageExport:          true,
+			IMAPUIDBackfill:         true,
+		},
+		Security: adminConsoleSecurityCapabilities{
+			AdminTokenHeader:     true,
+			BearerToken:          true,
+			RejectsAmbiguousAuth: true,
+			NoStoreJSON:          true,
+		},
+	}
+}
+
 type adminAttachmentCleanupRunRequest struct {
 	Before string `json:"before"`
 	Limit  int    `json:"limit,omitempty"`
@@ -212,6 +316,16 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	mux.HandleFunc("GET /admin/v1/console/capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		writeJSON(w, http.StatusOK, adminConsoleCapabilitiesEnvelope{AdminConsoleCapabilities: currentAdminConsoleCapabilities()})
+	}))
+
 	if cfg.routeCounters != nil {
 		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 			if !rejectUnknownQueryKeys(w, r) {

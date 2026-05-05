@@ -48,6 +48,15 @@ paths:
           $ref: "#/components/responses/WebmailCapabilities"
         default:
           $ref: "#/components/responses/Error"
+  /console/capabilities:
+    get:
+      operationId: getAdminConsoleCapabilities
+      summary: Discover admin console capabilities and limits
+      responses:
+        "200":
+          $ref: "#/components/responses/AdminConsoleCapabilities"
+        default:
+          $ref: "#/components/responses/Error"
   /folders:
     get:
       operationId: listFolders
@@ -2407,6 +2416,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/WebmailCapabilitiesEnvelope"
+    AdminConsoleCapabilities:
+      description: Admin console capability envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AdminConsoleCapabilitiesEnvelope"
     FolderList:
       description: Folder list envelope
       content:
@@ -3792,6 +3807,113 @@ components:
       properties:
         webmail_capabilities:
           $ref: "#/components/schemas/WebmailCapabilities"
+    AdminConsoleCapabilities:
+      type: object
+      required: [contract_version, modules, limits, tenancy, operations, security]
+      properties:
+        contract_version:
+          type: string
+        modules:
+          type: object
+          required: [mail, admin, drive]
+          properties:
+            mail:
+              type: string
+              enum: [available]
+            admin:
+              type: string
+              enum: [available]
+            drive:
+              type: string
+              enum: [planned]
+        limits:
+          type: object
+          required: [max_list_limit, max_attachment_cleanup_limit, max_api_usage_retention_run_limit]
+          properties:
+            max_list_limit:
+              type: integer
+              minimum: 1
+              maximum: 200
+            max_attachment_cleanup_limit:
+              type: integer
+              minimum: 1
+              maximum: 1000
+            max_api_usage_retention_run_limit:
+              type: integer
+              minimum: 1
+              maximum: 10000
+        tenancy:
+          type: object
+          required: [companies, domains, users, quotas, domain_policies, dns_checks, dkim_keys]
+          properties:
+            companies:
+              type: boolean
+            domains:
+              type: boolean
+            users:
+              type: boolean
+            quotas:
+              type: boolean
+            domain_policies:
+              type: boolean
+            dns_checks:
+              type: boolean
+            dkim_keys:
+              type: boolean
+        operations:
+          type: object
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          properties:
+            queue_stats:
+              type: boolean
+            outbox_events:
+              type: boolean
+            audit_logs:
+              type: boolean
+            audit_integrity:
+              type: boolean
+            backpressure:
+              type: boolean
+            attachment_cleanup:
+              type: boolean
+            attachment_upload_sessions:
+              type: boolean
+            quota_reconciliation:
+              type: boolean
+            delivery_attempts:
+              type: boolean
+            delivery_routes:
+              type: boolean
+            trusted_relays:
+              type: boolean
+            suppression_list:
+              type: boolean
+            push_notification_triage:
+              type: boolean
+            api_usage:
+              type: boolean
+            api_usage_export:
+              type: boolean
+            imap_uid_backfill:
+              type: boolean
+        security:
+          type: object
+          required: [admin_token_header, bearer_token, rejects_ambiguous_auth, no_store_json]
+          properties:
+            admin_token_header:
+              type: boolean
+            bearer_token:
+              type: boolean
+            rejects_ambiguous_auth:
+              type: boolean
+            no_store_json:
+              type: boolean
+    AdminConsoleCapabilitiesEnvelope:
+      type: object
+      required: [admin_console_capabilities]
+      properties:
+        admin_console_capabilities:
+          $ref: "#/components/schemas/AdminConsoleCapabilities"
     PushDevice:
       type: object
       required: [id, platform, status, created_at, updated_at]

@@ -1056,6 +1056,10 @@ Next:
   supported flags/actions, compose/search limits, attachment upload modes, and
   push-device platforms. Future webmail and Drive module APIs should extend
   this discovery shape instead of forcing frontend hard-coded constants.
+- Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
+  console companion bootstrap surface for module status, common list and
+  cleanup/retention limits, tenant/domain/user management, operational triage,
+  API usage/export, IMAP UID backfill, and admin auth/no-store behavior.
 
 ### 7. Frontend planning
 

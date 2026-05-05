@@ -1672,6 +1672,11 @@ Implementation order:
      version, available/planned modules including future Drive, list and bulk
      limits, supported message flags, compose/search capabilities, attachment
      upload modes, and push-device platforms.
+949. Admin API now exposes `GET /admin/v1/console/capabilities`, giving future
+     production operator consoles a stable bootstrap contract for backend
+     version, available/planned modules including future Drive, list and
+     cleanup/retention limits, tenant/domain/user controls, operational triage
+     surfaces, API usage/export, IMAP UID backfill, and admin auth behavior.
 
 ## Deferred until backend contracts stabilize
 
