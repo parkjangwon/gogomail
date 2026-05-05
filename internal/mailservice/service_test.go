@@ -237,20 +237,80 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 }
 
-func TestFolderMutationsRejectUnsafeFolderID(t *testing.T) {
+func TestFolderServicesRejectUnsafeInputs(t *testing.T) {
 	t.Parallel()
 
-	repo := &fakeRepository{}
-	service := New(repo, nil)
+	for _, tc := range []struct {
+		name   string
+		call   func(*Service) error
+		called func(*fakeRepository) bool
+	}{
+		{
+			name: "list unsafe user",
+			call: func(service *Service) error {
+				_, err := service.ListFolders(context.Background(), "user-1\nbad")
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastListFoldersUserID != "" },
+		},
+		{
+			name: "create unsafe user",
+			call: func(service *Service) error {
+				_, err := service.CreateFolder(context.Background(), maildb.CreateFolderRequest{
+					UserID: "user-1\r\nbad",
+					Name:   "Archive",
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastCreateFolder.UserID != "" },
+		},
+		{
+			name: "create unsafe name",
+			call: func(service *Service) error {
+				_, err := service.CreateFolder(context.Background(), maildb.CreateFolderRequest{
+					UserID: "user-1",
+					Name:   "Archive\nbad",
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastCreateFolder.UserID != "" },
+		},
+		{
+			name: "rename unsafe folder id",
+			call: func(service *Service) error {
+				_, err := service.RenameFolder(context.Background(), "user-1", "folder-1\r\nbad", "Projects")
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastRenameFolderID != "" },
+		},
+		{
+			name: "rename oversized name",
+			call: func(service *Service) error {
+				_, err := service.RenameFolder(context.Background(), "user-1", "folder-1", strings.Repeat("x", maxServiceResourceIDBytes+1))
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastRenameFolderID != "" },
+		},
+		{
+			name: "delete oversized folder id",
+			call: func(service *Service) error {
+				return service.DeleteFolder(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1))
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastDeleteFolderID != "" },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	if _, err := service.RenameFolder(context.Background(), "user-1", "folder-1\r\nbad", "Projects"); err == nil {
-		t.Fatal("RenameFolder accepted newline-bearing folder ID")
-	}
-	if err := service.DeleteFolder(context.Background(), "user-1", strings.Repeat("x", maxServiceResourceIDBytes+1)); err == nil {
-		t.Fatal("DeleteFolder accepted oversized folder ID")
-	}
-	if repo.lastRenameFolderID != "" || repo.lastDeleteFolderID != "" {
-		t.Fatalf("repository was called with folder IDs %q/%q", repo.lastRenameFolderID, repo.lastDeleteFolderID)
+			repo := &fakeRepository{}
+			service := New(repo, nil)
+			if err := tc.call(service); err == nil {
+				t.Fatal("folder service accepted unsafe input")
+			}
+			if tc.called(repo) {
+				t.Fatal("repository was called before folder input validation")
+			}
+		})
 	}
 }
 

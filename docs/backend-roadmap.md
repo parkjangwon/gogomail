@@ -1634,6 +1634,10 @@ Implementation order:
      addressing for localhost and IP-address endpoints, avoiding
      `bucket.localhost`/`bucket.127.0.0.1` drift for local MinIO and other local
      compatible object stores even when the generic `s3` backend is used.
+939. Folder list/create/rename/delete service methods now reject CR/LF-bearing
+     or oversized user identifiers, and create/rename reject unsafe folder
+     names, before repository work, keeping Mail API folder operations aligned
+     with IMAP mailbox-management guardrails.
 
 ## Deferred until backend contracts stabilize
 
