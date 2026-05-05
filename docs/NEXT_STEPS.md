@@ -126,6 +126,9 @@ Current state:
 - IMAP MIME body-part paths and partial body fetch windows require digit-only
   number atoms, rejecting signed forms such as `BODY[+1]` and
   `BODY[]<+12.34>` before fetch processing.
+- IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
+  that still contain quote characters after command parsing, preventing broken
+  values such as `UTF-8"` from being silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

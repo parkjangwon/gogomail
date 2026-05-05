@@ -1522,15 +1522,29 @@ func imapConsumeParenthesizedFields(fields []string) ([]string, []string, bool) 
 
 func imapSearchCriteria(criteria []string) ([]string, bool) {
 	if len(criteria) >= 2 && strings.EqualFold(criteria[0], "CHARSET") {
-		charset := strings.ToUpper(strings.Trim(criteria[1], `"`))
+		charset, ok := imapSupportedCharset(criteria[1])
+		if !ok {
+			return nil, false
+		}
 		switch charset {
 		case "US-ASCII", "UTF-8":
 			return imapNormalizeSearchCriteria(criteria[2:]), true
-		default:
-			return nil, false
 		}
 	}
 	return imapNormalizeSearchCriteria(criteria), true
+}
+
+func imapSupportedCharset(value string) (string, bool) {
+	if strings.Contains(value, `"`) {
+		return "", false
+	}
+	charset := strings.ToUpper(strings.TrimSpace(value))
+	switch charset {
+	case "US-ASCII", "UTF-8":
+		return charset, true
+	default:
+		return "", false
+	}
 }
 
 func imapNormalizeSearchCriteria(criteria []string) []string {
@@ -1641,10 +1655,7 @@ func imapSortCommandArguments(fields []string) ([]imapSortCriterion, []string, b
 	if !ok || len(criteria) == 0 {
 		return nil, nil, true, false
 	}
-	charset := strings.ToUpper(strings.Trim(rest[0], `"`))
-	switch charset {
-	case "US-ASCII", "UTF-8":
-	default:
+	if _, ok := imapSupportedCharset(rest[0]); !ok {
 		return nil, nil, false, true
 	}
 	return criteria, imapNormalizeSearchCriteria(rest[1:]), true, true
@@ -1655,10 +1666,7 @@ func imapThreadCommandArguments(fields []string) (string, []string, bool, bool) 
 		return "", nil, true, false
 	}
 	algorithm := strings.ToUpper(strings.Trim(fields[0], `"`))
-	charset := strings.ToUpper(strings.Trim(fields[1], `"`))
-	switch charset {
-	case "US-ASCII", "UTF-8":
-	default:
+	if _, ok := imapSupportedCharset(fields[1]); !ok {
 		return "", nil, false, true
 	}
 	return algorithm, imapNormalizeSearchCriteria(fields[2:]), true, true
