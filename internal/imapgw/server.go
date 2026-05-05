@@ -3705,6 +3705,12 @@ func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([
 		if start > end {
 			start, end = end, start
 		}
+		if start > UID(maxValue) {
+			continue
+		}
+		if end > UID(maxValue) {
+			end = UID(maxValue)
+		}
 		for value := start; value <= end; value++ {
 			if _, ok := seen[value]; ok {
 				continue
@@ -3719,7 +3725,7 @@ func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([
 			}
 		}
 	}
-	return values, len(values) > 0
+	return values, true
 }
 
 func parseIMAPSetNumber(value string, maxValue uint32, allowStar bool) (UID, bool) {
@@ -3731,7 +3737,7 @@ func parseIMAPSetNumber(value string, maxValue uint32, allowStar bool) (UID, boo
 		return 0, false
 	}
 	parsed, ok := parseIMAPUIDSetNumber(value)
-	if !ok || parsed > UID(maxValue) {
+	if !ok {
 		return 0, false
 	}
 	return parsed, true
