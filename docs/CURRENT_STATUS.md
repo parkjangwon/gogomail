@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive object cleanup helper)
+Last updated: 2026-05-06 (updated after Drive service delete workflow)
 
 ## Current phase
 
@@ -261,6 +261,9 @@ guidance.
   object references, validates storage backend/path input, de-duplicates
   repeated references, honors cancellation, and deletes through the configured
   storage stores with progress-preserving errors.
+- Drive now has a small internal service layer that composes repository
+  permanent-delete with backend object cleanup, preserving cleanup progress on
+  post-transaction storage failures for future retry/reconciliation handling.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

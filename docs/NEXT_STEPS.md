@@ -340,14 +340,17 @@ Current state:
   validates backend/path safety, de-duplicates repeats, honors cancellation,
   and deletes objects through the configured storage stores with
   progress-preserving errors.
+- `internal/drive.Service.PermanentDeleteNode` now composes repository
+  permanent-delete with backend object cleanup and returns cleanup progress
+  alongside the committed metadata/quota result.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add a Drive service layer that composes repository permanent-delete with
-  object cleanup and records retryable cleanup failures for reconciliation.
-- Add Drive HTTP contracts only after repository create/list/delete/restore
-  flows are stable enough to document in OpenAPI.
+- Add a retry/reconciliation record for post-transaction Drive object cleanup
+  failures so failed deletes are operator-visible and resumable.
+- Add Drive HTTP contracts only after repository/service
+  create/list/delete/restore flows are stable enough to document in OpenAPI.
 
 ### 2. Message threading and search
 

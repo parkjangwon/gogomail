@@ -82,6 +82,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive now has a storage-object cleanup helper for permanent-delete results,
   giving cleanup workers a validated, cancellation-aware, de-duplicated path
   to remove bytes across configured local/NFS, MinIO, or S3-compatible stores.
+- Drive now has an internal service workflow for permanent delete that combines
+  committed metadata/quota deletion with backend object cleanup and preserves
+  cleanup progress for retryable failure reporting.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

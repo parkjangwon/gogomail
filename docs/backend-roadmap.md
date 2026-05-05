@@ -1783,6 +1783,10 @@ Implementation order:
      references, honors cancellation, deletes through configured storage
      stores, and reports progress-preserving failures for retry/reconciliation
      layers.
+976. Drive now has a small internal service layer that composes repository
+     permanent-delete with backend object cleanup, returning both committed
+     metadata/quota state and cleanup progress so future HTTP handlers and
+     workers can expose retryable storage cleanup failures cleanly.
 
 ## Deferred until backend contracts stabilize
 
