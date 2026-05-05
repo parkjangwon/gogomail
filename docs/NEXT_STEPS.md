@@ -286,6 +286,9 @@ Current state:
 - `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes when
   requested, backed by durable per-message IMAP mod-sequences while broader
   CONDSTORE behavior remains unadvertised.
+- `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria,
+  including optional metadata entry/type arguments, and return the highest
+  matched mod-sequence in non-empty SEARCH responses.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,

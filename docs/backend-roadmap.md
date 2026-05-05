@@ -1121,6 +1121,9 @@ Implementation order:
 795. IMAP `FETCH` and `UID FETCH` now return RFC 4551-shaped `MODSEQ (n)`
      attributes when requested, mapping durable per-message IMAP mod-sequences
      through the gateway without advertising broader CONDSTORE semantics yet.
+796. IMAP `SEARCH` and `UID SEARCH` now support RFC 4551-shaped `MODSEQ`
+     criteria, including optional metadata entry/type arguments, and append
+     `(MODSEQ n)` with the highest matched mod-sequence for non-empty results.
 
 ## Deferred until backend contracts stabilize
 

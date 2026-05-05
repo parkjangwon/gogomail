@@ -348,6 +348,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes
   when requested, surfacing durable per-message mod-sequences without
   advertising full CONDSTORE behavior prematurely.
+- IMAP `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria and
+  append the highest matched mod-sequence to non-empty SEARCH responses, while
+  full CONDSTORE behavior remains unadvertised.
 - IMAP `FETCH`/`UID FETCH` now return a conservative single-part
   `BODYSTRUCTURE` response for clients that require structure metadata before
   fetching message bodies.

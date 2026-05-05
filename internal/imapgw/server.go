@@ -965,7 +965,8 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
 	}
-	results, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode)
+	requestsModSeq := imapSearchRequestsModSeq(criteria)
+	results, highestModSeq, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode, requestsModSeq)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
@@ -974,7 +975,7 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
 		return false, err
 	}
-	if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(results) + "\r\n"); err != nil {
+	if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(results, highestModSeq, requestsModSeq) + "\r\n"); err != nil {
 		return false, err
 	}
 	completion := "SEARCH"
@@ -1020,15 +1021,15 @@ func imapNormalizeSearchCriteria(criteria []string) []string {
 	return normalized
 }
 
-func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool) ([]uint32, bool, error) {
+func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool, requestsModSeq bool) ([]uint32, uint64, bool, error) {
 	if len(criteria) == 0 {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 	predicates := make([]imapSearchPredicate, 0, len(criteria))
 	for i := 0; i < len(criteria); {
 		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages)
 		if !ok {
-			return nil, false, nil
+			return nil, 0, false, nil
 		}
 		if predicate != nil {
 			predicates = append(predicates, predicate)
@@ -1036,13 +1037,17 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		i += consumed
 	}
 	results := make([]uint32, 0, len(messages))
+	var highestModSeq uint64
 	for i, summary := range messages {
 		matches, err := s.imapMessageMatchesSearchPredicates(ctx, state, summary, i, predicates)
 		if err != nil {
-			return nil, true, err
+			return nil, 0, true, err
 		}
 		if !matches {
 			continue
+		}
+		if requestsModSeq && summary.ModSeq > highestModSeq {
+			highestModSeq = summary.ModSeq
 		}
 		if uidMode {
 			results = append(results, uint32(summary.UID))
@@ -1050,7 +1055,10 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		}
 		results = append(results, imapSearchSequenceNumber(summary, i))
 	}
-	return results, true, nil
+	if len(results) == 0 {
+		highestModSeq = 0
+	}
+	return results, highestModSeq, true, nil
 }
 
 type imapSearchPredicate func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error)
@@ -1181,6 +1189,14 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			return imapMessageMatchesSizeSearch(summary, criterion, size), nil
 		}, 2, true
+	case "MODSEQ":
+		threshold, consumed, ok := parseIMAPSearchModSeq(criteria)
+		if !ok {
+			return nil, 0, false
+		}
+		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
+			return summary.ModSeq >= threshold, nil
+		}, consumed, true
 	case "KEYWORD", "UNKEYWORD":
 		if len(criteria) < 2 || !imapSearchKeywordValid(criteria[1]) {
 			return nil, 0, false
@@ -1238,6 +1254,15 @@ func imapSearchKeywordValid(value string) bool {
 		return false
 	}
 	return true
+}
+
+func imapSearchRequestsModSeq(criteria []string) bool {
+	for _, criterion := range criteria {
+		if strings.EqualFold(criterion, "MODSEQ") {
+			return true
+		}
+	}
+	return false
 }
 
 func imapSearchPredicateMatches(ctx context.Context, server *Server, state *imapConnState, predicate imapSearchPredicate, summary MessageSummary, index int) (bool, error) {
@@ -1423,6 +1448,40 @@ func parseIMAPSearchSize(value string) (int64, bool) {
 	return size, true
 }
 
+func parseIMAPSearchModSeq(criteria []string) (uint64, int, bool) {
+	if len(criteria) < 2 || !strings.EqualFold(criteria[0], "MODSEQ") {
+		return 0, 0, false
+	}
+	if threshold, ok := parseIMAPModSeqValue(criteria[1]); ok {
+		return threshold, 2, true
+	}
+	if len(criteria) < 4 || !imapSearchModSeqEntryTypeValid(criteria[2]) {
+		return 0, 0, false
+	}
+	threshold, ok := parseIMAPModSeqValue(criteria[3])
+	if !ok {
+		return 0, 0, false
+	}
+	return threshold, 4, true
+}
+
+func parseIMAPModSeqValue(value string) (uint64, bool) {
+	modseq, err := strconv.ParseUint(strings.Trim(value, `"`), 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return modseq, true
+}
+
+func imapSearchModSeqEntryTypeValid(value string) bool {
+	switch strings.ToUpper(strings.Trim(value, `"`)) {
+	case "SHARED", "PRIV", "ALL":
+		return true
+	default:
+		return false
+	}
+}
+
 func imapSearchSizeResults(messages []MessageSummary, uidMode bool, criterion string, size int64) []uint32 {
 	results := make([]uint32, 0, len(messages))
 	for i, summary := range messages {
@@ -1596,7 +1655,7 @@ func imapAddressListContains(addresses []Address, query string) bool {
 	return false
 }
 
-func imapSearchResultSuffix(results []uint32) string {
+func imapSearchResultSuffix(results []uint32, highestModSeq uint64, includeModSeq bool) string {
 	if len(results) == 0 {
 		return ""
 	}
@@ -1604,7 +1663,11 @@ func imapSearchResultSuffix(results []uint32) string {
 	for _, result := range results {
 		parts = append(parts, strconv.FormatUint(uint64(result), 10))
 	}
-	return " " + strings.Join(parts, " ")
+	suffix := " " + strings.Join(parts, " ")
+	if includeModSeq {
+		suffix += fmt.Sprintf(" (MODSEQ %d)", highestModSeq)
+	}
+	return suffix
 }
 
 func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
