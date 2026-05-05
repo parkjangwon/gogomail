@@ -429,6 +429,11 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
 			return false, err
 		}
+		if mailboxState.UIDNotSticky {
+			if _, err := writer.WriteString("* OK [UIDNOTSTICKY] UIDs are not sticky\r\n"); err != nil {
+				return false, err
+			}
+		}
 		if mailboxState.HighestModSeq > 0 {
 			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", mailboxState.HighestModSeq)); err != nil {
 				return false, err

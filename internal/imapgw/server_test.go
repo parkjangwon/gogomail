@@ -802,6 +802,59 @@ func TestServerSelectReportsHighestModSeq(t *testing.T) {
 	}
 }
 
+func TestServerSelectReportsUIDNotSticky(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: uidNotStickyBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
+		t.Fatalf("write login/examine: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [UIDNOTSTICKY] UIDs are not sticky\r\n",
+		"* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n",
+		"a2 OK [READ-ONLY] EXAMINE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read examine response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("examine response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerSelectCondstoreEnablesModSeqEvents(t *testing.T) {
 	t.Parallel()
 
@@ -7613,6 +7666,18 @@ func (modSeqBackend) SelectMailbox(context.Context, SelectMailboxRequest) (Mailb
 
 func (modSeqBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, HighestModSeq: 9, Messages: 2}, nil
+}
+
+type uidNotStickyBackend struct {
+	fakeBackend
+}
+
+func (uidNotStickyBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted},
+		UIDNotSticky:   true,
+	}, nil
 }
 
 func (fakeBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]MessageSummary, error) {

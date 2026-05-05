@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP missing-mailbox response codes)
+Last updated: 2026-05-05 (updated after IMAP UIDNOTSTICKY selection metadata)
 
 ## Current phase
 
@@ -862,6 +862,9 @@ The platform hardening sprint completed the following:
   `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
   `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from durable mailbox
   UID state.
+- IMAP `SELECT`/`EXAMINE` now emit `[UIDNOTSTICKY]` when the backend marks a
+  mailbox's UIDs as non-sticky, keeping UIDPLUS-adjacent client state aligned
+  with the selected mailbox's persistence guarantees.
 - IMAP `UID STORE` supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`

@@ -314,6 +314,9 @@ Current state:
   `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
   `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from durable mailbox
   UID state.
+- `SELECT`/`EXAMINE` now emit `[UIDNOTSTICKY]` when the selected mailbox state
+  reports non-sticky UIDs, keeping UIDPLUS-adjacent clients aware of mailbox
+  UID persistence guarantees.
 - `UID STORE` now supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses for those requests.
 - `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`

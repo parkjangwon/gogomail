@@ -383,6 +383,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   alongside `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints,
   `UIDVALIDITY`, `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from
   durable mailbox UID state.
+- IMAP `SELECT`/`EXAMINE` now emit `[UIDNOTSTICKY]` when selected mailbox
+  state reports non-sticky UIDs, preserving UIDPLUS-adjacent client visibility
+  into UID persistence guarantees.
 - IMAP `UID STORE` now supports `.SILENT` mutation modes while applying the same
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
