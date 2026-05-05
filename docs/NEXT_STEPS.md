@@ -764,6 +764,9 @@ Current state:
 - Service-level IMAP read/list/subscription/backfill operations reject
   CR/LF-bearing or oversized user/mailbox identifiers before repository reads,
   storage opens, event subscriptions, or UID backfill work.
+- Folder list/create/rename/delete service methods reject CR/LF-bearing or
+  oversized user identifiers, and create/rename reject unsafe folder names,
+  before repository work.
 - Empty IMAP flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.

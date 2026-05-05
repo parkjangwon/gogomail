@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3 local-endpoint path-style compatibility hardening)
+Last updated: 2026-05-05 (updated after folder service input validation hardening)
 
 ## Current phase
 
@@ -1533,8 +1533,10 @@ The platform hardening sprint completed the following:
   user, folder, thread, message, and folder-name inputs before repository work;
   user folder create/rename rejects blank, path-bearing, CR/LF-bearing, or
   oversized names, and rename/delete reject unsafe folder identifiers before
-  repository dispatch. Folder-scoped message lists and thread-message reads
-  also reject unsafe folder/thread identifiers before repository work.
+  repository dispatch. Folder list/create/rename/delete now also reject
+  CR/LF-bearing or oversized user identifiers before repository work.
+  Folder-scoped message lists and thread-message reads also reject unsafe
+  folder/thread identifiers before repository work.
 - Message, thread, and push-device list service methods normalize list limits
   to the documented message-list bounds before repository work.
 - Message-list cursor decoding rejects oversized opaque cursor strings before
