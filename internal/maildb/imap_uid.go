@@ -345,7 +345,7 @@ LIMIT 1`
 	}, nil
 }
 
-func (r *Repository) StoreIMAPFlags(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error) {
+func (r *Repository) StoreIMAPFlags(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode, unchangedSince uint64) ([]imapgw.MessageSummary, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -393,13 +393,32 @@ FOR UPDATE`
 		return nil, fmt.Errorf("lock imap mailbox state: %w", err)
 	}
 
-	summaries := make([]imapgw.MessageSummary, 0, len(uids))
-	changedAny := false
+	type storeCandidate struct {
+		uid        imapgw.UID
+		row        imapMessageRow
+		messageUID IMAPMessageUID
+	}
+	candidates := make([]storeCandidate, 0, len(uids))
+	modified := make([]imapgw.UID, 0)
 	for _, uid := range uids {
 		row, messageUID, err := scanIMAPMessageByUID(ctx, tx, userID, mailboxID, uid)
 		if err != nil {
 			return nil, err
 		}
+		if unchangedSince > 0 && messageUID.ModSeq > unchangedSince {
+			modified = append(modified, uid)
+		}
+		candidates = append(candidates, storeCandidate{uid: uid, row: row, messageUID: messageUID})
+	}
+	if len(modified) > 0 {
+		return nil, &imapgw.StoreModifiedError{UIDs: modified}
+	}
+
+	summaries := make([]imapgw.MessageSummary, 0, len(candidates))
+	changedAny := false
+	for _, candidate := range candidates {
+		row := candidate.row
+		messageUID := candidate.messageUID
 		next, changed := applyIMAPStoreFlagChanges(row, changes)
 		if changed {
 			changedAny = true
@@ -411,7 +430,7 @@ FOR UPDATE`
 			row = next
 		}
 		summary := imapMessageFromRow(row, messageUID)
-		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, mailboxID, uid)
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, mailboxID, candidate.uid)
 		if err != nil {
 			return nil, err
 		}

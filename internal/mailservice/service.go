@@ -563,14 +563,14 @@ func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, ma
 
 func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
-		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode) ([]imapgw.MessageSummary, error)
+		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode, uint64) ([]imapgw.MessageSummary, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("imap flag repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
 	mailboxID := strings.TrimSpace(string(req.MailboxID))
-	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode)
+	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince)
 	if err != nil {
 		return nil, err
 	}

@@ -3776,6 +3776,60 @@ func TestServerStoreIncludesModSeqForCondstoreAwareSession(t *testing.T) {
 	}
 }
 
+func TestServerUIDStoreUnchangedSinceReturnsModified(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID STORE 7 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\na4 UID STORE 7:8 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\na5 UID STORE 7 (UNCHANGEDSINCE nope) +FLAGS (\\Seen)\r\n")); err != nil {
+		t.Fatalf("write uid store unchanged since: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (27))\r\n",
+		"a3 OK UID STORE completed\r\n",
+		"a4 NO [MODIFIED 8] UID STORE conditional store failed\r\n",
+		"a5 BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid store unchanged since response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid store unchanged since response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStoreSilentAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -4548,8 +4602,17 @@ func testNestedMultipartBody() string {
 
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
 	summaries := make([]MessageSummary, 0, len(req.UIDs))
+	modified := make([]UID, 0)
 	for _, uid := range req.UIDs {
-		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}, ModSeq: uint64(uid + 20)})
+		modseq := uint64(uid + 20)
+		if req.UnchangedSince > 0 && modseq > req.UnchangedSince {
+			modified = append(modified, uid)
+			continue
+		}
+		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}, ModSeq: modseq})
+	}
+	if len(modified) > 0 {
+		return nil, &StoreModifiedError{UIDs: modified}
 	}
 	return summaries, nil
 }

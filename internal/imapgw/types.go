@@ -2,6 +2,7 @@ package imapgw
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 )
@@ -78,11 +79,12 @@ type FetchMessageRequest struct {
 }
 
 type StoreFlagsRequest struct {
-	UserID    UserID
-	MailboxID MailboxID
-	UIDs      []UID
-	Flags     MessageFlags
-	Mode      StoreFlagsMode
+	UserID         UserID
+	MailboxID      MailboxID
+	UIDs           []UID
+	Flags          MessageFlags
+	Mode           StoreFlagsMode
+	UnchangedSince uint64
 }
 
 type AppendMessageRequest struct {
@@ -125,4 +127,15 @@ type MessageStore interface {
 type Store interface {
 	MailboxStore
 	MessageStore
+}
+
+type StoreModifiedError struct {
+	UIDs []UID
+}
+
+func (e *StoreModifiedError) Error() string {
+	if e == nil {
+		return "imap store modified"
+	}
+	return fmt.Sprintf("imap store modified: %v", e.UIDs)
 }

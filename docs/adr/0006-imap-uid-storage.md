@@ -56,5 +56,6 @@ mailbox.
 - HTTP move/delete behavior does not attempt to emulate IMAP `\Deleted` or
   EXPUNGE yet; it only prevents stale mailbox-local UID rows from crossing
   mailbox boundaries.
-- `MODSEQ` storage exists, but full CONDSTORE/QRESYNC semantics remain future
-  protocol work.
+- `MODSEQ` storage exists and is used by the protocol gateway for selected
+  CONDSTORE-shaped reads and conditional flag writes; full CONDSTORE/QRESYNC
+  advertisement and semantics remain future protocol work.
