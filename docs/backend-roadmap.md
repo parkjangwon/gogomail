@@ -839,6 +839,9 @@ Implementation order:
 704. IMAP `EXAMINE` now shares the mailbox selection response path with
      `SELECT`, returns `[READ-ONLY]`, and prevents `UID STORE` mutations while a
      mailbox is selected read-only.
+705. IMAP `CHECK` and `CLOSE` now cover the selected-mailbox lifecycle: `CHECK`
+     completes as a safe synchronization no-op, and `CLOSE` clears selected
+     state without expunging because `\Deleted` semantics remain unsupported.
 
 ## Deferred until backend contracts stabilize
 

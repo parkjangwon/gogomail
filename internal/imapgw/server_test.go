@@ -443,6 +443,63 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 5; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 CHECK\r\n")); err != nil {
+		t.Fatalf("write check: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK CHECK completed\r\n" {
+		t.Fatalf("check line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 CLOSE\r\n")); err != nil {
+		t.Fatalf("write close: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK CLOSE completed\r\n" {
+		t.Fatalf("close line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 FETCH 1 (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write fetch after close: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a5 NO mailbox must be selected\r\n" {
+		t.Fatalf("fetch after close line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesListAfterLogin(t *testing.T) {
 	t.Parallel()
 
