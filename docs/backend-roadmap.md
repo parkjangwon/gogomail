@@ -1406,6 +1406,10 @@ Implementation order:
      non-canonical base paths before adapter construction, keeping SigV4
      signing and object addressing deterministic across AWS S3, MinIO, and
      compatible providers.
+874. S3-compatible request construction now automatically uses path-style
+     addressing for dotted bucket names on HTTPS endpoints, avoiding AWS S3
+     virtual-hosted TLS wildcard certificate mismatches while preserving
+     virtual-hosted requests for ordinary bucket names by default.
 
 ## Deferred until backend contracts stabilize
 

@@ -166,6 +166,10 @@ guidance.
   fragments, non-HTTP schemes, CR/LF-bearing targets, and non-canonical base
   paths before adapter construction, keeping SigV4 signing and object
   addressing unambiguous across AWS S3, MinIO, and compatible providers.
+- S3-compatible request construction automatically uses path-style addressing
+  for dotted bucket names on HTTPS endpoints, avoiding AWS S3 virtual-hosted
+  TLS wildcard certificate mismatches while preserving virtual-hosted requests
+  for ordinary bucket names by default.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -57,7 +57,9 @@ must be plain HTTP(S) origins with an optional canonical base path; userinfo,
 query strings, fragments, duplicate separators, and dot segments are rejected
 so SigV4 signing and object addressing stay unambiguous. Set
 `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider or local network
-does not support virtual-hosted bucket names.
+does not support virtual-hosted bucket names. HTTPS endpoints automatically use
+path-style requests for bucket names that contain periods, matching AWS's
+certificate compatibility guidance for dotted bucket names.
 
 ## Integration verification
 
