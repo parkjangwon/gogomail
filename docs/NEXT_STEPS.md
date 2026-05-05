@@ -634,7 +634,9 @@ Current state:
 - IMAP `AUTHENTICATE PLAIN` now accepts the standard continuation response,
   decodes SASL PLAIN credentials, returns tagged `BAD` for RFC cancellation,
   rejects mismatched delegated `authzid` values, and maps successful
-  authentication into the same protocol session as `LOGIN`.
+  authentication into the same protocol session as `LOGIN`. Failed `LOGIN` and
+  `AUTHENTICATE` attempts include RFC 5530 `[AUTHENTICATIONFAILED]` response
+  codes for clients that parse machine-readable auth diagnostics.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses now use message

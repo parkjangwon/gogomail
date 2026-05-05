@@ -677,7 +677,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   SASL PLAIN credential decoding, and RFC-shaped tagged `BAD` cancellation, so
   the advertised `AUTH=PLAIN` mechanism has a real protocol implementation.
   Mismatched SASL PLAIN authorization identities are rejected instead of being
-  silently treated as ordinary user/password authentication.
+  silently treated as ordinary user/password authentication. Failed `LOGIN` and
+  `AUTHENTICATE` attempts include RFC 5530 `[AUTHENTICATIONFAILED]` response
+  codes for better client and migration-tool diagnostics.
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
   round trips.

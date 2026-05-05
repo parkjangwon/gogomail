@@ -364,7 +364,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		authSession, err := s.options.Backend.Authenticate(context.Background(), fields[2], fields[3])
 		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO LOGIN failed\r\n")
+			_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] LOGIN failed\r\n")
 			return false, writeErr
 		}
 		state.session = &authSession
@@ -1133,7 +1133,7 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 	}
 	authSession, err := s.options.Backend.Authenticate(context.Background(), username, password)
 	if err != nil {
-		_, writeErr := writer.WriteString(tag + " NO AUTHENTICATE failed\r\n")
+		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] AUTHENTICATE failed\r\n")
 		return false, writeErr
 	}
 	state.session = &authSession
