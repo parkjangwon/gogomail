@@ -880,6 +880,8 @@ The platform hardening sprint completed the following:
   criteria over message `RFC822.SIZE` metadata.
 - IMAP supports authenticated `NAMESPACE` for personal namespace and hierarchy
   delimiter discovery.
+- IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
+  namespace command so client discovery matches the supported command surface.
 - IMAP supports authenticated `LSUB` over the same mailbox pattern matching path
   as `LIST`.
 - IMAP accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox existence

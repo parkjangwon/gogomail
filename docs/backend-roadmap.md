@@ -979,6 +979,9 @@ Implementation order:
      the raw message for MIME metadata while preserving the original reader for
      literal streaming, so common preview/header fetch batches keep rich
      structure responses.
+757. IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
+     namespace command so client discovery matches the supported command
+     surface.
 
 ## Deferred until backend contracts stabilize
 

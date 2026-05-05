@@ -328,6 +328,8 @@ Current state:
   over message `RFC822.SIZE` metadata.
 - Authenticated `NAMESPACE` now advertises the personal namespace and `/`
   hierarchy delimiter for mailbox discovery.
+- `CAPABILITY` now advertises `NAMESPACE` alongside the implemented namespace
+  command so client discovery matches the supported command surface.
 - Authenticated `LSUB` now returns subscribed-compatible mailbox responses over
   the same pattern matching path as `LIST`.
 - Authenticated `SUBSCRIBE`/`UNSUBSCRIBE` now validate mailbox existence and
