@@ -313,6 +313,9 @@ Current state:
   semantics, including `ALL` plus flag, date, size, address, and UID filters.
 - `SEARCH`/`UID SEARCH` supports RFC `NOT` and binary `OR` criteria
   composition over the supported search predicate set.
+- `SEARCH`/`UID SEARCH` now accepts parenthesized search-key groups, combining
+  grouped predicates with RFC default AND semantics and allowing grouped
+  operands inside `OR`.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,

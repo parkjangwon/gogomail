@@ -865,6 +865,9 @@ The platform hardening sprint completed the following:
   filters.
 - IMAP `SEARCH`/`UID SEARCH` supports RFC `NOT` and binary `OR` criteria
   composition over the supported search predicate set.
+- IMAP `SEARCH`/`UID SEARCH` accepts parenthesized search-key groups, combining
+  grouped predicates with RFC default AND semantics and allowing grouped
+  operands inside `OR`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,

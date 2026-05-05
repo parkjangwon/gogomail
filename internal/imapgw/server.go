@@ -852,12 +852,34 @@ func imapSearchCriteria(criteria []string) ([]string, bool) {
 		charset := strings.ToUpper(strings.Trim(criteria[1], `"`))
 		switch charset {
 		case "US-ASCII", "UTF-8":
-			return criteria[2:], true
+			return imapNormalizeSearchCriteria(criteria[2:]), true
 		default:
 			return nil, false
 		}
 	}
-	return criteria, true
+	return imapNormalizeSearchCriteria(criteria), true
+}
+
+func imapNormalizeSearchCriteria(criteria []string) []string {
+	normalized := make([]string, 0, len(criteria))
+	for _, token := range criteria {
+		for strings.HasPrefix(token, "(") {
+			normalized = append(normalized, "(")
+			token = token[1:]
+		}
+		trailingGroups := 0
+		for strings.HasSuffix(token, ")") {
+			trailingGroups++
+			token = strings.TrimSuffix(token, ")")
+		}
+		if token != "" {
+			normalized = append(normalized, token)
+		}
+		for ; trailingGroups > 0; trailingGroups-- {
+			normalized = append(normalized, ")")
+		}
+	}
+	return normalized
 }
 
 func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool) ([]uint32, bool, error) {
@@ -901,6 +923,37 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 	}
 	criterion := strings.ToUpper(criteria[0])
 	switch criterion {
+	case "(":
+		predicates := make([]imapSearchPredicate, 0, len(criteria))
+		i := 1
+		for i < len(criteria) {
+			if criteria[i] == ")" {
+				break
+			}
+			predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], maxSequence)
+			if !ok {
+				return nil, 0, false
+			}
+			if predicate != nil {
+				predicates = append(predicates, predicate)
+			}
+			i += consumed
+		}
+		if i >= len(criteria) || criteria[i] != ")" {
+			return nil, 0, false
+		}
+		return func(ctx context.Context, server *Server, state *imapConnState, summary MessageSummary, index int) (bool, error) {
+			for _, predicate := range predicates {
+				matches, err := imapSearchPredicateMatches(ctx, server, state, predicate, summary, index)
+				if err != nil {
+					return false, err
+				}
+				if !matches {
+					return false, nil
+				}
+			}
+			return true, nil
+		}, i + 1, true
 	case "ALL":
 		return nil, 1, true
 	case "NOT":
