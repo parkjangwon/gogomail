@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	messageparse "github.com/gogomail/gogomail/internal/message"
 	"golang.org/x/text/collate"
@@ -613,7 +614,11 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	if imapStatusRequestsItem(listOptions.statusItems, "HIGHESTMODSEQ") {
 		state.condstoreAware = true
 	}
-	pattern := imapListPattern(listOptions.fields[0], listOptions.fields[1])
+	pattern, patternOK := imapListPattern(listOptions.fields[0], listOptions.fields[1])
+	if !patternOK {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	if pattern == "" {
 		if listOptions.specialUseOnly {
 			_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
@@ -639,15 +644,16 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		if !imapMailboxMatchesPattern(displayName, pattern) {
 			continue
 		}
+		wireDisplayName := imapEncodeMailboxName(displayName)
 		attributes := imapMailboxListAttributes(mailbox, children[mailbox.ID])
 		if listOptions.specialUseOnly && len(attributes) == 1 {
 			continue
 		}
-		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
+		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(wireDisplayName) + "\r\n"); err != nil {
 			return false, err
 		}
 		if len(listOptions.statusItems) > 0 {
-			if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(displayName), imapStatusData(mailbox, listOptions.statusItems))); err != nil {
+			if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(wireDisplayName), imapStatusData(mailbox, listOptions.statusItems))); err != nil {
 				return false, err
 			}
 		}
@@ -685,7 +691,7 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 				continue
 			}
 			seen[key] = struct{}{}
-			if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ` + imapQuotedString(parentName) + "\r\n"); err != nil {
+			if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ` + imapQuotedString(imapEncodeMailboxName(parentName)) + "\r\n"); err != nil {
 				return false, err
 			}
 			continue
@@ -699,7 +705,7 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 		if subscription.Exists {
 			attributes = imapMailboxListAttributes(subscription.Mailbox, children[subscription.Mailbox.ID])
 		}
-		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
+		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(imapEncodeMailboxName(displayName)) + "\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -730,11 +736,16 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD CREATE requires mailbox name\r\n")
 		return false, err
 	}
-	if imapMailboxNameIsINBOX(fields[2]) {
+	mailboxName, ok := imapDecodeMailboxName(fields[2])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD CREATE mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if imapMailboxNameIsINBOX(mailboxName) {
 		_, err := writer.WriteString(tag + " NO CREATE cannot create INBOX\r\n")
 		return false, err
 	}
-	if _, err := s.options.Backend.CreateMailbox(context.Background(), state.session.UserID, MailboxID(fields[2])); err != nil {
+	if _, err := s.options.Backend.CreateMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName)); err != nil {
 		_, writeErr := writer.WriteString(tag + " NO CREATE failed\r\n")
 		return false, writeErr
 	}
@@ -751,11 +762,16 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " BAD DELETE requires mailbox name\r\n")
 		return false, err
 	}
-	if imapMailboxNameIsINBOX(fields[2]) {
+	mailboxName, ok := imapDecodeMailboxName(fields[2])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD DELETE mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if imapMailboxNameIsINBOX(mailboxName) {
 		_, err := writer.WriteString(tag + " NO DELETE cannot delete INBOX\r\n")
 		return false, err
 	}
-	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO DELETE failed\r\n")
 		return false, writeErr
@@ -783,11 +799,17 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " BAD RENAME requires source and destination mailbox names\r\n")
 		return false, err
 	}
-	if imapMailboxNameIsINBOX(fields[2]) {
+	sourceName, sourceOK := imapDecodeMailboxName(fields[2])
+	destName, destOK := imapDecodeMailboxName(fields[3])
+	if !sourceOK || !destOK {
+		_, err := writer.WriteString(tag + " BAD RENAME mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if imapMailboxNameIsINBOX(sourceName) {
 		_, err := writer.WriteString(tag + " NO RENAME INBOX special semantics are not supported\r\n")
 		return false, err
 	}
-	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]), MailboxID(fields[3])); err != nil {
+	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, MailboxID(sourceName), MailboxID(destName)); err != nil {
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
 	}
@@ -809,10 +831,15 @@ func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fie
 		return false, err
 	}
 	var err error
+	mailboxName, ok := imapDecodeMailboxName(fields[2])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
 	if command == "SUBSCRIBE" {
-		_, err = s.options.Backend.SubscribeMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+		_, err = s.options.Backend.SubscribeMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 	} else {
-		err = s.options.Backend.UnsubscribeMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+		err = s.options.Backend.UnsubscribeMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
 	}
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
@@ -4893,13 +4920,133 @@ func imapMailboxWireName(value string) string {
 	return strings.Join(strings.Fields(value), " ")
 }
 
-func imapListPattern(reference string, pattern string) string {
+func imapEncodeMailboxName(value string) string {
+	value = strings.ToValidUTF8(value, "")
+	var b strings.Builder
+	var shifted []uint16
+	flushShifted := func() {
+		if len(shifted) == 0 {
+			return
+		}
+		raw := make([]byte, 0, len(shifted)*2)
+		for _, unit := range shifted {
+			raw = append(raw, byte(unit>>8), byte(unit))
+		}
+		encoded := base64.RawStdEncoding.EncodeToString(raw)
+		encoded = strings.ReplaceAll(encoded, "/", ",")
+		b.WriteByte('&')
+		b.WriteString(encoded)
+		b.WriteByte('-')
+		shifted = shifted[:0]
+	}
+	for _, r := range value {
+		if r >= 0x20 && r <= 0x7e && r != '&' {
+			flushShifted()
+			b.WriteRune(r)
+			continue
+		}
+		if r == '&' {
+			flushShifted()
+			b.WriteString("&-")
+			continue
+		}
+		shifted = append(shifted, utf16.Encode([]rune{r})...)
+	}
+	flushShifted()
+	return b.String()
+}
+
+func imapDecodeMailboxName(value string) (string, bool) {
+	var b strings.Builder
+	for i := 0; i < len(value); {
+		if value[i] == '&' {
+			end := strings.IndexByte(value[i+1:], '-')
+			if end < 0 {
+				return "", false
+			}
+			end += i + 1
+			encoded := value[i+1 : end]
+			if encoded == "" {
+				b.WriteByte('&')
+				i = end + 1
+				continue
+			}
+			decoded, ok := imapDecodeMailboxBase64(encoded)
+			if !ok {
+				return "", false
+			}
+			b.WriteString(decoded)
+			i = end + 1
+			continue
+		}
+		if value[i] >= 0x80 || value[i] < 0x20 || value[i] == 0x7f {
+			return "", false
+		}
+		b.WriteByte(value[i])
+		i++
+	}
+	decoded := b.String()
+	if strings.Contains(value, "&") && imapEncodeMailboxName(decoded) != value {
+		return "", false
+	}
+	return decoded, true
+}
+
+func imapDecodeMailboxBase64(value string) (string, bool) {
+	if strings.ContainsAny(value, "&-") || len(value)%4 == 1 {
+		return "", false
+	}
+	raw, err := base64.RawStdEncoding.DecodeString(strings.ReplaceAll(value, ",", "/"))
+	if err != nil || len(raw) == 0 || len(raw)%2 != 0 {
+		return "", false
+	}
+	units := make([]uint16, 0, len(raw)/2)
+	for i := 0; i < len(raw); i += 2 {
+		units = append(units, uint16(raw[i])<<8|uint16(raw[i+1]))
+	}
+	var runes []rune
+	for i := 0; i < len(units); i++ {
+		unit := units[i]
+		switch {
+		case 0xd800 <= unit && unit <= 0xdbff:
+			if i+1 >= len(units) || units[i+1] < 0xdc00 || units[i+1] > 0xdfff {
+				return "", false
+			}
+			runes = append(runes, utf16.DecodeRune(rune(unit), rune(units[i+1])))
+			i++
+		case 0xdc00 <= unit && unit <= 0xdfff:
+			return "", false
+		default:
+			runes = append(runes, rune(unit))
+		}
+	}
+	for _, r := range runes {
+		if r >= 0x20 && r <= 0x7e {
+			return "", false
+		}
+		if r < 0x20 || r == 0x7f {
+			return "", false
+		}
+	}
+	return string(runes), true
+}
+
+func imapListPattern(reference string, pattern string) (string, bool) {
 	reference = strings.Trim(reference, `"`)
 	pattern = strings.Trim(pattern, `"`)
-	if reference == "" || pattern == "" || strings.HasPrefix(pattern, "/") {
-		return pattern
+	var ok bool
+	reference, ok = imapDecodeMailboxName(reference)
+	if !ok {
+		return "", false
 	}
-	return strings.TrimRight(reference, "/") + "/" + pattern
+	pattern, ok = imapDecodeMailboxName(pattern)
+	if !ok {
+		return "", false
+	}
+	if reference == "" || pattern == "" || strings.HasPrefix(pattern, "/") {
+		return pattern, true
+	}
+	return strings.TrimRight(reference, "/") + "/" + pattern, true
 }
 
 func imapSelectCondstore(fields []string) (bool, bool) {

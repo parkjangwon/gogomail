@@ -1237,6 +1237,12 @@ Implementation order:
 828. IMAP `SUBSCRIBE` can now persist missing mailbox names so `LSUB` can
      report them with `\Noselect`, preserving subscription state across mailbox
      migration, deletion, and delayed creation flows.
+829. IMAP mailbox names now follow RFC 3501 modified UTF-7 at the protocol
+     boundary: `LIST`/`LSUB` decode reference and pattern arguments before
+     matching and encode non-ASCII names or ampersands on the wire, while
+     `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and `UNSUBSCRIBE` reject
+     raw 8-bit and malformed modified UTF-7 instead of leaking wire names into
+     storage.
 
 ## Deferred until backend contracts stabilize
 

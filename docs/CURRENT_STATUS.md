@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP missing-mailbox subscription retention)
+Last updated: 2026-05-05 (updated after IMAP modified UTF-7 mailbox-name handling)
 
 ## Current phase
 
@@ -824,7 +824,8 @@ The platform hardening sprint completed the following:
   to the stored mailbox ID before selected-mailbox state is used by follow-up
   commands.
 - IMAP `LIST` filters mailbox responses with exact, `*`, and `%` patterns over
-  sanitized wire names.
+  decoded mailbox names, then emits non-ASCII names and ampersands as RFC 3501
+  modified UTF-7 instead of raw UTF-8 while `UTF8=ACCEPT` is not advertised.
 - IMAP `CAPABILITY` advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`; `LIST`
   includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy attributes
   plus RFC 6154 special-use attributes for system folders such as Drafts, Sent,
@@ -1012,6 +1013,10 @@ The platform hardening sprint completed the following:
 - IMAP `LSUB` preserves subscribed mailbox names even when the mailbox no
   longer exists, returning missing names with `\Noselect`, and handles the RFC
   3501 `%` hierarchy case by returning subscribed parent levels.
+- IMAP `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`, and
+  `LSUB` now decode RFC 3501 modified UTF-7 mailbox arguments at the protocol
+  boundary, reject raw 8-bit or malformed modified UTF-7 forms, and keep
+  internal service/storage mailbox names as UTF-8.
 - IMAP advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
   field/value parameter lists before returning gogomail server identity.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
