@@ -4967,7 +4967,7 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 FETCH 1:* (FLAGS RFC822.SIZE)\r\na4 FETCH 999 (FLAGS)\r\na5 FETCH 1:999 (FLAGS)\r\na6 FETCH +1 (FLAGS)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 FETCH 1:* (FLAGS RFC822.SIZE)\r\na4 FETCH 999 (FLAGS)\r\na5 FETCH 1:999 (FLAGS)\r\na6 FETCH +1 (FLAGS)\r\na7 FETCH 1 ((FLAGS))\r\n")); err != nil {
 		t.Fatalf("write fetch: %v", err)
 	}
 	want := []string{
@@ -4977,6 +4977,7 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 		"a4 BAD FETCH requires a valid message sequence set\r\n",
 		"a5 BAD FETCH requires a valid message sequence set\r\n",
 		"a6 BAD FETCH requires a valid message sequence set\r\n",
+		"a7 BAD FETCH data item list is invalid\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5960,7 +5961,13 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	if line != "a3 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q", line)
 	}
-	if _, err := client.Write([]byte("a4 UID FETCH 7 RFC822\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 UID FETCH 7 BODY.PEEK[]))\r\n")); err != nil {
+		t.Fatalf("write overclosed uid fetch body: %v", err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 BAD FETCH data item list is invalid\r\n" {
+		t.Fatalf("overclosed body fetch response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 UID FETCH 7 RFC822\r\n")); err != nil {
 		t.Fatalf("write uid fetch rfc822: %v", err)
 	}
 	line, err = reader.ReadString('\n')
@@ -5980,10 +5987,10 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
 		t.Fatalf("rfc822 literal close = %q err = %v", line, err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
 		t.Fatalf("rfc822 completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

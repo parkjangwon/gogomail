@@ -207,6 +207,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects malformed over-closed values such as
   `(UNCHANGEDSINCE 27))`.
+- IMAP `FETCH`/`UID FETCH` data items reject over-parenthesized tokens before
+  item normalization, preventing malformed requests such as `FETCH 1
+  ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

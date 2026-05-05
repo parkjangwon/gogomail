@@ -159,6 +159,9 @@ Current state:
 - IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects malformed over-closed values such as
   `(UNCHANGEDSINCE 27))`.
+- IMAP `FETCH`/`UID FETCH` data items reject over-parenthesized tokens before
+  item normalization, preventing malformed requests such as `FETCH 1
+  ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in
