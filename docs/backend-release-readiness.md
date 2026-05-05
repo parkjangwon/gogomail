@@ -1075,7 +1075,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   JSON tokens before signature evidence is accepted.
 - Remote Ed25519 manifest signer status-error diagnostics collapse signer
   response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
-  external signer errors from leaking into export/billing diagnostics.
+  external signer errors from leaking into export/billing diagnostics. Remote
+  signer HTTP responses use the shared bounded drain-and-close helper so
+  keep-alive connections can be reused without unbounded cleanup reads.
 - Push-notification and attachment-scan webhooks now reject CR/LF-bearing
   configured tokens/endpoints and collapse non-2xx HTTP response bodies into
   bounded one-line UTF-8 previews before surfacing delivery failures. Shared
