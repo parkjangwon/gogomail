@@ -1275,6 +1275,53 @@ func TestServerAppendMissingMailboxReturnsTryCreate(t *testing.T) {
 	}
 }
 
+func TestServerAppendOverQuotaReturnsOverQuota(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendBackend{err: ErrOverQuota}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
+		t.Fatalf("write append literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello world\r\n")); err != nil {
+		t.Fatalf("write append literal body: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 NO [OVERQUOTA] APPEND would exceed quota\r\n" {
+		t.Fatalf("append response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesCopyCommands(t *testing.T) {
 	t.Parallel()
 

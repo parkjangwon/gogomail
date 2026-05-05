@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/imapgw"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/searchindex"
@@ -912,6 +913,36 @@ func TestAppendIMAPMessageRejectsLiteralSizeMismatch(t *testing.T) {
 	}
 }
 
+func TestAppendIMAPMessageMapsMailboxFullToOverQuota(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapAppendTarget: maildb.IMAPAppendTarget{
+			UserID:    "user-1",
+			MailboxID: "inbox",
+			CompanyID: "company-1",
+			DomainID:  "domain-1",
+			Address:   "user@example.com",
+		},
+		imapAppendStoredErr: mail.ErrMailboxFull,
+	}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+	appendBody := "Subject: hi\r\n\r\nhello"
+
+	_, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		Size:      int64(len(appendBody)),
+		Body:      strings.NewReader(appendBody),
+	})
+	if !errors.Is(err, imapgw.ErrOverQuota) {
+		t.Fatalf("AppendIMAPMessage error = %v, want ErrOverQuota", err)
+	}
+	if repo.lastIMAPAppendStored.StoragePath == "" {
+		t.Fatal("append stored request did not reach repository")
+	}
+}
+
 func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -1460,6 +1491,7 @@ type fakeRepository struct {
 	imapFlagSummaries              []imapgw.MessageSummary
 	imapAppendTarget               maildb.IMAPAppendTarget
 	imapAppendResult               imapgw.AppendMessageResult
+	imapAppendStoredErr            error
 	imapCopySummaries              []imapgw.MessageSummary
 	imapMoveSummaries              []imapgw.MessageSummary
 	imapExpungeSummaries           []imapgw.MessageSummary
@@ -1743,6 +1775,9 @@ func (f *fakeRepository) ResolveIMAPAppendTarget(_ context.Context, userID strin
 
 func (f *fakeRepository) AppendStoredIMAPMessage(_ context.Context, req maildb.AppendStoredIMAPMessageRequest) (imapgw.AppendMessageResult, error) {
 	f.lastIMAPAppendStored = req
+	if f.imapAppendStoredErr != nil {
+		return imapgw.AppendMessageResult{}, f.imapAppendStoredErr
+	}
 	return f.imapAppendResult, nil
 }
 

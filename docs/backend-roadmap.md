@@ -1095,6 +1095,9 @@ Implementation order:
 788. IMAP `APPEND` now maps missing destination mailboxes to an RFC-shaped
      `NO [TRYCREATE]` response code, improving compatibility with clients that
      can create the target mailbox and retry the append.
+789. IMAP `APPEND` now maps quota-ledger `mailbox full` failures to a
+     client-visible `NO [OVERQUOTA]` response code, so standards-aware clients
+     can distinguish quota exhaustion from generic append failures.
 
 ## Deferred until backend contracts stabilize
 
