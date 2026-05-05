@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP mod-sequence number hardening)
+Last updated: 2026-05-05 (updated after IMAP UID/sequence number hardening)
 
 ## Current phase
 
@@ -240,6 +240,9 @@ guidance.
 - IMAP mod-sequence numeric inputs now require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+- IMAP UID and message sequence-set numbers now require digit-only atoms,
+  rejecting signed values such as `UID FETCH +7` and `FETCH +1` before command
+  execution.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

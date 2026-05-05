@@ -169,6 +169,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+- IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
+  signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
