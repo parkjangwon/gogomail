@@ -103,6 +103,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive has first authenticated Mail API routes for node list, folder create,
   trash, restore, and permanent delete, with OpenAPI response envelopes ready
   for future webmail integration.
+- Drive file metadata finalization is now exposed through Mail API, verifying
+  staged objects through shared storage before committing metadata and unified
+  quota usage.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

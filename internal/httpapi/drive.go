@@ -10,6 +10,7 @@ import (
 
 type DriveService interface {
 	CreateFolder(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error)
+	CreateFileFromObject(ctx context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error)
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
@@ -74,6 +75,43 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			UserID:   userID,
 			ParentID: req.ParentID,
 			Name:     req.Name,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
+	})
+
+	mux.HandleFunc("POST /api/v1/drive/files/finalize", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			ParentID       string `json:"parent_id"`
+			Name           string `json:"name"`
+			StorageBackend string `json:"storage_backend"`
+			StoragePath    string `json:"storage_path"`
+			MIMEType       string `json:"mime_type"`
+			ChecksumSHA256 string `json:"checksum_sha256"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		node, err := service.CreateFileFromObject(r.Context(), drive.CreateFileFromObjectRequest{
+			UserID:         userID,
+			ParentID:       req.ParentID,
+			Name:           req.Name,
+			StorageBackend: req.StorageBackend,
+			StoragePath:    req.StoragePath,
+			MIMEType:       req.MIMEType,
+			ChecksumSHA256: req.ChecksumSHA256,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())

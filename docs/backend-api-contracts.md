@@ -160,6 +160,10 @@ or development `user_id` fallback path as webmail mail routes:
   bounded `parent_id`, `status=active|trashed|deleted`, and `limit` filters.
 - `POST /api/v1/drive/folders` creates a folder from `{"parent_id","name"}`
   and returns `{"drive_node":{...}}`.
+- `POST /api/v1/drive/files/finalize` verifies an existing staged object,
+  creates file metadata, and increments the unified company/domain/user quota
+  ledger from `{"parent_id","name","storage_backend","storage_path",
+  "mime_type","checksum_sha256"}`.
 - `POST /api/v1/drive/nodes/{id}/trash` moves a node tree to trash and returns
   `{"drive_node":{...},"updated":N}`.
 - `POST /api/v1/drive/nodes/{id}/restore` restores a restorable trashed node
@@ -168,8 +172,8 @@ or development `user_id` fallback path as webmail mail routes:
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.
 
-Drive upload/finalize routes are intentionally separate future contracts so the
-staged object path layout, checksum behavior, quota reservation, and frontend
+Drive direct upload/session routes are intentionally separate future contracts
+so staged object creation, checksum behavior, quota reservation, and frontend
 upload ergonomics can be documented precisely before exposure.
 
 `GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap

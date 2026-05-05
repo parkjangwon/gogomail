@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive HTTP API contract)
+Last updated: 2026-05-06 (updated after Drive file finalize API)
 
 ## Current phase
 
@@ -289,6 +289,10 @@ guidance.
   permanent delete. The routes use the existing user auth/fallback path,
   shared Drive repository/service boundaries, and OpenAPI-documented response
   envelopes without starting frontend implementation.
+- Mail API also exposes `POST /api/v1/drive/files/finalize`, letting a
+  previously staged object become quota-accounted Drive file metadata through
+  the shared storage `Stat` contract and Drive file-finalize repository
+  boundary.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

@@ -60,6 +60,33 @@ func TestDriveCreateFolderHandler(t *testing.T) {
 	}
 }
 
+func TestDriveFinalizeFileHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{file: drive.Node{ID: "file-1", Name: "report.pdf", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{
+		"parent_id":"parent-1",
+		"name":"report.pdf",
+		"storage_backend":"s3",
+		"storage_path":"drive/users/user-1/staging/upload-1",
+		"mime_type":"application/pdf",
+		"checksum_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.fileReq.UserID != "user-1" || service.fileReq.ParentID != "parent-1" || service.fileReq.StorageBackend != "s3" || service.fileReq.StoragePath != "drive/users/user-1/staging/upload-1" {
+		t.Fatalf("file request = %+v, want finalize body/user", service.fileReq)
+	}
+}
+
 func TestDriveLifecycleHandlers(t *testing.T) {
 	t.Parallel()
 
@@ -138,6 +165,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "list unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&typo=true", nil)},
 		{name: "list duplicate parent", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=a&parent_id=b", nil)},
 		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
+		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
 		{name: "trash body rejected", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/trash?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "delete unsafe id", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/nodes/node%0A1?user_id=user-1", nil)},
 	}
@@ -162,9 +190,11 @@ type fakeDriveService struct {
 	nodes      []drive.Node
 	node       drive.Node
 	folder     drive.Node
+	file       drive.Node
 	err        error
 	listReq    drive.ListNodesRequest
 	createReq  drive.CreateFolderRequest
+	fileReq    drive.CreateFileFromObjectRequest
 	trashReq   drive.TrashNodeRequest
 	restoreReq drive.RestoreNodeRequest
 	deleteReq  drive.PermanentDeleteNodeRequest
@@ -184,6 +214,14 @@ func (f *fakeDriveService) ListNodes(_ context.Context, req drive.ListNodesReque
 		return nil, f.err
 	}
 	return f.nodes, nil
+}
+
+func (f *fakeDriveService) CreateFileFromObject(_ context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error) {
+	f.fileReq = req
+	if f.err != nil {
+		return drive.Node{}, f.err
+	}
+	return f.file, nil
 }
 
 func (f *fakeDriveService) TrashNode(_ context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error) {
