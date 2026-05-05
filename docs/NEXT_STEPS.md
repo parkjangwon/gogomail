@@ -366,6 +366,10 @@ Current state:
 - `FETCH`/`UID FETCH` can now return RFC 3501-shaped `BODY[n.HEADER]` and
   `BODY[n.TEXT]` literals for `message/rfc822` parts, including
   forwarded-message attachments inside multipart messages.
+- `FETCH`/`UID FETCH` can now return `BODY[n.HEADER.FIELDS (...)]` and
+  `BODY[n.HEADER.FIELDS.NOT (...)]` subsets for `message/rfc822` parts, so
+  clients can preview forwarded-message headers without fetching whole nested
+  headers.
 - Combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the raw
   message for MIME metadata while preserving the original reader for literal
   streaming, so common preview/header fetch batches keep rich structure
@@ -549,7 +553,8 @@ Current state:
 Next:
 
 - Extend MIME literal fetches with malformed `message/rfc822`, nested
-  `message/rfc822` multipart, and broader client fixture coverage.
+  `message/rfc822` multipart body-part numbering, and broader client fixture
+  coverage.
 
 Frontend note:
 

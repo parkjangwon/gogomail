@@ -5884,6 +5884,31 @@ func TestServerHandlesMessageRFC822SectionFetch(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("nested message text completion = %q err = %v", line, err)
 	}
+	if _, err := client.Write([]byte("a5 UID FETCH 13 BODY.PEEK[1.HEADER.FIELDS (SUBJECT)]\r\n")); err != nil {
+		t.Fatalf("write uid fetch nested message header fields: %v", err)
+	}
+	headerFields := "Subject: Nested\r\n\r\n"
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read nested message header fields literal header: %v", err)
+	}
+	wantPrefix = fmt.Sprintf("* 7 FETCH (UID 13 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.HEADER.FIELDS (SUBJECT)] {%d}\r\n", bodySize, len(headerFields))
+	if line != wantPrefix {
+		t.Fatalf("nested message header fields literal header = %q, want %q", line, wantPrefix)
+	}
+	fieldsLiteral := make([]byte, len(headerFields))
+	if _, err := io.ReadFull(reader, fieldsLiteral); err != nil {
+		t.Fatalf("read nested message header fields literal: %v", err)
+	}
+	if string(fieldsLiteral) != headerFields {
+		t.Fatalf("nested message header fields literal = %q, want %q", fieldsLiteral, headerFields)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("nested message header fields close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
+		t.Fatalf("nested message header fields completion = %q err = %v", line, err)
+	}
 }
 
 func TestServerHandlesMultipartMessageRFC822SectionFetch(t *testing.T) {
@@ -5940,6 +5965,31 @@ func TestServerHandlesMultipartMessageRFC822SectionFetch(t *testing.T) {
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
 		t.Fatalf("attached message header completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 UID FETCH 14 BODY.PEEK[2.HEADER.FIELDS.NOT (FROM)]\r\n")); err != nil {
+		t.Fatalf("write uid fetch attached message excluded header fields: %v", err)
+	}
+	headerFieldsNot := "Subject: Attached\r\n\r\n"
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read attached message excluded header fields literal header: %v", err)
+	}
+	wantPrefix = fmt.Sprintf("* 8 FETCH (UID 14 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[2.HEADER.FIELDS.NOT (FROM)] {%d}\r\n", bodySize, len(headerFieldsNot))
+	if line != wantPrefix {
+		t.Fatalf("attached message excluded header fields literal header = %q, want %q", line, wantPrefix)
+	}
+	fieldsLiteral := make([]byte, len(headerFieldsNot))
+	if _, err := io.ReadFull(reader, fieldsLiteral); err != nil {
+		t.Fatalf("read attached message excluded header fields literal: %v", err)
+	}
+	if string(fieldsLiteral) != headerFieldsNot {
+		t.Fatalf("attached message excluded header fields literal = %q, want %q", fieldsLiteral, headerFieldsNot)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("attached message excluded header fields close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("attached message excluded header fields completion = %q err = %v", line, err)
 	}
 }
 
