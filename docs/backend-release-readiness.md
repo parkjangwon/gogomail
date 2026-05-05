@@ -286,6 +286,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar object `GET` and `HEAD` now fail stale `If-Match`
   preconditions before `If-None-Match` cache revalidation, and object `DELETE`
   now uses shared strong ETag list matching for conditional deletes.
+- CalDAV calendar object `DELETE` now treats `If-Match: *` as an
+  existing-resource precondition and returns HTTP 412 when the target `.ics`
+  resource is missing.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

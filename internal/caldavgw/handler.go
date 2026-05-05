@@ -332,7 +332,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
-	if ifMatch != "" && ifMatch != "*" {
+	if ifMatch != "" {
 		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
 		if err != nil {
 			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
