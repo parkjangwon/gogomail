@@ -289,7 +289,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
   region, bucket, prefix, credential, and session-token settings. S3 request
   paths preserve literal `+` characters as `%2B` so object identity and SigV4
-  canonical paths do not drift for plus-bearing mail object keys. Bucket names
+  canonical paths do not drift for plus-bearing mail object keys. Endpoint base
+  paths reject encoded path separators such as `%2F` and `%5C`; bucket names
   must start and end with a letter or digit, matching AWS S3 naming rules before
   adapter construction. Seekable PUT
   bodies also get deterministic `Content-Length` values without object

@@ -64,8 +64,9 @@ of surfacing later as opaque S3 authentication failures.
 
 Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Endpoints
 must be plain HTTP(S) origins with an optional canonical base path; userinfo,
-query strings, fragments, duplicate separators, and dot segments are rejected
-so SigV4 signing and object addressing stay unambiguous. Set
+query strings, fragments, duplicate separators, dot segments, and encoded path
+separators such as `%2F` or `%5C` are rejected so SigV4 signing and object
+addressing stay unambiguous. Set
 `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider or local network
 does not support virtual-hosted bucket names. HTTPS endpoints automatically use
 path-style requests for bucket names that contain periods, matching AWS's

@@ -1544,6 +1544,9 @@ Implementation order:
 914. S3-compatible bucket validation now requires bucket names to start and end
      with a letter or digit, rejecting dot-edge names such as `.gogomail` and
      `gogomail.` before adapter construction.
+915. S3-compatible endpoint base paths now reject encoded path separators such
+     as `%2F` and `%5C`, preventing ambiguous SigV4 canonical paths and object
+     addressing before adapter construction.
 
 ## Deferred until backend contracts stabilize
 

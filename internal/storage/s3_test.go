@@ -350,6 +350,8 @@ func TestValidateS3EndpointRejectsAmbiguousTargets(t *testing.T) {
 		"http://localhost:9000/proxy//s3",
 		"http://localhost:9000/proxy/../s3",
 		"http://localhost:9000/proxy/./s3",
+		"http://localhost:9000/proxy%2Fs3",
+		"http://localhost:9000/proxy%5Cs3",
 		"http://localhost:9000\nx",
 	} {
 		endpoint := endpoint

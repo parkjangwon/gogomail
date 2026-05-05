@@ -181,8 +181,9 @@ Current state:
   and MinIO-style deployment failures early and explicit.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
-  storage adapter construction, keeping SigV4 signing and object addressing
-  deterministic.
+  storage adapter construction. Endpoint base paths also reject encoded path
+  separators such as `%2F` and `%5C`, keeping SigV4 signing and object
+  addressing deterministic.
 - S3-compatible request construction automatically switches dotted bucket names
   on HTTPS endpoints to path-style addressing, avoiding AWS S3 virtual-hosted
   TLS wildcard certificate mismatches without changing ordinary bucket defaults.
