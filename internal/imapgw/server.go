@@ -236,6 +236,7 @@ type imapConnState struct {
 	selectedMailbox  MailboxID
 	selectedMessages uint32
 	readOnly         bool
+	condstoreAware   bool
 	pendingAuthTag   string
 	pendingIdleTag   string
 	startTLS         bool
@@ -453,6 +454,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD STATUS item is unsupported\r\n")
 			return false, err
+		}
+		if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
+			state.condstoreAware = true
 		}
 		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
 		if err != nil {
@@ -832,7 +836,14 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		if !ok {
 			return fmt.Errorf("imap event sequence number is unavailable")
 		}
-		_, err = writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", sequenceNumber, message.Summary.UID, imapFlagList(message.Summary.Flags.IMAPFlags())))
+		attributes := []string{
+			fmt.Sprintf("UID %d", message.Summary.UID),
+			"FLAGS " + imapFlagList(message.Summary.Flags.IMAPFlags()),
+		}
+		if state.condstoreAware {
+			attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", message.Summary.ModSeq))
+		}
+		_, err = writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(attributes, " ")))
 		return err
 	default:
 		return nil
@@ -966,6 +977,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		return false, writeErr
 	}
 	requestsModSeq := imapSearchRequestsModSeq(criteria)
+	if requestsModSeq {
+		state.condstoreAware = true
+	}
 	results, highestModSeq, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode, requestsModSeq)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
@@ -2104,6 +2118,9 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	requestsModSeq := requestsChangedSince || imapFetchRequestsModSeq(items)
+	if requestsModSeq {
+		state.condstoreAware = true
+	}
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
 	for _, uid := range uids {
@@ -3451,7 +3468,14 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 			_, err := writer.WriteString(tag + " NO " + completionCommand + " sequence number is unavailable\r\n")
 			return false, err
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()))); err != nil {
+		attributes := []string{
+			fmt.Sprintf("UID %d", summary.UID),
+			"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
+		}
+		if state.condstoreAware {
+			attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", summary.ModSeq))
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(attributes, " "))); err != nil {
 			return false, err
 		}
 	}
@@ -3579,6 +3603,15 @@ func imapStatusItems(items []string) ([]string, bool) {
 		}
 	}
 	return out, len(out) > 0
+}
+
+func imapStatusRequestsItem(items []string, want string) bool {
+	for _, item := range items {
+		if strings.EqualFold(item, want) {
+			return true
+		}
+	}
+	return false
 }
 
 func imapStatusData(mailbox Mailbox, items []string) string {

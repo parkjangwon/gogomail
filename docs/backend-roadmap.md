@@ -1127,6 +1127,9 @@ Implementation order:
 797. IMAP `FETCH` and `UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
      modifiers, returning only messages with greater per-message mod-sequences
      and implicitly including `MODSEQ` response attributes.
+798. IMAP sessions now become CONDSTORE-aware after implemented mod-sequence
+     enabling commands, so subsequent flag `FETCH` event/STORE echo responses
+     include `MODSEQ` attributes for client cache coherence.
 
 ## Deferred until backend contracts stabilize
 

@@ -354,6 +354,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` now support RFC 4551-shaped `CHANGEDSINCE`
   modifiers, filtering responses to messages with greater per-message
   mod-sequences and implicitly returning `MODSEQ` attributes.
+- IMAP sessions now become CONDSTORE-aware after implemented mod-sequence
+  enabling commands, causing subsequent flag `FETCH` event/STORE echo
+  responses to include `MODSEQ` attributes.
 - IMAP `FETCH`/`UID FETCH` now return a conservative single-part
   `BODYSTRUCTURE` response for clients that require structure metadata before
   fetching message bodies.
