@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type ServerOptions struct {
@@ -495,6 +496,8 @@ func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnStat
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
 	requestsBody := imapFetchRequestsBody(items)
+	requestsEnvelope := imapFetchRequestsEnvelope(items)
+	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	for _, uid := range uids {
 		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
 			UserID:    state.session.UserID,
@@ -525,7 +528,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
 			}
-			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d BODY[] {%d}\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size, summary.Size)); err != nil {
+			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate)
+			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), summary.Size)); err != nil {
 				_ = body.Close()
 				return false, err
 			}
@@ -544,7 +548,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if message.Body != nil {
 			_ = message.Body.Close()
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s RFC822.SIZE %d)\r\n", sequenceNumber, summary.UID, imapFlagList(summary.Flags.IMAPFlags()), summary.Size)); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate), " "))); err != nil {
 			return false, err
 		}
 	}
@@ -682,6 +686,97 @@ func imapFetchRequestsBody(items []string) bool {
 		}
 	}
 	return false
+}
+
+func imapFetchRequestsEnvelope(items []string) bool {
+	return imapFetchRequestsToken(items, "ENVELOPE")
+}
+
+func imapFetchRequestsInternalDate(items []string) bool {
+	return imapFetchRequestsToken(items, "INTERNALDATE")
+}
+
+func imapFetchRequestsToken(items []string, want string) bool {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			if token == want {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeInternalDate bool) []string {
+	attributes := []string{
+		fmt.Sprintf("UID %d", summary.UID),
+		"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
+		fmt.Sprintf("RFC822.SIZE %d", summary.Size),
+	}
+	if includeInternalDate {
+		attributes = append(attributes, "INTERNALDATE "+imapQuotedString(imapInternalDate(summary.InternalDate)))
+	}
+	if includeEnvelope {
+		attributes = append(attributes, "ENVELOPE "+imapEnvelope(summary))
+	}
+	return attributes
+}
+
+func imapInternalDate(value time.Time) string {
+	if value.IsZero() {
+		value = time.Unix(0, 0).UTC()
+	}
+	return value.Format("02-Jan-2006 15:04:05 -0700")
+}
+
+func imapEnvelope(summary MessageSummary) string {
+	envelope := summary.Envelope
+	date := envelope.Date
+	if date.IsZero() {
+		date = summary.InternalDate
+	}
+	return "(" + strings.Join([]string{
+		imapNString(imapEnvelopeDate(date)),
+		imapNString(envelope.Subject),
+		imapAddressList(envelope.From),
+		imapAddressList(envelope.From),
+		imapAddressList(envelope.From),
+		imapAddressList(envelope.To),
+		imapAddressList(envelope.Cc),
+		imapAddressList(envelope.Bcc),
+		"NIL",
+		imapNString(envelope.MessageID),
+	}, " ") + ")"
+}
+
+func imapEnvelopeDate(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Format(time.RFC1123Z)
+}
+
+func imapAddressList(addresses []Address) string {
+	if len(addresses) == 0 {
+		return "NIL"
+	}
+	parts := make([]string, 0, len(addresses))
+	for _, address := range addresses {
+		parts = append(parts, "("+strings.Join([]string{
+			imapNString(address.Name),
+			"NIL",
+			imapNString(address.Mailbox),
+			imapNString(address.Host),
+		}, " ")+")")
+	}
+	return "(" + strings.Join(parts, " ") + ")"
+}
+
+func imapNString(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "NIL"
+	}
+	return imapQuotedString(value)
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
