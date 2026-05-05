@@ -195,6 +195,36 @@ func TestS3StoreCheckBoundsReadinessBody(t *testing.T) {
 	}
 }
 
+func TestDrainAndCloseS3BodyIsBounded(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader(strings.Repeat("x", maxS3ResponseDrainBytes+128))}
+	drainAndCloseS3Body(body)
+	if !body.closed {
+		t.Fatal("drainAndCloseS3Body did not close body")
+	}
+	if body.readBytes != maxS3ResponseDrainBytes {
+		t.Fatalf("drained bytes = %d, want %d", body.readBytes, maxS3ResponseDrainBytes)
+	}
+}
+
+type trackingReadCloser struct {
+	reader    *strings.Reader
+	readBytes int
+	closed    bool
+}
+
+func (r *trackingReadCloser) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.readBytes += n
+	return n, err
+}
+
+func (r *trackingReadCloser) Close() error {
+	r.closed = true
+	return nil
+}
+
 type failingRoundTripper struct {
 	t *testing.T
 }

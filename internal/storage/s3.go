@@ -102,7 +102,7 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 	if err != nil {
 		return fmt.Errorf("put s3 object: %w", err)
 	}
-	defer resp.Body.Close()
+	defer drainAndCloseS3Body(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return s3StatusError("put", resp)
 	}
@@ -120,7 +120,7 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		err := s3StatusError("get", resp)
-		_ = resp.Body.Close()
+		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
 	return resp.Body, nil
@@ -135,7 +135,7 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	if err != nil {
 		return fmt.Errorf("delete s3 object: %w", err)
 	}
-	defer resp.Body.Close()
+	defer drainAndCloseS3Body(resp.Body)
 	if resp.StatusCode == http.StatusNotFound {
 		return nil
 	}
@@ -493,6 +493,16 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 		return r
 	}, text)
 	return strings.Join(strings.Fields(text), " ")
+}
+
+const maxS3ResponseDrainBytes = 4096
+
+func drainAndCloseS3Body(body io.ReadCloser) {
+	if body == nil {
+		return
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(body, maxS3ResponseDrainBytes))
+	_ = body.Close()
 }
 
 var _ Store = (*S3Store)(nil)
