@@ -196,18 +196,38 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
-	logger.Info(
-		"imap gateway scaffold ready",
-		"mode", ModeIMAP,
-		"addr", serverOptions.Addr,
-		"tls_configured", serverOptions.TLSConfig != nil,
-		"allow_insecure_auth", serverOptions.AllowInsecureAuth,
-		"mailbox_event_broker", runtime.events != nil,
-		"backend_adapter", "service",
-		"protocol_server", server != nil,
-		"protocol_listener", "deferred",
-	)
-	return waitForShutdown(ctx, logger, ModeIMAP)
+	listener, err := net.Listen("tcp", serverOptions.Addr)
+	if err != nil {
+		return err
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info(
+			"imap server listening",
+			"mode", ModeIMAP,
+			"addr", listener.Addr().String(),
+			"tls_configured", serverOptions.TLSConfig != nil,
+			"allow_insecure_auth", serverOptions.AllowInsecureAuth,
+			"mailbox_event_broker", runtime.events != nil,
+			"backend_adapter", "service",
+		)
+		errCh <- server.Serve(listener)
+	}()
+
+	select {
+	case <-ctx.Done():
+		_ = listener.Close()
+		err := <-errCh
+		if errors.Is(err, imapgw.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case err := <-errCh:
+		if errors.Is(err, imapgw.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
 }
 
 func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

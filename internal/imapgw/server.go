@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 )
 
 type ServerOptions struct {
@@ -18,7 +19,9 @@ type ServerOptions struct {
 }
 
 type Server struct {
-	options ServerOptions
+	options  ServerOptions
+	mu       sync.Mutex
+	listener net.Listener
 }
 
 var ErrServerClosed = errors.New("imap server closed")
@@ -70,6 +73,41 @@ func (s *Server) Serve(listener net.Listener) error {
 			_ = s.ServeConn(conn)
 		}()
 	}
+}
+
+func (s *Server) ListenAndServe() error {
+	if s == nil {
+		return fmt.Errorf("imap server is nil")
+	}
+	listener, err := net.Listen("tcp", s.options.Addr)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.listener = listener
+	s.mu.Unlock()
+	defer func() {
+		_ = listener.Close()
+		s.mu.Lock()
+		if s.listener == listener {
+			s.listener = nil
+		}
+		s.mu.Unlock()
+	}()
+	return s.Serve(listener)
+}
+
+func (s *Server) Close() error {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	listener := s.listener
+	s.mu.Unlock()
+	if listener == nil {
+		return nil
+	}
+	return listener.Close()
 }
 
 func (s *Server) ServeConn(conn net.Conn) error {

@@ -797,9 +797,9 @@ Implementation order:
      unauthenticated `CAPABILITY`, `NOOP`, and `LOGOUT` responses, giving TCP
      clients a bounded RFC-shaped handshake surface before mailbox commands are
      enabled.
-691. `gogomail --mode=imap` now constructs the `imapgw.Server` shell from
-     runtime options while still deferring `Listen`/`Serve` until command
-     handling is wired.
+691. `gogomail --mode=imap` now opens the configured TCP listener and serves the
+     IMAP server shell with greeting, `CAPABILITY`, `NOOP`, and `LOGOUT`, while
+     mailbox commands remain deferred.
 
 ## Deferred until backend contracts stabilize
 
