@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP COPY/MOVE EXISTS count handling)
+Last updated: 2026-05-05 (updated after IMAP expunge event SEARCHRES handling)
 
 ## Current phase
 
@@ -1091,6 +1091,10 @@ The platform hardening sprint completed the following:
   backend-returned destination message sequence numbers for untagged `EXISTS`
   counts, falling back to local increments only when precise metadata is
   unavailable.
+- IMAP selected-mailbox `EXPUNGE` events delivered through `NOOP` or `IDLE`
+  now adjust saved SEARCHRES `$` sequence numbers the same way explicit
+  `EXPUNGE` commands do, keeping subsequent `$` sequence-set reuse aligned with
+  the client-visible mailbox state.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

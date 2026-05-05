@@ -539,6 +539,9 @@ Current state:
   backend-returned destination message sequence numbers for untagged `EXISTS`
   counts, falling back to local increments only when precise metadata is
   unavailable.
+- Selected-mailbox `EXPUNGE` events delivered through `NOOP` or `IDLE` now
+  adjust saved SEARCHRES `$` sequence numbers the same way explicit `EXPUNGE`
+  commands do, keeping subsequent `$` reuse aligned with visible mailbox state.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder

@@ -1285,6 +1285,10 @@ Implementation order:
      backend-returned destination message sequence numbers for untagged
      `EXISTS` counts, falling back to local increments only when precise
      metadata is unavailable.
+842. IMAP selected-mailbox `EXPUNGE` events delivered through `NOOP` or `IDLE`
+     now adjust saved SEARCHRES `$` sequence numbers the same way explicit
+     `EXPUNGE` commands do, keeping subsequent `$` reuse aligned with visible
+     mailbox state.
 
 ## Deferred until backend contracts stabilize
 

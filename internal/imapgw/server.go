@@ -1002,6 +1002,7 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		if state.selectedMessages > 0 {
 			state.selectedMessages--
 		}
+		state.removeExpungedFromSavedSearch([]MessageSummary{{SequenceNumber: sequenceNumber}})
 		_, err := writer.WriteString(fmt.Sprintf("* %d EXPUNGE\r\n", sequenceNumber))
 		return err
 	case MailboxEventFlags:
