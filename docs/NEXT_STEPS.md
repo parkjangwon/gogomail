@@ -632,8 +632,8 @@ Current state:
 - IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication, so
   post-login clients see capabilities for the selected protocol state.
 - IMAP `AUTHENTICATE PLAIN` now accepts the standard continuation response,
-  decodes SASL PLAIN credentials, supports cancellation, and maps successful
-  authentication into the same protocol session as `LOGIN`.
+  decodes SASL PLAIN credentials, returns tagged `BAD` for RFC cancellation,
+  and maps successful authentication into the same protocol session as `LOGIN`.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses now use message

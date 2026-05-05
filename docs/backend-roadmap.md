@@ -1962,6 +1962,9 @@ Implementation order:
       `insufficient_storage` for upload-session finalization, staged-object
       finalization, and file copy, giving webmail clients a distinct storage
       pressure signal instead of a generic bad request.
+1024. IMAP `AUTHENTICATE PLAIN` cancellation now returns the RFC 3501 tagged
+      `BAD` completion while leaving the unauthenticated session usable for
+      follow-up commands.
 
 ## Deferred until backend contracts stabilize
 

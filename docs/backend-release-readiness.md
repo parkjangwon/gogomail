@@ -674,8 +674,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication,
   aligning the first command surface with RFC client state expectations.
 - IMAP `AUTHENTICATE PLAIN` now supports the standard continuation response and
-  SASL PLAIN credential decoding, so the advertised `AUTH=PLAIN` mechanism has
-  a real protocol implementation.
+  SASL PLAIN credential decoding, and RFC-shaped tagged `BAD` cancellation, so
+  the advertised `AUTH=PLAIN` mechanism has a real protocol implementation.
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
   round trips.
