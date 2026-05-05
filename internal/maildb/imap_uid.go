@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/mail"
@@ -17,6 +18,8 @@ import (
 
 type IMAPUIDState = imapgw.UIDState
 type IMAPMessageUID = imapgw.MessageUID
+
+var ErrIMAPMessageNotActive = errors.New("imap message is not active in mailbox")
 
 const maxIMAPUIDBackfillAuditSample = 10
 
@@ -983,9 +986,20 @@ bumped AS (
 )
 SELECT uid, modseq FROM inserted
 UNION ALL
-SELECT uid, modseq FROM imap_message_uid WHERE message_id = $1::uuid
+SELECT i.uid, i.modseq
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.message_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND i.user_id = $3::uuid
+  AND m.folder_id = $2::uuid
+  AND m.user_id = $3::uuid
+  AND m.status = 'active'
 LIMIT 1`
 	if err := tx.QueryRowContext(ctx, assign, messageID, mailboxID, userID).Scan(&uid, &modseq); err != nil {
+		if err == sql.ErrNoRows {
+			return IMAPMessageUID{}, fmt.Errorf("ensure imap message uid for message %q in mailbox %q: %w", messageID, mailboxID, ErrIMAPMessageNotActive)
+		}
 		return IMAPMessageUID{}, fmt.Errorf("ensure imap message uid: %w", err)
 	}
 

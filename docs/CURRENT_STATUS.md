@@ -644,7 +644,9 @@ The platform hardening sprint completed the following:
   IMAP UIDs in bounded batches before any live IMAP listener is enabled.
 - The shared `event-worker` now consumes committed `mail.stored` events through
   an IMAP UID handler that ensures newly received active messages get
-  mailbox-local UIDs asynchronously after SMTP storage commits.
+  mailbox-local UIDs asynchronously after SMTP storage commits. Stale
+  `mail.stored` events for messages that were moved or deleted before UID
+  assignment are treated as no-ops instead of retrying forever.
 - IMAP UID assignment event decoding rejects CR/LF-bearing or oversized
   message, user, and folder IDs before UID work or mailbox event fan-out.
 - Push notification `mail.stored` event decoding rejects CR/LF-bearing or
@@ -675,7 +677,9 @@ The platform hardening sprint completed the following:
 - Redis duplicate-message detection uses fixed-length hashed dedup keys so raw
   message IDs or recipient addresses cannot create oversized Redis keys.
 - Mail API move/delete operations invalidate stale IMAP UID rows in the same
-  transaction, keeping mailbox-local UID state from leaking across folders.
+  transaction, and IMAP UID idempotency checks require the same active
+  user/mailbox before reusing an existing UID, keeping mailbox-local UID state
+  from leaking across folders.
 - Optional PostgreSQL integration coverage now exercises IMAP UID backfill and
   move invalidation when `GOGOMAIL_TEST_DATABASE_URL` is available.
 - `internal/imapgw` has a small in-memory mailbox event broker for future IDLE

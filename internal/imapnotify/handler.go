@@ -3,6 +3,7 @@ package imapnotify
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -49,6 +50,9 @@ func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Mes
 	}
 	uid, err := h.uidEnsurer.EnsureIMAPMessageUID(ctx, event.UserID, event.FolderID, event.MessageID)
 	if err != nil {
+		if errors.Is(err, maildb.ErrIMAPMessageNotActive) {
+			return nil
+		}
 		return fmt.Errorf("ensure imap uid for stored message %q: %w", event.MessageID, err)
 	}
 	if h.events != nil {

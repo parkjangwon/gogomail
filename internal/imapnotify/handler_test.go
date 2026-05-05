@@ -3,6 +3,7 @@ package imapnotify
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -56,6 +57,44 @@ func TestMailStoredHandlerPublishesExistsAfterUIDAssignment(t *testing.T) {
 	}
 }
 
+func TestMailStoredHandlerIgnoresInactiveMessageUIDAssignment(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{err: maildb.ErrIMAPMessageNotActive}
+	events := &fakeMailboxEventPublisher{}
+	handler := NewMailStoredHandler(ensurer).WithMailboxEvents(events)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(events.events) != 0 {
+		t.Fatalf("events = %+v, want no EXISTS event for inactive message", events.events)
+	}
+}
+
+func TestMailStoredHandlerReturnsUIDAssignmentError(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{err: errors.New("database offline")}
+	handler := NewMailStoredHandler(ensurer)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err == nil || !strings.Contains(err.Error(), "ensure imap uid") {
+		t.Fatalf("HandleEvent error = %v, want retryable uid assignment error", err)
+	}
+}
+
 func TestDecodeMailStoredEventRejectsUnsupportedSchema(t *testing.T) {
 	t.Parallel()
 
@@ -104,12 +143,16 @@ type fakeUIDEnsurer struct {
 	userID    string
 	mailboxID string
 	messageID string
+	err       error
 }
 
 func (f *fakeUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string, mailboxID string, messageID string) (maildb.IMAPMessageUID, error) {
 	f.userID = userID
 	f.mailboxID = mailboxID
 	f.messageID = messageID
+	if f.err != nil {
+		return maildb.IMAPMessageUID{}, f.err
+	}
 	return maildb.IMAPMessageUID{
 		MessageID: imapgw.MessageID(messageID),
 		MailboxID: imapgw.MailboxID(mailboxID),

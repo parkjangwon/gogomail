@@ -197,7 +197,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   dispatch.
 - Search relevance has backend-specific regression coverage for Postgres weighted `tsvector` ranking and OpenSearch field boosts, keeping subject/sender matches ahead of indexed body matches while preserving date-sorted defaults.
 - IMAP has a backend gateway boundary package with native DTOs/interfaces, mailbox state helpers, and RFC-shaped flag mapping; no protocol server is in release scope yet.
-- IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows and message UID/MODSEQ rows, with transactional assignment helpers, first mailbox/message list adapters, raw body fetch groundwork, MODSEQ-aware flag mutation, bounded UID backfill, and move/delete UID invalidation; no protocol server is in release scope yet.
+- IMAP UID storage has durable mailbox UIDVALIDITY/UIDNEXT/highest-MODSEQ rows and message UID/MODSEQ rows, with transactional assignment helpers, first mailbox/message list adapters, raw body fetch groundwork, MODSEQ-aware flag mutation, bounded UID backfill, move/delete UID invalidation, and same-active-mailbox idempotency checks; no protocol server is in release scope yet.
 - `mailservice` now exposes IMAP mailbox/message listing, raw fetch, flag store,
   UID backfill, and mailbox-event subscription through service methods plus an
   `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping future protocol wiring
@@ -215,7 +215,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event
   decoding rejects CR/LF-bearing or oversized message/user/folder IDs before
-  UID work or mailbox event fan-out.
+  UID work or mailbox event fan-out, and stale moved/deleted-message events are
+  no-ops instead of permanent retries.
 - Redis-backed event/search/API-metering/push/delivery workers reclaim idle
   pending stream messages with configurable claim-idle windows so crashed
   consumers do not strand at-least-once work indefinitely.
