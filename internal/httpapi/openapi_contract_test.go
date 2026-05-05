@@ -277,6 +277,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /drive/nodes/{id}":                                      "#/components/responses/DriveNode",
 		"POST /drive/folders":                                        "#/components/responses/DriveNode",
 		"POST /drive/upload-sessions":                                "#/components/responses/DriveUploadSession",
+		"GET /drive/upload-sessions/{id}":                            "#/components/responses/DriveUploadSession",
 		"POST /drive/files/finalize":                                 "#/components/responses/DriveNode",
 		"PUT /drive/files/staged/{upload_id}/body":                   "#/components/responses/DriveStagedObject",
 		"DELETE /drive/nodes/{id}":                                   "#/components/responses/DriveDelete",

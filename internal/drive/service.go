@@ -104,6 +104,13 @@ func (s *Service) CreateUploadSession(ctx context.Context, req CreateUploadSessi
 	return s.repo.CreateUploadSession(ctx, req)
 }
 
+func (s *Service) GetUploadSession(ctx context.Context, req GetUploadSessionRequest) (UploadSession, error) {
+	if s == nil || s.repo == nil {
+		return UploadSession{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.GetUploadSession(ctx, req)
+}
+
 func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
 	if s == nil || s.repo == nil {
 		return nil, fmt.Errorf("drive repository is required")

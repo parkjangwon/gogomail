@@ -24,3 +24,22 @@ func TestServiceCreateUploadSessionRequiresRepository(t *testing.T) {
 		t.Fatalf("CreateUploadSession err = %v, want repository rejection", err)
 	}
 }
+
+func TestGetUploadSessionRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	repo := NewRepository(nil)
+	_, err := repo.GetUploadSession(context.Background(), GetUploadSessionRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("GetUploadSession err = %v, want database handle rejection first", err)
+	}
+}
+
+func TestServiceGetUploadSessionRequiresRepository(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Service)(nil).GetUploadSession(context.Background(), GetUploadSessionRequest{})
+	if err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("GetUploadSession err = %v, want repository rejection", err)
+	}
+}
