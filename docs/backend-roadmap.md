@@ -951,6 +951,8 @@ Implementation order:
      deferred.
 746. IMAP `SELECT` and `EXAMINE` now emit RFC-shaped untagged `RECENT` counts
      alongside `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
+747. IMAP `FETCH` and `UID FETCH` now support conservative single-part text
+     literals for `BODY[1]` and `BODY.PEEK[1]`.
 
 ## Deferred until backend contracts stabilize
 

@@ -826,6 +826,8 @@ The platform hardening sprint completed the following:
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - IMAP `FETCH`/`UID FETCH` can stream text-only literals for `BODY[TEXT]`,
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
+- IMAP `FETCH`/`UID FETCH` can stream conservative single-part text literals
+  for `BODY[1]` and `BODY.PEEK[1]`.
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
 - IMAP non-UID `STORE` accepts bounded sequence sets/ranges and maps them to
   the same service-backed flag mutation boundary as `UID STORE`.

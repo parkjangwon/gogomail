@@ -1389,6 +1389,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	partial, requestsPartialBody := imapFetchPartialBody(items)
 	requestsHeader := imapFetchRequestsHeader(items)
 	requestsText := imapFetchRequestsText(items)
+	requestsPartText := imapFetchRequestsPartText(items)
 	headerFields, requestsHeaderFields := imapFetchHeaderFields(items)
 	headerFieldsNot, requestsHeaderFieldsNot := imapFetchHeaderFieldsNot(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
@@ -1414,7 +1415,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
 			return false, err
 		}
-		if requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText {
+		if requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText {
 			if message.Body == nil {
 				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
 				return false, err
@@ -1425,7 +1426,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
 			}
-			if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText {
+			if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText {
 				literal, err := readIMAPSectionLiteral(body, requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot)
 				if err != nil {
 					_ = body.Close()
@@ -1442,6 +1443,9 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyAttribute, requestsBodyStructure)
 				section := "TEXT"
+				if requestsPartText {
+					section = "1"
+				}
 				if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot {
 					section = "HEADER"
 				}
@@ -1794,6 +1798,16 @@ func imapFetchRequestsText(items []string) bool {
 	for _, item := range items {
 		token := strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
 		if token == "BODY[TEXT]" || token == "BODY.PEEK[TEXT]" || token == "RFC822.TEXT" {
+			return true
+		}
+	}
+	return false
+}
+
+func imapFetchRequestsPartText(items []string) bool {
+	for _, item := range items {
+		token := strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
+		if token == "BODY[1]" || token == "BODY.PEEK[1]" {
 			return true
 		}
 	}
