@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV MKCALENDAR path preflight)
+Last updated: 2026-05-06 (updated after CalDAV collection delete preconditions)
 
 ## Current phase
 
@@ -2249,6 +2249,10 @@ The platform hardening sprint completed the following:
   parsing the XML request body when no active collection already exists at that
   path, keeping the UUID-only creation contract cheap and predictable while
   preserving existing-collection 405 behavior.
+- CalDAV calendar collection `DELETE` now honors `If-Unmodified-Since` against
+  collection update time and treats `If-Match: *` as an existing-collection
+  guard before repository mutation; non-star collection ETag preconditions fail
+  closed until collection ETags are explicitly advertised.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

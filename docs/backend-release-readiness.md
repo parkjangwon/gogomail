@@ -320,6 +320,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading the
   XML request body when no active collection exists at that path, preserving
   the UUID-only creation contract without extra parse work.
+- CalDAV collection `DELETE` now evaluates `If-Unmodified-Since` and
+  `If-Match: *` before repository mutation, preventing stale native-client
+  collection deletes while failing closed for non-star collection ETag
+  preconditions until collection ETags are intentionally exposed.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

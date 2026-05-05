@@ -2204,6 +2204,11 @@ Implementation order:
       or parsing the XML body when no active collection already exists at that
       path, preserving the UUID-only creation contract while keeping invalid
       create attempts cheap.
+1080. CalDAV calendar collection `DELETE` now evaluates `If-Unmodified-Since`
+      and `If-Match: *` preconditions before deleting a collection and its
+      children, preventing stale native-client deletes while failing closed for
+      non-star collection ETag preconditions until collection ETags are
+      explicitly advertised.
 
 ## Deferred until backend contracts stabilize
 

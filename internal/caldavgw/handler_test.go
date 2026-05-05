@@ -1102,6 +1102,64 @@ func TestHandlerDeleteCalendarCollectionDeletesObjects(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteCalendarCollectionHonorsIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 1 {
+		t.Fatalf("calendars after rejected delete = %d, want 1", len(store.calendars))
+	}
+	if len(store.objects) != 1 {
+		t.Fatalf("objects after rejected delete = %d, want 1", len(store.objects))
+	}
+}
+
+func TestHandlerDeleteCalendarCollectionRejectsNonStarIfMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Set("If-Match", `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 1 {
+		t.Fatalf("calendars after rejected delete = %d, want 1", len(store.calendars))
+	}
+}
+
+func TestHandlerDeleteCalendarCollectionAcceptsIfMatchStar(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 0 {
+		t.Fatalf("calendars after delete = %+v", store.calendars)
+	}
+}
+
 func TestHandlerDeleteCalendarCollectionRejectsCrossUser(t *testing.T) {
 	t.Parallel()
 
