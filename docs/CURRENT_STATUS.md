@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive metadata boundary)
+Last updated: 2026-05-06 (updated after Drive folder repository boundary)
 
 ## Current phase
 
@@ -235,6 +235,10 @@ guidance.
   Drive object bytes remain behind the shared storage interface while metadata,
   folder trees, lifecycle state, and future quota enforcement stay in the
   database/service boundary.
+- Drive now has a first internal repository mutation for active user folder
+  creation, deriving company/domain scope from the user row, validating parent
+  folders before insertion, and applying Drive node-name/type/status validation
+  before future HTTP routes expose the module.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

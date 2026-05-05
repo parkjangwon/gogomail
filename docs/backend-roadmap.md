@@ -1752,6 +1752,11 @@ Implementation order:
      types, and lifecycle status. Drive bytes remain in the shared storage
      interface, while metadata, folder hierarchy, active sibling uniqueness,
      and trash/delete lifecycle live in the database/service boundary.
+969. Drive now has a first internal repository mutation for creating active
+     folder nodes, deriving company/domain scope from the active user row,
+     validating optional active parent folders, and relying on the
+     `drive_nodes` active sibling uniqueness constraint before Drive HTTP APIs
+     are exposed.
 
 ## Deferred until backend contracts stabilize
 

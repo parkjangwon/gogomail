@@ -314,14 +314,18 @@ Current state:
 - `internal/drive` validates Drive node names, types, and statuses before
   future repository/API code can persist path-bearing, control-character, or
   unsupported lifecycle values.
+- `internal/drive.Repository.CreateFolder` can create active folder nodes for
+  active users, derive company/domain scope from the user row, validate active
+  parent folders, and rely on the `drive_nodes` active sibling uniqueness
+  constraint before any Drive HTTP API is exposed.
 
 Next:
 
 - Extend the same ledger service to future Drive writes and large-attachment
   share-link objects.
-- Add the first Drive repository/service create-folder and file-finalize flows
-  against `drive_nodes`, using storage `Stat` and the hierarchical quota
-  ledger before exposing HTTP API routes.
+- Add Drive file-finalize and trash/delete flows against `drive_nodes`, using
+  storage `Stat`, `DeletePrefix`, and the hierarchical quota ledger before
+  exposing HTTP API routes.
 
 ### 2. Message threading and search
 
