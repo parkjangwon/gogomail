@@ -321,11 +321,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   XML request body when no active collection exists at that path, preserving
   the UUID-only creation contract without extra parse work.
 - CalDAV collection `DELETE` now evaluates `If-Unmodified-Since` and
-  `If-Match: *` before repository mutation, preventing stale native-client
-  collection deletes while failing closed for non-star collection ETag
-  preconditions until collection ETags are intentionally exposed.
+  strong collection `If-Match` values before repository mutation, preventing
+  stale native-client collection deletes while keeping `If-Match: *` as an
+  existing-collection guard.
 - CalDAV collection `PROPPATCH` now shares the same precondition gate,
-  preventing stale metadata edits and failing non-star collection ETag
+  preventing stale metadata edits and failing mismatched collection ETag
   conditions before XML request bodies are read or parsed.
 - CalDAV `REPORT` now validates malformed Depth values and rejects
   `Depth: infinity` before XML body reads, making unsupported traversal

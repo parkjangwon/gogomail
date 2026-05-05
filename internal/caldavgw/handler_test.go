@@ -1108,7 +1108,7 @@ func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	}
 }
 
-func TestHandlerProppatchRejectsNonStarIfMatchBeforeBodyRead(t *testing.T) {
+func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
@@ -1124,6 +1124,32 @@ func TestHandlerProppatchRejectsNonStarIfMatchBeforeBodyRead(t *testing.T) {
 	}
 	if body.reads != 0 {
 		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
+func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req.Header.Set("If-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `+etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Product" {
+		t.Fatalf("calendar name = %q, want Product", calendar.Name)
 	}
 }
 
@@ -1229,7 +1255,7 @@ func TestHandlerDeleteCalendarCollectionHonorsIfUnmodifiedSince(t *testing.T) {
 	}
 }
 
-func TestHandlerDeleteCalendarCollectionRejectsNonStarIfMatch(t *testing.T) {
+func TestHandlerDeleteCalendarCollectionRejectsMismatchedIfMatch(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
@@ -1244,6 +1270,28 @@ func TestHandlerDeleteCalendarCollectionRejectsNonStarIfMatch(t *testing.T) {
 	}
 	if len(store.calendars) != 1 {
 		t.Fatalf("calendars after rejected delete = %d, want 1", len(store.calendars))
+	}
+}
+
+func TestHandlerDeleteCalendarCollectionAcceptsMatchingIfMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Set("If-Match", etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 0 {
+		t.Fatalf("calendars after delete = %+v", store.calendars)
 	}
 }
 

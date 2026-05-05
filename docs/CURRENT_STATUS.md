@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV VFREEBUSY source support)
+Last updated: 2026-05-06 (updated after CalDAV collection ETag preconditions)
 
 ## Current phase
 
@@ -2257,12 +2257,12 @@ The platform hardening sprint completed the following:
   path, keeping the UUID-only creation contract cheap and predictable while
   preserving existing-collection 405 behavior.
 - CalDAV calendar collection `DELETE` now honors `If-Unmodified-Since` against
-  collection update time and treats `If-Match: *` as an existing-collection
-  guard before repository mutation; non-star collection ETag preconditions fail
-  closed until collection ETags are explicitly advertised.
+  collection update time and evaluates strong collection ETags derived from
+  collection sync state, including comma-listed `If-Match` values and
+  `If-Match: *`, before repository mutation.
 - CalDAV collection `PROPPATCH` now uses the same collection precondition gate,
-  rejecting stale `If-Unmodified-Since` and non-star `If-Match` requests before
-  reading XML bodies or updating calendar metadata.
+  rejecting stale `If-Unmodified-Since` and mismatched collection `If-Match`
+  requests before reading XML bodies or updating calendar metadata.
 - CalDAV `REPORT` now validates malformed and `Depth: infinity` headers before
   reading XML bodies, applying one shared Depth gate across calendar-query,
   calendar-multiget, sync-collection, and free-busy-query handling.
