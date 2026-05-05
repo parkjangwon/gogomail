@@ -3808,7 +3808,8 @@ func TestServerUIDStoreUnchangedSinceReturnsModified(t *testing.T) {
 	want := []string{
 		"* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (27))\r\n",
 		"a3 OK UID STORE completed\r\n",
-		"a4 NO [MODIFIED 8] UID STORE conditional store failed\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (27))\r\n",
+		"a4 OK [MODIFIED 8] UID STORE conditional store completed\r\n",
 		"a5 BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n",
 	}
 	for _, expected := range want {
@@ -4612,7 +4613,7 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-%d", uid)), UID: uid, SequenceNumber: uint32(uid - 6), Flags: MessageFlags{Read: req.Flags.Read, Starred: req.Flags.Starred, Answered: req.Flags.Answered, Draft: req.Flags.Draft, Deleted: req.Flags.Deleted}, ModSeq: modseq})
 	}
 	if len(modified) > 0 {
-		return nil, &StoreModifiedError{UIDs: modified}
+		return summaries, &StoreModifiedError{UIDs: modified, Summaries: summaries}
 	}
 	return summaries, nil
 }

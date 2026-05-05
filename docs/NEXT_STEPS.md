@@ -296,8 +296,8 @@ Current state:
   `FETCH CHANGEDSINCE`, `SEARCH MODSEQ`, or `STATUS HIGHESTMODSEQ`; subsequent
   flag `FETCH` event/STORE echo responses include `MODSEQ`.
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
-  modifiers with transactional per-message mod-sequence checks and
-  `[MODIFIED uid-set]` stale-write responses.
+  modifiers with transactional per-message mod-sequence checks, partial
+  success for passing messages, and `[MODIFIED uid-set]` stale-write responses.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,

@@ -572,6 +572,11 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	mailboxID := strings.TrimSpace(string(req.MailboxID))
 	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince)
 	if err != nil {
+		var modified *imapgw.StoreModifiedError
+		if errors.As(err, &modified) {
+			_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries)
+			return summaries, err
+		}
 		return nil, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries)

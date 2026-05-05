@@ -1132,8 +1132,8 @@ Implementation order:
      include `MODSEQ` attributes for client cache coherence.
 799. IMAP `STORE` and `UID STORE` now support RFC 4551-shaped
      `(UNCHANGEDSINCE n)` modifiers with transactional per-message mod-sequence
-     checks and `[MODIFIED uid-set]` responses when a stale flag write is
-     rejected.
+     checks, partial success for passing messages, and `[MODIFIED uid-set]`
+     responses for stale flag writes.
 
 ## Deferred until backend contracts stabilize
 

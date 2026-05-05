@@ -845,8 +845,8 @@ The platform hardening sprint completed the following:
   `FETCH CHANGEDSINCE`, `SEARCH MODSEQ`, or `STATUS HIGHESTMODSEQ`, and
   subsequent flag `FETCH` event/STORE echo responses include `MODSEQ`.
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
-  modifiers with transactional per-message mod-sequence checks, returning
-  `[MODIFIED uid-set]` without applying partial flag changes when stale.
+  modifiers with transactional per-message mod-sequence checks, applying
+  passing updates and returning `[MODIFIED uid-set]` for stale messages.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
