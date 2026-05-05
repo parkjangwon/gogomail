@@ -543,6 +543,62 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 5; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS RFC822.SIZE)\r\n")); err != nil {
+		t.Fatalf("write uid fetch set: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch set response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch set response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -572,7 +628,7 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID FETCH 7 BODY[]\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID FETCH 7 BODY.PEEK[]\r\n")); err != nil {
 		t.Fatalf("write uid fetch body: %v", err)
 	}
 	line, err := reader.ReadString('\n')
@@ -697,6 +753,30 @@ func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
 	}
 }
 
+func TestParseIMAPUIDSet(t *testing.T) {
+	t.Parallel()
+
+	got, ok := parseIMAPUIDSet("9:7,8,11")
+	if !ok {
+		t.Fatal("parseIMAPUIDSet rejected valid UID set")
+	}
+	want := []UID{7, 8, 9, 11}
+	if len(got) != len(want) {
+		t.Fatalf("UID set length = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("UID set = %v, want %v", got, want)
+		}
+	}
+
+	for _, value := range []string{"", "0", "7:*", "7:", "7:bad"} {
+		if got, ok := parseIMAPUIDSet(value); ok {
+			t.Fatalf("parseIMAPUIDSet(%q) = %v true, want rejection", value, got)
+		}
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
@@ -718,8 +798,17 @@ func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]Message
 	return []MessageSummary{{ID: "message-1", UID: 1}}, nil
 }
 
-func (fakeBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
-	return Message{Summary: MessageSummary{ID: "message-1", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Read: true, Starred: true}, Size: 11}, Body: io.NopCloser(strings.NewReader("hello world"))}, nil
+func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Message, error) {
+	return Message{
+		Summary: MessageSummary{
+			ID:             "message-1",
+			UID:            req.UID,
+			SequenceNumber: uint32(req.UID - 6),
+			Flags:          MessageFlags{Read: true, Starred: true},
+			Size:           11,
+		},
+		Body: io.NopCloser(strings.NewReader("hello world")),
+	}, nil
 }
 
 func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {

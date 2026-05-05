@@ -798,6 +798,8 @@ The platform hardening sprint completed the following:
 - IMAP `UID FETCH` and `UID STORE` untagged `FETCH` responses use message
   sequence numbers per RFC 3501 while keeping the requested UID in response
   attributes, and `RFC822.SIZE` metadata requests do not trigger body streaming.
+- IMAP `UID FETCH` accepts bounded numeric UID sets/ranges and recognizes
+  `BODY.PEEK[]` for clients that batch reads without read-flag side effects.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
