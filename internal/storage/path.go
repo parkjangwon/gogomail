@@ -5,6 +5,7 @@ import (
 	"math"
 	"path"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -24,6 +25,9 @@ func ValidateObjectPath(objectPath string) (string, error) {
 	}
 	if len(objectPath) > MaxObjectPathBytes {
 		return "", fmt.Errorf("storage path is too long")
+	}
+	if !utf8.ValidString(objectPath) {
+		return "", fmt.Errorf("storage path must be valid UTF-8")
 	}
 	if strings.ContainsAny(objectPath, "\r\n") {
 		return "", fmt.Errorf("storage path must not contain newlines")
@@ -56,6 +60,9 @@ func ValidateObjectPrefix(prefix string) (string, error) {
 	}
 	if len(prefix) > MaxObjectPathBytes {
 		return "", fmt.Errorf("storage prefix is too long")
+	}
+	if !utf8.ValidString(prefix) {
+		return "", fmt.Errorf("storage prefix must be valid UTF-8")
 	}
 	if strings.ContainsAny(prefix, "\r\n") {
 		return "", fmt.Errorf("storage prefix must not contain newlines")
@@ -97,6 +104,9 @@ func ValidateListCursor(cursor string) (string, error) {
 	}
 	if len(cursor) > MaxListCursorBytes {
 		return "", fmt.Errorf("storage list cursor is too long")
+	}
+	if !utf8.ValidString(cursor) {
+		return "", fmt.Errorf("storage list cursor must be valid UTF-8")
 	}
 	if strings.ContainsAny(cursor, "\r\n") {
 		return "", fmt.Errorf("storage list cursor must not contain newlines")
