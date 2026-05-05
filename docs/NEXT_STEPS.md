@@ -288,8 +288,8 @@ Current state:
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` for exclude-style header reads.
 - `SEARCH`/`UID SEARCH` now supports `SINCE` and `BEFORE` date criteria over
   message `INTERNALDATE`.
-- `SEARCH`/`UID SEARCH` now supports basic `FROM` and `SUBJECT` substring
-  criteria over selected-mailbox summaries.
+- `SEARCH`/`UID SEARCH` now supports basic `FROM`, `TO`, `CC`, `BCC`, and
+  `SUBJECT` substring criteria over selected-mailbox summaries.
 - Authenticated `NAMESPACE` now advertises the personal namespace and `/`
   hierarchy delimiter for mailbox discovery.
 - Authenticated `LSUB` now returns subscribed-compatible mailbox responses over

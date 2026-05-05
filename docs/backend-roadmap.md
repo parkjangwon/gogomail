@@ -914,6 +914,8 @@ Implementation order:
 731. IMAP `IDLE` now streams selected-mailbox events while the client waits,
      sending untagged `EXISTS` and flag `FETCH` updates before `DONE` completes
      the command.
+732. IMAP `SEARCH` and `UID SEARCH` now support address-list criteria for `TO`,
+     `CC`, and `BCC` alongside existing `FROM` and `SUBJECT` summary searches.
 
 ## Deferred until backend contracts stabilize
 
