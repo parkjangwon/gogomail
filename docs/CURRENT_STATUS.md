@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after portable storage object move)
+Last updated: 2026-05-06 (updated after bounded storage prefix cleanup)
 
 ## Current phase
 
@@ -226,6 +226,10 @@ guidance.
   filesystem rename semantics, while S3-compatible storage performs signed
   server-side copy followed by source delete and documents the non-atomic
   duplicate-cleanup implication.
+- Shared storage now provides a bounded `DeletePrefix` helper that composes
+  validated prefix `List` pages with idempotent object deletes, giving future
+  Drive folder deletion, attachment lifecycle, and reconciliation jobs a
+  cursor-driven cleanup path without backend-specific recursive delete logic.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

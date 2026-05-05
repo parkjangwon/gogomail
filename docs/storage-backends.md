@@ -18,6 +18,10 @@ local/NFS directory walk or signed S3 `ListObjectsV2` requests. Future Drive
 and lifecycle modules should prefer `Stat` for existence/size checks, `Copy`
 for object duplication workflows, `Move` for file rename/relocation workflows,
 and `List` for prefix-scoped browsing, reconciliation, and cleanup scans.
+`storage.DeletePrefix` composes `List` and idempotent `Delete` into a bounded
+page-level cleanup helper for future Drive folder deletion, attachment
+lifecycle, and reconciliation jobs without requiring callers to know whether
+the backend is local/NFS or S3-compatible storage.
 
 ## Local filesystem or NFS
 
@@ -51,6 +55,9 @@ and NFS-style file relocation efficient and avoiding caller-side copy/delete
 loops.
 `List` walks under the requested canonical prefix, returns bounded pages, and
 uses an opaque cursor so callers do not depend on filesystem traversal details.
+Prefix cleanup uses the same bounded list pages and idempotent deletes, so
+large local/NFS cleanup jobs can advance with explicit cursors instead of
+walking and deleting an unbounded tree in one operation.
 
 ## Local MinIO
 
@@ -133,6 +140,11 @@ S3-compatible `List` uses signed `ListObjectsV2` requests with validated
 prefixes, bounded `max-keys`, and opaque continuation tokens. Returned keys are
 normalized back to gogomail object paths under the configured storage prefix,
 so callers do not see deployment-specific bucket prefixes.
+Prefix cleanup over S3-compatible storage intentionally remains page-based:
+callers list a bounded page, delete each canonical object key through signed
+`DELETE` requests, and continue from the returned cursor. This keeps cleanup
+portable across AWS S3, MinIO, and stricter compatible stores without relying
+on provider-specific recursive delete behavior.
 S3 `PUT`, failed `GET`, and `DELETE` responses drain a small bounded body
 window before close so normal S3/MinIO responses can reuse HTTP connections
 without letting oversized responses stall cleanup. Local/NFS and S3 readiness
