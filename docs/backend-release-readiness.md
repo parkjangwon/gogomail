@@ -301,9 +301,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
   allowing common quoted `LOGIN` credentials and mailbox atoms while rejecting
-  malformed quoted controls and unsupported non-synchronizing literal tokens.
-  Bounded synchronizing command literals are consumed with a continuation
-  response so future `APPEND` support can preserve connection framing.
+  malformed quoted controls and unsupported command literal tokens. Bounded
+  synchronizing command literals are consumed with a continuation response, and
+  bounded non-synchronizing `LITERAL+` command literals are accepted when sent.
 - IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication,
   aligning the first command surface with RFC client state expectations.
 - IMAP `AUTHENTICATE PLAIN` now supports the standard continuation response and
@@ -548,6 +548,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `HEADER <field> <value>` criteria scans over the raw message header block.
 - IMAP `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
+- IMAP advertises `LITERAL+` and accepts bounded non-synchronizing command
+  literals such as `APPEND ... {n+}` without an extra continuation round trip,
+  while preserving synchronizing literal framing for conservative clients.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

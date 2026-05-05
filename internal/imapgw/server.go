@@ -206,18 +206,20 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
 		return line, nil, nil
 	}
-	literalSize, ok, err := imapSynchronizingLiteralSize(line)
+	literalSize, nonSync, ok, err := imapCommandLiteralSize(line)
 	if err != nil || !ok {
 		return line, nil, err
 	}
 	if literalSize > maxIMAPCommandLiteralBytes {
 		return "", nil, fmt.Errorf("imap command literal is too large")
 	}
-	if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
-		return "", nil, err
-	}
-	if err := writer.Flush(); err != nil {
-		return "", nil, err
+	if !nonSync {
+		if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
+			return "", nil, err
+		}
+		if err := writer.Flush(); err != nil {
+			return "", nil, err
+		}
 	}
 	literal := make([]byte, literalSize)
 	if _, err := io.ReadFull(reader, literal); err != nil {
@@ -4763,7 +4765,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT", "THREAD=ORDEREDSUBJECT"}
+	capabilities := []string{"IMAP4rev1", "LITERAL+", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT", "THREAD=ORDEREDSUBJECT"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
@@ -5525,7 +5527,14 @@ func imapLooksLikeLiteral(field string) bool {
 	if len(field) < 3 || field[0] != '{' || field[len(field)-1] != '}' {
 		return false
 	}
-	for i := 1; i < len(field)-1; i++ {
+	end := len(field) - 1
+	if end > 1 && field[end-1] == '+' {
+		end--
+	}
+	if end == 1 {
+		return false
+	}
+	for i := 1; i < end; i++ {
 		if field[i] < '0' || field[i] > '9' {
 			return false
 		}
@@ -5647,31 +5656,38 @@ func imapRemainingFieldsAreSpace(value string) bool {
 	return true
 }
 
-func imapSynchronizingLiteralSize(line string) (int, bool, error) {
+func imapCommandLiteralSize(line string) (int, bool, bool, error) {
 	trimmed := strings.TrimRight(line, "\r\n")
 	if !strings.HasSuffix(trimmed, "}") {
-		return 0, false, nil
+		return 0, false, false, nil
 	}
 	start := strings.LastIndex(trimmed, "{")
 	if start < 0 {
-		return 0, false, nil
+		return 0, false, false, nil
 	}
 	if start > 0 && trimmed[start-1] != ' ' && trimmed[start-1] != '\t' {
-		return 0, false, nil
+		return 0, false, false, nil
 	}
 	value := trimmed[start+1 : len(trimmed)-1]
 	if value == "" {
-		return 0, false, fmt.Errorf("imap literal size is required")
+		return 0, false, false, fmt.Errorf("imap literal size is required")
+	}
+	nonSync := strings.HasSuffix(value, "+")
+	if nonSync {
+		value = strings.TrimSuffix(value, "+")
+		if value == "" {
+			return 0, false, true, fmt.Errorf("imap literal size is required")
+		}
 	}
 	var size int64
 	for i := 0; i < len(value); i++ {
 		if value[i] < '0' || value[i] > '9' {
-			return 0, false, nil
+			return 0, false, false, nil
 		}
 		size = size*10 + int64(value[i]-'0')
 		if size > maxIMAPCommandLiteralBytes {
-			return 0, true, fmt.Errorf("imap command literal is too large")
+			return 0, nonSync, true, fmt.Errorf("imap command literal is too large")
 		}
 	}
-	return int(size), true, nil
+	return int(size), nonSync, true, nil
 }

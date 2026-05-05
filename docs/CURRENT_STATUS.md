@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP forwarded-message BODYSTRUCTURE regression coverage)
+Last updated: 2026-05-05 (updated after IMAP LITERAL+ APPEND support)
 
 ## Current phase
 
@@ -1096,10 +1096,13 @@ The platform hardening sprint completed the following:
 - IMAP advertises `LOGINDISABLED` and rejects plaintext `LOGIN`/`AUTHENTICATE`
   with `[PRIVACYREQUIRED]` when insecure auth is disabled before STARTTLS.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
-  non-synchronizing literal tokens are rejected instead of being treated as
-  ordinary atoms. Bounded synchronizing command literals are consumed with a
-  continuation response so future `APPEND` support can preserve connection
-  framing.
+  command literal tokens are rejected instead of being treated as ordinary
+  atoms. Bounded synchronizing command literals are consumed with a
+  continuation response.
+- IMAP now advertises `LITERAL+` and accepts bounded non-synchronizing command
+  literals such as `APPEND ... {n+}` without an extra continuation round trip,
+  while preserving the existing synchronizing literal path for conservative
+  clients.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
   cancellation, and SASL PLAIN credential decoding over the existing protocol
   auth adapter.

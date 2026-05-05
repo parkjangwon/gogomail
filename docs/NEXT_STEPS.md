@@ -243,9 +243,9 @@ Current state:
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
   allowing common quoted `LOGIN` credentials and mailbox atoms while rejecting
-  malformed quoted controls and unsupported non-synchronizing literal tokens.
-  Bounded synchronizing command literals are consumed with a continuation
-  response so future `APPEND` support can preserve connection framing.
+  malformed quoted controls and unsupported command literal tokens. Bounded
+  synchronizing command literals are consumed with a continuation response, and
+  bounded non-synchronizing `LITERAL+` command literals are accepted when sent.
 - IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication, so
   post-login clients see capabilities for the selected protocol state.
 - IMAP `AUTHENTICATE PLAIN` now accepts the standard continuation response,
@@ -544,6 +544,10 @@ Current state:
 - Plaintext IMAP sessions advertise `LOGINDISABLED` and reject
   `LOGIN`/`AUTHENTICATE` with `[PRIVACYREQUIRED]` when insecure auth is
   disabled before STARTTLS.
+- IMAP now advertises `LITERAL+` and accepts bounded non-synchronizing command
+  literals such as `APPEND ... {n+}` without an extra continuation round trip,
+  while preserving the existing synchronizing literal path for conservative
+  clients.
 - `AUTHENTICATE PLAIN` now supports `SASL-IR` initial responses, reducing
   authentication round trips for compatible IMAP clients.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
