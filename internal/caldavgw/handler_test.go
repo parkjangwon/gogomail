@@ -632,6 +632,50 @@ func TestHandlerGetAndHeadCalendarObject(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectHonorsIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	for _, method := range []string{MethodGet, MethodHead} {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(method, "/caldav/calendars/user-1/work/event-1.ics", nil)
+			req.Header.Set("If-None-Match", store.objects[0].ETag)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusNotModified {
+				t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("ETag"); got != store.objects[0].ETag {
+				t.Fatalf("ETag = %q, want %q", got, store.objects[0].ETag)
+			}
+			if rec.Body.Len() != 0 {
+				t.Fatalf("not modified body length = %d, want 0", rec.Body.Len())
+			}
+		})
+	}
+}
+
+func TestHandlerGetCalendarObjectIgnoresNonMatchingIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodGet, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-None-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "BEGIN:VCALENDAR") {
+		t.Fatalf("GET body = %s", rec.Body.String())
+	}
+}
+
 func TestHandlerPutCalendarObjectCreatesAndUpdates(t *testing.T) {
 	t.Parallel()
 
