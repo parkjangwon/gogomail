@@ -83,7 +83,7 @@ func (s *WebhookScanner) ScanAttachments(ctx context.Context, req Request) (Resu
 	if err != nil {
 		return Result{}, fmt.Errorf("call attachment scanner webhook: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		if preview := webhook.ErrorBodyPreview(resp.Body, 512); preview != "" {
 			return Result{}, fmt.Errorf("attachment scanner webhook returned HTTP %d: %s", resp.StatusCode, preview)

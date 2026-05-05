@@ -91,7 +91,7 @@ func (s OpenSearchSearcher) SearchMessageIDs(ctx context.Context, query OpenSear
 	if err != nil {
 		return nil, fmt.Errorf("search opensearch messages: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("search opensearch messages: status %d: %s", resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}
