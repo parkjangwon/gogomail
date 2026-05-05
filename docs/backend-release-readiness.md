@@ -377,6 +377,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   filters.
 - IMAP `SEARCH`/`UID SEARCH` supports RFC `NOT` and binary `OR` criteria
   composition over the supported search predicate set.
+- IMAP `SEARCH`/`UID SEARCH` now accepts parenthesized search-key groups,
+  combining grouped predicates with RFC default AND semantics and allowing
+  grouped operands inside `OR`.
 - IMAP `FETCH`/`UID FETCH` now streams bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `SEARCH`/`UID SEARCH` now support common flag criteria including

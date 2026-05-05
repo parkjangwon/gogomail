@@ -1001,6 +1001,9 @@ Implementation order:
 763. IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
      `\Noselect` and `/` delimiter metadata for clients that probe namespace
      delimiters through LIST-compatible commands.
+764. IMAP `SEARCH` and `UID SEARCH` now accept parenthesized search-key groups,
+     combining grouped predicates with RFC default AND semantics and allowing
+     grouped operands inside `OR`.
 
 ## Deferred until backend contracts stabilize
 
