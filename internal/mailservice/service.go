@@ -479,6 +479,16 @@ func (s *Service) ListIMAPMailboxes(ctx context.Context, req imapgw.ListMailboxe
 	return repo.ListIMAPMailboxes(ctx, userID)
 }
 
+func (s *Service) ListSubscribedIMAPMailboxes(ctx context.Context, req imapgw.ListMailboxesRequest) ([]imapgw.MailboxSubscription, error) {
+	repo, ok := s.repository.(interface {
+		ListSubscribedIMAPMailboxes(context.Context, string) ([]imapgw.MailboxSubscription, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap mailbox subscription repository is required")
+	}
+	return repo.ListSubscribedIMAPMailboxes(ctx, strings.TrimSpace(string(req.UserID)))
+}
+
 func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
 	repo, ok := s.repository.(interface {
 		GetIMAPMailbox(context.Context, string, string) (imapgw.Mailbox, error)
@@ -487,6 +497,26 @@ func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mail
 		return imapgw.Mailbox{}, fmt.Errorf("imap mailbox repository is required")
 	}
 	return repo.GetIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
+}
+
+func (s *Service) SubscribeIMAPMailboxName(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.MailboxSubscription, error) {
+	repo, ok := s.repository.(interface {
+		SubscribeIMAPMailbox(context.Context, string, string) (imapgw.MailboxSubscription, error)
+	})
+	if !ok {
+		return imapgw.MailboxSubscription{}, fmt.Errorf("imap mailbox subscription repository is required")
+	}
+	return repo.SubscribeIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
+}
+
+func (s *Service) UnsubscribeIMAPMailboxName(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) error {
+	repo, ok := s.repository.(interface {
+		UnsubscribeIMAPMailbox(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("imap mailbox subscription repository is required")
+	}
+	return repo.UnsubscribeIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
 }
 
 func (s *Service) CreateIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {

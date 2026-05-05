@@ -21,8 +21,20 @@ func (a IMAPStoreAdapter) ListMailboxes(ctx context.Context, req imapgw.ListMail
 	return a.service.ListIMAPMailboxes(ctx, req)
 }
 
+func (a IMAPStoreAdapter) ListSubscribedMailboxes(ctx context.Context, req imapgw.ListMailboxesRequest) ([]imapgw.MailboxSubscription, error) {
+	return a.service.ListSubscribedIMAPMailboxes(ctx, req)
+}
+
 func (a IMAPStoreAdapter) GetMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
 	return a.service.GetIMAPMailbox(ctx, userID, mailboxID)
+}
+
+func (a IMAPStoreAdapter) SubscribeMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.MailboxSubscription, error) {
+	return a.service.SubscribeIMAPMailboxName(ctx, userID, mailboxID)
+}
+
+func (a IMAPStoreAdapter) UnsubscribeMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) error {
+	return a.service.UnsubscribeIMAPMailboxName(ctx, userID, mailboxID)
 }
 
 func (a IMAPStoreAdapter) CreateMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {

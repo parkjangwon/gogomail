@@ -41,6 +41,9 @@ Submission-style authentication:
   subscription state inside the protocol gateway. It must call
   `imapgw.Store`/`imapgw.MailboxSessionStore` instead of reaching directly into
   `maildb`.
+- Persistent `SUBSCRIBE`/`UNSUBSCRIBE` state is stored as user-scoped mailbox
+  names rather than folder foreign keys, so `LSUB` can retain subscribed names
+  even when a mailbox no longer exists as required by RFC 3501.
 - IMAP `\Deleted` is a protocol flag stored separately from gogomail's
   soft-delete message status. `EXPUNGE` may delete only messages that have
   this IMAP-specific flag in the selected mailbox, and must remove stale

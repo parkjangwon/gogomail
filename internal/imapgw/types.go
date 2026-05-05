@@ -65,6 +65,12 @@ type ListMailboxesRequest struct {
 	UserID UserID
 }
 
+type MailboxSubscription struct {
+	Name    string
+	Mailbox Mailbox
+	Exists  bool
+}
+
 type ListMessagesRequest struct {
 	UserID    UserID
 	MailboxID MailboxID
@@ -117,6 +123,12 @@ type MailboxStore interface {
 	RenameMailbox(ctx context.Context, userID UserID, mailboxID MailboxID, newMailboxID MailboxID) (Mailbox, error)
 }
 
+type MailboxSubscriptionStore interface {
+	ListSubscribedMailboxes(ctx context.Context, req ListMailboxesRequest) ([]MailboxSubscription, error)
+	SubscribeMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) (MailboxSubscription, error)
+	UnsubscribeMailbox(ctx context.Context, userID UserID, mailboxID MailboxID) error
+}
+
 type MessageStore interface {
 	ListMessages(ctx context.Context, req ListMessagesRequest) ([]MessageSummary, error)
 	FetchMessage(ctx context.Context, req FetchMessageRequest) (Message, error)
@@ -126,6 +138,7 @@ type MessageStore interface {
 
 type Store interface {
 	MailboxStore
+	MailboxSubscriptionStore
 	MessageStore
 }
 

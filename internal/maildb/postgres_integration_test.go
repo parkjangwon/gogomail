@@ -927,6 +927,53 @@ WHERE user_id = $1::uuid
 	}
 }
 
+func TestPostgresIMAPMailboxSubscriptionsPersistNames(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	subscription, err := repo.SubscribeIMAPMailbox(ctx, seed.userID, "INBOX")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailbox returned error: %v", err)
+	}
+	if !subscription.Exists || subscription.Name != "Inbox" {
+		t.Fatalf("subscription = %#v, want existing Inbox", subscription)
+	}
+
+	listed, err := repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes returned error: %v", err)
+	}
+	if len(listed) != 1 || !listed[0].Exists || listed[0].Mailbox.ID != imapgw.MailboxID(seed.inboxID) {
+		t.Fatalf("listed subscriptions = %#v, want existing inbox", listed)
+	}
+
+	if _, err := db.ExecContext(ctx, `DELETE FROM folders WHERE id = $1::uuid`, seed.inboxID); err != nil {
+		t.Fatalf("delete subscribed mailbox: %v", err)
+	}
+	listed, err = repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes after delete returned error: %v", err)
+	}
+	if len(listed) != 1 || listed[0].Exists || listed[0].Name != "Inbox" {
+		t.Fatalf("deleted mailbox subscription = %#v, want retained noselect name", listed)
+	}
+
+	if err := repo.UnsubscribeIMAPMailbox(ctx, seed.userID, "INBOX"); err != nil {
+		t.Fatalf("UnsubscribeIMAPMailbox returned error: %v", err)
+	}
+	listed, err = repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes after unsubscribe returned error: %v", err)
+	}
+	if len(listed) != 0 {
+		t.Fatalf("subscriptions after unsubscribe = %#v, want empty", listed)
+	}
+}
+
 func TestPostgresIMAPMoveMessagesMovesActiveUIDs(t *testing.T) {
 	t.Parallel()
 

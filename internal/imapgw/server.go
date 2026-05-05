@@ -600,11 +600,6 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
 		return false, err
 	}
-	mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
-	if err != nil {
-		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
-		return false, writeErr
-	}
 	pattern := imapListPattern(listFields[0], listFields[1])
 	if pattern == "" {
 		if specialUseOnly {
@@ -614,8 +609,16 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ""` + "\r\n"); err != nil {
 			return false, err
 		}
-		_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
+		_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
 		return false, err
+	}
+	if subscribed {
+		return s.writeSubscribedListResponses(writer, tag, state, pattern, command)
+	}
+	mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
+		return false, writeErr
 	}
 	children := imapMailboxChildren(mailboxes)
 	for _, mailbox := range mailboxes {
@@ -633,6 +636,71 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	}
 	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
 	return false, err
+}
+
+func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, state *imapConnState, pattern string, command string) (bool, error) {
+	subscriptions, err := s.options.Backend.ListSubscribedMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
+		return false, writeErr
+	}
+	mailboxes := make([]Mailbox, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		if subscription.Exists {
+			mailboxes = append(mailboxes, subscription.Mailbox)
+		}
+	}
+	children := imapMailboxChildren(mailboxes)
+	seen := make(map[string]struct{}, len(subscriptions))
+	for _, subscription := range subscriptions {
+		displayName := imapMailboxWireName(subscription.Name)
+		if subscription.Exists {
+			displayName = imapMailboxWireName(imapMailboxDisplayName(subscription.Mailbox))
+		}
+		if !imapMailboxMatchesPattern(displayName, pattern) {
+			parentName := imapLSubParentName(displayName, pattern)
+			if parentName == "" {
+				continue
+			}
+			key := strings.ToLower(parentName)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ` + imapQuotedString(parentName) + "\r\n"); err != nil {
+				return false, err
+			}
+			continue
+		}
+		key := strings.ToLower(displayName)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		attributes := []string{`\Noselect`}
+		if subscription.Exists {
+			attributes = imapMailboxListAttributes(subscription.Mailbox, children[subscription.Mailbox.ID])
+		}
+		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
+			return false, err
+		}
+	}
+	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
+	return false, err
+}
+
+func imapLSubParentName(name string, pattern string) string {
+	if !strings.Contains(pattern, "%") || !strings.Contains(name, "/") {
+		return ""
+	}
+	parts := strings.Split(name, "/")
+	for i := 1; i < len(parts); i++ {
+		parent := strings.Join(parts[:i], "/")
+		if imapMailboxMatchesPattern(parent, pattern) {
+			return parent
+		}
+	}
+	return ""
 }
 
 func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -706,11 +774,17 @@ func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fie
 		_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom\r\n")
 		return false, err
 	}
-	if _, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2])); err != nil {
+	var err error
+	if command == "SUBSCRIBE" {
+		_, err = s.options.Backend.SubscribeMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+	} else {
+		err = s.options.Backend.UnsubscribeMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+	}
+	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
 	}
-	_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
+	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
 	return false, err
 }
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP LIST child attributes)
+Last updated: 2026-05-05 (updated after persistent IMAP mailbox subscriptions)
 
 ## Current phase
 
@@ -963,10 +963,12 @@ The platform hardening sprint completed the following:
   delimiter discovery.
 - IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
   namespace command so client discovery matches the supported command surface.
-- IMAP supports authenticated `LSUB` over the same mailbox pattern matching path
-  as `LIST`.
-- IMAP accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox existence
-  checks while persistent subscription storage remains future work.
+- IMAP persists authenticated `SUBSCRIBE`/`UNSUBSCRIBE` mailbox subscriptions
+  through the service/repository boundary, and `LSUB` now returns the saved
+  subscription set instead of every visible mailbox.
+- IMAP `LSUB` preserves subscribed mailbox names even when the mailbox no
+  longer exists, returning missing names with `\Noselect`, and handles the RFC
+  3501 `%` hierarchy case by returning subscribed parent levels.
 - IMAP advertises and supports `ID`, returning a bounded gogomail server
   identity response.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state

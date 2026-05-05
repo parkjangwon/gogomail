@@ -414,11 +414,11 @@ Current state:
   hierarchy delimiter for mailbox discovery.
 - `CAPABILITY` now advertises `NAMESPACE` alongside the implemented namespace
   command so client discovery matches the supported command surface.
-- Authenticated `LSUB` now returns subscribed-compatible mailbox responses over
-  the same pattern matching path as `LIST`.
-- Authenticated `SUBSCRIBE`/`UNSUBSCRIBE` now validate mailbox existence and
-  complete successfully while persistent subscription storage remains future
-  work.
+- Authenticated `SUBSCRIBE`/`UNSUBSCRIBE` now persist mailbox subscription
+  names, and `LSUB` returns the saved subscription set instead of every visible
+  mailbox.
+- `LSUB` retains subscribed names after mailbox deletion with `\Noselect` and
+  covers the RFC 3501 `%` hierarchy parent response case.
 - IMAP now advertises and supports `ID`, returning a bounded gogomail server
   identity response.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state

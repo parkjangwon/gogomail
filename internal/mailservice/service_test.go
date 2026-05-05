@@ -562,6 +562,46 @@ func TestListIMAPMailboxesDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestListSubscribedIMAPMailboxesDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapSubscriptions: []imapgw.MailboxSubscription{{Name: "INBOX", Mailbox: imapgw.Mailbox{ID: "inbox", Name: "INBOX"}, Exists: true}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.ListSubscribedIMAPMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: " user-1 "})
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].Name != "INBOX" || repo.lastIMAPMailboxUserID != "user-1" {
+		t.Fatalf("subscriptions = %#v, user = %q", got, repo.lastIMAPMailboxUserID)
+	}
+}
+
+func TestIMAPMailboxSubscriptionCommandsDelegateToRepository(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapSubscription: imapgw.MailboxSubscription{Name: "INBOX", Mailbox: imapgw.Mailbox{ID: "inbox", Name: "INBOX"}, Exists: true},
+	}
+	service := New(repo, nil)
+
+	got, err := service.SubscribeIMAPMailboxName(context.Background(), " user-1 ", " inbox ")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailboxName returned error: %v", err)
+	}
+	if got.Name != "INBOX" || repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" {
+		t.Fatalf("subscription = %#v, ids = %q/%q", got, repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
+	}
+	if err := service.UnsubscribeIMAPMailboxName(context.Background(), " user-1 ", " inbox "); err != nil {
+		t.Fatalf("UnsubscribeIMAPMailboxName returned error: %v", err)
+	}
+	if repo.lastUnsubscribeIMAPMailboxID != "inbox" {
+		t.Fatalf("unsubscribe mailbox id = %q, want inbox", repo.lastUnsubscribeIMAPMailboxID)
+	}
+}
+
 func TestListIMAPMessagesDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -1541,6 +1581,8 @@ type fakeRepository struct {
 	imapExpungeSummaries           []imapgw.MessageSummary
 	imapUIDs                       []maildb.IMAPMessageUID
 	imapMailboxes                  []imapgw.Mailbox
+	imapSubscriptions              []imapgw.MailboxSubscription
+	imapSubscription               imapgw.MailboxSubscription
 	imapMessages                   []imapgw.MessageSummary
 	backfilledIMAPUIDs             []maildb.IMAPMessageUID
 	attachments                    []maildb.Attachment
@@ -1657,6 +1699,7 @@ type fakeRepository struct {
 	lastIMAPMessageMailboxID       string
 	lastIMAPMessageLimit           int
 	lastIMAPMessageAfterUID        imapgw.UID
+	lastUnsubscribeIMAPMailboxID   string
 	lastBackfillUserID             string
 	lastBackfillMailboxID          string
 	lastBackfillLimit              int
@@ -1780,6 +1823,11 @@ func (f *fakeRepository) ListIMAPMailboxes(_ context.Context, userID string) ([]
 	return f.imapMailboxes, nil
 }
 
+func (f *fakeRepository) ListSubscribedIMAPMailboxes(_ context.Context, userID string) ([]imapgw.MailboxSubscription, error) {
+	f.lastIMAPMailboxUserID = userID
+	return f.imapSubscriptions, nil
+}
+
 func (f *fakeRepository) GetIMAPMailbox(_ context.Context, userID string, mailboxID string) (imapgw.Mailbox, error) {
 	f.lastIMAPMailboxUserID = userID
 	f.lastIMAPMessageMailboxID = mailboxID
@@ -1787,6 +1835,18 @@ func (f *fakeRepository) GetIMAPMailbox(_ context.Context, userID string, mailbo
 		return imapgw.Mailbox{}, nil
 	}
 	return f.imapMailboxes[0], nil
+}
+
+func (f *fakeRepository) SubscribeIMAPMailbox(_ context.Context, userID string, mailboxID string) (imapgw.MailboxSubscription, error) {
+	f.lastIMAPMailboxUserID = userID
+	f.lastIMAPMessageMailboxID = mailboxID
+	return f.imapSubscription, nil
+}
+
+func (f *fakeRepository) UnsubscribeIMAPMailbox(_ context.Context, userID string, mailboxID string) error {
+	f.lastIMAPMailboxUserID = userID
+	f.lastUnsubscribeIMAPMailboxID = mailboxID
+	return nil
 }
 
 func (f *fakeRepository) ListIMAPMessages(_ context.Context, userID string, mailboxID string, limit int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {

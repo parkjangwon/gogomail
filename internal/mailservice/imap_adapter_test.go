@@ -26,6 +26,8 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 		imapAppendResult:     imapgw.AppendMessageResult{Summary: imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 13}, UIDValidity: 1},
 		imapMoveResults:      []imapgw.MoveMessageResult{{Source: imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}, Destination: imapgw.MessageSummary{ID: "msg-1", MailboxID: "archive", UID: 33, SequenceNumber: 1}, SourceHighestModSeq: 44}},
 		imapMessage:          maildb.IMAPStoredMessage{Summary: imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12}, StoragePath: "messages/msg-1.eml"},
+		imapSubscriptions:    []imapgw.MailboxSubscription{{Name: "INBOX", Mailbox: imapgw.Mailbox{ID: "inbox", Name: "INBOX"}, Exists: true}},
+		imapSubscription:     imapgw.MailboxSubscription{Name: "INBOX", Mailbox: imapgw.Mailbox{ID: "inbox", Name: "INBOX"}, Exists: true},
 		imapExpungeSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
 		backfilledIMAPUIDs:   []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
 	}
@@ -36,6 +38,15 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 	}
 	if mailbox, err := adapter.GetMailbox(context.Background(), "user-1", "inbox"); err != nil || mailbox.ID != "inbox" {
 		t.Fatalf("GetMailbox = %#v, %v", mailbox, err)
+	}
+	if subscriptions, err := adapter.ListSubscribedMailboxes(context.Background(), imapgw.ListMailboxesRequest{UserID: "user-1"}); err != nil || len(subscriptions) != 1 {
+		t.Fatalf("ListSubscribedMailboxes = %#v, %v", subscriptions, err)
+	}
+	if subscription, err := adapter.SubscribeMailbox(context.Background(), "user-1", "inbox"); err != nil || subscription.Name != "INBOX" {
+		t.Fatalf("SubscribeMailbox = %#v, %v", subscription, err)
+	}
+	if err := adapter.UnsubscribeMailbox(context.Background(), "user-1", "inbox"); err != nil {
+		t.Fatalf("UnsubscribeMailbox returned error: %v", err)
 	}
 	if mailbox, err := adapter.CreateMailbox(context.Background(), "user-1", "Archive"); err != nil || mailbox.ID != "inbox" {
 		t.Fatalf("CreateMailbox = %#v, %v", mailbox, err)
