@@ -394,12 +394,15 @@ Current state:
 - `internal/drive.Repository.FinalizeUploadSession` now commits uploaded
   session bodies into quota-accounted Drive file metadata and marks the session
   finalized in one transaction.
+- Mail API now exposes `POST /api/v1/drive/upload-sessions/{id}/finalize`,
+  completing the create/read/cancel/body/finalize Drive upload-session API
+  flow for full-body uploads.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Expose Drive upload-session finalization through the Mail API so clients can
-  commit uploaded session bodies into quota-accounted Drive file metadata.
+- Add Drive upload-session expiry/cleanup so abandoned pending/uploading
+  sessions release stale object references predictably.
 
 ### 2. Message threading and search
 

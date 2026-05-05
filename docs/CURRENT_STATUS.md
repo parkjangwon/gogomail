@@ -335,6 +335,9 @@ guidance.
   locks a writable session, verifies the stored object size through the shared
   storage `Stat` contract, increments quota, inserts the Drive file node, and
   marks the session finalized in one transaction.
+- Mail API now exposes `POST /api/v1/drive/upload-sessions/{id}/finalize`,
+  letting frontend clients commit uploaded session bodies into Drive file
+  metadata through the same quota and storage verification boundary.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

@@ -177,6 +177,9 @@ or development `user_id` fallback path as webmail mail routes:
   configured storage backend, rejects `Content-Range`, optionally verifies
   `X-Content-SHA256`, records received size/storage path/checksum, and returns
   `{"drive_upload_session":{...}}`.
+- `POST /api/v1/drive/upload-sessions/{id}/finalize` verifies the stored body
+  through shared storage, creates quota-accounted Drive file metadata, marks
+  the session finalized, and returns `{"drive_node":{...}}`.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",

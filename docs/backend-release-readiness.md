@@ -100,6 +100,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session finalization now has an atomic repository/service path
   that verifies stored body size, increments quota, creates file metadata, and
   marks the upload session finalized in the same transaction.
+- Drive upload-session finalization is now exposed through a Mail API route,
+  completing a production-facing full-body upload path from session creation to
+  quota-accounted Drive file metadata.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
