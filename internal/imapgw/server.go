@@ -859,7 +859,7 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 	}
 	predicates := make([]imapSearchPredicate, 0, len(criteria))
 	for i := 0; i < len(criteria); {
-		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:])
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages)
 		if !ok {
 			return nil, false, nil
 		}
@@ -888,7 +888,7 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 
 type imapSearchPredicate func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error)
 
-func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool) {
+func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearchPredicate, int, bool) {
 	if len(criteria) == 0 {
 		return nil, 0, false
 	}
@@ -897,7 +897,7 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 	case "ALL":
 		return nil, 1, true
 	case "NOT":
-		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:])
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence)
 		if !ok {
 			return nil, 0, false
 		}
@@ -912,11 +912,11 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 			return !matches, nil
 		}, consumed + 1, true
 	case "OR":
-		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:])
+		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence)
 		if !ok {
 			return nil, 0, false
 		}
-		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:])
+		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:], maxSequence)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1016,6 +1016,17 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 			return server.imapMessageMatchesBodySearch(ctx, state, summary, criterion, query)
 		}, 2, true
 	default:
+		sequenceNumbers, ok := parseIMAPSequenceSet(criteria[0], maxSequence)
+		if ok {
+			allowed := make(map[uint32]struct{}, len(sequenceNumbers))
+			for _, sequenceNumber := range sequenceNumbers {
+				allowed[sequenceNumber] = struct{}{}
+			}
+			return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, index int) (bool, error) {
+				_, ok := allowed[imapSearchSequenceNumber(summary, index)]
+				return ok, nil
+			}, 1, true
+		}
 		return nil, 0, false
 	}
 }
