@@ -7451,7 +7451,7 @@ func TestParseIMAPPartialBody(t *testing.T) {
 	if _, ok := imapFetchPartialBody([]string{"BODY[]"}); ok {
 		t.Fatal("imapFetchPartialBody accepted full body fetch")
 	}
-	for _, item := range []string{"BODY.PEEK[]<+12.34>", "BODY.PEEK[]<12.+34>", "BODY.PEEK[]<12.0>"} {
+	for _, item := range []string{"BODY.PEEK[]<+12.34>", "BODY.PEEK[]<12.+34>", "BODY.PEEK[]<12.0>", "BODY.PEEK[]<12.34>BAD"} {
 		if _, ok := imapFetchPartialBody([]string{item}); ok {
 			t.Fatalf("imapFetchPartialBody accepted invalid partial %q", item)
 		}

@@ -1598,6 +1598,9 @@ Implementation order:
 928. IMAP partial fetch windows now reject zero-length counts such as
      `BODY[]<12.0>`, aligning parser validation with RFC 3501 `nz-number`
      grammar before fetch processing.
+929. IMAP partial fetch windows now reject trailing characters after the
+     closing `>` in tokens such as `BODY[]<12.34>BAD`, preventing malformed
+     body-section requests from being silently repaired.
 
 ## Deferred until backend contracts stabilize
 

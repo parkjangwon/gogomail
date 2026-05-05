@@ -4270,7 +4270,7 @@ func parseIMAPMIMEPartPath(value string) ([]int, bool) {
 func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
 	start := strings.Index(token, "<")
 	end := strings.LastIndex(token, ">")
-	if start < 0 || end <= start {
+	if start < 0 || end <= start || end != len(token)-1 {
 		return imapPartialBodyRequest{}, false
 	}
 	offsetText, countText, ok := strings.Cut(token[start+1:end], ".")
