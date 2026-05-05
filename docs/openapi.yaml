@@ -105,6 +105,78 @@ paths:
           $ref: "#/components/responses/Status"
         default:
           $ref: "#/components/responses/Error"
+  /drive/nodes:
+    get:
+      operationId: listDriveNodes
+      summary: List Drive nodes under a parent
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/Limit"
+        - name: parent_id
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, trashed, deleted]
+            default: active
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNodeList"
+        default:
+          $ref: "#/components/responses/Error"
+  /drive/folders:
+    post:
+      operationId: createDriveFolder
+      summary: Create a Drive folder
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveFolderCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
+  /drive/nodes/{id}:
+    delete:
+      operationId: permanentlyDeleteDriveNode
+      summary: Permanently delete a trashed Drive node
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveDelete"
+        default:
+          $ref: "#/components/responses/Error"
+  /drive/nodes/{id}/trash:
+    post:
+      operationId: trashDriveNode
+      summary: Move a Drive node tree to trash
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNodeUpdate"
+        default:
+          $ref: "#/components/responses/Error"
+  /drive/nodes/{id}/restore:
+    post:
+      operationId: restoreDriveNode
+      summary: Restore a trashed Drive node tree
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNodeUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
@@ -2573,6 +2645,30 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/FolderEnvelope"
+    DriveNodeList:
+      description: Drive node list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveNodeListEnvelope"
+    DriveNode:
+      description: Drive node envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveNodeEnvelope"
+    DriveNodeUpdate:
+      description: Drive node update envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveNodeUpdateEnvelope"
+    DriveDelete:
+      description: Drive permanent-delete envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveDeleteEnvelope"
     MailboxOverview:
       description: Mailbox overview envelope
       content:
@@ -3128,6 +3224,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/FolderRenameRequest"
+    DriveFolderCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveFolderCreateRequest"
     MessageFlagUpdate:
       required: true
       content:
@@ -3440,6 +3542,114 @@ components:
       properties:
         folder:
           $ref: "#/components/schemas/Folder"
+    DriveNode:
+      type: object
+      required: [id, user_id, node_type, name, normalized_name, status, size, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        user_id:
+          type: string
+        parent_id:
+          type: string
+        node_type:
+          type: string
+          enum: [folder, file]
+        name:
+          type: string
+          maxLength: 255
+        normalized_name:
+          type: string
+          maxLength: 255
+        mime_type:
+          type: string
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+        storage_backend:
+          type: string
+        storage_path:
+          type: string
+        checksum_sha256:
+          type: string
+        status:
+          type: string
+          enum: [active, trashed, deleted]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DriveNodeListEnvelope:
+      type: object
+      required: [drive_nodes]
+      properties:
+        drive_nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveNode"
+    DriveNodeEnvelope:
+      type: object
+      required: [drive_node]
+      properties:
+        drive_node:
+          $ref: "#/components/schemas/DriveNode"
+    DriveNodeUpdateEnvelope:
+      type: object
+      required: [drive_node, updated]
+      properties:
+        drive_node:
+          $ref: "#/components/schemas/DriveNode"
+        updated:
+          type: integer
+          format: int64
+          minimum: 0
+    DriveDeleteEnvelope:
+      type: object
+      required: [drive_delete]
+      properties:
+        drive_delete:
+          type: object
+          required: [permanent_delete, cleanup]
+          properties:
+            permanent_delete:
+              type: object
+              required: [root, deleted_nodes, released_bytes]
+              properties:
+                root:
+                  $ref: "#/components/schemas/DriveNode"
+                deleted_nodes:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                released_bytes:
+                  type: integer
+                  format: int64
+                  minimum: 0
+            cleanup:
+              type: object
+              required: [deleted]
+              properties:
+                deleted:
+                  type: integer
+                  minimum: 0
+    DriveFolderCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        parent_id:
+          type: string
+          maxLength: 200
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
     MailboxOverview:
       type: object
       required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]
@@ -3916,7 +4126,7 @@ components:
               enum: [available]
             drive:
               type: string
-              enum: [planned]
+              enum: [available]
         max_list_limit:
           type: integer
           minimum: 1

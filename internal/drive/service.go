@@ -67,6 +67,34 @@ func (s *Service) WithObjectCleanupFailureStore(store ObjectCleanupFailureStore)
 	return s
 }
 
+func (s *Service) CreateFolder(ctx context.Context, req CreateFolderRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.CreateFolder(ctx, req)
+}
+
+func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.ListNodes(ctx, req)
+}
+
+func (s *Service) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, 0, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.TrashNode(ctx, req)
+}
+
+func (s *Service) RestoreNode(ctx context.Context, req RestoreNodeRequest) (Node, int64, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, 0, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.RestoreNode(ctx, req)
+}
+
 func (s *Service) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNodeRequest) (PermanentDeleteServiceResult, error) {
 	if s == nil || s.repo == nil {
 		return PermanentDeleteServiceResult{}, fmt.Errorf("drive repository is required")

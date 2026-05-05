@@ -100,6 +100,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive cleanup retry now has a dedicated `drive-cleanup-worker` backend mode
   with validated interval/batch/run-once settings and shared storage adapter
   wiring, so object cleanup drift can be handled outside request paths.
+- Drive has first authenticated Mail API routes for node list, folder create,
+  trash, restore, and permanent delete, with OpenAPI response envelopes ready
+  for future webmail integration.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

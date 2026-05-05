@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive cleanup worker mode)
+Last updated: 2026-05-06 (updated after Drive HTTP API contract)
 
 ## Current phase
 
@@ -284,6 +284,11 @@ guidance.
 - Drive cleanup retry can now run as a first-class backend worker mode,
   `drive-cleanup-worker`, with validated interval/batch/run-once config and
   local/MinIO/S3-compatible storage wiring through the shared storage adapter.
+- Mail API now exposes the first Drive HTTP routes for production webmail
+  integration: bounded node listing, folder creation, trash, restore, and
+  permanent delete. The routes use the existing user auth/fallback path,
+  shared Drive repository/service boundaries, and OpenAPI-documented response
+  envelopes without starting frontend implementation.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
