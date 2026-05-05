@@ -462,32 +462,15 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		return nil, fmt.Errorf("database handle is required")
 	}
 	limit = NormalizeMessageListLimit(limit) + 1
+	sortMode, ok := NormalizeListSort(filter.Sort)
+	if !ok {
+		return nil, fmt.Errorf("unsupported list sort %q", filter.Sort)
+	}
 
-	const query = `
-SELECT
-  id::text,
-  subject,
-  from_addr,
-  from_name,
-  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
-  size,
-  has_attachment,
-  COALESCE((flags->>'read')::boolean, false) AS read,
-  COALESCE((flags->>'starred')::boolean, false) AS starred
-FROM messages
-WHERE user_id = $1
-  AND status = 'active'
-  AND ($2 = '' OR folder_id::text = $2)
-  AND ($6::boolean IS NULL OR COALESCE((flags->>'read')::boolean, false) = $6::boolean)
-  AND ($7::boolean IS NULL OR COALESCE((flags->>'starred')::boolean, false) = $7::boolean)
-  AND ($8::boolean IS NULL OR has_attachment = $8::boolean)
-  AND (
-    $4 = ''
-    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
-       < ($3::timestamptz, $4::uuid)
-  )
-ORDER BY message_at DESC, id DESC
-LIMIT $5`
+	query := messageListPageNewestSQL
+	if sortMode == ListSortOldest {
+		query = messageListPageOldestSQL
+	}
 
 	rows, err := r.db.QueryContext(
 		ctx,
@@ -529,6 +512,58 @@ LIMIT $5`
 	}
 	return messages, nil
 }
+
+const messageListPageNewestSQL = `
+SELECT
+  id::text,
+  subject,
+  from_addr,
+  from_name,
+  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
+  size,
+  has_attachment,
+  COALESCE((flags->>'read')::boolean, false) AS read,
+  COALESCE((flags->>'starred')::boolean, false) AS starred
+FROM messages
+WHERE user_id = $1
+  AND status = 'active'
+  AND ($2 = '' OR folder_id::text = $2)
+  AND ($6::boolean IS NULL OR COALESCE((flags->>'read')::boolean, false) = $6::boolean)
+  AND ($7::boolean IS NULL OR COALESCE((flags->>'starred')::boolean, false) = $7::boolean)
+  AND ($8::boolean IS NULL OR has_attachment = $8::boolean)
+  AND (
+    $4 = ''
+    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+       < ($3::timestamptz, $4::uuid)
+  )
+ORDER BY message_at DESC, id DESC
+LIMIT $5`
+
+const messageListPageOldestSQL = `
+SELECT
+  id::text,
+  subject,
+  from_addr,
+  from_name,
+  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
+  size,
+  has_attachment,
+  COALESCE((flags->>'read')::boolean, false) AS read,
+  COALESCE((flags->>'starred')::boolean, false) AS starred
+FROM messages
+WHERE user_id = $1
+  AND status = 'active'
+  AND ($2 = '' OR folder_id::text = $2)
+  AND ($6::boolean IS NULL OR COALESCE((flags->>'read')::boolean, false) = $6::boolean)
+  AND ($7::boolean IS NULL OR COALESCE((flags->>'starred')::boolean, false) = $7::boolean)
+  AND ($8::boolean IS NULL OR has_attachment = $8::boolean)
+  AND (
+    $4 = ''
+    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+       > ($3::timestamptz, $4::uuid)
+  )
+ORDER BY message_at ASC, id ASC
+LIMIT $5`
 
 func (r *Repository) GetMessage(ctx context.Context, userID string, messageID string) (MessageDetail, error) {
 	if r.db == nil {

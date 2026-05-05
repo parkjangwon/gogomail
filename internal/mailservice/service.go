@@ -200,6 +200,11 @@ func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID 
 			return nil, err
 		}
 	}
+	sortMode, ok := maildb.NormalizeListSort(filter.Sort)
+	if !ok {
+		return nil, fmt.Errorf("sort must be newest or oldest")
+	}
+	filter.Sort = sortMode
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return s.repository.ListMessagesPage(ctx, userID, folderID, limit, cursor, filter)
 }
@@ -222,6 +227,11 @@ func (s *Service) ListThreadsPage(ctx context.Context, userID string, limit int,
 			return nil, err
 		}
 	}
+	sortMode, ok := maildb.NormalizeListSort(filter.Sort)
+	if !ok {
+		return nil, fmt.Errorf("sort must be newest or oldest")
+	}
+	filter.Sort = sortMode
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.ListThreadsPage(ctx, userID, limit, cursor, filter)
 }

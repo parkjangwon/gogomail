@@ -12,6 +12,11 @@ const MessageListDefaultLimit = 50
 const MessageListMaxLimit = 200
 const MessageListCursorMaxBytes = 1024
 
+const (
+	ListSortNewest = "newest"
+	ListSortOldest = "oldest"
+)
+
 type MessageListCursor struct {
 	At time.Time `json:"at"`
 	ID string    `json:"id"`
@@ -21,6 +26,7 @@ type MessageListFilter struct {
 	Read          *bool
 	Starred       *bool
 	HasAttachment *bool
+	Sort          string
 }
 
 type MessageListPage struct {
@@ -40,6 +46,7 @@ type ThreadListFilter struct {
 	Read          *bool
 	Starred       *bool
 	HasAttachment *bool
+	Sort          string
 }
 
 type ThreadListPage struct {
@@ -142,6 +149,19 @@ func NormalizeMessageListLimit(limit int) int {
 		return MessageListMaxLimit
 	}
 	return limit
+}
+
+func NormalizeListSort(sort string) (string, bool) {
+	sort = strings.ToLower(strings.TrimSpace(sort))
+	if sort == "" {
+		return ListSortNewest, true
+	}
+	switch sort {
+	case ListSortNewest, ListSortOldest:
+		return sort, true
+	default:
+		return "", false
+	}
 }
 
 func EncodeMessageListCursor(cursor MessageListCursor) (string, error) {

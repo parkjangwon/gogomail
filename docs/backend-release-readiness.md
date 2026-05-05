@@ -22,6 +22,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   opaque cursor pagination.
 - Mail API thread lists support `folder_id` so production webmail can render
   folder-scoped conversation views without dropping back to flat message lists.
+- Mail API message and thread lists support `sort=newest|oldest` so production
+  webmail clients can offer newest-first and oldest-first list views with
+  bounded validation and cursor-compatible ordering.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

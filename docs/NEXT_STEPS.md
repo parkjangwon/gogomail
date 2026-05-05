@@ -1068,6 +1068,9 @@ Next:
   `read=false` representing conversations that still contain unread messages.
 - Mail API thread list pagination now also accepts `folder_id`, enabling
   folder-scoped conversation views for system and custom folders.
+- Mail API message and thread list pagination now accept
+  `sort=newest|oldest`, enabling explicit newest-first and oldest-first
+  production webmail list controls while retaining opaque cursor pagination.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

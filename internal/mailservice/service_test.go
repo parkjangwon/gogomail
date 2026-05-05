@@ -195,7 +195,7 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	read := false
 	starred := true
 	hasAttachment := true
-	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}, maildb.MessageListFilter{Read: &read, Starred: &starred, HasAttachment: &hasAttachment}); err != nil {
+	if _, err := service.ListMessagesPage(context.Background(), " user-1 ", " inbox ", 10, maildb.MessageListCursor{ID: "cursor"}, maildb.MessageListFilter{Read: &read, Starred: &starred, HasAttachment: &hasAttachment, Sort: " oldest "}); err != nil {
 		t.Fatalf("ListMessagesPage returned error: %v", err)
 	}
 	if _, err := service.ListThreads(context.Background(), " user-1 ", 10); err != nil {
@@ -228,6 +228,9 @@ func TestReadAndFolderMethodsNormalizeIDs(t *testing.T) {
 	}
 	if repo.lastPageUserID != "user-1" || repo.lastPageFolderID != "inbox" {
 		t.Fatalf("page ids = %q/%q", repo.lastPageUserID, repo.lastPageFolderID)
+	}
+	if repo.lastPageFilter.Sort != maildb.ListSortOldest {
+		t.Fatalf("page sort = %q", repo.lastPageFilter.Sort)
 	}
 	if repo.lastPageFilter.Read == nil || *repo.lastPageFilter.Read || repo.lastPageFilter.Starred == nil || !*repo.lastPageFilter.Starred {
 		t.Fatalf("page filter = %#v", repo.lastPageFilter)
@@ -355,6 +358,20 @@ func TestMailboxListMethodsRejectUnsafeResourceIDs(t *testing.T) {
 			name: "thread page folder",
 			run: func(service *Service) error {
 				_, err := service.ListThreadsPage(context.Background(), "user-1", 10, maildb.ThreadListCursor{}, maildb.ThreadListFilter{FolderID: "folder\nbad"})
+				return err
+			},
+		},
+		{
+			name: "message page sort",
+			run: func(service *Service) error {
+				_, err := service.ListMessagesPage(context.Background(), "user-1", "inbox", 10, maildb.MessageListCursor{}, maildb.MessageListFilter{Sort: "sideways"})
+				return err
+			},
+		},
+		{
+			name: "thread page sort",
+			run: func(service *Service) error {
+				_, err := service.ListThreadsPage(context.Background(), "user-1", 10, maildb.ThreadListCursor{}, maildb.ThreadListFilter{Sort: "sideways"})
 				return err
 			},
 		},
@@ -3136,7 +3153,7 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	read := false
 	starred := true
 	hasAttachment := true
-	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{FolderID: " folder-1 ", Read: &read, Starred: &starred, HasAttachment: &hasAttachment}); err != nil {
+	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{FolderID: " folder-1 ", Read: &read, Starred: &starred, HasAttachment: &hasAttachment, Sort: " oldest "}); err != nil {
 		t.Fatalf("ListThreadsPage returned error: %v", err)
 	}
 	if repo.lastListThreadsCursor.ID != threadCursor.ID {
@@ -3150,6 +3167,9 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	}
 	if repo.lastListThreadsFilter.HasAttachment == nil || !*repo.lastListThreadsFilter.HasAttachment {
 		t.Fatalf("thread attachment filter = %#v", repo.lastListThreadsFilter)
+	}
+	if repo.lastListThreadsFilter.Sort != maildb.ListSortOldest {
+		t.Fatalf("thread sort = %#v", repo.lastListThreadsFilter)
 	}
 	messageCursor := maildb.MessageListCursor{ID: "22222222-2222-2222-2222-222222222222"}
 	if _, err := service.ListThreadMessagesPage(context.Background(), "user-1", "thread-1", 10, messageCursor); err != nil {

@@ -148,6 +148,14 @@ paths:
           schema:
             type: boolean
           description: Optional attachment-presence filter.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            maxLength: 32
+            enum: [newest, oldest]
+            default: newest
+          description: Message list ordering. Cursors are only valid with the same filters and sort.
       responses:
         "200":
           $ref: "#/components/responses/MessageListPage"
@@ -273,6 +281,14 @@ paths:
           schema:
             type: boolean
           description: Optional conversation attachment-presence filter.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            maxLength: 32
+            enum: [newest, oldest]
+            default: newest
+          description: Thread list ordering. Cursors are only valid with the same filters and sort.
       responses:
         "200":
           $ref: "#/components/responses/ThreadList"

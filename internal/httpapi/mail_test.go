@@ -81,7 +81,7 @@ func TestListMessagesHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&read=false&starred=true&has_attachment=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&read=false&starred=true&has_attachment=true&sort=oldest", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -97,6 +97,9 @@ func TestListMessagesHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	if service.lastListFilter.HasAttachment == nil || !*service.lastListFilter.HasAttachment {
 		t.Fatalf("has_attachment filter = %#v", service.lastListFilter.HasAttachment)
 	}
+	if service.lastListFilter.Sort != maildb.ListSortOldest {
+		t.Fatalf("sort = %q", service.lastListFilter.Sort)
+	}
 }
 
 func TestListMessagesHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
@@ -106,6 +109,8 @@ func TestListMessagesHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
 		"/api/v1/messages?user_id=user-1&read=maybe",
 		"/api/v1/messages?user_id=user-1&starred=maybe",
 		"/api/v1/messages?user_id=user-1&has_attachment=maybe",
+		"/api/v1/messages?user_id=user-1&sort=sideways",
+		"/api/v1/messages?user_id=user-1&sort=" + strings.Repeat("s", maxHTTPControlBytes+1),
 		"/api/v1/messages?user_id=user-1&read=true&read=false",
 	}
 	for _, path := range tests {
@@ -801,7 +806,7 @@ func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&folder_id=folder-1&read=false&starred=true&has_attachment=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&folder_id=folder-1&read=false&starred=true&has_attachment=true&sort=oldest", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -820,6 +825,9 @@ func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	if service.lastThreadFilter.HasAttachment == nil || !*service.lastThreadFilter.HasAttachment {
 		t.Fatalf("has_attachment filter = %#v", service.lastThreadFilter.HasAttachment)
 	}
+	if service.lastThreadFilter.Sort != maildb.ListSortOldest {
+		t.Fatalf("sort = %q", service.lastThreadFilter.Sort)
+	}
 }
 
 func TestListThreadsHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
@@ -830,6 +838,8 @@ func TestListThreadsHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
 		"/api/v1/threads?user_id=user-1&starred=maybe",
 		"/api/v1/threads?user_id=user-1&has_attachment=maybe",
 		"/api/v1/threads?user_id=user-1&folder_id=folder%0Abad",
+		"/api/v1/threads?user_id=user-1&sort=sideways",
+		"/api/v1/threads?user_id=user-1&sort=" + strings.Repeat("s", maxHTTPControlBytes+1),
 		"/api/v1/threads?user_id=user-1&starred=true&starred=false",
 	}
 	for _, path := range tests {
