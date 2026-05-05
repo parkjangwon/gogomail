@@ -274,6 +274,8 @@ Current state:
   batches instead of issuing one command per message.
 - `NOOP` now drains queued selected-mailbox events as untagged `EXISTS` and flag
   `FETCH` updates, giving clients a polling path before full IDLE support.
+- `IDLE` is now advertised and accepted, with queued selected-mailbox events
+  drained when the client sends `DONE`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
@@ -284,8 +286,8 @@ Current state:
 
 Next:
 
-- Plan IMAP IDLE support over the mailbox event broker for push-on-connect
-  clients.
+- Extend IMAP IDLE to stream events while the connection is waiting, instead of
+  draining only when `DONE` arrives.
 - Add header field subset fetch and richer MIME-tree `BODYSTRUCTURE` support
   for higher-fidelity client previews.
 

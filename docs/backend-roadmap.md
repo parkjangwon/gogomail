@@ -872,6 +872,8 @@ Implementation order:
 715. IMAP `NOOP` now drains queued selected-mailbox events from the mailbox
      event broker, emitting untagged `EXISTS` and flag `FETCH` updates as a
      polling-friendly synchronization path before full IDLE support.
+716. IMAP now advertises and accepts `IDLE`, entering continuation mode and
+     draining queued selected-mailbox events when the client sends `DONE`.
 
 ## Deferred until backend contracts stabilize
 
