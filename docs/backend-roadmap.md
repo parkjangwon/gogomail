@@ -1443,9 +1443,9 @@ Implementation order:
 883. IMAP `APPEND`, `STORE`, and `UID STORE` flag-list parsing now rejects
      unparenthesized or unbalanced flag lists instead of silently trimming stray
      parentheses before backend mutation.
-884. IMAP sequence-set handling now treats message sequence numbers beyond the
-     selected mailbox size as valid empty matches instead of `BAD`, while still
-     rejecting zero and malformed sequence values.
+884. IMAP message sequence sets now reject sequence numbers above the selected
+     mailbox size with tagged `BAD` responses, preserving RFC 3501 bounds
+     behavior for `FETCH`, `STORE`, `COPY`, and `MOVE` sequence arguments.
 
 ## Deferred until backend contracts stabilize
 

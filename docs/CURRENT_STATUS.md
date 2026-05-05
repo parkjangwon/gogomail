@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP sequence-set overflow handling)
+Last updated: 2026-05-05 (updated after IMAP sequence-set bounds enforcement)
 
 ## Current phase
 
@@ -195,9 +195,9 @@ guidance.
   unparenthesized or unbalanced flag lists instead of silently trimming stray
   parentheses, keeping flag mutation syntax closer to RFC-shaped client
   expectations.
-- IMAP sequence-set handling now treats message sequence numbers beyond the
-  selected mailbox size as syntactically valid empty matches instead of `BAD`,
-  while still rejecting zero and malformed sequence values.
+- IMAP message sequence sets now explicitly reject sequence numbers above the
+  selected mailbox size with tagged `BAD` responses, preserving RFC 3501 bounds
+  behavior for `FETCH`, `STORE`, `COPY`, and `MOVE` sequence arguments.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
