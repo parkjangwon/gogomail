@@ -2758,7 +2758,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	}
 	summary := result.Summary
 	if summary.MailboxID == state.selectedMailbox {
-		state.selectedMessages++
+		state.selectedMessages = imapAppendExistsCount(state.selectedMessages, summary)
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
@@ -2769,6 +2769,13 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	}
 	_, err = writer.WriteString(tag + " OK" + responseCode + " APPEND completed\r\n")
 	return false, err
+}
+
+func imapAppendExistsCount(current uint32, summary MessageSummary) uint32 {
+	if summary.SequenceNumber > current {
+		return summary.SequenceNumber
+	}
+	return current + 1
 }
 
 func imapAppendOptions(fields []string) (MessageFlags, time.Time, bool) {
