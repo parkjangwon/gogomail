@@ -508,8 +508,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
-		_, err := writer.WriteString(tag + " NO MOVE is not supported\r\n")
-		return false, err
+		if state.readOnly {
+			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+			return false, err
+		}
+		return s.handleMove(writer, tag, fields, state)
 	case "APPEND":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -848,8 +851,11 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "COPY":
 		return s.handleUIDCopy(writer, tag, fields, state)
 	case "MOVE":
-		_, err := writer.WriteString(tag + " NO UID MOVE is not supported\r\n")
-		return false, err
+		if state.readOnly {
+			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+			return false, err
+		}
+		return s.handleUIDMove(writer, tag, fields, state)
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
@@ -1548,6 +1554,19 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[4]), "UID COPY")
 }
 
+func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 5 {
+		_, err := writer.WriteString(tag + " BAD UID MOVE requires UID set and destination mailbox\r\n")
+		return false, err
+	}
+	uids, ok := parseIMAPUIDSet(fields[3])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
+		return false, err
+	}
+	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(fields[4]), "UID MOVE")
+}
+
 func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if len(fields) != 4 {
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
@@ -1613,6 +1632,32 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 	return s.writeCopyResponse(writer, tag, state, uids, MailboxID(fields[3]), "COPY")
 }
 
+func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD MOVE requires sequence set and destination mailbox\r\n")
+		return false, err
+	}
+	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
+		return false, err
+	}
+	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO MOVE failed\r\n")
+		return false, writeErr
+	}
+	return s.writeMoveResponse(writer, tag, state, uids, MailboxID(fields[3]), "MOVE")
+}
+
 func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
 	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
 	if err != nil {
@@ -1639,6 +1684,29 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 	return false, err
 }
 
+func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
+	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+		return false, writeErr
+	}
+	if destMailbox.ID == state.selectedMailbox {
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+		return false, writeErr
+	}
+	summaries, err := s.options.Backend.MoveMessages(context.Background(), MoveMessagesRequest{
+		UserID:          state.session.UserID,
+		SourceMailboxID: state.selectedMailbox,
+		DestMailboxID:   destMailbox.ID,
+		UIDs:            uids,
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+		return false, writeErr
+	}
+	return s.writeMovedExpungeResponses(writer, tag, state, summaries, completionCommand)
+}
+
 func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
 	summaries, err := s.options.Backend.Expunge(context.Background(), ExpungeRequest{
 		UserID:    state.session.UserID,
@@ -1649,6 +1717,10 @@ func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
+	return s.writeMovedExpungeResponses(writer, tag, state, summaries, completionCommand)
+}
+
+func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, summaries []MessageSummary, completionCommand string) (bool, error) {
 	sort.Slice(summaries, func(i, j int) bool {
 		return summaries[i].SequenceNumber < summaries[j].SequenceNumber
 	})
@@ -1671,7 +1743,7 @@ func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *
 	} else {
 		state.selectedMessages -= uint32(len(summaries))
 	}
-	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+	_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
 }
 
@@ -2916,7 +2988,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "MOVE"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}

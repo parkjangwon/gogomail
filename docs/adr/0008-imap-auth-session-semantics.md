@@ -44,8 +44,11 @@ Submission-style authentication:
 - IMAP `\Deleted` is a protocol flag stored separately from gogomail's
   soft-delete message status. `EXPUNGE` may delete only messages that have
   this IMAP-specific flag in the selected mailbox, and must remove stale
-  mailbox UID rows in the same transaction. MOVE remains explicitly unsupported
-  until a separate IMAP-safe move model is accepted.
+  mailbox UID rows in the same transaction.
+- IMAP `MOVE` is modeled as source mailbox expunge semantics plus a destination
+  folder transition: the source mailbox emits sequence-number `EXPUNGE`
+  responses, the message row moves folders transactionally, and source mailbox
+  UID rows are removed so the destination mailbox assigns fresh local UIDs.
 
 ## Consequences
 
@@ -58,6 +61,6 @@ Submission-style authentication:
   mailbox storage contracts.
 - TLS policy must be reviewed and wired before production IMAP enablement.
 - A first TCP listener can safely start with authenticated LIST, SELECT, UID
-  FETCH, UID STORE, COPY, mailbox CRUD, and IDLE-oriented subscription support.
-  MOVE remains deliberately unsupported until mailbox-local UID, event, and
-  source/destination mutation semantics are accepted.
+  FETCH, UID STORE, COPY, MOVE, mailbox CRUD, and IDLE-oriented subscription
+  support. UIDPLUS/COPYUID-style response metadata remains a future
+  compatibility enhancement.

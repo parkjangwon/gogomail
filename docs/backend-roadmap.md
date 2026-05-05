@@ -740,9 +740,8 @@ Implementation order:
      listener metadata for the IMAP scaffold, preparing future protocol listener
      wiring without opening the port yet.
 676. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore`
-     for SELECT-style mailbox state, service-backed COPY/EXPUNGE, and event
-     subscriptions, while MOVE returns an explicit unsupported mutation error
-     until move semantics are reviewed.
+     for SELECT-style mailbox state, service-backed COPY/MOVE/EXPUNGE, and
+     event subscriptions.
 677. Runtime storage wiring now supports `GOGOMAIL_STORAGE_BACKEND=s3` and
      `GOGOMAIL_STORAGE_BACKEND=minio` through a standard SigV4 S3-compatible
      adapter with endpoint, region, bucket, prefix, credential, session-token,
@@ -755,8 +754,8 @@ Implementation order:
 679. ADR 0008 now records IMAP authentication and session semantics: protocol
      auth should use a dedicated adapter over local user password hashes, JWT
      stays HTTP-only, production auth requires TLS policy review, and
-     MOVE/EXPUNGE remain explicitly unsupported until IMAP-safe mutation
-     semantics are accepted.
+     `\Deleted`/EXPUNGE/MOVE stay separated from gogomail soft-delete and
+     ordinary Mail API folder-move semantics.
 680. `mailservice.NewIMAPAuthenticatorAdapter` now maps the existing
      Submission/local-password authentication boundary into `imapgw.Session`
      values, giving the future listener a protocol-native authenticator without
@@ -816,7 +815,7 @@ Implementation order:
 697. `gogomail --mode=imap` now opens the configured TCP listener and serves the
      IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `LIST`,
      `SELECT`, metadata/body `UID FETCH`, `UID STORE`, and `LOGOUT`, while
-     header-part FETCH, IDLE, MOVE, and EXPUNGE remain deferred.
+     broader body-section FETCH and IDLE work remains deferred.
 698. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.
@@ -963,8 +962,8 @@ Implementation order:
      `UID FETCH` for `BODY[HEADER]` and `RFC822.HEADER`.
 750. IMAP `STARTTLS` completion now includes an updated `[CAPABILITY ...]`
      response code for the post-TLS command surface.
-751. IMAP `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
-     responses while mailbox mutation/import semantics remain deferred.
+751. IMAP `APPEND` now returns an explicit unsupported `NO` response while
+     mailbox import semantics remain deferred.
 752. `gogomail --mode=imap` now runs a dedicated Redis consumer group for
      committed `mail.stored` events and publishes UID-bearing `EXISTS` updates
      into the process-local mailbox event broker for live IDLE sessions.
@@ -1038,8 +1037,7 @@ Implementation order:
 774. IMAP `COPY` and `UID COPY` now have protocol, service, and PostgreSQL
      repository coverage for standards-shaped cross-mailbox copy semantics:
      source UIDs remain stable, destination copies receive fresh mailbox-local
-     UIDs, copied rows pass through quota accounting, and destructive
-     MOVE/EXPUNGE behavior remains explicitly deferred.
+     UIDs, and copied rows pass through quota accounting.
 775. IMAP `CREATE`, `DELETE`, and `RENAME` now have protocol and service
      adapter coverage over the existing folder CRUD boundary, improving
      standards-shaped mailbox management compatibility while keeping hierarchy
@@ -1051,6 +1049,12 @@ Implementation order:
      and optional PostgreSQL integration coverage for deleting only
      `\Deleted`-marked active messages while preserving sequence-number wire
      semantics.
+778. IMAP `MOVE` and `UID MOVE` now have protocol, service, repository, and
+     optional PostgreSQL integration coverage for RFC-shaped source expunge
+     semantics: source sequence sets resolve through the selected mailbox,
+     destination mailboxes are validated, active messages move folders
+     transactionally, source UID rows are removed, and destination mailboxes
+     assign fresh local UIDs.
 
 ## Deferred until backend contracts stabilize
 

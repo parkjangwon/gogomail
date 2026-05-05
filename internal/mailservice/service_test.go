@@ -637,15 +637,6 @@ func TestIMAPStoreAdapterSelectsMailboxState(t *testing.T) {
 	}
 }
 
-func TestIMAPStoreAdapterRejectsDeferredMove(t *testing.T) {
-	t.Parallel()
-
-	adapter := NewIMAPStoreAdapter(New(&fakeRepository{}, nil))
-	if _, err := adapter.MoveMessages(context.Background(), imapgw.MoveMessagesRequest{}); !errors.Is(err, imapgw.ErrUnsupportedMailboxMutation) {
-		t.Fatalf("MoveMessages error = %v, want unsupported mutation", err)
-	}
-}
-
 func TestIMAPAuthenticatorAdapterUsesSubmissionCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -840,6 +831,35 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "archive" || events.events[0].UID != 20 {
 		t.Fatalf("events = %#v, want exists event", events.events)
+	}
+}
+
+func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		imapMoveSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	got, err := service.MoveIMAPMessages(context.Background(), imapgw.MoveMessagesRequest{
+		UserID:          " user-1 ",
+		SourceMailboxID: " inbox ",
+		DestMailboxID:   " archive ",
+		UIDs:            []imapgw.UID{12},
+	})
+	if err != nil {
+		t.Fatalf("MoveIMAPMessages returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].UID != 12 {
+		t.Fatalf("summaries = %#v, want repository result", got)
+	}
+	if repo.lastIMAPMoveUserID != "user-1" || repo.lastIMAPMoveSourceMailboxID != "inbox" || repo.lastIMAPMoveDestMailboxID != "archive" || !reflect.DeepEqual(repo.lastIMAPMoveUIDs, []imapgw.UID{12}) {
+		t.Fatalf("move request = %q/%q/%q/%v", repo.lastIMAPMoveUserID, repo.lastIMAPMoveSourceMailboxID, repo.lastIMAPMoveDestMailboxID, repo.lastIMAPMoveUIDs)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
+		t.Fatalf("events = %#v, want source expunge event", events.events)
 	}
 }
 
@@ -1361,6 +1381,7 @@ type fakeRepository struct {
 	imapMessage                    maildb.IMAPStoredMessage
 	imapFlagSummaries              []imapgw.MessageSummary
 	imapCopySummaries              []imapgw.MessageSummary
+	imapMoveSummaries              []imapgw.MessageSummary
 	imapExpungeSummaries           []imapgw.MessageSummary
 	imapUIDs                       []maildb.IMAPMessageUID
 	imapMailboxes                  []imapgw.Mailbox
@@ -1462,6 +1483,10 @@ type fakeRepository struct {
 	lastIMAPCopySourceMailboxID    string
 	lastIMAPCopyDestMailboxID      string
 	lastIMAPCopyUIDs               []imapgw.UID
+	lastIMAPMoveUserID             string
+	lastIMAPMoveSourceMailboxID    string
+	lastIMAPMoveDestMailboxID      string
+	lastIMAPMoveUIDs               []imapgw.UID
 	lastIMAPExpungeUserID          string
 	lastIMAPExpungeMailboxID       string
 	lastIMAPExpungeUIDs            []imapgw.UID
@@ -1633,6 +1658,14 @@ func (f *fakeRepository) CopyIMAPMessages(_ context.Context, userID string, sour
 	f.lastIMAPCopyDestMailboxID = destMailboxID
 	f.lastIMAPCopyUIDs = append([]imapgw.UID(nil), uids...)
 	return f.imapCopySummaries, nil
+}
+
+func (f *fakeRepository) MoveIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+	f.lastIMAPMoveUserID = userID
+	f.lastIMAPMoveSourceMailboxID = sourceMailboxID
+	f.lastIMAPMoveDestMailboxID = destMailboxID
+	f.lastIMAPMoveUIDs = append([]imapgw.UID(nil), uids...)
+	return f.imapMoveSummaries, nil
 }
 
 func (f *fakeRepository) ExpungeIMAPMessages(_ context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
