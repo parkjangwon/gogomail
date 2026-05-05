@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -312,6 +313,30 @@ func TestAdminServiceResolveDriveObjectCleanupFailureRecordsAudit(t *testing.T) 
 	}
 }
 
+func TestAdminServiceRetryDriveObjectCleanupFailuresRecordsAudit(t *testing.T) {
+	t.Parallel()
+
+	driveStore := &fakeAdminDrive{
+		retryResult: drive.RetryObjectCleanupFailuresResult{Scanned: 3, Deleted: 2, Resolved: 2, Failed: 1},
+		retryErr:    fmt.Errorf("remaining cleanup failure"),
+	}
+	writer := &fakeAuditWriter{}
+	service := adminService{drive: driveStore, audit: writer}
+	result, err := service.RetryDriveObjectCleanupFailures(t.Context(), drive.ListObjectCleanupFailuresRequest{
+		UserID: " user-1 ",
+		Limit:  5,
+	})
+	if err != nil {
+		t.Fatalf("RetryDriveObjectCleanupFailures returned error: %v", err)
+	}
+	if result.Failed != 1 || driveStore.lastRetryReq.UserID != "user-1" || driveStore.lastRetryReq.Status != drive.ObjectCleanupFailureStatusPending || driveStore.lastRetryReq.Limit != 5 {
+		t.Fatalf("result=%+v lastReq=%+v", result, driveStore.lastRetryReq)
+	}
+	if writer.insertCalls != 1 || writer.log.Action != "drive_cleanup_failure.retry_run" || writer.log.Result != "partial" {
+		t.Fatalf("audit log = %+v insertCalls=%d", writer.log, writer.insertCalls)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -387,10 +412,13 @@ type fakeAdminDrive struct {
 	count           drive.StaleUploadSessionCount
 	failures        []drive.ObjectCleanupFailure
 	resolvedFailure drive.ObjectCleanupFailure
+	retryResult     drive.RetryObjectCleanupFailuresResult
+	retryErr        error
 	lastReq         drive.ListUploadSessionsRequest
 	lastCleanupReq  drive.ExpireUploadSessionsRequest
 	lastFailureReq  drive.ListObjectCleanupFailuresRequest
 	lastResolveReq  drive.ResolveObjectCleanupFailureRequest
+	lastRetryReq    drive.ListObjectCleanupFailuresRequest
 }
 
 func (f *fakeAdminDrive) ListUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
@@ -421,6 +449,11 @@ func (f *fakeAdminDrive) ListObjectCleanupFailures(_ context.Context, req drive.
 func (f *fakeAdminDrive) ResolveObjectCleanupFailure(_ context.Context, req drive.ResolveObjectCleanupFailureRequest) (drive.ObjectCleanupFailure, error) {
 	f.lastResolveReq = req
 	return f.resolvedFailure, nil
+}
+
+func (f *fakeAdminDrive) RetryObjectCleanupFailures(_ context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error) {
+	f.lastRetryReq = req
+	return f.retryResult, f.retryErr
 }
 
 func (f *fakeAdminAttachmentCleanup) ExpireStaleAttachmentUploads(context.Context, time.Time, int) ([]maildb.Attachment, error) {

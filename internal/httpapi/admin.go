@@ -110,6 +110,7 @@ type AdminService interface {
 	RunDriveUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
 	ListDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error)
 	ResolveDriveObjectCleanupFailure(ctx context.Context, id string) (drive.ObjectCleanupFailure, error)
+	RetryDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
 	ListAPIUsageDaily(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -206,25 +207,26 @@ type adminConsoleTenancyCapabilities struct {
 }
 
 type adminConsoleOperationCapabilities struct {
-	QueueStats              bool `json:"queue_stats"`
-	OutboxEvents            bool `json:"outbox_events"`
-	AuditLogs               bool `json:"audit_logs"`
-	AuditIntegrity          bool `json:"audit_integrity"`
-	Backpressure            bool `json:"backpressure"`
-	AttachmentCleanup       bool `json:"attachment_cleanup"`
-	AttachmentUploadSession bool `json:"attachment_upload_sessions"`
-	DriveUploadSessions     bool `json:"drive_upload_sessions"`
-	DriveUploadCleanup      bool `json:"drive_upload_cleanup"`
-	DriveCleanupFailures    bool `json:"drive_cleanup_failures"`
-	QuotaReconciliation     bool `json:"quota_reconciliation"`
-	DeliveryAttempts        bool `json:"delivery_attempts"`
-	DeliveryRoutes          bool `json:"delivery_routes"`
-	TrustedRelays           bool `json:"trusted_relays"`
-	SuppressionList         bool `json:"suppression_list"`
-	PushNotificationTriage  bool `json:"push_notification_triage"`
-	APIUsage                bool `json:"api_usage"`
-	APIUsageExport          bool `json:"api_usage_export"`
-	IMAPUIDBackfill         bool `json:"imap_uid_backfill"`
+	QueueStats               bool `json:"queue_stats"`
+	OutboxEvents             bool `json:"outbox_events"`
+	AuditLogs                bool `json:"audit_logs"`
+	AuditIntegrity           bool `json:"audit_integrity"`
+	Backpressure             bool `json:"backpressure"`
+	AttachmentCleanup        bool `json:"attachment_cleanup"`
+	AttachmentUploadSession  bool `json:"attachment_upload_sessions"`
+	DriveUploadSessions      bool `json:"drive_upload_sessions"`
+	DriveUploadCleanup       bool `json:"drive_upload_cleanup"`
+	DriveCleanupFailures     bool `json:"drive_cleanup_failures"`
+	DriveCleanupFailureRetry bool `json:"drive_cleanup_failure_retry"`
+	QuotaReconciliation      bool `json:"quota_reconciliation"`
+	DeliveryAttempts         bool `json:"delivery_attempts"`
+	DeliveryRoutes           bool `json:"delivery_routes"`
+	TrustedRelays            bool `json:"trusted_relays"`
+	SuppressionList          bool `json:"suppression_list"`
+	PushNotificationTriage   bool `json:"push_notification_triage"`
+	APIUsage                 bool `json:"api_usage"`
+	APIUsageExport           bool `json:"api_usage_export"`
+	IMAPUIDBackfill          bool `json:"imap_uid_backfill"`
 }
 
 type adminConsoleSecurityCapabilities struct {
@@ -257,25 +259,26 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			DKIMKeys:       true,
 		},
 		Operations: adminConsoleOperationCapabilities{
-			QueueStats:              true,
-			OutboxEvents:            true,
-			AuditLogs:               true,
-			AuditIntegrity:          true,
-			Backpressure:            true,
-			AttachmentCleanup:       true,
-			AttachmentUploadSession: true,
-			DriveUploadSessions:     true,
-			DriveUploadCleanup:      true,
-			DriveCleanupFailures:    true,
-			QuotaReconciliation:     true,
-			DeliveryAttempts:        true,
-			DeliveryRoutes:          true,
-			TrustedRelays:           true,
-			SuppressionList:         true,
-			PushNotificationTriage:  true,
-			APIUsage:                true,
-			APIUsageExport:          true,
-			IMAPUIDBackfill:         true,
+			QueueStats:               true,
+			OutboxEvents:             true,
+			AuditLogs:                true,
+			AuditIntegrity:           true,
+			Backpressure:             true,
+			AttachmentCleanup:        true,
+			AttachmentUploadSession:  true,
+			DriveUploadSessions:      true,
+			DriveUploadCleanup:       true,
+			DriveCleanupFailures:     true,
+			DriveCleanupFailureRetry: true,
+			QuotaReconciliation:      true,
+			DeliveryAttempts:         true,
+			DeliveryRoutes:           true,
+			TrustedRelays:            true,
+			SuppressionList:          true,
+			PushNotificationTriage:   true,
+			APIUsage:                 true,
+			APIUsageExport:           true,
+			IMAPUIDBackfill:          true,
 		},
 		Security: adminConsoleSecurityCapabilities{
 			AdminTokenHeader:     true,
@@ -290,6 +293,11 @@ type adminAttachmentCleanupRunRequest struct {
 	Before string `json:"before"`
 	Limit  int    `json:"limit,omitempty"`
 	DryRun bool   `json:"dry_run,omitempty"`
+}
+
+type adminDriveCleanupFailureRetryRunRequest struct {
+	UserID string `json:"user_id,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
 }
 
 type adminAPIUsageLedgerRetentionRunRequest struct {
@@ -1252,6 +1260,42 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_cleanup_failure": resolved})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/drive-cleanup-failures/retry-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var body adminDriveCleanupFailureRetryRunRequest
+		if err := decodeJSONBody(r, &body); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		req := drive.ListObjectCleanupFailuresRequest{
+			UserID: body.UserID,
+			Status: drive.ObjectCleanupFailureStatusPending,
+			Limit:  body.Limit,
+		}
+		req, err := drive.ValidateListObjectCleanupFailuresRequest(req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		result, err := service.RetryDriveObjectCleanupFailures(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"drive_cleanup_retry_run": map[string]any{
+				"user_id":  req.UserID,
+				"limit":    req.Limit,
+				"scanned":  result.Scanned,
+				"deleted":  result.Deleted,
+				"resolved": result.Resolved,
+				"failed":   result.Failed,
+			},
+		})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
