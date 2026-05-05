@@ -800,10 +800,13 @@ Implementation order:
 691. Authenticated IMAP `SELECT` now maps to `imapgw.MailboxSessionStore`,
      returning permanent flags, `EXISTS`, `UIDVALIDITY`, `UIDNEXT`, and
      read-write completion metadata from the service-backed mailbox state.
-692. `gogomail --mode=imap` now opens the configured TCP listener and serves the
-     IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`,
-     and `LOGOUT`, while FETCH, STORE, IDLE, MOVE, and EXPUNGE remain deferred.
-693. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
+692. Authenticated IMAP `LIST` now maps to the service-backed mailbox list and
+     returns sanitized quoted mailbox names with hierarchy delimiters.
+693. `gogomail --mode=imap` now opens the configured TCP listener and serves the
+     IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `LIST`,
+     `SELECT`, and `LOGOUT`, while FETCH, STORE, IDLE, MOVE, and EXPUNGE remain
+     deferred.
+694. IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
      present, keeping the runtime listener path aligned with the authentication
      policy guardrails.
 
