@@ -358,7 +358,7 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	if got.MaxListLimit != maildb.MessageListMaxLimit {
 		t.Fatalf("max list limit = %d, want %d", got.MaxListLimit, maildb.MessageListMaxLimit)
 	}
-	if got.BulkActions.MaxMessageIDs != maildb.BulkMessageMaxIDs || !got.BulkActions.Flags || !got.BulkActions.ThreadFlags || !got.BulkActions.Move || !got.BulkActions.ThreadMove || !got.BulkActions.Delete || !got.BulkActions.ThreadDelete || !got.BulkActions.Restore {
+	if got.BulkActions.MaxMessageIDs != maildb.BulkMessageMaxIDs || !got.BulkActions.Flags || !got.BulkActions.ThreadFlags || !got.BulkActions.Move || !got.BulkActions.ThreadMove || !got.BulkActions.Delete || !got.BulkActions.ThreadDelete || !got.BulkActions.Restore || !got.BulkActions.ThreadRestore {
 		t.Fatalf("bulk actions = %#v", got.BulkActions)
 	}
 	if got.Compose.MaxRecipients != mailservice.MaxComposeRecipients || got.Compose.MaxAttachmentIDs != mailservice.MaxComposeAttachments {
@@ -1611,6 +1611,28 @@ func TestBulkRestoreMessagesHandler(t *testing.T) {
 	}
 	if service.lastBulkRestore.UserID != "user-1" || len(service.lastBulkRestore.MessageIDs) != 2 {
 		t.Fatalf("lastBulkRestore = %+v", service.lastBulkRestore)
+	}
+}
+
+func TestBulkRestoreThreadsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/threads/bulk/restore?user_id=user-1", strings.NewReader(`{
+		"thread_ids":["thread-1","thread-2"]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastBulkThreadRestore.UserID != "user-1" || len(service.lastBulkThreadRestore.ThreadIDs) != 2 {
+		t.Fatalf("lastBulkThreadRestore = %+v", service.lastBulkThreadRestore)
 	}
 }
 
@@ -3003,6 +3025,7 @@ type fakeMessageService struct {
 	lastBulkDelete              maildb.BulkMessageDeleteRequest
 	lastBulkThreadDelete        maildb.BulkThreadDeleteRequest
 	lastBulkRestore             maildb.BulkMessageRestoreRequest
+	lastBulkThreadRestore       maildb.BulkThreadRestoreRequest
 	lastListFilter              maildb.MessageListFilter
 	lastThreadFilter            maildb.ThreadListFilter
 	lastSearch                  maildb.MessageSearchQuery
@@ -3161,6 +3184,11 @@ func (f *fakeMessageService) RestoreMessage(_ context.Context, userID string, me
 func (f *fakeMessageService) BulkRestoreMessages(_ context.Context, req maildb.BulkMessageRestoreRequest) (int64, error) {
 	f.lastBulkRestore = req
 	return int64(len(req.MessageIDs)), nil
+}
+
+func (f *fakeMessageService) BulkRestoreThreads(_ context.Context, req maildb.BulkThreadRestoreRequest) (int64, error) {
+	f.lastBulkThreadRestore = req
+	return int64(len(req.ThreadIDs)), nil
 }
 
 func (f *fakeMessageService) ListPushDevices(_ context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
