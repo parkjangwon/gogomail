@@ -40,6 +40,8 @@ type adminService struct {
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
 	drive                       interface {
 		ListUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
+		CountStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) (drive.StaleUploadSessionCount, error)
+		ListStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
 	}
 	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
@@ -286,6 +288,28 @@ func (s adminService) ListDriveUploadSessions(ctx context.Context, req drive.Lis
 		return nil, err
 	}
 	return s.drive.ListUploadSessions(ctx, req)
+}
+
+func (s adminService) CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error) {
+	if s.drive == nil {
+		return drive.StaleUploadSessionCount{}, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateExpireUploadSessionsRequest(drive.ExpireUploadSessionsRequest{Before: before, Limit: limit})
+	if err != nil {
+		return drive.StaleUploadSessionCount{}, err
+	}
+	return s.drive.CountStaleUploadSessions(ctx, req)
+}
+
+func (s adminService) ListStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error) {
+	if s.drive == nil {
+		return nil, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateExpireUploadSessionsRequest(drive.ExpireUploadSessionsRequest{Before: before, Limit: limit})
+	if err != nil {
+		return nil, err
+	}
+	return s.drive.ListStaleUploadSessions(ctx, req)
 }
 
 func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

@@ -92,12 +92,43 @@ func TestExpireUploadSessionsRequiresDatabase(t *testing.T) {
 	}
 }
 
+func TestCountStaleUploadSessionsRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	repo := NewRepository(nil)
+	_, err := repo.CountStaleUploadSessions(context.Background(), ExpireUploadSessionsRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("CountStaleUploadSessions err = %v, want database handle rejection first", err)
+	}
+}
+
+func TestListStaleUploadSessionsRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	repo := NewRepository(nil)
+	_, err := repo.ListStaleUploadSessions(context.Background(), ExpireUploadSessionsRequest{})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("ListStaleUploadSessions err = %v, want database handle rejection first", err)
+	}
+}
+
 func TestServiceExpireUploadSessionsRequiresRepository(t *testing.T) {
 	t.Parallel()
 
 	_, err := (*Service)(nil).ExpireUploadSessions(context.Background(), ExpireUploadSessionsRequest{})
 	if err == nil || !strings.Contains(err.Error(), "drive repository is required") {
 		t.Fatalf("ExpireUploadSessions err = %v, want repository rejection", err)
+	}
+}
+
+func TestServiceStaleUploadSessionPreviewRequiresRepository(t *testing.T) {
+	t.Parallel()
+
+	if _, err := (*Service)(nil).CountStaleUploadSessions(context.Background(), ExpireUploadSessionsRequest{}); err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("CountStaleUploadSessions err = %v, want repository rejection", err)
+	}
+	if _, err := (*Service)(nil).ListStaleUploadSessions(context.Background(), ExpireUploadSessionsRequest{}); err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("ListStaleUploadSessions err = %v, want repository rejection", err)
 	}
 }
 

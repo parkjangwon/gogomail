@@ -164,6 +164,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API exposes `GET /admin/v1/drive-upload-sessions` so operator consoles
   can inspect Drive upload session state by required user scope and optional
   lifecycle status before broader Drive admin APIs are built.
+- Admin API exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
+  operator consoles can preview stale Drive upload-session cleanup impact
+  before relying on the worker loop.
 - Mail API exposes cursor-paginated thread list and thread-message read models for conversation-style webmail rendering, and draft search uses the same opaque cursor envelope for compose-scale draft lists.
 - `gogomail --mode=all-in-one` registers Mail API and Admin API routes in the
   same HTTP process for small-deployment and local release smoke coverage.

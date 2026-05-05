@@ -105,6 +105,8 @@ type AdminService interface {
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
+	CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error)
+	ListStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
 	ListAPIUsageDaily(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -209,6 +211,7 @@ type adminConsoleOperationCapabilities struct {
 	AttachmentCleanup       bool `json:"attachment_cleanup"`
 	AttachmentUploadSession bool `json:"attachment_upload_sessions"`
 	DriveUploadSessions     bool `json:"drive_upload_sessions"`
+	DriveUploadCleanup      bool `json:"drive_upload_cleanup"`
 	QuotaReconciliation     bool `json:"quota_reconciliation"`
 	DeliveryAttempts        bool `json:"delivery_attempts"`
 	DeliveryRoutes          bool `json:"delivery_routes"`
@@ -258,6 +261,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			AttachmentCleanup:       true,
 			AttachmentUploadSession: true,
 			DriveUploadSessions:     true,
+			DriveUploadCleanup:      true,
 			QuotaReconciliation:     true,
 			DeliveryAttempts:        true,
 			DeliveryRoutes:          true,
@@ -1121,6 +1125,40 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req adminAttachmentCleanupRunRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		before, ok := parseAdminAttachmentCleanupRequest(w, req)
+		if !ok {
+			return
+		}
+		counts, err := service.CountStaleDriveUploadSessions(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		sessionCandidates, err := service.ListStaleDriveUploadSessions(r.Context(), before, req.Limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"drive_upload_cleanup_candidates": map[string]any{
+				"session_candidates":      sessionCandidates,
+				"session_candidate_count": counts.TotalCount,
+				"session_limited_count":   counts.LimitedCount,
+				"before":                  before.Format(time.RFC3339),
+				"limit":                   drive.NormalizeUploadSessionCleanupLimit(req.Limit),
+			},
+		})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

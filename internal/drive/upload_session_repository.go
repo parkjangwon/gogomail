@@ -407,6 +407,81 @@ WHERE id = $1::uuid
 	return expired, nil
 }
 
+func (r *Repository) CountStaleUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) (StaleUploadSessionCount, error) {
+	if r == nil || r.db == nil {
+		return StaleUploadSessionCount{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateExpireUploadSessionsRequest(req)
+	if err != nil {
+		return StaleUploadSessionCount{}, err
+	}
+	const query = `
+SELECT COUNT(*)
+FROM drive_upload_sessions
+WHERE status IN ('pending', 'uploading', 'failed')
+  AND expires_at < $1`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, query, req.Before).Scan(&total); err != nil {
+		return StaleUploadSessionCount{}, fmt.Errorf("count stale drive upload sessions: %w", err)
+	}
+	limited := total
+	if limited > int64(req.Limit) {
+		limited = int64(req.Limit)
+	}
+	return StaleUploadSessionCount{TotalCount: total, LimitedCount: limited}, nil
+}
+
+func (r *Repository) ListStaleUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) ([]UploadSession, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateExpireUploadSessionsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  upload_id,
+  name,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM drive_upload_sessions
+WHERE status IN ('pending', 'uploading', 'failed')
+  AND expires_at < $1
+ORDER BY expires_at ASC, created_at ASC
+LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, query, req.Before, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list stale drive upload sessions: %w", err)
+	}
+	defer rows.Close()
+	sessions := make([]UploadSession, 0)
+	for rows.Next() {
+		session, err := scanUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan stale drive upload session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate stale drive upload sessions: %w", err)
+	}
+	return sessions, nil
+}
+
 func (r *Repository) StoreUploadSessionBody(ctx context.Context, req RecordUploadSessionBodyRequest) (UploadSession, error) {
 	if r == nil || r.db == nil {
 		return UploadSession{}, fmt.Errorf("database handle is required")
