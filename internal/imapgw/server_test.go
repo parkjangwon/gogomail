@@ -282,6 +282,47 @@ func TestServerRejectsControlCharactersInAtoms(t *testing.T) {
 	}
 }
 
+func TestServerRejectsMalformedQuotedCommandArguments(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN \"user\"secret pass\r\na2 LOGIN \"user\\n\" pass\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write malformed quoted arguments: %v", err)
+	}
+	want := []string{
+		"* BAD malformed command\r\n",
+		"* BAD malformed command\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read malformed quoted argument response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("malformed quoted argument response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsMalformedCommandAtoms(t *testing.T) {
 	t.Parallel()
 
@@ -6958,6 +6999,15 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFields("a1 LOGIN \"user\nbad\" secret"); err == nil {
 		t.Fatal("parseIMAPFields accepted quoted control character")
+	}
+	if _, err := parseIMAPFields(`a1 LOGIN "user"secret pass`); err == nil {
+		t.Fatal("parseIMAPFields accepted adjacent quoted token")
+	}
+	if _, err := parseIMAPFields(`a1 LOGIN "user\nbad" secret`); err == nil {
+		t.Fatal("parseIMAPFields accepted unsupported quoted escape")
+	}
+	if _, err := parseIMAPFields("a1 LOGIN \"user\\\rbad\" secret"); err == nil {
+		t.Fatal("parseIMAPFields accepted escaped quoted control character")
 	}
 	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6}"); err == nil {
 		t.Fatal("parseIMAPFields accepted unsupported literal")

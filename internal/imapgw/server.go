@@ -5740,10 +5740,16 @@ func parseIMAPFieldsWithLiteral(line string, literal *string) ([]string, error) 
 					if i >= len(line) {
 						return nil, fmt.Errorf("unterminated quoted string")
 					}
+					if line[i] != '\\' && line[i] != '"' {
+						return nil, fmt.Errorf("invalid quoted escape")
+					}
 					b.WriteByte(line[i])
 					i++
 				case '"':
 					i++
+					if i < len(line) && line[i] != ' ' && line[i] != '\t' && line[i] != ')' {
+						return nil, fmt.Errorf("quoted string must be delimited")
+					}
 					fields = append(fields, b.String())
 					closed = true
 				default:
