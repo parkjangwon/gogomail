@@ -399,26 +399,24 @@ FOR UPDATE`
 		messageUID IMAPMessageUID
 	}
 	candidates := make([]storeCandidate, 0, len(uids))
-	modified := make([]imapgw.UID, 0)
 	for _, uid := range uids {
 		row, messageUID, err := scanIMAPMessageByUID(ctx, tx, userID, mailboxID, uid)
 		if err != nil {
 			return nil, err
 		}
-		if unchangedSince > 0 && messageUID.ModSeq > unchangedSince {
-			modified = append(modified, uid)
-		}
 		candidates = append(candidates, storeCandidate{uid: uid, row: row, messageUID: messageUID})
-	}
-	if len(modified) > 0 {
-		return nil, &imapgw.StoreModifiedError{UIDs: modified}
 	}
 
 	summaries := make([]imapgw.MessageSummary, 0, len(candidates))
+	modified := make([]imapgw.UID, 0)
 	changedAny := false
 	for _, candidate := range candidates {
 		row := candidate.row
 		messageUID := candidate.messageUID
+		if unchangedSince > 0 && messageUID.ModSeq > unchangedSince {
+			modified = append(modified, candidate.uid)
+			continue
+		}
 		next, changed := applyIMAPStoreFlagChanges(row, changes)
 		if changed {
 			changedAny = true
@@ -448,6 +446,9 @@ FOR UPDATE`
 	sort.Slice(summaries, func(i, j int) bool {
 		return summaries[i].UID < summaries[j].UID
 	})
+	if len(modified) > 0 {
+		return summaries, &imapgw.StoreModifiedError{UIDs: modified, Summaries: summaries}
+	}
 	return summaries, nil
 }
 

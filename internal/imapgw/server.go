@@ -3471,35 +3471,76 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 	if err != nil {
 		var modified *StoreModifiedError
 		if errors.As(err, &modified) {
-			_, writeErr := writer.WriteString(fmt.Sprintf("%s NO [MODIFIED %s] %s conditional store failed\r\n", tag, imapUIDSetResponse(modified.UIDs), completionCommand))
+			if err := s.writeStoreFetchResponses(writer, tag, summaries, state.condstoreAware, completionCommand); err != nil {
+				return false, err
+			}
+			modifiedSet, err := s.storeModifiedSetResponse(context.Background(), state, modified.UIDs, completionCommand == "UID STORE")
+			if err != nil {
+				_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
+				return false, writeErr
+			}
+			_, writeErr := writer.WriteString(fmt.Sprintf("%s OK [MODIFIED %s] %s conditional store completed\r\n", tag, modifiedSet, completionCommand))
 			return false, writeErr
 		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	if silent {
+	if silent && unchangedSince == 0 {
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
+	if err := s.writeStoreFetchResponses(writer, tag, summaries, state.condstoreAware, completionCommand); err != nil {
+		return false, err
+	}
+	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+	return false, err
+}
+
+func (s *Server) writeStoreFetchResponses(writer *bufio.Writer, tag string, summaries []MessageSummary, includeModSeq bool, completionCommand string) error {
 	for _, summary := range summaries {
 		sequenceNumber, ok := imapSequenceNumber(summary)
 		if !ok {
 			_, err := writer.WriteString(tag + " NO " + completionCommand + " sequence number is unavailable\r\n")
-			return false, err
+			return err
 		}
 		attributes := []string{
 			fmt.Sprintf("UID %d", summary.UID),
 			"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
 		}
-		if state.condstoreAware {
+		if includeModSeq {
 			attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", summary.ModSeq))
 		}
 		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(attributes, " "))); err != nil {
-			return false, err
+			return err
 		}
 	}
-	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
-	return false, err
+	return nil
+}
+
+func (s *Server) storeModifiedSetResponse(ctx context.Context, state *imapConnState, uids []UID, uidMode bool) (string, error) {
+	if uidMode {
+		return imapUIDSetResponse(uids), nil
+	}
+	sequenceNumbers := make([]UID, 0, len(uids))
+	for _, uid := range uids {
+		message, err := s.options.Backend.FetchMessage(ctx, FetchMessageRequest{
+			UserID:    state.session.UserID,
+			MailboxID: state.selectedMailbox,
+			UID:       uid,
+		})
+		if err != nil {
+			return "", err
+		}
+		if message.Body != nil {
+			_ = message.Body.Close()
+		}
+		sequenceNumber, ok := imapSequenceNumber(message.Summary)
+		if !ok {
+			return "", fmt.Errorf("imap modified sequence number is unavailable")
+		}
+		sequenceNumbers = append(sequenceNumbers, UID(sequenceNumber))
+	}
+	return imapUIDSetResponse(sequenceNumbers), nil
 }
 
 func imapStoreUnchangedSince(fields []string) (uint64, []string, bool) {

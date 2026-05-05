@@ -130,7 +130,8 @@ type Store interface {
 }
 
 type StoreModifiedError struct {
-	UIDs []UID
+	UIDs      []UID
+	Summaries []MessageSummary
 }
 
 func (e *StoreModifiedError) Error() string {
