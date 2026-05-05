@@ -163,6 +163,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP RFC 2971 `ID` parameter-list parsing rejects unsupported quoted escapes
   and adjacent quoted tokens without whitespace, while preserving valid escaped
   quoted-special characters inside ID strings.
+- IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
+  digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
+  instead of silently treating them as valid sizes.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

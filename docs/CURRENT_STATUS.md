@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP ID quoted-token hardening)
+Last updated: 2026-05-05 (updated after IMAP SEARCH size number hardening)
 
 ## Current phase
 
@@ -234,6 +234,9 @@ guidance.
 - IMAP RFC 2971 `ID` parameter-list parsing now rejects unsupported quoted
   escapes and adjacent quoted tokens without whitespace, while preserving valid
   escaped quoted-special characters inside ID strings.
+- IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now require
+  digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
+  instead of silently treating them as valid sizes.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

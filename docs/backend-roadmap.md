@@ -1489,6 +1489,9 @@ Implementation order:
 897. IMAP RFC 2971 `ID` parameter-list parsing now rejects unsupported quoted
      escapes and adjacent quoted tokens without whitespace, while preserving
      valid escaped quoted-special characters inside ID strings.
+898. IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now
+     require digit-only RFC 3501 number atoms, rejecting signed values such as
+     `+20` instead of silently treating them as valid sizes.
 
 ## Deferred until backend contracts stabilize
 

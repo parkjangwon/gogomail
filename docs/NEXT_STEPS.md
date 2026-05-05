@@ -115,6 +115,9 @@ Current state:
 - IMAP RFC 2971 `ID` parameter-list parsing rejects unsupported quoted escapes
   and adjacent quoted tokens without whitespace, while preserving valid escaped
   quoted-special characters inside ID strings.
+- IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
+  digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
+  instead of silently treating them as valid sizes.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

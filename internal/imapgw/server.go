@@ -2301,7 +2301,16 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 }
 
 func parseIMAPSearchSize(value string) (int64, bool) {
-	size, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, false
+	}
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, false
+		}
+	}
+	size, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || size < 0 {
 		return 0, false
 	}
