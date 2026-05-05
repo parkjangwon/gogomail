@@ -153,17 +153,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	_, state.tlsActive = conn.(*tls.Conn)
 	defer state.closeSubscription()
 	for {
-		line, err := reader.ReadString('\n')
+		line, literal, err := s.readCommandLine(reader, writer, &state)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
 		}
-		if len(line) > 8192 {
-			return fmt.Errorf("imap command line is too long")
-		}
-		done, err := s.handleLine(writer, line, &state)
+		done, err := s.handleLineWithLiteral(writer, line, literal, &state)
 		if err != nil {
 			return err
 		}
@@ -195,6 +192,45 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 }
 
+func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (string, *string, error) {
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", nil, err
+	}
+	if len(line) > 8192 {
+		return "", nil, fmt.Errorf("imap command line is too long")
+	}
+	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
+		return line, nil, nil
+	}
+	literalSize, ok, err := imapSynchronizingLiteralSize(line)
+	if err != nil || !ok {
+		return line, nil, err
+	}
+	if literalSize > maxIMAPCommandLiteralBytes {
+		return "", nil, fmt.Errorf("imap command literal is too large")
+	}
+	if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
+		return "", nil, err
+	}
+	if err := writer.Flush(); err != nil {
+		return "", nil, err
+	}
+	literal := make([]byte, literalSize)
+	if _, err := io.ReadFull(reader, literal); err != nil {
+		return "", nil, err
+	}
+	trailer := make([]byte, 2)
+	if _, err := io.ReadFull(reader, trailer); err != nil {
+		return "", nil, err
+	}
+	if string(trailer) != "\r\n" {
+		return "", nil, fmt.Errorf("imap command literal must be followed by CRLF")
+	}
+	value := string(literal)
+	return line, &value, nil
+}
+
 type imapConnState struct {
 	session          *Session
 	selectedMailbox  MailboxID
@@ -209,13 +245,17 @@ type imapConnState struct {
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
+	return s.handleLineWithLiteral(writer, line, nil, state)
+}
+
+func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, literal *string, state *imapConnState) (bool, error) {
 	if state.pendingIdleTag != "" {
 		return s.handleIdleDone(writer, strings.TrimRight(line, "\r\n"), state)
 	}
 	if state.pendingAuthTag != "" {
 		return s.handleAuthenticatePlainResponse(writer, strings.TrimRight(line, "\r\n"), state)
 	}
-	fields, parseErr := parseIMAPFields(strings.TrimRight(line, "\r\n"))
+	fields, parseErr := parseIMAPFieldsWithLiteral(strings.TrimRight(line, "\r\n"), literal)
 	if parseErr != nil {
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
@@ -1446,7 +1486,10 @@ func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, quer
 	}
 }
 
-const maxIMAPSearchLiteralBytes = 1 << 20
+const (
+	maxIMAPSearchLiteralBytes  = 1 << 20
+	maxIMAPCommandLiteralBytes = 10 << 20
+)
 
 func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapConnState, summary MessageSummary, criterion string, query string) (bool, error) {
 	if s == nil || state == nil || state.session == nil || query == "" || summary.UID == 0 {
@@ -3332,6 +3375,10 @@ func imapQuotedString(value string) string {
 }
 
 func parseIMAPFields(line string) ([]string, error) {
+	return parseIMAPFieldsWithLiteral(line, nil)
+}
+
+func parseIMAPFieldsWithLiteral(line string, literal *string) ([]string, error) {
 	fields := make([]string, 0, 4)
 	for i := 0; i < len(line); {
 		for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
@@ -3379,7 +3426,14 @@ func parseIMAPFields(line string) ([]string, error) {
 		}
 		field := line[start:i]
 		if imapLooksLikeLiteral(field) {
-			return nil, fmt.Errorf("imap literals are not supported")
+			if literal == nil || !imapRemainingFieldsAreSpace(line[i:]) {
+				return nil, fmt.Errorf("imap literal is not available")
+			}
+			fields = append(fields, *literal)
+			return fields, nil
+		}
+		if imapLooksLikeLiteralPrefix(field) {
+			return nil, fmt.Errorf("imap literal syntax is unsupported")
 		}
 		fields = append(fields, field)
 	}
@@ -3396,4 +3450,46 @@ func imapLooksLikeLiteral(field string) bool {
 		}
 	}
 	return true
+}
+
+func imapLooksLikeLiteralPrefix(field string) bool {
+	return len(field) >= 2 && field[0] == '{'
+}
+
+func imapRemainingFieldsAreSpace(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] != ' ' && value[i] != '\t' {
+			return false
+		}
+	}
+	return true
+}
+
+func imapSynchronizingLiteralSize(line string) (int, bool, error) {
+	trimmed := strings.TrimRight(line, "\r\n")
+	if !strings.HasSuffix(trimmed, "}") {
+		return 0, false, nil
+	}
+	start := strings.LastIndex(trimmed, "{")
+	if start < 0 {
+		return 0, false, nil
+	}
+	if start > 0 && trimmed[start-1] != ' ' && trimmed[start-1] != '\t' {
+		return 0, false, nil
+	}
+	value := trimmed[start+1 : len(trimmed)-1]
+	if value == "" {
+		return 0, false, fmt.Errorf("imap literal size is required")
+	}
+	var size int64
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, false, nil
+		}
+		size = size*10 + int64(value[i]-'0')
+		if size > maxIMAPCommandLiteralBytes {
+			return 0, true, fmt.Errorf("imap command literal is too large")
+		}
+	}
+	return int(size), true, nil
 }

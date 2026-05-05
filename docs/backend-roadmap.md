@@ -825,7 +825,7 @@ Implementation order:
      not a body-fetch request.
 700. IMAP `CAPABILITY` responses now reflect connection state by dropping
      `AUTH=PLAIN` after authentication, and the command parser rejects
-     unsupported synchronizing literal tokens instead of treating them as atoms.
+     unsupported literal tokens instead of treating them as atoms.
 701. IMAP `AUTHENTICATE PLAIN` now supports the standard continuation flow with
      SASL PLAIN base64 decoding, cancellation handling, and post-auth
      capability state updates.
@@ -1066,6 +1066,10 @@ Implementation order:
 781. IMAP `SELECT` and `EXAMINE` now emit optional RFC-shaped `[UNSEEN n]`
      response codes by resolving the first unread message sequence number from
      mailbox summaries instead of confusing unseen counts with sequence numbers.
+782. IMAP command reading now consumes bounded synchronizing literals with a
+     continuation response, preserves the literal as the final parsed command
+     field, rejects unsupported non-synchronizing literals, and keeps the
+     connection framed even while `APPEND` storage remains deferred.
 
 ## Deferred until backend contracts stabilize
 

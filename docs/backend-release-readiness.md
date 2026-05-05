@@ -296,7 +296,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
   allowing common quoted `LOGIN` credentials and mailbox atoms while rejecting
-  malformed quoted controls and unsupported synchronizing literal tokens.
+  malformed quoted controls and unsupported non-synchronizing literal tokens.
+  Bounded synchronizing command literals are consumed with a continuation
+  response so future `APPEND` support can preserve connection framing.
 - IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication,
   aligning the first command surface with RFC client state expectations.
 - IMAP `AUTHENTICATE PLAIN` now supports the standard continuation response and
