@@ -1016,6 +1016,8 @@ Implementation order:
 768. IMAP `FETCH` and `UID FETCH` now support bounded nested multipart
      body-section literals such as `BODY[1.2]` with a capped MIME part path
      depth.
+769. IMAP `FETCH` and `UID FETCH` now support bounded partial windows over
+     `BODY[HEADER.FIELDS (...)]` and `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 
 ## Deferred until backend contracts stabilize
 
