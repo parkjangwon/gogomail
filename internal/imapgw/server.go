@@ -316,16 +316,16 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK ID completed\r\n")
 		return false, err
 	case "STARTTLS":
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD STARTTLS does not accept arguments\r\n")
+			return false, err
+		}
 		if state.session != nil {
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
 			return false, err
 		}
 		if state.tlsActive || s.options.TLSConfig == nil {
 			_, err := writer.WriteString(tag + " BAD STARTTLS is unavailable\r\n")
-			return false, err
-		}
-		if len(fields) != 2 {
-			_, err := writer.WriteString(tag + " BAD STARTTLS does not accept arguments\r\n")
 			return false, err
 		}
 		state.startTLS = true

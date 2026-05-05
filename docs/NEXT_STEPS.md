@@ -43,6 +43,8 @@ Current state:
 - Authenticated selected-state no-argument commands validate extra arguments
   on `CHECK`, `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning
   selected-mailbox state errors.
+- `STARTTLS` validates its no-argument syntax before TLS availability and
+  authentication-state checks.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
