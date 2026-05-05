@@ -867,6 +867,8 @@ The platform hardening sprint completed the following:
   without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` return explicit unsupported `NO` responses
   while `\Deleted` semantics remain deferred.
+- IMAP `COPY` and `UID COPY` return explicit unsupported `NO` responses while
+  cross-mailbox copy semantics remain deferred.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP advertises `LOGINDISABLED` and rejects plaintext `LOGIN`/`AUTHENTICATE`

@@ -940,6 +940,8 @@ Implementation order:
      block.
 741. IMAP `SEARCH` and `UID SEARCH` now support bounded RFC
      `HEADER <field> <value>` criteria scans over the raw message header block.
+742. IMAP `COPY` and `UID COPY` now return explicit unsupported `NO` responses
+     while cross-mailbox copy semantics remain deferred.
 
 ## Deferred until backend contracts stabilize
 

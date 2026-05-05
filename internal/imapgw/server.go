@@ -400,6 +400,17 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleFetch(writer, tag, fields, state)
 	case "SEARCH":
 		return s.handleSearch(writer, tag, fields, state, false)
+	case "COPY":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " NO COPY is not supported\r\n")
+		return false, err
 	case "CHECK":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -723,6 +734,9 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		return s.handleUIDStore(writer, tag, fields, state)
 	case "EXPUNGE":
 		_, err := writer.WriteString(tag + " NO UID EXPUNGE is not supported\r\n")
+		return false, err
+	case "COPY":
+		_, err := writer.WriteString(tag + " NO UID COPY is not supported\r\n")
 		return false, err
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
