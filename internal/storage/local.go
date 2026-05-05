@@ -33,27 +33,34 @@ func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error
 		return fmt.Errorf("create storage directory: %w", err)
 	}
 
-	tmpPath := fullPath + ".tmp"
-	file, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	file, err := os.CreateTemp(filepath.Dir(fullPath), "."+filepath.Base(fullPath)+".*.tmp")
 	if err != nil {
 		return fmt.Errorf("open temporary storage object: %w", err)
 	}
+	tmpPath := file.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
 
 	_, copyErr := io.Copy(file, body)
 	closeErr := file.Close()
 	if copyErr != nil {
-		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write storage object: %w", copyErr)
 	}
 	if closeErr != nil {
-		_ = os.Remove(tmpPath)
 		return fmt.Errorf("close storage object: %w", closeErr)
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		return fmt.Errorf("set storage object permissions: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, fullPath); err != nil {
-		_ = os.Remove(tmpPath)
 		return fmt.Errorf("commit storage object: %w", err)
 	}
+	committed = true
 	return nil
 }
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3 credential whitespace validation)
+Last updated: 2026-05-05 (updated after local storage unique temp writes)
 
 ## Current phase
 
@@ -181,6 +181,9 @@ guidance.
   and line breaks during adapter construction, surfacing copied env/config
   credential mistakes before readiness probes or runtime PUT/GET requests fail
   with opaque authentication errors.
+- Local/NFS-style storage writes now stage through unique temporary files in
+  the target directory before `rename`, avoiding fixed `.tmp` collisions while
+  preserving atomic object replacement semantics.
 - IMAP `LIST`/`LSUB` CHILDREN attributes now infer immediate parents from
   nested `FullPath` values when backend rows do not carry `ParentID`, so deeper
   hierarchies such as `Projects/2026/Jan` still mark `Projects/2026` with

@@ -16,6 +16,9 @@ GOGOMAIL_STORAGE_ROOT=./data/storage
 
 Use local storage for development, single-node installs, or deployments where
 the mount itself provides durability and availability.
+Writes are staged through unique temporary files in the destination directory
+and committed with `rename`, avoiding fixed `.tmp` collisions on local or
+NFS-style mounts while preserving atomic object replacement semantics.
 
 ## Local MinIO
 

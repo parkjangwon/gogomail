@@ -51,6 +51,55 @@ func TestLocalStoreCheckProbesWritableStorage(t *testing.T) {
 	}
 }
 
+func TestLocalStorePutUsesUniqueTemporaryObject(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	store := NewLocalStore(root)
+	objectPath := "mailstore/company/domain/message.eml"
+	fullPath := filepath.Join(root, filepath.FromSlash(objectPath))
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatalf("create object dir: %v", err)
+	}
+	staleTmpPath := fullPath + ".tmp"
+	if err := os.WriteFile(staleTmpPath, []byte("stale temp"), 0o644); err != nil {
+		t.Fatalf("write stale fixed temp object: %v", err)
+	}
+
+	if err := store.Put(context.Background(), objectPath, strings.NewReader("fresh body")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	stale, err := os.ReadFile(staleTmpPath)
+	if err != nil {
+		t.Fatalf("read stale fixed temp object: %v", err)
+	}
+	if string(stale) != "stale temp" {
+		t.Fatalf("stale fixed temp object = %q", stale)
+	}
+	matches, err := filepath.Glob(filepath.Join(filepath.Dir(fullPath), "."+filepath.Base(fullPath)+".*.tmp"))
+	if err != nil {
+		t.Fatalf("glob temp objects: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("temporary objects left behind: %v", matches)
+	}
+
+	body, err := store.Get(context.Background(), objectPath)
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if err := body.Close(); err != nil {
+		t.Fatalf("close body: %v", err)
+	}
+	if string(got) != "fresh body" {
+		t.Fatalf("stored body = %q", got)
+	}
+}
+
 func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
 	t.Parallel()
 
