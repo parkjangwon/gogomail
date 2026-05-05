@@ -915,8 +915,11 @@ The platform hardening sprint completed the following:
   transfer encodings, dispositions, body octets, and text line counts without
   retaining attachment payloads.
 - IMAP `BODYSTRUCTURE` now emits RFC 3501-shaped `message/rfc822` bodies with
-  encapsulated envelope/body placeholders and line counts instead of treating
-  attached messages as generic basic parts.
+  an encapsulated envelope placeholder, parsed nested body structure, and line
+  counts instead of treating attached messages as generic basic parts.
+- The shared MIME-structure parser now descends into `message/rfc822` parts
+  while counting the encapsulated message bytes/lines, so forwarded-message
+  attachments expose nested body metadata without retaining payloads.
 - IMAP `FETCH`/`UID FETCH` can now return RFC 3501-shaped
   `BODY[n.HEADER]` and `BODY[n.TEXT]` literals for `message/rfc822` parts,
   including forwarded-message attachments inside multipart messages.

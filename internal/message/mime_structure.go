@@ -119,12 +119,33 @@ func parseMIMEPartStructure(header mimeHeader, body io.Reader, state *mimeStruct
 		}
 		return part, nil
 	}
+	if part.MediaType == "MESSAGE" && part.MediaSubtype == "RFC822" {
+		counter := &mimeBodyCounter{}
+		countedBody := io.TeeReader(body, counter)
+		entity, err := gomessage.ReadWithOptions(countedBody, &gomessage.ReadOptions{MaxHeaderBytes: state.opts.MaxHeaderBytes})
+		if err != nil && !gomessage.IsUnknownCharset(err) {
+			if _, copyErr := io.Copy(io.Discard, countedBody); copyErr != nil {
+				return MIMEPart{}, fmt.Errorf("read malformed message/rfc822 body: %w", copyErr)
+			}
+			part.Size = counter.Size
+			part.Lines = counter.Lines()
+			return part, nil
+		}
+		childPart, err := parseMIMEPartStructure(&entity.Header, entity.Body, state, depth+1)
+		if err != nil {
+			return MIMEPart{}, err
+		}
+		part.Parts = append(part.Parts, childPart)
+		part.Size = counter.Size
+		part.Lines = counter.Lines()
+		return part, nil
+	}
 	counter := &mimeBodyCounter{}
 	if _, err := io.Copy(counter, body); err != nil {
 		return MIMEPart{}, fmt.Errorf("read mime part body: %w", err)
 	}
 	part.Size = counter.Size
-	if part.MediaType == "TEXT" || (part.MediaType == "MESSAGE" && part.MediaSubtype == "RFC822") {
+	if part.MediaType == "TEXT" {
 		part.Lines = counter.Lines()
 	}
 	return part, nil
