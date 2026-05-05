@@ -857,6 +857,9 @@ Implementation order:
 710. IMAP `FETCH`/`UID FETCH` can now include `INTERNALDATE` and RFC-shaped
      `ENVELOPE` attributes from the service-backed message summary, giving
      clients enough structured metadata for mailbox list rendering.
+711. IMAP `FETCH`/`UID FETCH` can now return a conservative single-part
+     `BODYSTRUCTURE` response, unblocking clients that request body structure
+     metadata before richer MIME tree serialization is wired.
 
 ## Deferred until backend contracts stabilize
 
