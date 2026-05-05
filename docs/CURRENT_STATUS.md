@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV calendar-query component filtering)
+Last updated: 2026-05-06 (updated after CalDAV calendar-multiget href scoping)
 
 ## Current phase
 
@@ -2185,6 +2185,11 @@ The platform hardening sprint completed the following:
   `component_type` metadata before expensive time-range/body work. This keeps
   common client filters from returning unrelated object types while preserving
   the bounded iCalendar parser as the write-time source of truth.
+- CalDAV `REPORT calendar-multiget` now scopes href resolution to the request
+  resource: collection requests only return objects from that collection, while
+  calendar-home requests can fetch the authenticated user's calendar objects
+  across collections. Out-of-scope hrefs render WebDAV 404 propstats instead
+  of leaking object metadata or `calendar-data`.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

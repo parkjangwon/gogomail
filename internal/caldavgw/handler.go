@@ -680,7 +680,7 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if resource.Kind != ResourceCalendarCollection && resource.Kind != ResourceCalendarHome {
 			return nil, fmt.Errorf("calendar-multiget requires a calendar collection or home resource")
 		}
-		return h.calendarMultigetResponses(ctx, userID, report)
+		return h.calendarMultigetResponses(ctx, userID, resource, report)
 	case ReportCalendarQuery:
 		if resource.Kind != ResourceCalendarCollection {
 			return nil, fmt.Errorf("calendar-query requires a calendar collection resource")
@@ -696,12 +696,12 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 	}
 }
 
-func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
 	for _, href := range report.Hrefs {
 		resource, err := ParseResourcePath(href)
-		if err != nil || resource.Kind != ResourceCalendarObject || resource.UserID != userID {
+		if err != nil || resource.Kind != ResourceCalendarObject || resource.UserID != userID || !multigetHrefInScope(requestResource, resource) {
 			responses = append(responses, notFoundResponse(href, report.Properties))
 			continue
 		}
@@ -724,6 +724,17 @@ func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, 
 		responses = append(responses, responseForProperties(objectHref, propfind, props))
 	}
 	return responses, nil
+}
+
+func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath) bool {
+	switch requestResource.Kind {
+	case ResourceCalendarHome:
+		return requestResource.UserID == hrefResource.UserID
+	case ResourceCalendarCollection:
+		return requestResource.UserID == hrefResource.UserID && requestResource.CalendarID == hrefResource.CalendarID
+	default:
+		return false
+	}
 }
 
 func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {

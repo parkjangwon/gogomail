@@ -2134,6 +2134,11 @@ Implementation order:
       `VEVENT`, `VJOURNAL`, or `VFREEBUSY` do not return unrelated object
       types and do not require reparsing every `.ics` body for component
       filtering.
+1062. CalDAV `REPORT calendar-multiget` now validates requested hrefs against
+      the REPORT request resource. Collection-scoped multiget only returns
+      objects from the same collection, calendar-home multiget may resolve
+      authenticated same-user calendar-object hrefs, and out-of-scope hrefs
+      render WebDAV 404 propstats without returning object metadata.
 
 ## Deferred until backend contracts stabilize
 
