@@ -30,6 +30,14 @@ func (a IMAPStoreAdapter) CreateMailbox(ctx context.Context, userID imapgw.UserI
 	return a.service.CreateIMAPMailbox(ctx, userID, mailboxID)
 }
 
+func (a IMAPStoreAdapter) DeleteMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) error {
+	return a.service.DeleteIMAPMailbox(ctx, userID, mailboxID)
+}
+
+func (a IMAPStoreAdapter) RenameMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID, newMailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
+	return a.service.RenameIMAPMailbox(ctx, userID, mailboxID, newMailboxID)
+}
+
 func (a IMAPStoreAdapter) ListMessages(ctx context.Context, req imapgw.ListMessagesRequest) ([]imapgw.MessageSummary, error) {
 	return a.service.ListIMAPMessages(ctx, req)
 }

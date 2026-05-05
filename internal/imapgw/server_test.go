@@ -1453,15 +1453,15 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 CREATE Projects\r\na2 LOGIN user@example.com secret\r\na3 CREATE Projects\r\na4 DELETE Projects\r\na5 RENAME Projects Archive/Projects\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 CREATE Projects\r\na2 LOGIN user@example.com secret\r\na3 CREATE Projects\r\na4 DELETE Projects\r\na5 RENAME Projects Archive\r\n")); err != nil {
 		t.Fatalf("write mailbox mutations: %v", err)
 	}
 	want := []string{
 		"a1 NO authentication required\r\n",
 		"a2 OK LOGIN completed\r\n",
 		"a3 OK CREATE completed\r\n",
-		"a4 NO DELETE is not supported\r\n",
-		"a5 NO RENAME is not supported\r\n",
+		"a4 OK DELETE completed\r\n",
+		"a5 OK RENAME completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -3671,6 +3671,14 @@ func (fakeBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, erro
 
 func (fakeBackend) CreateMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
 	return Mailbox{ID: "projects", Name: "Projects", UIDValidity: 2, UIDNext: 1}, nil
+}
+
+func (fakeBackend) DeleteMailbox(context.Context, UserID, MailboxID) error {
+	return nil
+}
+
+func (fakeBackend) RenameMailbox(context.Context, UserID, MailboxID, MailboxID) (Mailbox, error) {
+	return Mailbox{ID: "archive", Name: "Archive", UIDValidity: 2, UIDNext: 1}, nil
 }
 
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {

@@ -945,12 +945,10 @@ The platform hardening sprint completed the following:
   boundary.
 - IMAP `MOVE`, `UID MOVE`, and `APPEND` return explicit unsupported `NO`
   responses while mailbox mutation/import semantics remain deferred.
-- IMAP `CREATE` delegates to the service folder boundary for authenticated
-  flat user-mailbox creation, returning RFC-shaped completion while preserving
-  the existing folder-name validation rules.
-- IMAP mailbox mutation commands `DELETE` and `RENAME` return explicit
-  unsupported `NO` responses while destructive/rename mailbox CRUD semantics
-  remain deferred.
+- IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
+  boundary for authenticated flat user-mailbox management, resolving wire names
+  before destructive or rename operations and preserving the existing folder
+  validation/storage constraints.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

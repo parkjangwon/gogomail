@@ -384,13 +384,10 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleList(writer, tag, fields, state, true)
 	case "CREATE":
 		return s.handleCreate(writer, tag, fields, state)
-	case "DELETE", "RENAME":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
-		_, err := writer.WriteString(tag + " NO " + command + " is not supported\r\n")
-		return false, err
+	case "DELETE":
+		return s.handleDeleteMailbox(writer, tag, fields, state)
+	case "RENAME":
+		return s.handleRenameMailbox(writer, tag, fields, state)
 	case "SUBSCRIBE", "UNSUBSCRIBE":
 		return s.handleSubscriptionCommand(writer, tag, fields, state, command)
 	case "STATUS":
@@ -582,6 +579,51 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 		return false, writeErr
 	}
 	_, err := writer.WriteString(tag + " OK CREATE completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if len(fields) != 3 {
+		_, err := writer.WriteString(tag + " BAD DELETE requires mailbox name\r\n")
+		return false, err
+	}
+	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO DELETE failed\r\n")
+		return false, writeErr
+	}
+	if err := s.options.Backend.DeleteMailbox(context.Background(), state.session.UserID, mailbox.ID); err != nil {
+		_, writeErr := writer.WriteString(tag + " NO DELETE failed\r\n")
+		return false, writeErr
+	}
+	if state.selectedMailbox == mailbox.ID {
+		state.selectedMailbox = ""
+		state.selectedMessages = 0
+		state.readOnly = false
+		state.closeSubscription()
+	}
+	_, err = writer.WriteString(tag + " OK DELETE completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD RENAME requires source and destination mailbox names\r\n")
+		return false, err
+	}
+	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]), MailboxID(fields[3])); err != nil {
+		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
+		return false, writeErr
+	}
+	_, err := writer.WriteString(tag + " OK RENAME completed\r\n")
 	return false, err
 }
 

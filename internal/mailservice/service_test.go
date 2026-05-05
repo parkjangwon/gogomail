@@ -782,6 +782,38 @@ func TestCreateIMAPMailboxUsesFolderBoundary(t *testing.T) {
 	}
 }
 
+func TestDeleteIMAPMailboxResolvesWireName(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapMailboxes: []imapgw.Mailbox{{ID: "archive-id", Name: "Archive", UIDValidity: 7, UIDNext: 1}},
+	}
+	service := New(repo, nil)
+
+	if err := service.DeleteIMAPMailbox(context.Background(), " user-1 ", " Archive "); err != nil {
+		t.Fatalf("DeleteIMAPMailbox returned error: %v", err)
+	}
+	if repo.lastDeleteFolderUserID != "user-1" || repo.lastDeleteFolderID != "archive-id" {
+		t.Fatalf("delete folder ids = %q/%q, want user-1/archive-id", repo.lastDeleteFolderUserID, repo.lastDeleteFolderID)
+	}
+}
+
+func TestRenameIMAPMailboxResolvesWireName(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapMailboxes: []imapgw.Mailbox{{ID: "projects-id", Name: "Projects", UIDValidity: 7, UIDNext: 1}},
+	}
+	service := New(repo, nil)
+
+	if _, err := service.RenameIMAPMailbox(context.Background(), " user-1 ", " Projects ", " /Archive "); err != nil {
+		t.Fatalf("RenameIMAPMailbox returned error: %v", err)
+	}
+	if repo.lastRenameFolderUserID != "user-1" || repo.lastRenameFolderID != "projects-id" || repo.lastRenameFolderName != "Archive" {
+		t.Fatalf("rename folder = %q/%q/%q, want user-1/projects-id/Archive", repo.lastRenameFolderUserID, repo.lastRenameFolderID, repo.lastRenameFolderName)
+	}
+}
+
 func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 

@@ -36,6 +36,12 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 	if mailbox, err := adapter.CreateMailbox(context.Background(), "user-1", "Archive"); err != nil || mailbox.ID != "inbox" {
 		t.Fatalf("CreateMailbox = %#v, %v", mailbox, err)
 	}
+	if err := adapter.DeleteMailbox(context.Background(), "user-1", "Archive"); err != nil {
+		t.Fatalf("DeleteMailbox returned error: %v", err)
+	}
+	if mailbox, err := adapter.RenameMailbox(context.Background(), "user-1", "Archive", "Renamed"); err != nil || mailbox.ID != "inbox" {
+		t.Fatalf("RenameMailbox = %#v, %v", mailbox, err)
+	}
 	if messages, err := adapter.ListMessages(context.Background(), imapgw.ListMessagesRequest{UserID: "user-1", MailboxID: "inbox"}); err != nil || len(messages) != 1 {
 		t.Fatalf("ListMessages = %#v, %v", messages, err)
 	}

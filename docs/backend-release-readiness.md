@@ -463,12 +463,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   mailbox UIDs, and publish best-effort destination `EXISTS` events.
 - IMAP `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
   responses while mailbox mutation/import semantics remain deferred.
-- IMAP `CREATE` now delegates to the service folder boundary for authenticated
-  flat user-mailbox creation, returning RFC-shaped completion while preserving
-  the existing folder-name validation rules.
-- IMAP mailbox mutation commands `DELETE` and `RENAME` now return explicit
-  unsupported `NO` responses while destructive/rename mailbox CRUD semantics
-  remain deferred.
+- IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
+  boundary for authenticated flat user-mailbox management, resolving wire names
+  before destructive or rename operations and preserving the existing folder
+  validation/storage constraints.
 - IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
   advertising it before authentication and removing it after upgrade.
 - IMAP `STARTTLS` completion now includes an updated `[CAPABILITY ...]`

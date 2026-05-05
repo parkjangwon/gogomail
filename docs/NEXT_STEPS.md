@@ -392,12 +392,10 @@ Current state:
   best-effort destination `EXISTS` events through the service boundary.
 - `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
   responses while mailbox mutation/import semantics remain deferred.
-- `CREATE` now delegates to the service folder boundary for authenticated flat
-  user-mailbox creation, returning RFC-shaped completion while preserving the
-  existing folder-name validation rules.
-- Mailbox mutation commands `DELETE` and `RENAME` now return explicit
-  unsupported `NO` responses while destructive/rename mailbox CRUD semantics
-  remain deferred.
+- `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
+  for authenticated flat user-mailbox management, resolving wire names before
+  destructive or rename operations and preserving the existing folder
+  validation/storage constraints.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
