@@ -1380,6 +1380,11 @@ Implementation order:
      names before authentication failures too, preserving precise tagged `BAD`
      diagnostics while valid unauthenticated commands still return
      `NO authentication required`.
+868. IMAP search-oriented selected-state commands now validate malformed
+     `SEARCH`, `SORT`, and `THREAD` argument shape, return options, sort
+     argument lists, and thread argument lists before authentication failures
+     too, preserving precise tagged `BAD` diagnostics while valid
+     unauthenticated commands still return `NO authentication required`.
 
 ## Deferred until backend contracts stabilize
 

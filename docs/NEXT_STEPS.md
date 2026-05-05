@@ -44,6 +44,10 @@ Current state:
   `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
   authentication failures, while well-formed unauthenticated commands still
   return `NO authentication required`.
+- Search-oriented selected-state commands validate malformed `SEARCH`, `SORT`,
+  and `THREAD` argument shape, return options, and sort/thread argument lists
+  before authentication failures, while well-formed unauthenticated commands
+  still return `NO authentication required`.
 - Selected-state no-argument commands validate extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors.

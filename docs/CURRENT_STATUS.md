@@ -1499,6 +1499,10 @@ The platform hardening sprint completed the following:
   `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
   authentication failures, while valid unauthenticated commands still return
   `NO authentication required`.
+- Search-oriented selected-state commands now validate malformed `SEARCH`,
+  `SORT`, and `THREAD` argument shape, return options, and sort/thread
+  argument lists before authentication failures, while valid unauthenticated
+  commands still return `NO authentication required`.
 - Selected-state no-argument commands now reject extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors for well-formed commands.

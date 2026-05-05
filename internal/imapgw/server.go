@@ -1259,10 +1259,6 @@ func imapUIDSubcommandKnown(subcommand string) bool {
 }
 
 func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 3 {
 		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
 		return false, err
@@ -1270,6 +1266,14 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	returnOptions, searchFields, ok := imapSearchReturnOptions(fields[2:])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD SEARCH return options are unsupported\r\n")
+		return false, err
+	}
+	if len(searchFields) == 0 {
+		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	criteria, charsetOK := imapSearchCriteria(searchFields)
@@ -1334,10 +1338,6 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 }
 
 func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 5 {
 		_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
 		return false, err
@@ -1345,6 +1345,10 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 	sortCriteria, searchFields, charsetOK, ok := imapSortCommandArguments(fields[2:])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if !charsetOK {
@@ -1394,10 +1398,6 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 }
 
 func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 5 {
 		_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
 		return false, err
@@ -1405,6 +1405,10 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 	algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[2:])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if !charsetOK {
