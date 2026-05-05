@@ -115,6 +115,7 @@ func TestValidateListNodesRequest(t *testing.T) {
 		UserID:   " user-1 ",
 		ParentID: " parent-1 ",
 		Status:   " Trashed ",
+		NodeType: " Folder ",
 		Query:    " Report_% ",
 		Sort:     " Updated ",
 		Limit:    500,
@@ -122,7 +123,7 @@ func TestValidateListNodesRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateListNodesRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed || req.Query != "report_%" || req.Sort != NodeSortUpdated {
+	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed || req.NodeType != NodeTypeFolder || req.Query != "report_%" || req.Sort != NodeSortUpdated {
 		t.Fatalf("request = %+v, want trimmed status-normalized request", req)
 	}
 	if got := escapeDriveNodeLikeQuery(req.Query); got != `report\_\%` {
@@ -143,6 +144,7 @@ func TestValidateListNodesRequest(t *testing.T) {
 	allParents, err := ValidateListNodesRequest(ListNodesRequest{
 		UserID:     " user-1 ",
 		Status:     " Trashed ",
+		NodeType:   " File ",
 		Query:      " Report_% ",
 		Sort:       " Updated ",
 		AllParents: true,
@@ -151,7 +153,7 @@ func TestValidateListNodesRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateListNodesRequest all-parents returned error: %v", err)
 	}
-	if allParents.ParentID != "" || !allParents.AllParents || allParents.Query != "report_%" || allParents.Sort != NodeSortUpdated || allParents.Limit != 200 {
+	if allParents.ParentID != "" || !allParents.AllParents || allParents.NodeType != NodeTypeFile || allParents.Query != "report_%" || allParents.Sort != NodeSortUpdated || allParents.Limit != 200 {
 		t.Fatalf("all-parents request = %+v, want normalized whole-drive search", allParents)
 	}
 }
@@ -165,6 +167,7 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user-1", ParentID: "parent\n1", Status: NodeStatusActive},
 		{UserID: "user-1", ParentID: "parent-1", Status: NodeStatusActive, AllParents: true},
 		{UserID: "user-1", Status: "archived"},
+		{UserID: "user-1", Status: NodeStatusActive, NodeType: "shortcut"},
 		{UserID: "user-1", Status: NodeStatusActive, Sort: "owner"},
 		{UserID: "user-1", Status: NodeStatusActive, Query: strings.Repeat("q", MaxNodeNameBytes+1)},
 		{UserID: "user-1", Status: NodeStatusActive, Query: "report\nbad"},
