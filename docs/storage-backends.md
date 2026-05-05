@@ -140,7 +140,9 @@ from compatible providers, so lifecycle cleanup behaves consistently across
 AWS S3, MinIO-style endpoints, and local/NFS storage.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
-provider supplies them.
+provider supplies them. Provider-returned content type and ETag metadata are
+bounded to safe single-line UTF-8 values before crossing the adapter boundary;
+malformed metadata is dropped while object identity and size remain available.
 S3-compatible `GetRange` uses a signed `GET` request with a single
 `Range: bytes=start-end` header and requires a `206 Partial Content` response,
 so compatible providers cannot silently downgrade partial reads into full
@@ -165,7 +167,8 @@ duplicate-object cleanup work instead of assuming a single atomic transaction.
 S3-compatible `List` uses signed `ListObjectsV2` requests with validated
 prefixes, bounded `max-keys`, and opaque continuation tokens. Returned keys are
 normalized back to gogomail object paths under the configured storage prefix,
-so callers do not see deployment-specific bucket prefixes.
+so callers do not see deployment-specific bucket prefixes. Returned ETags use
+the same bounded metadata cleanup as `Stat`.
 Prefix cleanup over S3-compatible storage intentionally remains page-based:
 callers list a bounded page, delete each canonical object key through signed
 `DELETE` requests, and continue from the returned cursor. This keeps cleanup

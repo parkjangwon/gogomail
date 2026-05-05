@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type S3Options struct {
@@ -46,6 +47,8 @@ const (
 	maxS3AccessKeyIDBytes     = 4096
 	maxS3SecretAccessKeyBytes = 4096
 	maxS3SessionTokenBytes    = 8192
+	maxS3ContentTypeBytes     = 1024
+	maxS3ETagBytes            = 1024
 )
 
 func NewS3Store(opts S3Options) (*S3Store, error) {
@@ -189,8 +192,8 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	return ObjectInfo{
 		Path:         objectPath,
 		Size:         size,
-		ContentType:  strings.TrimSpace(resp.Header.Get("Content-Type")),
-		ETag:         strings.Trim(strings.TrimSpace(resp.Header.Get("ETag")), `"`),
+		ContentType:  cleanS3MetadataValue(resp.Header.Get("Content-Type"), maxS3ContentTypeBytes),
+		ETag:         cleanS3ETag(resp.Header.Get("ETag")),
 		LastModified: parseHTTPTime(resp.Header.Get("Last-Modified")),
 	}, nil
 }
@@ -322,7 +325,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		page.Objects = append(page.Objects, ObjectInfo{
 			Path:         objectPath,
 			Size:         item.Size,
-			ETag:         strings.Trim(strings.TrimSpace(item.ETag), `"`),
+			ETag:         cleanS3ETag(item.ETag),
 			LastModified: parseS3ListTime(item.LastModified),
 		})
 	}
@@ -498,6 +501,26 @@ func parseS3ContentLength(value string) (int64, error) {
 		return -1, fmt.Errorf("stat s3 object: invalid content length")
 	}
 	return size, nil
+}
+
+func cleanS3MetadataValue(value string, maxBytes int) string {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > maxBytes || !utf8.ValidString(value) || strings.ContainsAny(value, "\r\n") {
+		return ""
+	}
+	return value
+}
+
+func cleanS3ETag(value string) string {
+	value = cleanS3MetadataValue(value, maxS3ETagBytes)
+	if value == "" {
+		return ""
+	}
+	value = strings.Trim(value, `"`)
+	if value == "" || len(value) > maxS3ETagBytes || strings.ContainsAny(value, "\r\n") {
+		return ""
+	}
+	return value
 }
 
 func validateS3ContentRange(value string, req RangeRequest) error {

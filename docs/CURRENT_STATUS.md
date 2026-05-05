@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 list key identity hardening)
+Last updated: 2026-05-06 (updated after S3 object metadata hardening)
 
 ## Current phase
 

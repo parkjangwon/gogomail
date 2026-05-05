@@ -2241,6 +2241,11 @@ Implementation order:
       provider-returned object keys before prefix/object-path validation,
       preventing distinct whitespace-bearing S3 keys from being silently
       normalized into canonical gogomail object paths.
+1089. S3-compatible `Stat` and `List` now bound and sanitize provider-returned
+      `Content-Type` and ETag metadata before exposing `ObjectInfo`, dropping
+      unsafe multiline, invalid UTF-8, or oversized metadata while preserving
+      object identity and size for Drive, lifecycle, and reconciliation
+      consumers.
 
 ## Deferred until backend contracts stabilize
 

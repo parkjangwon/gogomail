@@ -219,6 +219,10 @@ Current state:
   `Move`, `List`, `Delete`) and object paths share strict canonical key
   validation before adapter use, including valid UTF-8 object paths, prefixes,
   and list cursors.
+- S3-compatible `Stat` and `List` now bound and sanitize provider-returned
+  `Content-Type`/ETag metadata before exposing `ObjectInfo`, dropping unsafe
+  multiline, invalid UTF-8, or oversized metadata while preserving object
+  identity and size for compatible providers.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
@@ -1374,6 +1378,10 @@ Current state:
 - Shared storage now supports `Stat` across local/NFS and S3-compatible
   backends, giving future Drive, lifecycle, and verification paths a portable
   way to inspect object size/metadata without streaming object bodies.
+- S3-compatible object metadata returned by `Stat` and `List` is bounded to
+  safe single-line UTF-8 values before it crosses the storage adapter boundary,
+  keeping downstream Drive, lifecycle, logging, and reconciliation consumers
+  from inheriting malformed provider metadata.
 - Shared storage now supports `Copy` across local/NFS and S3-compatible
   backends, giving future Drive and lifecycle workflows a portable object
   duplication primitive without forcing caller-side read/write loops.

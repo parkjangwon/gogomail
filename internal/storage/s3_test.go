@@ -289,6 +289,40 @@ func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	}
 }
 
+func TestS3StoreStatDropsUnsafeMetadata(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Type": []string{"message/rfc822\r\nx-bad"}, "ETag": []string{`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`}},
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.Path != "messages/msg-1.eml" || info.Size != 5 {
+		t.Fatalf("object info identity = %+v", info)
+	}
+	if info.ContentType != "" || info.ETag != "" {
+		t.Fatalf("unsafe metadata was not dropped: %+v", info)
+	}
+}
+
 func TestS3StoreListRejectsTruncatedPageWithoutCursor(t *testing.T) {
 	t.Parallel()
 
@@ -315,6 +349,42 @@ func TestS3StoreListRejectsTruncatedPageWithoutCursor(t *testing.T) {
 	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
 	if err == nil || !strings.Contains(err.Error(), "truncated response missing continuation token") {
 		t.Fatalf("List err = %v, want missing continuation token rejection", err)
+	}
+}
+
+func TestS3StoreListDropsUnsafeETagMetadata(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><ETag>` + strings.Repeat("e", maxS3ETagBytes+1) + `</ETag></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-1.eml" || page.Objects[0].Size != 5 {
+		t.Fatalf("list objects = %+v", page.Objects)
+	}
+	if page.Objects[0].ETag != "" {
+		t.Fatalf("unsafe list etag = %q, want dropped", page.Objects[0].ETag)
 	}
 }
 

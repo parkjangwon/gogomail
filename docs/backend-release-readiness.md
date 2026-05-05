@@ -694,6 +694,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   object bodies. S3-compatible storage implements this through signed `HEAD`
   requests, giving future Drive and lifecycle workers a portable size/existence
   primitive across local, MinIO, and AWS S3 deployments.
+- S3-compatible storage bounds and sanitizes provider-returned `Content-Type`
+  and ETag metadata from `Stat`/`List`, dropping unsafe multiline, invalid
+  UTF-8, or oversized values without failing the object identity/size result.
 - Shared storage object path, prefix, and list-cursor validation now rejects
   invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping object
   keys, logs, URL escaping, and SigV4 canonical paths text-stable.
@@ -1630,6 +1633,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible storage status-error diagnostics collapse backend response
   bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing object
   store errors from leaking into readiness or storage operation diagnostics.
+- S3-compatible `ObjectInfo` metadata from `HEAD` and `ListObjectsV2` also
+  stays bounded to safe single-line UTF-8 before it reaches logs, Drive,
+  lifecycle, or reconciliation code.
 - S3-compatible bucket names are validated with shared adapter/config guardrails
   before runtime wiring, surfacing uppercase, undersized, slash-bearing, or
   punctuation-adjacent deployment mistakes before storage calls.
