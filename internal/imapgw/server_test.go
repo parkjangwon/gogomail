@@ -1298,6 +1298,15 @@ func TestIMAPIDArgumentsValidEnforcesRFC2971Limits(t *testing.T) {
 	if imapIDArgumentsValid(`("name" bad\value)`) {
 		t.Fatal("imapIDArgumentsValid accepted backslash inside unquoted value")
 	}
+	if imapIDArgumentsValid(`("name" bad{value)`) {
+		t.Fatal("imapIDArgumentsValid accepted literal marker inside unquoted value")
+	}
+	if imapIDArgumentsValid(`("name" bad]value)`) {
+		t.Fatal("imapIDArgumentsValid accepted response-special inside unquoted value")
+	}
+	if imapIDArgumentsValid(`("name" bad*value)`) {
+		t.Fatal("imapIDArgumentsValid accepted wildcard atom-special inside unquoted value")
+	}
 	if !imapIDArgumentsValid(`("name" "Project \"Q2\"")`) {
 		t.Fatal("imapIDArgumentsValid rejected escaped quoted-special")
 	}

@@ -2226,6 +2226,10 @@ Implementation order:
       atom-special characters inside unquoted ID tokens, keeping raw ID
       argument parsing aligned with RFC 3501 atom/quoted-string boundaries
       while preserving escaped quoted-special characters inside quoted strings.
+1085. IMAP RFC 2971 `ID` unquoted field/value tokens now reuse the common IMAP
+      atom validator, rejecting literal markers, response specials, wildcard
+      specials, quoted specials, and controls consistently with command/tag
+      atom handling.
 
 ## Deferred until backend contracts stabilize
 
