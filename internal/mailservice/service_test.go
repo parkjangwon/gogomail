@@ -952,7 +952,10 @@ func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
-		imapMoveSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
+		imapMoveResults: []imapgw.MoveMessageResult{{
+			Source:      imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1},
+			Destination: imapgw.MessageSummary{ID: "msg-1", MailboxID: "archive", UID: 33, SequenceNumber: 1},
+		}},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
@@ -965,8 +968,8 @@ func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MoveIMAPMessages returned error: %v", err)
 	}
-	if len(got) != 1 || got[0].UID != 12 {
-		t.Fatalf("summaries = %#v, want repository result", got)
+	if len(got) != 1 || got[0].Source.UID != 12 || got[0].Destination.UID != 33 {
+		t.Fatalf("move results = %#v, want repository result", got)
 	}
 	if repo.lastIMAPMoveUserID != "user-1" || repo.lastIMAPMoveSourceMailboxID != "inbox" || repo.lastIMAPMoveDestMailboxID != "archive" || !reflect.DeepEqual(repo.lastIMAPMoveUIDs, []imapgw.UID{12}) {
 		t.Fatalf("move request = %q/%q/%q/%v", repo.lastIMAPMoveUserID, repo.lastIMAPMoveSourceMailboxID, repo.lastIMAPMoveDestMailboxID, repo.lastIMAPMoveUIDs)
@@ -1497,7 +1500,7 @@ type fakeRepository struct {
 	imapAppendResult               imapgw.AppendMessageResult
 	imapAppendStoredErr            error
 	imapCopySummaries              []imapgw.MessageSummary
-	imapMoveSummaries              []imapgw.MessageSummary
+	imapMoveResults                []imapgw.MoveMessageResult
 	imapExpungeSummaries           []imapgw.MessageSummary
 	imapUIDs                       []maildb.IMAPMessageUID
 	imapMailboxes                  []imapgw.Mailbox
@@ -1795,12 +1798,12 @@ func (f *fakeRepository) CopyIMAPMessages(_ context.Context, userID string, sour
 	return f.imapCopySummaries, nil
 }
 
-func (f *fakeRepository) MoveIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+func (f *fakeRepository) MoveIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {
 	f.lastIMAPMoveUserID = userID
 	f.lastIMAPMoveSourceMailboxID = sourceMailboxID
 	f.lastIMAPMoveDestMailboxID = destMailboxID
 	f.lastIMAPMoveUIDs = append([]imapgw.UID(nil), uids...)
-	return f.imapMoveSummaries, nil
+	return f.imapMoveResults, nil
 }
 
 func (f *fakeRepository) ExpungeIMAPMessages(_ context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {

@@ -940,7 +940,7 @@ WHERE user_id = $1::uuid
 	return summaries, nil
 }
 
-func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -994,11 +994,33 @@ SELECT EXISTS (
 	if !destExists {
 		return nil, fmt.Errorf("%w: destination %q", imapgw.ErrMailboxNotFound, destMailboxID)
 	}
+	const ensureState = `
+INSERT INTO imap_mailbox_state (mailbox_id, user_id)
+SELECT id, user_id
+FROM folders
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+ON CONFLICT (mailbox_id) DO NOTHING`
+	if _, err := tx.ExecContext(ctx, ensureState, destMailboxID, userID); err != nil {
+		return nil, fmt.Errorf("ensure imap move destination mailbox state: %w", err)
+	}
+
+	var destUIDNext imapgw.UID
+	var destHighestModSeq uint64
+	const lockDestState = `
+SELECT uidnext, highest_modseq
+FROM imap_mailbox_state
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid
+FOR UPDATE`
+	if err := tx.QueryRowContext(ctx, lockDestState, destMailboxID, userID).Scan(&destUIDNext, &destHighestModSeq); err != nil {
+		return nil, fmt.Errorf("lock imap move destination mailbox state: %w", err)
+	}
 
 	const query = `
 WITH input AS (
-  SELECT value::bigint AS uid
-  FROM jsonb_array_elements_text($3::jsonb)
+  SELECT value::bigint AS uid, ordinality
+  FROM jsonb_array_elements_text($3::jsonb) WITH ORDINALITY
 )
 SELECT
   m.id::text,
@@ -1028,14 +1050,15 @@ JOIN messages m
  AND m.user_id = $1::uuid
  AND m.folder_id = $2::uuid
  AND m.status = 'active'
-ORDER BY i.uid
+ORDER BY input.ordinality
 FOR UPDATE OF i, m`
 	rows, err := tx.QueryContext(ctx, query, userID, sourceMailboxID, string(rawUIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list imap move messages: %w", err)
 	}
 	var messageIDs []string
-	summaries := make([]imapgw.MessageSummary, 0, len(uids))
+	sourceRows := make([]imapMessageRow, 0, len(uids))
+	sourceSummaries := make([]imapgw.MessageSummary, 0, len(uids))
 	for rows.Next() {
 		var row imapMessageRow
 		var messageUID IMAPMessageUID
@@ -1070,7 +1093,8 @@ FOR UPDATE OF i, m`
 			return nil, err
 		}
 		summary.SequenceNumber = sequenceNumber
-		summaries = append(summaries, summary)
+		sourceRows = append(sourceRows, row)
+		sourceSummaries = append(sourceSummaries, summary)
 		messageIDs = append(messageIDs, row.ID)
 	}
 	if err := rows.Close(); err != nil {
@@ -1085,6 +1109,9 @@ FOR UPDATE OF i, m`
 		}
 		return nil, nil
 	}
+	if uint64(destUIDNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
+		return nil, fmt.Errorf("imap destination uidnext exhausted")
+	}
 	rawMessageIDs, err := json.Marshal(messageIDs)
 	if err != nil {
 		return nil, fmt.Errorf("encode imap move message ids: %w", err)
@@ -1098,13 +1125,60 @@ WHERE user_id = $1::uuid
   AND status = 'active'`, userID, string(rawMessageIDs), destMailboxID); err != nil {
 		return nil, fmt.Errorf("move imap messages: %w", err)
 	}
-	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, messageIDs); err != nil {
-		return nil, err
+
+	results := make([]imapgw.MoveMessageResult, 0, len(sourceSummaries))
+	for i, source := range sourceSummaries {
+		destUID := destUIDNext + imapgw.UID(i)
+		destModSeq := destHighestModSeq + uint64(i) + 1
+		const updateUID = `
+UPDATE imap_message_uid
+SET mailbox_id = $4::uuid,
+    uid = $5,
+    modseq = $6,
+    updated_at = now()
+WHERE message_id = $1::uuid
+  AND user_id = $2::uuid
+  AND mailbox_id = $3::uuid`
+		res, err := tx.ExecContext(ctx, updateUID, string(source.ID), userID, sourceMailboxID, destMailboxID, int64(destUID), int64(destModSeq))
+		if err != nil {
+			return nil, fmt.Errorf("move imap message uid: %w", err)
+		}
+		if affected, err := res.RowsAffected(); err != nil {
+			return nil, fmt.Errorf("read moved imap uid count: %w", err)
+		} else if affected != 1 {
+			return nil, fmt.Errorf("move imap message uid affected %d rows", affected)
+		}
+
+		destUIDRecord := IMAPMessageUID{
+			MessageID: imapgw.MessageID(sourceRows[i].ID),
+			MailboxID: imapgw.MailboxID(destMailboxID),
+			UID:       destUID,
+			ModSeq:    destModSeq,
+		}
+		destRow := sourceRows[i]
+		destRow.MailboxID = destMailboxID
+		destination := imapMessageFromRow(destRow, destUIDRecord)
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, destMailboxID, destUID)
+		if err != nil {
+			return nil, err
+		}
+		destination.SequenceNumber = sequenceNumber
+		results = append(results, imapgw.MoveMessageResult{Source: source, Destination: destination})
+	}
+	const updateDestState = `
+UPDATE imap_mailbox_state
+SET uidnext = $3,
+    highest_modseq = $4,
+    updated_at = now()
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid`
+	if _, err := tx.ExecContext(ctx, updateDestState, destMailboxID, userID, int64(destUIDNext+imapgw.UID(len(messageIDs))), int64(destHighestModSeq+uint64(len(messageIDs)))); err != nil {
+		return nil, fmt.Errorf("update imap move destination mailbox state: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit imap move transaction: %w", err)
 	}
-	return summaries, nil
+	return results, nil
 }
 
 func (r *Repository) ExistingIMAPMessageUIDs(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {

@@ -1162,6 +1162,10 @@ Implementation order:
      Mail API move/delete expunge events become renderable for live
      `NOOP`/`IDLE` clients even after the committed mutation removes source UID
      rows.
+809. IMAP `MOVE` and `UID MOVE` now reassign source mailbox UID rows to fresh
+     destination mailbox UIDs inside the move transaction and return UIDPLUS
+     `[COPYUID ...]` mappings before source `EXPUNGE` responses, aligning the
+     MOVE path with RFC 6851/UIDPLUS-compatible client expectations.
 
 ## Deferred until backend contracts stabilize
 
