@@ -829,6 +829,9 @@ The platform hardening sprint completed the following:
   selected-mailbox `EXISTS` and flag `FETCH` updates while waiting for `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` work over the
   selected mailbox message list.
+- IMAP `SEARCH`/`UID SEARCH` can combine supported criteria with RFC default
+  AND semantics, including `ALL` plus flag, date, size, address, and UID
+  filters.
 - IMAP `FETCH`/`UID FETCH` can stream bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,

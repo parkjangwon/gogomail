@@ -921,6 +921,9 @@ Implementation order:
      `SENTSINCE`, `SENTBEFORE`, and `SENTON` over message envelope dates.
 734. IMAP `SEARCH` and `UID SEARCH` now support RFC 3501 `LARGER` and
      `SMALLER` size criteria over message `RFC822.SIZE` metadata.
+735. IMAP `SEARCH` and `UID SEARCH` can combine supported criteria with the RFC
+     default AND semantics, including `ALL` plus flag, date, size, address, and
+     UID filters.
 
 ## Deferred until backend contracts stabilize
 

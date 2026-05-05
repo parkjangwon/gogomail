@@ -278,6 +278,8 @@ Current state:
   the client is waiting and completing when the client sends `DONE`.
 - `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now work over the
   selected mailbox message list.
+- `SEARCH`/`UID SEARCH` can combine supported criteria with RFC default AND
+  semantics, including `ALL` plus flag, date, size, address, and UID filters.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,
