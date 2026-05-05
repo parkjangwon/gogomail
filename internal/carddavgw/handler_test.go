@@ -258,7 +258,7 @@ func TestHandlerReportAddressBookMultigetReturnsAddressData(t *testing.T) {
 	text := rec.Body.String()
 	for _, want := range []string{
 		"<D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>",
-		"<C:address-data>BEGIN:VCARD",
+		"<C:address-data content-type=\"text/vcard\" version=\"4.0\">BEGIN:VCARD",
 		"FN:Contact One",
 		"<D:href>/carddav/addressbooks/user-1/personal/missing.vcf</D:href>",
 		"<D:status>HTTP/1.1 404 Not Found</D:status>",

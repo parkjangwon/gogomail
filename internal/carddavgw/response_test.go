@@ -134,6 +134,27 @@ func TestContactObjectDataPropertyProjectsRequestedProperties(t *testing.T) {
 	}
 }
 
+func TestBuildMultiStatusXMLRendersAddressDataTypeAttributes(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href: "/carddav/addressbooks/user-1/personal/contact-1.vcf",
+		PropStats: []PropStatus{{
+			StatusCode: http.StatusOK,
+			Properties: []PropertyResult{
+				ContactObjectDataProperty([]byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n")),
+			},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	text := string(body)
+	if !strings.Contains(text, `<C:address-data content-type="text/vcard" version="4.0">BEGIN:VCARD`) {
+		t.Fatalf("address-data type attributes missing:\n%s", text)
+	}
+}
+
 func TestSelectPropfindPropertiesSupportsPropfindModes(t *testing.T) {
 	t.Parallel()
 
