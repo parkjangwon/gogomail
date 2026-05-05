@@ -3495,7 +3495,7 @@ func TestUploadAttachmentRejectsDomainAttachmentLimitBeforeStorageWrite(t *testi
 	}
 }
 
-func TestUploadAttachmentSanitizesUserStorageSegment(t *testing.T) {
+func TestUploadAttachmentRejectsUnsafeUserStorageSegment(t *testing.T) {
 	t.Parallel()
 
 	repo := &fakeRepository{}
@@ -3508,11 +3508,8 @@ func TestUploadAttachmentSanitizesUserStorageSegment(t *testing.T) {
 		MIMEType: "application/pdf",
 		Body:     strings.NewReader("content"),
 	})
-	if err != nil {
-		t.Fatalf("UploadAttachment returned error: %v", err)
-	}
-	if !strings.HasPrefix(repo.lastAttachmentUpload.StoragePath, "uploads/user_1/") {
-		t.Fatalf("StoragePath = %q, want sanitized user segment", repo.lastAttachmentUpload.StoragePath)
+	if err == nil {
+		t.Fatal("UploadAttachment accepted unsafe user_id")
 	}
 }
 

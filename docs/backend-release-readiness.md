@@ -1021,8 +1021,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   repository policy reads for outbound and attachment enforcement.
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
-  storage, and repository work, and reject CR/LF-bearing or oversized draft
-  identifiers before quota reservation or object writes.
+  storage, and repository work, and reject CR/LF-bearing or oversized user,
+  draft, and upload-session identifiers before quota reservation, object
+  writes, or repository work.
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work, and the
   worker's interval, stale age, and batch size are configuration-validated.

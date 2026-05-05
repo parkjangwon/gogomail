@@ -49,8 +49,8 @@ type StoreAttachmentUploadSessionBodyRequest struct {
 }
 
 func ValidateCreateAttachmentUploadRequest(req CreateAttachmentUploadRequest) error {
-	if strings.TrimSpace(req.UserID) == "" {
-		return fmt.Errorf("user_id is required")
+	if err := validateServiceResourceID("user_id", req.UserID); err != nil {
+		return err
 	}
 	if strings.TrimSpace(req.DraftID) != "" {
 		if err := validateServiceResourceID("draft_id", req.DraftID); err != nil {
@@ -118,8 +118,8 @@ func ValidateCreateAttachmentUploadSessionRequest(req CreateAttachmentUploadSess
 }
 
 func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSessionBodyRequest) error {
-	if strings.TrimSpace(req.UserID) == "" {
-		return fmt.Errorf("user_id is required")
+	if err := validateServiceResourceID("user_id", req.UserID); err != nil {
+		return err
 	}
 	if err := validateServiceResourceID("session_id", strings.TrimSpace(req.SessionID)); err != nil {
 		return err

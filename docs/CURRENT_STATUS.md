@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP MOVE COPYUID response hardening)
+Last updated: 2026-05-05 (updated after attachment upload user-id validation hardening)
 
 ## Current phase
 
@@ -1400,8 +1400,9 @@ The platform hardening sprint completed the following:
   preserving 400 for bad multipart syntax.
 - Attachment upload reservation and direct-upload service requests normalize
   user, draft, filename, MIME type, and storage-path metadata before quota,
-  storage, and repository work, and reject CR/LF-bearing or oversized draft
-  identifiers before quota reservation or object writes.
+  storage, and repository work, and reject CR/LF-bearing or oversized user,
+  draft, and upload-session identifiers before quota reservation, object
+  writes, or repository work.
 - Stale attachment-upload cleanup validates its time window and limit at the
   service boundary before repository cleanup/object deletion work, and app
   configuration validates the worker interval, stale age, and batch size before

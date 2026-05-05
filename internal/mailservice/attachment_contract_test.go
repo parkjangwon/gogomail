@@ -41,6 +41,25 @@ func TestValidateCreateAttachmentUploadRequestRejectsUnsafeDraftID(t *testing.T)
 	}
 }
 
+func TestValidateCreateAttachmentUploadRequestRejectsUnsafeUserID(t *testing.T) {
+	t.Parallel()
+
+	for _, userID := range []string{
+		"user-1\r\nbad",
+		strings.Repeat("u", maxServiceResourceIDBytes+1),
+	} {
+		err := ValidateCreateAttachmentUploadRequest(CreateAttachmentUploadRequest{
+			UserID:   userID,
+			Filename: "report.pdf",
+			Size:     10,
+			MIMEType: "application/pdf",
+		})
+		if err == nil {
+			t.Fatalf("ValidateCreateAttachmentUploadRequest accepted user_id %q", userID)
+		}
+	}
+}
+
 func TestValidateCreateAttachmentUploadRequestAcceptsMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -186,5 +205,12 @@ func TestValidateStoreAttachmentUploadSessionBodyRequest(t *testing.T) {
 		SessionID: "session-1",
 	}); err == nil {
 		t.Fatal("ValidateStoreAttachmentUploadSessionBodyRequest accepted missing body")
+	}
+	if err := ValidateStoreAttachmentUploadSessionBodyRequest(StoreAttachmentUploadSessionBodyRequest{
+		UserID:    "user-1\nbad",
+		SessionID: "session-1",
+		Body:      strings.NewReader("content"),
+	}); err == nil {
+		t.Fatal("ValidateStoreAttachmentUploadSessionBodyRequest accepted unsafe user_id")
 	}
 }
