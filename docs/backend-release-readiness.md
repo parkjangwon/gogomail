@@ -407,7 +407,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` now supports bounded `BODY[HEADER.FIELDS (...)]`
   and `BODY.PEEK[HEADER.FIELDS (...)]` literals for lightweight header reads.
 - IMAP `FETCH`/`UID FETCH` now supports bounded partial windows over
-  `BODY[HEADER.FIELDS (...)]` and `BODY.PEEK[HEADER.FIELDS (...)]` literals.
+  `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
+  `BODY[HEADER.FIELDS.NOT (...)]`, and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
+  literals.
 - IMAP `FETCH`/`UID FETCH` now supports bounded
   `BODY[HEADER.FIELDS.NOT (...)]` and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
   literals for exclude-style header reads.

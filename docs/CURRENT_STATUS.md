@@ -893,7 +893,9 @@ The platform hardening sprint completed the following:
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded partial windows over
-  `BODY[HEADER.FIELDS (...)]` and `BODY.PEEK[HEADER.FIELDS (...)]` literals.
+  `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
+  `BODY[HEADER.FIELDS.NOT (...)]`, and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
+  literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS.NOT (...)]` and
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` literals.
 - IMAP `SEARCH`/`UID SEARCH` supports `SINCE`, `BEFORE`, and `ON` over message
