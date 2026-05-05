@@ -480,7 +480,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `maildb` to insert metadata, quota, outbox, and mailbox UID state in one
   transaction, publishes best-effort destination `EXISTS` events, and returns
   `[TRYCREATE]` when the destination mailbox is missing or `[OVERQUOTA]` when
-  the quota ledger rejects the append.
+  the quota ledger rejects the append. Commands without an RFC-shaped literal
+  are rejected as syntax `BAD` responses instead of being reported as
+  unsupported.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
