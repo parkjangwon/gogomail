@@ -1611,6 +1611,73 @@ func TestServerAppendSuccessReturnsAppendUID(t *testing.T) {
 	}
 }
 
+func TestServerAppendSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendBackend{
+		result: AppendMessageResult{
+			Summary:     MessageSummary{ID: "message-42", MailboxID: "inbox", UID: 42, SequenceNumber: 3},
+			UIDValidity: 99,
+		},
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 APPEND inbox {11}\r\n")); err != nil {
+		t.Fatalf("write selected append literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("selected append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello world\r\n")); err != nil {
+		t.Fatalf("write selected append body: %v", err)
+	}
+	want := []string{
+		"* 3 EXISTS\r\n",
+		"a3 OK [APPENDUID 99 42] APPEND completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected append response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected append response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerAppendAcceptsLiteralPlusWithoutContinuation(t *testing.T) {
 	t.Parallel()
 
@@ -5603,6 +5670,12 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	}
 	if flags, ok := imapStoreFlags("()"); !ok || !imapMessageFlagsEmpty(flags) {
 		t.Fatalf("imapStoreFlags empty flag-list = %#v, %v; want empty accepted", flags, ok)
+	}
+	if got := imapAppendExistsCount(2, MessageSummary{SequenceNumber: 5}); got != 5 {
+		t.Fatalf("imapAppendExistsCount with summary sequence = %d, want 5", got)
+	}
+	if got := imapAppendExistsCount(2, MessageSummary{}); got != 3 {
+		t.Fatalf("imapAppendExistsCount fallback = %d, want 3", got)
 	}
 }
 

@@ -1278,6 +1278,9 @@ Implementation order:
 839. IMAP empty flag-lists are accepted where RFC-shaped clients can send them:
      `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears
      supported flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
+840. IMAP selected-mailbox `APPEND` now prefers the backend-returned appended
+     message sequence number for the untagged `EXISTS` count, falling back to a
+     local increment only when precise sequence metadata is unavailable.
 
 ## Deferred until backend contracts stabilize
 
