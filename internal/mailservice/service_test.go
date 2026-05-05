@@ -953,8 +953,9 @@ func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
 		imapMoveResults: []imapgw.MoveMessageResult{{
-			Source:      imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1},
-			Destination: imapgw.MessageSummary{ID: "msg-1", MailboxID: "archive", UID: 33, SequenceNumber: 1},
+			Source:              imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1},
+			Destination:         imapgw.MessageSummary{ID: "msg-1", MailboxID: "archive", UID: 33, SequenceNumber: 1},
+			SourceHighestModSeq: 44,
 		}},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
@@ -968,7 +969,7 @@ func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MoveIMAPMessages returned error: %v", err)
 	}
-	if len(got) != 1 || got[0].Source.UID != 12 || got[0].Destination.UID != 33 {
+	if len(got) != 1 || got[0].Source.UID != 12 || got[0].Destination.UID != 33 || got[0].SourceHighestModSeq != 44 {
 		t.Fatalf("move results = %#v, want repository result", got)
 	}
 	if repo.lastIMAPMoveUserID != "user-1" || repo.lastIMAPMoveSourceMailboxID != "inbox" || repo.lastIMAPMoveDestMailboxID != "archive" || !reflect.DeepEqual(repo.lastIMAPMoveUIDs, []imapgw.UID{12}) {

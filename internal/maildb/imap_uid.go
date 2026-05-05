@@ -1005,16 +1005,44 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 		return nil, fmt.Errorf("ensure imap move destination mailbox state: %w", err)
 	}
 
-	var destUIDNext imapgw.UID
-	var destHighestModSeq uint64
-	const lockDestState = `
-SELECT uidnext, highest_modseq
+	type moveMailboxState struct {
+		mailboxID     string
+		uidNext       imapgw.UID
+		highestModSeq uint64
+	}
+	states := make(map[string]moveMailboxState, 2)
+	const lockMoveStates = `
+SELECT mailbox_id::text, uidnext, highest_modseq
 FROM imap_mailbox_state
-WHERE mailbox_id = $1::uuid
-  AND user_id = $2::uuid
+WHERE user_id = $1::uuid
+  AND mailbox_id IN ($2::uuid, $3::uuid)
+ORDER BY mailbox_id
 FOR UPDATE`
-	if err := tx.QueryRowContext(ctx, lockDestState, destMailboxID, userID).Scan(&destUIDNext, &destHighestModSeq); err != nil {
-		return nil, fmt.Errorf("lock imap move destination mailbox state: %w", err)
+	stateRows, err := tx.QueryContext(ctx, lockMoveStates, userID, sourceMailboxID, destMailboxID)
+	if err != nil {
+		return nil, fmt.Errorf("lock imap move mailbox states: %w", err)
+	}
+	for stateRows.Next() {
+		var state moveMailboxState
+		if err := stateRows.Scan(&state.mailboxID, &state.uidNext, &state.highestModSeq); err != nil {
+			stateRows.Close()
+			return nil, fmt.Errorf("scan imap move mailbox state: %w", err)
+		}
+		states[state.mailboxID] = state
+	}
+	if err := stateRows.Close(); err != nil {
+		return nil, fmt.Errorf("close imap move mailbox states: %w", err)
+	}
+	if err := stateRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap move mailbox states: %w", err)
+	}
+	sourceState, ok := states[sourceMailboxID]
+	if !ok {
+		return nil, fmt.Errorf("source imap mailbox state is required")
+	}
+	destState, ok := states[destMailboxID]
+	if !ok {
+		return nil, fmt.Errorf("destination imap mailbox state is required")
 	}
 
 	const query = `
@@ -1109,7 +1137,7 @@ FOR UPDATE OF i, m`
 		}
 		return nil, nil
 	}
-	if uint64(destUIDNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
+	if uint64(destState.uidNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
 		return nil, fmt.Errorf("imap destination uidnext exhausted")
 	}
 	rawMessageIDs, err := json.Marshal(messageIDs)
@@ -1128,8 +1156,9 @@ WHERE user_id = $1::uuid
 
 	results := make([]imapgw.MoveMessageResult, 0, len(sourceSummaries))
 	for i, source := range sourceSummaries {
-		destUID := destUIDNext + imapgw.UID(i)
-		destModSeq := destHighestModSeq + uint64(i) + 1
+		sourceHighestModSeq := sourceState.highestModSeq + uint64(i) + 1
+		destUID := destState.uidNext + imapgw.UID(i)
+		destModSeq := destState.highestModSeq + uint64(i) + 1
 		const updateUID = `
 UPDATE imap_message_uid
 SET mailbox_id = $4::uuid,
@@ -1163,7 +1192,16 @@ WHERE message_id = $1::uuid
 			return nil, err
 		}
 		destination.SequenceNumber = sequenceNumber
-		results = append(results, imapgw.MoveMessageResult{Source: source, Destination: destination})
+		results = append(results, imapgw.MoveMessageResult{Source: source, Destination: destination, SourceHighestModSeq: sourceHighestModSeq})
+	}
+	const updateSourceState = `
+UPDATE imap_mailbox_state
+SET highest_modseq = $3,
+    updated_at = now()
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid`
+	if _, err := tx.ExecContext(ctx, updateSourceState, sourceMailboxID, userID, int64(sourceState.highestModSeq+uint64(len(messageIDs)))); err != nil {
+		return nil, fmt.Errorf("update imap move source mailbox state: %w", err)
 	}
 	const updateDestState = `
 UPDATE imap_mailbox_state
@@ -1172,7 +1210,7 @@ SET uidnext = $3,
     updated_at = now()
 WHERE mailbox_id = $1::uuid
   AND user_id = $2::uuid`
-	if _, err := tx.ExecContext(ctx, updateDestState, destMailboxID, userID, int64(destUIDNext+imapgw.UID(len(messageIDs))), int64(destHighestModSeq+uint64(len(messageIDs)))); err != nil {
+	if _, err := tx.ExecContext(ctx, updateDestState, destMailboxID, userID, int64(destState.uidNext+imapgw.UID(len(messageIDs))), int64(destState.highestModSeq+uint64(len(messageIDs)))); err != nil {
 		return nil, fmt.Errorf("update imap move destination mailbox state: %w", err)
 	}
 	if err := tx.Commit(); err != nil {

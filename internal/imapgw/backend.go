@@ -41,8 +41,9 @@ type MoveMessagesRequest struct {
 }
 
 type MoveMessageResult struct {
-	Source      MessageSummary
-	Destination MessageSummary
+	Source              MessageSummary
+	Destination         MessageSummary
+	SourceHighestModSeq uint64
 }
 
 type CopyMessagesRequest struct {

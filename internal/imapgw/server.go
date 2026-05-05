@@ -2037,6 +2037,11 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 			return false, err
 		}
 	}
+	if highestModSeq := imapMoveHighestModSeq(summaries); highestModSeq > 0 {
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] %s source mod-sequence\r\n", highestModSeq, completionCommand)); err != nil {
+			return false, err
+		}
+	}
 	return s.writeMovedExpungeResponses(writer, tag, state, imapMoveSourceSummaries(summaries), completionCommand)
 }
 
@@ -2144,6 +2149,16 @@ func imapMoveSourceSummaries(results []MoveMessageResult) []MessageSummary {
 		summaries = append(summaries, result.Source)
 	}
 	return summaries
+}
+
+func imapMoveHighestModSeq(results []MoveMessageResult) uint64 {
+	var highest uint64
+	for _, result := range results {
+		if result.SourceHighestModSeq > highest {
+			highest = result.SourceHighestModSeq
+		}
+	}
+	return highest
 }
 
 func imapUIDSetResponse(uids []UID) string {
