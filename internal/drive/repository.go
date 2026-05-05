@@ -62,6 +62,11 @@ type ListNodesRequest struct {
 	Limit    int
 }
 
+type TrashNodeRequest struct {
+	UserID string
+	NodeID string
+}
+
 func ValidateCreateFolderRequest(req CreateFolderRequest) (CreateFolderRequest, string, error) {
 	userID, err := validateDriveID("user_id", req.UserID, true)
 	if err != nil {
@@ -154,6 +159,18 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 		Status:   status,
 		Limit:    limit,
 	}, nil
+}
+
+func ValidateTrashNodeRequest(req TrashNodeRequest) (TrashNodeRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return TrashNodeRequest{}, err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return TrashNodeRequest{}, err
+	}
+	return TrashNodeRequest{UserID: userID, NodeID: nodeID}, nil
 }
 
 func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) (Node, error) {
@@ -324,6 +341,37 @@ LIMIT $4`
 	return nodes, nil
 }
 
+func (r *Repository) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {
+	if r == nil || r.db == nil {
+		return Node{}, 0, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateTrashNodeRequest(req)
+	if err != nil {
+		return Node{}, 0, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Node{}, 0, fmt.Errorf("begin trash drive node transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	root, err := lockActiveDriveNode(ctx, tx, req.UserID, req.NodeID)
+	if err != nil {
+		return Node{}, 0, err
+	}
+	updated, err := trashDriveNodeTree(ctx, tx, req.UserID, req.NodeID)
+	if err != nil {
+		return Node{}, 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Node{}, 0, fmt.Errorf("commit trash drive node transaction: %w", err)
+	}
+	root.Status = NodeStatusTrashed
+	now := time.Now().UTC()
+	root.UpdatedAt = now
+	return root, updated, nil
+}
+
 func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Store, req CreateFileFromObjectRequest) (Node, error) {
 	if r == nil || r.db == nil {
 		return Node{}, fmt.Errorf("database handle is required")
@@ -366,6 +414,92 @@ func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Sto
 		return Node{}, fmt.Errorf("commit create drive file transaction: %w", err)
 	}
 	return node, nil
+}
+
+func lockActiveDriveNode(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (Node, error) {
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM drive_nodes
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+  AND status = 'active'
+FOR UPDATE`
+	var node Node
+	err := tx.QueryRowContext(ctx, query, nodeID, userID).Scan(
+		&node.ID,
+		&node.CompanyID,
+		&node.DomainID,
+		&node.UserID,
+		&node.ParentID,
+		&node.Type,
+		&node.Name,
+		&node.NormalizedName,
+		&node.MIMEType,
+		&node.Size,
+		&node.StorageBackend,
+		&node.StoragePath,
+		&node.ChecksumSHA256,
+		&node.Status,
+		&node.CreatedAt,
+		&node.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Node{}, fmt.Errorf("active drive node not found")
+		}
+		return Node{}, fmt.Errorf("lock drive node: %w", err)
+	}
+	return node, nil
+}
+
+func trashDriveNodeTree(ctx context.Context, tx *sql.Tx, userID string, nodeID string) (int64, error) {
+	const query = `
+WITH RECURSIVE tree AS (
+  SELECT id
+  FROM drive_nodes
+  WHERE id = $2::uuid
+    AND user_id = $1::uuid
+    AND status = 'active'
+  UNION ALL
+  SELECT child.id
+  FROM drive_nodes child
+  JOIN tree ON child.parent_id = tree.id
+  WHERE child.user_id = $1::uuid
+    AND child.status = 'active'
+)
+UPDATE drive_nodes
+SET status = 'trashed',
+    trashed_at = COALESCE(trashed_at, now()),
+    updated_at = now()
+WHERE id IN (SELECT id FROM tree)`
+	result, err := tx.ExecContext(ctx, query, userID, nodeID)
+	if err != nil {
+		return 0, fmt.Errorf("trash drive node tree: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count trashed drive nodes: %w", err)
+	}
+	if updated == 0 {
+		return 0, fmt.Errorf("active drive node not found")
+	}
+	return updated, nil
 }
 
 func insertDriveFileNode(ctx context.Context, tx *sql.Tx, req CreateFileFromObjectRequest, normalizedName string, size int64) (Node, error) {

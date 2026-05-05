@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive node list boundary)
+Last updated: 2026-05-06 (updated after Drive trash boundary)
 
 ## Current phase
 
@@ -246,6 +246,9 @@ guidance.
 - Drive now has an internal node-list repository read model for active,
   trashed, or deleted nodes under a parent folder, with bounded limits and
   folder-first stable ordering for future webmail/Drive clients.
+- Drive now has an internal trash repository mutation that marks an active
+  node and active descendants as trashed in one transaction, preserving object
+  bytes and quota usage for future restore or delayed permanent deletion.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

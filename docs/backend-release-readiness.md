@@ -70,6 +70,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
+- Drive can now move active file/folder metadata into trash recursively without
+  deleting object bytes or decrementing quota immediately, giving the future
+  product a recoverable delete path before permanent cleanup is exposed.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
