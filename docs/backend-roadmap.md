@@ -842,6 +842,9 @@ Implementation order:
 705. IMAP `CHECK` and `CLOSE` now cover the selected-mailbox lifecycle: `CHECK`
      completes as a safe synchronization no-op, and `CLOSE` clears selected
      state without expunging because `\Deleted` semantics remain unsupported.
+706. IMAP `STATUS` now validates requested status data items and returns only
+     the requested RFC-shaped fields, including `RECENT`, instead of always
+     emitting a fixed mailbox metadata set.
 
 ## Deferred until backend contracts stabilize
 

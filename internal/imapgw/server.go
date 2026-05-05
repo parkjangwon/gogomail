@@ -294,12 +294,17 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, err := writer.WriteString(tag + " BAD STATUS requires mailbox and status item atoms\r\n")
 			return false, err
 		}
+		statusItems, ok := imapStatusItems(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD STATUS item is unsupported\r\n")
+			return false, err
+		}
 		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO STATUS failed\r\n")
 			return false, writeErr
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (MESSAGES %d UIDNEXT %d UIDVALIDITY %d UNSEEN %d)\r\n", imapQuotedString(imapMailboxDisplayName(mailbox)), mailbox.Messages, mailbox.UIDNext, mailbox.UIDValidity, mailbox.Unseen)); err != nil {
+		if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(imapMailboxDisplayName(mailbox)), imapStatusData(mailbox, statusItems))); err != nil {
 			return false, err
 		}
 		_, err = writer.WriteString(tag + " OK STATUS completed\r\n")
@@ -772,6 +777,41 @@ func imapMailboxDisplayName(mailbox Mailbox) string {
 		return strings.TrimSpace(mailbox.Name)
 	}
 	return strings.TrimSpace(string(mailbox.ID))
+}
+
+func imapStatusItems(items []string) ([]string, bool) {
+	out := make([]string, 0, len(items))
+	for _, raw := range items {
+		for _, token := range strings.Fields(strings.Trim(raw, "()")) {
+			item := strings.ToUpper(strings.TrimSpace(token))
+			switch item {
+			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN":
+				out = append(out, item)
+			default:
+				return nil, false
+			}
+		}
+	}
+	return out, len(out) > 0
+}
+
+func imapStatusData(mailbox Mailbox, items []string) string {
+	parts := make([]string, 0, len(items)*2)
+	for _, item := range items {
+		switch item {
+		case "MESSAGES":
+			parts = append(parts, "MESSAGES", strconv.FormatUint(uint64(mailbox.Messages), 10))
+		case "RECENT":
+			parts = append(parts, "RECENT", strconv.FormatUint(uint64(mailbox.Recent), 10))
+		case "UIDNEXT":
+			parts = append(parts, "UIDNEXT", strconv.FormatUint(uint64(mailbox.UIDNext), 10))
+		case "UIDVALIDITY":
+			parts = append(parts, "UIDVALIDITY", strconv.FormatUint(uint64(mailbox.UIDValidity), 10))
+		case "UNSEEN":
+			parts = append(parts, "UNSEEN", strconv.FormatUint(uint64(mailbox.Unseen), 10))
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 func imapFlagList(flags []string) string {
