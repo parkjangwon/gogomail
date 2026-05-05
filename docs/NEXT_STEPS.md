@@ -322,6 +322,9 @@ Current state:
 - `FETCH`/`UID FETCH` now applies RFC 3501 `\Seen` side effects for successful
   `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads, while
   `BODY.PEEK[...]` and `RFC822.HEADER` remain preview-safe and non-mutating.
+- `FETCH`/`UID FETCH` now preserves `RFC822`, `RFC822.HEADER`, and
+  `RFC822.TEXT` response data item names on the wire instead of rewriting them
+  to their `BODY[...]` equivalent names.
 - `CAPABILITY` now advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
   `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes when

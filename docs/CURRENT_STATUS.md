@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP BODY fetch seen-state semantics)
+Last updated: 2026-05-05 (updated after IMAP RFC822 fetch response token alignment)
 
 ## Current phase
 
@@ -873,6 +873,9 @@ The platform hardening sprint completed the following:
   successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads while
   preserving `BODY.PEEK[...]` and `RFC822.HEADER` as non-mutating preview
   requests.
+- IMAP `FETCH`/`UID FETCH` now preserves RFC 3501 `RFC822`,
+  `RFC822.HEADER`, and `RFC822.TEXT` response data item names instead of
+  returning their `BODY[...]` equivalents on the wire.
 - IMAP `CAPABILITY` advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
   `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes

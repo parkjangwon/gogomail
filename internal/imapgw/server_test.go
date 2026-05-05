@@ -4172,7 +4172,30 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	if line != "a3 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q", line)
 	}
-	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 UID FETCH 7 RFC822\r\n")); err != nil {
+		t.Fatalf("write uid fetch rfc822: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read rfc822 literal header: %v", err)
+	}
+	if line != "* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 RFC822 {11}\r\n" {
+		t.Fatalf("rfc822 literal header = %q", line)
+	}
+	body = make([]byte, 11)
+	if _, err := io.ReadFull(reader, body); err != nil {
+		t.Fatalf("read rfc822 literal: %v", err)
+	}
+	if string(body) != "hello world" {
+		t.Fatalf("rfc822 body = %q", body)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("rfc822 literal close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("rfc822 completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -4388,7 +4411,7 @@ func TestServerHandlesFetchHeaderAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read fetch header literal header: %v", err)
 	}
-	if line != "* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41 BODY[HEADER] {20}\r\n" {
+	if line != "* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41 RFC822.HEADER {20}\r\n" {
 		t.Fatalf("fetch header literal header = %q", line)
 	}
 	header := make([]byte, 20)
@@ -4597,7 +4620,7 @@ func TestServerHandlesUIDFetchTextAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read text literal header: %v", err)
 	}
-	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[TEXT] {17}\r\n" {
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 RFC822.TEXT {17}\r\n" {
 		t.Fatalf("text literal header = %q", line)
 	}
 	text := make([]byte, 17)

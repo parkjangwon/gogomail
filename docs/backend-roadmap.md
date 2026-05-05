@@ -1231,6 +1231,9 @@ Implementation order:
      successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads while
      preserving `BODY.PEEK[...]` and `RFC822.HEADER` as non-mutating preview
      requests.
+827. IMAP `FETCH` and `UID FETCH` now preserve RFC 3501 `RFC822`,
+     `RFC822.HEADER`, and `RFC822.TEXT` response data item names on the wire
+     instead of rewriting them to their internal `BODY[...]` equivalents.
 
 ## Deferred until backend contracts stabilize
 
