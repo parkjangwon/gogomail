@@ -297,6 +297,8 @@ Current state:
   without fetching the full message.
 - `FETCH`/`UID FETCH` now answers conservative single-part MIME header requests
   for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
+- `FETCH`/`UID FETCH` now streams actual multipart child MIME headers for
+  `BODY[n.MIME]` and `BODY.PEEK[n.MIME]` when the selected part exists.
 - `UID STORE` now accepts bounded UID sets/ranges so clients can mutate flags in
   batches instead of issuing one command per message.
 - Non-UID `STORE` now accepts bounded sequence sets/ranges and maps them to the
@@ -401,8 +403,8 @@ Current state:
 
 Next:
 
-- Extend MIME literal fetches to nested part paths and richer `BODY[n.MIME]`
-  responses beyond the current top-level multipart part support.
+- Extend MIME literal fetches to nested part paths and broader multipart
+  subtypes beyond the current top-level part support.
 
 Frontend note:
 

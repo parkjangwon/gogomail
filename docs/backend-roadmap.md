@@ -1010,6 +1010,9 @@ Implementation order:
 766. IMAP `FETCH` and `UID FETCH` now support bounded top-level multipart
      body-section literals such as `BODY[2]`, allowing clients to read
      individual MIME parts without fetching the full message.
+767. IMAP `FETCH` and `UID FETCH` now stream actual multipart child MIME
+     headers for `BODY[n.MIME]` and `BODY.PEEK[n.MIME]` requests when the
+     selected part exists.
 
 ## Deferred until backend contracts stabilize
 
