@@ -136,6 +136,16 @@ func TestParseMIMEStructureCountsMessageRFC822Lines(t *testing.T) {
 	if root.Size != int64(len(body)) || root.Lines != 4 {
 		t.Fatalf("message/rfc822 size/lines = %d/%d, want %d/4", root.Size, root.Lines, len(body))
 	}
+	if len(root.Parts) != 1 {
+		t.Fatalf("message/rfc822 child parts = %d, want 1", len(root.Parts))
+	}
+	child := root.Parts[0]
+	if child.MediaType != "TEXT" || child.MediaSubtype != "PLAIN" {
+		t.Fatalf("message/rfc822 child = %+v, want default text/plain", child)
+	}
+	if child.Size != int64(len("line one\r\nline two")) || child.Lines != 2 {
+		t.Fatalf("message/rfc822 child size/lines = %d/%d, want nested body bytes and two lines", child.Size, child.Lines)
+	}
 }
 
 func TestParseMIMEStructureLimitsPartCount(t *testing.T) {
