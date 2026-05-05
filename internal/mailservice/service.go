@@ -407,7 +407,9 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 		return maildb.MessageDetail{}, err
 	}
 	if !messageFlagRead(detail.Flags) {
-		_ = s.repository.SetMessageFlag(ctx, userID, messageID, "read", true)
+		if err := s.repository.SetMessageFlag(ctx, userID, messageID, "read", true); err == nil {
+			_ = s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, userID, []string{messageID})
+		}
 	}
 	if s.store == nil || detail.StoragePath == "" {
 		return detail, nil

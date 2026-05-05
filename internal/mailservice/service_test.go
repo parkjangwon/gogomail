@@ -64,18 +64,26 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 func TestGetMessageMarksUnreadMessageRead(t *testing.T) {
 	t.Parallel()
 
+	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
 		detail: maildb.MessageDetail{
 			ID:    "msg-1",
 			Flags: []byte(`{"read":false}`),
 		},
+		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
 	}
-	service := New(repo, nil)
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
 	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
 		t.Fatalf("GetMessage returned error: %v", err)
 	}
 	if repo.lastFlagMessageID != "msg-1" || repo.lastFlag != "read" {
 		t.Fatalf("read marker = %q/%q", repo.lastFlagMessageID, repo.lastFlag)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 1 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventFlags || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
+		t.Fatalf("events = %#v, want flags event", events.events)
 	}
 }
 
