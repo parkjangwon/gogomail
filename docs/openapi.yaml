@@ -199,6 +199,18 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /drive/upload-sessions/{id}/finalize:
+    post:
+      operationId: finalizeDriveUploadSession
+      summary: Finalize a Drive upload session into file metadata
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "201":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/files/finalize:
     post:
       operationId: finalizeDriveFileFromObject

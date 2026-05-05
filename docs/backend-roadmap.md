@@ -1858,6 +1858,9 @@ Implementation order:
      boundary that locks a writable session, verifies stored object size
      through shared storage, increments quota, inserts Drive file metadata, and
      marks the session finalized in one transaction.
+996. Mail API now exposes `POST /api/v1/drive/upload-sessions/{id}/finalize`,
+     completing the production-facing full-body Drive upload-session path from
+     session creation through body storage into quota-accounted file metadata.
 
 ## Deferred until backend contracts stabilize
 

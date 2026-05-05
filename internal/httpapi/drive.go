@@ -18,6 +18,7 @@ type DriveService interface {
 	GetUploadSession(ctx context.Context, req drive.GetUploadSessionRequest) (drive.UploadSession, error)
 	CancelUploadSession(ctx context.Context, req drive.CancelUploadSessionRequest) (drive.UploadSession, error)
 	StoreUploadSessionBody(ctx context.Context, req drive.StoreUploadSessionBodyRequest) (drive.UploadSession, error)
+	FinalizeUploadSession(ctx context.Context, req drive.FinalizeUploadSessionRequest) (drive.Node, error)
 	ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
@@ -245,6 +246,29 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_session": session})
+	})
+
+	mux.HandleFunc("POST /api/v1/drive/upload-sessions/{id}/finalize", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		sessionID, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		node, err := service.FinalizeUploadSession(r.Context(), drive.FinalizeUploadSessionRequest{UserID: userID, SessionID: sessionID})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
 	})
 
 	mux.HandleFunc("POST /api/v1/drive/files/finalize", func(w http.ResponseWriter, r *http.Request) {
