@@ -441,7 +441,9 @@ Drive upload session state for a user without entering the webmail API surface.
 `user_id` plus bounded `parent_id`, lifecycle `status`, `q`, `sort`, and
 `limit` filters so operator consoles can inspect, name-filter, and order a
 user's Drive inventory through the same node read model used by webmail
-clients.
+clients. Admin callers may pass `all_parents=true` to search/list across the
+scoped user's whole Drive tree; it is rejected when combined with `parent_id`
+to avoid ambiguous scoping.
 `GET /admin/v1/drive-nodes/{id}` returns `{"drive_node":{...}}` with required
 `user_id` and optional lifecycle `status`, giving operator consoles a bounded
 single-node metadata view for files and folders.

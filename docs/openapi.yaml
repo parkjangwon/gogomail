@@ -1530,6 +1530,12 @@ paths:
             enum: [name, updated, created, size]
             default: name
           description: Drive node ordering. Folders remain grouped before files for each sort mode.
+        - name: all_parents
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Search/list across all parent folders for the scoped user. Must not be combined with parent_id.
       responses:
         "200":
           $ref: "#/components/responses/DriveNodeList"

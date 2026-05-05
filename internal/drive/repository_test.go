@@ -139,6 +139,21 @@ func TestValidateListNodesRequest(t *testing.T) {
 	if defaulted.Status != NodeStatusActive || defaulted.Sort != NodeSortName || defaulted.Limit != 50 {
 		t.Fatalf("defaulted request = %+v, want active/50", defaulted)
 	}
+
+	allParents, err := ValidateListNodesRequest(ListNodesRequest{
+		UserID:     " user-1 ",
+		Status:     " Trashed ",
+		Query:      " Report_% ",
+		Sort:       " Updated ",
+		AllParents: true,
+		Limit:      500,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListNodesRequest all-parents returned error: %v", err)
+	}
+	if allParents.ParentID != "" || !allParents.AllParents || allParents.Query != "report_%" || allParents.Sort != NodeSortUpdated || allParents.Limit != 200 {
+		t.Fatalf("all-parents request = %+v, want normalized whole-drive search", allParents)
+	}
 }
 
 func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
@@ -148,6 +163,7 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 		{Status: NodeStatusActive},
 		{UserID: "user\n1", Status: NodeStatusActive},
 		{UserID: "user-1", ParentID: "parent\n1", Status: NodeStatusActive},
+		{UserID: "user-1", ParentID: "parent-1", Status: NodeStatusActive, AllParents: true},
 		{UserID: "user-1", Status: "archived"},
 		{UserID: "user-1", Status: NodeStatusActive, Sort: "owner"},
 		{UserID: "user-1", Status: NodeStatusActive, Query: strings.Repeat("q", MaxNodeNameBytes+1)},

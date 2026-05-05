@@ -162,6 +162,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   prefix at record ingestion.
 - Drive node list surfaces now expose folder-first `sort=name|updated|created|size`
   ordering for webmail and admin Drive browsers.
+- Admin Drive node inspection can now opt into `all_parents=true` whole-user
+  inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
   repository methods, giving future cleanup retry workers and admin consoles a
   controlled path to inspect and close pending object cleanup drift.
@@ -1565,6 +1567,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify webmail clients use `HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download` for attachment metadata previews when they need object-backed size/header checks before streaming bytes.
 - Verify Drive copy UX respects the advertised `max_copy_nodes` cap when calling `POST /api/v1/drive/nodes/{id}/copy` for files or folder trees.
 - Verify Drive clients use the advertised node sort controls instead of assuming only name ordering.
+- Verify admin Drive inventory screens use `all_parents=true` for whole-user search instead of crawling every folder client-side.
 - Verify Drive cleanup-failure operations include node-less copied-object cleanup rows caused by failed copy metadata creation.
 - Verify Drive cleanup-failure recording rejects object paths outside the owning user's `drive/users/{user_id}/...` prefix.
 - Verify Drive clients treat HTTP 507 `insufficient_storage` from finalize/copy paths as quota pressure, distinct from validation failures.

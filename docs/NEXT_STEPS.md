@@ -459,7 +459,6 @@ Current state:
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add broader Drive admin search once the Drive admin module expands.
 
 ### 2. Message threading and search
 
@@ -1386,6 +1385,8 @@ Current state:
 - Drive node listing now supports webmail/admin `sort=name|updated|created|size`
   controls with folder-first ordering, giving future Drive screens predictable
   production browsing controls without frontend-specific assumptions.
+- Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
+  search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
   permanent-delete cleanup, cleanup-failure retry, download, and copy paths
   enforce the owning user's
