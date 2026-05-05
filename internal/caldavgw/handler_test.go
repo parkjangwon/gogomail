@@ -143,6 +143,64 @@ func TestHandlerReportCalendarMultigetReturnsPropertyNotFoundForMissingHref(t *t
 	}
 }
 
+func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>",
+		"<D:getetag>",
+		"<C:calendar-data>BEGIN:VCALENDAR",
+		"DTSTART:20260506T010000Z",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("calendar-query missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerReportCalendarQuerySkipsNonOverlappingTimeRange(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="20260508T000000Z" end="20260509T000000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "event-1.ics") {
+		t.Fatalf("non-overlapping calendar-query returned event:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportRejectsUnsupportedReports(t *testing.T) {
 	t.Parallel()
 
@@ -302,6 +360,7 @@ type fakeDiscoveryStore struct {
 
 func newFakeDiscoveryStore() *fakeDiscoveryStore {
 	now := time.Now()
+	eventICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	return &fakeDiscoveryStore{
 		principal: Principal{
 			UserID:           "user-1",
@@ -326,8 +385,8 @@ func newFakeDiscoveryStore() *fakeDiscoveryStore {
 			ObjectName: "event-1.ics",
 			UID:        "event-1@example.com",
 			ETag:       `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
-			Size:       128,
-			ICS:        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+			Size:       int64(len(eventICS)),
+			ICS:        eventICS,
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}},

@@ -2052,10 +2052,11 @@ Implementation order:
 1046. CalDAV runtime configuration now has `GOGOMAIL_CALDAV_ADDR` and
       `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation
       rejecting insecure Basic-auth operation before listener wiring is enabled.
-1047. `gogomail --mode=caldav` now starts a dedicated discovery-only HTTP
-      listener backed by the CalDAV PostgreSQL repository and Basic-auth
-      resolver, while full client-ready compatibility remains gated on REPORT,
-      GET/PUT/DELETE object semantics, and broader compatibility tests.
+1047. `gogomail --mode=caldav` now starts a dedicated HTTP listener backed by
+      the CalDAV PostgreSQL repository and Basic-auth resolver, while full
+      client-ready compatibility remains gated on sync-collection,
+      free-busy/scheduling, recurrence semantics, and broader compatibility
+      tests.
 1048. CalDAV REPORT parsing now validates core handler preconditions for
       `calendar-query`, `calendar-multiget`, `free-busy-query`, and
       `sync-collection`, including required filters, hrefs, UTC time ranges,
@@ -2068,6 +2069,10 @@ Implementation order:
       and `DELETE`, returning strong ETags and text/calendar bodies, enforcing
       bounded iCalendar object validation, and honoring `If-Match` /
       `If-None-Match` preconditions before repository upsert or soft delete.
+1051. CalDAV now implements `REPORT calendar-query` for authenticated calendar
+      collections, returning requested object ETags and `calendar-data` in
+      multistatus responses while applying RFC 5545-backed VEVENT time-range
+      overlap filtering when clients send CalDAV time-range filters.
 
 ## Deferred until backend contracts stabilize
 
