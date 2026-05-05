@@ -41,3 +41,12 @@ func (a IMAPAuthenticatorAdapter) Authenticate(ctx context.Context, username str
 		DisplayName: strings.TrimSpace(user.DisplayName),
 	}, nil
 }
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
