@@ -1757,6 +1757,10 @@ Implementation order:
      validating optional active parent folders, and relying on the
      `drive_nodes` active sibling uniqueness constraint before Drive HTTP APIs
      are exposed.
+970. Drive now has an internal file-finalize repository boundary that validates
+     storage backend/path/checksum metadata, verifies the object through the
+     shared storage `Stat` contract, and increments the company/domain/user
+     quota ledger in the same transaction as the `drive_nodes` file insert.
 
 ## Deferred until backend contracts stabilize
 

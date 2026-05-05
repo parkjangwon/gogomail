@@ -318,14 +318,16 @@ Current state:
   active users, derive company/domain scope from the user row, validate active
   parent folders, and rely on the `drive_nodes` active sibling uniqueness
   constraint before any Drive HTTP API is exposed.
+- `internal/drive.Repository.CreateFileFromObject` validates file metadata,
+  verifies the referenced object through the shared storage `Stat` contract,
+  and increments the company/domain/user quota ledger in the same transaction
+  as the `drive_nodes` file insert.
 
 Next:
 
-- Extend the same ledger service to future Drive writes and large-attachment
-  share-link objects.
-- Add Drive file-finalize and trash/delete flows against `drive_nodes`, using
-  storage `Stat`, `DeletePrefix`, and the hierarchical quota ledger before
-  exposing HTTP API routes.
+- Extend the same ledger service to large-attachment share-link objects.
+- Add Drive trash/delete flows against `drive_nodes`, using storage
+  `DeletePrefix` and quota decrement semantics before exposing HTTP API routes.
 
 ### 2. Message threading and search
 
