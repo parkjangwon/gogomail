@@ -349,6 +349,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   recursion cap and cycle guard. CalDAV discovery delegates active user lookup
   to this boundary. This does not make shared calendars, resource booking, or
   delegated access public-release ready yet.
+- CardDAV is pre-public and backend-only. ADR 0012 and `internal/carddavgw`
+  currently cover standards constants, DAV tokens, canonical principal,
+  address-book home, address-book collection, and `.vcf` object path/href
+  handling. Client-ready CardDAV remains gated on vCard validation, storage,
+  REPORT behavior, sync, auth/listener wiring, and native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

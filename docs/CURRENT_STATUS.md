@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after bounded Directory membership expansion)
+Last updated: 2026-05-06 (updated after CardDAV path boundary)
 
 ## Current phase
 
@@ -42,6 +42,13 @@ Policy/Audit boundaries. Directory is the platform/org layer for users, teams,
 groups, aliases, resources, memberships, delegation, and principal resolution;
 Contacts/CardDAV is the user-owned address-book layer for personal/external
 people and user-specific metadata.
+
+Contacts/CardDAV work has started as a standards-first backend boundary, not a
+generic contacts CRUD API. The initial `internal/carddavgw` package defines
+RFC/WebDAV/CardDAV tokens and canonical principal, address-book home,
+address-book collection, and `.vcf` contact-object path/href handling. Public
+CardDAV compatibility remains gated on vCard validation, storage, REPORT
+semantics, sync tokens, auth/listener wiring, and native-client tests.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2303,6 +2310,10 @@ The platform hardening sprint completed the following:
   nested groups with an explicit recursion cap and cycle guard, preparing
   delegated access and resource policy evaluation without unbounded graph
   traversal.
+- CardDAV groundwork has started with ADR 0012 and `internal/carddavgw`, which
+  owns RFC/WebDAV/CardDAV standards names, DAV capability tokens, canonical
+  principal/address-book/contact-object paths, `.vcf` resource validation, and
+  safe relative or HTTP(S) absolute href parsing.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2328,3 +2339,5 @@ Next focus areas:
    resources, aliases, group memberships, and bounded membership expansion into
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
+8. Add Contacts/CardDAV storage and vCard validation before webmail contacts,
+   attendee auto-complete, or native CardDAV client compatibility are exposed.

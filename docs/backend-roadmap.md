@@ -2278,6 +2278,11 @@ Implementation order:
       groups through a bounded recursive query with an explicit depth cap and
       cycle guard, preventing unbounded principal graph traversal before the
       result is used for delegated access or resource-booking policy.
+1098. CardDAV groundwork has started with ADR 0012 and `internal/carddavgw`,
+      defining RFC/WebDAV/CardDAV standards names, DAV capability tokens,
+      canonical principal/address-book/contact-object paths, `.vcf` resource
+      validation, and safe relative or HTTP(S) absolute href parsing before any
+      contacts CRUD or public CardDAV listener is exposed.
 
 ## Deferred until backend contracts stabilize
 
@@ -2291,8 +2296,8 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV boundary for personal contacts, external people, and
-  address-book metadata
+- Contacts/CardDAV storage, vCard validation, REPORT/sync behavior, auth, and
+  native-client compatibility beyond the initial path/href boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
