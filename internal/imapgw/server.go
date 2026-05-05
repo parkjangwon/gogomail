@@ -162,6 +162,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		if err := writer.Flush(); err != nil {
 			return err
 		}
+		if state.pendingIdleTag != "" {
+			if err := s.serveIdle(reader, writer, &state); err != nil {
+				return err
+			}
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+		}
 		if state.startTLS {
 			tlsConn := tls.Server(conn, s.options.TLSConfig)
 			if err := tlsConn.Handshake(); err != nil {
@@ -522,6 +530,51 @@ func (s *Server) handleIdleDone(writer *bufio.Writer, line string, state *imapCo
 	}
 	_, err := writer.WriteString(tag + " OK IDLE completed\r\n")
 	return false, err
+}
+
+type idleLineResult struct {
+	line string
+	err  error
+}
+
+func (s *Server) serveIdle(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) error {
+	lineCh := make(chan idleLineResult, 1)
+	go func() {
+		line, err := reader.ReadString('\n')
+		lineCh <- idleLineResult{line: line, err: err}
+	}()
+	for state.pendingIdleTag != "" {
+		select {
+		case result := <-lineCh:
+			if result.err != nil {
+				if errors.Is(result.err, io.EOF) {
+					return nil
+				}
+				return result.err
+			}
+			if len(result.line) > 8192 {
+				return fmt.Errorf("imap command line is too long")
+			}
+			_, err := s.handleIdleDone(writer, strings.TrimRight(result.line, "\r\n"), state)
+			return err
+		case event, ok := <-state.events:
+			if !ok {
+				state.events = nil
+				state.cancelEvents = nil
+				continue
+			}
+			if event.UserID != state.session.UserID || event.MailboxID != state.selectedMailbox {
+				continue
+			}
+			if err := s.writeMailboxEvent(writer, state, event); err != nil {
+				return err
+			}
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Server) drainMailboxEvents(writer *bufio.Writer, state *imapConnState) error {

@@ -825,8 +825,8 @@ The platform hardening sprint completed the following:
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
 - IMAP `NOOP` drains queued selected-mailbox events into untagged `EXISTS` and
   flag `FETCH` updates.
-- IMAP advertises and accepts `IDLE`, entering continuation mode and draining
-  queued selected-mailbox events when the client sends `DONE`.
+- IMAP advertises and accepts `IDLE`, entering continuation mode and streaming
+  selected-mailbox `EXISTS` and flag `FETCH` updates while waiting for `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` work over the
   selected mailbox message list.
 - IMAP `FETCH`/`UID FETCH` can stream bounded partial full-body literals for

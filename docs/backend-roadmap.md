@@ -911,6 +911,9 @@ Implementation order:
 730. IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
      advertising it only before authentication and removing it after the
      connection upgrades.
+731. IMAP `IDLE` now streams selected-mailbox events while the client waits,
+     sending untagged `EXISTS` and flag `FETCH` updates before `DONE` completes
+     the command.
 
 ## Deferred until backend contracts stabilize
 
