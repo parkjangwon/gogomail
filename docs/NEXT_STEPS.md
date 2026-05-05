@@ -112,6 +112,9 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types reject malformed atoms that
   still contain quote characters after command parsing, preventing broken
   `MODSEQ "/flags/\\Seen" all" 17` style inputs from being silently normalized.
+- IMAP RFC 2971 `ID` parameter-list parsing rejects unsupported quoted escapes
+  and adjacent quoted tokens without whitespace, while preserving valid escaped
+  quoted-special characters inside ID strings.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

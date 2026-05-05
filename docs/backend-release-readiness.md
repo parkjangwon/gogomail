@@ -160,6 +160,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types reject malformed atoms that
   still contain quote characters after command parsing, preventing broken
   `MODSEQ "/flags/\\Seen" all" 17` style inputs from being silently normalized.
+- IMAP RFC 2971 `ID` parameter-list parsing rejects unsupported quoted escapes
+  and adjacent quoted tokens without whitespace, while preserving valid escaped
+  quoted-special characters inside ID strings.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
