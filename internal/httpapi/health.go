@@ -47,7 +47,10 @@ func RegisterHealthRoutesWithChecks(mux *http.ServeMux, checks ...ReadinessCheck
 	mux.HandleFunc("GET /api/v1/info", writeInfo)
 }
 
-func writeHealth(w http.ResponseWriter, _ *http.Request) {
+func writeHealth(w http.ResponseWriter, r *http.Request) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
@@ -56,6 +59,9 @@ func writeHealth(w http.ResponseWriter, _ *http.Request) {
 
 func writeReadyWithChecks(checks []ReadinessCheckFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
 		response := ReadinessResponse{
 			Status: "ok",
 			Checks: append([]ReadinessCheck{
@@ -97,7 +103,10 @@ func StaticReadinessCheck(name string, detail string) ReadinessCheckFunc {
 	}
 }
 
-func writeInfo(w http.ResponseWriter, _ *http.Request) {
+func writeInfo(w http.ResponseWriter, r *http.Request) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)

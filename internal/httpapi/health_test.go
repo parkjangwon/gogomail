@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -124,6 +125,51 @@ func TestReadyHandlerReportsRuntimeCheckFailure(t *testing.T) {
 	}
 	if !foundDatabase {
 		t.Fatalf("database check missing: %+v", body.Checks)
+	}
+}
+
+func TestHealthAndInfoHandlersRejectPayloadMetadata(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		path        string
+		body        string
+		contentType string
+	}{
+		{name: "live body", path: "/health/live", body: "{}"},
+		{name: "ready content type", path: "/health/ready", contentType: "application/json"},
+		{name: "info body", path: "/api/v1/info", body: "{}"},
+		{name: "info content type", path: "/api/v1/info", contentType: "application/json"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mux := http.NewServeMux()
+			RegisterHealthRoutes(mux)
+
+			var bodyReader *strings.Reader
+			if tt.body != "" {
+				bodyReader = strings.NewReader(tt.body)
+			} else {
+				bodyReader = strings.NewReader("")
+			}
+			req := httptest.NewRequest(http.MethodGet, tt.path, bodyReader)
+			if tt.body == "" {
+				req.ContentLength = 0
+			}
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
 	}
 }
 
