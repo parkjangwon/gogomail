@@ -452,6 +452,12 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 
 	userID := strings.TrimSpace(string(req.UserID))
 	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return imapgw.Message{}, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
+		return imapgw.Message{}, err
+	}
 	stored, err := repo.GetIMAPMessage(ctx, userID, mailboxID, req.UID)
 	if err != nil {
 		return imapgw.Message{}, err
@@ -476,6 +482,9 @@ func (s *Service) ListIMAPMailboxes(ctx context.Context, req imapgw.ListMailboxe
 		return nil, fmt.Errorf("imap mailbox repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
 	return repo.ListIMAPMailboxes(ctx, userID)
 }
 
@@ -486,7 +495,11 @@ func (s *Service) ListSubscribedIMAPMailboxes(ctx context.Context, req imapgw.Li
 	if !ok {
 		return nil, fmt.Errorf("imap mailbox subscription repository is required")
 	}
-	return repo.ListSubscribedIMAPMailboxes(ctx, strings.TrimSpace(string(req.UserID)))
+	userID := strings.TrimSpace(string(req.UserID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	return repo.ListSubscribedIMAPMailboxes(ctx, userID)
 }
 
 func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
@@ -496,7 +509,15 @@ func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mail
 	if !ok {
 		return imapgw.Mailbox{}, fmt.Errorf("imap mailbox repository is required")
 	}
-	return repo.GetIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
+	user := strings.TrimSpace(string(userID))
+	mailbox := strings.TrimSpace(string(mailboxID))
+	if err := validateServiceResourceID("user_id", user); err != nil {
+		return imapgw.Mailbox{}, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailbox); err != nil {
+		return imapgw.Mailbox{}, err
+	}
+	return repo.GetIMAPMailbox(ctx, user, mailbox)
 }
 
 func (s *Service) SubscribeIMAPMailboxName(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.MailboxSubscription, error) {
@@ -506,7 +527,15 @@ func (s *Service) SubscribeIMAPMailboxName(ctx context.Context, userID imapgw.Us
 	if !ok {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("imap mailbox subscription repository is required")
 	}
-	return repo.SubscribeIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
+	user := strings.TrimSpace(string(userID))
+	mailbox := strings.TrimSpace(string(mailboxID))
+	if err := validateServiceResourceID("user_id", user); err != nil {
+		return imapgw.MailboxSubscription{}, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailbox); err != nil {
+		return imapgw.MailboxSubscription{}, err
+	}
+	return repo.SubscribeIMAPMailbox(ctx, user, mailbox)
 }
 
 func (s *Service) UnsubscribeIMAPMailboxName(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) error {
@@ -516,7 +545,15 @@ func (s *Service) UnsubscribeIMAPMailboxName(ctx context.Context, userID imapgw.
 	if !ok {
 		return fmt.Errorf("imap mailbox subscription repository is required")
 	}
-	return repo.UnsubscribeIMAPMailbox(ctx, strings.TrimSpace(string(userID)), strings.TrimSpace(string(mailboxID)))
+	user := strings.TrimSpace(string(userID))
+	mailbox := strings.TrimSpace(string(mailboxID))
+	if err := validateServiceResourceID("user_id", user); err != nil {
+		return err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailbox); err != nil {
+		return err
+	}
+	return repo.UnsubscribeIMAPMailbox(ctx, user, mailbox)
 }
 
 func (s *Service) CreateIMAPMailbox(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID) (imapgw.Mailbox, error) {
@@ -564,6 +601,12 @@ func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesR
 	}
 	userID := strings.TrimSpace(string(req.UserID))
 	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
+		return nil, err
+	}
 	limit := maildb.NormalizeMessageListLimit(req.Limit)
 	return repo.ListIMAPMessages(ctx, userID, mailboxID, limit, req.AfterUID)
 }
@@ -575,7 +618,15 @@ func (s *Service) SubscribeIMAPMailbox(ctx context.Context, userID imapgw.UserID
 	if !ok {
 		return nil, nil, fmt.Errorf("imap mailbox event broker is required")
 	}
-	return broker.Subscribe(ctx, imapgw.UserID(strings.TrimSpace(string(userID))), imapgw.MailboxID(strings.TrimSpace(string(mailboxID))))
+	user := strings.TrimSpace(string(userID))
+	mailbox := strings.TrimSpace(string(mailboxID))
+	if err := validateServiceResourceID("user_id", user); err != nil {
+		return nil, nil, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailbox); err != nil {
+		return nil, nil, err
+	}
+	return broker.Subscribe(ctx, imapgw.UserID(user), imapgw.MailboxID(mailbox))
 }
 
 func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error) {
@@ -587,6 +638,12 @@ func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, ma
 	}
 	userID = strings.TrimSpace(userID)
 	mailboxID = strings.TrimSpace(mailboxID)
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return nil, err
+	}
+	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
+		return nil, err
+	}
 	limit = maildb.NormalizeMessageListLimit(limit)
 	return repo.BackfillIMAPMailboxUIDs(ctx, userID, mailboxID, limit)
 }

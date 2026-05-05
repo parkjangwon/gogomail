@@ -757,6 +757,9 @@ Current state:
 - Service-level IMAP `STORE`, `COPY`, `MOVE`, and `EXPUNGE` mutations reject
   CR/LF-bearing or oversized user/mailbox identifiers before repository
   mutation dispatch or mailbox event publication.
+- Service-level IMAP read/list/subscription/backfill operations reject
+  CR/LF-bearing or oversized user/mailbox identifiers before repository reads,
+  storage opens, event subscriptions, or UID backfill work.
 - Empty IMAP flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
