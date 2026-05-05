@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewServerValidatesListenerOptions(t *testing.T) {
@@ -862,6 +863,61 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesFetchEnvelopeAndInternalDate(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 FETCH 1 (UID FLAGS INTERNALDATE ENVELOPE)\r\n")); err != nil {
+		t.Fatalf("write fetch envelope: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 INTERNALDATE \"05-May-2026 12:34:56 +0900\" ENVELOPE (\"Tue, 05 May 2026 12:34:56 +0900\" \"Hello IMAP\" ((\"Sender\" NIL \"sender\" \"example.net\")) ((\"Sender\" NIL \"sender\" \"example.net\")) ((\"Sender\" NIL \"sender\" \"example.net\")) ((\"User\" NIL \"user\" \"example.com\")) NIL NIL NIL \"<message-7@example.net>\"))\r\n",
+		"a3 OK FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read fetch envelope response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("fetch envelope response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -1134,13 +1190,22 @@ func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]Message
 }
 
 func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Message, error) {
+	internalDate := time.Date(2026, 5, 5, 12, 34, 56, 0, time.FixedZone("KST", 9*60*60))
 	return Message{
 		Summary: MessageSummary{
 			ID:             "message-1",
 			UID:            req.UID,
 			SequenceNumber: uint32(req.UID - 6),
-			Flags:          MessageFlags{Read: true, Starred: true},
-			Size:           11,
+			Envelope: Envelope{
+				MessageID: "<message-7@example.net>",
+				Subject:   "Hello IMAP",
+				From:      []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}},
+				To:        []Address{{Name: "User", Mailbox: "user", Host: "example.com"}},
+				Date:      internalDate,
+			},
+			Flags:        MessageFlags{Read: true, Starred: true},
+			InternalDate: internalDate,
+			Size:         11,
 		},
 		Body: io.NopCloser(strings.NewReader("hello world")),
 	}, nil

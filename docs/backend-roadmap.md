@@ -854,6 +854,9 @@ Implementation order:
 709. IMAP `UID STORE` now supports `FLAGS.SILENT`, `+FLAGS.SILENT`, and
      `-FLAGS.SILENT`, applying the same flag mutations while suppressing
      untagged `FETCH` echo responses.
+710. IMAP `FETCH`/`UID FETCH` can now include `INTERNALDATE` and RFC-shaped
+     `ENVELOPE` attributes from the service-backed message summary, giving
+     clients enough structured metadata for mailbox list rendering.
 
 ## Deferred until backend contracts stabilize
 

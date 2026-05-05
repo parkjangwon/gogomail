@@ -324,6 +324,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   writable versus read-only selected-mailbox state.
 - IMAP `UID STORE` now supports `.SILENT` mutation modes while applying the same
   flag changes through the service-backed flag boundary.
+- IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
+  attributes when requested, enabling standard mailbox list metadata reads.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

@@ -262,6 +262,8 @@ Current state:
   distinguish writable and read-only flag state.
 - `UID STORE` now supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses for those requests.
+- `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
+  attributes when requested, using the service-backed message summary fields.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
@@ -274,7 +276,7 @@ Next:
 
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
-- Add the TCP IMAP listener with ADR 0008 as the authentication/session contract.
+- Add header-part fetch and `BODYSTRUCTURE` support for richer client previews.
 
 Frontend note:
 

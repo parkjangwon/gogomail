@@ -814,6 +814,8 @@ The platform hardening sprint completed the following:
   versus read-only selected-mailbox state.
 - IMAP `UID STORE` supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses when requested.
+- IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`
+  attributes from message summaries for mailbox list rendering.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
