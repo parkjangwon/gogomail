@@ -1227,6 +1227,10 @@ Implementation order:
      `Bcc` address JSON into RFC-shaped ENVELOPE address lists, keeping real
      repository-backed `FETCH ENVELOPE`, address search, and RFC 5256 address
      sort behavior aligned with persisted message metadata.
+826. IMAP `FETCH` and `UID FETCH` now apply RFC 3501 `\Seen` side effects for
+     successful `BODY[...]`, `RFC822`, and `RFC822.TEXT` literal reads while
+     preserving `BODY.PEEK[...]` and `RFC822.HEADER` as non-mutating preview
+     requests.
 
 ## Deferred until backend contracts stabilize
 
