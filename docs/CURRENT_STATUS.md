@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after listener address validation)
+Last updated: 2026-05-05 (updated after delivery retry delay validation)
 
 ## Current phase
 
@@ -694,6 +694,9 @@ The platform hardening sprint completed the following:
 - HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses
   are now validated as TCP `host:port` values at startup, surfacing bind
   configuration mistakes before runtime listener setup.
+- Delivery retry delay schedules and maximum delay caps are now validated as
+  positive durations, preventing retry jobs from being exhausted accidentally
+  or scheduled in the past by malformed runtime configuration.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
   token, requires HTTPS in production, and is wired only at SMTP
