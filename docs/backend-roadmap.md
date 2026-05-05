@@ -2064,6 +2064,10 @@ Implementation order:
       authenticated calendar collections, returning requested object ETags and
       `calendar-data` bodies in multistatus responses while rendering missing
       hrefs as per-resource 404 propstats.
+1050. CalDAV now handles authenticated calendar object `GET`, `HEAD`, `PUT`,
+      and `DELETE`, returning strong ETags and text/calendar bodies, enforcing
+      bounded iCalendar object validation, and honoring `If-Match` /
+      `If-None-Match` preconditions before repository upsert or soft delete.
 
 ## Deferred until backend contracts stabilize
 

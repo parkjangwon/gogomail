@@ -2104,6 +2104,11 @@ The platform hardening sprint completed the following:
   authenticated calendar collections, returning multistatus object metadata and
   requested `calendar-data` bodies while representing missing hrefs through
   per-resource 404 propstats.
+- CalDAV now handles calendar object `GET`, `HEAD`, `PUT`, and `DELETE` over
+  authenticated `.ics` object paths. Reads return strong ETags and
+  `text/calendar` bodies, writes enforce bounded iCalendar validation and
+  `If-Match`/`If-None-Match` preconditions, and deletes honor optional ETag
+  preconditions before soft-deleting repository objects.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

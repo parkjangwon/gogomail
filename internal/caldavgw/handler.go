@@ -3,7 +3,9 @@ package caldavgw
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +15,11 @@ type DiscoveryStore interface {
 	LookupCalendar(ctx context.Context, userID string, calendarID string) (Calendar, error)
 	ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error)
 	LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error)
+}
+
+type ObjectStore interface {
+	UpsertObject(ctx context.Context, req UpsertObjectRequest) (CalendarObject, error)
+	DeleteObject(ctx context.Context, req DeleteObjectRequest) (CalendarObject, error)
 }
 
 type UserResolver func(*http.Request) (string, error)
@@ -50,10 +57,161 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.servePropfind(w, r)
 	case MethodReport:
 		h.serveReport(w, r)
+	case MethodGet, MethodHead:
+		h.serveGetObject(w, r)
+	case MethodPut:
+		h.servePutObject(w, r)
+	case MethodDelete:
+		h.serveDeleteObject(w, r)
 	default:
 		w.Header().Set("Allow", calDAVAllowHeader())
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
+	userID, resource, ok := h.resolveObjectRequest(w, r)
+	if !ok {
+		return
+	}
+	object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+	if err != nil {
+		http.Error(w, "caldav object not found", http.StatusNotFound)
+		return
+	}
+	writeCalendarObjectHeaders(w, object)
+	w.WriteHeader(http.StatusOK)
+	if r.Method != MethodHead {
+		_, _ = w.Write(object.ICS)
+	}
+}
+
+func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
+	userID, resource, ok := h.resolveObjectRequest(w, r)
+	if !ok {
+		return
+	}
+	store, ok := h.Store.(ObjectStore)
+	if !ok {
+		http.Error(w, "caldav object store is not configured", http.StatusNotImplemented)
+		return
+	}
+	ifNoneMatch := strings.TrimSpace(r.Header.Get("If-None-Match"))
+	existed := false
+	if _, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName); err == nil {
+		existed = true
+	}
+	if ifNoneMatch == "*" && existed {
+		http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
+		return
+	}
+	observedETag := strings.TrimSpace(r.Header.Get("If-Match"))
+	if observedETag == "*" {
+		observedETag = ""
+	} else if observedETag != "" && !existed {
+		http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+		return
+	}
+	body, err := readBoundedCalendarBody(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+		return
+	}
+	object, err := store.UpsertObject(r.Context(), UpsertObjectRequest{
+		UserID:       userID,
+		CalendarID:   resource.CalendarID,
+		ObjectName:   resource.ObjectName,
+		ICS:          body,
+		ObservedETag: observedETag,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeCalendarObjectHeaders(w, object)
+	if existed {
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
+	userID, resource, ok := h.resolveObjectRequest(w, r)
+	if !ok {
+		return
+	}
+	store, ok := h.Store.(ObjectStore)
+	if !ok {
+		http.Error(w, "caldav object store is not configured", http.StatusNotImplemented)
+		return
+	}
+	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
+	if ifMatch != "" && ifMatch != "*" {
+		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+		if err != nil {
+			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+			return
+		}
+		if object.ETag != ifMatch {
+			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+			return
+		}
+	}
+	if _, err := store.DeleteObject(r.Context(), DeleteObjectRequest{UserID: userID, CalendarID: resource.CalendarID, ObjectName: resource.ObjectName}); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
+	if h.Store == nil {
+		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
+		return "", ResourcePath{}, false
+	}
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return "", ResourcePath{}, false
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil || resource.Kind != ResourceCalendarObject {
+		http.Error(w, "caldav object path is required", http.StatusNotFound)
+		return "", ResourcePath{}, false
+	}
+	if resource.UserID != userID {
+		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+		return "", ResourcePath{}, false
+	}
+	return userID, resource, true
+}
+
+func writeCalendarObjectHeaders(w http.ResponseWriter, object CalendarObject) {
+	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Header().Set("ETag", object.ETag)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Length", strconv.FormatInt(object.Size, 10))
+}
+
+func readBoundedCalendarBody(r io.Reader) ([]byte, error) {
+	if r == nil {
+		return nil, fmt.Errorf("calendar body is required")
+	}
+	limited := io.LimitReader(r, MaxCalendarObjectBytes+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read calendar body: %w", err)
+	}
+	if len(body) > MaxCalendarObjectBytes {
+		return nil, fmt.Errorf("calendar body exceeds %d bytes", MaxCalendarObjectBytes)
+	}
+	return body, nil
 }
 
 func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {

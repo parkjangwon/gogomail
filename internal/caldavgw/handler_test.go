@@ -156,6 +156,108 @@ func TestHandlerReportRejectsUnsupportedReports(t *testing.T) {
 	}
 }
 
+func TestHandlerGetAndHeadCalendarObject(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	for _, method := range []string{MethodGet, MethodHead} {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(method, "/caldav/calendars/user-1/work/event-1.ics", nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("ETag"); got == "" {
+				t.Fatal("ETag header is empty")
+			}
+			if got := rec.Header().Get("Content-Type"); got != "text/calendar; charset=utf-8" {
+				t.Fatalf("Content-Type = %q", got)
+			}
+			if method == MethodHead && rec.Body.Len() != 0 {
+				t.Fatalf("HEAD body length = %d, want 0", rec.Body.Len())
+			}
+			if method == MethodGet && !strings.Contains(rec.Body.String(), "BEGIN:VCALENDAR") {
+				t.Fatalf("GET body = %s", rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestHandlerPutCalendarObjectCreatesAndUpdates(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	etag := rec.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("created ETag is empty")
+	}
+
+	updateReq := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	updateReq.Header.Set("If-Match", etag)
+	updateRec := httptest.NewRecorder()
+	handler.ServeHTTP(updateRec, updateReq)
+	if updateRec.Code != http.StatusNoContent {
+		t.Fatalf("update status = %d body = %s", updateRec.Code, updateRec.Body.String())
+	}
+}
+
+func TestHandlerPutRejectsFailedPreconditions(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerDeleteCalendarObject(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-Match", store.objects[0].ETag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.objects) != 0 {
+		t.Fatalf("objects after delete = %+v", store.objects)
+	}
+}
+
+func TestHandlerDeleteRejectsETagMismatch(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerPropfindRejectsUnsafeDiscovery(t *testing.T) {
 	t.Parallel()
 
@@ -265,6 +367,53 @@ func (s *fakeDiscoveryStore) ListCalendarObjects(_ context.Context, userID strin
 func (s *fakeDiscoveryStore) LookupCalendarObject(_ context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
 	for _, object := range s.objects {
 		if object.UserID == userID && object.CalendarID == calendarID && object.ObjectName == objectName {
+			return object, nil
+		}
+	}
+	return CalendarObject{}, errFakeNotFound
+}
+
+func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectRequest) (CalendarObject, error) {
+	validated, etag, _, err := ValidateUpsertObjectRequest(req)
+	if err != nil {
+		return CalendarObject{}, err
+	}
+	now := time.Now()
+	object := CalendarObject{
+		ID:         "object-" + validated.ObjectName,
+		UserID:     validated.UserID,
+		CalendarID: validated.CalendarID,
+		ObjectName: validated.ObjectName,
+		UID:        validated.UID,
+		ETag:       etag,
+		Size:       int64(len(validated.ICS)),
+		ICS:        append([]byte(nil), validated.ICS...),
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	for i, existing := range s.objects {
+		if existing.UserID == object.UserID && existing.CalendarID == object.CalendarID && existing.ObjectName == object.ObjectName {
+			if validated.ObservedETag != "" && existing.ETag != validated.ObservedETag {
+				return CalendarObject{}, errFakeNotFound
+			}
+			object.ID = existing.ID
+			object.CreatedAt = existing.CreatedAt
+			s.objects[i] = object
+			return object, nil
+		}
+	}
+	s.objects = append(s.objects, object)
+	return object, nil
+}
+
+func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectRequest) (CalendarObject, error) {
+	validated, _, err := ValidateDeleteObjectRequest(req)
+	if err != nil {
+		return CalendarObject{}, err
+	}
+	for i, object := range s.objects {
+		if object.UserID == validated.UserID && object.CalendarID == validated.CalendarID && object.ObjectName == validated.ObjectName {
+			s.objects = append(s.objects[:i], s.objects[i+1:]...)
 			return object, nil
 		}
 	}
