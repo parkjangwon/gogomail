@@ -62,11 +62,12 @@ const (
 )
 
 type MailboxEvent struct {
-	Type      MailboxEventType
-	UserID    UserID
-	MailboxID MailboxID
-	UID       UID
-	Messages  uint32
+	Type           MailboxEventType
+	UserID         UserID
+	MailboxID      MailboxID
+	UID            UID
+	SequenceNumber uint32
+	Messages       uint32
 }
 
 type MailboxSessionStore interface {

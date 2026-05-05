@@ -1853,6 +1853,60 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	}
 }
 
+func TestServerDrainsExpungeEventsOverNoop(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &eventBackend{events: make(chan MailboxEvent, 2)}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExpunge, UserID: "user-1", MailboxID: "inbox", UID: 8, SequenceNumber: 2}
+	if _, err := client.Write([]byte("a3 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop: %v", err)
+	}
+	want := []string{
+		"* 2 EXPUNGE\r\n",
+		"a3 OK NOOP completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read noop expunge response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("noop expunge response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesListAfterLogin(t *testing.T) {
 	t.Parallel()
 

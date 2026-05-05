@@ -775,11 +775,12 @@ func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw
 			continue
 		}
 		if err := s.imapEvents.Publish(ctx, imapgw.MailboxEvent{
-			Type:      eventType,
-			UserID:    imapgw.UserID(userID),
-			MailboxID: summary.MailboxID,
-			UID:       summary.UID,
-			Messages:  imapEventMessageCount(eventType, summary),
+			Type:           eventType,
+			UserID:         imapgw.UserID(userID),
+			MailboxID:      summary.MailboxID,
+			UID:            summary.UID,
+			SequenceNumber: imapEventSequenceNumber(eventType, summary),
+			Messages:       imapEventMessageCount(eventType, summary),
 		}); err != nil {
 			return err
 		}
@@ -789,6 +790,13 @@ func (s *Service) publishIMAPSummaryEvents(ctx context.Context, eventType imapgw
 
 func imapEventMessageCount(eventType imapgw.MailboxEventType, summary imapgw.MessageSummary) uint32 {
 	if eventType == imapgw.MailboxEventExists {
+		return summary.SequenceNumber
+	}
+	return 0
+}
+
+func imapEventSequenceNumber(eventType imapgw.MailboxEventType, summary imapgw.MessageSummary) uint32 {
+	if eventType == imapgw.MailboxEventExpunge {
 		return summary.SequenceNumber
 	}
 	return 0
