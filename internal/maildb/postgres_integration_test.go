@@ -15,6 +15,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/database"
+	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/outbound"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -915,6 +916,95 @@ WHERE user_id = $1::uuid
 	}
 	if remaining.Summary.SequenceNumber != 1 {
 		t.Fatalf("remaining inbox sequence number = %d, want 1 after first message moved", remaining.Summary.SequenceNumber)
+	}
+}
+
+func TestPostgresIMAPCopyMessagesAssignsFreshUIDsAndCopiesAttachments(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<copy-source@example.com>',
+  'copy source', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/copy-source.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&messageID); err != nil {
+		t.Fatalf("insert source message: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO attachments (
+  message_id, user_id, upload_id, storage_path, filename, size, mime_type, status
+) VALUES (
+  $1::uuid, $2::uuid, 'copy-source-upload', 'attachments/source-report.pdf',
+  'source-report.pdf', 12, 'application/pdf', 'stored'
+)`, messageID, seed.userID); err != nil {
+		t.Fatalf("insert source attachment: %v", err)
+	}
+
+	sourceUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	var quotaBefore int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaBefore); err != nil {
+		t.Fatalf("read quota before copy: %v", err)
+	}
+
+	copied, err := repo.CopyIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{sourceUID.UID})
+	if err != nil {
+		t.Fatalf("CopyIMAPMessages returned error: %v", err)
+	}
+	if len(copied) != 1 {
+		t.Fatalf("copied summaries = %#v, want 1", copied)
+	}
+	if copied[0].ID == imapgw.MessageID(messageID) {
+		t.Fatalf("copied message reused source id %q", messageID)
+	}
+	if copied[0].MailboxID != imapgw.MailboxID(seed.sentID) || copied[0].UID != 1 || copied[0].SequenceNumber != 1 {
+		t.Fatalf("copied summary mailbox/uid/seq = %q/%d/%d, want sent/1/1", copied[0].MailboxID, copied[0].UID, copied[0].SequenceNumber)
+	}
+
+	sourceStillThere, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, sourceUID.UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage source after copy returned error: %v", err)
+	}
+	if string(sourceStillThere.Summary.ID) != messageID {
+		t.Fatalf("source message after copy = %q, want %q", sourceStillThere.Summary.ID, messageID)
+	}
+	copiedMessage, err := repo.GetIMAPMessage(ctx, seed.userID, seed.sentID, copied[0].UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage copied destination returned error: %v", err)
+	}
+	if copiedMessage.Summary.Envelope.Subject != "copy source" {
+		t.Fatalf("copied subject = %q, want source metadata", copiedMessage.Summary.Envelope.Subject)
+	}
+
+	var copiedAttachmentCount int
+	var copiedAttachmentSize int64
+	var copiedStoragePath string
+	if err := db.QueryRowContext(ctx, `
+SELECT COUNT(*), COALESCE(SUM(size), 0), COALESCE(MAX(storage_path), '')
+FROM attachments
+WHERE message_id = $1::uuid`, string(copied[0].ID)).Scan(&copiedAttachmentCount, &copiedAttachmentSize, &copiedStoragePath); err != nil {
+		t.Fatalf("query copied attachment: %v", err)
+	}
+	if copiedAttachmentCount != 1 || copiedAttachmentSize != 12 || copiedStoragePath != "attachments/source-report.pdf" {
+		t.Fatalf("copied attachment count/size/path = %d/%d/%q, want 1/12/source path", copiedAttachmentCount, copiedAttachmentSize, copiedStoragePath)
+	}
+	var quotaAfter int64
+	if err := db.QueryRowContext(ctx, `SELECT quota_used FROM users WHERE id = $1`, seed.userID).Scan(&quotaAfter); err != nil {
+		t.Fatalf("read quota after copy: %v", err)
+	}
+	if quotaAfter-quotaBefore != 112 {
+		t.Fatalf("quota delta = %d, want copied message plus attachment bytes 112", quotaAfter-quotaBefore)
 	}
 }
 

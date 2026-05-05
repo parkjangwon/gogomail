@@ -495,18 +495,30 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 WITH input AS (
   SELECT value::bigint AS uid
   FROM jsonb_array_elements_text($4::jsonb)
+),
+source AS (
+  SELECT m.id, m.size
+  FROM input
+  JOIN imap_message_uid i
+    ON i.uid = input.uid
+   AND i.user_id = $1::uuid
+   AND i.mailbox_id = $2::uuid
+  JOIN messages m
+    ON m.id = i.message_id
+   AND m.user_id = $1::uuid
+   AND m.folder_id = $2::uuid
+   AND m.status = 'active'
+),
+source_bytes AS (
+  SELECT
+    source.id,
+    source.size + COALESCE(SUM(a.size), 0) AS copied_size
+  FROM source
+  LEFT JOIN attachments a ON a.message_id = source.id
+  GROUP BY source.id, source.size
 )
-SELECT COALESCE(SUM(m.size), 0)
-FROM input
-JOIN imap_message_uid i
-  ON i.uid = input.uid
- AND i.user_id = $1::uuid
- AND i.mailbox_id = $2::uuid
-JOIN messages m
-  ON m.id = i.message_id
- AND m.user_id = $1::uuid
- AND m.folder_id = $2::uuid
- AND m.status = 'active'
+SELECT COALESCE(SUM(copied_size), 0)
+FROM source_bytes
 WHERE EXISTS (
   SELECT 1
   FROM folders f
