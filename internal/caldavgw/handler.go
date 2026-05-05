@@ -72,6 +72,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav handler is not configured", http.StatusInternalServerError)
 		return
 	}
+	if r.URL.Path == WellKnownCalDAVPath {
+		h.serveWellKnown(w, r)
+		return
+	}
 	switch r.Method {
 	case MethodOptions:
 		h.serveOptions(w)
@@ -91,6 +95,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Allow", calDAVAllowHeader())
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
+	target := RootPath + "/"
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	w.Header().Set("Location", target)
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusMovedPermanently)
 }
 
 func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
@@ -494,6 +508,12 @@ func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, us
 
 func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest) ([]MultiStatusResponse, error) {
 	switch resource.Kind {
+	case ResourceRoot:
+		principal, err := h.Store.LookupPrincipal(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		return []MultiStatusResponse{responseForProperties(RootPath+"/", propfind, PrincipalProperties(principal))}, nil
 	case ResourcePrincipal:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
 		if err != nil {

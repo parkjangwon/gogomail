@@ -172,6 +172,11 @@ tombstones. Unknown tokens still fail with `valid-sync-token`, which is safer
 than fabricating an incomplete delta after retention gaps or unsupported
 history.
 
+Service discovery starts at the gateway as well: `/.well-known/caldav` redirects
+to `/caldav/`, and root `PROPFIND` exposes the authenticated principal and
+calendar-home links. This keeps RFC 6764 entry-point compatibility decoupled
+from product-specific webmail APIs.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

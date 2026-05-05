@@ -2105,6 +2105,10 @@ Implementation order:
       calendars get a baseline marker on first object change, stale-but-known
       sync tokens return changed object properties or response-level 404
       tombstones, and unknown tokens still return DAV `valid-sync-token`.
+1057. CalDAV now handles RFC 6764-style discovery by redirecting
+      `/.well-known/caldav` to `/caldav/` and serving authenticated root
+      `PROPFIND /caldav/` discovery for `current-user-principal`,
+      `principal-collection-set`, and `calendar-home-set`.
 
 ## Deferred until backend contracts stabilize
 

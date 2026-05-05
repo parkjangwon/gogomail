@@ -254,6 +254,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   stale-but-known object updates plus response-level 404 tombstones. Unknown
   tokens still produce DAV `valid-sync-token`; collection-deletion deltas and
   sync retention policy remain incomplete.
+- CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
+  redirect and authenticated root `PROPFIND /caldav/` responses for principal
+  and calendar-home discovery.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

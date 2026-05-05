@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV sync change log)
+Last updated: 2026-05-06 (updated after CalDAV well-known discovery)
 
 ## Current phase
 
@@ -2148,6 +2148,10 @@ The platform hardening sprint completed the following:
   unknown tokens still fail with DAV `valid-sync-token`. Collection-deletion
   sync for already-deleted collections and long-history retention policy remain
   future work.
+- CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
+  redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
+  `current-user-principal`, `principal-collection-set`, and
+  `calendar-home-set` for authenticated clients.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

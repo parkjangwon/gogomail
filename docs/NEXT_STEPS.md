@@ -1472,6 +1472,9 @@ Current state:
   upsert/delete paths, allowing `REPORT sync-collection` to answer
   stale-but-known tokens with object updates and response-level 404 tombstones
   instead of always forcing a full resync.
+- CalDAV now supports RFC 6764-style service discovery: `/.well-known/caldav`
+  redirects to `/caldav/`, and authenticated root `PROPFIND` exposes principal
+  and calendar-home discovery properties.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

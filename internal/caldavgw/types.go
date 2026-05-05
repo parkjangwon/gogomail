@@ -37,6 +37,7 @@ type ResourceKind string
 const (
 	ResourceUnknown            ResourceKind = "unknown"
 	ResourceWellKnown          ResourceKind = "well_known"
+	ResourceRoot               ResourceKind = "root"
 	ResourcePrincipal          ResourceKind = "principal"
 	ResourceCalendarHome       ResourceKind = "calendar_home"
 	ResourceCalendarCollection ResourceKind = "calendar_collection"

@@ -31,6 +31,47 @@ func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	}
 }
 
+func TestHandlerWellKnownCalDAVRedirectsToServiceRoot(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/caldav?client=probe", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMovedPermanently {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/caldav/?client=probe" {
+		t.Fatalf("Location = %q", got)
+	}
+}
+
+func TestHandlerPropfindServiceRootDiscovery(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><D:principal-collection-set/><C:calendar-home-set/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/</D:href>",
+		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
+		"<C:calendar-home-set><D:href>/caldav/calendars/user-1/</D:href></C:calendar-home-set>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("root discovery missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
 	t.Parallel()
 
