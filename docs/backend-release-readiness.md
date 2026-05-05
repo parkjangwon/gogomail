@@ -432,6 +432,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   MIME-structure parser to return multipart child order, subtype, parameters,
   transfer encodings, dispositions, body octets, and text line counts without
   retaining attachment payloads.
+- IMAP `BODYSTRUCTURE` now emits RFC 3501-shaped `message/rfc822` bodies with
+  encapsulated envelope/body placeholders and line counts instead of treating
+  attached messages as generic basic parts.
 - IMAP combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the
   raw message for MIME metadata while preserving the original reader for
   literal streaming, so common preview/header fetch batches keep rich structure

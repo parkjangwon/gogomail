@@ -357,6 +357,9 @@ Current state:
   parser to return multipart child order, subtype, parameters, transfer
   encodings, dispositions, body octets, and text line counts without retaining
   attachment payloads.
+- `BODYSTRUCTURE` now emits RFC 3501-shaped `message/rfc822` bodies with
+  encapsulated envelope/body placeholders and line counts instead of treating
+  attached messages as generic basic parts.
 - Combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the raw
   message for MIME metadata while preserving the original reader for literal
   streaming, so common preview/header fetch batches keep rich structure

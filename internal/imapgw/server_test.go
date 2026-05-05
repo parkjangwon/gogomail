@@ -5755,6 +5755,55 @@ func TestServerHandlesFetchMultipartBodyStructure(t *testing.T) {
 	}
 }
 
+func TestServerHandlesMessageRFC822BodyStructure(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 13 BODYSTRUCTURE\r\n")); err != nil {
+		t.Fatalf("write uid fetch message bodystructure: %v", err)
+	}
+	bodySize := len(testMessageRFC822Body())
+	partSize := len("Subject: Nested\r\nFrom: nested@example.net\r\n\r\nnested body")
+	want := []string{
+		fmt.Sprintf("* 7 FETCH (UID 13 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE (\"MESSAGE\" \"RFC822\" NIL NIL NIL \"7BIT\" %d (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL) (\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" %d 1 NIL NIL NIL NIL) 4 NIL NIL NIL NIL))\r\n", bodySize, partSize, partSize),
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read message bodystructure response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("message bodystructure response = %q, want %q", line, expected)
+		}
+	}
+}
+
 func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	t.Parallel()
 
@@ -6278,6 +6327,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		body = testNestedMultipartBody()
 		size = int64(len(body))
 	}
+	if req.UID == 13 {
+		body = testMessageRFC822Body()
+		size = int64(len(body))
+	}
 	return Message{
 		Summary: MessageSummary{
 			ID:             "message-1",
@@ -6337,6 +6390,18 @@ func testNestedMultipartBody() string {
 		"--alt--",
 		"--outer--",
 		"",
+	}, "\r\n")
+}
+
+func testMessageRFC822Body() string {
+	return strings.Join([]string{
+		"Content-Type: message/rfc822",
+		"Content-Transfer-Encoding: 7bit",
+		"",
+		"Subject: Nested",
+		"From: nested@example.net",
+		"",
+		"nested body",
 	}, "\r\n")
 }
 

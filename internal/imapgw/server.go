@@ -4341,7 +4341,9 @@ func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, exte
 		imapQuotedString(imapMIMEToken(part.Encoding, "7BIT")),
 		fmt.Sprintf("%d", maxInt64(size, 0)),
 	}
-	if mediaType == "TEXT" {
+	if mediaType == "MESSAGE" && mediaSubtype == "RFC822" {
+		fields = append(fields, imapEnvelope(MessageSummary{}), imapMIMEMessageBody(part, extended), fmt.Sprintf("%d", maxInt64(part.Lines, 0)))
+	} else if mediaType == "TEXT" {
 		lines := part.Lines
 		if lines == 0 && size > 0 {
 			lines = 1
@@ -4352,6 +4354,14 @@ func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, exte
 		fields = append(fields, "NIL", imapMIMEBodyDisposition(part), "NIL", "NIL")
 	}
 	return "(" + strings.Join(fields, " ") + ")"
+}
+
+func imapMIMEMessageBody(part messageparse.MIMEPart, extended bool) string {
+	if len(part.Parts) > 0 {
+		child := part.Parts[0]
+		return imapMIMEPartBody(child, child.Size, extended)
+	}
+	return imapBodyFromHeaderExtended(MessageSummary{Size: part.Size}, nil, extended)
 }
 
 func imapMIMEBodyDisposition(part messageparse.MIMEPart) string {
