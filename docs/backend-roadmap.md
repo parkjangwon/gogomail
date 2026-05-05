@@ -1796,6 +1796,10 @@ Implementation order:
      user/node/object context, pending failures are de-duplicated per
      backend/path, repeat failures increment attempts, and diagnostic text is
      one-line/UTF-8 bounded for future worker and operator surfaces.
+979. Drive cleanup-failure records now have bounded repository list and resolve
+     methods with status/user filters, oldest-first pending ordering, limit
+     caps, and pending-only resolution so retry workers and admin surfaces can
+     inspect and close cleanup drift without direct SQL access.
 
 ## Deferred until backend contracts stabilize
 

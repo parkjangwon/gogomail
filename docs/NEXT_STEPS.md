@@ -350,12 +350,16 @@ Current state:
   structured cleanup errors can be recorded with user/node/object context,
   pending failures are de-duplicated per backend/path, repeated failures
   increment attempts, and error text is one-line/UTF-8 bounded.
+- Drive cleanup-failure records now have bounded repository list and resolve
+  methods with status/user filters, oldest-first pending ordering, limit caps,
+  and pending-only resolution for worker/admin use.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add bounded Drive cleanup-failure list/resolve repository methods so worker
-  retries and admin surfaces can inspect and close pending cleanup records.
+- Add a Drive cleanup retry service method that lists pending failure records,
+  deletes their objects through configured storage stores, and resolves
+  successful records.
 - Add Drive HTTP contracts only after repository/service
   create/list/delete/restore flows are stable enough to document in OpenAPI.
 

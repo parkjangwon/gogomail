@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive cleanup failure records)
+Last updated: 2026-05-06 (updated after Drive cleanup failure queue reads)
 
 ## Current phase
 
@@ -273,6 +273,10 @@ guidance.
   context, pending failures are de-duplicated per backend/path, attempts are
   incremented on repeat failures, and error text is one-line/UTF-8 bounded for
   future operator and worker surfaces.
+- Drive cleanup-failure records now have bounded repository list and resolve
+  methods with status/user filters, oldest-first pending ordering, limit caps,
+  and pending-only resolution, preparing retry workers and admin visibility
+  without exposing HTTP contracts yet.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

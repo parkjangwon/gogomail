@@ -91,6 +91,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive cleanup failures after permanent-delete metadata commits can now be
   recorded as de-duplicated PostgreSQL retry records with bounded diagnostics,
   preparing worker retries and admin visibility for object cleanup drift.
+- Drive cleanup-failure records can now be listed and resolved through bounded
+  repository methods, giving future cleanup retry workers and admin consoles a
+  controlled path to inspect and close pending object cleanup drift.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and
