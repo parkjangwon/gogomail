@@ -127,6 +127,18 @@ func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsReservedS3BucketName(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail--x-s3"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want reserved S3 bucket rejection")
+	}
+}
+
 func TestValidateRejectsUnsafeS3Region(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "s3"

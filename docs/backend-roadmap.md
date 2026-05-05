@@ -1397,6 +1397,10 @@ Implementation order:
      authentication failures too, while valid unauthenticated enable attempts
      still return `NO authentication required` without mutating session feature
      state.
+872. S3-compatible bucket validation now rejects IP-address-shaped names plus
+     AWS-reserved bucket prefixes and suffixes at adapter/config validation
+     time, aligning gogomail's object-storage startup checks with current AWS
+     general purpose bucket naming restrictions.
 
 ## Deferred until backend contracts stabilize
 
