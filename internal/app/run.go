@@ -688,15 +688,17 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:    redisClient,
-		Stream:    cfg.EventStream,
-		Group:     cfg.EventConsumerGroup,
-		Consumer:  cfg.EventConsumerName,
-		Count:     int64(cfg.EventConsumerCount),
-		Block:     cfg.EventConsumerBlock,
-		ClaimIdle: cfg.EventConsumerClaimIdle,
-		Handler:   router,
-		Logger:    logger,
+		Client:           redisClient,
+		Stream:           cfg.EventStream,
+		Group:            cfg.EventConsumerGroup,
+		Consumer:         cfg.EventConsumerName,
+		Count:            int64(cfg.EventConsumerCount),
+		Block:            cfg.EventConsumerBlock,
+		ClaimIdle:        cfg.EventConsumerClaimIdle,
+		MaxDeliveries:    cfg.EventConsumerMaxDeliveries,
+		DeadLetterStream: cfg.EventConsumerDeadLetterStream,
+		Handler:          router,
+		Logger:           logger,
 	})
 	if err != nil {
 		return err
@@ -709,6 +711,8 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"consumer", cfg.EventConsumerName,
 		"count", cfg.EventConsumerCount,
 		"block", cfg.EventConsumerBlock.String(),
+		"max_deliveries", cfg.EventConsumerMaxDeliveries,
+		"dead_letter_stream", cfg.EventConsumerDeadLetterStream,
 	)
 	return consumer.Run(ctx)
 }
@@ -753,15 +757,17 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:    redisClient,
-		Stream:    cfg.EventStream,
-		Group:     cfg.SearchIndexConsumerGroup,
-		Consumer:  cfg.SearchIndexConsumerName,
-		Count:     int64(cfg.SearchIndexConsumerCount),
-		Block:     cfg.SearchIndexConsumerBlock,
-		ClaimIdle: cfg.SearchIndexConsumerClaimIdle,
-		Handler:   router,
-		Logger:    logger,
+		Client:           redisClient,
+		Stream:           cfg.EventStream,
+		Group:            cfg.SearchIndexConsumerGroup,
+		Consumer:         cfg.SearchIndexConsumerName,
+		Count:            int64(cfg.SearchIndexConsumerCount),
+		Block:            cfg.SearchIndexConsumerBlock,
+		ClaimIdle:        cfg.SearchIndexConsumerClaimIdle,
+		MaxDeliveries:    cfg.SearchIndexConsumerMaxDeliveries,
+		DeadLetterStream: cfg.SearchIndexConsumerDeadLetterStream,
+		Handler:          router,
+		Logger:           logger,
 	})
 	if err != nil {
 		return err
@@ -778,6 +784,8 @@ func searchIndexWorkerLogFields(cfg config.Config) []any {
 		"consumer", cfg.SearchIndexConsumerName,
 		"backend", strings.ToLower(strings.TrimSpace(cfg.SearchIndexBackend)),
 		"max_body_bytes", cfg.SearchIndexMaxBodyBytes,
+		"max_deliveries", cfg.SearchIndexConsumerMaxDeliveries,
+		"dead_letter_stream", cfg.SearchIndexConsumerDeadLetterStream,
 	}
 	if strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
 		fields = append(fields,
@@ -862,15 +870,17 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:    redisClient,
-		Stream:    cfg.APIMeteringStream,
-		Group:     cfg.APIMeteringConsumerGroup,
-		Consumer:  cfg.APIMeteringConsumerName,
-		Count:     int64(cfg.APIMeteringConsumerCount),
-		Block:     cfg.APIMeteringConsumerBlock,
-		ClaimIdle: cfg.APIMeteringConsumerClaimIdle,
-		Handler:   router,
-		Logger:    logger,
+		Client:           redisClient,
+		Stream:           cfg.APIMeteringStream,
+		Group:            cfg.APIMeteringConsumerGroup,
+		Consumer:         cfg.APIMeteringConsumerName,
+		Count:            int64(cfg.APIMeteringConsumerCount),
+		Block:            cfg.APIMeteringConsumerBlock,
+		ClaimIdle:        cfg.APIMeteringConsumerClaimIdle,
+		MaxDeliveries:    cfg.APIMeteringConsumerMaxDeliveries,
+		DeadLetterStream: cfg.APIMeteringConsumerDeadLetterStream,
+		Handler:          router,
+		Logger:           logger,
 	})
 	if err != nil {
 		return err
@@ -882,6 +892,8 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		"group", cfg.APIMeteringConsumerGroup,
 		"consumer", cfg.APIMeteringConsumerName,
 		"backend", cfg.APIMeteringAggregateBackend,
+		"max_deliveries", cfg.APIMeteringConsumerMaxDeliveries,
+		"dead_letter_stream", cfg.APIMeteringConsumerDeadLetterStream,
 	)
 	return consumer.Run(ctx)
 }
@@ -922,15 +934,17 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:    redisClient,
-		Stream:    cfg.EventStream,
-		Group:     cfg.PushNotifyConsumerGroup,
-		Consumer:  cfg.PushNotifyConsumerName,
-		Count:     int64(cfg.PushNotifyConsumerCount),
-		Block:     cfg.PushNotifyConsumerBlock,
-		ClaimIdle: cfg.PushNotifyConsumerClaimIdle,
-		Handler:   router,
-		Logger:    logger,
+		Client:           redisClient,
+		Stream:           cfg.EventStream,
+		Group:            cfg.PushNotifyConsumerGroup,
+		Consumer:         cfg.PushNotifyConsumerName,
+		Count:            int64(cfg.PushNotifyConsumerCount),
+		Block:            cfg.PushNotifyConsumerBlock,
+		ClaimIdle:        cfg.PushNotifyConsumerClaimIdle,
+		MaxDeliveries:    cfg.PushNotifyConsumerMaxDeliveries,
+		DeadLetterStream: cfg.PushNotifyConsumerDeadLetterStream,
+		Handler:          router,
+		Logger:           logger,
 	})
 	if err != nil {
 		return err
@@ -943,6 +957,8 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 		"consumer", cfg.PushNotifyConsumerName,
 		"backend", backend,
 		"device_limit", cfg.PushNotifyDeviceLimit,
+		"max_deliveries", cfg.PushNotifyConsumerMaxDeliveries,
+		"dead_letter_stream", cfg.PushNotifyConsumerDeadLetterStream,
 	)
 	return consumer.Run(ctx)
 }
@@ -1025,15 +1041,17 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	handler.WithMetrics(deliveryMetrics(cfg, logger))
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
-		Client:    redisClient,
-		Stream:    cfg.DeliveryStream,
-		Group:     cfg.DeliveryConsumerGroup,
-		Consumer:  cfg.DeliveryConsumerName,
-		Count:     int64(cfg.DeliveryConsumerCount),
-		Block:     cfg.DeliveryConsumerBlock,
-		ClaimIdle: cfg.DeliveryConsumerClaimIdle,
-		Handler:   handler,
-		Logger:    logger,
+		Client:           redisClient,
+		Stream:           cfg.DeliveryStream,
+		Group:            cfg.DeliveryConsumerGroup,
+		Consumer:         cfg.DeliveryConsumerName,
+		Count:            int64(cfg.DeliveryConsumerCount),
+		Block:            cfg.DeliveryConsumerBlock,
+		ClaimIdle:        cfg.DeliveryConsumerClaimIdle,
+		MaxDeliveries:    cfg.DeliveryConsumerMaxDeliveries,
+		DeadLetterStream: cfg.DeliveryConsumerDeadLetterStream,
+		Handler:          handler,
+		Logger:           logger,
 	})
 	if err != nil {
 		return err
@@ -1046,6 +1064,8 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		"consumer", cfg.DeliveryConsumerName,
 		"count", cfg.DeliveryConsumerCount,
 		"block", cfg.DeliveryConsumerBlock.String(),
+		"max_deliveries", cfg.DeliveryConsumerMaxDeliveries,
+		"dead_letter_stream", cfg.DeliveryConsumerDeadLetterStream,
 	)
 	return consumer.Run(ctx)
 }

@@ -73,6 +73,8 @@ type Config struct {
 	PushNotifyConsumerCount             int
 	PushNotifyConsumerBlock             time.Duration
 	PushNotifyConsumerClaimIdle         time.Duration
+	PushNotifyConsumerMaxDeliveries     int64
+	PushNotifyConsumerDeadLetterStream  string
 	APIMeteringBackend                  string
 	APIMeteringTimeout                  time.Duration
 	APIMeteringAggregateBackend         string
@@ -82,6 +84,8 @@ type Config struct {
 	APIMeteringConsumerCount            int
 	APIMeteringConsumerBlock            time.Duration
 	APIMeteringConsumerClaimIdle        time.Duration
+	APIMeteringConsumerMaxDeliveries    int64
+	APIMeteringConsumerDeadLetterStream string
 	APIUsageRetentionInterval           time.Duration
 	APIUsageRetentionCutoffAge          time.Duration
 	APIUsageRetentionBatchSize          int
@@ -107,6 +111,8 @@ type Config struct {
 	EventConsumerCount                  int
 	EventConsumerBlock                  time.Duration
 	EventConsumerClaimIdle              time.Duration
+	EventConsumerMaxDeliveries          int64
+	EventConsumerDeadLetterStream       string
 	SearchIndexBackend                  string
 	SearchIndexMaxBodyBytes             int64
 	SearchIndexConsumerGroup            string
@@ -114,6 +120,8 @@ type Config struct {
 	SearchIndexConsumerCount            int
 	SearchIndexConsumerBlock            time.Duration
 	SearchIndexConsumerClaimIdle        time.Duration
+	SearchIndexConsumerMaxDeliveries    int64
+	SearchIndexConsumerDeadLetterStream string
 	SearchIndexOpenSearchEndpoint       string
 	SearchIndexOpenSearchIndex          string
 	SearchIndexOpenSearchUsername       string
@@ -126,6 +134,8 @@ type Config struct {
 	DeliveryConsumerCount               int
 	DeliveryConsumerBlock               time.Duration
 	DeliveryConsumerClaimIdle           time.Duration
+	DeliveryConsumerMaxDeliveries       int64
+	DeliveryConsumerDeadLetterStream    string
 	DeliverySMTPHello                   string
 	DeliveryTimeout                     time.Duration
 	DeliveryTLSMode                     string
@@ -151,7 +161,7 @@ type Config struct {
 }
 
 func Load() Config {
-	return Config{
+	cfg := Config{
 		Environment:                         envOrDefault("GOGOMAIL_ENV", "development"),
 		HTTPAddr:                            envOrDefault("GOGOMAIL_HTTP_ADDR", ":8080"),
 		HTTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_HTTP_READ_TIMEOUT", 5*time.Minute),
@@ -217,6 +227,8 @@ func Load() Config {
 		PushNotifyConsumerCount:             intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT", 50),
 		PushNotifyConsumerBlock:             durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_BLOCK", time.Second),
 		PushNotifyConsumerClaimIdle:         durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		PushNotifyConsumerMaxDeliveries:     int64EnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_MAX_DELIVERIES", 10),
+		PushNotifyConsumerDeadLetterStream:  strings.TrimSpace(os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_DEAD_LETTER_STREAM")),
 		APIMeteringBackend:                  envOrDefault("GOGOMAIL_API_METERING_BACKEND", "none"),
 		APIMeteringTimeout:                  durationEnvOrDefault("GOGOMAIL_API_METERING_TIMEOUT", 100*time.Millisecond),
 		APIMeteringAggregateBackend:         envOrDefault("GOGOMAIL_API_METERING_AGGREGATE_BACKEND", "disabled"),
@@ -226,6 +238,8 @@ func Load() Config {
 		APIMeteringConsumerCount:            intEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_COUNT", 100),
 		APIMeteringConsumerBlock:            durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_BLOCK", time.Second),
 		APIMeteringConsumerClaimIdle:        durationEnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		APIMeteringConsumerMaxDeliveries:    int64EnvOrDefault("GOGOMAIL_API_METERING_CONSUMER_MAX_DELIVERIES", 10),
+		APIMeteringConsumerDeadLetterStream: strings.TrimSpace(os.Getenv("GOGOMAIL_API_METERING_CONSUMER_DEAD_LETTER_STREAM")),
 		APIUsageRetentionInterval:           durationEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_INTERVAL", 24*time.Hour),
 		APIUsageRetentionCutoffAge:          durationEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_CUTOFF_AGE", 90*24*time.Hour),
 		APIUsageRetentionBatchSize:          intEnvOrDefault("GOGOMAIL_API_USAGE_RETENTION_BATCH_SIZE", 1000),
@@ -251,6 +265,8 @@ func Load() Config {
 		EventConsumerCount:                  intEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_COUNT", 100),
 		EventConsumerBlock:                  durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_BLOCK", time.Second),
 		EventConsumerClaimIdle:              durationEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		EventConsumerMaxDeliveries:          int64EnvOrDefault("GOGOMAIL_EVENT_CONSUMER_MAX_DELIVERIES", 10),
+		EventConsumerDeadLetterStream:       strings.TrimSpace(os.Getenv("GOGOMAIL_EVENT_CONSUMER_DEAD_LETTER_STREAM")),
 		SearchIndexBackend:                  envOrDefault("GOGOMAIL_SEARCH_INDEX_BACKEND", "disabled"),
 		SearchIndexMaxBodyBytes:             int64EnvOrDefault("GOGOMAIL_SEARCH_INDEX_MAX_BODY_BYTES", 1024*1024),
 		SearchIndexConsumerGroup:            envOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_GROUP", "gogomail.search-index-worker"),
@@ -258,6 +274,8 @@ func Load() Config {
 		SearchIndexConsumerCount:            intEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT", 50),
 		SearchIndexConsumerBlock:            durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_BLOCK", time.Second),
 		SearchIndexConsumerClaimIdle:        durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		SearchIndexConsumerMaxDeliveries:    int64EnvOrDefault("GOGOMAIL_SEARCH_INDEX_CONSUMER_MAX_DELIVERIES", 10),
+		SearchIndexConsumerDeadLetterStream: strings.TrimSpace(os.Getenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_DEAD_LETTER_STREAM")),
 		SearchIndexOpenSearchEndpoint:       envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT", ""),
 		SearchIndexOpenSearchIndex:          envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX", "gogomail-messages"),
 		SearchIndexOpenSearchUsername:       envOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_USERNAME", ""),
@@ -270,6 +288,8 @@ func Load() Config {
 		DeliveryConsumerCount:               intEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_COUNT", 50),
 		DeliveryConsumerBlock:               durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", time.Second),
 		DeliveryConsumerClaimIdle:           durationEnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		DeliveryConsumerMaxDeliveries:       int64EnvOrDefault("GOGOMAIL_DELIVERY_CONSUMER_MAX_DELIVERIES", 10),
+		DeliveryConsumerDeadLetterStream:    strings.TrimSpace(os.Getenv("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM")),
 		DeliverySMTPHello:                   envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 		DeliveryTimeout:                     durationEnvOrDefault("GOGOMAIL_DELIVERY_TIMEOUT", 30*time.Second),
 		DeliveryTLSMode:                     envOrDefault("GOGOMAIL_DELIVERY_TLS_MODE", "opportunistic"),
@@ -293,6 +313,22 @@ func Load() Config {
 		AdminToken:                          envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:                       envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
 	}
+	if cfg.EventConsumerDeadLetterStream == "" {
+		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"
+	}
+	if cfg.SearchIndexConsumerDeadLetterStream == "" {
+		cfg.SearchIndexConsumerDeadLetterStream = cfg.EventStream + ".dead"
+	}
+	if cfg.PushNotifyConsumerDeadLetterStream == "" {
+		cfg.PushNotifyConsumerDeadLetterStream = cfg.EventStream + ".dead"
+	}
+	if cfg.APIMeteringConsumerDeadLetterStream == "" {
+		cfg.APIMeteringConsumerDeadLetterStream = cfg.APIMeteringStream + ".dead"
+	}
+	if cfg.DeliveryConsumerDeadLetterStream == "" {
+		cfg.DeliveryConsumerDeadLetterStream = cfg.DeliveryStream + ".dead"
+	}
+	return cfg
 }
 
 func envOrDefault(key string, fallback string) string {

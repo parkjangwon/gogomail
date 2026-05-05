@@ -221,6 +221,8 @@ func TestValidateRejectsNonpositiveAPIMeteringConsumerSettings(t *testing.T) {
 	}{
 		{name: "count", mutate: func(cfg *Config) { cfg.APIMeteringConsumerCount = 0 }},
 		{name: "block", mutate: func(cfg *Config) { cfg.APIMeteringConsumerBlock = 0 }},
+		{name: "max deliveries", mutate: func(cfg *Config) { cfg.APIMeteringConsumerMaxDeliveries = -1 }},
+		{name: "dead-letter stream newline", mutate: func(cfg *Config) { cfg.APIMeteringConsumerDeadLetterStream = "api.event\nbad" }},
 	}
 
 	for _, tt := range tests {
@@ -275,8 +277,12 @@ func TestValidateRejectsNonpositiveEventAndDeliveryConsumerSettings(t *testing.T
 	}{
 		{name: "event count", mutate: func(cfg *Config) { cfg.EventConsumerCount = 0 }},
 		{name: "event block", mutate: func(cfg *Config) { cfg.EventConsumerBlock = 0 }},
+		{name: "event max deliveries", mutate: func(cfg *Config) { cfg.EventConsumerMaxDeliveries = -1 }},
+		{name: "event dead-letter stream newline", mutate: func(cfg *Config) { cfg.EventConsumerDeadLetterStream = "mail.event\nbad" }},
 		{name: "delivery count", mutate: func(cfg *Config) { cfg.DeliveryConsumerCount = 0 }},
 		{name: "delivery block", mutate: func(cfg *Config) { cfg.DeliveryConsumerBlock = 0 }},
+		{name: "delivery max deliveries", mutate: func(cfg *Config) { cfg.DeliveryConsumerMaxDeliveries = -1 }},
+		{name: "delivery dead-letter stream newline", mutate: func(cfg *Config) { cfg.DeliveryConsumerDeadLetterStream = "delivery.event\nbad" }},
 	}
 
 	for _, tt := range tests {
@@ -310,6 +316,29 @@ func TestValidateRejectsNegativeConsumerClaimIdle(t *testing.T) {
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
 				t.Fatal("Validate() error = nil, want negative claim idle rejection")
+			}
+		})
+	}
+}
+
+func TestValidateRejectsInvalidConsumerDeadLetterSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "search max deliveries", mutate: func(cfg *Config) { cfg.SearchIndexConsumerMaxDeliveries = -1 }},
+		{name: "search dead-letter stream newline", mutate: func(cfg *Config) { cfg.SearchIndexConsumerDeadLetterStream = "search.event\nbad" }},
+		{name: "push max deliveries", mutate: func(cfg *Config) { cfg.PushNotifyConsumerMaxDeliveries = -1 }},
+		{name: "push dead-letter stream newline", mutate: func(cfg *Config) { cfg.PushNotifyConsumerDeadLetterStream = "push.event\nbad" }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want consumer dead-letter setting rejection")
 			}
 		})
 	}
