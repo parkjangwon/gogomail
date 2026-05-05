@@ -1511,6 +1511,10 @@ Implementation order:
      reject malformed atoms that still contain quote characters after command
      parsing, preventing broken values such as `SUBJECT IMAP"` from being
      normalized.
+905. IMAP `SEARCH`/`UID SEARCH` `KEYWORD` and `UNKEYWORD` criteria now reject
+     malformed keyword atoms that still contain quote characters after command
+     parsing, preventing broken values such as `KEYWORD custom"` from being
+     silently normalized.
 
 ## Deferred until backend contracts stabilize
 

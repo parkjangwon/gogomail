@@ -135,6 +135,10 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` text, body, and header string arguments reject
   malformed atoms that still contain quote characters after command parsing,
   preventing broken values such as `SUBJECT IMAP"` from being normalized.
+- IMAP `SEARCH`/`UID SEARCH` `KEYWORD` and `UNKEYWORD` criteria reject
+  malformed keyword atoms that still contain quote characters after command
+  parsing, preventing broken values such as `KEYWORD custom"` from being
+  silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in
