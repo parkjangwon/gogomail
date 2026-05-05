@@ -1778,6 +1778,11 @@ Implementation order:
      company/domain/user quota ledger for deleted file bytes in the same
      transaction, and returns storage object references for backend-specific
      cleanup/reconciliation.
+975. Drive now has a backend-object cleanup helper for permanent-delete object
+     references. It validates backend/path input, de-duplicates repeated
+     references, honors cancellation, deletes through configured storage
+     stores, and reports progress-preserving failures for retry/reconciliation
+     layers.
 
 ## Deferred until backend contracts stabilize
 

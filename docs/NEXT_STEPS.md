@@ -336,13 +336,16 @@ Current state:
   file/folder and its trashed descendants deleted, release deleted file bytes
   from the company/domain/user quota ledger, and return storage object
   references for later backend cleanup.
+- `internal/drive.CleanupDeletedObjects` consumes those object references,
+  validates backend/path safety, de-duplicates repeats, honors cancellation,
+  and deletes objects through the configured storage stores with
+  progress-preserving errors.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add a Drive service layer that consumes permanent-delete object references
-  and performs bounded backend cleanup/reconciliation on top of storage
-  `Delete`/`DeletePrefix` contracts.
+- Add a Drive service layer that composes repository permanent-delete with
+  object cleanup and records retryable cleanup failures for reconciliation.
 - Add Drive HTTP contracts only after repository create/list/delete/restore
   flows are stable enough to document in OpenAPI.
 

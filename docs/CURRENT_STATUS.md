@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive permanent-delete boundary)
+Last updated: 2026-05-06 (updated after Drive object cleanup helper)
 
 ## Current phase
 
@@ -257,6 +257,10 @@ guidance.
   trashed node and trashed descendants deleted, decrements company/domain/user
   quota for deleted files in the same transaction, and returns storage object
   references for backend-specific byte cleanup.
+- Drive now has a backend-object cleanup helper that consumes permanent-delete
+  object references, validates storage backend/path input, de-duplicates
+  repeated references, honors cancellation, and deletes through the configured
+  storage stores with progress-preserving errors.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
