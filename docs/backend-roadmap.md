@@ -2213,6 +2213,10 @@ Implementation order:
       rejecting stale `If-Unmodified-Since` metadata edits and non-star
       collection `If-Match` conditions before reading or parsing XML request
       bodies.
+1082. CalDAV `REPORT` now validates malformed Depth headers and rejects
+      `Depth: infinity` before reading XML request bodies, keeping unsupported
+      WebDAV traversal semantics out of calendar-query, calendar-multiget,
+      sync-collection, and free-busy-query hot paths.
 
 ## Deferred until backend contracts stabilize
 

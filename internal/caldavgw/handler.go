@@ -591,13 +591,22 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
 		return
 	}
+	depth, err := ParseDepth(r.Header.Get("Depth"), DepthZero)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if depth == DepthInfinity {
+		http.Error(w, "Depth: infinity is not supported for CalDAV REPORT", http.StatusForbidden)
+		return
+	}
 	report, err := ParseReport(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if report.Kind == ReportFreeBusyQuery {
-		h.serveFreeBusyReport(w, r, userID, resource, report)
+		h.serveFreeBusyReport(w, r, userID, resource, report, depth)
 		return
 	}
 	responses, err := h.reportResponses(r.Context(), userID, resource, report)
@@ -693,22 +702,13 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(body)
 }
 
-func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath, report ReportRequest) {
+func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath, report ReportRequest, depth Depth) {
 	if resource.Kind != ResourceCalendarCollection {
 		http.Error(w, "free-busy-query requires a calendar collection resource", http.StatusForbidden)
 		return
 	}
 	if report.TimeRange == nil {
 		http.Error(w, "free-busy-query requires a time-range", http.StatusBadRequest)
-		return
-	}
-	depth, err := ParseDepth(r.Header.Get("Depth"), DepthZero)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if depth == DepthInfinity {
-		http.Error(w, "Depth: infinity is not supported for free-busy-query", http.StatusForbidden)
 		return
 	}
 	body, err := h.freeBusyCalendar(r.Context(), userID, resource, *report.TimeRange, depth == DepthOne)

@@ -602,6 +602,39 @@ func TestHandlerReportRejectsUnsupportedReports(t *testing.T) {
 	}
 }
 
+func TestHandlerReportRejectsUnsupportedDepthBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		depth string
+		want  int
+	}{
+		{name: "infinity", depth: "infinity", want: http.StatusForbidden},
+		{name: "invalid", depth: "children", want: http.StatusBadRequest},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &readTrackingReader{data: `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop><C:filter><C:comp-filter name="VCALENDAR"/></C:filter></C:calendar-query>`}
+			handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+			req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", body)
+			req.Header.Set("Depth", tc.depth)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d, body = %s", rec.Code, tc.want, rec.Body.String())
+			}
+			if body.reads != 0 {
+				t.Fatalf("body reads = %d, want 0", body.reads)
+			}
+		})
+	}
+}
+
 func TestHandlerGetAndHeadCalendarObject(t *testing.T) {
 	t.Parallel()
 
