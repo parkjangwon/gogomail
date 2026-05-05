@@ -397,6 +397,10 @@ stale-cleanup previews.
 The Admin API also exposes `GET /admin/v1/drive-upload-sessions` with required
 `user_id`, bounded `status`, and `limit` filters so operators can inspect
 Drive upload session state for a user without entering the webmail API surface.
+`GET /admin/v1/drive-nodes` returns `{"drive_nodes":[...]}` with required
+`user_id` plus bounded `parent_id`, lifecycle `status`, and `limit` filters so
+operator consoles can inspect a user's Drive inventory through the same node
+read model used by webmail clients.
 `POST /admin/v1/drive-upload-cleanup/candidates` accepts the same explicit
 cleanup preview body as attachment cleanup and returns
 `{"drive_upload_cleanup_candidates":{...}}` with stale Drive upload-session

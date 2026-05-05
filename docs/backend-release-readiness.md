@@ -164,6 +164,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API exposes `GET /admin/v1/drive-upload-sessions` so operator consoles
   can inspect Drive upload session state by required user scope and optional
   lifecycle status before broader Drive admin APIs are built.
+- Admin API exposes `GET /admin/v1/drive-nodes` so operator consoles can
+  inspect a user's Drive root or folder-scoped inventory with bounded
+  lifecycle filters before frontend Drive administration starts.
 - Admin API exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operator consoles can preview stale Drive upload-session cleanup impact
   before relying on the worker loop.

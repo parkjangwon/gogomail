@@ -105,6 +105,7 @@ type AdminService interface {
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
+	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error)
 	ListStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
 	RunDriveUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
@@ -215,6 +216,7 @@ type adminConsoleOperationCapabilities struct {
 	AttachmentCleanup        bool `json:"attachment_cleanup"`
 	AttachmentUploadSession  bool `json:"attachment_upload_sessions"`
 	DriveUploadSessions      bool `json:"drive_upload_sessions"`
+	DriveNodes               bool `json:"drive_nodes"`
 	DriveUploadCleanup       bool `json:"drive_upload_cleanup"`
 	DriveCleanupFailures     bool `json:"drive_cleanup_failures"`
 	DriveCleanupFailureRetry bool `json:"drive_cleanup_failure_retry"`
@@ -267,6 +269,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			AttachmentCleanup:        true,
 			AttachmentUploadSession:  true,
 			DriveUploadSessions:      true,
+			DriveNodes:               true,
 			DriveUploadCleanup:       true,
 			DriveCleanupFailures:     true,
 			DriveCleanupFailureRetry: true,
@@ -1138,6 +1141,52 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/drive-nodes", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "parent_id", "status") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
+		if strings.TrimSpace(userID) == "" {
+			writeError(w, http.StatusBadRequest, "user_id is required")
+			return
+		}
+		parentID, ok := parseBoundedAdminQuery(w, r, "parent_id")
+		if !ok {
+			return
+		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		req := drive.ListNodesRequest{
+			UserID:   userID,
+			ParentID: parentID,
+			Status:   status,
+			Limit:    limit,
+		}
+		req, err := drive.ValidateListNodesRequest(req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		nodes, err := service.ListDriveNodes(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_nodes": nodes})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

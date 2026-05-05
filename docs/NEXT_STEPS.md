@@ -412,6 +412,9 @@ Current state:
 - Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
   user scope plus status/limit filters, and admin capabilities advertise Drive
   upload-session inspection.
+- Admin API now exposes `GET /admin/v1/drive-nodes` with required user scope
+  plus parent/status/limit filters, giving operator consoles a bounded Drive
+  inventory view without reusing user-facing auth paths.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for
@@ -427,8 +430,7 @@ Current state:
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add broader Drive node inventory and admin search once the Drive admin module
-  expands.
+- Add broader Drive admin search once the Drive admin module expands.
 
 ### 2. Message threading and search
 
