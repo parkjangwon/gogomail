@@ -778,6 +778,10 @@ Implementation order:
      guardrails before runtime wiring, surfacing uppercase, undersized,
      slash-bearing, or punctuation-adjacent deployment mistakes before storage
      calls.
+686. S3-compatible regions are now validated with shared adapter/config
+     guardrails before SigV4 signing, rejecting blank, whitespace-bearing,
+     slash-bearing, or uppercase region values before object-storage requests
+     are created.
 
 ## Deferred until backend contracts stabilize
 

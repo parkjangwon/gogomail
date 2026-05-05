@@ -41,8 +41,8 @@ type S3Store struct {
 
 func NewS3Store(opts S3Options) (*S3Store, error) {
 	region := strings.TrimSpace(opts.Region)
-	if region == "" {
-		return nil, fmt.Errorf("s3 region is required")
+	if err := ValidateS3Region(region); err != nil {
+		return nil, err
 	}
 	bucket := strings.TrimSpace(opts.Bucket)
 	if err := ValidateS3BucketName(bucket); err != nil {
@@ -313,6 +313,25 @@ func ValidateS3BucketName(bucket string) error {
 	}
 	if strings.Contains(bucket, ".-") || strings.Contains(bucket, "-.") {
 		return fmt.Errorf("s3 bucket name must not contain dots next to hyphens")
+	}
+	return nil
+}
+
+func ValidateS3Region(region string) error {
+	if region == "" {
+		return fmt.Errorf("s3 region is required")
+	}
+	if len(region) > 128 {
+		return fmt.Errorf("s3 region is too long")
+	}
+	if strings.ContainsAny(region, " /\r\n\t") {
+		return fmt.Errorf("s3 region must not contain whitespace, slashes, or line breaks")
+	}
+	for _, r := range region {
+		valid := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-'
+		if !valid {
+			return fmt.Errorf("s3 region contains unsupported characters")
+		}
 	}
 	return nil
 }

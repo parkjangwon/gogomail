@@ -140,6 +140,21 @@ func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
 	}
 }
 
+func TestValidateS3RegionRejectsUnsafeValues(t *testing.T) {
+	t.Parallel()
+
+	for _, region := range []string{"", "us east 1", "us/east/1", "US-EAST-1", "us-east-1\nbad"} {
+		region := region
+		t.Run(region, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateS3Region(region); err == nil {
+				t.Fatalf("ValidateS3Region(%q) error = nil, want rejection", region)
+			}
+		})
+	}
+}
+
 func TestS3StoreSanitizesStatusErrorPreview(t *testing.T) {
 	t.Parallel()
 
