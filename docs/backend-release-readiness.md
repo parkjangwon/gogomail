@@ -1556,6 +1556,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify webmail clients use `HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download` for attachment metadata previews when they need object-backed size/header checks before streaming bytes.
 - Verify Drive copy UX calls `POST /api/v1/drive/nodes/{id}/copy` only for files until recursive folder copy is explicitly implemented and advertised.
 - Verify Drive cleanup-failure operations include node-less copied-object cleanup rows caused by failed copy metadata creation.
+- Verify Drive clients treat HTTP 507 `insufficient_storage` from finalize/copy paths as quota pressure, distinct from validation failures.
 
 ## Intentionally out of scope for this release slice
 

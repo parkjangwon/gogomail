@@ -2015,6 +2015,9 @@ The platform hardening sprint completed the following:
 - Drive file copy now preallocates the destination node UUID and uses that same
   identifier in the copied object's committed storage path and `drive_nodes.id`,
   keeping copy metadata and object keys aligned.
+- Drive upload-session finalization, staged-object finalization, and file copy
+  now map quota exhaustion to HTTP 507 `insufficient_storage`, giving webmail
+  clients a precise storage-pressure response.
 
 Next focus areas:
 

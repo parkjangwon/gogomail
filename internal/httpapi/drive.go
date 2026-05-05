@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/mail"
 )
 
 type DriveService interface {
@@ -401,7 +403,7 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		node, err := service.FinalizeUploadSession(r.Context(), drive.FinalizeUploadSessionRequest{UserID: userID, SessionID: sessionID})
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeDriveServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
@@ -438,7 +440,7 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			ChecksumSHA256: req.ChecksumSHA256,
 		})
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeDriveServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
@@ -580,7 +582,7 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		node, err := service.CopyNode(r.Context(), drive.CopyNodeRequest{UserID: userID, NodeID: nodeID, ParentID: req.ParentID, Name: req.Name})
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeDriveServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
@@ -604,6 +606,14 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_delete": result})
 	})
+}
+
+func writeDriveServiceError(w http.ResponseWriter, err error) {
+	if errors.Is(err, mail.ErrMailboxFull) {
+		writeError(w, http.StatusInsufficientStorage, err.Error())
+		return
+	}
+	writeError(w, http.StatusBadRequest, err.Error())
 }
 
 func writeDriveFileDownloadHeaders(w http.ResponseWriter, node drive.Node) {

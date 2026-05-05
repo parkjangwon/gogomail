@@ -202,11 +202,13 @@ or development `user_id` fallback path as webmail mail routes:
   `{"drive_upload_session":{...}}`.
 - `POST /api/v1/drive/upload-sessions/{id}/finalize` verifies the stored body
   through shared storage, creates quota-accounted Drive file metadata, marks
-  the session finalized, and returns `{"drive_node":{...}}`.
+  the session finalized, and returns `{"drive_node":{...}}`; quota exhaustion
+  maps to HTTP 507 `insufficient_storage`.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",
-  "mime_type","checksum_sha256"}`.
+  "mime_type","checksum_sha256"}`. Quota exhaustion maps to HTTP 507
+  `insufficient_storage`.
 - `PUT /api/v1/drive/files/staged/{upload_id}/body` streams a bounded object
   body into the requested `storage_backend`, derives a stable
   `drive/users/{user_id}/staging/{upload_id}` key, returns
@@ -234,7 +236,8 @@ or development `user_id` fallback path as webmail mail routes:
   records the copied object path without a node id so operators can retry or
   resolve storage drift explicitly. Copied files use a preallocated Drive node
   UUID for both the committed object path and inserted `drive_nodes.id`, keeping
-  object keys and metadata identifiers aligned across storage backends.
+  object keys and metadata identifiers aligned across storage backends. Quota
+  exhaustion maps to HTTP 507 `insufficient_storage`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.
