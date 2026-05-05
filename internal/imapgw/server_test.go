@@ -5870,7 +5870,7 @@ func TestServerHandlesFetchMacros(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 FETCH 1 FAST\r\na4 FETCH 1 FULL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 FETCH 1 FAST\r\na4 FETCH 1 FULL\r\na5 FETCH 1 (FAST)\r\na6 UID FETCH 7 (FLAGS FAST)\r\n")); err != nil {
 		t.Fatalf("write fetch macros: %v", err)
 	}
 	want := []string{
@@ -5878,6 +5878,8 @@ func TestServerHandlesFetchMacros(t *testing.T) {
 		"a3 OK FETCH completed\r\n",
 		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 INTERNALDATE \"05-May-2026 12:34:56 +0900\" ENVELOPE (\"Tue, 05 May 2026 12:34:56 +0900\" \"Hello IMAP\" ((\"Sender\" NIL \"sender\" \"example.net\")) ((\"Sender\" NIL \"sender\" \"example.net\")) ((\"Sender\" NIL \"sender\" \"example.net\")) ((\"User\" NIL \"user\" \"example.com\")) NIL NIL NIL \"<message-7@example.net>\") BODY (\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" 11 1))\r\n",
 		"a4 OK FETCH completed\r\n",
+		"a5 BAD FETCH macro is invalid\r\n",
+		"a6 BAD FETCH macro is invalid\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5888,7 +5890,7 @@ func TestServerHandlesFetchMacros(t *testing.T) {
 			t.Fatalf("fetch macro response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
