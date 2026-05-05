@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV REPORT execution)
+Last updated: 2026-05-06 (updated after CardDAV object HTTP I/O)
 
 ## Current phase
 
@@ -60,11 +60,10 @@ has bounded WebDAV `PROPFIND` parsing, an internal `OPTIONS`/`PROPFIND`
 discovery handler, bounded REPORT request parsing, and internal REPORT
 execution for `addressbook-query`, `addressbook-multiget`, and
 `sync-collection`. It remains gated on mutation handlers, auth/listener
-wiring, broader vCard/filter compatibility, and native-client tests. The
-handler is deliberately backend-only and does not yet make CardDAV
-public/client-ready. WebDAV multistatus response building is available for
-CardDAV principal, address-book collection, contact-object, REPORT, and sync
-responses.
+wiring, richer vCard/filter compatibility, and native-client tests. The handler
+is deliberately backend-only and does not yet make CardDAV public/client-ready.
+WebDAV multistatus response building is available for CardDAV principal,
+address-book collection, contact-object, REPORT, and sync responses.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2378,6 +2377,15 @@ The platform hardening sprint completed the following:
   unsafe sync tokens before SQL work. This still does not advertise public
   native-client compatibility because auth/listener wiring, object HTTP I/O,
   richer CardDAV filters, and client compatibility tests are still pending.
+- CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
+  the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
+  content length, no-store headers, and `Last-Modified`, while honoring
+  `If-Match`, `If-None-Match`, `If-Modified-Since`, and
+  `If-Unmodified-Since`. Writes accept `text/vcard`, enforce bounded body
+  reads, reuse vCard validation and observed-ETag repository guards, and map
+  create/update/delete to standard 201/204/precondition outcomes. This remains
+  backend-only until auth/listener wiring and native-client compatibility tests
+  are in place.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2404,7 +2412,6 @@ Next focus areas:
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
 8. Extend CardDAV from internal discovery into authenticated client workflows:
-   add auth/listener wiring, object `GET`/`PUT`/`DELETE`, richer CardDAV
-   filter semantics, broader vCard compatibility, and native-client tests
-   before webmail contacts, attendee auto-complete, or public native CardDAV
-   compatibility are exposed.
+   add auth/listener wiring, richer CardDAV filter semantics, broader vCard
+   compatibility, and native-client tests before webmail contacts, attendee
+   auto-complete, or public native CardDAV compatibility are exposed.

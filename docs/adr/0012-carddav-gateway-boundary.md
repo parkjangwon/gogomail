@@ -49,10 +49,15 @@ Internal REPORT execution now covers the parsed `addressbook-multiget`,
 `addressbook-query`, and `sync-collection` shapes. Multiget scopes hrefs to the
 requested home or collection, query execution applies the current bounded first
 text-match filter over stored vCard bodies, and sync execution can return full
-snapshots or bounded change rows since a stored sync token. Object
-`GET`/`PUT`/`DELETE`, richer CardDAV filter semantics, auth, broader vCard
-compatibility, native-client verification, and HTTP listener wiring will be
-added only when their semantics are implemented and tested.
+snapshots or bounded change rows since a stored sync token.
+
+Contact-object HTTP I/O now exists behind the same internal handler:
+`GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
+support, while `PUT`/`DELETE` reuse bounded body reads, content-type checks,
+strong ETags, and repository validation/mutation boundaries. Richer CardDAV
+filter semantics, auth, broader vCard compatibility, native-client
+verification, and HTTP listener wiring will be added only when their semantics
+are implemented and tested.
 
 ## Consequences
 
@@ -61,5 +66,5 @@ added only when their semantics are implemented and tested.
 - Future CalDAV attendee and resource lookup can depend on Directory plus
   Contacts/CardDAV without inventing private person models.
 - Public CardDAV compatibility remains out of scope until authenticated
-  listener wiring, object mutation/read behavior, richer filters, broader
-  vCard compatibility, and native-client tests are implemented.
+  listener wiring, richer filters, broader vCard compatibility, and
+  native-client tests are implemented.

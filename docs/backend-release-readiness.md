@@ -375,9 +375,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-multiget`, `addressbook-query`, and `sync-collection`, including
   scoped href handling, optional `address-data`, current sync-token emission,
   bounded change reads since a stored sync token, and deleted contact 404
-  responses. Client-ready CardDAV remains gated on auth/listener wiring,
-  object `GET`/`PUT`/`DELETE`, richer CardDAV filter semantics, broader vCard
-  compatibility, and native-client tests.
+  responses. Contact-object `GET`, `HEAD`, `PUT`, and `DELETE` now run inside
+  the internal handler with `text/vcard` validation, bounded body reads, ETag
+  and Last-Modified headers, cache/precondition handling, and repository-backed
+  vCard validation. Client-ready CardDAV remains gated on auth/listener wiring,
+  richer CardDAV filter semantics, broader vCard compatibility, and
+  native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
