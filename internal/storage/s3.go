@@ -91,6 +91,9 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 }
 
 func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) error {
+	if body == nil {
+		return fmt.Errorf("storage body is required")
+	}
 	req, err := s.newRequest(ctx, http.MethodPut, objectPath, body)
 	if err != nil {
 		return err

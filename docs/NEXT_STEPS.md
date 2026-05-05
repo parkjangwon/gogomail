@@ -167,6 +167,9 @@ Current state:
 - Local/NFS-style storage writes stage data through unique temporary files in
   the destination directory before `rename`, avoiding fixed `.tmp` collisions
   while preserving atomic object replacement semantics.
+- Local and S3-compatible storage writes reject nil `Put` bodies before
+  filesystem or HTTP request work, keeping empty object creation explicit and
+  adapter behavior consistent.
 - Local/NFS-style storage deletes treat already-missing objects as success,
   aligning cleanup semantics with S3-compatible object deletion.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

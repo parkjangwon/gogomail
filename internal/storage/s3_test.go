@@ -106,6 +106,26 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	}
 }
 
+func TestS3StoreRejectsNilPutBody(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	err = store.Put(context.Background(), "messages/msg-1.eml", nil)
+	if err == nil || !strings.Contains(err.Error(), "storage body is required") {
+		t.Fatalf("Put err = %v, want nil body rejection", err)
+	}
+}
+
 func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {
 	t.Parallel()
 
