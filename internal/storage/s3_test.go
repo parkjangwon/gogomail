@@ -35,7 +35,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 		switch r.Method {
 		case http.MethodPut:
 			if source := r.Header.Get("x-amz-copy-source"); source != "" {
-				if source != "/gogomail/mail/messages/msg-1.eml" {
+				if source != "/gogomail/mail/messages/msg-1.eml" && source != "/gogomail/mail/messages/msg-1-copy.eml" {
 					t.Errorf("x-amz-copy-source = %q", source)
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -147,6 +147,9 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-1-copy.eml"); err != nil {
 		t.Fatalf("Copy returned error: %v", err)
 	}
+	if err := store.Move(context.Background(), "messages/msg-1-copy.eml", "messages/msg-1-moved.eml"); err != nil {
+		t.Fatalf("Move returned error: %v", err)
+	}
 	if err := store.Delete(context.Background(), "messages/msg-1.eml"); err != nil {
 		t.Fatalf("Delete returned error: %v", err)
 	}
@@ -157,6 +160,8 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 		"HEAD /gogomail/mail/messages/msg-1.eml",
 		"GET /gogomail",
 		"PUT /gogomail/mail/messages/msg-1-copy.eml",
+		"PUT /gogomail/mail/messages/msg-1-moved.eml",
+		"DELETE /gogomail/mail/messages/msg-1-copy.eml",
 		"DELETE /gogomail/mail/messages/msg-1.eml",
 	}
 	mu.Lock()
@@ -216,6 +221,9 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 	if err := store.Copy(ctx, "messages/msg-1.eml", "messages/msg-2.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Copy err = %v, want context.Canceled", err)
+	}
+	if err := store.Move(ctx, "messages/msg-1.eml", "messages/msg-2.eml"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Move err = %v, want context.Canceled", err)
 	}
 	if _, err := store.List(ctx, ListOptions{Prefix: "messages"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("List err = %v, want context.Canceled", err)
@@ -567,6 +575,12 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 	if err := store.Copy(context.Background(), "messages/good.eml", "../bad"); err == nil {
 		t.Fatal("Copy accepted unsafe destination object path")
+	}
+	if err := store.Move(context.Background(), "../bad", "messages/good.eml"); err == nil {
+		t.Fatal("Move accepted unsafe source object path")
+	}
+	if err := store.Move(context.Background(), "messages/good.eml", "../bad"); err == nil {
+		t.Fatal("Move accepted unsafe destination object path")
 	}
 	if _, err := store.List(context.Background(), ListOptions{Prefix: "../bad"}); err == nil {
 		t.Fatal("List accepted unsafe object prefix")

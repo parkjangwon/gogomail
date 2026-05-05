@@ -59,6 +59,27 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	if string(copiedBody) != "Subject: hello\r\n\r\nbody" {
 		t.Fatalf("copied body = %q", copiedBody)
 	}
+	movePath := "drive/company/domain/user/archive/message.eml"
+	if err := store.Move(ctx, copyPath, movePath); err != nil {
+		t.Fatalf("Move returned error: %v", err)
+	}
+	if _, err := store.Get(ctx, copyPath); err == nil {
+		t.Fatal("Get copied object succeeded after Move")
+	}
+	moved, err := store.Get(ctx, movePath)
+	if err != nil {
+		t.Fatalf("Get moved object returned error: %v", err)
+	}
+	movedBody, err := io.ReadAll(moved)
+	if err != nil {
+		t.Fatalf("read moved object: %v", err)
+	}
+	if err := moved.Close(); err != nil {
+		t.Fatalf("close moved object: %v", err)
+	}
+	if string(movedBody) != "Subject: hello\r\n\r\nbody" {
+		t.Fatalf("moved body = %q", movedBody)
+	}
 
 	if err := store.Delete(ctx, path); err != nil {
 		t.Fatalf("Delete returned error: %v", err)
@@ -242,6 +263,17 @@ func TestLocalStoreDeleteIsIdempotentForMissingObjects(t *testing.T) {
 	}
 }
 
+func TestLocalStoreMoveHonorsCanceledContextBeforeRename(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	store := NewLocalStore(t.TempDir())
+	if err := store.Move(ctx, "mailstore/source.eml", "mailstore/dest.eml"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Move err = %v, want context.Canceled", err)
+	}
+}
+
 func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
 	t.Parallel()
 
@@ -291,6 +323,12 @@ func TestLocalStoreRejectsAmbiguousObjectKeys(t *testing.T) {
 		}
 		if err := store.Copy(context.Background(), "mailstore/source.eml", objectPath); err == nil {
 			t.Fatalf("Copy accepted ambiguous destination object key %q", objectPath)
+		}
+		if err := store.Move(context.Background(), objectPath, "mailstore/moved.eml"); err == nil {
+			t.Fatalf("Move accepted ambiguous source object key %q", objectPath)
+		}
+		if err := store.Move(context.Background(), "mailstore/source.eml", objectPath); err == nil {
+			t.Fatalf("Move accepted ambiguous destination object key %q", objectPath)
 		}
 		if _, err := store.List(context.Background(), ListOptions{Prefix: objectPath}); err == nil {
 			t.Fatalf("List accepted ambiguous object prefix %q", objectPath)

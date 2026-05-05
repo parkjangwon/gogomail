@@ -4,16 +4,20 @@ gogomail stores raw `.eml` objects, attachments, exports, and readiness probes
 through the shared storage interface. Deployments can switch backends by
 configuration without changing stored object keys.
 
-The shared interface supports `Put`, `Get`, `Stat`, `Copy`, `List`, and `Delete`.
+The shared interface supports `Put`, `Get`, `Stat`, `Copy`, `Move`, `List`,
+and `Delete`.
 `Stat` returns object size and optional backend metadata without streaming the
 object body, using filesystem metadata on local/NFS storage and signed `HEAD`
 requests on S3-compatible storage. `Copy` preserves object keys and adapter
 semantics while avoiding caller-side read/write loops when the backend can copy
-server-side. `List` returns bounded, cursor-paginated object metadata under a
-validated prefix, using a local/NFS directory walk or signed S3 `ListObjectsV2`
-requests. Future Drive and lifecycle modules should prefer `Stat` for
-existence/size checks, `Copy` for object duplication workflows, and `List` for
-prefix-scoped browsing, reconciliation, and cleanup scans.
+server-side. `Move` gives callers one backend-neutral object relocation
+contract: local/NFS uses filesystem rename semantics, while S3-compatible
+storage performs server-side copy followed by source delete. `List` returns
+bounded, cursor-paginated object metadata under a validated prefix, using a
+local/NFS directory walk or signed S3 `ListObjectsV2` requests. Future Drive
+and lifecycle modules should prefer `Stat` for existence/size checks, `Copy`
+for object duplication workflows, `Move` for file rename/relocation workflows,
+and `List` for prefix-scoped browsing, reconciliation, and cleanup scans.
 
 ## Local filesystem or NFS
 
@@ -42,6 +46,9 @@ so lifecycle workers behave consistently across storage backends.
 last-modified time without opening the file body.
 `Copy` streams from the source object into the destination through the same
 atomic temporary-file write path used by normal local/NFS writes.
+`Move` creates missing destination directories and uses `rename`, keeping local
+and NFS-style file relocation efficient and avoiding caller-side copy/delete
+loops.
 `List` walks under the requested canonical prefix, returns bounded pages, and
 uses an opaque cursor so callers do not depend on filesystem traversal details.
 
@@ -118,6 +125,10 @@ provider supplies them.
 S3-compatible `Copy` uses a signed server-side copy request with an escaped
 `x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
 duplicate objects without pulling object bytes through gogomail.
+S3-compatible `Move` is intentionally documented as a copy-then-delete
+operation because S3 has no native atomic object rename. Callers that need
+user-visible Drive/file moves should treat failures after copy as recoverable
+duplicate-object cleanup work instead of assuming a single atomic transaction.
 S3-compatible `List` uses signed `ListObjectsV2` requests with validated
 prefixes, bounded `max-keys`, and opaque continuation tokens. Returned keys are
 normalized back to gogomail object paths under the configured storage prefix,

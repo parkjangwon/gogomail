@@ -2950,6 +2950,12 @@ func (s *recordingStore) Copy(_ context.Context, sourcePath string, destPath str
 	return nil
 }
 
+func (s *recordingStore) Move(_ context.Context, sourcePath string, destPath string) error {
+	s.getPath = sourcePath
+	s.deletePath = destPath
+	return nil
+}
+
 func (s *recordingStore) List(context.Context, storage.ListOptions) (storage.ObjectListPage, error) {
 	return storage.ObjectListPage{}, nil
 }
@@ -3018,6 +3024,10 @@ func (s failingDeleteStore) Stat(_ context.Context, path string) (storage.Object
 }
 
 func (s failingDeleteStore) Copy(context.Context, string, string) error {
+	return nil
+}
+
+func (s failingDeleteStore) Move(context.Context, string, string) error {
 	return nil
 }
 

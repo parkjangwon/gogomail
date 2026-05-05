@@ -150,6 +150,39 @@ func (s *LocalStore) Copy(ctx context.Context, sourcePath string, destPath strin
 	return nil
 }
 
+func (s *LocalStore) Move(ctx context.Context, sourcePath string, destPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	sourceObjectPath, err := ValidateObjectPath(sourcePath)
+	if err != nil {
+		return fmt.Errorf("unsafe source storage path %q: %w", sourcePath, err)
+	}
+	destObjectPath, err := ValidateObjectPath(destPath)
+	if err != nil {
+		return fmt.Errorf("unsafe destination storage path %q: %w", destPath, err)
+	}
+	if sourceObjectPath == destObjectPath {
+		return nil
+	}
+
+	sourceFullPath, err := s.safePath(sourceObjectPath)
+	if err != nil {
+		return err
+	}
+	destFullPath, err := s.safePath(destObjectPath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(destFullPath), 0o755); err != nil {
+		return fmt.Errorf("create destination storage directory: %w", err)
+	}
+	if err := os.Rename(sourceFullPath, destFullPath); err != nil {
+		return fmt.Errorf("move storage object: %w", err)
+	}
+	return nil
+}
+
 func (s *LocalStore) List(ctx context.Context, opts ListOptions) (ObjectListPage, error) {
 	if err := ctx.Err(); err != nil {
 		return ObjectListPage{}, err

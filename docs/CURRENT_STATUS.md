@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after portable storage object listing)
+Last updated: 2026-05-06 (updated after portable storage object move)
 
 ## Current phase
 
@@ -221,6 +221,11 @@ guidance.
   `List` contract for validated prefixes, giving future Drive, lifecycle, and
   reconciliation workflows a cursor-paginated way to browse object metadata
   without binding callers to filesystem walks or S3 `ListObjectsV2` directly.
+- Local/NFS and S3-compatible storage now expose a shared object `Move`
+  contract for Drive-ready rename/relocation workflows. Local/NFS uses
+  filesystem rename semantics, while S3-compatible storage performs signed
+  server-side copy followed by source delete and documents the non-atomic
+  duplicate-cleanup implication.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
