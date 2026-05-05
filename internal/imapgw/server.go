@@ -256,6 +256,25 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		_, err = writer.WriteString(tag + " OK LIST completed\r\n")
 		return false, err
+	case "STATUS":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if len(fields) < 4 {
+			_, err := writer.WriteString(tag + " BAD STATUS requires mailbox and status item atoms\r\n")
+			return false, err
+		}
+		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(fields[2]))
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO STATUS failed\r\n")
+			return false, writeErr
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (MESSAGES %d UIDNEXT %d UIDVALIDITY %d UNSEEN %d)\r\n", imapQuotedString(imapMailboxDisplayName(mailbox)), mailbox.Messages, mailbox.UIDNext, mailbox.UIDValidity, mailbox.Unseen)); err != nil {
+			return false, err
+		}
+		_, err = writer.WriteString(tag + " OK STATUS completed\r\n")
+		return false, err
 	case "UID":
 		return s.handleUIDLine(writer, tag, fields, state)
 	case "LOGOUT":

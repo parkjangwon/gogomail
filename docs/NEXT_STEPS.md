@@ -229,6 +229,8 @@ Current state:
   metadata from the service-backed mailbox state.
 - Authenticated IMAP `LIST` now maps to the service-backed mailbox list and
   returns sanitized quoted mailbox names with hierarchy delimiters.
+- Authenticated IMAP `STATUS` now maps to service-backed mailbox state and
+  returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags, and
   RFC822 size metadata from the service-backed message fetch boundary.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
