@@ -413,8 +413,11 @@ Current state:
   user scope plus status/limit filters, and admin capabilities advertise Drive
   upload-session inspection.
 - Admin API now exposes `GET /admin/v1/drive-nodes` with required user scope
-  plus parent/status/limit filters, giving operator consoles a bounded Drive
-  inventory view without reusing user-facing auth paths.
+  plus parent/status/name/limit filters, giving operator consoles a bounded
+  Drive inventory view without reusing user-facing auth paths.
+- Drive node listing now supports a bounded `q` name filter on both Mail and
+  Admin API list surfaces, with case-insensitive normalization and literal
+  wildcard handling.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

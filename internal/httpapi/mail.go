@@ -175,6 +175,7 @@ type webmailAttachmentCapabilities struct {
 
 type webmailDriveCapabilities struct {
 	Nodes                    bool  `json:"nodes"`
+	NodeNameSearch           bool  `json:"node_name_search"`
 	NodeDetail               bool  `json:"node_detail"`
 	CreateFolders            bool  `json:"create_folders"`
 	RenameNodes              bool  `json:"rename_nodes"`
@@ -275,6 +276,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		},
 		Drive: webmailDriveCapabilities{
 			Nodes:                    true,
+			NodeNameSearch:           true,
 			NodeDetail:               true,
 			CreateFolders:            true,
 			RenameNodes:              true,

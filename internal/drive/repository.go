@@ -59,6 +59,7 @@ type ListNodesRequest struct {
 	UserID   string
 	ParentID string
 	Status   string
+	Query    string
 	Limit    int
 }
 
@@ -192,11 +193,16 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 	if err != nil {
 		return ListNodesRequest{}, err
 	}
+	query, err := validateDriveNodeSearchQuery(req.Query)
+	if err != nil {
+		return ListNodesRequest{}, err
+	}
 	limit := normalizeDriveListLimit(req.Limit)
 	return ListNodesRequest{
 		UserID:   userID,
 		ParentID: parentID,
 		Status:   status,
+		Query:    query,
 		Limit:    limit,
 	}, nil
 }
@@ -418,6 +424,7 @@ SELECT
 FROM drive_nodes
 WHERE user_id = $1::uuid
   AND status = $3
+  AND ($5 = '' OR normalized_name LIKE '%' || $5 || '%' ESCAPE '\')
   AND (
     (NULLIF($2, '') IS NULL AND parent_id IS NULL)
     OR parent_id = NULLIF($2, '')::uuid
@@ -427,7 +434,7 @@ ORDER BY
   normalized_name ASC,
   id ASC
 LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit)
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query))
 	if err != nil {
 		return nil, fmt.Errorf("list drive nodes: %w", err)
 	}

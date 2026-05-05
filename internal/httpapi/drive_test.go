@@ -19,14 +19,14 @@ func TestDriveListNodesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterDriveRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=parent-1&status=active&limit=25", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&parent_id=parent-1&status=active&q=%20Report%20&limit=25", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.listReq.UserID != "user-1" || service.listReq.ParentID != "parent-1" || service.listReq.Status != "active" || service.listReq.Limit != 25 {
+	if service.listReq.UserID != "user-1" || service.listReq.ParentID != "parent-1" || service.listReq.Status != "active" || service.listReq.Query != "Report" || service.listReq.Limit != 25 {
 		t.Fatalf("list request = %+v, want query-backed request", service.listReq)
 	}
 	var body struct {

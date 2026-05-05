@@ -112,13 +112,17 @@ func TestValidateListNodesRequest(t *testing.T) {
 		UserID:   " user-1 ",
 		ParentID: " parent-1 ",
 		Status:   " Trashed ",
+		Query:    " Report_% ",
 		Limit:    500,
 	})
 	if err != nil {
 		t.Fatalf("ValidateListNodesRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed {
+	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed || req.Query != "report_%" {
 		t.Fatalf("request = %+v, want trimmed status-normalized request", req)
+	}
+	if got := escapeDriveNodeLikeQuery(req.Query); got != `report\_\%` {
+		t.Fatalf("escaped query = %q", got)
 	}
 	if req.Limit != 200 {
 		t.Fatalf("Limit = %d, want max cap 200", req.Limit)
@@ -141,6 +145,8 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user\n1", Status: NodeStatusActive},
 		{UserID: "user-1", ParentID: "parent\n1", Status: NodeStatusActive},
 		{UserID: "user-1", Status: "archived"},
+		{UserID: "user-1", Status: NodeStatusActive, Query: strings.Repeat("q", MaxNodeNameBytes+1)},
+		{UserID: "user-1", Status: NodeStatusActive, Query: "report\nbad"},
 	}
 	for _, tc := range tests {
 		tc := tc

@@ -354,9 +354,12 @@ guidance.
 - Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
   user scope plus status/limit filters, and admin capabilities mark Drive
   upload-session inspection available for operator consoles.
+- Drive node listing now supports a bounded `q` name filter on both Mail and
+  Admin API list surfaces, with case-insensitive normalization and literal SQL
+  wildcard handling inside the selected parent/status scope.
 - Admin API now exposes `GET /admin/v1/drive-nodes` with required user scope
-  plus parent/status/limit filters so operator consoles can inspect a user's
-  Drive inventory through bounded backend contracts.
+  plus parent/status/name/limit filters so operator consoles can inspect a
+  user's Drive inventory through bounded backend contracts.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.
