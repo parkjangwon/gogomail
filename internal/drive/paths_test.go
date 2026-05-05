@@ -38,6 +38,24 @@ func TestBuildUploadSessionBodyPath(t *testing.T) {
 	}
 }
 
+func TestValidateUserObjectPathRequiresUserPrefix(t *testing.T) {
+	t.Parallel()
+
+	path, err := validateUserObjectPath(" user-1 ", "drive/users/user-1/staging/upload-1")
+	if err != nil {
+		t.Fatalf("validateUserObjectPath returned error: %v", err)
+	}
+	if path != "drive/users/user-1/staging/upload-1" {
+		t.Fatalf("path = %q, want canonical user object path", path)
+	}
+	if _, err := validateUserObjectPath("user-1", "drive/users/user-2/staging/upload-1"); err == nil {
+		t.Fatal("validateUserObjectPath accepted another user's object path")
+	}
+	if _, err := validateUserObjectPath("user-1", "../bad"); err == nil {
+		t.Fatal("validateUserObjectPath accepted unsafe object path")
+	}
+}
+
 func TestUserObjectPrefix(t *testing.T) {
 	t.Parallel()
 

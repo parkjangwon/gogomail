@@ -341,7 +341,7 @@ func (s *Service) driveFileObject(ctx context.Context, req OpenFileRequest) (Nod
 	if err != nil {
 		return Node{}, "", nil, err
 	}
-	storagePath, err := storage.ValidateObjectPath(node.StoragePath)
+	storagePath, err := validateUserObjectPath(node.UserID, node.StoragePath)
 	if err != nil {
 		return Node{}, "", nil, fmt.Errorf("unsafe drive file storage path: %w", err)
 	}
@@ -472,7 +472,7 @@ func (s *Service) copyDriveFileNode(ctx context.Context, source Node, parentID s
 	if source.Status != NodeStatusActive {
 		return Node{}, fmt.Errorf("drive node is not active")
 	}
-	sourcePath, err := storage.ValidateObjectPath(source.StoragePath)
+	sourcePath, err := validateUserObjectPath(source.UserID, source.StoragePath)
 	if err != nil {
 		return Node{}, fmt.Errorf("unsafe drive file storage path: %w", err)
 	}

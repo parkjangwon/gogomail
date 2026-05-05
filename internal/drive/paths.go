@@ -73,6 +73,21 @@ func UserObjectPrefix(userID string) (string, error) {
 	return prefix, nil
 }
 
+func validateUserObjectPath(userID string, path string) (string, error) {
+	storagePath, err := storage.ValidateObjectPath(path)
+	if err != nil {
+		return "", err
+	}
+	prefix, err := UserObjectPrefix(userID)
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(storagePath, prefix) {
+		return "", fmt.Errorf("drive object path does not belong to user")
+	}
+	return storagePath, nil
+}
+
 func validateDriveObjectPathID(field string, value string) (string, error) {
 	value, err := validateDriveID(field, value, true)
 	if err != nil {
