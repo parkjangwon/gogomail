@@ -1486,6 +1486,9 @@ Implementation order:
      secret access keys and session tokens for both `s3` and `minio` backends,
      matching adapter construction guardrails before readiness probes or
      runtime object-storage authentication.
+897. IMAP RFC 2971 `ID` parameter-list parsing now rejects unsupported quoted
+     escapes and adjacent quoted tokens without whitespace, while preserving
+     valid escaped quoted-special characters inside ID strings.
 
 ## Deferred until backend contracts stabilize
 

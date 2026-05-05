@@ -6054,6 +6054,9 @@ func imapIDListTokens(value string) ([]string, bool) {
 			if !ok {
 				return nil, false
 			}
+			if next < len(value) && value[next] != ' ' && value[next] != '\t' {
+				return nil, false
+			}
 			tokens = append(tokens, token)
 			i = next
 			continue
@@ -6082,6 +6085,9 @@ func imapParseQuotedToken(value string, start int) (string, int, bool) {
 		case '\\':
 			i++
 			if i >= len(value) {
+				return "", 0, false
+			}
+			if value[i] != '\\' && value[i] != '"' {
 				return "", 0, false
 			}
 			b.WriteByte(value[i])

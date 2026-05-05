@@ -1153,6 +1153,7 @@ func TestServerRejectsMalformedIDArguments(t *testing.T) {
 		`ID NIL "extra"`,
 		`ID "name" "client"`,
 		`ID ("name")`,
+		`ID ("name""client")`,
 		`ID ("name" "client" "name" "duplicate")`,
 		`ID ("0123456789012345678901234567890" "client")`,
 	} {
@@ -1206,6 +1207,15 @@ func TestIMAPIDArgumentsValidEnforcesRFC2971Limits(t *testing.T) {
 	}
 	if imapIDArgumentsValid("(" + strings.Join(pairs, " ") + ")") {
 		t.Fatal("imapIDArgumentsValid accepted more than 30 ID field-value pairs")
+	}
+	if imapIDArgumentsValid(`("name" "bad\q")`) {
+		t.Fatal("imapIDArgumentsValid accepted unsupported quoted escape")
+	}
+	if imapIDArgumentsValid(`("name""value")`) {
+		t.Fatal("imapIDArgumentsValid accepted adjacent quoted tokens")
+	}
+	if !imapIDArgumentsValid(`("name" "Project \"Q2\"")`) {
+		t.Fatal("imapIDArgumentsValid rejected escaped quoted-special")
 	}
 }
 
