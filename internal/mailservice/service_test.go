@@ -1009,7 +1009,7 @@ func TestSetMessageFlagPublishesIMAPFlagEvent(t *testing.T) {
 
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
-		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
+		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 3, ModSeq: 2}},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
@@ -1080,7 +1080,7 @@ func TestMoveMessagePublishesIMAPExpungeEvent(t *testing.T) {
 
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
-		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
+		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 3, ModSeq: 2}},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
@@ -1093,7 +1093,7 @@ func TestMoveMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 1 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" {
 		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
 	}
-	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 || events.events[0].SequenceNumber != 3 {
 		t.Fatalf("events = %#v, want expunge event", events.events)
 	}
 }
@@ -1118,8 +1118,8 @@ func TestBulkMoveMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
 		imapUIDs: []maildb.IMAPMessageUID{
-			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2},
-			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, ModSeq: 3},
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 3, ModSeq: 2},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, SequenceNumber: 4, ModSeq: 3},
 		},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
@@ -1141,7 +1141,7 @@ func TestBulkMoveMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
 		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
 	}
-	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[1].UID != 13 {
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[0].SequenceNumber != 3 || events.events[1].UID != 13 || events.events[1].SequenceNumber != 4 {
 		t.Fatalf("events = %#v, want two expunge events", events.events)
 	}
 }
@@ -1151,7 +1151,7 @@ func TestDeleteMessagePublishesIMAPExpungeEvent(t *testing.T) {
 
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
-		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},
+		imapUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 3, ModSeq: 2}},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
@@ -1161,7 +1161,7 @@ func TestDeleteMessagePublishesIMAPExpungeEvent(t *testing.T) {
 	if repo.lastMutationUserID != "user-1" || repo.lastDeleteMessageID != "msg-1" {
 		t.Fatalf("delete mutation = %q/%q", repo.lastMutationUserID, repo.lastDeleteMessageID)
 	}
-	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 {
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].MailboxID != "inbox" || events.events[0].UID != 12 || events.events[0].SequenceNumber != 3 {
 		t.Fatalf("events = %#v, want expunge event", events.events)
 	}
 }
@@ -1172,8 +1172,8 @@ func TestBulkDeleteMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
 		imapUIDs: []maildb.IMAPMessageUID{
-			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2},
-			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, ModSeq: 3},
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 3, ModSeq: 2},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, SequenceNumber: 4, ModSeq: 3},
 		},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
@@ -1194,7 +1194,7 @@ func TestBulkDeleteMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
 		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
 	}
-	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[1].UID != 13 {
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[0].SequenceNumber != 3 || events.events[1].UID != 13 || events.events[1].SequenceNumber != 4 {
 		t.Fatalf("events = %#v, want two expunge events", events.events)
 	}
 }

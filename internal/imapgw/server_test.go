@@ -1907,6 +1907,65 @@ func TestServerDrainsExpungeEventsOverNoop(t *testing.T) {
 	}
 }
 
+func TestServerStreamsExpungeEventsOverIdle(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &eventBackend{events: make(chan MailboxEvent, 2)}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 IDLE\r\n")); err != nil {
+		t.Fatalf("write idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("idle continuation = %q err = %v", line, err)
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExpunge, UserID: "user-1", MailboxID: "inbox", UID: 7, SequenceNumber: 1}
+	if err := client.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* 1 EXPUNGE\r\n" {
+		t.Fatalf("idle expunge event = %q err = %v", line, err)
+	}
+	if err := client.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear read deadline: %v", err)
+	}
+	if _, err := client.Write([]byte("DONE\r\n")); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK IDLE completed\r\n" {
+		t.Fatalf("idle completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesListAfterLogin(t *testing.T) {
 	t.Parallel()
 

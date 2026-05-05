@@ -792,6 +792,9 @@ The platform hardening sprint completed the following:
 - IMAP mailbox event publication from service mutations is best-effort, so a
   fan-out failure does not turn an already-committed mail mutation into a client
   error.
+- Mail API move/delete expunge notifications carry mailbox sequence numbers
+  from IMAP UID lookup, allowing selected `NOOP`/`IDLE` clients to receive
+  renderable untagged `EXPUNGE` updates.
 - `mailservice` has an `IMAPStoreAdapter` that satisfies `imapgw.Store`, so a
   protocol listener can depend on the gateway interface while still routing
   through service methods.

@@ -833,15 +833,23 @@ func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.Mai
 	userID = strings.TrimSpace(userID)
 	for _, uid := range uids {
 		if err := s.imapEvents.Publish(ctx, imapgw.MailboxEvent{
-			Type:      eventType,
-			UserID:    imapgw.UserID(userID),
-			MailboxID: uid.MailboxID,
-			UID:       uid.UID,
+			Type:           eventType,
+			UserID:         imapgw.UserID(userID),
+			MailboxID:      uid.MailboxID,
+			UID:            uid.UID,
+			SequenceNumber: imapUIDEventSequenceNumber(eventType, uid),
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func imapUIDEventSequenceNumber(eventType imapgw.MailboxEventType, uid maildb.IMAPMessageUID) uint32 {
+	if eventType == imapgw.MailboxEventExpunge {
+		return uid.SequenceNumber
+	}
+	return 0
 }
 
 func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error) {
