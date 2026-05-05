@@ -293,9 +293,12 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
 			return false, err
 		}
-		if len(fields) != 3 || strings.ToUpper(fields[2]) != "PLAIN" {
+		if (len(fields) != 3 && len(fields) != 4) || strings.ToUpper(fields[2]) != "PLAIN" {
 			_, err := writer.WriteString(tag + " BAD AUTHENTICATE mechanism is unsupported\r\n")
 			return false, err
+		}
+		if len(fields) == 4 {
+			return s.completeAuthenticatePlain(writer, tag, fields[3], state)
 		}
 		state.pendingAuthTag = tag
 		_, err := writer.WriteString("+ \r\n")
@@ -650,7 +653,11 @@ func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line stri
 		_, err := writer.WriteString(tag + " NO AUTHENTICATE canceled\r\n")
 		return false, err
 	}
-	username, password, ok := decodeSASLPlain(line)
+	return s.completeAuthenticatePlain(writer, tag, line, state)
+}
+
+func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, value string, state *imapConnState) (bool, error) {
+	username, password, ok := decodeSASLPlain(value)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
 		return false, err
@@ -1804,7 +1811,7 @@ func (s *Server) imapCapabilities(state *imapConnState) []string {
 		capabilities = append(capabilities, "STARTTLS")
 	}
 	if state == nil || state.session == nil {
-		capabilities = append(capabilities, "AUTH=PLAIN")
+		capabilities = append(capabilities, "SASL-IR", "AUTH=PLAIN")
 	}
 	return capabilities
 }

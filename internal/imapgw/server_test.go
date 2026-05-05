@@ -110,7 +110,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT AUTH=PLAIN\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -176,7 +176,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT STARTTLS AUTH=PLAIN\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT STARTTLS SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("pre-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK CAPABILITY completed\r\n" {
@@ -196,7 +196,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := tlsClient.Write([]byte("a3 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write tls capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT AUTH=PLAIN\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("post-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK CAPABILITY completed\r\n" {
@@ -625,6 +625,50 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 		t.Fatalf("read-only store line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	response := base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret"))
+	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN " + response + "\r\n")); err != nil {
+		t.Fatalf("write authenticate initial response: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK AUTHENTICATE completed\r\n" {
+		t.Fatalf("authenticate initial response completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write capability: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID UNSELECT\r\n" {
+		t.Fatalf("authenticated capability = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
+		t.Fatalf("capability completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

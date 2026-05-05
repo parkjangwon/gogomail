@@ -929,6 +929,9 @@ Implementation order:
 737. IMAP `FETCH` and `UID FETCH` now support standard `FAST`, `ALL`, and
      `FULL` macros, including the non-extensible `BODY` attribute used by
      `FULL`.
+738. IMAP now advertises `SASL-IR` before authentication and accepts
+     `AUTHENTICATE PLAIN` initial responses for compatible clients that avoid
+     an extra SASL continuation round trip.
 
 ## Deferred until backend contracts stabilize
 

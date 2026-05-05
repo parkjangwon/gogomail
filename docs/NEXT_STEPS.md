@@ -314,6 +314,8 @@ Current state:
   while `\Deleted` semantics remain deferred.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
+- `AUTHENTICATE PLAIN` now supports `SASL-IR` initial responses, reducing
+  authentication round trips for compatible IMAP clients.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
