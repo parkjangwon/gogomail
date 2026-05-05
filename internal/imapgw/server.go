@@ -3374,6 +3374,10 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		return false, err
 	}
 	items = imapExpandFetchItems(items)
+	if !imapFetchHeaderFieldListsValid(items) {
+		_, err := writer.WriteString(tag + " BAD FETCH header field list is invalid\r\n")
+		return false, err
+	}
 	requestsBody := imapFetchRequestsBody(items)
 	partial, requestsPartialBody := imapFetchPartialBody(items)
 	partialSection, requestsPartialSection := imapFetchPartialSection(items)
@@ -4605,12 +4609,59 @@ func imapFetchHeaderFieldList(items []string, marker string) ([]string, bool) {
 	fieldsText := joined[idx+start+1 : idx+start+1+end]
 	fields := make([]string, 0)
 	for _, field := range strings.Fields(fieldsText) {
-		field = strings.Trim(field, "[]")
-		if field != "" {
-			fields = append(fields, field)
+		if !imapHeaderFieldNameValid(field) {
+			return nil, false
 		}
+		fields = append(fields, field)
 	}
 	return fields, len(fields) > 0
+}
+
+func imapFetchHeaderFieldListsValid(items []string) bool {
+	joined := strings.ToUpper(strings.Join(items, " "))
+	for _, marker := range []string{"HEADER.FIELDS.NOT", "HEADER.FIELDS"} {
+		offset := 0
+		for {
+			idx := strings.Index(joined[offset:], marker)
+			if idx < 0 {
+				break
+			}
+			idx += offset
+			if marker == "HEADER.FIELDS" && strings.Contains(joined[idx:minInt(len(joined), idx+len("HEADER.FIELDS.NOT"))], "HEADER.FIELDS.NOT") {
+				offset = idx + len(marker)
+				continue
+			}
+			start := strings.Index(joined[idx:], "(")
+			if start < 0 {
+				return false
+			}
+			end := strings.Index(joined[idx+start+1:], ")")
+			if end < 0 {
+				return false
+			}
+			for _, field := range strings.Fields(joined[idx+start+1 : idx+start+1+end]) {
+				if !imapHeaderFieldNameValid(field) {
+					return false
+				}
+			}
+			offset = idx + start + 1 + end + 1
+		}
+	}
+	return true
+}
+
+func imapHeaderFieldNameValid(field string) bool {
+	if field == "" {
+		return false
+	}
+	for i := 0; i < len(field); i++ {
+		c := field[i]
+		if (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func filterIMAPHeaderFields(header []byte, fields []string, exclude bool) []byte {

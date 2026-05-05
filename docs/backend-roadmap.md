@@ -1523,6 +1523,9 @@ Implementation order:
      quotes from proper quoted strings, so standards-shaped searches such as
      `SUBJECT "Project \"Q2\""` remain compatible while malformed atom quotes
      are rejected by command parsing.
+908. IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists now
+     validate RFC-shaped header field names instead of trimming stray brackets,
+     rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
 
 ## Deferred until backend contracts stabilize
 
