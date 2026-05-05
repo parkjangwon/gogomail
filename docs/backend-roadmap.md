@@ -988,6 +988,9 @@ Implementation order:
 759. IMAP `SEARCH` and `UID SEARCH` now support `DELETED` and `UNDELETED`,
      returning no deleted matches while `\Deleted`/EXPUNGE semantics remain
      deferred and treating active messages as undeleted.
+760. IMAP `SEARCH` and `UID SEARCH` now support `RECENT`, `OLD`, and `NEW`,
+     returning no recent/new matches while durable recent-state semantics remain
+     deferred and treating active messages as old.
 
 ## Deferred until backend contracts stabilize
 

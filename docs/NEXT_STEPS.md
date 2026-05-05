@@ -314,6 +314,9 @@ Current state:
 - `SEARCH`/`UID SEARCH` now supports `DELETED` and `UNDELETED`, returning no
   deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
   treating active messages as undeleted.
+- `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning no
+  recent/new matches while durable recent-state semantics remain deferred and
+  treating active messages as old.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
