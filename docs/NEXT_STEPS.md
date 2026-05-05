@@ -1534,6 +1534,8 @@ Current state:
   paths reuse HTTP connections.
 - IMAP `STATUS`/LIST-STATUS parsing now rejects duplicate status data items
   before mailbox metadata lookup.
+- CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading
+  the XML request body when no active collection already exists at that path.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

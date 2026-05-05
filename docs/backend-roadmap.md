@@ -2200,6 +2200,10 @@ Implementation order:
 1078. IMAP `STATUS` and LIST-STATUS parsing now rejects duplicate status data
       items before mailbox metadata lookup, keeping RFC-shaped status item
       lists deterministic and preventing duplicate response pairs.
+1079. CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading
+      or parsing the XML body when no active collection already exists at that
+      path, preserving the UUID-only creation contract while keeping invalid
+      create attempts cheap.
 
 ## Deferred until backend contracts stabilize
 

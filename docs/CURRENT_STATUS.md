@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP duplicate STATUS item rejection)
+Last updated: 2026-05-06 (updated after CalDAV MKCALENDAR path preflight)
 
 ## Current phase
 
@@ -2245,6 +2245,10 @@ The platform hardening sprint completed the following:
 - IMAP `STATUS` and LIST-STATUS item parsing now rejects duplicate status data
   items before mailbox metadata lookup, avoiding ambiguous duplicate
   client-visible status pairs.
+- CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading or
+  parsing the XML request body when no active collection already exists at that
+  path, keeping the UUID-only creation contract cheap and predictable while
+  preserving existing-collection 405 behavior.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

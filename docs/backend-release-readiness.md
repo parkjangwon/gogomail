@@ -317,6 +317,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `STATUS` and LIST-STATUS now reject duplicate status data items before
   mailbox metadata lookup, avoiding ambiguous duplicate status pairs in
   client-visible responses.
+- CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading the
+  XML request body when no active collection exists at that path, preserving
+  the UUID-only creation contract without extra parse work.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
