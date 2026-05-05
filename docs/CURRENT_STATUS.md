@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP UID subcommand syntax ordering)
+Last updated: 2026-05-05 (updated after IMAP auth syntax ordering)
 
 ## Current phase
 
@@ -1505,6 +1505,9 @@ The platform hardening sprint completed the following:
   destination mailbox-name syntax for `FETCH`, `STORE`, `EXPUNGE`, `COPY`, and
   `MOVE` before selected-mailbox state, while leaving selected-state-dependent
   UID set resolution to the selected command handlers.
+- IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
+  unsupported mechanisms before returning `[PRIVACYREQUIRED]` on plaintext
+  TLS-required listeners.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

@@ -1358,6 +1358,9 @@ Implementation order:
 862. IMAP authenticated `UID` dispatch now validates state-independent
      subcommand arity and destination mailbox-name syntax before selected
      mailbox state for `FETCH`, `STORE`, `EXPUNGE`, `COPY`, and `MOVE`.
+863. IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
+     unsupported mechanisms before plaintext `[PRIVACYREQUIRED]` responses on
+     TLS-required listeners, preserving precise auth handshake diagnostics.
 
 ## Deferred until backend contracts stabilize
 
