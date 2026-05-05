@@ -2190,6 +2190,10 @@ Implementation order:
       matching `Content-Range` headers with truncated bodies surface
       `io.ErrUnexpectedEOF` to callers instead of silently returning a short
       Drive, attachment, or IMAP range read.
+1076. S3-compatible `GetRange` now drains a small bounded remainder when a
+      successfully consumed range reader is closed, improving HTTP connection
+      reuse for oversized partial responses while preserving the exact
+      caller-visible byte window.
 
 ## Deferred until backend contracts stabilize
 
