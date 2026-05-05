@@ -266,6 +266,8 @@ Current state:
   attributes when requested, using the service-backed message summary fields.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
+- `FETCH`/`UID FETCH` now supports standard `FAST`, `ALL`, and `FULL` macros,
+  including the non-extensible `BODY` attribute for `FULL`.
 - `FETCH`/`UID FETCH` now support bounded header-only literals for
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - `FETCH`/`UID FETCH` now support text-only section literals for `BODY[TEXT]`,
