@@ -1234,6 +1234,9 @@ Implementation order:
 827. IMAP `FETCH` and `UID FETCH` now preserve RFC 3501 `RFC822`,
      `RFC822.HEADER`, and `RFC822.TEXT` response data item names on the wire
      instead of rewriting them to their internal `BODY[...]` equivalents.
+828. IMAP `SUBSCRIBE` can now persist missing mailbox names so `LSUB` can
+     report them with `\Noselect`, preserving subscription state across mailbox
+     migration, deletion, and delayed creation flows.
 
 ## Deferred until backend contracts stabilize
 

@@ -454,6 +454,9 @@ Current state:
 - Authenticated `SUBSCRIBE`/`UNSUBSCRIBE` now persist mailbox subscription
   names, and `LSUB` returns the saved subscription set instead of every visible
   mailbox.
+- `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
+  with `\Noselect`, matching client migration and deleted-mailbox recovery
+  behavior that expects subscriptions to outlive selectable mailboxes.
 - `LSUB` retains subscribed names after mailbox deletion with `\Noselect` and
   covers the RFC 3501 `%` hierarchy parent response case.
 - IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded

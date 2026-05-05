@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP RFC822 fetch response token alignment)
+Last updated: 2026-05-05 (updated after IMAP missing-mailbox subscription retention)
 
 ## Current phase
 
@@ -1006,6 +1006,9 @@ The platform hardening sprint completed the following:
 - IMAP persists authenticated `SUBSCRIBE`/`UNSUBSCRIBE` mailbox subscriptions
   through the service/repository boundary, and `LSUB` now returns the saved
   subscription set instead of every visible mailbox.
+- IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
+  currently exist, allowing `LSUB` to expose it with `\Noselect` for
+  standards-friendly client migration and deleted-mailbox recovery flows.
 - IMAP `LSUB` preserves subscribed mailbox names even when the mailbox no
   longer exists, returning missing names with `\Noselect`, and handles the RFC
   3501 `%` hierarchy case by returning subscribed parent levels.
