@@ -6882,6 +6882,16 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 }
 
+func TestIMAPQuotedStringPreservesIdentitySpacing(t *testing.T) {
+	t.Parallel()
+
+	got := imapQuotedString("Project  \"Q2\"\\Draft\t")
+	want := `"Project  \"Q2\"\\Draft "`
+	if got != want {
+		t.Fatalf("imapQuotedString = %q, want %q", got, want)
+	}
+}
+
 func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	t.Parallel()
 

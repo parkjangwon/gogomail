@@ -5701,7 +5701,7 @@ func imapQuotedString(value string) string {
 		}
 		return r
 	}, value)
-	return `"` + strings.Join(strings.Fields(value), " ") + `"`
+	return `"` + value + `"`
 }
 
 func parseIMAPFields(line string) ([]string, error) {

@@ -564,6 +564,10 @@ Current state:
   status, append, copy/move, mutation, and subscription paths while rejecting
   raw 8-bit and malformed alternate forms instead of leaking wire encoding into
   storage.
+- IMAP quoted-string response formatting preserves ordinary internal spacing
+  while still escaping quotes/backslashes and cleaning controls, so `LIST`,
+  `LSUB`, `STATUS`, FETCH metadata, and MIME parameter values keep their wire
+  identity.
 - IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
   field/value parameter lists before returning gogomail server identity.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
