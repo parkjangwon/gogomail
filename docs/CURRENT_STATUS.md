@@ -152,6 +152,10 @@ guidance.
 - Mail/Admin HTTP readiness now probes configured storage with a write/read/delete
   cycle, and unsupported HTTP storage backends fail fast instead of silently
   using local storage wiring.
+- Local/NFS storage configuration now requires a non-empty bounded
+  `GOGOMAIL_MAILSTORE_ROOT` without line breaks when
+  `GOGOMAIL_STORAGE_BACKEND=local`, so broken filesystem roots fail during
+  config validation instead of surfacing later as storage probe errors.
 - Local and S3-compatible storage writes now reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.
