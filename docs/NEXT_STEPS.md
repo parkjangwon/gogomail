@@ -292,6 +292,8 @@ Current state:
   criteria over selected-mailbox summaries.
 - Authenticated `NAMESPACE` now advertises the personal namespace and `/`
   hierarchy delimiter for mailbox discovery.
+- Authenticated `LSUB` now returns subscribed-compatible mailbox responses over
+  the same pattern matching path as `LIST`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

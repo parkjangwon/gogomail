@@ -843,6 +843,8 @@ The platform hardening sprint completed the following:
   criteria over selected-mailbox summaries.
 - IMAP supports authenticated `NAMESPACE` for personal namespace and hierarchy
   delimiter discovery.
+- IMAP supports authenticated `LSUB` over the same mailbox pattern matching path
+  as `LIST`.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

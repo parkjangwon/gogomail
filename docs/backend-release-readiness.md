@@ -356,6 +356,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   criteria over selected-mailbox summaries.
 - IMAP now supports authenticated `NAMESPACE`, exposing the personal namespace
   and `/` hierarchy delimiter.
+- IMAP now supports authenticated `LSUB` over the same mailbox pattern matching
+  path as `LIST`, while persistent subscription storage remains future work.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

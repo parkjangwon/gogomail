@@ -306,31 +306,9 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
 		return false, err
 	case "LIST":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
-		if len(fields) != 4 {
-			_, err := writer.WriteString(tag + " BAD LIST requires reference and mailbox pattern atoms\r\n")
-			return false, err
-		}
-		mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
-		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO LIST failed\r\n")
-			return false, writeErr
-		}
-		pattern := imapListPattern(fields[2], fields[3])
-		for _, mailbox := range mailboxes {
-			displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
-			if !imapMailboxMatchesPattern(displayName, pattern) {
-				continue
-			}
-			if _, err := writer.WriteString(`* LIST (\HasNoChildren) "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
-				return false, err
-			}
-		}
-		_, err = writer.WriteString(tag + " OK LIST completed\r\n")
-		return false, err
+		return s.handleList(writer, tag, fields, state, false)
+	case "LSUB":
+		return s.handleList(writer, tag, fields, state, true)
 	case "STATUS":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -413,6 +391,38 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, state *imapConnState, subscribed bool) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	command := "LIST"
+	if subscribed {
+		command = "LSUB"
+	}
+	if len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
+		return false, err
+	}
+	mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
+		return false, writeErr
+	}
+	pattern := imapListPattern(fields[2], fields[3])
+	for _, mailbox := range mailboxes {
+		displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
+		if !imapMailboxMatchesPattern(displayName, pattern) {
+			continue
+		}
+		if _, err := writer.WriteString("* " + command + ` (\HasNoChildren) "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
+			return false, err
+		}
+	}
+	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
+	return false, err
 }
 
 func (s *Server) handleIdleDone(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
