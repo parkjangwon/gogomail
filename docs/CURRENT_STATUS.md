@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV read If-Unmodified-Since checks)
+Last updated: 2026-05-06 (updated after S3 range Content-Range validation)
 
 ## Current phase
 
@@ -2227,6 +2227,10 @@ The platform hardening sprint completed the following:
 - CalDAV calendar object `GET` and `HEAD` now also honor
   `If-Unmodified-Since` before `If-None-Match` / `If-Modified-Since`
   revalidation, returning HTTP 412 when timestamp preconditions are stale.
+- S3-compatible `GetRange` now requires the provider's `Content-Range` header
+  to match the requested byte window before exposing the response body, closing
+  mismatched partial responses early instead of letting Drive, attachment, or
+  IMAP partial-read callers consume the wrong range.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

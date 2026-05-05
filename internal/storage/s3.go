@@ -155,6 +155,10 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
+	if err := validateS3ContentRange(resp.Header.Get("Content-Range"), validated); err != nil {
+		drainAndCloseS3Body(resp.Body)
+		return nil, err
+	}
 	return &limitedReadCloser{reader: io.LimitReader(resp.Body, validated.Length), closer: resp.Body}, nil
 }
 
@@ -491,6 +495,44 @@ func parseS3ContentLength(value string) (int64, error) {
 		return -1, fmt.Errorf("stat s3 object: invalid content length")
 	}
 	return size, nil
+}
+
+func validateS3ContentRange(value string, req RangeRequest) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("get range s3 object: content-range is required")
+	}
+	if !strings.HasPrefix(strings.ToLower(value), "bytes ") {
+		return fmt.Errorf("get range s3 object: invalid content-range")
+	}
+	rangeAndSize := strings.TrimSpace(value[len("bytes "):])
+	rangePart, sizePart, ok := strings.Cut(rangeAndSize, "/")
+	if !ok || strings.TrimSpace(sizePart) == "" {
+		return fmt.Errorf("get range s3 object: invalid content-range")
+	}
+	startText, endText, ok := strings.Cut(strings.TrimSpace(rangePart), "-")
+	if !ok {
+		return fmt.Errorf("get range s3 object: invalid content-range")
+	}
+	start, err := strconv.ParseInt(strings.TrimSpace(startText), 10, 64)
+	if err != nil || start < 0 {
+		return fmt.Errorf("get range s3 object: invalid content-range")
+	}
+	end, err := strconv.ParseInt(strings.TrimSpace(endText), 10, 64)
+	if err != nil || end < start {
+		return fmt.Errorf("get range s3 object: invalid content-range")
+	}
+	if size := strings.TrimSpace(sizePart); size != "*" {
+		total, err := strconv.ParseInt(size, 10, 64)
+		if err != nil || total <= end {
+			return fmt.Errorf("get range s3 object: invalid content-range")
+		}
+	}
+	wantEnd := req.Offset + req.Length - 1
+	if start != req.Offset || end != wantEnd {
+		return fmt.Errorf("get range s3 object: content-range mismatch")
+	}
+	return nil
 }
 
 func parseHTTPTime(value string) time.Time {

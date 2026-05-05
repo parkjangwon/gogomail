@@ -2182,6 +2182,10 @@ Implementation order:
       `If-Unmodified-Since` before cache revalidation, returning HTTP 412 for
       stale timestamp read preconditions instead of incorrectly falling through
       to `If-None-Match` or `If-Modified-Since`.
+1074. S3-compatible `GetRange` now validates the provider's `Content-Range`
+      header against the requested byte window before returning the bounded
+      response reader, closing mismatched partial responses early so Drive,
+      attachment, and IMAP range callers do not consume the wrong bytes.
 
 ## Deferred until backend contracts stabilize
 

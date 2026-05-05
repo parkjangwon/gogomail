@@ -302,6 +302,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar object `GET` and `HEAD` now honor `If-Unmodified-Since`
   before ETag/date cache revalidation, returning HTTP 412 when timestamp
   preconditions are stale.
+- S3-compatible `GetRange` now validates `Content-Range` against the requested
+  byte window before exposing the response body, and closes mismatched partial
+  responses early.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the
