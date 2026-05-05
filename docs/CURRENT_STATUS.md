@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP embedded atom quote rejection)
+Last updated: 2026-05-05 (updated after IMAP empty search group rejection)
 
 ## Current phase
 
@@ -223,6 +223,8 @@ guidance.
 - IMAP command tokenization now rejects embedded quote characters inside
   unquoted atoms while preserving escaped quotes inside proper quoted strings,
   keeping RFC 3501 atom and quoted-string handling separate.
+- IMAP parenthesized `SEARCH`/`UID SEARCH` groups now reject empty `()` groups
+  instead of treating them as match-all, while preserving valid `(ALL)` groups.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

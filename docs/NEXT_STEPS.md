@@ -104,6 +104,8 @@ Current state:
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.
+- IMAP parenthesized `SEARCH`/`UID SEARCH` groups reject empty `()` groups
+  instead of treating them as match-all, while preserving valid `(ALL)` groups.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

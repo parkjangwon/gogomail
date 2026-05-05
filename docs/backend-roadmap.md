@@ -1471,6 +1471,9 @@ Implementation order:
 892. IMAP command tokenization now rejects embedded quote characters inside
      unquoted atoms while preserving escaped quotes inside proper quoted
      strings, keeping RFC 3501 atom and quoted-string handling separate.
+893. IMAP parenthesized `SEARCH`/`UID SEARCH` groups now reject empty `()`
+     groups instead of treating them as match-all, while preserving valid
+     `(ALL)` groups.
 
 ## Deferred until backend contracts stabilize
 
