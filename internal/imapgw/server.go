@@ -1665,11 +1665,25 @@ func imapThreadCommandArguments(fields []string) (string, []string, bool, bool) 
 	if len(fields) < 3 {
 		return "", nil, true, false
 	}
-	algorithm := strings.ToUpper(strings.Trim(fields[0], `"`))
+	algorithm, ok := imapThreadAlgorithm(fields[0])
+	if !ok {
+		return "", nil, true, true
+	}
 	if _, ok := imapSupportedCharset(fields[1]); !ok {
 		return "", nil, false, true
 	}
 	return algorithm, imapNormalizeSearchCriteria(fields[2:]), true, true
+}
+
+func imapThreadAlgorithm(value string) (string, bool) {
+	if strings.Contains(value, `"`) {
+		return "", false
+	}
+	algorithm := strings.ToUpper(strings.TrimSpace(value))
+	if algorithm == "" {
+		return "", false
+	}
+	return algorithm, true
 }
 
 func imapSortCriteria(fields []string) ([]imapSortCriterion, bool) {

@@ -177,6 +177,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
   values such as `UTF-8"` from being silently normalized.
+- IMAP `THREAD` algorithm arguments reject malformed atoms that still contain
+  quote characters after command parsing, preventing broken values such as
+  `ORDEREDSUBJECT"` from being silently normalized.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
