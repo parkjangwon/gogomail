@@ -4889,13 +4889,18 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS RFC822.SIZE)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID FETCH 7:8 (FLAGS RFC822.SIZE)\r\na4 UID FETCH 1:* (FLAGS RFC822.SIZE)\r\na5 UID FETCH 999:* (FLAGS RFC822.SIZE)\r\n")); err != nil {
 		t.Fatalf("write uid fetch set: %v", err)
 	}
 	want := []string{
 		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
 		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
 		"a3 OK UID FETCH completed\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
+		"a4 OK UID FETCH completed\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
+		"a5 OK UID FETCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -4906,7 +4911,7 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 			t.Fatalf("uid fetch set response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

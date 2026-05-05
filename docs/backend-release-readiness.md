@@ -136,6 +136,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP mailbox wire-name formatting preserves ordinary internal spacing while
   still collapsing control-character runs, preventing folder list/status
   responses from changing distinct user-visible mailbox names.
+- IMAP UID `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` commands resolve
+  `*` UID sequence ranges against selected-mailbox UIDs, so common client
+  requests such as `UID FETCH 1:*` include the last visible UID without
+  expanding through non-existent UID gaps.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

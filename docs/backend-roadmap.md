@@ -1455,6 +1455,10 @@ Implementation order:
 887. IMAP mailbox wire-name formatting now preserves ordinary internal spacing
      while still collapsing control-character runs, preventing folder
      list/status responses from changing distinct user-visible mailbox names.
+888. IMAP UID `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` commands now
+     resolve `*` UID sequence ranges against selected-mailbox UIDs, so common
+     client requests such as `UID FETCH 1:*` include the last visible UID
+     without expanding through non-existent UID gaps.
 
 ## Deferred until backend contracts stabilize
 
