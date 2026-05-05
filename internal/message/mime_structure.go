@@ -124,7 +124,7 @@ func parseMIMEPartStructure(header mimeHeader, body io.Reader, state *mimeStruct
 		return MIMEPart{}, fmt.Errorf("read mime part body: %w", err)
 	}
 	part.Size = counter.Size
-	if part.MediaType == "TEXT" {
+	if part.MediaType == "TEXT" || (part.MediaType == "MESSAGE" && part.MediaSubtype == "RFC822") {
 		part.Lines = counter.Lines()
 	}
 	return part, nil

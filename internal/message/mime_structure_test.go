@@ -111,6 +111,33 @@ func TestParseMIMEStructureReadsNestedMultipartOrder(t *testing.T) {
 	}
 }
 
+func TestParseMIMEStructureCountsMessageRFC822Lines(t *testing.T) {
+	t.Parallel()
+
+	raw := strings.Join([]string{
+		"Content-Type: message/rfc822",
+		"Content-Transfer-Encoding: 7bit",
+		"",
+		"Subject: Nested",
+		"",
+		"line one",
+		"line two",
+	}, "\r\n")
+
+	parsed, err := ParseMIMEStructure(strings.NewReader(raw), MIMEStructureOptions{})
+	if err != nil {
+		t.Fatalf("ParseMIMEStructure returned error: %v", err)
+	}
+	root := parsed.Root
+	if root.MediaType != "MESSAGE" || root.MediaSubtype != "RFC822" {
+		t.Fatalf("root = %+v, want message/rfc822", root)
+	}
+	body := "Subject: Nested\r\n\r\nline one\r\nline two"
+	if root.Size != int64(len(body)) || root.Lines != 4 {
+		t.Fatalf("message/rfc822 size/lines = %d/%d, want %d/4", root.Size, root.Lines, len(body))
+	}
+}
+
 func TestParseMIMEStructureLimitsPartCount(t *testing.T) {
 	t.Parallel()
 
