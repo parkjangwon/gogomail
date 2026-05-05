@@ -385,6 +385,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning
   no recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
+- IMAP `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria
+  with validated keyword atoms, returning no custom-keyword matches until
+  durable user keyword storage exists and treating active messages as
+  unkeyworded.
 - IMAP `FETCH`/`UID FETCH` now supports bounded `BODY[HEADER.FIELDS (...)]`
   and `BODY.PEEK[HEADER.FIELDS (...)]` literals for lightweight header reads.
 - IMAP `FETCH`/`UID FETCH` now supports bounded

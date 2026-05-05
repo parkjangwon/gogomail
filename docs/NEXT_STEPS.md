@@ -317,6 +317,9 @@ Current state:
 - `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning no
   recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
+- `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria with
+  validated keyword atoms, returning no custom-keyword matches until durable
+  user keyword storage exists and treating active messages as unkeyworded.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and

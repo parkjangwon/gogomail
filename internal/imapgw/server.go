@@ -983,6 +983,13 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 		return func(_ context.Context, _ *Server, _ *imapConnState, summary MessageSummary, _ int) (bool, error) {
 			return imapMessageMatchesSizeSearch(summary, criterion, size), nil
 		}, 2, true
+	case "KEYWORD", "UNKEYWORD":
+		if len(criteria) < 2 || !imapSearchKeywordValid(criteria[1]) {
+			return nil, 0, false
+		}
+		return func(_ context.Context, _ *Server, _ *imapConnState, _ MessageSummary, _ int) (bool, error) {
+			return criterion == "UNKEYWORD", nil
+		}, 2, true
 	case "FROM", "TO", "CC", "BCC", "SUBJECT":
 		if len(criteria) < 2 {
 			return nil, 0, false
@@ -1011,6 +1018,17 @@ func imapParseSearchPredicate(criteria []string) (imapSearchPredicate, int, bool
 	default:
 		return nil, 0, false
 	}
+}
+
+func imapSearchKeywordValid(value string) bool {
+	value = strings.Trim(value, `"`)
+	if strings.TrimSpace(value) == "" {
+		return false
+	}
+	if strings.ContainsAny(value, "(){ %*\r\n\t") {
+		return false
+	}
+	return true
 }
 
 func imapSearchPredicateMatches(ctx context.Context, server *Server, state *imapConnState, predicate imapSearchPredicate, summary MessageSummary, index int) (bool, error) {
