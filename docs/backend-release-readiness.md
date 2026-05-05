@@ -393,7 +393,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Repository-backed query execution can stream contact objects and stop once the
   response cap is satisfied instead of materializing the whole address book.
   Address-data projection failures are explicit errors rather than silent
-  full-body fallbacks.
+  full-body fallbacks. PROPFIND responses expose conservative RFC 3744-style
+  current-user privileges: readable resources return `DAV:read`, while contact
+  objects also return `DAV:write-content` because object write semantics are
+  implemented. Broader collection, property, bind/unbind, and ACL write
+  privileges remain unadvertised.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

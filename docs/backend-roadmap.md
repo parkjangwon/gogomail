@@ -2381,6 +2381,12 @@ Implementation order:
 1118. CardDAV `address-data` projection failures now return explicit handler
       errors instead of silently falling back to full vCard bodies when a
       projected response cannot be built.
+1119. CardDAV PROPFIND responses now expose conservative RFC 3744-shaped
+      `current-user-privilege-set` values. Principals, homes, and address-book
+      collections advertise `DAV:read`; contact objects additionally advertise
+      `DAV:write-content` because object `PUT`/`DELETE` semantics exist today.
+      Collection, property, ACL, bind, and unbind write privileges remain
+      unadvertised until their exact WebDAV semantics exist.
 
 ## Deferred until backend contracts stabilize
 

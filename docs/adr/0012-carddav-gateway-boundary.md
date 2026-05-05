@@ -67,6 +67,11 @@ responses, and repository-backed execution can stream contact objects through a
 walker boundary so filtering can stop once the response cap is satisfied.
 Address-data projection failures are surfaced as explicit handler errors rather
 than silently broadening the returned vCard body.
+PROPFIND responses expose conservative RFC 3744 current-user privilege
+discovery: resources advertise `DAV:read`, and contact objects additionally
+advertise `DAV:write-content` because their object write paths are implemented.
+Collection/property/ACL write privileges are intentionally not advertised until
+the gateway implements those exact WebDAV semantics.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

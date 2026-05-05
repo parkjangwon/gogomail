@@ -216,6 +216,9 @@ func TestAddressBookHomePropertiesUsePrincipalAsCurrentUser(t *testing.T) {
 	if !strings.Contains(text, "<D:current-user-principal><D:href>/carddav/principals/user-1/</D:href></D:current-user-principal>") {
 		t.Fatalf("current-user-principal should point to principal href:\n%s", text)
 	}
+	if !strings.Contains(text, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("current-user-privilege-set should expose read privilege:\n%s", text)
+	}
 }
 
 func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
@@ -250,6 +253,7 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 		"<C:max-resource-size>5242880</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",
 		"<D:owner><D:href>/carddav/principals/user-1/</D:href></D:owner>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>",
 		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
 		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
 		"<D:supported-report-set>",
@@ -292,6 +296,7 @@ func TestContactObjectPropertiesExposeObjectMetadata(t *testing.T) {
 		"<D:getetag>&#34;0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef&#34;</D:getetag>",
 		"<D:getcontenttype>text/vcard; charset=utf-8</D:getcontenttype>",
 		"<D:getcontentlength>64</D:getcontentlength>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:write-content></D:write-content></D:privilege></D:current-user-privilege-set>",
 		"<D:resourcetype></D:resourcetype>",
 	} {
 		if !strings.Contains(text, want) {
