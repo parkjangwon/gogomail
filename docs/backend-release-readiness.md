@@ -305,6 +305,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `GetRange` now validates `Content-Range` against the requested
   byte window before exposing the response body, and closes mismatched partial
   responses early.
+- S3-compatible `GetRange` now reports `io.ErrUnexpectedEOF` if a provider
+  returns a matching partial response header but truncates the body before the
+  requested byte count.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

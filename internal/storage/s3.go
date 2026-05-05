@@ -159,7 +159,7 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
-	return &limitedReadCloser{reader: io.LimitReader(resp.Body, validated.Length), closer: resp.Body}, nil
+	return &exactReadCloser{reader: resp.Body, closer: resp.Body, remaining: validated.Length}, nil
 }
 
 func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, error) {
@@ -533,6 +533,34 @@ func validateS3ContentRange(value string, req RangeRequest) error {
 		return fmt.Errorf("get range s3 object: content-range mismatch")
 	}
 	return nil
+}
+
+type exactReadCloser struct {
+	reader    io.Reader
+	closer    io.Closer
+	remaining int64
+}
+
+func (r *exactReadCloser) Read(p []byte) (int, error) {
+	if r.remaining <= 0 {
+		return 0, io.EOF
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:r.remaining]
+	}
+	n, err := r.reader.Read(p)
+	r.remaining -= int64(n)
+	if err == io.EOF && r.remaining > 0 {
+		return n, io.ErrUnexpectedEOF
+	}
+	if err == io.EOF && n > 0 && r.remaining == 0 {
+		return n, nil
+	}
+	return n, err
+}
+
+func (r *exactReadCloser) Close() error {
+	return r.closer.Close()
 }
 
 func parseHTTPTime(value string) time.Time {

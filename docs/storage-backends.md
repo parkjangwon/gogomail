@@ -142,7 +142,9 @@ so compatible providers cannot silently downgrade partial reads into full
 object transfers. The `Content-Range` header must match the requested byte
 window before gogomail exposes the body, and the returned reader is capped at
 the validated requested length. This matches local/NFS behavior even if a
-provider sends an oversized partial-content body.
+provider sends an oversized partial-content body. If a provider returns a
+matching `Content-Range` but truncates the response body before the requested
+byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 S3-compatible `Copy` uses a signed server-side copy request with an escaped
 `x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
 duplicate objects without pulling object bytes through gogomail.

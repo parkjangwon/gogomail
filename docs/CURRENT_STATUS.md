@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 range Content-Range validation)
+Last updated: 2026-05-06 (updated after exact S3 range-read enforcement)
 
 ## Current phase
 
@@ -2231,6 +2231,10 @@ The platform hardening sprint completed the following:
   to match the requested byte window before exposing the response body, closing
   mismatched partial responses early instead of letting Drive, attachment, or
   IMAP partial-read callers consume the wrong range.
+- S3-compatible `GetRange` now reports `io.ErrUnexpectedEOF` when a provider
+  returns a matching `Content-Range` header but truncates the response body
+  before the requested byte count, making partial-read corruption visible to
+  Drive, attachment, and IMAP callers.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
