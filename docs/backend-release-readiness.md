@@ -222,7 +222,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Redis stream consumers move repeatedly handler-failing messages into a
   durable Redis dead-letter stream before acknowledging the original event,
   preventing one poison event from pinning a worker forever while still
-  allowing normal transient retries first.
+  allowing normal transient retries first. Event, search-index, API-metering,
+  push-notification, and delivery workers expose per-worker max-delivery and
+  dead-letter-stream settings.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing or oversized event names before worker dispatch.
 - Redis stream event decoding trims outbox id, partition key, and payload

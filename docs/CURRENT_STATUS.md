@@ -513,7 +513,9 @@ guidance.
 - Redis event consumers acknowledge malformed stream entries after logging
   decode failures and move repeatedly handler-failing messages into a durable
   Redis dead-letter stream before acknowledging the original event, preventing
-  poison messages from pinning worker progress indefinitely.
+  poison messages from pinning worker progress indefinitely. Event,
+  search-index, API-metering, push-notification, and delivery workers expose
+  per-worker max-delivery and dead-letter-stream settings for production tuning.
 - Redis event/search/API-metering/push/delivery workers reclaim idle pending
   Redis Stream messages via configurable claim-idle settings, improving crash
   recovery for at-least-once event processing. Startup validation now also

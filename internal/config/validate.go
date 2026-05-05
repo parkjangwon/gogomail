@@ -129,6 +129,12 @@ func (c Config) Validate() error {
 	if c.PushNotifyConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_CLAIM_IDLE must not be negative")
 	}
+	if c.PushNotifyConsumerMaxDeliveries < 0 {
+		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_MAX_DELIVERIES must not be negative")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_DEAD_LETTER_STREAM", c.PushNotifyConsumerDeadLetterStream, 1024); err != nil {
+		return err
+	}
 	if err := validateEnum("GOGOMAIL_API_METERING_BACKEND", c.APIMeteringBackend, "none", "slog", "outbox"); err != nil {
 		return err
 	}
@@ -146,6 +152,12 @@ func (c Config) Validate() error {
 	}
 	if c.APIMeteringConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_CLAIM_IDLE must not be negative")
+	}
+	if c.APIMeteringConsumerMaxDeliveries < 0 {
+		return fmt.Errorf("GOGOMAIL_API_METERING_CONSUMER_MAX_DELIVERIES must not be negative")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_API_METERING_CONSUMER_DEAD_LETTER_STREAM", c.APIMeteringConsumerDeadLetterStream, 1024); err != nil {
+		return err
 	}
 	if c.APIUsageRetentionInterval <= 0 {
 		return fmt.Errorf("GOGOMAIL_API_USAGE_RETENTION_INTERVAL must be positive")
@@ -250,8 +262,20 @@ func (c Config) Validate() error {
 	if c.EventConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE must not be negative")
 	}
+	if c.EventConsumerMaxDeliveries < 0 {
+		return fmt.Errorf("GOGOMAIL_EVENT_CONSUMER_MAX_DELIVERIES must not be negative")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_EVENT_CONSUMER_DEAD_LETTER_STREAM", c.EventConsumerDeadLetterStream, 1024); err != nil {
+		return err
+	}
 	if c.SearchIndexConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_CLAIM_IDLE must not be negative")
+	}
+	if c.SearchIndexConsumerMaxDeliveries < 0 {
+		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_CONSUMER_MAX_DELIVERIES must not be negative")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_SEARCH_INDEX_CONSUMER_DEAD_LETTER_STREAM", c.SearchIndexConsumerDeadLetterStream, 1024); err != nil {
+		return err
 	}
 	if c.SearchIndexOpenSearchTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT must be positive")
@@ -292,6 +316,12 @@ func (c Config) Validate() error {
 	}
 	if c.DeliveryConsumerClaimIdle < 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE must not be negative")
+	}
+	if c.DeliveryConsumerMaxDeliveries < 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_MAX_DELIVERIES must not be negative")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM", c.DeliveryConsumerDeadLetterStream, 1024); err != nil {
+		return err
 	}
 	return nil
 }

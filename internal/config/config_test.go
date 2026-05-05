@@ -69,12 +69,22 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_MAX_DELIVERIES", "")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_DEAD_LETTER_STREAM", "")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_MAX_DELIVERIES", "")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_DEAD_LETTER_STREAM", "")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_MAX_DELIVERIES", "")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_DEAD_LETTER_STREAM", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_MAX_DELIVERIES", "")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_DEAD_LETTER_STREAM", "")
 	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_MAX_DELIVERIES", "")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM", "")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "")
@@ -259,6 +269,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.EventConsumerClaimIdle != 5*time.Minute {
 		t.Fatalf("EventConsumerClaimIdle = %s, want 5m", cfg.EventConsumerClaimIdle)
 	}
+	if cfg.EventConsumerMaxDeliveries != 10 {
+		t.Fatalf("EventConsumerMaxDeliveries = %d, want 10", cfg.EventConsumerMaxDeliveries)
+	}
+	if cfg.EventConsumerDeadLetterStream != "mail.event.dead" {
+		t.Fatalf("EventConsumerDeadLetterStream = %q, want mail.event.dead", cfg.EventConsumerDeadLetterStream)
+	}
 	if cfg.DeliveryStream != "mail.outbound.general" {
 		t.Fatalf("DeliveryStream = %q, want mail.outbound.general", cfg.DeliveryStream)
 	}
@@ -276,6 +292,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.DeliveryConsumerClaimIdle != 5*time.Minute {
 		t.Fatalf("DeliveryConsumerClaimIdle = %s, want 5m", cfg.DeliveryConsumerClaimIdle)
+	}
+	if cfg.DeliveryConsumerMaxDeliveries != 10 {
+		t.Fatalf("DeliveryConsumerMaxDeliveries = %d, want 10", cfg.DeliveryConsumerMaxDeliveries)
+	}
+	if cfg.DeliveryConsumerDeadLetterStream != "mail.outbound.general.dead" {
+		t.Fatalf("DeliveryConsumerDeadLetterStream = %q, want mail.outbound.general.dead", cfg.DeliveryConsumerDeadLetterStream)
 	}
 	if cfg.DeliverySMTPHello != "localhost" {
 		t.Fatalf("DeliverySMTPHello = %q, want localhost", cfg.DeliverySMTPHello)
@@ -394,12 +416,22 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_COUNT", "10")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_BLOCK", "500ms")
 	t.Setenv("GOGOMAIL_EVENT_CONSUMER_CLAIM_IDLE", "90s")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_MAX_DELIVERIES", "7")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_DEAD_LETTER_STREAM", "custom.event.dlq")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_MAX_DELIVERIES", "8")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_DEAD_LETTER_STREAM", "search.event.dlq")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_MAX_DELIVERIES", "9")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_DEAD_LETTER_STREAM", "api.event.dlq")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_MAX_DELIVERIES", "11")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_DEAD_LETTER_STREAM", "push.event.dlq")
 	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "custom.outbound")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "delivery-group")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-a")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_COUNT", "5")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_BLOCK", "750ms")
 	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_CLAIM_IDLE", "2m")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_MAX_DELIVERIES", "12")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM", "delivery.event.dlq")
 	t.Setenv("GOGOMAIL_DELIVERY_SMTP_HELLO", "mx.example.com")
 	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "45s")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "require")
@@ -596,6 +628,30 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.EventConsumerClaimIdle != 90*time.Second {
 		t.Fatalf("EventConsumerClaimIdle = %s, want 90s", cfg.EventConsumerClaimIdle)
 	}
+	if cfg.EventConsumerMaxDeliveries != 7 {
+		t.Fatalf("EventConsumerMaxDeliveries = %d, want 7", cfg.EventConsumerMaxDeliveries)
+	}
+	if cfg.EventConsumerDeadLetterStream != "custom.event.dlq" {
+		t.Fatalf("EventConsumerDeadLetterStream = %q, want custom.event.dlq", cfg.EventConsumerDeadLetterStream)
+	}
+	if cfg.SearchIndexConsumerMaxDeliveries != 8 {
+		t.Fatalf("SearchIndexConsumerMaxDeliveries = %d, want 8", cfg.SearchIndexConsumerMaxDeliveries)
+	}
+	if cfg.SearchIndexConsumerDeadLetterStream != "search.event.dlq" {
+		t.Fatalf("SearchIndexConsumerDeadLetterStream = %q, want search.event.dlq", cfg.SearchIndexConsumerDeadLetterStream)
+	}
+	if cfg.APIMeteringConsumerMaxDeliveries != 9 {
+		t.Fatalf("APIMeteringConsumerMaxDeliveries = %d, want 9", cfg.APIMeteringConsumerMaxDeliveries)
+	}
+	if cfg.APIMeteringConsumerDeadLetterStream != "api.event.dlq" {
+		t.Fatalf("APIMeteringConsumerDeadLetterStream = %q, want api.event.dlq", cfg.APIMeteringConsumerDeadLetterStream)
+	}
+	if cfg.PushNotifyConsumerMaxDeliveries != 11 {
+		t.Fatalf("PushNotifyConsumerMaxDeliveries = %d, want 11", cfg.PushNotifyConsumerMaxDeliveries)
+	}
+	if cfg.PushNotifyConsumerDeadLetterStream != "push.event.dlq" {
+		t.Fatalf("PushNotifyConsumerDeadLetterStream = %q, want push.event.dlq", cfg.PushNotifyConsumerDeadLetterStream)
+	}
 	if cfg.DeliveryStream != "custom.outbound" {
 		t.Fatalf("DeliveryStream = %q, want custom.outbound", cfg.DeliveryStream)
 	}
@@ -613,6 +669,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DeliveryConsumerClaimIdle != 2*time.Minute {
 		t.Fatalf("DeliveryConsumerClaimIdle = %s, want 2m", cfg.DeliveryConsumerClaimIdle)
+	}
+	if cfg.DeliveryConsumerMaxDeliveries != 12 {
+		t.Fatalf("DeliveryConsumerMaxDeliveries = %d, want 12", cfg.DeliveryConsumerMaxDeliveries)
+	}
+	if cfg.DeliveryConsumerDeadLetterStream != "delivery.event.dlq" {
+		t.Fatalf("DeliveryConsumerDeadLetterStream = %q, want delivery.event.dlq", cfg.DeliveryConsumerDeadLetterStream)
 	}
 	if cfg.DeliverySMTPHello != "mx.example.com" {
 		t.Fatalf("DeliverySMTPHello = %q, want mx.example.com", cfg.DeliverySMTPHello)
@@ -695,6 +757,40 @@ func TestLoadReadsConsumerClaimIdleSettings(t *testing.T) {
 	}
 	if cfg.DeliveryConsumerClaimIdle != 5*time.Minute {
 		t.Fatalf("DeliveryConsumerClaimIdle = %s, want 5m", cfg.DeliveryConsumerClaimIdle)
+	}
+}
+
+func TestLoadReadsConsumerDeadLetterSettings(t *testing.T) {
+	t.Setenv("GOGOMAIL_EVENT_STREAM", "mail.events")
+	t.Setenv("GOGOMAIL_API_METERING_STREAM", "api.events")
+	t.Setenv("GOGOMAIL_DELIVERY_STREAM", "delivery.events")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_MAX_DELIVERIES", "3")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_DEAD_LETTER_STREAM", "mail.events.poison")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_MAX_DELIVERIES", "4")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_DEAD_LETTER_STREAM", "search.events.poison")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_MAX_DELIVERIES", "5")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_DEAD_LETTER_STREAM", "api.events.poison")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_MAX_DELIVERIES", "6")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_DEAD_LETTER_STREAM", "push.events.poison")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_MAX_DELIVERIES", "7")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM", "delivery.events.poison")
+
+	cfg := Load()
+
+	if cfg.EventConsumerMaxDeliveries != 3 || cfg.EventConsumerDeadLetterStream != "mail.events.poison" {
+		t.Fatalf("event dead-letter settings = %d/%q, want 3/mail.events.poison", cfg.EventConsumerMaxDeliveries, cfg.EventConsumerDeadLetterStream)
+	}
+	if cfg.SearchIndexConsumerMaxDeliveries != 4 || cfg.SearchIndexConsumerDeadLetterStream != "search.events.poison" {
+		t.Fatalf("search dead-letter settings = %d/%q, want 4/search.events.poison", cfg.SearchIndexConsumerMaxDeliveries, cfg.SearchIndexConsumerDeadLetterStream)
+	}
+	if cfg.APIMeteringConsumerMaxDeliveries != 5 || cfg.APIMeteringConsumerDeadLetterStream != "api.events.poison" {
+		t.Fatalf("api metering dead-letter settings = %d/%q, want 5/api.events.poison", cfg.APIMeteringConsumerMaxDeliveries, cfg.APIMeteringConsumerDeadLetterStream)
+	}
+	if cfg.PushNotifyConsumerMaxDeliveries != 6 || cfg.PushNotifyConsumerDeadLetterStream != "push.events.poison" {
+		t.Fatalf("push dead-letter settings = %d/%q, want 6/push.events.poison", cfg.PushNotifyConsumerMaxDeliveries, cfg.PushNotifyConsumerDeadLetterStream)
+	}
+	if cfg.DeliveryConsumerMaxDeliveries != 7 || cfg.DeliveryConsumerDeadLetterStream != "delivery.events.poison" {
+		t.Fatalf("delivery dead-letter settings = %d/%q, want 7/delivery.events.poison", cfg.DeliveryConsumerMaxDeliveries, cfg.DeliveryConsumerDeadLetterStream)
 	}
 }
 
