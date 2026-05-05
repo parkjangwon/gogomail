@@ -22,16 +22,16 @@ const (
 )
 
 type ObjectCleanupFailure struct {
-	ID             string
-	UserID         string
-	NodeID         string
-	StorageBackend string
-	StoragePath    string
-	Status         string
-	Attempts       int
-	LastError      string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	NodeID         string    `json:"node_id,omitempty"`
+	StorageBackend string    `json:"storage_backend"`
+	StoragePath    string    `json:"storage_path"`
+	Status         string    `json:"status"`
+	Attempts       int       `json:"attempts"`
+	LastError      string    `json:"last_error"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type ListObjectCleanupFailuresRequest struct {

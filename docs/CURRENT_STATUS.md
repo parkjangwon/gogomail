@@ -293,6 +293,11 @@ guidance.
   previously staged object become quota-accounted Drive file metadata through
   the shared storage `Stat` contract and Drive file-finalize repository
   boundary.
+- Mail API now exposes `PUT /api/v1/drive/files/staged/{upload_id}/body`,
+  streaming a bounded object body to the configured local/NFS, MinIO, or
+  S3-compatible backend, deriving the canonical Drive staging key, computing
+  size and SHA-256, and returning a frontend-ready staged-object envelope for
+  file finalization.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

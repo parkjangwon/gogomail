@@ -8,7 +8,7 @@ import (
 )
 
 type ObjectCleanupResult struct {
-	Deleted int
+	Deleted int `json:"deleted"`
 }
 
 type ObjectCleanupError struct {
