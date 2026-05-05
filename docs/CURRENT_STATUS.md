@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after RCPT rate-limit host bucketing)
+Last updated: 2026-05-05 (updated after Submission domain recipient cap RCPT enforcement)
 
 ## Current phase
 
@@ -690,6 +690,9 @@ The platform hardening sprint completed the following:
   `original_recipient` values before retry/delivery attempt recording.
 - Delivery `mail.queued` decoding rejects oversized recipient and DSN-recipient
   arrays before normalization, routing, or retry bookkeeping.
+- Authenticated Submission now applies enforcing per-domain recipient caps during
+  `RCPT TO`, not only after `DATA`, so oversized envelopes receive earlier
+  SMTP feedback before message streaming/spooling.
 - Attachment scanner hook rejection/tempfail reasons are CR/LF-stripped and
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
 - `GOGOMAIL_ENV` now accepts only `development`, `test`, or `production`, so

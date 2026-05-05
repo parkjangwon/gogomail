@@ -720,6 +720,7 @@ Implementation order:
 660. Runtime config validation now checks `GOGOMAIL_DELIVERY_SMTP_HELLO` as a non-empty whitespace-free hostname, surfacing outbound SMTP EHLO configuration mistakes before delivery worker startup.
 661. Runtime config validation now requires RCPT rate-limit and outbox relay batch, poll, and max-attempt settings to be positive, surfacing relay/limit misconfiguration before workers start.
 662. Redis-backed RCPT rate-limit keys now normalize remote addresses to the remote host/IP bucket instead of the full `ip:port`, preventing source-port churn from bypassing recipient abuse controls.
+663. Authenticated Submission now applies enforcing per-domain recipient caps during `RCPT TO`, not only after `DATA`, giving clients earlier SMTP feedback before message streaming/spooling.
 
 ## Deferred until backend contracts stabilize
 

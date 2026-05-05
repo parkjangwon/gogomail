@@ -44,40 +44,40 @@ type SubmissionRecorder interface {
 }
 
 type SubmissionOptions struct {
-	Store               storage.Store
-	Authenticator       SubmissionAuthenticator
-	Recorder            SubmissionRecorder
-	DomainPolicyLookup  DomainPolicyLookup
-	Metrics             Metrics
-	Hooks               []Hook
-	SupportSMTPUTF8     bool
-	SupportRequireTLS   bool
-	SupportDSN          bool
-	SupportBinaryMIME   bool
-	AddReceivedHeader   bool
-	ReceivedDomain      string
-	Policy              ReceivePolicy
-	IDGenerator         IDGenerator
-	Clock               func() time.Time
-	MaxMessageBytes     int64
+	Store              storage.Store
+	Authenticator      SubmissionAuthenticator
+	Recorder           SubmissionRecorder
+	DomainPolicyLookup DomainPolicyLookup
+	Metrics            Metrics
+	Hooks              []Hook
+	SupportSMTPUTF8    bool
+	SupportRequireTLS  bool
+	SupportDSN         bool
+	SupportBinaryMIME  bool
+	AddReceivedHeader  bool
+	ReceivedDomain     string
+	Policy             ReceivePolicy
+	IDGenerator        IDGenerator
+	Clock              func() time.Time
+	MaxMessageBytes    int64
 }
 
 type SubmissionReceiver struct {
-	store               storage.Store
-	authenticator       SubmissionAuthenticator
-	recorder            SubmissionRecorder
-	domainPolicyLookup  DomainPolicyLookup
-	metrics             Metrics
-	hooks               []Hook
-	supportSMTPUTF8     bool
-	supportRequireTLS   bool
-	supportDSN          bool
-	supportBinaryMIME   bool
-	addReceivedHeader   bool
-	receivedDomain      string
-	policy              ReceivePolicy
-	idGenerator         IDGenerator
-	clock               func() time.Time
+	store              storage.Store
+	authenticator      SubmissionAuthenticator
+	recorder           SubmissionRecorder
+	domainPolicyLookup DomainPolicyLookup
+	metrics            Metrics
+	hooks              []Hook
+	supportSMTPUTF8    bool
+	supportRequireTLS  bool
+	supportDSN         bool
+	supportBinaryMIME  bool
+	addReceivedHeader  bool
+	receivedDomain     string
+	policy             ReceivePolicy
+	idGenerator        IDGenerator
+	clock              func() time.Time
 }
 
 func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
@@ -86,21 +86,21 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		idGenerator = randomMessageID
 	}
 	return &SubmissionReceiver{
-		store:               opts.Store,
-		authenticator:       opts.Authenticator,
-		recorder:            opts.Recorder,
-		domainPolicyLookup:  opts.DomainPolicyLookup,
-		metrics:             metricsOrDefault(opts.Metrics),
-		hooks:               append([]Hook(nil), opts.Hooks...),
-		supportSMTPUTF8:     opts.SupportSMTPUTF8,
-		supportRequireTLS:   opts.SupportRequireTLS,
-		supportDSN:          opts.SupportDSN,
-		supportBinaryMIME:   opts.SupportBinaryMIME,
-		addReceivedHeader:   opts.AddReceivedHeader,
-		receivedDomain:      opts.ReceivedDomain,
-		policy:              normalizePolicy(opts.Policy, opts.MaxMessageBytes),
-		idGenerator:         idGenerator,
-		clock:               clockOrDefault(opts.Clock),
+		store:              opts.Store,
+		authenticator:      opts.Authenticator,
+		recorder:           opts.Recorder,
+		domainPolicyLookup: opts.DomainPolicyLookup,
+		metrics:            metricsOrDefault(opts.Metrics),
+		hooks:              append([]Hook(nil), opts.Hooks...),
+		supportSMTPUTF8:    opts.SupportSMTPUTF8,
+		supportRequireTLS:  opts.SupportRequireTLS,
+		supportDSN:         opts.SupportDSN,
+		supportBinaryMIME:  opts.SupportBinaryMIME,
+		addReceivedHeader:  opts.AddReceivedHeader,
+		receivedDomain:     opts.ReceivedDomain,
+		policy:             normalizePolicy(opts.Policy, opts.MaxMessageBytes),
+		idGenerator:        idGenerator,
+		clock:              clockOrDefault(opts.Clock),
 	}
 }
 
@@ -118,13 +118,15 @@ func (r *SubmissionReceiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, erro
 }
 
 type submissionSession struct {
-	receiver   *SubmissionReceiver
-	user       SubmissionUser
-	from       string
-	recipients []string
-	dsn        DSNOptions
-	smtpUTF8   bool
-	remoteAddr string
+	receiver           *SubmissionReceiver
+	user               SubmissionUser
+	from               string
+	recipients         []string
+	dsn                DSNOptions
+	smtpUTF8           bool
+	remoteAddr         string
+	domainPolicy       *InboundDomainPolicy
+	domainPolicyLoaded bool
 }
 
 func (s *submissionSession) AuthMechanisms() []string {
@@ -232,8 +234,9 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
-	if len(s.recipients) >= s.receiver.policy.MaxRecipientsPerMessage {
-		return smtpTooManyRecipients(s.receiver.policy.MaxRecipientsPerMessage)
+	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.currentDomainPolicy(context.Background()))
+	if len(s.recipients) >= maxRecipients {
+		return smtpTooManyRecipients(maxRecipients)
 	}
 	normalized, err := mail.NormalizeAddress(to)
 	if err != nil {
@@ -283,20 +286,13 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	recipients = append([]string(nil), s.recipients...)
 	defer s.Reset()
 
-	var domainPolicy *InboundDomainPolicy
-	if s.receiver.domainPolicyLookup != nil && s.user.DomainID != "" {
-		if dp, lookupErr := s.receiver.domainPolicyLookup.InboundDomainPolicy(context.Background(), s.user.DomainID); lookupErr == nil {
-			domainPolicy = &dp
-		}
-	}
-
 	// Apply per-domain recipient cap against what was already collected.
-	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, domainPolicy)
+	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.currentDomainPolicy(context.Background()))
 	if len(s.recipients) > maxRecipients {
 		return smtpTooManyRecipients(maxRecipients)
 	}
 
-	spooled, size, err := spoolMessage(r, effectiveMaxBytes(s.receiver.policy.MaxMessageBytes, domainPolicy))
+	spooled, size, err := spoolMessage(r, effectiveMaxBytes(s.receiver.policy.MaxMessageBytes, s.currentDomainPolicy(context.Background())))
 	if err != nil {
 		return err
 	}
@@ -444,6 +440,22 @@ func (s *submissionSession) observe(ctx context.Context, event MetricEvent) {
 
 func (s *submissionSession) currentDSNOptions() DSNOptions {
 	return cloneDSNOptions(s.dsn)
+}
+
+func (s *submissionSession) currentDomainPolicy(ctx context.Context) *InboundDomainPolicy {
+	if s.domainPolicyLoaded {
+		return s.domainPolicy
+	}
+	s.domainPolicyLoaded = true
+	if s.receiver.domainPolicyLookup == nil || s.user.DomainID == "" {
+		return nil
+	}
+	dp, err := s.receiver.domainPolicyLookup.InboundDomainPolicy(ctx, s.user.DomainID)
+	if err != nil {
+		return nil
+	}
+	s.domainPolicy = &dp
+	return s.domainPolicy
 }
 
 func (s *submissionSession) Reset() {
