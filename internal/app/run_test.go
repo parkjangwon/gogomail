@@ -121,7 +121,7 @@ func TestNewHTTPServerUsesConfiguredOperationalGuardrails(t *testing.T) {
 func TestObjectStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
 	t.Parallel()
 
-	store, err := objectStoreForConfig(config.Config{StorageBackend: "minio", MailstoreRoot: t.TempDir()})
+	store, err := objectStoreForConfig(config.Config{StorageBackend: "swift", MailstoreRoot: t.TempDir()})
 	if err == nil || !strings.Contains(err.Error(), "unsupported storage backend") {
 		t.Fatalf("store = %+v err = %v", store, err)
 	}

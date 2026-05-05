@@ -330,6 +330,8 @@ Current state:
   while `\Deleted` semantics remain deferred.
 - `COPY` and `UID COPY` now return explicit unsupported `NO` responses while
   cross-mailbox copy semantics remain deferred.
+- `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
+  responses while mailbox mutation/import semantics remain deferred.
 - Mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
   explicit unsupported `NO` responses while mailbox CRUD semantics remain
   deferred.
