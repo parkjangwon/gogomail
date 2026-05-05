@@ -1,9 +1,11 @@
 package imapgw
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"io"
+	"net"
 	"strings"
 	"testing"
 )
@@ -49,6 +51,80 @@ func TestNewServerAcceptsTLSOrExplicitInsecureAuthPolicy(t *testing.T) {
 	}
 	if secure.Options().TLSConfig == nil || secure.Options().AllowInsecureAuth {
 		t.Fatalf("secure options = %+v", secure.Options())
+	}
+}
+
+func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if line != "* OK gogomail IMAP4rev1 service ready\r\n" {
+		t.Fatalf("greeting = %q", line)
+	}
+
+	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write capability: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read capability untagged: %v", err)
+	}
+	if line != "* CAPABILITY IMAP4rev1 AUTH=PLAIN\r\n" {
+		t.Fatalf("capability = %q", line)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read capability tagged: %v", err)
+	}
+	if line != "a1 OK CAPABILITY completed\r\n" {
+		t.Fatalf("capability completion = %q", line)
+	}
+
+	if _, err := client.Write([]byte("a2 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read noop: %v", err)
+	}
+	if line != "a2 OK NOOP completed\r\n" {
+		t.Fatalf("noop = %q", line)
+	}
+
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read bye: %v", err)
+	}
+	if line != "* BYE gogomail IMAP4rev1 server logging out\r\n" {
+		t.Fatalf("bye = %q", line)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read logout completion: %v", err)
+	}
+	if line != "a3 OK LOGOUT completed\r\n" {
+		t.Fatalf("logout completion = %q", line)
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
 	}
 }
 

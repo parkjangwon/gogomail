@@ -793,7 +793,11 @@ Implementation order:
      with listener option validation, backend requirement checks, and
      TLS/insecure-auth policy enforcement before the IMAP command parser is
      wired.
-690. `gogomail --mode=imap` now constructs the `imapgw.Server` shell from
+690. The IMAP server shell can now serve an initial connection greeting plus
+     unauthenticated `CAPABILITY`, `NOOP`, and `LOGOUT` responses, giving TCP
+     clients a bounded RFC-shaped handshake surface before mailbox commands are
+     enabled.
+691. `gogomail --mode=imap` now constructs the `imapgw.Server` shell from
      runtime options while still deferring `Listen`/`Serve` until command
      handling is wired.
 
