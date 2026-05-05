@@ -255,6 +255,9 @@ guidance.
   path boundary validation before service dispatch.
 - Mail API development `user_id` query fallback values now reject CR/LF-bearing
   or oversized identifiers before service dispatch.
+- OpenAPI now wires the Mail API development `user_id` fallback parameter into
+  every user-scoped Mail operation, keeping local/all-in-one generated clients
+  aligned with JWT-disabled runtime behavior.
 - Mail API folder, thread, message, draft, attachment, and push-device path
   identifiers now reject blank, CR/LF-bearing, or oversized values before
   service dispatch.

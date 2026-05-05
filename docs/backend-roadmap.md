@@ -701,6 +701,7 @@ Implementation order:
 641. IMAP UID assignment now reuses existing UIDs only when the message is still active in the same user/mailbox and treats stale moved/deleted `mail.stored` events as no-ops, preventing cross-mailbox UID reuse and permanent retries from legitimate mailbox races.
 642. Mail API thread list and per-thread message reads now support opaque cursor pagination with `limit`, `has_more`, and `next_cursor`, making large conversation mailboxes navigable without client-side full-list scans.
 643. Mail API draft search now supports opaque cursor pagination with `limit`, `has_more`, and `next_cursor`, making large compose draft lists navigable without loading every active draft.
+644. OpenAPI now wires the development-only `user_id` fallback parameter into every user-scoped Mail operation that can use it when JWT auth is disabled, keeping generated local/all-in-one clients aligned with runtime request scoping.
 
 ## Deferred until backend contracts stabilize
 
