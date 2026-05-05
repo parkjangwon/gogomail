@@ -812,6 +812,8 @@ The platform hardening sprint completed the following:
   sanitized wire names.
 - IMAP `SELECT`/`EXAMINE` emit `[PERMANENTFLAGS]` response codes for writable
   versus read-only selected-mailbox state.
+- IMAP `UID STORE` supports `.SILENT` flag mutation modes and suppresses
+  untagged flag echo responses when requested.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

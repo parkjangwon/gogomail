@@ -851,6 +851,9 @@ Implementation order:
 708. IMAP `SELECT` and `EXAMINE` now emit `[PERMANENTFLAGS]` response codes,
      advertising writable flags for read-write selections and no permanent
      flags for read-only `EXAMINE` state.
+709. IMAP `UID STORE` now supports `FLAGS.SILENT`, `+FLAGS.SILENT`, and
+     `-FLAGS.SILENT`, applying the same flag mutations while suppressing
+     untagged `FETCH` echo responses.
 
 ## Deferred until backend contracts stabilize
 
