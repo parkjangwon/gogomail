@@ -718,6 +718,7 @@ func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnStat
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
 	requestsBody := imapFetchRequestsBody(items)
+	partial, requestsPartialBody := imapFetchPartialBody(items)
 	requestsHeader := imapFetchRequestsHeader(items)
 	requestsText := imapFetchRequestsText(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
@@ -742,7 +743,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
 			return false, err
 		}
-		if requestsBody || requestsHeader || requestsText {
+		if requestsBody || requestsPartialBody || requestsHeader || requestsText {
 			if message.Body == nil {
 				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
 				return false, err
@@ -779,6 +780,35 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				continue
 			}
 			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyStructure)
+			if requestsPartialBody {
+				count := partial.count
+				if partial.offset >= uint64(summary.Size) {
+					count = 0
+				} else if remaining := uint64(summary.Size) - partial.offset; count > remaining {
+					count = remaining
+				}
+				if _, err := io.CopyN(io.Discard, body, int64(partial.offset)); err != nil && !errors.Is(err, io.EOF) {
+					_ = body.Close()
+					return false, err
+				}
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[]<%d> {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), partial.offset, count)); err != nil {
+					_ = body.Close()
+					return false, err
+				}
+				if count > 0 {
+					if _, err := io.CopyN(writer, body, int64(count)); err != nil {
+						_ = body.Close()
+						return false, err
+					}
+				}
+				if err := body.Close(); err != nil {
+					return false, err
+				}
+				if _, err := writer.WriteString(")\r\n"); err != nil {
+					return false, err
+				}
+				continue
+			}
 			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), summary.Size)); err != nil {
 				_ = body.Close()
 				return false, err
@@ -936,6 +966,40 @@ func imapFetchRequestsBody(items []string) bool {
 		}
 	}
 	return false
+}
+
+type imapPartialBodyRequest struct {
+	offset uint64
+	count  uint64
+}
+
+func imapFetchPartialBody(items []string) (imapPartialBodyRequest, bool) {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			if !strings.HasPrefix(token, "BODY[]<") && !strings.HasPrefix(token, "BODY.PEEK[]<") {
+				continue
+			}
+			start := strings.Index(token, "<")
+			end := strings.LastIndex(token, ">")
+			if start < 0 || end <= start {
+				return imapPartialBodyRequest{}, false
+			}
+			offsetText, countText, ok := strings.Cut(token[start+1:end], ".")
+			if !ok {
+				return imapPartialBodyRequest{}, false
+			}
+			offset, err := strconv.ParseUint(offsetText, 10, 63)
+			if err != nil {
+				return imapPartialBodyRequest{}, false
+			}
+			count, err := strconv.ParseUint(countText, 10, 31)
+			if err != nil {
+				return imapPartialBodyRequest{}, false
+			}
+			return imapPartialBodyRequest{offset: offset, count: count}, true
+		}
+	}
+	return imapPartialBodyRequest{}, false
 }
 
 func imapFetchRequestsHeader(items []string) bool {

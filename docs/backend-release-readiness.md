@@ -341,6 +341,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   draining queued selected-mailbox events on `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now return
   selected-mailbox sequence numbers or UIDs for basic client indexing flows.
+- IMAP `FETCH`/`UID FETCH` now streams bounded partial full-body literals for
+  `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

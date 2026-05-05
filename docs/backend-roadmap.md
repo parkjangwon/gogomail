@@ -877,6 +877,9 @@ Implementation order:
 717. IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now resolve
      against the selected mailbox message list, returning sequence numbers or
      UIDs according to RFC command mode.
+718. IMAP `FETCH`/`UID FETCH` now supports bounded partial full-body literals
+     for `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`, streaming only
+     the requested byte window.
 
 ## Deferred until backend contracts stabilize
 

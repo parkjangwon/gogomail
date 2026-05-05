@@ -829,6 +829,8 @@ The platform hardening sprint completed the following:
   queued selected-mailbox events when the client sends `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` work over the
   selected mailbox message list.
+- IMAP `FETCH`/`UID FETCH` can stream bounded partial full-body literals for
+  `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
