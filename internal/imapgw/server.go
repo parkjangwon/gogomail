@@ -168,6 +168,7 @@ type imapConnState struct {
 	session          *Session
 	selectedMailbox  MailboxID
 	selectedMessages uint32
+	readOnly         bool
 	pendingAuthTag   string
 }
 
@@ -225,13 +226,13 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		state.pendingAuthTag = tag
 		_, err := writer.WriteString("+ \r\n")
 		return false, err
-	case "SELECT":
+	case "SELECT", "EXAMINE":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
 		if len(fields) != 3 {
-			_, err := writer.WriteString(tag + " BAD SELECT requires a mailbox atom\r\n")
+			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom\r\n")
 			return false, err
 		}
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
@@ -256,6 +257,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		state.selectedMailbox = MailboxID(fields[2])
 		state.selectedMessages = mailboxState.Messages
+		state.readOnly = command == "EXAMINE"
+		if state.readOnly {
+			_, err = writer.WriteString(tag + " OK [READ-ONLY] EXAMINE completed\r\n")
+			return false, err
+		}
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
 		return false, err
 	case "LIST":
@@ -369,6 +375,10 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "FETCH":
 		return s.handleUIDFetch(writer, tag, fields, state)
 	case "STORE":
+		if state.readOnly {
+			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+			return false, err
+		}
 		return s.handleUIDStore(writer, tag, fields, state)
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")

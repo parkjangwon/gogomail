@@ -250,6 +250,8 @@ Current state:
 - Non-UID `FETCH` accepts bounded message sequence sets, including `*`, and
   resolves them through the selected mailbox list before streaming the same
   metadata/body responses.
+- `EXAMINE` now selects a mailbox read-only and blocks `UID STORE`, giving
+  clients a standards-shaped read-only mailbox state.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

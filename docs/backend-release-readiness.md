@@ -312,6 +312,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Non-UID `FETCH` now accepts bounded sequence sets, including `*`, and resolves
   them through the selected mailbox list before returning RFC-shaped untagged
   `FETCH` responses.
+- IMAP `EXAMINE` now exposes read-only mailbox selection and rejects `UID STORE`
+  while the selected mailbox is read-only.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
