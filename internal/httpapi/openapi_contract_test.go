@@ -176,7 +176,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /messages/{id}":                                         "#/components/responses/Message",
 		"GET /messages/{id}/delivery-status":                         "#/components/responses/MessageDeliveryStatus",
 		"GET /threads":                                               "#/components/responses/ThreadList",
-		"GET /threads/{id}/messages":                                 "#/components/responses/MessageList",
+		"GET /threads/{id}/messages":                                 "#/components/responses/MessageListPage",
 		"PATCH /messages/{id}/flags":                                 "#/components/responses/Status",
 		"PATCH /messages/{id}/folder":                                "#/components/responses/Status",
 		"PATCH /messages/bulk/flags":                                 "#/components/responses/BulkUpdate",
@@ -496,8 +496,10 @@ func TestOpenAPIDraftKeepsThreadListParametersScoped(t *testing.T) {
 	if !ok {
 		t.Fatal("OpenAPI operation GET /threads is missing")
 	}
-	if !strings.Contains(block, "#/components/parameters/Limit") {
-		t.Fatalf("GET /threads must document the limit parameter, got:\n%s", block)
+	for _, want := range []string{"#/components/parameters/Limit", "name: cursor"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("GET /threads must document %q, got:\n%s", want, block)
+		}
 	}
 	for _, param := range []string{"tenant_id", "principal_id", "from", "to"} {
 		if openAPIOperationDocumentsParameter(block, param) {

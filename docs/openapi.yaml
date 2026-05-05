@@ -190,6 +190,11 @@ paths:
       summary: List message threads for the current mailbox
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/ThreadList"
@@ -202,9 +207,14 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/Limit"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
       responses:
         "200":
-          $ref: "#/components/responses/MessageList"
+          $ref: "#/components/responses/MessageListPage"
         default:
           $ref: "#/components/responses/Error"
   /messages/{id}/flags:
@@ -3273,12 +3283,21 @@ components:
           type: boolean
     ThreadListEnvelope:
       type: object
-      required: [threads]
+      required: [threads, limit, has_more, next_cursor]
       properties:
         threads:
           type: array
           items:
             $ref: "#/components/schemas/ThreadSummary"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+        has_more:
+          type: boolean
+        next_cursor:
+          type: string
+          description: Opaque cursor. Clients must not parse or manufacture this value.
     MessageDetail:
       allOf:
         - $ref: "#/components/schemas/MessageSummary"

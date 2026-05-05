@@ -20,6 +20,10 @@ type ThreadSummary struct {
 }
 
 func (r *Repository) ListThreads(ctx context.Context, userID string, limit int) ([]ThreadSummary, error) {
+	return r.ListThreadsPage(ctx, userID, limit, ThreadListCursor{})
+}
+
+func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit int, cursor ThreadListCursor) ([]ThreadSummary, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -27,7 +31,7 @@ func (r *Repository) ListThreads(ctx context.Context, userID string, limit int) 
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	limit = normalizeLimit(limit)
+	limit = normalizeLimit(limit) + 1
 
 	const query = `
 WITH active_messages AS (
@@ -43,7 +47,8 @@ WITH active_messages AS (
   FROM messages
   WHERE user_id = $1
     AND status = 'active'
-)
+),
+thread_summaries AS (
 SELECT
   thread_key,
   (array_agg(subject ORDER BY message_at DESC, id DESC))[1] AS subject,
@@ -56,10 +61,17 @@ SELECT
   bool_or(starred) AS starred
 FROM active_messages
 GROUP BY thread_key
+)
+SELECT *
+FROM thread_summaries
+WHERE (
+  $4 = ''
+  OR (latest_at, thread_key) < ($3::timestamptz, $4)
+)
 ORDER BY latest_at DESC, thread_key DESC
 LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID))
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}
@@ -90,6 +102,10 @@ LIMIT $2`
 }
 
 func (r *Repository) ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]MessageSummary, error) {
+	return r.ListThreadMessagesPage(ctx, userID, threadID, limit, MessageListCursor{})
+}
+
+func (r *Repository) ListThreadMessagesPage(ctx context.Context, userID string, threadID string, limit int, cursor MessageListCursor) ([]MessageSummary, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -101,7 +117,7 @@ func (r *Repository) ListThreadMessages(ctx context.Context, userID string, thre
 	if threadID == "" {
 		return nil, fmt.Errorf("thread id is required")
 	}
-	limit = normalizeLimit(limit)
+	limit = normalizeLimit(limit) + 1
 
 	const query = `
 SELECT
@@ -118,10 +134,15 @@ FROM messages
 WHERE user_id = $1
   AND status = 'active'
   AND COALESCE(thread_id, id)::text = $2
+  AND (
+    $5 = ''
+    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+       > ($4::timestamptz, $5::uuid)
+  )
 ORDER BY message_at ASC, id ASC
 LIMIT $3`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, threadID, limit)
+	rows, err := r.db.QueryContext(ctx, query, userID, threadID, limit, cursor.At, strings.TrimSpace(cursor.ID))
 	if err != nil {
 		return nil, fmt.Errorf("list thread messages: %w", err)
 	}

@@ -186,20 +186,28 @@ func (s *Service) ListMessagesPage(ctx context.Context, userID string, folderID 
 }
 
 func (s *Service) ListThreads(ctx context.Context, userID string, limit int) ([]maildb.ThreadSummary, error) {
+	return s.ListThreadsPage(ctx, userID, limit, maildb.ThreadListCursor{})
+}
+
+func (s *Service) ListThreadsPage(ctx context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error) {
 	repo, ok := s.repository.(interface {
-		ListThreads(context.Context, string, int) ([]maildb.ThreadSummary, error)
+		ListThreadsPage(context.Context, string, int, maildb.ThreadListCursor) ([]maildb.ThreadSummary, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("thread repository is required")
 	}
 	userID = strings.TrimSpace(userID)
 	limit = maildb.NormalizeMessageListLimit(limit)
-	return repo.ListThreads(ctx, userID, limit)
+	return repo.ListThreadsPage(ctx, userID, limit, cursor)
 }
 
 func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]maildb.MessageSummary, error) {
+	return s.ListThreadMessagesPage(ctx, userID, threadID, limit, maildb.MessageListCursor{})
+}
+
+func (s *Service) ListThreadMessagesPage(ctx context.Context, userID string, threadID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
-		ListThreadMessages(context.Context, string, string, int) ([]maildb.MessageSummary, error)
+		ListThreadMessagesPage(context.Context, string, string, int, maildb.MessageListCursor) ([]maildb.MessageSummary, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("thread repository is required")
@@ -210,7 +218,7 @@ func (s *Service) ListThreadMessages(ctx context.Context, userID string, threadI
 		return nil, err
 	}
 	limit = maildb.NormalizeMessageListLimit(limit)
-	return repo.ListThreadMessages(ctx, userID, threadID, limit)
+	return repo.ListThreadMessagesPage(ctx, userID, threadID, limit, cursor)
 }
 
 func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearchQuery) ([]maildb.MessageSummary, error) {
