@@ -237,8 +237,9 @@ guidance.
   database/service boundary.
 - Drive now has a first internal repository mutation for active user folder
   creation, deriving company/domain scope from the user row, validating parent
-  folders before insertion, and applying Drive node-name/type/status validation
-  before future HTTP routes expose the module.
+  folders before insertion, using only bound request parameters in SQL, and
+  applying Drive node-name/type/status validation before future HTTP routes
+  expose the module.
 - Drive now has an internal file-finalize repository boundary that validates
   storage backend/object metadata, verifies the object through `storage.Stat`,
   and increments the company/domain/user quota ledger in the same transaction

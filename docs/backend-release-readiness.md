@@ -60,7 +60,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   user-scoped file/folder metadata and lifecycle state, and `internal/drive`
   validates node names, types, and statuses before future repository/API code.
 - Drive has a first internal folder-create repository mutation that derives
-  tenant scope from active user metadata and validates parent folder state
+  tenant scope from active user metadata, validates parent folder state, and
+  uses only the bound request parameters in SQL
   before insert, preparing the backend module without opening a frontend or
   HTTP API surface yet.
 - Drive file finalization can now verify a staged object through the shared

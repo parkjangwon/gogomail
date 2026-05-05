@@ -1972,6 +1972,9 @@ Implementation order:
 1026. IMAP `LOGIN` and `AUTHENTICATE` failures now include RFC 5530
       `[AUTHENTICATIONFAILED]` response codes, improving common client and
       migration-tool handling of invalid credentials.
+1027. Drive folder creation SQL now uses only the bound request parameters,
+      fixing production folder-create placeholder drift before recursive Drive
+      copy work builds on it.
 
 ## Deferred until backend contracts stabilize
 
