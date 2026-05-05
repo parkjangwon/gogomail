@@ -173,6 +173,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API exposes `GET /admin/v1/drive-usage` so operator consoles can show
   user Drive quota, node lifecycle, byte usage, and pending upload-session
   dashboard summaries.
+- Mail API exposes `GET /api/v1/drive/usage` so production webmail Drive
+  panels can render the authenticated user's quota and storage summary without
+  an admin token.
 - Admin API exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operator consoles can preview stale Drive upload-session cleanup impact
   before relying on the worker loop.

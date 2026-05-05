@@ -163,6 +163,9 @@ or development `user_id` fallback path as webmail mail routes:
 - `GET /api/v1/drive/nodes/{id}` returns `{"drive_node":{...}}` for a single
   node and accepts bounded `status=active|trashed|deleted` so clients can
   refresh selected metadata after edits.
+- `GET /api/v1/drive/usage` returns `{"drive_usage_summary":{...}}` for the
+  authenticated/fallback user, exposing quota ledger values, status-scoped node
+  counts and bytes, and pending/uploading/failed upload-session counts.
 - `POST /api/v1/drive/folders` creates a folder from `{"parent_id","name"}`
   and returns `{"drive_node":{...}}`.
 - `POST /api/v1/drive/upload-sessions` creates a pending upload session from

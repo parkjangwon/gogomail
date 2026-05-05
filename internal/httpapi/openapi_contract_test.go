@@ -308,6 +308,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /folders/{id}":                                       "#/components/responses/Status",
 		"GET /drive/nodes":                                           "#/components/responses/DriveNodeList",
 		"GET /drive/nodes/{id}":                                      "#/components/responses/DriveNode",
+		"GET /drive/usage":                                           "#/components/responses/DriveUsageSummary",
 		"POST /drive/folders":                                        "#/components/responses/DriveNode",
 		"GET /drive/upload-sessions":                                 "#/components/responses/DriveUploadSessionList",
 		"POST /drive/upload-sessions":                                "#/components/responses/DriveUploadSession",
@@ -1166,6 +1167,7 @@ func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
 		"GET /push-devices",
 		"POST /push-devices",
 		"DELETE /push-devices/{id}",
+		"GET /drive/usage",
 	} {
 		block, ok := operations[route]
 		if !ok {

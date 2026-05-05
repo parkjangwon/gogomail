@@ -68,6 +68,34 @@ func TestDriveGetNodeHandler(t *testing.T) {
 	}
 }
 
+func TestDriveUsageHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{usageSummary: drive.UsageSummary{UserID: "user-1", QuotaUsed: 2048, ActiveBytes: 1024, ActiveNodes: 3}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/usage?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.usageReq.UserID != "user-1" {
+		t.Fatalf("usage request = %+v, want user-backed request", service.usageReq)
+	}
+	var body struct {
+		Summary drive.UsageSummary `json:"drive_usage_summary"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Summary.UserID != "user-1" || body.Summary.ActiveBytes != 1024 {
+		t.Fatalf("summary = %+v", body.Summary)
+	}
+}
+
 func TestDriveCreateFolderHandler(t *testing.T) {
 	t.Parallel()
 
@@ -549,8 +577,10 @@ type fakeDriveService struct {
 	staged                    drive.StagedObject
 	uploadSession             drive.UploadSession
 	uploadSessions            []drive.UploadSession
+	usageSummary              drive.UsageSummary
 	err                       error
 	getReq                    drive.GetNodeRequest
+	usageReq                  drive.GetUsageSummaryRequest
 	getUploadSessionReq       drive.GetUploadSessionRequest
 	listUploadSessionReq      drive.ListUploadSessionsRequest
 	cancelUploadSessionReq    drive.CancelUploadSessionRequest
@@ -590,6 +620,14 @@ func (f *fakeDriveService) GetNode(_ context.Context, req drive.GetNodeRequest) 
 		return drive.Node{}, f.err
 	}
 	return f.node, nil
+}
+
+func (f *fakeDriveService) GetUsageSummary(_ context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error) {
+	f.usageReq = req
+	if f.err != nil {
+		return drive.UsageSummary{}, f.err
+	}
+	return f.usageSummary, nil
 }
 
 func (f *fakeDriveService) CreateFileFromObject(_ context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error) {
