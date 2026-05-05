@@ -325,7 +325,7 @@ func ValidateS3BucketName(bucket string) error {
 	if strings.ContainsAny(bucket, " /\r\n") {
 		return fmt.Errorf("s3 bucket name must not contain whitespace, slashes, or line breaks")
 	}
-	if bucket[0] == '-' || bucket[len(bucket)-1] == '-' {
+	if bucket[0] == '-' || bucket[0] == '.' || bucket[len(bucket)-1] == '-' || bucket[len(bucket)-1] == '.' {
 		return fmt.Errorf("s3 bucket name must start and end with a letter or digit")
 	}
 	previousDot := false

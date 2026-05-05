@@ -311,6 +311,8 @@ func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
 		"ab",
 		"-gogomail",
 		"gogomail-",
+		".gogomail",
+		"gogomail.",
 		"gogo..mail",
 		"gogo.-mail",
 		"gogo_mail",

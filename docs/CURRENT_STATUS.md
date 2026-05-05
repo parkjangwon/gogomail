@@ -160,7 +160,8 @@ guidance.
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
   region, bucket, prefix, credential, and session-token settings.
 - S3-compatible bucket validation now rejects IP-address-shaped names plus
-  AWS-reserved bucket prefixes and suffixes during config validation, so S3
+  AWS-reserved bucket prefixes and suffixes during config validation, and
+  requires bucket names to start and end with a letter or digit, so S3
   deployment mistakes fail before adapter construction or readiness probes.
 - S3-compatible endpoint validation now rejects userinfo, query strings,
   fragments, non-HTTP schemes, CR/LF-bearing targets, and non-canonical base

@@ -177,7 +177,8 @@ Current state:
   prefix, credential, and session-token settings.
 - S3-compatible bucket validation rejects IP-address-shaped names plus
   AWS-reserved bucket prefixes and suffixes before storage adapter construction,
-  keeping AWS and MinIO-style deployment failures early and explicit.
+  and requires bucket names to start and end with a letter or digit, keeping AWS
+  and MinIO-style deployment failures early and explicit.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction, keeping SigV4 signing and object addressing
