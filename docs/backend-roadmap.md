@@ -1808,6 +1808,10 @@ Implementation order:
      `drive-cleanup-worker`, with validated interval/batch/run-once
      configuration and shared storage adapter wiring for local/NFS, MinIO, and
      S3-compatible deployments.
+982. Mail API now exposes first Drive HTTP routes for bounded node listing,
+     folder creation, trash, restore, and permanent delete. The routes reuse
+     the existing user auth/fallback path, call the Drive repository/service
+     boundaries, and are documented in OpenAPI with stable response envelopes.
 
 ## Deferred until backend contracts stabilize
 

@@ -197,7 +197,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		ContractVersion: BackendContractVersion,
 		Modules: map[string]string{
 			"mail":  "available",
-			"drive": "planned",
+			"drive": "available",
 		},
 		MaxListLimit:          maildb.MessageListMaxLimit,
 		SupportedMessageFlags: []string{"read", "starred", "answered", "forwarded"},

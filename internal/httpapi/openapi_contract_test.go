@@ -47,7 +47,7 @@ func TestOpenAPIDraftUsesBackendContractVersion(t *testing.T) {
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 
-	registered := extractRegisteredRoutes(t, "mail.go", "admin.go", "health.go")
+	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "admin.go", "health.go")
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
 
 	var missing []string
@@ -66,7 +66,7 @@ func TestOpenAPIDraftDoesNotExposeUnregisteredRoutes(t *testing.T) {
 	t.Parallel()
 
 	registered := make(map[string]bool)
-	for _, route := range extractRegisteredRoutes(t, "mail.go", "admin.go", "health.go") {
+	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "admin.go", "health.go") {
 		registered[route] = true
 	}
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
@@ -89,6 +89,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for _, route := range []string{
 		"POST /folders",
+		"POST /drive/folders",
 		"PATCH /folders/{id}",
 		"PATCH /messages/{id}/flags",
 		"PATCH /messages/{id}/folder",
@@ -225,7 +226,6 @@ func TestOpenAPIDraftDocumentsWebmailCapabilityLimits(t *testing.T) {
 		"maximum: " + strconv.Itoa(mailservice.MaxComposeAttachments),
 		"enum: [new, reply, forward]",
 		"enum: [available]",
-		"enum: [planned]",
 	} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("WebmailCapabilities schema must document %q", want)
@@ -268,6 +268,11 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /folders":                                              "#/components/responses/Folder",
 		"PATCH /folders/{id}":                                        "#/components/responses/Folder",
 		"DELETE /folders/{id}":                                       "#/components/responses/Status",
+		"GET /drive/nodes":                                           "#/components/responses/DriveNodeList",
+		"POST /drive/folders":                                        "#/components/responses/DriveNode",
+		"DELETE /drive/nodes/{id}":                                   "#/components/responses/DriveDelete",
+		"POST /drive/nodes/{id}/trash":                               "#/components/responses/DriveNodeUpdate",
+		"POST /drive/nodes/{id}/restore":                             "#/components/responses/DriveNodeUpdate",
 		"GET /mailbox/overview":                                      "#/components/responses/MailboxOverview",
 		"GET /messages":                                              "#/components/responses/MessageListPage",
 		"GET /search":                                                "#/components/responses/MessageList",

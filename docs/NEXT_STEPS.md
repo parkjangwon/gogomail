@@ -360,13 +360,15 @@ Current state:
 - `drive-cleanup-worker` can now run the Drive cleanup retry service on a
   validated interval or in run-once mode, using the configured local/NFS,
   MinIO, or S3-compatible object store.
+- Mail API now exposes first Drive HTTP routes for bounded node listing, folder
+  creation, trash, restore, and permanent delete, with OpenAPI response
+  envelopes and the existing user auth/fallback path.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive HTTP contracts for folder/file list, trash, restore, and permanent
-  delete now that repository/service cleanup flows are stable enough to
-  document in OpenAPI.
+- Add Drive upload/finalize HTTP contracts on top of the staged object path
+  layout and quota-checked file-finalize repository boundary.
 
 ### 2. Message threading and search
 

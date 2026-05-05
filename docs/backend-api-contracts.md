@@ -142,14 +142,35 @@ including health and service-info envelopes, also return
 `GET /api/v1/webmail/capabilities` is the authenticated/fallback-user bootstrap
 surface for future production webmail clients. It returns
 `{"webmail_capabilities":{...}}` with the backend contract version, available
-mail module, planned Drive module marker, list pagination cap, supported
-message flags, bulk-action max item count, folder/thread/draft support,
-compose limits and intents, search controls, attachment upload capabilities,
-and push-device platforms.
+mail and Drive module markers, list pagination cap, supported message flags,
+bulk-action max item count, folder/thread/draft support, compose limits and
+intents, search controls, attachment upload capabilities, and push-device
+platforms.
 
 Clients should use this endpoint to enable controls and validate local form
 limits instead of copying backend constants into the frontend. The route is a
 read-only capability surface and does not dispatch repository work.
+
+## Drive API
+
+The first Drive Mail API surface is authenticated through the same bearer token
+or development `user_id` fallback path as webmail mail routes:
+
+- `GET /api/v1/drive/nodes` returns `{"drive_nodes":[...]}` and accepts
+  bounded `parent_id`, `status=active|trashed|deleted`, and `limit` filters.
+- `POST /api/v1/drive/folders` creates a folder from `{"parent_id","name"}`
+  and returns `{"drive_node":{...}}`.
+- `POST /api/v1/drive/nodes/{id}/trash` moves a node tree to trash and returns
+  `{"drive_node":{...},"updated":N}`.
+- `POST /api/v1/drive/nodes/{id}/restore` restores a restorable trashed node
+  tree and returns `{"drive_node":{...},"updated":N}`.
+- `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
+  releases quota through the Drive service, attempts backend object cleanup,
+  records cleanup drift when needed, and returns `{"drive_delete":{...}}`.
+
+Drive upload/finalize routes are intentionally separate future contracts so the
+staged object path layout, checksum behavior, quota reservation, and frontend
+upload ergonomics can be documented precisely before exposure.
 
 `GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap
 surface for future production operator consoles. It returns

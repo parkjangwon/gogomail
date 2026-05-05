@@ -330,18 +330,22 @@ func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.
 	if err != nil {
 		return err
 	}
+	service := driveServiceForConfig(db, cfg, store)
+	if cfg.DriveCleanupRunOnce {
+		_, err := retryDriveObjectCleanupOnce(ctx, service, cfg.DriveCleanupBatchSize, logger)
+		return err
+	}
+	return runDriveCleanupLoop(ctx, service, cfg.DriveCleanupInterval, cfg.DriveCleanupBatchSize, logger)
+}
+
+func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *drive.Service {
 	stores := map[string]storage.Store{
 		strings.ToLower(strings.TrimSpace(cfg.StorageBackend)): store,
 	}
 	if strings.EqualFold(cfg.StorageBackend, "minio") {
 		stores["s3"] = store
 	}
-	service := drive.NewService(drive.NewRepository(db), stores)
-	if cfg.DriveCleanupRunOnce {
-		_, err := retryDriveObjectCleanupOnce(ctx, service, cfg.DriveCleanupBatchSize, logger)
-		return err
-	}
-	return runDriveCleanupLoop(ctx, service, cfg.DriveCleanupInterval, cfg.DriveCleanupBatchSize, logger)
+	return drive.NewService(drive.NewRepository(db), stores)
 }
 
 func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
@@ -1523,6 +1527,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			}
 		}
 		httpapi.RegisterMailRoutes(mux, service, tokenManager)
+		httpapi.RegisterDriveRoutes(mux, driveServiceForConfig(db, cfg, store), tokenManager)
 		logger.Info("mail api routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {

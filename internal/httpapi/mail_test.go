@@ -352,7 +352,7 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	if got.ContractVersion != BackendContractVersion {
 		t.Fatalf("contract version = %q, want %q", got.ContractVersion, BackendContractVersion)
 	}
-	if got.Modules["mail"] != "available" || got.Modules["drive"] != "planned" {
+	if got.Modules["mail"] != "available" || got.Modules["drive"] != "available" {
 		t.Fatalf("modules = %#v", got.Modules)
 	}
 	if got.MaxListLimit != maildb.MessageListMaxLimit {
