@@ -2387,6 +2387,10 @@ Implementation order:
       `DAV:write-content` because object `PUT`/`DELETE` semantics exist today.
       Collection, property, ACL, bind, and unbind write privileges remain
       unadvertised until their exact WebDAV semantics exist.
+1120. CardDAV address-book collection PROPFIND now exposes the
+      CalendarServer-compatible `getctag` extension from the same durable
+      collection sync token used for WebDAV `sync-token`, improving native
+      client change detection without introducing a second version source.
 
 ## Deferred until backend contracts stabilize
 

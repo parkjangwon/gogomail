@@ -30,6 +30,7 @@ var (
 	PropAddressData            = XMLName{Space: CardDAVNamespace, Local: "address-data"}
 	PropSupportedAddressData   = XMLName{Space: CardDAVNamespace, Local: "supported-address-data"}
 	PropMaxResourceSize        = XMLName{Space: CardDAVNamespace, Local: "max-resource-size"}
+	PropGetCTag                = XMLName{Space: CalendarServerNamespace, Local: "getctag"}
 )
 
 var (
@@ -174,6 +175,7 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 		{Name: PropSupportedAddressData, Value: PropertyValue{AddressDataTypes: []AddressDataType{{ContentType: "text/vcard", Version: "4.0"}}}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxContactObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: book.SyncToken}, Found: true},
+		{Name: PropGetCTag, Value: PropertyValue{Text: book.SyncToken}, Found: true},
 		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: SupportedAddressBookReports()}, Found: true},
 	}, nil
 }
@@ -282,6 +284,7 @@ func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]b
 		Attr: []xml.Attr{
 			{Name: xml.Name{Local: "xmlns:D"}, Value: DAVNamespace},
 			{Name: xml.Name{Local: "xmlns:C"}, Value: CardDAVNamespace},
+			{Name: xml.Name{Local: "xmlns:CS"}, Value: CalendarServerNamespace},
 		},
 	}
 	if err := enc.EncodeToken(root); err != nil {
@@ -563,6 +566,8 @@ func prefixedName(name XMLName) (string, error) {
 		return "D:" + name.Local, nil
 	case CardDAVNamespace:
 		return "C:" + name.Local, nil
+	case CalendarServerNamespace:
+		return "CS:" + name.Local, nil
 	default:
 		return "", fmt.Errorf("unsupported XML namespace %q for %s", name.Space, name.Local)
 	}

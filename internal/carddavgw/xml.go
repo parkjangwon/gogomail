@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	DAVNamespace     = "DAV:"
-	CardDAVNamespace = "urn:ietf:params:xml:ns:carddav"
+	DAVNamespace            = "DAV:"
+	CardDAVNamespace        = "urn:ietf:params:xml:ns:carddav"
+	CalendarServerNamespace = "http://calendarserver.org/ns/"
 
 	MaxWebDAVXMLBodyBytes = 1 << 20
 	MaxWebDAVXMLDepth     = 64

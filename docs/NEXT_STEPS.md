@@ -1621,6 +1621,9 @@ Next:
   than silent full-body fallbacks. PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
   `DAV:write-content` only on contact objects with implemented write paths.
+  Address-book collections also expose CalendarServer-compatible `getctag`
+  from the same durable sync token used for WebDAV `sync-token`, keeping
+  legacy change detection and RFC 6578 sync anchored to one collection version.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.
