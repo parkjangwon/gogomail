@@ -200,6 +200,9 @@ Current state:
 - `GOGOMAIL_IMAP_TLS_CERT_FILE`, `GOGOMAIL_IMAP_TLS_KEY_FILE`, and
   `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH` are loaded and validated so production
   IMAP auth cannot be enabled with cleartext credential policy.
+- IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
+  files with TLS 1.2 minimum and derive the server name from the IMAP listener
+  host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
 - ADR 0008 accepts the IMAP authentication/session direction: use a dedicated
   protocol auth adapter over local user password hashes, keep JWT out of IMAP,
   require TLS policy review before production enablement, and continue rejecting
