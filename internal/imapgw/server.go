@@ -279,10 +279,22 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
-	if len(fields) < 4 || strings.ToUpper(fields[2]) != "FETCH" {
+	if len(fields) < 4 {
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
 	}
+	switch strings.ToUpper(fields[2]) {
+	case "FETCH":
+		return s.handleUIDFetch(writer, tag, fields, state)
+	case "STORE":
+		return s.handleUIDStore(writer, tag, fields, state)
+	default:
+		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		return false, err
+	}
+}
+
+func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	uid64, err := strconv.ParseUint(fields[3], 10, 32)
 	if err != nil || uid64 == 0 {
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID\r\n")
@@ -309,6 +321,83 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	}
 	_, err = writer.WriteString(tag + " OK UID FETCH completed\r\n")
 	return false, err
+}
+
+func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) < 6 {
+		_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
+		return false, err
+	}
+	uid64, err := strconv.ParseUint(fields[3], 10, 32)
+	if err != nil || uid64 == 0 {
+		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID\r\n")
+		return false, err
+	}
+	mode, ok := imapStoreMode(fields[4])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD UID STORE mode is unsupported\r\n")
+		return false, err
+	}
+	flags, ok := imapStoreFlags(strings.Join(fields[5:], " "))
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD UID STORE flags are unsupported\r\n")
+		return false, err
+	}
+	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		UIDs:      []UID{UID(uid64)},
+		Flags:     flags,
+		Mode:      mode,
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID STORE failed\r\n")
+		return false, writeErr
+	}
+	for _, summary := range summaries {
+		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", summary.UID, summary.UID, imapFlagList(summary.Flags.IMAPFlags()))); err != nil {
+			return false, err
+		}
+	}
+	_, err = writer.WriteString(tag + " OK UID STORE completed\r\n")
+	return false, err
+}
+
+func imapStoreMode(value string) (StoreFlagsMode, bool) {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "FLAGS":
+		return StoreFlagsReplace, true
+	case "+FLAGS":
+		return StoreFlagsAdd, true
+	case "-FLAGS":
+		return StoreFlagsRemove, true
+	default:
+		return "", false
+	}
+}
+
+func imapStoreFlags(value string) (MessageFlags, bool) {
+	var flags MessageFlags
+	ok := false
+	for _, raw := range strings.Fields(strings.Trim(value, "()")) {
+		switch CanonicalIMAPFlag(raw) {
+		case FlagSeen:
+			flags.Read = true
+			ok = true
+		case FlagFlagged:
+			flags.Starred = true
+			ok = true
+		case FlagAnswered:
+			flags.Answered = true
+			ok = true
+		case FlagDraft:
+			flags.Draft = true
+			ok = true
+		default:
+			return MessageFlags{}, false
+		}
+	}
+	return flags, ok
 }
 
 func imapMailboxDisplayName(mailbox Mailbox) string {
