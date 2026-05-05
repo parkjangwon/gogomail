@@ -355,9 +355,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   handling, plus metadata validation for address-book/contact object names,
   UIDs, strong ETags, size limits, and sync tokens. PostgreSQL storage tables
   now exist for address books, contact objects, and address-book change logs.
-  Client-ready CardDAV remains gated on bounded vCard semantic validation,
-  repository methods, REPORT behavior, sync handlers, auth/listener wiring, and
-  native-client tests.
+  Address-book repository methods can create/list/get active collections while
+  recording creation changes transactionally. Client-ready CardDAV remains
+  gated on bounded vCard semantic validation, contact-object repository methods,
+  REPORT behavior, sync handlers, auth/listener wiring, and native-client
+  tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

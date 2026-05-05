@@ -25,9 +25,11 @@ safe relative/absolute href parsing, address-book metadata validation, contact
 object name/UID/ETag/size validation, and sync-token derivation.
 
 PostgreSQL storage tables hold address books, contact objects, and
-address-book change logs. vCard semantic parsing, repository methods, REPORT
-handling, sync handlers, auth, and HTTP listener wiring will be added only when
-their semantics are implemented and tested.
+address-book change logs. The first repository methods create/list/get
+address-book collections through active user/domain/company scope and record
+creation changes transactionally. vCard semantic parsing, contact-object
+repository methods, REPORT handling, sync handlers, auth, and HTTP listener
+wiring will be added only when their semantics are implemented and tested.
 
 ## Consequences
 
