@@ -3475,6 +3475,56 @@ func TestServerListReportsMailboxChildren(t *testing.T) {
 	}
 }
 
+func TestServerListInfersNestedMailboxChildrenFromFullPath(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: nestedMailboxBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
+		t.Fatalf("write login/list: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"* LIST (\\HasChildren) \"/\" \"Projects\"\r\n",
+		"* LIST (\\HasChildren) \"/\" \"Projects/2026\"\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"Projects/2026/Jan\"\r\n",
+		"a2 OK LIST completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("list response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerListReportsSpecialUseAttributes(t *testing.T) {
 	t.Parallel()
 
@@ -8015,6 +8065,10 @@ type childMailboxBackend struct {
 	fakeBackend
 }
 
+type nestedMailboxBackend struct {
+	fakeBackend
+}
+
 type subscriptionBackend struct {
 	fakeBackend
 }
@@ -8157,6 +8211,15 @@ func (childMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) 
 		{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2},
 		{ID: "projects", FullPath: "Projects", UIDValidity: 2, UIDNext: 1},
 		{ID: "projects-2026", ParentID: "projects", FullPath: "Projects/2026", UIDValidity: 3, UIDNext: 1},
+	}, nil
+}
+
+func (nestedMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
+	return []Mailbox{
+		{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2},
+		{ID: "projects", FullPath: "Projects", UIDValidity: 2, UIDNext: 1},
+		{ID: "projects-2026", FullPath: "Projects/2026", UIDValidity: 3, UIDNext: 1},
+		{ID: "projects-2026-jan", FullPath: "Projects/2026/Jan", UIDValidity: 4, UIDNext: 1},
 	}, nil
 }
 

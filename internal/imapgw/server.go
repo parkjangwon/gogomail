@@ -5345,8 +5345,8 @@ func imapMailboxChildren(mailboxes []Mailbox) map[MailboxID]bool {
 			continue
 		}
 		wireName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
-		parentName, _, ok := strings.Cut(strings.ToLower(wireName), "/")
-		if !ok || parentName == "" {
+		parentName, ok := imapMailboxParentWireName(wireName)
+		if !ok {
 			continue
 		}
 		if parentID, ok := byWireName[parentName]; ok {
@@ -5354,6 +5354,15 @@ func imapMailboxChildren(mailboxes []Mailbox) map[MailboxID]bool {
 		}
 	}
 	return children
+}
+
+func imapMailboxParentWireName(wireName string) (string, bool) {
+	wireName = strings.ToLower(strings.Trim(wireName, "/"))
+	index := strings.LastIndex(wireName, "/")
+	if index <= 0 {
+		return "", false
+	}
+	return wireName[:index], true
 }
 
 type imapListOptions struct {

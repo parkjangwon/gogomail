@@ -1426,6 +1426,10 @@ Implementation order:
      for seekable upload bodies without buffering object contents, improving
      AWS S3/MinIO-compatible behavior for file-backed mail and attachment
      writes while preserving streaming-first storage hot paths.
+879. IMAP `LIST`/`LSUB` CHILDREN metadata now infers immediate parent
+     mailboxes from nested `FullPath` values when `ParentID` is absent,
+     preserving `\HasChildren` responses for deeper hierarchies such as
+     `Projects/2026/Jan`.
 
 ## Deferred until backend contracts stabilize
 
