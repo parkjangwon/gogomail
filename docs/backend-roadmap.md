@@ -1501,6 +1501,9 @@ Implementation order:
 901. IMAP MIME body-part paths and partial body fetch windows now require
      digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
      `BODY[]<+12.34>` before fetch processing.
+902. IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject
+     malformed atoms that still contain quote characters after command parsing,
+     preventing broken values such as `UTF-8"` from being silently normalized.
 
 ## Deferred until backend contracts stabilize
 

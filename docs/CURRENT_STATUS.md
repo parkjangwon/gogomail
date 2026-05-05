@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP partial body number hardening)
+Last updated: 2026-05-05 (updated after IMAP charset quote hardening)
 
 ## Current phase
 
@@ -246,6 +246,9 @@ guidance.
 - IMAP MIME body-part paths and partial body fetch windows now require
   digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
   `BODY[]<+12.34>` before fetch processing.
+- IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject malformed
+  atoms that still contain quote characters after command parsing, preventing
+  broken values such as `UTF-8"` from being silently normalized.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
