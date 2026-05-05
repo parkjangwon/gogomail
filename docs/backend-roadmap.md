@@ -1145,6 +1145,9 @@ Implementation order:
 803. IMAP `LIST` now emits RFC 6154 special-use attributes for system folder
      roles such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged so
      standards-aware clients can auto-detect default mailbox roles.
+804. IMAP now advertises `SPECIAL-USE` and accepts RFC 6154 extended
+     `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms, filtering special
+     role discovery requests while keeping normal `LIST` output compatible.
 
 ## Deferred until backend contracts stabilize
 
