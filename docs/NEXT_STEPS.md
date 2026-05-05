@@ -1385,6 +1385,8 @@ Current state:
 - Drive node listing now supports webmail/admin `sort=name|updated|created|size`
   controls with folder-first ordering, giving future Drive screens predictable
   production browsing controls without frontend-specific assumptions.
+- Drive node listing now supports webmail/admin `node_type=folder|file` filters
+  and advertises supported node types through webmail capabilities.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

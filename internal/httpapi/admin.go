@@ -1153,7 +1153,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "parent_id", "status", "q", "sort", "all_parents") {
+		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "parent_id", "status", "node_type", "q", "sort", "all_parents") {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -1176,6 +1176,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		nodeType, ok := parseBoundedAdminQuery(w, r, "node_type")
+		if !ok {
+			return
+		}
 		searchQuery, ok := parseBoundedAdminQuery(w, r, "q")
 		if !ok {
 			return
@@ -1192,6 +1196,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			UserID:     userID,
 			ParentID:   parentID,
 			Status:     status,
+			NodeType:   nodeType,
 			Query:      searchQuery,
 			Sort:       sortMode,
 			AllParents: allParentsValue,

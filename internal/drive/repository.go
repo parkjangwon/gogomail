@@ -80,6 +80,7 @@ type ListNodesRequest struct {
 	UserID     string
 	ParentID   string
 	Status     string
+	NodeType   string
 	Query      string
 	Sort       string
 	AllParents bool
@@ -254,6 +255,13 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 	if err != nil {
 		return ListNodesRequest{}, err
 	}
+	nodeType := strings.TrimSpace(req.NodeType)
+	if nodeType != "" {
+		nodeType, err = ValidateNodeType(nodeType)
+		if err != nil {
+			return ListNodesRequest{}, err
+		}
+	}
 	query, err := validateDriveNodeSearchQuery(req.Query)
 	if err != nil {
 		return ListNodesRequest{}, err
@@ -270,6 +278,7 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 		UserID:     userID,
 		ParentID:   parentID,
 		Status:     status,
+		NodeType:   nodeType,
 		Query:      query,
 		Sort:       sortMode,
 		AllParents: req.AllParents,
@@ -529,6 +538,7 @@ FROM drive_nodes
 WHERE user_id = $1::uuid
   AND status = $3
   AND ($5 = '' OR normalized_name LIKE '%' || $5 || '%' ESCAPE '\')
+  AND ($7 = '' OR node_type = $7)
   AND (
     $6::boolean
     OR (NULLIF($2, '') IS NULL AND parent_id IS NULL)
@@ -536,7 +546,7 @@ WHERE user_id = $1::uuid
   )
 ORDER BY ` + driveNodeListOrderBy(req.Sort) + `
 LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query), req.AllParents)
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query), req.AllParents, req.NodeType)
 	if err != nil {
 		return nil, fmt.Errorf("list drive nodes: %w", err)
 	}

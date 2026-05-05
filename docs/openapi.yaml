@@ -123,6 +123,12 @@ paths:
             type: string
             enum: [active, trashed, deleted]
             default: active
+        - name: node_type
+          in: query
+          schema:
+            type: string
+            enum: [folder, file]
+          description: Optional Drive node type filter.
         - name: q
           in: query
           schema:
@@ -1517,6 +1523,12 @@ paths:
             enum: [active, trashed, deleted]
             default: active
           description: Limit Drive nodes by lifecycle status.
+        - name: node_type
+          in: query
+          schema:
+            type: string
+            enum: [folder, file]
+          description: Optional Drive node type filter.
         - name: q
           in: query
           schema:
@@ -5288,12 +5300,19 @@ components:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
         drive:
           type: object
-          required: [nodes, node_name_search, node_sort_controls, supported_node_sorts, node_detail, node_download, node_range_download, copy_nodes, max_copy_nodes, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          required: [nodes, node_name_search, node_type_filter, supported_node_types, node_sort_controls, supported_node_sorts, node_detail, node_download, node_range_download, copy_nodes, max_copy_nodes, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
           properties:
             nodes:
               type: boolean
             node_name_search:
               type: boolean
+            node_type_filter:
+              type: boolean
+            supported_node_types:
+              type: array
+              items:
+                type: string
+                enum: [folder, file]
             node_sort_controls:
               type: boolean
             supported_node_sorts:

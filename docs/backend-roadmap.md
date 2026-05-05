@@ -1992,6 +1992,9 @@ Implementation order:
 1032. Admin Drive node listing now accepts `all_parents=true` for whole-user
       Drive inventory search while rejecting ambiguous `parent_id` combinations,
       giving operator consoles a single backend query for broad file lookup.
+1033. Drive node list APIs now accept `node_type=folder|file` on webmail and
+      admin surfaces, with webmail capabilities advertising supported node
+      types for production Drive filters.
 
 ## Deferred until backend contracts stabilize
 

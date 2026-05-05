@@ -43,7 +43,7 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "parent_id", "status", "q", "sort", "limit") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "parent_id", "status", "node_type", "q", "sort", "limit") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -55,6 +55,10 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			return
 		}
 		status, ok := parseBoundedHTTPQuery(w, r, "status", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		nodeType, ok := parseBoundedHTTPQuery(w, r, "node_type", false, maxHTTPControlBytes)
 		if !ok {
 			return
 		}
@@ -74,6 +78,7 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 			UserID:   userID,
 			ParentID: parentID,
 			Status:   status,
+			NodeType: nodeType,
 			Query:    searchQuery,
 			Sort:     sortMode,
 			Limit:    limit,
