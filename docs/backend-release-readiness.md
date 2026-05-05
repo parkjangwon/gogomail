@@ -267,6 +267,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `REPORT calendar-query` now applies simple top-level component
   filters through stored `component_type` metadata before time-range matching,
   keeping common client component queries more accurate and cheaper.
+- CalDAV `REPORT calendar-multiget` now scopes hrefs to the request resource,
+  preventing collection-level multiget requests from returning sibling
+  collection objects while still allowing calendar-home same-user hrefs.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

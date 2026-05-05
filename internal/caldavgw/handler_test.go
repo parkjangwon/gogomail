@@ -216,6 +216,73 @@ func TestHandlerReportCalendarMultigetReturnsPropertyNotFoundForMissingHref(t *t
 	}
 }
 
+func TestHandlerReportCalendarMultigetScopesCollectionHrefs(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	now := time.Now()
+	personalICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:personal-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T030000Z\r\nDTEND:20260506T040000Z\r\nSUMMARY:Personal\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	store.calendars = append(store.calendars, Calendar{
+		ID:        "personal",
+		UserID:    "user-1",
+		Name:      "Personal",
+		SyncToken: "sync-personal",
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	store.objects = append(store.objects, CalendarObject{
+		ID:         "object-personal",
+		UserID:     "user-1",
+		CalendarID: "personal",
+		ObjectName: "personal-1.ics",
+		UID:        "personal-1@example.com",
+		Component:  ComponentVEVENT,
+		ETag:       `"2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+		Size:       int64(len(personalICS)),
+		ICS:        personalICS,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	})
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:href>/caldav/calendars/user-1/personal/personal-1.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/personal/personal-1.ics</D:href>") || !strings.Contains(body, "HTTP/1.1 404 Not Found") {
+		t.Fatalf("out-of-collection href should render not found:\n%s", body)
+	}
+	if strings.Contains(body, "UID:personal-1@example.com") {
+		t.Fatalf("out-of-collection href leaked calendar-data:\n%s", body)
+	}
+}
+
+func TestHandlerReportCalendarHomeMultigetAllowsUserCalendarHrefs(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") || !strings.Contains(body, "HTTP/1.1 200 OK") {
+		t.Fatalf("calendar-home multiget missing object:\n%s", body)
+	}
+}
+
 func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
 	t.Parallel()
 

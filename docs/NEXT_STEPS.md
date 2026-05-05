@@ -1489,6 +1489,9 @@ Current state:
   `VEVENT` and `VTODO` using stored `component_type` metadata, avoiding
   unrelated object types and avoiding a full iCalendar reparse before component
   filtering.
+- CalDAV `calendar-multiget` now respects request-resource scope: collection
+  requests cannot fetch sibling collection objects, while calendar-home
+  requests remain able to resolve authenticated same-user object hrefs.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
