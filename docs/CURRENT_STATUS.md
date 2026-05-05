@@ -881,6 +881,8 @@ The platform hardening sprint completed the following:
   while `\Deleted` semantics remain deferred.
 - IMAP `COPY` and `UID COPY` return explicit unsupported `NO` responses while
   cross-mailbox copy semantics remain deferred.
+- IMAP `MOVE`, `UID MOVE`, and `APPEND` return explicit unsupported `NO`
+  responses while mailbox mutation/import semantics remain deferred.
 - IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` return
   explicit unsupported `NO` responses while mailbox CRUD semantics remain
   deferred.

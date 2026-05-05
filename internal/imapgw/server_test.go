@@ -853,7 +853,7 @@ func TestServerRejectsUnsupportedExpunge(t *testing.T) {
 	}
 }
 
-func TestServerRejectsUnsupportedCopy(t *testing.T) {
+func TestServerRejectsUnsupportedCopyMoveAndAppend(t *testing.T) {
 	t.Parallel()
 
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
@@ -882,23 +882,26 @@ func TestServerRejectsUnsupportedCopy(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 COPY 1 Archive\r\na4 UID COPY 7 Archive\r\n")); err != nil {
-		t.Fatalf("write copy: %v", err)
+	if _, err := client.Write([]byte("a3 COPY 1 Archive\r\na4 UID COPY 7 Archive\r\na5 MOVE 1 Archive\r\na6 UID MOVE 7 Archive\r\na7 APPEND inbox NIL\r\n")); err != nil {
+		t.Fatalf("write unsupported mutation commands: %v", err)
 	}
 	want := []string{
 		"a3 NO COPY is not supported\r\n",
 		"a4 NO UID COPY is not supported\r\n",
+		"a5 NO MOVE is not supported\r\n",
+		"a6 NO UID MOVE is not supported\r\n",
+		"a7 NO APPEND is not supported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			t.Fatalf("read copy response: %v", err)
+			t.Fatalf("read unsupported mutation response: %v", err)
 		}
 		if line != expected {
-			t.Fatalf("copy response = %q, want %q", line, expected)
+			t.Fatalf("unsupported mutation response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

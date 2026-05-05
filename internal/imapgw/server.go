@@ -498,6 +498,24 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		_, err := writer.WriteString(tag + " NO EXPUNGE is not supported\r\n")
 		return false, err
+	case "MOVE":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " NO MOVE is not supported\r\n")
+		return false, err
+	case "APPEND":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " NO APPEND is not supported\r\n")
+		return false, err
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -756,6 +774,9 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		return false, err
 	case "COPY":
 		_, err := writer.WriteString(tag + " NO UID COPY is not supported\r\n")
+		return false, err
+	case "MOVE":
+		_, err := writer.WriteString(tag + " NO UID MOVE is not supported\r\n")
 		return false, err
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")

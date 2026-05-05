@@ -45,6 +45,7 @@ func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
 			cfg := Load()
 			cfg.Environment = env
 			cfg.SubmissionAllowInsecureAuth = false
+			cfg.IMAPAllowInsecureAuth = false
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("Validate() error = %v", err)
 			}
@@ -336,6 +337,7 @@ func TestValidateAcceptsHTTPSWebhooksInProduction(t *testing.T) {
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
 	cfg.AttachmentScanBackend = "webhook"
 	cfg.AttachmentScanWebhookURL = "https://scanner.example/scan"
 	cfg.PushNotifyBackend = "webhook"

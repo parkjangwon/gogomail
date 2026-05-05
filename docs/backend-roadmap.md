@@ -959,6 +959,8 @@ Implementation order:
      `UID FETCH` for `BODY[HEADER]` and `RFC822.HEADER`.
 750. IMAP `STARTTLS` completion now includes an updated `[CAPABILITY ...]`
      response code for the post-TLS command surface.
+751. IMAP `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
+     responses while mailbox mutation/import semantics remain deferred.
 
 ## Deferred until backend contracts stabilize
 
