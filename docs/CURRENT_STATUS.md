@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after health/info query guardrails)
+Last updated: 2026-05-05 (updated after GOGOMAIL_ENV validation guardrail)
 
 ## Current phase
 
@@ -686,6 +686,8 @@ The platform hardening sprint completed the following:
   arrays before normalization, routing, or retry bookkeeping.
 - Attachment scanner hook rejection/tempfail reasons are CR/LF-stripped and
   UTF-8 safely bounded before they are surfaced as SMTP hook errors.
+- `GOGOMAIL_ENV` now accepts only `development`, `test`, or `production`, so
+  environment typos cannot silently bypass production-only safety gates.
 - Attachment scanning can be enabled with a configured HTTP webhook backend;
   the hook remains disabled by default, supports an optional bounded bearer
   token, requires HTTPS in production, and is wired only at SMTP

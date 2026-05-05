@@ -128,8 +128,10 @@ GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN='optional-bearer-token'
 GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT=2s
 ```
 
-Production webhook URLs must use HTTPS. Local development and private test
-harnesses may use HTTP.
+`GOGOMAIL_ENV` must be `development`, `test`, or `production`; unknown values
+are rejected so typos cannot bypass production-only safeguards. Production
+webhook URLs must use HTTPS. Local development and private test harnesses may
+use HTTP.
 
 See `docs/webhook-integrations.md` for the push gateway JSON payload, attempt
 state semantics, and authentication contract.

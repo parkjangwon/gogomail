@@ -20,6 +20,9 @@ const (
 
 func (c Config) Validate() error {
 	production := strings.EqualFold(strings.TrimSpace(c.Environment), "production")
+	if err := validateEnum("GOGOMAIL_ENV", c.Environment, "development", "test", "production"); err != nil {
+		return err
+	}
 	if c.SubmissionAllowInsecureAuth && strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH must be false in production")
 	}

@@ -15,6 +15,33 @@ func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownEnvironment(t *testing.T) {
+	for _, env := range []string{"prod", "staging", ""} {
+		env := env
+		t.Run(env, func(t *testing.T) {
+			cfg := Load()
+			cfg.Environment = env
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want unknown environment rejection")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
+	for _, env := range []string{"development", " test ", "Production"} {
+		env := env
+		t.Run(env, func(t *testing.T) {
+			cfg := Load()
+			cfg.Environment = env
+			cfg.SubmissionAllowInsecureAuth = false
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("Validate() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestValidateRejectsUnknownMetricsBackend(t *testing.T) {
 	cfg := Load()
 	cfg.MetricsBackend = "promish"
