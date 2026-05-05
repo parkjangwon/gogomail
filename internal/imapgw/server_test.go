@@ -559,6 +559,7 @@ func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	want := []string{
 		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft)\r\n",
 		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
 		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
 		"* OK [UIDNEXT 5] Predicted next UID\r\n",
 		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft)] Permanent flags\r\n",
@@ -610,6 +611,7 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	want := []string{
 		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft)\r\n",
 		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
 		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
 		"* OK [UIDNEXT 5] Predicted next UID\r\n",
 		"* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n",
@@ -708,7 +710,7 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -765,7 +767,7 @@ func TestServerHandlesUnselectAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -820,7 +822,7 @@ func TestServerRejectsUnsupportedExpunge(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -875,7 +877,7 @@ func TestServerRejectsUnsupportedCopy(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -931,7 +933,7 @@ func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -993,7 +995,7 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1386,7 +1388,7 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a3 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write select: %v", err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1441,7 +1443,7 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1497,7 +1499,7 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1553,7 +1555,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1620,7 +1622,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1681,7 +1683,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1746,7 +1748,7 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1803,7 +1805,7 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1866,7 +1868,7 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1927,7 +1929,7 @@ func TestServerHandlesFetchEnvelopeAndInternalDate(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -1982,7 +1984,7 @@ func TestServerHandlesFetchBodyStructure(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2037,7 +2039,7 @@ func TestServerHandlesFetchMacros(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2094,7 +2096,7 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2164,7 +2166,7 @@ func TestServerHandlesUIDFetchPartialBodyAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2226,7 +2228,7 @@ func TestServerHandlesUIDFetchHeaderAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2288,7 +2290,7 @@ func TestServerHandlesUIDFetchHeaderFieldsAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2350,7 +2352,7 @@ func TestServerHandlesUIDFetchHeaderFieldsNotAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2412,7 +2414,7 @@ func TestServerHandlesUIDFetchTextAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2474,7 +2476,7 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2530,7 +2532,7 @@ func TestServerHandlesStoreAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2586,7 +2588,7 @@ func TestServerHandlesStoreSilentAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}
@@ -2631,7 +2633,7 @@ func TestServerHandlesUIDStoreSilentAfterSelect(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		if _, err := reader.ReadString('\n'); err != nil {
 			t.Fatalf("read select response: %v", err)
 		}

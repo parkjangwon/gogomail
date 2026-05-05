@@ -949,6 +949,8 @@ Implementation order:
 745. IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
      explicit unsupported `NO` responses while mailbox CRUD semantics remain
      deferred.
+746. IMAP `SELECT` and `EXAMINE` now emit RFC-shaped untagged `RECENT` counts
+     alongside `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
 
 ## Deferred until backend contracts stabilize
 
