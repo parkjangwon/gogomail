@@ -224,9 +224,12 @@ Current state:
   unauthenticated `CAPABILITY`, `NOOP`, `LOGIN`, and `LOGOUT` responses, giving
   TCP clients a bounded RFC-shaped handshake/auth surface before mailbox
   commands are enabled.
+- Authenticated IMAP `SELECT` now maps to `imapgw.MailboxSessionStore`, returning
+  permanent flags, `EXISTS`, `UIDVALIDITY`, `UIDNEXT`, and read-write completion
+  metadata from the service-backed mailbox state.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
-  IMAP server shell with greeting, `CAPABILITY`, `NOOP`, and `LOGOUT`, while
-  mailbox commands remain deferred.
+  IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`, and
+  `LOGOUT`, while FETCH, STORE, IDLE, MOVE, and EXPUNGE remain deferred.
 
 Next:
 

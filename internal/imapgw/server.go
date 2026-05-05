@@ -197,6 +197,37 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 		*session = &authSession
 		_, err = writer.WriteString(tag + " OK LOGIN completed\r\n")
 		return false, err
+	case "SELECT":
+		if *session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if len(fields) != 3 {
+			_, err := writer.WriteString(tag + " BAD SELECT requires a mailbox atom\r\n")
+			return false, err
+		}
+		state, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
+			UserID:    (*session).UserID,
+			MailboxID: MailboxID(fields[2]),
+		})
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
+			return false, writeErr
+		}
+		if _, err := writer.WriteString("* FLAGS " + imapFlagList(state.PermanentFlags) + "\r\n"); err != nil {
+			return false, err
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.Messages)); err != nil {
+			return false, err
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", state.UIDValidity)); err != nil {
+			return false, err
+		}
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", state.UIDNext)); err != nil {
+			return false, err
+		}
+		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
+		return false, err
 	case "LOGOUT":
 		if _, err := writer.WriteString("* BYE gogomail IMAP4rev1 server logging out\r\n"); err != nil {
 			return false, err
@@ -207,4 +238,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, session **Session
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func imapFlagList(flags []string) string {
+	if len(flags) == 0 {
+		return "()"
+	}
+	return "(" + strings.Join(flags, " ") + ")"
 }

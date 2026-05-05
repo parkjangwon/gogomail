@@ -220,6 +220,66 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	}
 }
 
+func TestServerHandlesSelectAfterLogin(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write unauthenticated select: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read unauthenticated select: %v", err)
+	}
+	if line != "a1 NO authentication required\r\n" {
+		t.Fatalf("unauthenticated select = %q", line)
+	}
+	if _, err := client.Write([]byte("a2 LOGIN user@example.com secret\r\na3 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft)\r\n",
+		"* 2 EXISTS\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"a3 OK [READ-WRITE] SELECT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err = reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("select response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
@@ -247,7 +307,10 @@ func (fakeBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]MessageSumm
 }
 
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
-	return MailboxState{Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}}, nil
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft},
+	}, nil
 }
 
 func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {
