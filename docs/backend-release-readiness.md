@@ -25,6 +25,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   CR/LF-bearing IDs are dropped before Postgres hydration. Search response
   decoding rejects oversized bodies and trailing JSON tokens before hits are
   accepted.
+  OpenSearch endpoint configuration is validated as an HTTP(S) URL with a host
+  during startup config validation, so malformed search backend endpoints fail
+  before worker/search adapter construction.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.

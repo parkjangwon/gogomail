@@ -715,6 +715,7 @@ Implementation order:
 655. Runtime config validation now restricts Redis-backed deduplication, recipient rate limiting, and SMTP backpressure backend selectors to `none` or `redis`, preventing typos from silently disabling operational controls.
 656. Runtime config validation now checks HTTP, SMTP, inbound SMTP, Submission, and optional SMTPS listener addresses as TCP `host:port` values, surfacing bind configuration mistakes before runtime listener setup.
 657. Runtime config validation now requires delivery retry delay schedules and maximum delay caps to be positive durations, preventing malformed retry configuration from exhausting retries immediately or scheduling jobs in the past.
+658. Runtime config validation now checks OpenSearch endpoints as HTTP(S) URLs with hosts when `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch`, failing malformed search backend configuration before worker/search adapter construction.
 
 ## Deferred until backend contracts stabilize
 

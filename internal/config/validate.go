@@ -269,6 +269,9 @@ func (c Config) Validate() error {
 		if strings.TrimSpace(c.SearchIndexOpenSearchEndpoint) == "" {
 			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT is required when GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch")
 		}
+		if err := validateHTTPURL("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT", c.SearchIndexOpenSearchEndpoint); err != nil {
+			return err
+		}
 		if strings.TrimSpace(c.SearchIndexOpenSearchIndex) == "" {
 			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX is required when GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch")
 		}
@@ -409,6 +412,24 @@ func validateHTTPSURL(name string, value string) error {
 	}
 	if parsed.Scheme != "https" || parsed.Host == "" {
 		return fmt.Errorf("%s must be an https URL", name)
+	}
+	return nil
+}
+
+func validateHTTPURL(name string, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("%s cannot contain line breaks", name)
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return fmt.Errorf("%s must be a valid URL: %w", name, err)
+	}
+	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("%s must be an http or https URL", name)
 	}
 	return nil
 }
