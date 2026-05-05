@@ -1106,6 +1106,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   modified UTF-7 mailbox names before authentication errors, while valid
   unauthenticated appends still consume the RFC literal and return
   `NO authentication required` before backend storage.
+- IMAP `ENABLE` validates missing capability arguments before authentication
+  errors, while valid unauthenticated enable attempts still return
+  `NO authentication required` without mutating session feature state.
 - IMAP authentication commands validate malformed `LOGIN` arity and unsupported
   `AUTHENTICATE` mechanisms before plaintext privacy-required failures, keeping
   auth handshake diagnostics precise without weakening TLS-required policy.

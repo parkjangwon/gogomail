@@ -1393,6 +1393,10 @@ Implementation order:
      modified UTF-7 mailbox names before authentication failures too, while
      valid unauthenticated appends still consume the RFC literal and return
      `NO authentication required` before backend storage.
+871. IMAP `ENABLE` now validates missing capability arguments before
+     authentication failures too, while valid unauthenticated enable attempts
+     still return `NO authentication required` without mutating session feature
+     state.
 
 ## Deferred until backend contracts stabilize
 

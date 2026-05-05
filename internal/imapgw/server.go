@@ -4953,12 +4953,12 @@ func (s *Server) imapCapabilities(state *imapConnState) []string {
 }
 
 func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 3 {
 		_, err := writer.WriteString(tag + " BAD ENABLE requires at least one capability\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	enabled := make([]string, 0, len(fields)-2)
