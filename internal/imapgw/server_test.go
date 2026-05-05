@@ -4292,7 +4292,7 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LIST \"\"\r\na2 LIST \"\" &Jjo!\r\na3 LSUB \"\"\r\na4 CREATE &Jjo!\r\na5 DELETE &Jjo!\r\na6 RENAME Archive\r\na7 RENAME Archive &Jjo!\r\na8 SUBSCRIBE\r\na9 SUBSCRIBE &Jjo!\r\na10 CREATE Projects\r\na11 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LIST \"\"\r\na2 LIST \"\" &Jjo!\r\na3 LSUB \"\"\r\na4 CREATE &Jjo!\r\na5 DELETE &Jjo!\r\na6 RENAME Archive\r\na7 RENAME Archive &Jjo!\r\na8 SUBSCRIBE\r\na9 SUBSCRIBE &Jjo!\r\na10 CREATE Projects\r\na11 LIST \"\" INBOX\"\r\na12 LSUB \"\" INBOX\"\r\na13 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write mailbox commands: %v", err)
 	}
 	want := []string{
@@ -4306,8 +4306,10 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 		"a8 BAD SUBSCRIBE requires a mailbox atom\r\n",
 		"a9 BAD SUBSCRIBE mailbox name is not valid modified UTF-7\r\n",
 		"a10 NO authentication required\r\n",
+		"a11 BAD LIST mailbox pattern is not valid modified UTF-7\r\n",
+		"a12 BAD LSUB mailbox pattern is not valid modified UTF-7\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a11 OK LOGOUT completed\r\n",
+		"a13 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

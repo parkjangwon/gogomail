@@ -5821,8 +5821,9 @@ func imapDecodeMailboxBase64(value string) (string, bool) {
 }
 
 func imapListPattern(reference string, pattern string) (string, bool) {
-	reference = strings.Trim(reference, `"`)
-	pattern = strings.Trim(pattern, `"`)
+	if strings.Contains(reference, `"`) || strings.Contains(pattern, `"`) {
+		return "", false
+	}
 	var ok bool
 	reference, ok = imapDecodeMailboxName(reference)
 	if !ok {

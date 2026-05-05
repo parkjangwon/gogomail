@@ -1515,6 +1515,9 @@ Implementation order:
      malformed keyword atoms that still contain quote characters after command
      parsing, preventing broken values such as `KEYWORD custom"` from being
      silently normalized.
+906. IMAP `LIST` and `LSUB` reference/pattern atoms now reject malformed values
+     that still contain quote characters after command parsing, preventing
+     broken mailbox patterns such as `INBOX"` from being silently normalized.
 
 ## Deferred until backend contracts stabilize
 
