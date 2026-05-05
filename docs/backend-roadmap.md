@@ -1865,6 +1865,10 @@ Implementation order:
      upload-session create/read/cancel/body/finalize support, checksum
      preconditions, and Drive upload size/TTL limits so production clients can
      bootstrap Drive controls without copying backend constants.
+998. Drive upload sessions now have bounded repository/service expiry, marking
+     stale pending/uploading/failed sessions expired and deleting stored
+     session body objects from the configured storage backend after metadata
+     expiry.
 
 ## Deferred until backend contracts stabilize
 

@@ -400,12 +400,16 @@ Current state:
 - Webmail capabilities now advertise Drive node operations, upload-session
   create/read/cancel/body/finalize support, checksum preconditions, and Drive
   upload size/TTL limits for production client bootstrap.
+- `internal/drive.Repository.ExpireUploadSessions` now marks stale
+  pending/uploading/failed Drive upload sessions expired in bounded batches,
+  and the Drive service deletes stored session bodies from the configured
+  backend after metadata expiry.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session expiry/cleanup so abandoned pending/uploading
-  sessions release stale object references predictably.
+- Wire Drive upload-session expiry into the cleanup worker so abandoned
+  pending/uploading sessions are handled outside request paths.
 
 ### 2. Message threading and search
 

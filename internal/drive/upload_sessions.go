@@ -22,6 +22,9 @@ const (
 	DefaultUploadSessionTTL = 24 * time.Hour
 	MaxUploadSessionTTL     = 7 * 24 * time.Hour
 	MaxUploadSessionBytes   = 5 << 30
+
+	UploadSessionCleanupDefaultLimit = 100
+	UploadSessionCleanupMaxLimit     = 1000
 )
 
 type UploadSession struct {
@@ -75,6 +78,11 @@ type StoreUploadSessionBodyRequest struct {
 type FinalizeUploadSessionRequest struct {
 	UserID    string
 	SessionID string
+}
+
+type ExpireUploadSessionsRequest struct {
+	Before time.Time
+	Limit  int
 }
 
 type RecordUploadSessionBodyRequest struct {
@@ -189,6 +197,29 @@ func ValidateFinalizeUploadSessionRequest(req FinalizeUploadSessionRequest) (Fin
 		return FinalizeUploadSessionRequest{}, err
 	}
 	return FinalizeUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
+}
+
+func ValidateExpireUploadSessionsRequest(req ExpireUploadSessionsRequest) (ExpireUploadSessionsRequest, error) {
+	if req.Before.IsZero() {
+		return ExpireUploadSessionsRequest{}, fmt.Errorf("before is required")
+	}
+	if req.Limit < 0 {
+		return ExpireUploadSessionsRequest{}, fmt.Errorf("limit must not be negative")
+	}
+	return ExpireUploadSessionsRequest{
+		Before: req.Before.UTC(),
+		Limit:  NormalizeUploadSessionCleanupLimit(req.Limit),
+	}, nil
+}
+
+func NormalizeUploadSessionCleanupLimit(limit int) int {
+	if limit <= 0 {
+		return UploadSessionCleanupDefaultLimit
+	}
+	if limit > UploadSessionCleanupMaxLimit {
+		return UploadSessionCleanupMaxLimit
+	}
+	return limit
 }
 
 func ValidateRecordUploadSessionBodyRequest(req RecordUploadSessionBodyRequest) (RecordUploadSessionBodyRequest, error) {

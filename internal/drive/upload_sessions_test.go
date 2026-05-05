@@ -203,6 +203,37 @@ func TestValidateFinalizeUploadSessionRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateExpireUploadSessionsRequest(t *testing.T) {
+	t.Parallel()
+
+	before := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	req, err := ValidateExpireUploadSessionsRequest(ExpireUploadSessionsRequest{Before: before, Limit: 0})
+	if err != nil {
+		t.Fatalf("ValidateExpireUploadSessionsRequest returned error: %v", err)
+	}
+	if !req.Before.Equal(before) || req.Limit != UploadSessionCleanupDefaultLimit {
+		t.Fatalf("request = %+v, want UTC before and default limit", req)
+	}
+	capped, err := ValidateExpireUploadSessionsRequest(ExpireUploadSessionsRequest{Before: before, Limit: UploadSessionCleanupMaxLimit + 1})
+	if err != nil {
+		t.Fatalf("ValidateExpireUploadSessionsRequest capped returned error: %v", err)
+	}
+	if capped.Limit != UploadSessionCleanupMaxLimit {
+		t.Fatalf("limit = %d, want max cleanup limit", capped.Limit)
+	}
+}
+
+func TestValidateExpireUploadSessionsRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ValidateExpireUploadSessionsRequest(ExpireUploadSessionsRequest{Limit: 10}); err == nil {
+		t.Fatal("ValidateExpireUploadSessionsRequest accepted zero before")
+	}
+	if _, err := ValidateExpireUploadSessionsRequest(ExpireUploadSessionsRequest{Before: time.Now(), Limit: -1}); err == nil {
+		t.Fatal("ValidateExpireUploadSessionsRequest accepted negative limit")
+	}
+}
+
 func TestValidateRecordUploadSessionBodyRequest(t *testing.T) {
 	t.Parallel()
 
