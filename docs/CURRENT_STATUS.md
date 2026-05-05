@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP INBOX mutation guardrails)
+Last updated: 2026-05-05 (updated after service-backed IMAP envelope recipient hydration)
 
 ## Current phase
 
@@ -865,6 +865,10 @@ The platform hardening sprint completed the following:
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes from message summaries for mailbox list rendering.
+- Service-backed IMAP message summaries now hydrate stored `To`, `Cc`, and
+  `Bcc` address JSON into RFC-shaped ENVELOPE address lists, keeping real
+  repository-backed `FETCH ENVELOPE`, address search, and address sort behavior
+  aligned with the advertised protocol surface.
 - IMAP `CAPABILITY` advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
   `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes

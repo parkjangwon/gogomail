@@ -315,6 +315,10 @@ Current state:
   untagged flag echo responses for those requests.
 - `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, using the service-backed message summary fields.
+- Service-backed IMAP summaries now hydrate stored `To`, `Cc`, and `Bcc`
+  address JSON into RFC-shaped ENVELOPE address lists, so repository-backed
+  `FETCH ENVELOPE`, address search, and address sort paths share the same
+  recipient metadata as Mail API storage.
 - `CAPABILITY` now advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
   `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes when

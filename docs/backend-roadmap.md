@@ -1223,6 +1223,10 @@ Implementation order:
      cases by rejecting `CREATE INBOX`, `DELETE INBOX`, and generic
      `RENAME INBOX` until the required message-moving rename semantics are
      implemented.
+825. Service-backed IMAP message summaries now hydrate stored `To`, `Cc`, and
+     `Bcc` address JSON into RFC-shaped ENVELOPE address lists, keeping real
+     repository-backed `FETCH ENVELOPE`, address search, and RFC 5256 address
+     sort behavior aligned with persisted message metadata.
 
 ## Deferred until backend contracts stabilize
 
