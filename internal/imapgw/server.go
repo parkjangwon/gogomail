@@ -1545,6 +1545,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	requestsPartMIME := imapFetchRequestsPartMIME(items)
 	headerFields, requestsHeaderFields := imapFetchHeaderFields(items)
 	headerFieldsNot, requestsHeaderFieldsNot := imapFetchHeaderFieldsNot(items)
+	partialHeaderFields, requestsPartialHeaderFields := imapFetchPartialHeaderFields(items)
+	partialHeaderFieldsNot, requestsPartialHeaderFieldsNot := imapFetchPartialHeaderFieldsNot(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
@@ -1665,6 +1667,12 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				if requestsHeaderFieldsNot {
 					literal = filterIMAPHeaderFields(literal, headerFieldsNot, true)
 				}
+				if requestsPartialHeaderFields {
+					literal = imapPartialLiteral(literal, partialHeaderFields)
+				}
+				if requestsPartialHeaderFieldsNot {
+					literal = imapPartialLiteral(literal, partialHeaderFieldsNot)
+				}
 				if err := body.Close(); err != nil {
 					return false, err
 				}
@@ -1686,6 +1694,12 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				partialSuffix := ""
 				if requestsPartialSection {
 					partialSuffix = fmt.Sprintf("<%d>", partialSection.partial.offset)
+				}
+				if requestsPartialHeaderFields {
+					partialSuffix = fmt.Sprintf("<%d>", partialHeaderFields.offset)
+				}
+				if requestsPartialHeaderFieldsNot {
+					partialSuffix = fmt.Sprintf("<%d>", partialHeaderFieldsNot.offset)
 				}
 				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s]%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), section, partialSuffix, len(literal))); err != nil {
 					return false, err
@@ -2214,6 +2228,39 @@ func imapFetchHeaderFields(items []string) ([]string, bool) {
 
 func imapFetchHeaderFieldsNot(items []string) ([]string, bool) {
 	return imapFetchHeaderFieldList(items, "HEADER.FIELDS.NOT")
+}
+
+func imapFetchPartialHeaderFields(items []string) (imapPartialBodyRequest, bool) {
+	return imapFetchPartialHeaderFieldList(items, "HEADER.FIELDS")
+}
+
+func imapFetchPartialHeaderFieldsNot(items []string) (imapPartialBodyRequest, bool) {
+	return imapFetchPartialHeaderFieldList(items, "HEADER.FIELDS.NOT")
+}
+
+func imapFetchPartialHeaderFieldList(items []string, marker string) (imapPartialBodyRequest, bool) {
+	joined := strings.ToUpper(strings.Join(items, " "))
+	idx := strings.Index(joined, marker)
+	if idx < 0 {
+		return imapPartialBodyRequest{}, false
+	}
+	if marker == "HEADER.FIELDS" && strings.Contains(joined[idx:minInt(len(joined), idx+len("HEADER.FIELDS.NOT"))], "HEADER.FIELDS.NOT") {
+		return imapPartialBodyRequest{}, false
+	}
+	start := strings.Index(joined[idx:], "(")
+	if start < 0 {
+		return imapPartialBodyRequest{}, false
+	}
+	end := strings.Index(joined[idx+start+1:], ")")
+	if end < 0 {
+		return imapPartialBodyRequest{}, false
+	}
+	suffix := strings.TrimSpace(joined[idx+start+1+end+1:])
+	suffix = strings.TrimPrefix(suffix, "]")
+	if !strings.HasPrefix(suffix, "<") {
+		return imapPartialBodyRequest{}, false
+	}
+	return imapParsePartialBodyToken(suffix)
 }
 
 func imapFetchHeaderFieldList(items []string, marker string) ([]string, bool) {

@@ -892,6 +892,8 @@ The platform hardening sprint completed the following:
   user keyword storage exists and treating active messages as unkeyworded.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
+- IMAP `FETCH`/`UID FETCH` supports bounded partial windows over
+  `BODY[HEADER.FIELDS (...)]` and `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS.NOT (...)]` and
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` literals.
 - IMAP `SEARCH`/`UID SEARCH` supports `SINCE`, `BEFORE`, and `ON` over message
