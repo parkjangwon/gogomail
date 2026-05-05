@@ -236,10 +236,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   calendar collections, returning `200 OK` `text/calendar` `VFREEBUSY` bodies
   for `Depth: 1` child VEVENT busy periods. It clips to the requested UTC
   range, omits transparent/cancelled events, maps tentative events to
-  `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
-  free-busy time ranges. Recurrence expansion, VFREEBUSY source-object
-  ingestion, scheduling, and broader device/client compatibility tests remain
-  incomplete.
+  `BUSY-TENTATIVE`, ingests stored VFREEBUSY `FREEBUSY` period lists,
+  coalesces same-type overlaps, and rejects duplicate free-busy time ranges.
+  Recurrence expansion, scheduling, and broader device/client compatibility
+  tests remain incomplete.
 - CalDAV now handles `MKCALENDAR` for authenticated calendar collection
   Request-URIs with UUID calendar segments, using bounded namespace-aware XML
   parsing for display name, description, and CalendarServer/Apple calendar

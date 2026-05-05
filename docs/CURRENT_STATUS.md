@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 object metadata hardening)
+Last updated: 2026-05-06 (updated after CalDAV VFREEBUSY source support)
 
 ## Current phase
 
@@ -2144,10 +2144,11 @@ The platform hardening sprint completed the following:
   calendar collections. `Depth: 1` collects child VEVENT busy periods into a
   `200 OK` `text/calendar` `VFREEBUSY` response, clips periods to the requested
   UTC range, skips `TRANSPARENT` and `CANCELLED` events, maps tentative events
-  to `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
-  free-busy time ranges. Scheduling, recurrence expansion, VFREEBUSY source
-  object ingestion, and broader native-client compatibility coverage remain
-  incomplete.
+  to `BUSY-TENTATIVE`, ingests stored VFREEBUSY `FREEBUSY` period lists,
+  supports UTC start/end and start/duration periods, coalesces same-type
+  overlaps, and rejects duplicate free-busy time ranges. Scheduling,
+  recurrence expansion, and broader native-client compatibility coverage
+  remain incomplete.
 - CalDAV now handles `MKCALENDAR` for authenticated calendar collection paths
   whose Request-URI calendar segment is a UUID. The handler parses bounded
   CalDAV/WebDAV creation XML for display name, description, and CalendarServer

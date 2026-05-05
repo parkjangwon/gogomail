@@ -2246,6 +2246,11 @@ Implementation order:
       unsafe multiline, invalid UTF-8, or oversized metadata while preserving
       object identity and size for Drive, lifecycle, and reconciliation
       consumers.
+1090. CalDAV free-busy generation now ingests stored `VFREEBUSY` source
+      objects by parsing `FREEBUSY` period lists, including UTC start/end and
+      start/duration forms, clipping them to the requested range, and feeding
+      them through the existing same-type coalescing path for RFC 4791
+      `free-busy-query` responses.
 
 ## Deferred until backend contracts stabilize
 

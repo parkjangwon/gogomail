@@ -188,6 +188,34 @@ func TestCalendarObjectBusyPeriodsMarksTentativeEvents(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectBusyPeriodsIncludesVFreeBusySourceObjects(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VFREEBUSY\r\nUID:fb@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T000000Z\r\nDTEND:20260507T000000Z\r\nFREEBUSY;FBTYPE=BUSY-UNAVAILABLE:20260506T000000Z/20260506T020000Z,20260506T030000Z/PT1H\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n")
+	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260506T010000Z"),
+		End:   mustCalDAVTime(t, "20260506T050000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+	}
+	if len(periods) != 2 {
+		t.Fatalf("periods = %+v, want 2 VFREEBUSY periods", periods)
+	}
+	if got := periods[0].Start.Format("20060102T150405Z"); got != "20260506T010000Z" {
+		t.Fatalf("first period start = %s", got)
+	}
+	if got := periods[0].End.Format("20060102T150405Z"); got != "20260506T020000Z" {
+		t.Fatalf("first period end = %s", got)
+	}
+	if got := periods[1].End.Format("20060102T150405Z"); got != "20260506T040000Z" {
+		t.Fatalf("duration period end = %s", got)
+	}
+	if periods[0].Type != "BUSY-UNAVAILABLE" || periods[1].Type != "BUSY-UNAVAILABLE" {
+		t.Fatalf("period types = %+v", periods)
+	}
+}
+
 func TestCoalesceBusyPeriodsMergesOverlappingSameTypes(t *testing.T) {
 	t.Parallel()
 

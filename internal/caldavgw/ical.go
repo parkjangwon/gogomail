@@ -102,15 +102,21 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 	}
 	var periods []BusyPeriod
 	for _, child := range cal.Children {
-		if !strings.EqualFold(child.Name, ComponentVEVENT) {
-			continue
-		}
-		period, ok, err := eventBusyPeriod(child, timeRange)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			periods = append(periods, period)
+		switch {
+		case strings.EqualFold(child.Name, ComponentVEVENT):
+			period, ok, err := eventBusyPeriod(child, timeRange)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				periods = append(periods, period)
+			}
+		case strings.EqualFold(child.Name, ComponentVFREEBUSY):
+			freeBusyPeriods, err := freeBusyComponentPeriods(child, timeRange)
+			if err != nil {
+				return nil, err
+			}
+			periods = append(periods, freeBusyPeriods...)
 		}
 	}
 	return periods, nil
@@ -150,6 +156,122 @@ func eventBusyPeriod(component *ical.Component, timeRange TimeRange) (BusyPeriod
 		busyType = "BUSY-TENTATIVE"
 	}
 	return BusyPeriod{Start: start.UTC(), End: end.UTC(), Type: busyType}, true, nil
+}
+
+func freeBusyComponentPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPeriod, error) {
+	var periods []BusyPeriod
+	for _, prop := range component.Props.Values(ical.PropFreeBusy) {
+		busyType := "BUSY"
+		if values := prop.Params.Get(ical.ParamFreeBusyType); values != "" {
+			busyType = values
+		}
+		for _, rawPeriod := range strings.Split(prop.Value, ",") {
+			period, ok, err := parseFreeBusyPeriod(rawPeriod, busyType, timeRange)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				periods = append(periods, period)
+			}
+		}
+	}
+	return periods, nil
+}
+
+func parseFreeBusyPeriod(value string, busyType string, timeRange TimeRange) (BusyPeriod, bool, error) {
+	startText, endText, ok := strings.Cut(strings.TrimSpace(value), "/")
+	if !ok {
+		return BusyPeriod{}, false, fmt.Errorf("FREEBUSY period must contain start/end or start/duration")
+	}
+	start, err := parseICalendarUTC(strings.TrimSpace(startText))
+	if err != nil {
+		return BusyPeriod{}, false, fmt.Errorf("decode FREEBUSY period start: %w", err)
+	}
+	endValue := strings.TrimSpace(endText)
+	var end time.Time
+	if strings.HasPrefix(endValue, "P") || strings.HasPrefix(endValue, "+P") {
+		duration, err := parseICalendarDuration(endValue)
+		if err != nil {
+			return BusyPeriod{}, false, fmt.Errorf("decode FREEBUSY period duration: %w", err)
+		}
+		end = start.Add(duration)
+	} else {
+		end, err = parseICalendarUTC(endValue)
+		if err != nil {
+			return BusyPeriod{}, false, fmt.Errorf("decode FREEBUSY period end: %w", err)
+		}
+	}
+	if !start.Before(end) || !start.Before(timeRange.End) || !end.After(timeRange.Start) {
+		return BusyPeriod{}, false, nil
+	}
+	if start.Before(timeRange.Start) {
+		start = timeRange.Start
+	}
+	if end.After(timeRange.End) {
+		end = timeRange.End
+	}
+	return BusyPeriod{Start: start.UTC(), End: end.UTC(), Type: busyType}, true, nil
+}
+
+func parseICalendarDuration(value string) (time.Duration, error) {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "+")
+	if value == "" || value[0] != 'P' {
+		return 0, fmt.Errorf("duration must start with P")
+	}
+	var total time.Duration
+	var number int64
+	inTime := false
+	hasPart := false
+	for i := 1; i < len(value); i++ {
+		ch := value[i]
+		if ch >= '0' && ch <= '9' {
+			number = number*10 + int64(ch-'0')
+			continue
+		}
+		if ch == 'T' && !inTime {
+			inTime = true
+			number = 0
+			continue
+		}
+		if number <= 0 {
+			return 0, fmt.Errorf("duration value is invalid")
+		}
+		switch ch {
+		case 'W':
+			if inTime || hasPart || i != len(value)-1 {
+				return 0, fmt.Errorf("weeks must be the only duration field")
+			}
+			total += time.Duration(number) * 7 * 24 * time.Hour
+		case 'D':
+			if inTime {
+				return 0, fmt.Errorf("days must precede time fields")
+			}
+			total += time.Duration(number) * 24 * time.Hour
+		case 'H':
+			if !inTime {
+				return 0, fmt.Errorf("hours require time field")
+			}
+			total += time.Duration(number) * time.Hour
+		case 'M':
+			if !inTime {
+				return 0, fmt.Errorf("months are not supported in durations")
+			}
+			total += time.Duration(number) * time.Minute
+		case 'S':
+			if !inTime {
+				return 0, fmt.Errorf("seconds require time field")
+			}
+			total += time.Duration(number) * time.Second
+		default:
+			return 0, fmt.Errorf("unsupported duration field %q", ch)
+		}
+		number = 0
+		hasPart = true
+	}
+	if number != 0 || !hasPart || total <= 0 {
+		return 0, fmt.Errorf("duration value is invalid")
+	}
+	return total, nil
 }
 
 func eventTimeSpan(component *ical.Component) (time.Time, time.Time, error) {
