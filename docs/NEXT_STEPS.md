@@ -1613,9 +1613,11 @@ Next:
   composition for top-level filters and prop-filters. REPORT `address-data`
   can also project returned vCards to requested property names and rejects
   unsupported requested address-data content types or versions; returned
-  address-data also carries explicit `text/vcard` 4.0 attributes. It should be
-  followed by broader vCard compatibility and native-client compatibility tests
-  before any public contacts UI or API treats it as production-ready.
+  address-data also carries explicit `text/vcard` 4.0 attributes.
+  `addressbook-query` execution honors bounded `limit/nresults` response caps.
+  It should be followed by broader vCard compatibility and native-client
+  compatibility tests before any public contacts UI or API treats it as
+  production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

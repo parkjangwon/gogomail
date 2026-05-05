@@ -577,6 +577,9 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
+		if report.Limit > 0 && len(responses) >= report.Limit {
+			break
+		}
 		if !contactObjectMatchesFilter(object, report.Filter) {
 			continue
 		}

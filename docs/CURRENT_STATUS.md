@@ -71,8 +71,10 @@ project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
 `version` values instead of returning data under an unimplemented format
 contract. Returned `address-data` elements also carry explicit `content-type`
-and `version` attributes matching the advertised `text/vcard` 4.0 support. It
-remains gated on broader vCard compatibility and native-client tests. The
+and `version` attributes matching the advertised `text/vcard` 4.0 support.
+`addressbook-query` execution now honors bounded `limit/nresults` responses so
+large address books can be queried with explicit result caps. It remains gated
+on broader vCard compatibility and native-client tests. The
 handler is deliberately experimental and does not yet make CardDAV
 public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
@@ -2403,7 +2405,8 @@ The platform hardening sprint completed the following:
   `content-type` or `version` values so the handler stays aligned with the
   advertised supported vCard data type. Returned `address-data` elements carry
   explicit `content-type="text/vcard"` and `version="4.0"` attributes. The
-  repository can
+  query path also honors bounded `limit/nresults` values before returning
+  matched responses. The repository can
   list address-book changes since a stored sync token and rejects missing or
   unsafe sync tokens before SQL work. This still does not advertise public
   native-client compatibility because broader vCard compatibility and client
