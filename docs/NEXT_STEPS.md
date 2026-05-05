@@ -348,14 +348,16 @@ Current state:
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
-  IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`, and
-  metadata `UID FETCH`, `UID STORE`, and `LOGOUT`, while body/header FETCH,
-  IDLE, MOVE, and EXPUNGE remain deferred.
+  IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`,
+  `FETCH`/`UID FETCH`, `STORE`/`UID STORE`, `SEARCH`, `IDLE`, `STARTTLS`, and
+  `LOGOUT`, while destructive mailbox mutation semantics remain deferred.
+- `gogomail --mode=imap` now starts a dedicated Redis consumer group for
+  committed `mail.stored` events and publishes UID-bearing `EXISTS` updates
+  into its process-local mailbox event broker so live IDLE sessions can observe
+  newly delivered mail.
 
 Next:
 
-- Wire committed `mail.stored` event-worker notifications into the runtime IMAP
-  mailbox event broker so newly delivered mail reaches live IDLE sessions.
 - Add richer MIME-tree `BODYSTRUCTURE` support for higher-fidelity client
   previews.
 

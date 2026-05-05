@@ -505,6 +505,10 @@ func TestValidateRejectsNonpositiveEventAndDeliveryConsumerSettings(t *testing.T
 		{name: "event block", mutate: func(cfg *Config) { cfg.EventConsumerBlock = 0 }},
 		{name: "event max deliveries", mutate: func(cfg *Config) { cfg.EventConsumerMaxDeliveries = -1 }},
 		{name: "event dead-letter stream newline", mutate: func(cfg *Config) { cfg.EventConsumerDeadLetterStream = "mail.event\nbad" }},
+		{name: "imap notify count", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerCount = 0 }},
+		{name: "imap notify block", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerBlock = 0 }},
+		{name: "imap notify max deliveries", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerMaxDeliveries = -1 }},
+		{name: "imap notify dead-letter stream newline", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerDeadLetterStream = "mail.event\nbad" }},
 		{name: "delivery count", mutate: func(cfg *Config) { cfg.DeliveryConsumerCount = 0 }},
 		{name: "delivery block", mutate: func(cfg *Config) { cfg.DeliveryConsumerBlock = 0 }},
 		{name: "delivery max deliveries", mutate: func(cfg *Config) { cfg.DeliveryConsumerMaxDeliveries = -1 }},
@@ -532,6 +536,8 @@ func TestValidateRejectsUnsafeRedisConsumerIdentifiers(t *testing.T) {
 		{name: "event stream newline", mutate: func(cfg *Config) { cfg.EventStream = "mail.event\nbad" }},
 		{name: "event group blank", mutate: func(cfg *Config) { cfg.EventConsumerGroup = "" }},
 		{name: "event consumer newline", mutate: func(cfg *Config) { cfg.EventConsumerName = "worker\nbad" }},
+		{name: "imap notify group blank", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerGroup = " " }},
+		{name: "imap notify consumer newline", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerName = "imap\nbad" }},
 		{name: "search group blank", mutate: func(cfg *Config) { cfg.SearchIndexConsumerGroup = " " }},
 		{name: "search consumer newline", mutate: func(cfg *Config) { cfg.SearchIndexConsumerName = "search\nbad" }},
 		{name: "api stream blank", mutate: func(cfg *Config) { cfg.APIMeteringStream = "" }},
@@ -562,6 +568,7 @@ func TestValidateRejectsNegativeConsumerClaimIdle(t *testing.T) {
 		mutate func(*Config)
 	}{
 		{name: "event", mutate: func(cfg *Config) { cfg.EventConsumerClaimIdle = -time.Second }},
+		{name: "imap notify", mutate: func(cfg *Config) { cfg.IMAPNotifyConsumerClaimIdle = -time.Second }},
 		{name: "search index", mutate: func(cfg *Config) { cfg.SearchIndexConsumerClaimIdle = -time.Second }},
 		{name: "api metering", mutate: func(cfg *Config) { cfg.APIMeteringConsumerClaimIdle = -time.Second }},
 		{name: "push notification", mutate: func(cfg *Config) { cfg.PushNotifyConsumerClaimIdle = -time.Second }},

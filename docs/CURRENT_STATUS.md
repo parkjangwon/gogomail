@@ -902,6 +902,9 @@ The platform hardening sprint completed the following:
 - `gogomail --mode=imap` initializes the service-backed IMAP store adapter,
   a process-local mailbox event broker for future IDLE/session fan-out, and the
   configured TCP protocol listener.
+- `gogomail --mode=imap` now runs a dedicated Redis consumer group for
+  committed `mail.stored` events and publishes UID-bearing `EXISTS` updates
+  into the process-local mailbox event broker for live IDLE sessions.
 - Runtime config now includes validated `GOGOMAIL_IMAP_ADDR` listener metadata
   for the IMAP protocol listener.
 - EML parser guardrails include a truncation-probe test and benchmark for the

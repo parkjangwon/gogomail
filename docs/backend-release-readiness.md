@@ -415,9 +415,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
 - `gogomail --mode=imap` now opens the configured TCP listener and serves the
-  IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`, and
-  metadata `UID FETCH`, `UID STORE`, and `LOGOUT`, while body/header FETCH,
-  IDLE, MOVE, and EXPUNGE remain deferred.
+  IMAP server shell with greeting, `CAPABILITY`, `NOOP`, `LOGIN`, `SELECT`,
+  `FETCH`/`UID FETCH`, `STORE`/`UID STORE`, `SEARCH`, `IDLE`, `STARTTLS`, and
+  `LOGOUT`, while destructive mailbox mutation semantics remain deferred.
+- `gogomail --mode=imap` now runs its own Redis consumer group for committed
+  `mail.stored` events and publishes UID-bearing `EXISTS` updates into the
+  process-local mailbox event broker for live IDLE sessions.
 - IMAP listener creation now uses a TLS listener whenever IMAP TLS config is
   present, keeping the runtime listener path aligned with the authentication
   policy guardrails.

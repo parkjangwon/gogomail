@@ -22,6 +22,13 @@ type Config struct {
 	IMAPTLSCertFile                     string
 	IMAPTLSKeyFile                      string
 	IMAPAllowInsecureAuth               bool
+	IMAPNotifyConsumerGroup             string
+	IMAPNotifyConsumerName              string
+	IMAPNotifyConsumerCount             int
+	IMAPNotifyConsumerBlock             time.Duration
+	IMAPNotifyConsumerClaimIdle         time.Duration
+	IMAPNotifyConsumerMaxDeliveries     int64
+	IMAPNotifyConsumerDeadLetterStream  string
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxRecipients             int
@@ -188,6 +195,13 @@ func Load() Config {
 		IMAPTLSCertFile:                     envOrDefault("GOGOMAIL_IMAP_TLS_CERT_FILE", ""),
 		IMAPTLSKeyFile:                      envOrDefault("GOGOMAIL_IMAP_TLS_KEY_FILE", ""),
 		IMAPAllowInsecureAuth:               boolEnvOrDefault("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		IMAPNotifyConsumerGroup:             envOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", "gogomail.imap-gateway"),
+		IMAPNotifyConsumerName:              envOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "imap-gateway-1"),
+		IMAPNotifyConsumerCount:             intEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT", 50),
+		IMAPNotifyConsumerBlock:             durationEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_BLOCK", time.Second),
+		IMAPNotifyConsumerClaimIdle:         durationEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE", 5*time.Minute),
+		IMAPNotifyConsumerMaxDeliveries:     int64EnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES", 10),
+		IMAPNotifyConsumerDeadLetterStream:  strings.TrimSpace(os.Getenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM")),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxRecipients:             intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
@@ -339,6 +353,9 @@ func Load() Config {
 	}
 	if cfg.EventConsumerDeadLetterStream == "" {
 		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"
+	}
+	if cfg.IMAPNotifyConsumerDeadLetterStream == "" {
+		cfg.IMAPNotifyConsumerDeadLetterStream = cfg.EventStream + ".dead"
 	}
 	if cfg.SearchIndexConsumerDeadLetterStream == "" {
 		cfg.SearchIndexConsumerDeadLetterStream = cfg.EventStream + ".dead"

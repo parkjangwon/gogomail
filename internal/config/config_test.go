@@ -20,6 +20,13 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_IMAP_TLS_CERT_FILE", "")
 	t.Setenv("GOGOMAIL_IMAP_TLS_KEY_FILE", "")
 	t.Setenv("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_BLOCK", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES", "")
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
@@ -148,6 +155,27 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if !cfg.IMAPAllowInsecureAuth {
 		t.Fatal("IMAPAllowInsecureAuth = false, want true in development defaults")
+	}
+	if cfg.IMAPNotifyConsumerGroup != "gogomail.imap-gateway" {
+		t.Fatalf("IMAPNotifyConsumerGroup = %q, want gogomail.imap-gateway", cfg.IMAPNotifyConsumerGroup)
+	}
+	if cfg.IMAPNotifyConsumerName != "imap-gateway-1" {
+		t.Fatalf("IMAPNotifyConsumerName = %q, want imap-gateway-1", cfg.IMAPNotifyConsumerName)
+	}
+	if cfg.IMAPNotifyConsumerCount != 50 {
+		t.Fatalf("IMAPNotifyConsumerCount = %d, want 50", cfg.IMAPNotifyConsumerCount)
+	}
+	if cfg.IMAPNotifyConsumerBlock != time.Second {
+		t.Fatalf("IMAPNotifyConsumerBlock = %s, want 1s", cfg.IMAPNotifyConsumerBlock)
+	}
+	if cfg.IMAPNotifyConsumerClaimIdle != 5*time.Minute {
+		t.Fatalf("IMAPNotifyConsumerClaimIdle = %s, want 5m", cfg.IMAPNotifyConsumerClaimIdle)
+	}
+	if cfg.IMAPNotifyConsumerMaxDeliveries != 10 {
+		t.Fatalf("IMAPNotifyConsumerMaxDeliveries = %d, want 10", cfg.IMAPNotifyConsumerMaxDeliveries)
+	}
+	if cfg.IMAPNotifyConsumerDeadLetterStream != "mail.event.dead" {
+		t.Fatalf("IMAPNotifyConsumerDeadLetterStream = %q, want mail.event.dead", cfg.IMAPNotifyConsumerDeadLetterStream)
 	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)

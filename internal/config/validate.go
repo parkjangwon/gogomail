@@ -74,6 +74,27 @@ func (c Config) Validate() error {
 	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_KEY_FILE", c.IMAPTLSKeyFile, 4096); err != nil {
 		return err
 	}
+	if c.IMAPNotifyConsumerCount <= 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT must be positive")
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", c.IMAPNotifyConsumerGroup, 1024); err != nil {
+		return err
+	}
+	if err := validateRequiredBoundedNoCRLF("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", c.IMAPNotifyConsumerName, 1024); err != nil {
+		return err
+	}
+	if c.IMAPNotifyConsumerBlock <= 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_NOTIFY_CONSUMER_BLOCK must be positive")
+	}
+	if c.IMAPNotifyConsumerClaimIdle < 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE must not be negative")
+	}
+	if c.IMAPNotifyConsumerMaxDeliveries < 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES must not be negative")
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM", c.IMAPNotifyConsumerDeadLetterStream, 1024); err != nil {
+		return err
+	}
 	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_ADDR", c.SubmissionAddr, true); err != nil {
 		return err
 	}
