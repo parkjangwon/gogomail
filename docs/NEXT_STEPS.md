@@ -276,6 +276,8 @@ Current state:
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - `FETCH`/`UID FETCH` now support conservative single-part text literals for
   `BODY[1]` and `BODY.PEEK[1]`.
+- `FETCH`/`UID FETCH` now answers conservative single-part MIME header requests
+  for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - `UID STORE` now accepts bounded UID sets/ranges so clients can mutate flags in
   batches instead of issuing one command per message.
 - Non-UID `STORE` now accepts bounded sequence sets/ranges and maps them to the

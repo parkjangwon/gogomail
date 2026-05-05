@@ -342,6 +342,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `RFC822.TEXT` section literals without returning the message headers.
 - IMAP `FETCH`/`UID FETCH` now supports conservative single-part text literals
   for `BODY[1]` and `BODY.PEEK[1]`.
+- IMAP `FETCH`/`UID FETCH` now answers conservative single-part MIME header
+  requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - IMAP `UID STORE` now accepts bounded UID sets/ranges and returns per-message
   flag updates unless `.SILENT` is requested.
 - IMAP non-UID `STORE` now accepts bounded sequence sets/ranges and maps them
