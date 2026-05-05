@@ -1418,6 +1418,10 @@ Implementation order:
      spacing while escaping quotes/backslashes and cleaning controls, preventing
      mailbox names, FETCH metadata, and MIME parameters from being rewritten on
      output.
+877. S3-compatible object key escaping now preserves literal `+` characters as
+     `%2B` in segment-escaped request paths, preventing plus-bearing mail
+     object keys from being rewritten as spaces and keeping SigV4 canonical
+     paths aligned with stored object identity.
 
 ## Deferred until backend contracts stabilize
 

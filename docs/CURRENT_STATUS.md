@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP auth syntax ordering)
+Last updated: 2026-05-05 (updated after S3 plus-key escaping)
 
 ## Current phase
 
@@ -170,6 +170,9 @@ guidance.
   for dotted bucket names on HTTPS endpoints, avoiding AWS S3 virtual-hosted
   TLS wildcard certificate mismatches while preserving virtual-hosted requests
   for ordinary bucket names by default.
+- S3-compatible object key escaping now preserves literal `+` characters as
+  `%2B` in segment-escaped paths, keeping object identity and SigV4 canonical
+  request paths aligned across AWS S3, MinIO, and strict compatible providers.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

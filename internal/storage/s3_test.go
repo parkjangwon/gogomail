@@ -141,6 +141,35 @@ func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {
 	}
 }
 
+func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000/base",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail+archive",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+	req, err := store.newRequest(context.Background(), http.MethodPut, "messages/msg+1.eml", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatalf("newRequest returned error: %v", err)
+	}
+	if got, want := req.URL.EscapedPath(), "/base/gogomail/mail%2Barchive/messages/msg%2B1.eml"; got != want {
+		t.Fatalf("request path = %q, want %q", got, want)
+	}
+	if strings.Contains(req.URL.EscapedPath(), "%20") {
+		t.Fatalf("request path encoded plus as space: %q", req.URL.EscapedPath())
+	}
+}
+
 func TestS3StoreUsesPathStyleForDottedHTTPSBucket(t *testing.T) {
 	t.Parallel()
 
