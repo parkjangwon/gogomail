@@ -1134,39 +1134,43 @@ Implementation order:
      `(UNCHANGEDSINCE n)` modifiers with transactional per-message mod-sequence
      checks, partial success for passing messages, and `[MODIFIED uid-set]` /
      `[MODIFIED sequence-set]` responses for stale flag writes.
-800. IMAP `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
+800. Conditional IMAP `STORE`/`UID STORE` response and service event paths now
+     filter modified stale UIDs out of successful `FETCH` echoes and mailbox
+     flag notifications, keeping mixed-success CONDSTORE updates clean across
+     backend adapters.
+801. IMAP `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
      parameter and mark the session CONDSTORE-aware.
-801. IMAP `CAPABILITY` now advertises `CONDSTORE`, making the implemented
+802. IMAP `CAPABILITY` now advertises `CONDSTORE`, making the implemented
      RFC 4551 durable mod-sequence sync surface discoverable by standard IMAP
      clients.
-802. IMAP now advertises `ENABLE` and accepts RFC 5161-shaped
+803. IMAP now advertises `ENABLE` and accepts RFC 5161-shaped
      `ENABLE CONDSTORE`, allowing clients to mark a session CONDSTORE-aware
      before mailbox selection while leaving the capability list stable.
-803. IMAP `LIST` now emits RFC 6154 special-use attributes for system folder
+804. IMAP `LIST` now emits RFC 6154 special-use attributes for system folder
      roles such as Drafts, Sent, Trash, Junk, Archive, All, and Flagged so
      standards-aware clients can auto-detect default mailbox roles.
-804. IMAP now advertises `SPECIAL-USE` and accepts RFC 6154 extended
+805. IMAP now advertises `SPECIAL-USE` and accepts RFC 6154 extended
      `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms, filtering special
      role discovery requests while keeping normal `LIST` output compatible.
-805. Development storage portability is now documented in
+806. Development storage portability is now documented in
      `docs/storage-backends.md`, and `deploy/docker-compose.dev.yml` includes a
      `minio-init` one-shot service that creates the default local `gogomail`
      bucket for MinIO-backed runs.
-806. S3-compatible storage URL generation now has regression coverage for
+807. S3-compatible storage URL generation now has regression coverage for
      virtual-hosted-style requests with URL-sensitive object keys, preventing
      double-escaped paths before SigV4 canonical request signing.
-807. IMAP selected-mailbox event draining now renders sequence-bearing
+808. IMAP selected-mailbox event draining now renders sequence-bearing
      `MailboxEventExpunge` notifications as untagged `EXPUNGE` responses for
      `NOOP`/`IDLE` clients, keeping live deletion state aligned.
-808. Existing IMAP UID lookup now returns mailbox sequence numbers, letting
+809. Existing IMAP UID lookup now returns mailbox sequence numbers, letting
      Mail API move/delete expunge events become renderable for live
      `NOOP`/`IDLE` clients even after the committed mutation removes source UID
      rows.
-809. IMAP `MOVE` and `UID MOVE` now reassign source mailbox UID rows to fresh
+810. IMAP `MOVE` and `UID MOVE` now reassign source mailbox UID rows to fresh
      destination mailbox UIDs inside the move transaction and return UIDPLUS
      `[COPYUID ...]` mappings before source `EXPUNGE` responses, aligning the
      MOVE path with RFC 6851/UIDPLUS-compatible client expectations.
-810. IMAP `MOVE` and `UID MOVE` now advance the selected source mailbox
+811. IMAP `MOVE` and `UID MOVE` now advance the selected source mailbox
      highest mod-sequence and emit `[HIGHESTMODSEQ ...]` metadata alongside
      the move response path, keeping the advertised CONDSTORE surface aligned
      with RFC 6851 mod-sequence expectations.

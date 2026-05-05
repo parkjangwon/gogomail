@@ -574,13 +574,38 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if err != nil {
 		var modified *imapgw.StoreModifiedError
 		if errors.As(err, &modified) {
-			_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries)
+			_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), imapSuccessfulStoreSummaries(summaries, modified))
 			return summaries, err
 		}
 		return nil, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventFlags, string(req.UserID), summaries)
 	return summaries, nil
+}
+
+func imapSuccessfulStoreSummaries(summaries []imapgw.MessageSummary, modified *imapgw.StoreModifiedError) []imapgw.MessageSummary {
+	if modified == nil {
+		return summaries
+	}
+	source := modified.Summaries
+	if len(source) == 0 {
+		source = summaries
+	}
+	if len(source) == 0 || len(modified.UIDs) == 0 {
+		return source
+	}
+	modifiedUIDs := make(map[imapgw.UID]struct{}, len(modified.UIDs))
+	for _, uid := range modified.UIDs {
+		modifiedUIDs[uid] = struct{}{}
+	}
+	successful := make([]imapgw.MessageSummary, 0, len(source))
+	for _, summary := range source {
+		if _, stale := modifiedUIDs[summary.UID]; stale {
+			continue
+		}
+		successful = append(successful, summary)
+	}
+	return successful
 }
 
 func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessageRequest) (imapgw.AppendMessageResult, error) {
