@@ -326,6 +326,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, enabling standard mailbox list metadata reads.
+- IMAP `FETCH`/`UID FETCH` now return a conservative single-part
+  `BODYSTRUCTURE` response for clients that require structure metadata before
+  fetching message bodies.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
