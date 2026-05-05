@@ -397,6 +397,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   criteria over message `RFC822.SIZE` metadata.
 - IMAP now supports authenticated `NAMESPACE`, exposing the personal namespace
   and `/` hierarchy delimiter.
+- IMAP `CAPABILITY` now advertises `NAMESPACE` alongside the implemented
+  namespace command so client discovery matches the supported command surface.
 - IMAP now supports authenticated `LSUB` over the same mailbox pattern matching
   path as `LIST`, while persistent subscription storage remains future work.
 - IMAP now accepts authenticated `SUBSCRIBE`/`UNSUBSCRIBE` after mailbox
