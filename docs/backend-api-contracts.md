@@ -226,18 +226,19 @@ or development `user_id` fallback path as webmail mail routes:
   `{"parent_id"}` and returns `{"drive_node":{...}}`; an omitted or empty
   `parent_id` moves the node to the Drive root, and repository checks prevent
   moves into the node's own active subtree.
-- `POST /api/v1/drive/nodes/{id}/copy` copies an active Drive file through the
-  configured storage backend from `{"parent_id","name"}` and returns
-  `{"drive_node":{...}}`. The first production slice is file-only: folders are
-  rejected before object work. The service verifies the source object, copies it
-  through the backend-neutral storage `Copy` contract, creates quota-accounted
-  file metadata, and best-effort deletes the copied object if metadata creation
-  fails. If that cleanup delete also fails, the Drive cleanup-failure queue
-  records the copied object path without a node id so operators can retry or
-  resolve storage drift explicitly. Copied files use a preallocated Drive node
-  UUID for both the committed object path and inserted `drive_nodes.id`, keeping
-  object keys and metadata identifiers aligned across storage backends. Quota
-  exhaustion maps to HTTP 507 `insufficient_storage`.
+- `POST /api/v1/drive/nodes/{id}/copy` copies an active Drive file or bounded
+  folder tree through the configured storage backend from `{"parent_id","name"}`
+  and returns `{"drive_node":{...}}`. Recursive folder copy is capped by the
+  advertised `max_copy_nodes` capability and rejects oversized child pages
+  rather than silently copying a partial tree. The service verifies each source
+  file object, copies it through the backend-neutral storage `Copy` contract,
+  creates quota-accounted file metadata, and best-effort deletes copied objects
+  if metadata creation fails. If that cleanup delete also fails, the Drive
+  cleanup-failure queue records the copied object path without a node id so
+  operators can retry or resolve storage drift explicitly. Copied files use a
+  preallocated Drive node UUID for both the committed object path and inserted
+  `drive_nodes.id`, keeping object keys and metadata identifiers aligned across
+  storage backends. Quota exhaustion maps to HTTP 507 `insufficient_storage`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.

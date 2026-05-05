@@ -181,6 +181,7 @@ type webmailDriveCapabilities struct {
 	NodeDownload             bool  `json:"node_download"`
 	NodeRangeDownload        bool  `json:"node_range_download"`
 	CopyNodes                bool  `json:"copy_nodes"`
+	MaxCopyNodes             int   `json:"max_copy_nodes"`
 	UsageSummary             bool  `json:"usage_summary"`
 	CreateFolders            bool  `json:"create_folders"`
 	RenameNodes              bool  `json:"rename_nodes"`
@@ -286,6 +287,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 			NodeDownload:             true,
 			NodeRangeDownload:        true,
 			CopyNodes:                true,
+			MaxCopyNodes:             drive.MaxDriveCopyNodes,
 			UsageSummary:             true,
 			CreateFolders:            true,
 			RenameNodes:              true,
