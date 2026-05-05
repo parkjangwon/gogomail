@@ -1345,6 +1345,10 @@ Implementation order:
 858. IMAP authenticated `UID` dispatch now also rejects unknown UID subcommands
      before selected-mailbox state, so unsupported UID command names are not
      hidden behind mailbox-selection errors.
+859. IMAP selected-state command handlers now validate obvious malformed
+     `FETCH`, `STORE`, `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax
+     before returning `NO mailbox must be selected` for valid commands issued
+     outside selected state.
 
 ## Deferred until backend contracts stabilize
 

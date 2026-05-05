@@ -380,6 +380,58 @@ func TestServerValidatesUIDSubcommandBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 COPY 1\r\na5 COPY 1 &Jjo!\r\na6 MOVE 1\r\na7 SEARCH\r\na8 SEARCH RETURN (COUNT COUNT) ALL\r\na9 SORT\r\na10 SORT (DATE) UTF-8\r\na11 THREAD\r\na12 THREAD REFERENCES UTF-8 ALL\r\na13 FETCH 1 (FLAGS)\r\na14 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write selected-state commands: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"a2 BAD FETCH requires sequence set and data items\r\n",
+		"a3 BAD STORE requires sequence set, mode, and flags\r\n",
+		"a4 BAD COPY requires sequence set and destination mailbox\r\n",
+		"a5 BAD COPY destination mailbox name is not valid modified UTF-7\r\n",
+		"a6 BAD MOVE requires sequence set and destination mailbox\r\n",
+		"a7 BAD SEARCH requires criteria\r\n",
+		"a8 BAD SEARCH return options are unsupported\r\n",
+		"a9 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a10 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a11 BAD THREAD requires algorithm, charset, and search criteria\r\n",
+		"a12 BAD THREAD algorithm is unsupported\r\n",
+		"a13 NO mailbox must be selected\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a14 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read selected-state response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("selected-state response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStartTLS(t *testing.T) {
 	t.Parallel()
 

@@ -37,6 +37,9 @@ Current state:
   and unknown UID subcommands before selected-mailbox state, while preserving
   `NO mailbox must be selected` for supported UID commands issued outside
   selected state.
+- Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
+  `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
+  selected-mailbox state errors for valid commands.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
