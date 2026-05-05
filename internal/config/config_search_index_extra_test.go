@@ -48,6 +48,30 @@ func TestValidateRejectsOpenSearchBackendWithoutEndpointOrIndex(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidOpenSearchEndpoint(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+	}{
+		{name: "unsupported scheme", endpoint: "ftp://search.example.com"},
+		{name: "missing host", endpoint: "http:///missing-host"},
+		{name: "newline", endpoint: "https://search.example.com\nbad"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.SearchIndexBackend = "opensearch"
+			cfg.SearchIndexOpenSearchEndpoint = tt.endpoint
+			cfg.SearchIndexOpenSearchIndex = "gogomail-messages"
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate accepted invalid opensearch endpoint")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositiveSearchIndexLimits(t *testing.T) {
 	tests := []struct {
 		name string

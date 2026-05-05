@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after delivery retry delay validation)
+Last updated: 2026-05-05 (updated after OpenSearch endpoint validation)
 
 ## Current phase
 
@@ -644,6 +644,9 @@ The platform hardening sprint completed the following:
   selected.
 - OpenSearch writer/searcher HTTP calls use a configurable timeout through
   `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`, defaulting to 10 seconds.
+- OpenSearch endpoint configuration is now validated as an HTTP(S) URL with a
+  host during startup config validation, so malformed search backend endpoints
+  fail before worker/search adapter construction.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.
