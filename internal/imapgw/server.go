@@ -3915,6 +3915,16 @@ func readIMAPMIMEPartLiteral(reader io.Reader, req imapMIMEPartRequest) ([]byte,
 	mediaType, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
 	mediaType = strings.ToLower(mediaType)
 	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+		if mediaType == "message/rfc822" && len(req.path) > 1 && req.path[0] == 1 {
+			literal, found, err := readIMAPMIMEPartLiteralFromMessage(message.Body, req.path[1:], req)
+			if err != nil || !found {
+				return nil, found, err
+			}
+			if req.partial.count > 0 {
+				literal = imapPartialLiteral(literal, req.partial)
+			}
+			return literal, true, nil
+		}
 		if req.messageSection != "" && len(req.path) == 1 && req.path[0] == 1 && mediaType == "message/rfc822" {
 			literal, err := readIMAPMessageSectionLiteral(message.Body, req)
 			if err != nil {
