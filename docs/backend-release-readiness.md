@@ -339,9 +339,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   attachment writes. S3-compatible deletes treat `404 Not Found` as
   already-cleaned success, keeping lifecycle cleanup idempotent across
   compatible providers and local/NFS storage. Access key IDs, secret access
-  keys, and session tokens reject whitespace during config validation and
-  adapter construction so copied env/config mistakes fail before runtime S3
-  authentication attempts.
+  keys, and session tokens reject whitespace and oversized values during
+  config validation and direct adapter construction so copied env/config
+  mistakes fail before runtime S3 authentication attempts or SigV4 header
+  construction.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, including the `GOGOMAIL_STORAGE_ROOT` compatibility alias for
   `GOGOMAIL_MAILSTORE_ROOT`, and the development compose stack includes

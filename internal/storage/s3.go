@@ -40,6 +40,12 @@ type S3Store struct {
 	now             func() time.Time
 }
 
+const (
+	maxS3AccessKeyIDBytes     = 4096
+	maxS3SecretAccessKeyBytes = 4096
+	maxS3SessionTokenBytes    = 8192
+)
+
 func NewS3Store(opts S3Options) (*S3Store, error) {
 	region := strings.TrimSpace(opts.Region)
 	if err := ValidateS3Region(region); err != nil {
@@ -50,14 +56,14 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		return nil, err
 	}
 	accessKeyID := opts.AccessKeyID
-	if accessKeyID == "" || s3CredentialContainsWhitespace(accessKeyID) {
-		return nil, fmt.Errorf("s3 access key id is required and must not contain whitespace")
+	if err := validateS3Credential("s3 access key id", accessKeyID, maxS3AccessKeyIDBytes, true); err != nil {
+		return nil, err
 	}
-	if opts.SecretAccessKey == "" || s3CredentialContainsWhitespace(opts.SecretAccessKey) {
-		return nil, fmt.Errorf("s3 secret access key is required and must not contain whitespace")
+	if err := validateS3Credential("s3 secret access key", opts.SecretAccessKey, maxS3SecretAccessKeyBytes, true); err != nil {
+		return nil, err
 	}
-	if s3CredentialContainsWhitespace(opts.SessionToken) {
-		return nil, fmt.Errorf("s3 session token must not contain whitespace")
+	if err := validateS3Credential("s3 session token", opts.SessionToken, maxS3SessionTokenBytes, false); err != nil {
+		return nil, err
 	}
 	endpointValue := strings.TrimSpace(opts.Endpoint)
 	if endpointValue == "" {
@@ -385,6 +391,22 @@ func ValidateS3BucketName(bucket string) error {
 
 func s3CredentialContainsWhitespace(value string) bool {
 	return strings.ContainsAny(value, " \t\r\n")
+}
+
+func validateS3Credential(name string, value string, maxBytes int, required bool) error {
+	if value == "" {
+		if required {
+			return fmt.Errorf("%s is required and must not contain whitespace", name)
+		}
+		return nil
+	}
+	if len(value) > maxBytes {
+		return fmt.Errorf("%s is too long", name)
+	}
+	if s3CredentialContainsWhitespace(value) {
+		return fmt.Errorf("%s must not contain whitespace", name)
+	}
+	return nil
 }
 
 func ValidateS3Endpoint(endpointValue string) (*url.URL, error) {

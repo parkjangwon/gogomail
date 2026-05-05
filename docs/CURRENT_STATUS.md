@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP FETCH failure response alignment)
+Last updated: 2026-05-05 (updated after S3 credential size hardening)
 
 ## Current phase
 
@@ -213,6 +213,10 @@ guidance.
 - S3-compatible access key IDs now reject spaces, tabs, and line breaks during
   config validation and adapter construction, preventing copied credential
   mistakes from being silently trimmed before SigV4 signing.
+- S3-compatible access key IDs, secret access keys, and session tokens now also
+  reject oversized direct adapter inputs using the same bounds as startup
+  config validation, preventing oversized SigV4 header material from reaching
+  runtime request construction.
 - Local/NFS-style storage writes now stage through unique temporary files in
   the target directory before `rename`, avoiding fixed `.tmp` collisions while
   preserving atomic object replacement semantics.

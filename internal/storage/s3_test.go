@@ -638,6 +638,61 @@ func TestNewS3StoreRejectsSessionTokenWhitespace(t *testing.T) {
 	}
 }
 
+func TestNewS3StoreRejectsOversizedCredentials(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mutate  func(*S3Options)
+		wantErr string
+	}{
+		{
+			name: "access key id",
+			mutate: func(opts *S3Options) {
+				opts.AccessKeyID = strings.Repeat("a", maxS3AccessKeyIDBytes+1)
+			},
+			wantErr: "s3 access key id",
+		},
+		{
+			name: "secret access key",
+			mutate: func(opts *S3Options) {
+				opts.SecretAccessKey = strings.Repeat("s", maxS3SecretAccessKeyBytes+1)
+			},
+			wantErr: "s3 secret access key",
+		},
+		{
+			name: "session token",
+			mutate: func(opts *S3Options) {
+				opts.SessionToken = strings.Repeat("t", maxS3SessionTokenBytes+1)
+			},
+			wantErr: "s3 session token",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			opts := S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+			}
+			tt.mutate(&opts)
+			_, err := NewS3Store(opts)
+			if err == nil {
+				t.Fatal("NewS3Store accepted oversized credential")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) || !strings.Contains(err.Error(), "too long") {
+				t.Fatalf("error = %q, want %s too long rejection", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestS3StoreSanitizesStatusErrorPreview(t *testing.T) {
 	t.Parallel()
 

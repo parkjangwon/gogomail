@@ -64,7 +64,10 @@ GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY=...
 Credential values are validated before adapter construction. Access key IDs,
 secret access keys, and session tokens must not contain spaces, tabs, or line
 breaks, so copied environment values with hidden whitespace fail fast instead
-of surfacing later as opaque S3 authentication failures.
+of surfacing later as opaque S3 authentication failures. Direct adapter inputs
+also enforce the same size bounds as startup config validation: access key IDs
+and secret access keys are capped at 4096 bytes, and session tokens are capped
+at 8192 bytes.
 
 Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Endpoints
 must be plain HTTP(S) origins with an optional canonical base path; userinfo,
