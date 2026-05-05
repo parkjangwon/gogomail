@@ -1055,6 +1055,10 @@ Implementation order:
      destination mailboxes are validated, active messages move folders
      transactionally, source UID rows are removed, and destination mailboxes
      assign fresh local UIDs.
+779. IMAP now advertises `UIDPLUS` and returns RFC 4315-style `[COPYUID ...]`
+     response codes for `COPY` and `UID COPY` when the repository returns
+     destination UIDs, improving client synchronization without guessing copied
+     message identities.
 
 ## Deferred until backend contracts stabilize
 

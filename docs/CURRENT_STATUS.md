@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP MOVE support)
+Last updated: 2026-05-05 (updated after IMAP UIDPLUS COPYUID support)
 
 ## Current phase
 
@@ -941,8 +941,9 @@ The platform hardening sprint completed the following:
 - IMAP `COPY` and `UID COPY` resolve sequence/UID sets through the selected
   mailbox, validate the destination mailbox, duplicate active message metadata
   and attachment rows transactionally, assign fresh destination mailbox UIDs,
-  and publish best-effort destination `EXISTS` events through the service
-  boundary.
+  return UIDPLUS `[COPYUID ...]` response codes when destination UIDs are
+  available, and publish best-effort destination `EXISTS` events through the
+  service boundary.
 - IMAP `MOVE` and `UID MOVE` resolve source sequence/UID sets through the
   selected mailbox, validate a different destination mailbox, move active
   messages transactionally, remove source mailbox UID rows, and emit RFC-shaped

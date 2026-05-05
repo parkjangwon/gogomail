@@ -1680,6 +1680,10 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 			return false, err
 		}
 	}
+	if copyUID := imapCopyUIDResponse(destMailbox.UIDValidity, uids, summaries); copyUID != "" {
+		_, err = writer.WriteString(tag + " OK [" + copyUID + "] " + completionCommand + " completed\r\n")
+		return false, err
+	}
 	_, err = writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
 }
@@ -1775,6 +1779,28 @@ func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnStat
 		uids = append(uids, uid)
 	}
 	return uids, nil
+}
+
+func imapCopyUIDResponse(uidValidity uint32, sourceUIDs []UID, summaries []MessageSummary) string {
+	if uidValidity == 0 || len(sourceUIDs) == 0 || len(sourceUIDs) != len(summaries) {
+		return ""
+	}
+	destUIDs := make([]UID, 0, len(summaries))
+	for _, summary := range summaries {
+		if summary.UID == 0 {
+			return ""
+		}
+		destUIDs = append(destUIDs, summary.UID)
+	}
+	return fmt.Sprintf("COPYUID %d %s %s", uidValidity, imapUIDSetResponse(sourceUIDs), imapUIDSetResponse(destUIDs))
+}
+
+func imapUIDSetResponse(uids []UID) string {
+	parts := make([]string, 0, len(uids))
+	for _, uid := range uids {
+		parts = append(parts, strconv.FormatUint(uint64(uid), 10))
+	}
+	return strings.Join(parts, ",")
 }
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
@@ -2988,7 +3014,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "MOVE"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "UIDPLUS", "MOVE"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
