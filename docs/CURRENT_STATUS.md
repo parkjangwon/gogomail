@@ -158,6 +158,10 @@ guidance.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
+- S3-compatible `PUT`, failed `GET`, and `DELETE` responses now drain a small
+  bounded response-body window before close, improving HTTP connection reuse
+  for normal S3/MinIO responses without allowing oversized bodies to stall
+  cleanup.
 - Local/NFS and S3-compatible readiness probes now read the verification object
   through a tight expected-size bound, so malformed or proxy-inflated probe
   responses cannot allocate unbounded memory during `/health/ready` checks.

@@ -1575,6 +1575,10 @@ Implementation order:
      preventing malformed or proxy-inflated probe responses from allocating
      unbounded memory during health checks while still detecting body
      mismatches.
+923. S3-compatible `PUT`, failed `GET`, and `DELETE` responses now drain a
+     small bounded response-body window before close, improving HTTP connection
+     reuse for ordinary S3/MinIO responses while preventing oversized bodies
+     from stalling cleanup.
 
 ## Deferred until backend contracts stabilize
 
