@@ -201,13 +201,16 @@ func (s *S3Store) objectURL(objectPath string) url.URL {
 	target := *s.endpoint
 	key := s.key(objectPath)
 	escapedKey := escapeS3Key(key)
-	basePath := strings.TrimRight(target.EscapedPath(), "/")
+	basePath := strings.TrimRight(target.Path, "/")
+	escapedBasePath := strings.TrimRight(target.EscapedPath(), "/")
 	if s.forcePathStyle {
-		target.Path = basePath + "/" + escapeS3Segment(s.bucket) + "/" + escapedKey
+		target.Path = basePath + "/" + s.bucket + "/" + key
+		target.RawPath = escapedBasePath + "/" + escapeS3Segment(s.bucket) + "/" + escapedKey
 		return target
 	}
 	target.Host = s.bucket + "." + target.Host
-	target.Path = basePath + "/" + escapedKey
+	target.Path = basePath + "/" + key
+	target.RawPath = escapedBasePath + "/" + escapedKey
 	return target
 }
 
