@@ -174,11 +174,15 @@ type imapConnState struct {
 	selectedMessages uint32
 	readOnly         bool
 	pendingAuthTag   string
+	pendingIdleTag   string
 	events           <-chan MailboxEvent
 	cancelEvents     func()
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
+	if state.pendingIdleTag != "" {
+		return s.handleIdleDone(writer, strings.TrimRight(line, "\r\n"), state)
+	}
 	if state.pendingAuthTag != "" {
 		return s.handleAuthenticatePlainResponse(writer, strings.TrimRight(line, "\r\n"), state)
 	}
@@ -352,6 +356,22 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		}
 		_, err := writer.WriteString(tag + " OK CHECK completed\r\n")
 		return false, err
+	case "IDLE":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		if state.selectedMailbox == "" {
+			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+			return false, err
+		}
+		if len(fields) != 2 {
+			_, err := writer.WriteString(tag + " BAD IDLE does not accept arguments\r\n")
+			return false, err
+		}
+		state.pendingIdleTag = tag
+		_, err := writer.WriteString("+ idling\r\n")
+		return false, err
 	case "CLOSE":
 		if state.session == nil {
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
@@ -377,6 +397,21 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) handleIdleDone(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
+	tag := state.pendingIdleTag
+	if strings.ToUpper(strings.TrimSpace(line)) != "DONE" {
+		_, err := writer.WriteString(tag + " BAD IDLE terminated by unexpected command\r\n")
+		state.pendingIdleTag = ""
+		return false, err
+	}
+	state.pendingIdleTag = ""
+	if err := s.drainMailboxEvents(writer, state); err != nil {
+		return false, err
+	}
+	_, err := writer.WriteString(tag + " OK IDLE completed\r\n")
+	return false, err
 }
 
 func (s *Server) drainMailboxEvents(writer *bufio.Writer, state *imapConnState) error {
@@ -977,7 +1012,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1"}
+	capabilities := []string{"IMAP4rev1", "IDLE"}
 	if state == nil || state.session == nil {
 		capabilities = append(capabilities, "AUTH=PLAIN")
 	}

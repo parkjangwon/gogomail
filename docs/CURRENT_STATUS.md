@@ -825,6 +825,8 @@ The platform hardening sprint completed the following:
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
 - IMAP `NOOP` drains queued selected-mailbox events into untagged `EXISTS` and
   flag `FETCH` updates.
+- IMAP advertises and accepts `IDLE`, entering continuation mode and draining
+  queued selected-mailbox events when the client sends `DONE`.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
