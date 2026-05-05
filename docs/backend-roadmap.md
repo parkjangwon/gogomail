@@ -2166,6 +2166,10 @@ Implementation order:
 1069. CalDAV calendar object `DELETE` now treats `If-Match: *` as an
       existing-resource precondition, returning HTTP 412 for missing `.ics`
       resources before attempting repository deletion.
+1070. CalDAV calendar object `GET` and `HEAD` now emit `Last-Modified` from
+      stored object update time and honor `If-Modified-Since` revalidation with
+      second-precision comparisons, reducing unnecessary body streaming for
+      timestamp-valid native-client caches.
 
 ## Deferred until backend contracts stabilize
 
