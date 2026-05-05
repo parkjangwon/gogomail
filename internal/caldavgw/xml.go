@@ -1,0 +1,405 @@
+package caldavgw
+
+import (
+	"bytes"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"strings"
+)
+
+const (
+	DAVNamespace    = "DAV:"
+	CalDAVNamespace = "urn:ietf:params:xml:ns:caldav"
+
+	MaxWebDAVXMLBodyBytes = 1 << 20
+	MaxWebDAVXMLDepth     = 64
+	MaxWebDAVProperties   = 256
+	MaxWebDAVHrefs        = 2048
+)
+
+type Depth string
+
+const (
+	DepthZero     Depth = "0"
+	DepthOne      Depth = "1"
+	DepthInfinity Depth = "infinity"
+)
+
+func ParseDepth(value string, fallback Depth) (Depth, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if fallback == "" {
+			return "", fmt.Errorf("depth is required")
+		}
+		return fallback, nil
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("depth must not contain line breaks")
+	}
+	switch strings.ToLower(value) {
+	case string(DepthZero):
+		return DepthZero, nil
+	case string(DepthOne):
+		return DepthOne, nil
+	case string(DepthInfinity):
+		return DepthInfinity, nil
+	default:
+		return "", fmt.Errorf("unsupported depth %q", value)
+	}
+}
+
+type XMLName struct {
+	Space string
+	Local string
+}
+
+func xmlName(name xml.Name) XMLName {
+	return XMLName{Space: name.Space, Local: name.Local}
+}
+
+type PropfindKind string
+
+const (
+	PropfindAllProp  PropfindKind = "allprop"
+	PropfindPropName PropfindKind = "propname"
+	PropfindProp     PropfindKind = "prop"
+)
+
+type PropfindRequest struct {
+	Kind       PropfindKind
+	Properties []XMLName
+	Include    []XMLName
+}
+
+func ParsePropfind(r io.Reader) (PropfindRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return PropfindRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return PropfindRequest{Kind: PropfindAllProp}, nil
+	}
+
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return PropfindRequest{}, err
+	}
+	if !sameXMLName(root.Name, DAVNamespace, "propfind") {
+		return PropfindRequest{}, fmt.Errorf("unsupported PROPFIND root {%s}%s", root.Name.Space, root.Name.Local)
+	}
+
+	var req PropfindRequest
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return PropfindRequest{}, fmt.Errorf("unterminated PROPFIND body")
+		}
+		if err != nil {
+			return PropfindRequest{}, fmt.Errorf("decode PROPFIND body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "allprop"):
+				if req.Kind != "" {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND body must contain one request mode")
+				}
+				req.Kind = PropfindAllProp
+				if err := skipElement(dec, tok.Name); err != nil {
+					return PropfindRequest{}, err
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "propname"):
+				if req.Kind != "" {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND body must contain one request mode")
+				}
+				req.Kind = PropfindPropName
+				if err := skipElement(dec, tok.Name); err != nil {
+					return PropfindRequest{}, err
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "prop"):
+				if req.Kind != "" {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND body must contain one request mode")
+				}
+				req.Kind = PropfindProp
+				properties, err := parsePropElement(dec, tok.Name)
+				if err != nil {
+					return PropfindRequest{}, err
+				}
+				req.Properties = properties
+			case sameXMLName(tok.Name, DAVNamespace, "include"):
+				if req.Kind != PropfindAllProp {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND include is only supported with allprop")
+				}
+				include, err := parsePropElement(dec, tok.Name)
+				if err != nil {
+					return PropfindRequest{}, err
+				}
+				req.Include = append(req.Include, include...)
+				if len(req.Include) > MaxWebDAVProperties {
+					return PropfindRequest{}, fmt.Errorf("too many WebDAV include properties")
+				}
+			default:
+				return PropfindRequest{}, fmt.Errorf("unsupported PROPFIND element {%s}%s", tok.Name.Space, tok.Name.Local)
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if req.Kind == "" {
+					req.Kind = PropfindAllProp
+				}
+				if req.Kind == PropfindProp && len(req.Properties) == 0 {
+					return PropfindRequest{}, fmt.Errorf("PROPFIND prop request must include at least one property")
+				}
+				if err := rejectTrailingXML(dec); err != nil {
+					return PropfindRequest{}, err
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
+type ReportKind string
+
+const (
+	ReportCalendarQuery  ReportKind = "calendar-query"
+	ReportCalendarMulti  ReportKind = "calendar-multiget"
+	ReportFreeBusyQuery  ReportKind = "free-busy-query"
+	ReportSyncCollection ReportKind = "sync-collection"
+)
+
+type ReportRequest struct {
+	Kind       ReportKind
+	Properties []XMLName
+	Hrefs      []string
+	SyncToken  string
+}
+
+func ParseReport(r io.Reader) (ReportRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return ReportRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return ReportRequest{}, fmt.Errorf("REPORT body is required")
+	}
+
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return ReportRequest{}, err
+	}
+	req, err := classifyReportRoot(root.Name)
+	if err != nil {
+		return ReportRequest{}, err
+	}
+
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return ReportRequest{}, fmt.Errorf("unterminated REPORT body")
+		}
+		if err != nil {
+			return ReportRequest{}, fmt.Errorf("decode REPORT body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "prop"):
+				properties, err := parsePropElement(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.Properties = append(req.Properties, properties...)
+				if len(req.Properties) > MaxWebDAVProperties {
+					return ReportRequest{}, fmt.Errorf("too many WebDAV properties")
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "href"):
+				href, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				if len(req.Hrefs) >= MaxWebDAVHrefs {
+					return ReportRequest{}, fmt.Errorf("too many WebDAV hrefs")
+				}
+				req.Hrefs = append(req.Hrefs, strings.TrimSpace(href))
+			case sameXMLName(tok.Name, DAVNamespace, "sync-token"):
+				token, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.SyncToken = strings.TrimSpace(token)
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return ReportRequest{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if err := rejectTrailingXML(dec); err != nil {
+					return ReportRequest{}, err
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
+func readBoundedXMLBody(r io.Reader) ([]byte, error) {
+	if r == nil {
+		return nil, fmt.Errorf("XML body reader is required")
+	}
+	limited := io.LimitReader(r, MaxWebDAVXMLBodyBytes+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read WebDAV XML body: %w", err)
+	}
+	if len(body) > MaxWebDAVXMLBodyBytes {
+		return nil, fmt.Errorf("WebDAV XML body exceeds %d bytes", MaxWebDAVXMLBodyBytes)
+	}
+	return body, nil
+}
+
+func newWebDAVXMLDecoder(body []byte) *xml.Decoder {
+	dec := xml.NewDecoder(bytes.NewReader(body))
+	dec.Strict = true
+	return dec
+}
+
+func nextStart(dec *xml.Decoder) (xml.StartElement, error) {
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return xml.StartElement{}, fmt.Errorf("decode XML root: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			return tok, nil
+		case xml.Directive:
+			return xml.StartElement{}, fmt.Errorf("XML directives are not supported")
+		}
+	}
+}
+
+func classifyReportRoot(name xml.Name) (ReportRequest, error) {
+	switch {
+	case sameXMLName(name, CalDAVNamespace, "calendar-query"):
+		return ReportRequest{Kind: ReportCalendarQuery}, nil
+	case sameXMLName(name, CalDAVNamespace, "calendar-multiget"):
+		return ReportRequest{Kind: ReportCalendarMulti}, nil
+	case sameXMLName(name, CalDAVNamespace, "free-busy-query"):
+		return ReportRequest{Kind: ReportFreeBusyQuery}, nil
+	case sameXMLName(name, DAVNamespace, "sync-collection"):
+		return ReportRequest{Kind: ReportSyncCollection}, nil
+	default:
+		return ReportRequest{}, fmt.Errorf("unsupported REPORT root {%s}%s", name.Space, name.Local)
+	}
+}
+
+func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
+	var properties []XMLName
+	depth := 1
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil, fmt.Errorf("unterminated prop element")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode prop element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth > MaxWebDAVXMLDepth {
+				return nil, fmt.Errorf("WebDAV XML exceeds maximum depth")
+			}
+			if len(properties) >= MaxWebDAVProperties {
+				return nil, fmt.Errorf("too many WebDAV properties")
+			}
+			properties = append(properties, xmlName(tok.Name))
+			if err := skipElement(dec, tok.Name); err != nil {
+				return nil, err
+			}
+			depth--
+		case xml.EndElement:
+			if sameName(tok.Name, propName) {
+				return properties, nil
+			}
+		}
+	}
+}
+
+func readSimpleElementText(dec *xml.Decoder, name xml.Name) (string, error) {
+	var b strings.Builder
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return "", fmt.Errorf("unterminated {%s}%s element", name.Space, name.Local)
+		}
+		if err != nil {
+			return "", err
+		}
+		switch tok := tok.(type) {
+		case xml.CharData:
+			b.Write([]byte(tok))
+		case xml.StartElement:
+			return "", fmt.Errorf("{%s}%s must not contain nested elements", name.Space, name.Local)
+		case xml.EndElement:
+			if sameName(tok.Name, name) {
+				return b.String(), nil
+			}
+		}
+	}
+}
+
+func skipElement(dec *xml.Decoder, name xml.Name) error {
+	depth := 1
+	for depth > 0 {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated {%s}%s element", name.Space, name.Local)
+		}
+		if err != nil {
+			return err
+		}
+		switch tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth > MaxWebDAVXMLDepth {
+				return fmt.Errorf("WebDAV XML exceeds maximum depth")
+			}
+		case xml.EndElement:
+			depth--
+		}
+	}
+	return nil
+}
+
+func rejectTrailingXML(dec *xml.Decoder) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("decode trailing XML: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			return fmt.Errorf("multiple XML root elements are not supported")
+		case xml.CharData:
+			if len(bytes.TrimSpace(tok)) != 0 {
+				return fmt.Errorf("unexpected trailing XML character data")
+			}
+		}
+	}
+}
+
+func sameXMLName(name xml.Name, space string, local string) bool {
+	return name.Space == space && name.Local == local
+}
+
+func sameName(a xml.Name, b xml.Name) bool {
+	return a.Space == b.Space && a.Local == b.Local
+}
