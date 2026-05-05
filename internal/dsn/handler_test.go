@@ -13,6 +13,7 @@ import (
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func TestBounceHandlerQueuesFailureDSN(t *testing.T) {
@@ -486,6 +487,10 @@ func (s *memoryStore) Put(_ context.Context, path string, body io.Reader) error 
 
 func (s *memoryStore) Get(_ context.Context, path string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(s.values[path])), nil
+}
+
+func (s *memoryStore) Stat(_ context.Context, path string) (storage.ObjectInfo, error) {
+	return storage.ObjectInfo{Path: path, Size: int64(len(s.values[path]))}, nil
 }
 
 func (s *memoryStore) Delete(_ context.Context, path string) error {

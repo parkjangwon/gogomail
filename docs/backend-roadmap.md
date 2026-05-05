@@ -1715,6 +1715,10 @@ Implementation order:
      conversation-list delete workflows while invalidating affected IMAP UID
      rows, decrementing stored-byte quota transactionally, and publishing
      best-effort expunge events from the pre-delete UID snapshot.
+960. Shared storage now exposes object `Stat` across local/NFS and
+     S3-compatible backends, using filesystem metadata locally and signed
+     S3 `HEAD` requests remotely so future Drive, lifecycle, and verification
+     paths can inspect object size/metadata without streaming bodies.
 
 ## Deferred until backend contracts stabilize
 

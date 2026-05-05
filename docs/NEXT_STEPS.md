@@ -1188,6 +1188,9 @@ Current state:
   selected threads while invalidating IMAP UID rows, decrementing quota
   transactionally, and publishing best-effort expunge events from the
   pre-delete UID snapshot.
+- Shared storage now supports `Stat` across local/NFS and S3-compatible
+  backends, giving future Drive, lifecycle, and verification paths a portable
+  way to inspect object size/metadata without streaming object bodies.
 
 Next:
 

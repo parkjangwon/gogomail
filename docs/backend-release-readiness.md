@@ -343,6 +343,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Local and S3-compatible storage writes reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.
+- Local/NFS and S3-compatible storage expose a shared object `Stat` contract
+  for canonical object keys, byte size, and backend metadata without streaming
+  object bodies. S3-compatible storage implements this through signed `HEAD`
+  requests, giving future Drive and lifecycle workers a portable size/existence
+  primitive across local, MinIO, and AWS S3 deployments.
 - Local/NFS-style storage deletes are idempotent for missing objects, aligning
   lifecycle cleanup behavior with S3-compatible object deletion.
 - S3-compatible storage requests reject canceled contexts before object-key

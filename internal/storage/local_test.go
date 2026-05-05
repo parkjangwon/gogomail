@@ -34,6 +34,13 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	if string(got) != "Subject: hello\r\n\r\nbody" {
 		t.Fatalf("stored body = %q", string(got))
 	}
+	info, err := store.Stat(ctx, path)
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.Path != path || info.Size != int64(len("Subject: hello\r\n\r\nbody")) || info.LastModified.IsZero() {
+		t.Fatalf("object info = %+v", info)
+	}
 
 	if err := store.Delete(ctx, path); err != nil {
 		t.Fatalf("Delete returned error: %v", err)
@@ -218,6 +225,9 @@ func TestLocalStoreRejectsAmbiguousObjectKeys(t *testing.T) {
 		}
 		if _, err := store.Get(context.Background(), objectPath); err == nil {
 			t.Fatalf("Get accepted ambiguous object key %q", objectPath)
+		}
+		if _, err := store.Stat(context.Background(), objectPath); err == nil {
+			t.Fatalf("Stat accepted ambiguous object key %q", objectPath)
 		}
 		if err := store.Delete(context.Background(), objectPath); err == nil {
 			t.Fatalf("Delete accepted ambiguous object key %q", objectPath)
