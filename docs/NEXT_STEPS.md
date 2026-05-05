@@ -346,12 +346,16 @@ Current state:
 - Drive object path builders now standardize staged uploads, committed node
   objects, and user cleanup prefixes under `drive/users/{user_id}/...`, with
   path-segment-safe ID checks before storage paths are emitted.
+- Drive object cleanup failures now have a PostgreSQL retry record boundary:
+  structured cleanup errors can be recorded with user/node/object context,
+  pending failures are de-duplicated per backend/path, repeated failures
+  increment attempts, and error text is one-line/UTF-8 bounded.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add a retry/reconciliation record for post-transaction Drive object cleanup
-  failures so failed deletes are operator-visible and resumable.
+- Add bounded Drive cleanup-failure list/resolve repository methods so worker
+  retries and admin surfaces can inspect and close pending cleanup records.
 - Add Drive HTTP contracts only after repository/service
   create/list/delete/restore flows are stable enough to document in OpenAPI.
 

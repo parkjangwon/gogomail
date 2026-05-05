@@ -1791,6 +1791,11 @@ Implementation order:
      committed node objects, and user cleanup prefixes under
      `drive/users/{user_id}/...`, with path-segment-safe ID validation before
      storage paths are emitted.
+978. Drive permanent-delete cleanup failures now have a PostgreSQL retry
+     record boundary. Structured cleanup errors can be recorded with
+     user/node/object context, pending failures are de-duplicated per
+     backend/path, repeat failures increment attempts, and diagnostic text is
+     one-line/UTF-8 bounded for future worker and operator surfaces.
 
 ## Deferred until backend contracts stabilize
 
