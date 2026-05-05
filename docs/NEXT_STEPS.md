@@ -1617,9 +1617,10 @@ Next:
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
   Repository-backed query execution can stream contact objects and stop once
   the response cap is satisfied, avoiding whole-address-book materialization on
-  that hot path. It should be followed by broader vCard compatibility and
-  native-client compatibility tests before any public contacts UI or API treats
-  it as production-ready.
+  that hot path. Address-data projection failures are explicit errors rather
+  than silent full-body fallbacks. It should be followed by broader vCard
+  compatibility and native-client compatibility tests before any public contacts
+  UI or API treats it as production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

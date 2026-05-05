@@ -68,21 +68,24 @@ type PropStatus struct {
 }
 
 func ContactObjectDataProperty(body []byte) PropertyResult {
-	return ContactObjectDataPropertyWithProperties(body, nil)
+	prop, _ := ContactObjectDataPropertyWithProperties(body, nil)
+	return prop
 }
 
-func ContactObjectDataPropertyWithProperties(body []byte, properties []string) PropertyResult {
+func ContactObjectDataPropertyWithProperties(body []byte, properties []string) (PropertyResult, error) {
 	text := string(body)
 	if len(properties) > 0 {
-		if projected, err := projectVCardProperties(text, properties); err == nil {
-			text = projected
+		projected, err := projectVCardProperties(text, properties)
+		if err != nil {
+			return PropertyResult{}, err
 		}
+		text = projected
 	}
 	return PropertyResult{
 		Name:  PropAddressData,
 		Value: PropertyValue{Text: text},
 		Found: len(body) > 0,
-	}
+	}, nil
 }
 
 func projectVCardProperties(raw string, properties []string) (string, error) {

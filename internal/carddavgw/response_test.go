@@ -122,7 +122,10 @@ func TestSelectReportPropertiesSeparatesFoundAndMissing(t *testing.T) {
 func TestContactObjectDataPropertyProjectsRequestedProperties(t *testing.T) {
 	t.Parallel()
 
-	prop := ContactObjectDataPropertyWithProperties([]byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEMAIL:one@example.com\r\nEND:VCARD\r\n"), []string{"FN"})
+	prop, err := ContactObjectDataPropertyWithProperties([]byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEMAIL:one@example.com\r\nEND:VCARD\r\n"), []string{"FN"})
+	if err != nil {
+		t.Fatalf("ContactObjectDataPropertyWithProperties returned error: %v", err)
+	}
 	if !prop.Found {
 		t.Fatal("projected address-data not found")
 	}
@@ -131,6 +134,14 @@ func TestContactObjectDataPropertyProjectsRequestedProperties(t *testing.T) {
 	}
 	if strings.Contains(prop.Value.Text, "EMAIL:") || strings.Contains(prop.Value.Text, "UID:") {
 		t.Fatalf("projected vcard included unrequested data:\n%s", prop.Value.Text)
+	}
+}
+
+func TestContactObjectDataPropertyRejectsProjectionFailures(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ContactObjectDataPropertyWithProperties([]byte("BEGIN:VCARD\r\nBROKEN\r\nEND:VCARD\r\n"), []string{"FN"}); err == nil {
+		t.Fatal("ContactObjectDataPropertyWithProperties error = nil, want projection failure")
 	}
 }
 

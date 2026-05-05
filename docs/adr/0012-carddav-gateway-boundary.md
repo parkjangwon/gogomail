@@ -65,6 +65,8 @@ support before handler execution. Returned address-data elements carry explicit
 execution honors bounded `limit/nresults` values before rendering multistatus
 responses, and repository-backed execution can stream contact objects through a
 walker boundary so filtering can stop once the response cap is satisfied.
+Address-data projection failures are surfaced as explicit handler errors rather
+than silently broadening the returned vCard body.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
