@@ -324,6 +324,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `If-Match: *` before repository mutation, preventing stale native-client
   collection deletes while failing closed for non-star collection ETag
   preconditions until collection ETags are intentionally exposed.
+- CalDAV collection `PROPPATCH` now shares the same precondition gate,
+  preventing stale metadata edits and failing non-star collection ETag
+  conditions before XML request bodies are read or parsed.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

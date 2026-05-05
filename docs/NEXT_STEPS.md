@@ -1540,6 +1540,9 @@ Current state:
   `If-Match: *` preconditions before deleting a calendar collection and its
   children; non-star collection ETag preconditions fail closed until collection
   ETags are part of the advertised contract.
+- CalDAV collection `PROPPATCH` now shares that precondition gate, rejecting
+  stale metadata updates and non-star collection ETag conditions before XML
+  request bodies are read or parsed.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

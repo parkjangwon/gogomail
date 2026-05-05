@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV collection delete preconditions)
+Last updated: 2026-05-06 (updated after CalDAV collection mutation preconditions)
 
 ## Current phase
 
@@ -2253,6 +2253,9 @@ The platform hardening sprint completed the following:
   collection update time and treats `If-Match: *` as an existing-collection
   guard before repository mutation; non-star collection ETag preconditions fail
   closed until collection ETags are explicitly advertised.
+- CalDAV collection `PROPPATCH` now uses the same collection precondition gate,
+  rejecting stale `If-Unmodified-Since` and non-star `If-Match` requests before
+  reading XML bodies or updating calendar metadata.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
