@@ -106,6 +106,9 @@ Current state:
   RFC 3501 atom and quoted-string handling separate.
 - IMAP parenthesized `SEARCH`/`UID SEARCH` groups reject empty `()` groups
   instead of treating them as match-all, while preserving valid `(ALL)` groups.
+- IMAP `SEARCH`/`UID SEARCH` `MODSEQ` numeric thresholds reject malformed
+  values that still contain quote characters after command parsing, so broken
+  inputs such as `MODSEQ 20"` are not silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

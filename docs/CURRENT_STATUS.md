@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP empty search group rejection)
+Last updated: 2026-05-05 (updated after IMAP MODSEQ quote rejection)
 
 ## Current phase
 
@@ -225,6 +225,9 @@ guidance.
   keeping RFC 3501 atom and quoted-string handling separate.
 - IMAP parenthesized `SEARCH`/`UID SEARCH` groups now reject empty `()` groups
   instead of treating them as match-all, while preserving valid `(ALL)` groups.
+- IMAP `SEARCH`/`UID SEARCH` `MODSEQ` numeric thresholds now reject malformed
+  values that still contain quote characters after command parsing, so broken
+  inputs such as `MODSEQ 20"` are not silently normalized.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
