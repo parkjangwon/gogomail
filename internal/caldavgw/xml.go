@@ -288,7 +288,10 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
-				return parseProppatchProp(dec, tok.Name, true, req)
+				if err := parseProppatchProp(dec, tok.Name, true, req); err != nil {
+					return err
+				}
+				continue
 			}
 			if err := skipElement(dec, tok.Name); err != nil {
 				return err
@@ -313,7 +316,10 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
-				return parseProppatchProp(dec, tok.Name, false, req)
+				if err := parseProppatchProp(dec, tok.Name, false, req); err != nil {
+					return err
+				}
+				continue
 			}
 			if err := skipElement(dec, tok.Name); err != nil {
 				return err
