@@ -489,7 +489,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   delimiters through LIST-compatible commands.
 - IMAP `LSUB` retains subscribed names after mailbox deletion with `\Noselect`
   and covers the RFC 3501 `%` hierarchy parent response case.
-- IMAP now advertises and supports `ID`, returning a bounded server identity
+- IMAP now advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
+  field/value parameter lists before returning a bounded server identity
   response for compatibility diagnostics.
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.

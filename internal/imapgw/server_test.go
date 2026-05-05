@@ -406,6 +406,114 @@ func TestServerHandlesIDCommand(t *testing.T) {
 	}
 }
 
+func TestServerHandlesIDParameterList(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte(`a1 ID ("name" "gogomail test" "version" NIL)` + "\r\n")); err != nil {
+		t.Fatalf("write id list: %v", err)
+	}
+	want := []string{
+		"* ID (\"name\" \"gogomail\")\r\n",
+		"a1 OK ID completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read id response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("id response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsMalformedIDArguments(t *testing.T) {
+	t.Parallel()
+
+	for _, command := range []string{
+		`ID`,
+		`ID NIL "extra"`,
+		`ID "name" "client"`,
+		`ID ("name")`,
+		`ID ("name" "client" "name" "duplicate")`,
+		`ID ("0123456789012345678901234567890" "client")`,
+	} {
+		command := command
+		t.Run(command, func(t *testing.T) {
+			t.Parallel()
+
+			server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+			if err != nil {
+				t.Fatalf("NewServer returned error: %v", err)
+			}
+			client, backend := net.Pipe()
+			defer client.Close()
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- server.ServeConn(backend)
+			}()
+
+			reader := bufio.NewReader(client)
+			if _, err := reader.ReadString('\n'); err != nil {
+				t.Fatalf("read greeting: %v", err)
+			}
+			if _, err := client.Write([]byte("a1 " + command + "\r\na2 LOGOUT\r\n")); err != nil {
+				t.Fatalf("write id/logout: %v", err)
+			}
+			if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD ID requires NIL or parameter list\r\n" {
+				t.Fatalf("id response = %q err = %v", line, err)
+			}
+			_, _ = reader.ReadString('\n')
+			_, _ = reader.ReadString('\n')
+			if err := <-errCh; err != nil {
+				t.Fatalf("ServeConn returned error: %v", err)
+			}
+		})
+	}
+}
+
+func TestIMAPIDArgumentsValidEnforcesRFC2971Limits(t *testing.T) {
+	t.Parallel()
+
+	if !imapIDArgumentsValid(`("name" "` + strings.Repeat("x", 1024) + `")`) {
+		t.Fatal("imapIDArgumentsValid rejected 1024-octet ID value")
+	}
+	if imapIDArgumentsValid(`("name" "` + strings.Repeat("x", 1025) + `")`) {
+		t.Fatal("imapIDArgumentsValid accepted oversized ID value")
+	}
+
+	pairs := make([]string, 0, 62)
+	for i := 0; i < 31; i++ {
+		pairs = append(pairs, fmt.Sprintf(`"field-%02d" "value"`, i))
+	}
+	if imapIDArgumentsValid("(" + strings.Join(pairs, " ") + ")") {
+		t.Fatal("imapIDArgumentsValid accepted more than 30 ID field-value pairs")
+	}
+}
+
 func testIMAPTLSConfig(t *testing.T) *tls.Config {
 	t.Helper()
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after persistent IMAP mailbox subscriptions)
+Last updated: 2026-05-05 (updated after stricter IMAP ID validation)
 
 ## Current phase
 
@@ -969,8 +969,8 @@ The platform hardening sprint completed the following:
 - IMAP `LSUB` preserves subscribed mailbox names even when the mailbox no
   longer exists, returning missing names with `\Noselect`, and handles the RFC
   3501 `%` hierarchy case by returning subscribed parent levels.
-- IMAP advertises and supports `ID`, returning a bounded gogomail server
-  identity response.
+- IMAP advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
+  field/value parameter lists before returning gogomail server identity.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` delete only messages marked with the
