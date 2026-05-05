@@ -820,6 +820,9 @@ The platform hardening sprint completed the following:
   attributes from message summaries for mailbox list rendering.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
+- IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
+  parameters, content-transfer-encoding, ID, and description from bounded raw
+  message headers instead of always reporting text/plain defaults.
 - IMAP `FETCH`/`UID FETCH` supports standard `FAST`, `ALL`, and `FULL` macros,
   including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded header-only literals for
