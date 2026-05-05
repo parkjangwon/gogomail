@@ -240,6 +240,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   free-busy time ranges. Recurrence expansion, VFREEBUSY source-object
   ingestion, scheduling, and broader device/client compatibility tests remain
   incomplete.
+- CalDAV method discovery no longer advertises `MKCALENDAR` in `Allow` headers
+  before a creation handler is implemented, reducing native-client confusion
+  and keeping advertised semantics auditable.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
