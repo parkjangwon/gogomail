@@ -599,6 +599,62 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 5; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 FETCH 1:* (FLAGS RFC822.SIZE)\r\n")); err != nil {
+		t.Fatalf("write fetch: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"a3 OK FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read fetch response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("fetch response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -777,6 +833,30 @@ func TestParseIMAPUIDSet(t *testing.T) {
 	}
 }
 
+func TestParseIMAPSequenceSet(t *testing.T) {
+	t.Parallel()
+
+	got, ok := parseIMAPSequenceSet("2:*,1", 3)
+	if !ok {
+		t.Fatal("parseIMAPSequenceSet rejected valid sequence set")
+	}
+	want := []uint32{2, 3, 1}
+	if len(got) != len(want) {
+		t.Fatalf("sequence set length = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("sequence set = %v, want %v", got, want)
+		}
+	}
+
+	for _, value := range []string{"", "0", "4", "1:4", "bad", "*"} {
+		if got, ok := parseIMAPSequenceSet(value, 0); ok {
+			t.Fatalf("parseIMAPSequenceSet(%q, 0) = %v true, want rejection", value, got)
+		}
+	}
+}
+
 type fakeBackend struct{}
 
 func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
@@ -795,7 +875,10 @@ func (fakeBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, erro
 }
 
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-1", UID: 1}}, nil
+	return []MessageSummary{
+		{ID: "message-1", UID: 7, SequenceNumber: 1},
+		{ID: "message-2", UID: 8, SequenceNumber: 2},
+	}, nil
 }
 
 func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Message, error) {

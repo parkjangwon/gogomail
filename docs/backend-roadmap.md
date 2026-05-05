@@ -833,6 +833,9 @@ Implementation order:
 702. IMAP `UID FETCH` now accepts bounded numeric UID sets and ranges, including
      comma-separated and reverse range forms, and treats `BODY.PEEK[]` as a body
      fetch request without changing the stored flag state.
+703. IMAP `FETCH` now accepts bounded message sequence sets, including `*`,
+     resolves them through the selected mailbox message list, and returns the
+     same RFC-shaped untagged `FETCH` metadata/body responses as `UID FETCH`.
 
 ## Deferred until backend contracts stabilize
 
