@@ -79,14 +79,15 @@ const (
 )
 
 type ReportRequest struct {
-	Kind       ReportKind
-	Properties []XMLName
-	Hrefs      []string
-	SyncToken  string
-	SyncLevel  string
-	Limit      int
-	HasFilter  bool
-	Filter     AddressBookQueryFilter
+	Kind                  ReportKind
+	Properties            []XMLName
+	AddressDataProperties []string
+	Hrefs                 []string
+	SyncToken             string
+	SyncLevel             string
+	Limit                 int
+	HasFilter             bool
+	Filter                AddressBookQueryFilter
 }
 
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
@@ -206,11 +207,12 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 		case xml.StartElement:
 			switch {
 			case sameXMLName(tok.Name, DAVNamespace, "prop"):
-				properties, err := parsePropElement(dec, tok.Name)
+				properties, addressDataProperties, err := parseReportPropElement(dec, tok.Name)
 				if err != nil {
 					return ReportRequest{}, err
 				}
 				req.Properties = append(req.Properties, properties...)
+				req.AddressDataProperties = append(req.AddressDataProperties, addressDataProperties...)
 				if len(req.Properties) > MaxWebDAVProperties {
 					return ReportRequest{}, fmt.Errorf("too many WebDAV properties")
 				}
@@ -341,32 +343,85 @@ func nextStart(dec *xml.Decoder) (xml.StartElement, error) {
 }
 
 func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
+	properties, _, err := parsePropElementDetailed(dec, propName)
+	return properties, err
+}
+
+func parseReportPropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, []string, error) {
+	return parsePropElementDetailed(dec, propName)
+}
+
+func parsePropElementDetailed(dec *xml.Decoder, propName xml.Name) ([]XMLName, []string, error) {
 	var properties []XMLName
+	var addressDataProperties []string
 	depth := 1
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
-			return nil, fmt.Errorf("unterminated prop element")
+			return nil, nil, fmt.Errorf("unterminated prop element")
 		}
 		if err != nil {
-			return nil, fmt.Errorf("decode prop element: %w", err)
+			return nil, nil, fmt.Errorf("decode prop element: %w", err)
 		}
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			depth++
 			if depth > MaxWebDAVXMLDepth {
-				return nil, fmt.Errorf("WebDAV XML exceeds maximum depth")
+				return nil, nil, fmt.Errorf("WebDAV XML exceeds maximum depth")
 			}
 			if len(properties) >= MaxWebDAVProperties {
-				return nil, fmt.Errorf("too many WebDAV properties")
+				return nil, nil, fmt.Errorf("too many WebDAV properties")
 			}
 			properties = append(properties, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
-			if err := skipElement(dec, tok.Name); err != nil {
-				return nil, err
+			if sameXMLName(tok.Name, CardDAVNamespace, "address-data") {
+				names, err := parseAddressDataElement(dec, tok.Name)
+				if err != nil {
+					return nil, nil, err
+				}
+				addressDataProperties = append(addressDataProperties, names...)
+			} else if err := skipElement(dec, tok.Name); err != nil {
+				return nil, nil, err
 			}
 			depth--
 		case xml.EndElement:
 			if sameName(tok.Name, propName) {
+				return properties, addressDataProperties, nil
+			}
+		}
+	}
+}
+
+func parseAddressDataElement(dec *xml.Decoder, name xml.Name) ([]string, error) {
+	var properties []string
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil, fmt.Errorf("unterminated address-data element")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode address-data element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if !sameXMLName(tok.Name, CardDAVNamespace, "prop") {
+				if err := skipElement(dec, tok.Name); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			propName, err := filterNameAttribute(tok, "address-data prop")
+			if err != nil {
+				return nil, err
+			}
+			if len(properties) >= MaxWebDAVProperties {
+				return nil, fmt.Errorf("too many CardDAV address-data properties")
+			}
+			properties = append(properties, propName)
+			if err := skipElement(dec, tok.Name); err != nil {
+				return nil, err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, name) {
 				return properties, nil
 			}
 		}

@@ -269,6 +269,27 @@ func TestHandlerReportAddressBookMultigetReturnsAddressData(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookMultigetProjectsAddressData(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>
+  <D:prop><D:getetag/><C:address-data><C:prop name="FN"/></C:address-data></D:prop>
+</C:addressbook-multiget>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "FN:Contact One") {
+		t.Fatalf("projected address-data missing requested FN:\n%s", text)
+	}
+	if strings.Contains(text, "EMAIL;TYPE=home") {
+		t.Fatalf("projected address-data included unrequested EMAIL:\n%s", text)
+	}
+}
+
 func TestHandlerReportAddressBookQueryFiltersTextMatch(t *testing.T) {
 	t.Parallel()
 

@@ -2359,6 +2359,10 @@ Implementation order:
       predicates and multiple per-property `text-match`/`param-filter`
       predicates with RFC 6352 `test=anyof|allof` composition at both the
       top-level `filter` and individual `prop-filter` levels.
+1113. CardDAV REPORT `address-data` now honors requested vCard property
+      selectors such as `<C:prop name="FN"/>`, projecting returned contact data
+      while preserving structural BEGIN/VERSION/END lines and omitting
+      unrequested contact properties.
 
 ## Deferred until backend contracts stabilize
 

@@ -547,7 +547,7 @@ func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID strin
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataProperty(object.VCard))
+			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
 		}
 		objectHref, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -585,7 +585,7 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataProperty(object.VCard))
+			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
 		}
 		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -741,7 +741,7 @@ func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, re
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataProperty(object.VCard))
+			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
 		}
 		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -797,7 +797,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataProperty(object.VCard))
+			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
