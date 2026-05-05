@@ -66,6 +66,7 @@ type CreateFolderRequest struct {
 }
 
 type CreateFileFromObjectRequest struct {
+	NodeID         string
 	UserID         string
 	ParentID       string
 	Name           string
@@ -186,6 +187,10 @@ func ValidateCreateFolderRequest(req CreateFolderRequest) (CreateFolderRequest, 
 }
 
 func ValidateCreateFileFromObjectRequest(req CreateFileFromObjectRequest) (CreateFileFromObjectRequest, string, error) {
+	nodeID, err := validateDriveID("node_id", req.NodeID, false)
+	if err != nil {
+		return CreateFileFromObjectRequest{}, "", err
+	}
 	userID, err := validateDriveID("user_id", req.UserID, true)
 	if err != nil {
 		return CreateFileFromObjectRequest{}, "", err
@@ -219,6 +224,7 @@ func ValidateCreateFileFromObjectRequest(req CreateFileFromObjectRequest) (Creat
 		return CreateFileFromObjectRequest{}, "", err
 	}
 	return CreateFileFromObjectRequest{
+		NodeID:         nodeID,
 		UserID:         userID,
 		ParentID:       parentID,
 		Name:           name,
@@ -414,6 +420,7 @@ parent AS (
     AND n.status = 'active'
 )
 INSERT INTO drive_nodes (
+  id,
   company_id,
   domain_id,
   user_id,
@@ -424,6 +431,7 @@ INSERT INTO drive_nodes (
   status
 )
 SELECT
+  COALESCE(NULLIF($10, '')::uuid, gen_random_uuid()),
   owner.company_id,
   owner.domain_id,
   owner.user_id,
@@ -1406,6 +1414,7 @@ RETURNING
 		req.StorageBackend,
 		req.StoragePath,
 		req.ChecksumSHA256,
+		req.NodeID,
 	).Scan(
 		&node.ID,
 		&node.CompanyID,

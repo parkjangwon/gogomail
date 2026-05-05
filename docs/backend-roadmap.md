@@ -1954,6 +1954,10 @@ Implementation order:
       fails after an object copy and the copied object cannot be deleted,
       preserving operator-visible storage drift instead of losing it as a
       best-effort cleanup warning.
+1022. Drive file copy now preallocates the destination node UUID and uses it
+      for both the committed object path and inserted `drive_nodes.id`, keeping
+      copied-object keys aligned with metadata identifiers while ordinary
+      upload/finalize paths may continue using database-generated IDs.
 
 ## Deferred until backend contracts stabilize
 

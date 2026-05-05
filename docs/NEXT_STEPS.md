@@ -1374,6 +1374,8 @@ Current state:
   later expansion.
 - Drive copy cleanup failures are now written to the existing cleanup-failure
   queue when a copied object cannot be deleted after metadata creation fails.
+- Copied Drive files keep the destination object path ID and `drive_nodes.id`
+  synchronized by passing a preallocated node UUID into the metadata insert.
 
 Next:
 
