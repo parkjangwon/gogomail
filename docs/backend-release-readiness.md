@@ -358,10 +358,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Address-book repository methods can create/list/get active collections while
   recording creation changes transactionally. vCard validation now performs
   bounded vCard 4.0 checks for BEGIN/END structure, VERSION, UID, FN, folded
-  lines, line/body caps, and nested VCARD rejection. Client-ready CardDAV
-  remains gated on contact-object repository methods, REPORT behavior, sync
-  handlers, auth/listener wiring, broader vCard compatibility, and
-  native-client tests.
+  lines, line/body caps, and nested VCARD rejection. Contact-object repository
+  methods can upsert/list/get/delete `.vcf` resources with active address-book
+  scope, UID alignment, strong ETags, optional observed-ETag guards, sync-token
+  refreshes, and durable change rows. Client-ready CardDAV remains gated on
+  REPORT behavior, sync handlers, auth/listener wiring, broader vCard
+  compatibility, and native-client tests.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

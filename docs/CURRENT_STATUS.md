@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after bounded vCard validation)
+Last updated: 2026-05-06 (updated after CardDAV contact-object repository)
 
 ## Current phase
 
@@ -52,9 +52,12 @@ ETags, size limits, sync tokens, and bounded vCard 4.0 semantic checks.
 PostgreSQL storage groundwork now exists for address books, contact objects,
 and address-book change logs. A first repository boundary can create/list/get
 address-book collections through active user/domain/company scope and records
-address-book creation changes. Public CardDAV compatibility remains gated on
-contact object repository methods, REPORT semantics, sync handlers,
-auth/listener wiring, broader vCard compatibility, and native-client tests.
+address-book creation changes. Contact-object repository methods can now
+upsert/list/get/delete `.vcf` resources through active address-book scope,
+using bounded vCard validation, strong ETags, optional observed-ETag guards,
+sync-token updates, and durable change rows. Public CardDAV compatibility
+remains gated on REPORT semantics, sync handlers, auth/listener wiring, broader
+vCard compatibility, and native-client tests.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -2334,6 +2337,11 @@ The platform hardening sprint completed the following:
   vCard 4.0 contact objects, including BEGIN/END structure, exactly one
   VERSION, required UID/FN, folded content-line handling, line/body caps, and
   nested VCARD rejection.
+- CardDAV contact-object repository methods now upsert/list/get/delete active
+  `.vcf` objects under active address-book scope, enforce vCard UID alignment,
+  compute strong ETags, honor optional observed ETags before overwrite, refresh
+  address-book sync tokens, and record `contact-upserted`/`contact-deleted`
+  changes transactionally.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2359,6 +2367,6 @@ Next focus areas:
    resources, aliases, group memberships, and bounded membership expansion into
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
-8. Add contact-object repository methods and broader native-client vCard
+8. Add CardDAV REPORT/sync handlers and broader native-client vCard
    compatibility tests before webmail contacts, attendee auto-complete, or
    native CardDAV client compatibility are exposed.
