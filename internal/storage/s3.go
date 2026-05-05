@@ -134,6 +134,30 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 	return resp.Body, nil
 }
 
+func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq RangeRequest) (io.ReadCloser, error) {
+	validated, err := ValidateRangeRequest(rangeReq)
+	if err != nil {
+		return nil, err
+	}
+	end := validated.Offset + validated.Length - 1
+	req, err := s.newRequestWithHeaders(ctx, http.MethodGet, objectPath, nil, map[string]string{
+		"Range": "bytes=" + strconv.FormatInt(validated.Offset, 10) + "-" + strconv.FormatInt(end, 10),
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get s3 object range: %w", err)
+	}
+	if resp.StatusCode != http.StatusPartialContent {
+		err := s3StatusError("get range", resp)
+		drainAndCloseS3Body(resp.Body)
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
 func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, error) {
 	req, err := s.newRequest(ctx, http.MethodHead, objectPath, nil)
 	if err != nil {

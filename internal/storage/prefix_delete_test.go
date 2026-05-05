@@ -121,6 +121,10 @@ func (s *deleteFailingStore) Get(context.Context, string) (io.ReadCloser, error)
 	return nil, nil
 }
 
+func (s *deleteFailingStore) GetRange(context.Context, string, RangeRequest) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (s *deleteFailingStore) Stat(context.Context, string) (ObjectInfo, error) {
 	return ObjectInfo{}, nil
 }

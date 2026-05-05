@@ -489,6 +489,21 @@ func (s *memoryStore) Get(_ context.Context, path string) (io.ReadCloser, error)
 	return io.NopCloser(bytes.NewReader(s.values[path])), nil
 }
 
+func (s *memoryStore) GetRange(_ context.Context, path string, req storage.RangeRequest) (io.ReadCloser, error) {
+	if _, err := storage.ValidateRangeRequest(req); err != nil {
+		return nil, err
+	}
+	value := s.values[path]
+	end := req.Offset + req.Length
+	if req.Offset > int64(len(value)) {
+		req.Offset = int64(len(value))
+	}
+	if end > int64(len(value)) {
+		end = int64(len(value))
+	}
+	return io.NopCloser(bytes.NewReader(value[int(req.Offset):int(end)])), nil
+}
+
 func (s *memoryStore) Stat(_ context.Context, path string) (storage.ObjectInfo, error) {
 	return storage.ObjectInfo{Path: path, Size: int64(len(s.values[path]))}, nil
 }

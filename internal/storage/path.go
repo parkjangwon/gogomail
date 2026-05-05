@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"strings"
 )
@@ -101,4 +102,17 @@ func ValidateListCursor(cursor string) (string, error) {
 		return "", fmt.Errorf("storage list cursor must not contain newlines")
 	}
 	return cursor, nil
+}
+
+func ValidateRangeRequest(req RangeRequest) (RangeRequest, error) {
+	if req.Offset < 0 {
+		return RangeRequest{}, fmt.Errorf("storage range offset must not be negative")
+	}
+	if req.Length <= 0 {
+		return RangeRequest{}, fmt.Errorf("storage range length must be positive")
+	}
+	if req.Offset > math.MaxInt64-req.Length+1 {
+		return RangeRequest{}, fmt.Errorf("storage range end overflows")
+	}
+	return req, nil
 }

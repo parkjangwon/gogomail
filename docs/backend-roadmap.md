@@ -1925,6 +1925,12 @@ Implementation order:
 1015. Mail API now exposes `HEAD /api/v1/drive/nodes/{id}/download`, reusing
       the same active file and storage-object validation to return download
       headers without opening or transferring the file body.
+1016. Shared storage now exposes backend-neutral `GetRange` partial object
+      reads for local/NFS and S3-compatible backends, and Mail API Drive
+      downloads accept one satisfiable `Range: bytes=...` request, returning
+      `206 Partial Content` plus `Content-Range` for resumable download and
+      media-preview clients. Webmail capabilities advertise
+      `node_range_download`.
 
 ## Deferred until backend contracts stabilize
 

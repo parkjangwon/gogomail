@@ -290,6 +290,22 @@ func (s *Service) OpenFile(ctx context.Context, req OpenFileRequest) (FileDownlo
 	return FileDownload{Node: node, Body: body}, nil
 }
 
+func (s *Service) OpenFileRange(ctx context.Context, req OpenFileRangeRequest) (FileDownload, error) {
+	rangeReq, err := storage.ValidateRangeRequest(storage.RangeRequest{Offset: req.Offset, Length: req.Length})
+	if err != nil {
+		return FileDownload{}, err
+	}
+	node, storagePath, store, err := s.driveFileObject(ctx, OpenFileRequest{UserID: req.UserID, NodeID: req.NodeID})
+	if err != nil {
+		return FileDownload{}, err
+	}
+	body, err := store.GetRange(ctx, storagePath, rangeReq)
+	if err != nil {
+		return FileDownload{}, fmt.Errorf("open drive file object range: %w", err)
+	}
+	return FileDownload{Node: node, Body: body}, nil
+}
+
 func (s *Service) StatFile(ctx context.Context, req OpenFileRequest) (FileMetadata, error) {
 	node, storagePath, store, err := s.driveFileObject(ctx, req)
 	if err != nil {

@@ -178,6 +178,7 @@ type webmailDriveCapabilities struct {
 	NodeNameSearch           bool  `json:"node_name_search"`
 	NodeDetail               bool  `json:"node_detail"`
 	NodeDownload             bool  `json:"node_download"`
+	NodeRangeDownload        bool  `json:"node_range_download"`
 	UsageSummary             bool  `json:"usage_summary"`
 	CreateFolders            bool  `json:"create_folders"`
 	RenameNodes              bool  `json:"rename_nodes"`
@@ -281,6 +282,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 			NodeNameSearch:           true,
 			NodeDetail:               true,
 			NodeDownload:             true,
+			NodeRangeDownload:        true,
 			UsageSummary:             true,
 			CreateFolders:            true,
 			RenameNodes:              true,
@@ -2080,6 +2082,8 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		code = "payload_too_large"
 	case http.StatusInsufficientStorage:
 		code = "insufficient_storage"
+	case http.StatusRequestedRangeNotSatisfiable:
+		code = "range_not_satisfiable"
 	}
 	writeJSON(w, status, map[string]any{
 		"error": map[string]any{

@@ -123,3 +123,25 @@ func TestValidateListCursorRejectsUnsafeCursor(t *testing.T) {
 		t.Fatal("ValidateListCursor accepted oversized cursor")
 	}
 }
+
+func TestValidateRangeRequestRejectsInvalidRanges(t *testing.T) {
+	t.Parallel()
+
+	for _, req := range []RangeRequest{
+		{Offset: -1, Length: 1},
+		{Offset: 0, Length: 0},
+		{Offset: 0, Length: -1},
+		{Offset: 9223372036854775807, Length: 2},
+	} {
+		if _, err := ValidateRangeRequest(req); err == nil {
+			t.Fatalf("ValidateRangeRequest accepted %+v", req)
+		}
+	}
+	valid, err := ValidateRangeRequest(RangeRequest{Offset: 7, Length: 3})
+	if err != nil {
+		t.Fatalf("ValidateRangeRequest returned error: %v", err)
+	}
+	if valid.Offset != 7 || valid.Length != 3 {
+		t.Fatalf("range = %+v", valid)
+	}
+}

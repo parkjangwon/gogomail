@@ -128,6 +128,10 @@ func (s *recordingStore) Get(context.Context, string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
+func (s *recordingStore) GetRange(context.Context, string, storage.RangeRequest) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (s *recordingStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
 	return storage.ObjectInfo{}, nil
 }

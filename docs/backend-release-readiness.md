@@ -82,6 +82,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive active file download headers can also be inspected with `HEAD` without
   opening or transferring file bytes, while still verifying storage-object
   existence.
+- Drive active file downloads support single HTTP byte ranges through a shared
+  `GetRange` storage primitive implemented for local/NFS and S3-compatible
+  stores, preparing resumable downloads, media previews, and large-file
+  frontend ergonomics without provider-specific object access.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

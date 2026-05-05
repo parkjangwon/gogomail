@@ -233,6 +233,7 @@ func TestOpenAPIDraftDocumentsDriveCapabilityLimits(t *testing.T) {
 		"maximum: " + strconv.FormatInt(int64(drive.DefaultUploadSessionTTL.Seconds()), 10),
 		"upload_sessions",
 		"node_download",
+		"node_range_download",
 		"list_upload_sessions",
 		"upload_session_body",
 		"upload_session_checksum",
@@ -574,6 +575,9 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		wants := []string{"Content-Disposition:", "Cache-Control:", "enum: [no-store]", "X-Content-Type-Options:", "enum: [nosniff]"}
 		if !strings.HasPrefix(route, "HEAD ") {
 			wants = append(wants, "application/octet-stream:", "type: string", "format: binary")
+		}
+		if route == "GET /drive/nodes/{id}/download" {
+			wants = append(wants, "name: Range", "\"206\":", "Content-Range:", "Accept-Ranges:")
 		}
 		for _, want := range wants {
 			if !strings.Contains(block, want) {

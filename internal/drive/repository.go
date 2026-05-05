@@ -98,6 +98,13 @@ type OpenFileRequest struct {
 	NodeID string
 }
 
+type OpenFileRangeRequest struct {
+	UserID string
+	NodeID string
+	Offset int64
+	Length int64
+}
+
 type FileDownload struct {
 	Node Node
 	Body io.ReadCloser

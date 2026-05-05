@@ -79,6 +79,16 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 </ListBucketResult>`))
 				return
 			}
+			if gotRange := r.Header.Get("Range"); gotRange != "" {
+				if gotRange != "bytes=1-3" {
+					t.Errorf("Range = %q", gotRange)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(http.StatusPartialContent)
+				_, _ = w.Write([]byte("ell"))
+				return
+			}
 			_, _ = w.Write([]byte("hello"))
 		case http.MethodHead:
 			w.Header().Set("Content-Length", "5")
@@ -127,6 +137,20 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	if string(got) != "hello" {
 		t.Fatalf("get body = %q", got)
 	}
+	ranged, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	rangeBody, err := io.ReadAll(ranged)
+	if err != nil {
+		t.Fatalf("read range body: %v", err)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close range body: %v", err)
+	}
+	if string(rangeBody) != "ell" {
+		t.Fatalf("range body = %q", rangeBody)
+	}
 	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
 	if err != nil {
 		t.Fatalf("Stat returned error: %v", err)
@@ -156,6 +180,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 
 	want := []string{
 		"PUT /gogomail/mail/messages/msg-1.eml",
+		"GET /gogomail/mail/messages/msg-1.eml",
 		"GET /gogomail/mail/messages/msg-1.eml",
 		"HEAD /gogomail/mail/messages/msg-1.eml",
 		"GET /gogomail",
@@ -215,6 +240,9 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 	if _, err := store.Get(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Get err = %v, want context.Canceled", err)
+	}
+	if _, err := store.GetRange(ctx, "messages/msg-1.eml", RangeRequest{Offset: 0, Length: 1}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetRange err = %v, want context.Canceled", err)
 	}
 	if _, err := store.Stat(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Stat err = %v, want context.Canceled", err)
@@ -569,6 +597,9 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 	if _, err := store.Stat(context.Background(), "../bad"); err == nil {
 		t.Fatal("Stat accepted unsafe object path")
+	}
+	if _, err := store.GetRange(context.Background(), "../bad", RangeRequest{Offset: 0, Length: 1}); err == nil {
+		t.Fatal("GetRange accepted unsafe object path")
 	}
 	if err := store.Copy(context.Background(), "../bad", "messages/good.eml"); err == nil {
 		t.Fatal("Copy accepted unsafe source object path")
