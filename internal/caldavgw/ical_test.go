@@ -125,6 +125,117 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectBusyPeriodsFiltersOpaqueConfirmedEvents(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:busy@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSUMMARY:Busy\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260506T013000Z"),
+		End:   mustCalDAVTime(t, "20260506T030000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+	}
+	if len(periods) != 1 {
+		t.Fatalf("periods = %+v, want one clipped busy period", periods)
+	}
+	if got := periods[0].Start.Format("20060102T150405Z"); got != "20260506T013000Z" {
+		t.Fatalf("period start = %s", got)
+	}
+	if got := periods[0].End.Format("20060102T150405Z"); got != "20260506T020000Z" {
+		t.Fatalf("period end = %s", got)
+	}
+}
+
+func TestCalendarObjectBusyPeriodsSkipsTransparentAndCancelledEvents(t *testing.T) {
+	t.Parallel()
+
+	for name, body := range map[string][]byte{
+		"transparent": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:transparent@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nTRANSP:TRANSPARENT\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"cancelled":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:cancelled@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+	} {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+				Start: mustCalDAVTime(t, "20260506T000000Z"),
+				End:   mustCalDAVTime(t, "20260507T000000Z"),
+			})
+			if err != nil {
+				t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+			}
+			if len(periods) != 0 {
+				t.Fatalf("periods = %+v, want none", periods)
+			}
+		})
+	}
+}
+
+func TestCalendarObjectBusyPeriodsMarksTentativeEvents(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:tentative@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260506T000000Z"),
+		End:   mustCalDAVTime(t, "20260507T000000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+	}
+	if len(periods) != 1 || periods[0].Type != "BUSY-TENTATIVE" {
+		t.Fatalf("periods = %+v, want tentative busy", periods)
+	}
+}
+
+func TestCoalesceBusyPeriodsMergesOverlappingSameTypes(t *testing.T) {
+	t.Parallel()
+
+	periods := CoalesceBusyPeriods([]BusyPeriod{
+		{Start: mustCalDAVTime(t, "20260506T010000Z"), End: mustCalDAVTime(t, "20260506T020000Z"), Type: "BUSY"},
+		{Start: mustCalDAVTime(t, "20260506T013000Z"), End: mustCalDAVTime(t, "20260506T030000Z"), Type: "BUSY"},
+		{Start: mustCalDAVTime(t, "20260506T040000Z"), End: mustCalDAVTime(t, "20260506T050000Z"), Type: "BUSY-TENTATIVE"},
+	})
+	if len(periods) != 2 {
+		t.Fatalf("periods = %+v, want 2 coalesced periods", periods)
+	}
+	if got := periods[0].End.Format("20060102T150405Z"); got != "20260506T030000Z" {
+		t.Fatalf("coalesced end = %s", got)
+	}
+	if periods[1].Type != "BUSY-TENTATIVE" {
+		t.Fatalf("second period = %+v", periods[1])
+	}
+}
+
+func TestBuildFreeBusyCalendar(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildFreeBusyCalendar("user-1", "work", TimeRange{
+		Start: mustCalDAVTime(t, "20260506T000000Z"),
+		End:   mustCalDAVTime(t, "20260507T000000Z"),
+	}, []BusyPeriod{{
+		Start: mustCalDAVTime(t, "20260506T010000Z"),
+		End:   mustCalDAVTime(t, "20260506T020000Z"),
+	}})
+	if err != nil {
+		t.Fatalf("BuildFreeBusyCalendar returned error: %v", err)
+	}
+	text := string(body)
+	for _, want := range []string{
+		"BEGIN:VCALENDAR",
+		"METHOD:REPLY",
+		"BEGIN:VFREEBUSY",
+		"DTSTART:20260506T000000Z",
+		"DTEND:20260507T000000Z",
+		"FREEBUSY;FBTYPE=BUSY:20260506T010000Z/20260506T020000Z",
+		"END:VFREEBUSY",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("free-busy calendar missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func mustCalDAVTime(t *testing.T, value string) time.Time {
 	t.Helper()
 

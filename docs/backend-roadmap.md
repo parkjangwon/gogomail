@@ -2079,6 +2079,13 @@ Implementation order:
       tokens return only the token, stale tokens return a DAV
       `valid-sync-token` precondition error, and truncating limits are rejected
       until continuation or tombstone/change-log support exists.
+1053. CalDAV now implements RFC 4791-shaped `REPORT free-busy-query` for
+      authenticated calendar collections, returning `200 OK` `text/calendar`
+      `VFREEBUSY` bodies instead of multistatus XML. The first implementation
+      honors `Depth: 1` child VEVENTs, clips periods to the requested UTC
+      time-range, skips transparent/cancelled events, maps tentative events to
+      `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
+      free-busy time ranges before handler work.
 
 ## Deferred until backend contracts stabilize
 

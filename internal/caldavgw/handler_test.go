@@ -301,6 +301,76 @@ func TestHandlerReportSyncCollectionRejectsTruncatingLimit(t *testing.T) {
 	}
 }
 
+func TestHandlerReportFreeBusyQueryReturnsCalendarBody(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+</C:free-busy-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/calendar; charset=utf-8" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"BEGIN:VCALENDAR",
+		"BEGIN:VFREEBUSY",
+		"DTSTART:20260506T000000Z",
+		"DTEND:20260507T000000Z",
+		"FREEBUSY;FBTYPE=BUSY:20260506T010000Z/20260506T020000Z",
+		"END:VFREEBUSY",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("free-busy response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerReportFreeBusyQueryDepthZeroReturnsEmptyVFreeBusy(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+</C:free-busy-query>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "BEGIN:VFREEBUSY") {
+		t.Fatalf("VFREEBUSY missing:\n%s", body)
+	}
+	if strings.Contains(body, "FREEBUSY") && strings.Contains(body, "FBTYPE") {
+		t.Fatalf("Depth: 0 free-busy returned child busy periods:\n%s", body)
+	}
+}
+
+func TestHandlerReportFreeBusyQueryRejectsObjectTarget(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(`<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+</C:free-busy-query>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerReportRejectsUnsupportedReports(t *testing.T) {
 	t.Parallel()
 

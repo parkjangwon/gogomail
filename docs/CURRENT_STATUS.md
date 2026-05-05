@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV sync-collection handling)
+Last updated: 2026-05-06 (updated after CalDAV free-busy handling)
 
 ## Current phase
 
@@ -2093,13 +2093,13 @@ The platform hardening sprint completed the following:
 - `gogomail --mode=caldav` now starts a dedicated HTTP listener using
   `GOGOMAIL_CALDAV_ADDR`, the CalDAV PostgreSQL discovery repository, and the
   Basic-auth resolver. Full CalDAV client-ready compatibility still depends on
-  sync-collection, free-busy/scheduling, recurrence semantics, and broader
-  native-client compatibility coverage.
+  scheduling, recurrence semantics, sync tombstone/change-log support, and
+  broader native-client compatibility coverage.
 - CalDAV REPORT parsing now validates more protocol shape before handlers run:
   `calendar-query` requires a filter and extracts nested CalDAV time ranges,
   `calendar-multiget` requires bounded hrefs, `free-busy-query` requires a UTC
-  time range, and `sync-collection` requires supported `sync-level=1` plus a
-  requested property set and bounded optional `limit`.
+  single time range, and `sync-collection` requires supported `sync-level=1`
+  plus a requested property set and bounded optional `limit`.
 - CalDAV now implements a first `REPORT calendar-multiget` handler for
   authenticated calendar collections, returning multistatus object metadata and
   requested `calendar-data` bodies while representing missing hrefs through
@@ -2118,8 +2118,15 @@ The platform hardening sprint completed the following:
   objects plus the collection sync token, current tokens return only the
   top-level sync token, stale tokens return a DAV `valid-sync-token`
   precondition error, and truncating limits are rejected until continuation or
-  tombstone/change-log semantics exist. Free-busy, scheduling, recurrence, and
-  broader native-client compatibility coverage remain incomplete.
+  tombstone/change-log semantics exist.
+- CalDAV now handles RFC 4791-shaped `REPORT free-busy-query` for authenticated
+  calendar collections. `Depth: 1` collects child VEVENT busy periods into a
+  `200 OK` `text/calendar` `VFREEBUSY` response, clips periods to the requested
+  UTC range, skips `TRANSPARENT` and `CANCELLED` events, maps tentative events
+  to `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
+  free-busy time ranges. Scheduling, recurrence expansion, VFREEBUSY source
+  object ingestion, and broader native-client compatibility coverage remain
+  incomplete.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

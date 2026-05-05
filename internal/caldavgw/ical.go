@@ -3,6 +3,7 @@ package caldavgw
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +19,12 @@ const (
 type ICalendarObject struct {
 	UID       string
 	Component string
+}
+
+type BusyPeriod struct {
+	Start time.Time
+	End   time.Time
+	Type  string
 }
 
 func ParseICalendarObject(body []byte) (ICalendarObject, error) {
@@ -75,22 +82,177 @@ func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, er
 }
 
 func eventOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, error) {
+	start, end, err := eventTimeSpan(component)
+	if err != nil {
+		return false, err
+	}
+	if end.Equal(start) {
+		end = start.Add(time.Nanosecond)
+	}
+	return start.Before(timeRange.End) && end.After(timeRange.Start), nil
+}
+
+func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, error) {
+	cal, err := ical.NewDecoder(bytes.NewReader(body)).Decode()
+	if err != nil {
+		return nil, fmt.Errorf("decode iCalendar object: %w", err)
+	}
+	if cal == nil || cal.Component == nil {
+		return nil, fmt.Errorf("iCalendar body must contain one VCALENDAR root")
+	}
+	var periods []BusyPeriod
+	for _, child := range cal.Children {
+		if !strings.EqualFold(child.Name, ComponentVEVENT) {
+			continue
+		}
+		period, ok, err := eventBusyPeriod(child, timeRange)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			periods = append(periods, period)
+		}
+	}
+	return periods, nil
+}
+
+func eventBusyPeriod(component *ical.Component, timeRange TimeRange) (BusyPeriod, bool, error) {
+	event := ical.Event{Component: component}
+	status, err := event.Status()
+	if err != nil {
+		return BusyPeriod{}, false, fmt.Errorf("decode VEVENT STATUS: %w", err)
+	}
+	if strings.EqualFold(string(status), string(ical.EventCancelled)) {
+		return BusyPeriod{}, false, nil
+	}
+	transparency, err := component.Props.Text(ical.PropTransparency)
+	if err != nil {
+		return BusyPeriod{}, false, fmt.Errorf("decode VEVENT TRANSP: %w", err)
+	}
+	if strings.EqualFold(transparency, "TRANSPARENT") {
+		return BusyPeriod{}, false, nil
+	}
+	start, end, err := eventTimeSpan(component)
+	if err != nil {
+		return BusyPeriod{}, false, err
+	}
+	if !start.Before(end) || !start.Before(timeRange.End) || !end.After(timeRange.Start) {
+		return BusyPeriod{}, false, nil
+	}
+	if start.Before(timeRange.Start) {
+		start = timeRange.Start
+	}
+	if end.After(timeRange.End) {
+		end = timeRange.End
+	}
+	busyType := "BUSY"
+	if strings.EqualFold(string(status), string(ical.EventTentative)) {
+		busyType = "BUSY-TENTATIVE"
+	}
+	return BusyPeriod{Start: start.UTC(), End: end.UTC(), Type: busyType}, true, nil
+}
+
+func eventTimeSpan(component *ical.Component) (time.Time, time.Time, error) {
 	event := ical.Event{Component: component}
 	start, err := event.DateTimeStart(time.UTC)
 	if err != nil {
-		return false, fmt.Errorf("decode VEVENT DTSTART: %w", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("decode VEVENT DTSTART: %w", err)
 	}
 	end, err := event.DateTimeEnd(time.UTC)
 	if err != nil || end.IsZero() {
 		end = start
 	}
 	if end.Before(start) {
-		return false, fmt.Errorf("VEVENT DTEND must not be before DTSTART")
+		return time.Time{}, time.Time{}, fmt.Errorf("VEVENT DTEND must not be before DTSTART")
 	}
-	if end.Equal(start) {
-		end = start.Add(time.Nanosecond)
+	return start.UTC(), end.UTC(), nil
+}
+
+func BuildFreeBusyCalendar(userID string, calendarID string, timeRange TimeRange, periods []BusyPeriod) ([]byte, error) {
+	userID = strings.TrimSpace(userID)
+	calendarID = strings.TrimSpace(calendarID)
+	if userID == "" || calendarID == "" {
+		return nil, fmt.Errorf("free-busy user and calendar identifiers are required")
 	}
-	return start.Before(timeRange.End) && end.After(timeRange.Start), nil
+	if !timeRange.Start.Before(timeRange.End) {
+		return nil, fmt.Errorf("free-busy time range is invalid")
+	}
+	cal := ical.NewCalendar()
+	cal.Props.SetText(ical.PropProductID, "-//gogomail//CalDAV FreeBusy//EN")
+	cal.Props.SetText(ical.PropVersion, "2.0")
+	cal.Props.SetText(ical.PropMethod, "REPLY")
+	freeBusy := ical.NewComponent(ical.CompFreeBusy)
+	freeBusy.Props.SetText(ical.PropUID, CalendarSyncToken(userID, calendarID, timeRange.Start.Format(time.RFC3339Nano), timeRange.End.Format(time.RFC3339Nano)))
+	freeBusy.Props.SetDateTime(ical.PropDateTimeStamp, time.Now().UTC())
+	freeBusy.Props.SetDateTime(ical.PropDateTimeStart, timeRange.Start.UTC())
+	freeBusy.Props.SetDateTime(ical.PropDateTimeEnd, timeRange.End.UTC())
+	for _, period := range CoalesceBusyPeriods(periods) {
+		if !period.Start.Before(period.End) {
+			continue
+		}
+		prop := ical.NewProp(ical.PropFreeBusy)
+		busyType := strings.TrimSpace(strings.ToUpper(period.Type))
+		if busyType == "" {
+			busyType = "BUSY"
+		}
+		prop.Params[ical.ParamFreeBusyType] = []string{busyType}
+		prop.Value = formatICalendarUTC(period.Start) + "/" + formatICalendarUTC(period.End)
+		freeBusy.Props.Add(prop)
+	}
+	cal.Children = append(cal.Children, freeBusy)
+	var buf bytes.Buffer
+	if err := ical.NewEncoder(&buf).Encode(cal); err != nil {
+		return nil, fmt.Errorf("encode free-busy calendar: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func CoalesceBusyPeriods(periods []BusyPeriod) []BusyPeriod {
+	if len(periods) == 0 {
+		return nil
+	}
+	normalized := make([]BusyPeriod, 0, len(periods))
+	for _, period := range periods {
+		if !period.Start.Before(period.End) {
+			continue
+		}
+		period.Start = period.Start.UTC()
+		period.End = period.End.UTC()
+		period.Type = strings.TrimSpace(strings.ToUpper(period.Type))
+		if period.Type == "" {
+			period.Type = "BUSY"
+		}
+		normalized = append(normalized, period)
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		if !normalized[i].Start.Equal(normalized[j].Start) {
+			return normalized[i].Start.Before(normalized[j].Start)
+		}
+		if normalized[i].Type != normalized[j].Type {
+			return normalized[i].Type < normalized[j].Type
+		}
+		return normalized[i].End.Before(normalized[j].End)
+	})
+	coalesced := normalized[:0]
+	for _, period := range normalized {
+		if len(coalesced) == 0 {
+			coalesced = append(coalesced, period)
+			continue
+		}
+		last := &coalesced[len(coalesced)-1]
+		if last.Type == period.Type && !period.Start.After(last.End) {
+			if period.End.After(last.End) {
+				last.End = period.End
+			}
+			continue
+		}
+		coalesced = append(coalesced, period)
+	}
+	return append([]BusyPeriod(nil), coalesced...)
+}
+
+func formatICalendarUTC(t time.Time) string {
+	return t.UTC().Format("20060102T150405Z")
 }
 
 func calendarComponentUID(component *ical.Component) (string, error) {

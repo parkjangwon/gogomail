@@ -219,20 +219,27 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   handler logic is added.
 - CalDAV now handles `REPORT calendar-multiget` for authenticated calendar
   collections, including requested `calendar-data` bodies and missing-object
-  404 propstats. Free-busy and scheduling handlers remain incomplete.
+  404 propstats. Scheduling handlers remain incomplete.
 - CalDAV now handles calendar object `GET`, `HEAD`, `PUT`, and `DELETE` with
   strong ETag headers, bounded iCalendar validation, and conditional request
   preconditions. Broader native-client compatibility tests remain incomplete.
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, including requested `calendar-data` bodies and VEVENT
-  time-range filtering through the RFC 5545 parser. Free-busy, scheduling,
-  recurrence expansion, and broader device/client compatibility tests remain
-  incomplete.
+  time-range filtering through the RFC 5545 parser. Scheduling, recurrence
+  expansion, and broader device/client compatibility tests remain incomplete.
 - CalDAV now handles conservative RFC 6578 `REPORT sync-collection` requests:
   empty-token initial sync returns active objects and the current collection
   sync token, current-token sync returns no resource responses, stale tokens
   produce a DAV `valid-sync-token` precondition error, and truncating limits are
   rejected until continuation or tombstone/change-log semantics are added.
+- CalDAV now handles RFC 4791-shaped `REPORT free-busy-query` for authenticated
+  calendar collections, returning `200 OK` `text/calendar` `VFREEBUSY` bodies
+  for `Depth: 1` child VEVENT busy periods. It clips to the requested UTC
+  range, omits transparent/cancelled events, maps tentative events to
+  `BUSY-TENTATIVE`, coalesces same-type overlaps, and rejects duplicate
+  free-busy time ranges. Recurrence expansion, VFREEBUSY source-object
+  ingestion, scheduling, and broader device/client compatibility tests remain
+  incomplete.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

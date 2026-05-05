@@ -1455,6 +1455,11 @@ Current state:
   a top-level sync token, current tokens return no resource changes, stale
   tokens return a DAV `valid-sync-token` error, and truncating limits are
   rejected until change-log/continuation semantics are implemented.
+- CalDAV now handles `REPORT free-busy-query` on authenticated calendar
+  collections, returning RFC-shaped `text/calendar` `VFREEBUSY` responses for
+  `Depth: 1` child VEVENTs while clipping to the requested UTC time range,
+  skipping transparent/cancelled events, mapping tentative events to
+  `BUSY-TENTATIVE`, and coalescing same-type overlaps.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1464,9 +1469,10 @@ Current state:
 
 Next:
 
-- Continue CalDAV with free-busy handlers, recurrence-aware calendar-query
-  expansion, sync tombstone/change-log support, and broader compatibility tests
-  before advertising client-ready compatibility.
+- Continue CalDAV with recurrence-aware calendar-query/free-busy expansion,
+  sync tombstone/change-log support, VFREEBUSY source-object support, scheduling
+  semantics, and broader compatibility tests before advertising client-ready
+  compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.
