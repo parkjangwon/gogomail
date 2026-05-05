@@ -53,11 +53,11 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 	if accessKeyID == "" || strings.ContainsAny(accessKeyID, "\r\n") {
 		return nil, fmt.Errorf("s3 access key id is required and must not contain line breaks")
 	}
-	if opts.SecretAccessKey == "" || strings.ContainsAny(opts.SecretAccessKey, "\r\n") {
-		return nil, fmt.Errorf("s3 secret access key is required and must not contain line breaks")
+	if opts.SecretAccessKey == "" || s3CredentialContainsWhitespace(opts.SecretAccessKey) {
+		return nil, fmt.Errorf("s3 secret access key is required and must not contain whitespace")
 	}
-	if strings.ContainsAny(opts.SessionToken, "\r\n") {
-		return nil, fmt.Errorf("s3 session token must not contain line breaks")
+	if s3CredentialContainsWhitespace(opts.SessionToken) {
+		return nil, fmt.Errorf("s3 session token must not contain whitespace")
 	}
 	endpointValue := strings.TrimSpace(opts.Endpoint)
 	if endpointValue == "" {
@@ -357,6 +357,10 @@ func ValidateS3BucketName(bucket string) error {
 		}
 	}
 	return nil
+}
+
+func s3CredentialContainsWhitespace(value string) bool {
+	return strings.ContainsAny(value, " \t\r\n")
 }
 
 func ValidateS3Endpoint(endpointValue string) (*url.URL, error) {

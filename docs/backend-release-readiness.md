@@ -201,7 +201,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   canonical paths do not drift for plus-bearing mail object keys. Seekable PUT
   bodies also get deterministic `Content-Length` values without object
   buffering, improving S3-compatible provider behavior for file-backed mail and
-  attachment writes.
+  attachment writes. Secret access keys and session tokens reject whitespace at
+  adapter construction time so copied env/config mistakes fail before runtime
+  S3 authentication attempts.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
