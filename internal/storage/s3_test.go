@@ -352,6 +352,50 @@ func TestS3StoreGetRangeReportsTruncatedBody(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRangeDrainsExtraPartialBytesOnClose(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("ell-overrun")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Header:     http.Header{"Content-Range": []string{"bytes 1-3/5"}},
+				Body:       body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	ranged, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	got, err := io.ReadAll(ranged)
+	if err != nil {
+		t.Fatalf("read range body: %v", err)
+	}
+	if string(got) != "ell" {
+		t.Fatalf("range body = %q", got)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close range body: %v", err)
+	}
+	if !body.closed {
+		t.Fatal("range body was not closed")
+	}
+	if body.readBytes != len("ell-overrun") {
+		t.Fatalf("read bytes = %d, want drained %d", body.readBytes, len("ell-overrun"))
+	}
+}
+
 func TestS3StoreCheckBoundsReadinessBody(t *testing.T) {
 	t.Parallel()
 
