@@ -1612,6 +1612,10 @@ Implementation order:
      the final tagged OK response instead of an untagged OK, preserving source
      `EXPUNGE` updates while matching RFC 6851 client expectations for move
      completion metadata.
+933. Attachment upload reservation and upload-session body service validation
+     now reject CR/LF-bearing or oversized user identifiers before quota,
+     storage, or repository work, aligning user-id guardrails with draft,
+     attachment, and session identifiers.
 
 ## Deferred until backend contracts stabilize
 

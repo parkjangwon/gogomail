@@ -956,7 +956,8 @@ Current state:
   used for expiry, giving Admin previews row-level visibility.
 - `mailservice` exposes resumable upload session create/cancel/expire methods
   over the repository boundary, reusing attachment metadata validation,
-  max-size checks, and domain outbound attachment policy enforcement.
+  max-size checks, CR/LF/size-bounded user/session identifiers, and domain
+  outbound attachment policy enforcement.
 - Stale upload cleanup can run as `attachment-cleanup-worker` with configurable
   interval, stale age, batch size, and optional run-once mode for CronJob-style
   deployments, and now expires stale resumable upload sessions in the same
