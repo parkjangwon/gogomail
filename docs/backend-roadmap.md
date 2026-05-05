@@ -824,6 +824,9 @@ Implementation order:
      sequence numbers for untagged `FETCH` data while preserving the requested
      UID inside the response attributes; `RFC822.SIZE` is treated as metadata,
      not a body-fetch request.
+700. IMAP `CAPABILITY` responses now reflect connection state by dropping
+     `AUTH=PLAIN` after authentication, and the command parser rejects
+     unsupported synchronizing literal tokens instead of treating them as atoms.
 
 ## Deferred until backend contracts stabilize
 

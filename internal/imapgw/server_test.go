@@ -196,17 +196,34 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("login = %q", line)
 	}
-	if _, err := client.Write([]byte("a2 LOGIN user@example.com secret\r\n")); err != nil {
+	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
+		t.Fatalf("write authenticated capability: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read authenticated capability untagged: %v", err)
+	}
+	if line != "* CAPABILITY IMAP4rev1\r\n" {
+		t.Fatalf("authenticated capability = %q", line)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read authenticated capability tagged: %v", err)
+	}
+	if line != "a2 OK CAPABILITY completed\r\n" {
+		t.Fatalf("authenticated capability completion = %q", line)
+	}
+	if _, err := client.Write([]byte("a3 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write second login: %v", err)
 	}
 	line, err = reader.ReadString('\n')
 	if err != nil {
 		t.Fatalf("read second login: %v", err)
 	}
-	if line != "a2 BAD already authenticated\r\n" {
+	if line != "a3 BAD already authenticated\r\n" {
 		t.Fatalf("second login = %q", line)
 	}
-	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	if _, err := reader.ReadString('\n'); err != nil {
@@ -600,6 +617,9 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFields("a1 LOGIN \"user\nbad\" secret"); err == nil {
 		t.Fatal("parseIMAPFields accepted quoted control character")
+	}
+	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6}"); err == nil {
+		t.Fatal("parseIMAPFields accepted unsupported literal")
 	}
 }
 

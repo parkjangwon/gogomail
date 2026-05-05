@@ -234,7 +234,9 @@ Current state:
   returns `MESSAGES`, `UIDNEXT`, `UIDVALIDITY`, and `UNSEEN` metadata.
 - IMAP command parsing now supports basic quoted strings with backslash escapes,
   allowing common quoted `LOGIN` credentials and mailbox atoms while rejecting
-  malformed quoted controls.
+  malformed quoted controls and unsupported synchronizing literal tokens.
+- IMAP `CAPABILITY` now advertises `AUTH=PLAIN` only before authentication, so
+  post-login clients see capabilities for the selected protocol state.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses now use message
