@@ -294,6 +294,11 @@ Current state:
   selected-mailbox search evaluator, require `US-ASCII` or `UTF-8` charset
   arguments, and return sorted sequence numbers or UIDs for the standard sort
   keys clients use for mailbox list ordering.
+- `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`; `THREAD
+  ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` return ordered-subject thread
+  trees from the selected-mailbox search result while keeping `REFERENCES`
+  unadvertised until its Message-ID normalization and ancestry algorithm can be
+  implemented without compatibility shortcuts.
 - `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata, matching client namespace delimiter
   probes before persistent subscription storage exists.

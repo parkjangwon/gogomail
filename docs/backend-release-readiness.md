@@ -355,6 +355,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   apply selected-mailbox search criteria with mandatory `US-ASCII`/`UTF-8`
   charset handling and return sequence-number or UID sort responses for the
   standard arrival, sent-date, address, subject, and size sort keys.
+- IMAP `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`; `THREAD
+  ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` apply selected-mailbox search
+  criteria and return ordered-subject thread trees, while the `REFERENCES`
+  algorithm remains unadvertised until its Message-ID normalization and
+  ancestry-linking rules are implemented.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts

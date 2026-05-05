@@ -112,7 +112,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT SASL-IR AUTH=PLAIN\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -178,7 +178,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT STARTTLS LOGINDISABLED\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT STARTTLS LOGINDISABLED\r\n" {
 		t.Fatalf("pre-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK CAPABILITY completed\r\n" {
@@ -193,7 +193,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := client.Write([]byte("a3 STARTTLS\r\n")); err != nil {
 		t.Fatalf("write starttls: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK [CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN] Begin TLS negotiation now\r\n" {
 		t.Fatalf("starttls line = %q err = %v", line, err)
 	}
 	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
@@ -204,7 +204,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	if _, err := tlsClient.Write([]byte("a4 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write tls capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT SASL-IR AUTH=PLAIN\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("post-tls capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK CAPABILITY completed\r\n" {
@@ -278,7 +278,7 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read authenticated capability untagged: %v", err)
 	}
-	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT\r\n" {
+	if line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT\r\n" {
 		t.Fatalf("authenticated capability = %q", line)
 	}
 	line, err = reader.ReadString('\n')
@@ -616,7 +616,7 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -1137,7 +1137,7 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT\r\n" {
 		t.Fatalf("authenticated capability = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
@@ -3402,6 +3402,65 @@ func TestIMAPBaseSubjectFollowsRFC5256Prefixes(t *testing.T) {
 		if got := imapBaseSubject(input); got != want {
 			t.Fatalf("imapBaseSubject(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: threadBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na4 UID THREAD ORDEREDSUBJECT US-ASCII SUBJECT Project\r\na5 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na6 THREAD REFERENCES UTF-8 ALL\r\n")); err != nil {
+		t.Fatalf("write thread commands: %v", err)
+	}
+	want := []string{
+		"* THREAD (1)(2 (3)(4))\r\n",
+		"a3 OK THREAD completed\r\n",
+		"* THREAD (12 (13)(14))\r\n",
+		"a4 OK UID THREAD completed\r\n",
+		"a5 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
+		"a6 BAD THREAD algorithm is unsupported\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read thread response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("thread response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
 	}
 }
 
@@ -5697,6 +5756,23 @@ func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]Message
 	return []MessageSummary{
 		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}, To: []Address{{Name: "Target User", Mailbox: "target", Host: "example.com"}}, Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Read: true, Starred: true}, Size: 11, ModSeq: 17},
 		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Archive", From: []Address{{Name: "Archive Bot", Mailbox: "archive", Host: "example.net"}}, Cc: []Address{{Name: "Review Desk", Mailbox: "review", Host: "example.com"}}, Bcc: []Address{{Name: "Hidden Desk", Mailbox: "hidden", Host: "example.com"}}, Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Draft: true}, Size: 42, ModSeq: 23},
+	}, nil
+}
+
+type threadBackend struct {
+	fakeBackend
+}
+
+func (threadBackend) GetMailbox(_ context.Context, _ UserID, _ MailboxID) (Mailbox, error) {
+	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 15, Messages: 4, Unseen: 4}, nil
+}
+
+func (threadBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
+	return []MessageSummary{
+		{ID: "thread-1", UID: 11, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Alpha", Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)}, Size: 10},
+		{ID: "thread-2", UID: 12, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 8, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Project", Date: time.Date(2026, 5, 4, 8, 0, 0, 0, time.UTC)}, Size: 20},
+		{ID: "thread-3", UID: 13, SequenceNumber: 3, InternalDate: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Re: Project", Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Size: 30},
+		{ID: "thread-4", UID: 14, SequenceNumber: 4, InternalDate: time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "[fwd: Project]", Date: time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC)}, Size: 40},
 	}, nil
 }
 

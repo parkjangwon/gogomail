@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP SORT support)
+Last updated: 2026-05-05 (updated after IMAP THREAD=ORDEREDSUBJECT support)
 
 ## Current phase
 
@@ -842,6 +842,12 @@ The platform hardening sprint completed the following:
   charset arguments, and return sequence-number or UID `SORT` responses over
   RFC 5256 sort keys including base-subject, sent-date, arrival-date, address,
   and size ordering.
+- IMAP `CAPABILITY` advertises RFC 5256 `THREAD=ORDEREDSUBJECT`; `THREAD
+  ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` reuse the selected-mailbox
+  search evaluator, enforce mandatory `US-ASCII`/`UTF-8` charset handling, and
+  return RFC-shaped ordered-subject thread trees while leaving the more complex
+  `REFERENCES` algorithm unadvertised until its Message-ID normalization and
+  ancestry rules are implemented.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.

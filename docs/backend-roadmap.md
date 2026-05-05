@@ -1211,6 +1211,11 @@ Implementation order:
      `UTF-8` charset support, and return sorted sequence-number or UID result
      sets for standard arrival, sent-date, address, base-subject, and size
      ordering.
+822. IMAP `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`;
+     `THREAD ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` reuse
+     selected-mailbox search evaluation and return ordered-subject thread trees
+     without advertising the more complex `REFERENCES` algorithm before its
+     Message-ID normalization and ancestry rules are implemented.
 
 ## Deferred until backend contracts stabilize
 
