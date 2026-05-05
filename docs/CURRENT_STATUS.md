@@ -212,7 +212,8 @@ guidance.
 - IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
   `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
   mailbox did not permit them instead of dispatching unsupported mutations to
-  storage.
+  storage. Empty `+FLAGS ()` and `-FLAGS ()` remain successful no-ops, while
+  `FLAGS ()` replacement is rejected when no permanent flags are permitted.
 - IMAP message sequence sets now explicitly reject sequence numbers above the
   selected mailbox size with tagged `BAD` responses, preserving RFC 3501 bounds
   behavior for `FETCH`, `STORE`, `COPY`, and `MOVE` sequence arguments.

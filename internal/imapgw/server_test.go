@@ -6693,6 +6693,65 @@ func TestServerHonorsSelectedPermanentFlagsForStore(t *testing.T) {
 	}
 }
 
+func TestServerRejectsEmptyReplaceWhenNoPermanentFlagsAllowed(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &noPermanentFlagsBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 STORE 1 FLAGS ()\r\na4 UID STORE 7 +FLAGS ()\r\n")); err != nil {
+		t.Fatalf("write empty flag-list stores: %v", err)
+	}
+	want := []string{
+		"a3 NO STORE flags are not permitted\r\n",
+		"a4 OK UID STORE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read empty permanent flag response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("empty permanent flag response = %q, want %q", line, expected)
+		}
+	}
+	if backendImpl.storeCalls != 0 {
+		t.Fatalf("StoreFlags calls = %d, want 0", backendImpl.storeCalls)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStoreAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -8904,6 +8963,23 @@ func (limitedPermanentFlagsBackend) SelectMailbox(context.Context, SelectMailbox
 func (b *limitedPermanentFlagsBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
 	b.storeCalls++
 	return []MessageSummary{{ID: "message-7", UID: req.UIDs[0], SequenceNumber: 1, Flags: req.Flags}}, nil
+}
+
+type noPermanentFlagsBackend struct {
+	fakeBackend
+	storeCalls int
+}
+
+func (noPermanentFlagsBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
+		PermanentFlags: nil,
+	}, nil
+}
+
+func (b *noPermanentFlagsBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]MessageSummary, error) {
+	b.storeCalls++
+	return nil, nil
 }
 
 type emptyFlagStoreBackend struct {

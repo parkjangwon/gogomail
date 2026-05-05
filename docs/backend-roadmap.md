@@ -1568,7 +1568,8 @@ Implementation order:
 921. IMAP `STORE` and `UID STORE` now honor the selected mailbox's advertised
      `[PERMANENTFLAGS]`, rejecting valid-but-unpermitted system flag mutations
      before backend dispatch and keeping flag storage behavior aligned with
-     RFC-shaped selection metadata.
+     RFC-shaped selection metadata. Empty add/remove flag lists remain no-ops,
+     while empty replacement is rejected when no permanent flags are permitted.
 
 ## Deferred until backend contracts stabilize
 
