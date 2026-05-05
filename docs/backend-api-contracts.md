@@ -165,8 +165,12 @@ or development `user_id` fallback path as webmail mail routes:
   refresh selected metadata after edits.
 - `GET /api/v1/drive/nodes/{id}/download` streams an active Drive file from
   the configured storage backend with `Content-Disposition`,
-  `Cache-Control: no-store`, and `X-Content-Type-Options: nosniff`; folders,
-  trashed nodes, and missing objects are rejected before bytes are streamed.
+  `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and
+  `Accept-Ranges: bytes`; folders, trashed nodes, and missing objects are
+  rejected before bytes are streamed. The route accepts one optional
+  `Range: bytes=start-end` style header, returns `206 Partial Content` with
+  `Content-Range` for satisfiable ranges, and rejects malformed, repeated, or
+  multi-range requests before opening a partial object body.
 - `HEAD /api/v1/drive/nodes/{id}/download` performs the same active-file and
   object-existence checks but returns only download headers, including
   `Content-Length` when the storage backend reports size.

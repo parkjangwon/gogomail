@@ -2940,6 +2940,11 @@ func (s *recordingStore) Get(_ context.Context, path string) (io.ReadCloser, err
 	return io.NopCloser(strings.NewReader("")), nil
 }
 
+func (s *recordingStore) GetRange(_ context.Context, path string, _ storage.RangeRequest) (io.ReadCloser, error) {
+	s.getPath = path
+	return io.NopCloser(strings.NewReader("")), nil
+}
+
 func (s *recordingStore) Stat(_ context.Context, path string) (storage.ObjectInfo, error) {
 	return storage.ObjectInfo{Path: path}, nil
 }
@@ -3016,6 +3021,10 @@ func (s failingDeleteStore) Put(context.Context, string, io.Reader) error {
 }
 
 func (s failingDeleteStore) Get(context.Context, string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("")), nil
+}
+
+func (s failingDeleteStore) GetRange(context.Context, string, storage.RangeRequest) (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("")), nil
 }
 

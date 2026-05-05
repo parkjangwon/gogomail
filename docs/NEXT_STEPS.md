@@ -431,6 +431,10 @@ Current state:
   download headers, and webmail capabilities advertise `node_download`.
 - Mail API now exposes `HEAD /api/v1/drive/nodes/{id}/download` for metadata
   and object-existence checks without transferring Drive file bytes.
+- Mail API Drive downloads now accept one satisfiable `Range: bytes=...`
+  request and return `206 Partial Content` through the shared local/NFS and
+  S3-compatible `GetRange` storage primitive; webmail capabilities advertise
+  `node_range_download`.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

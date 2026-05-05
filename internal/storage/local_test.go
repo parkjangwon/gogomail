@@ -34,6 +34,20 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	if string(got) != "Subject: hello\r\n\r\nbody" {
 		t.Fatalf("stored body = %q", string(got))
 	}
+	ranged, err := store.GetRange(ctx, path, RangeRequest{Offset: 9, Length: 5})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	rangeBody, err := io.ReadAll(ranged)
+	if err != nil {
+		t.Fatalf("ReadAll range returned error: %v", err)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close ranged object: %v", err)
+	}
+	if string(rangeBody) != "hello" {
+		t.Fatalf("range body = %q", rangeBody)
+	}
 	info, err := store.Stat(ctx, path)
 	if err != nil {
 		t.Fatalf("Stat returned error: %v", err)
@@ -317,6 +331,9 @@ func TestLocalStoreRejectsAmbiguousObjectKeys(t *testing.T) {
 		}
 		if _, err := store.Stat(context.Background(), objectPath); err == nil {
 			t.Fatalf("Stat accepted ambiguous object key %q", objectPath)
+		}
+		if _, err := store.GetRange(context.Background(), objectPath, RangeRequest{Offset: 0, Length: 1}); err == nil {
+			t.Fatalf("GetRange accepted ambiguous object key %q", objectPath)
 		}
 		if err := store.Copy(context.Background(), objectPath, "mailstore/copy.eml"); err == nil {
 			t.Fatalf("Copy accepted ambiguous source object key %q", objectPath)

@@ -96,6 +96,44 @@ func (s *LocalStore) Get(ctx context.Context, path string) (io.ReadCloser, error
 	return file, nil
 }
 
+func (s *LocalStore) GetRange(ctx context.Context, path string, req RangeRequest) (io.ReadCloser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	validated, err := ValidateRangeRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	fullPath, err := s.safePath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("open storage object range: %w", err)
+	}
+	if _, err := file.Seek(validated.Offset, io.SeekStart); err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("seek storage object range: %w", err)
+	}
+	return &limitedReadCloser{reader: io.LimitReader(file, validated.Length), closer: file}, nil
+}
+
+type limitedReadCloser struct {
+	reader io.Reader
+	closer io.Closer
+}
+
+func (r *limitedReadCloser) Read(p []byte) (int, error) {
+	return r.reader.Read(p)
+}
+
+func (r *limitedReadCloser) Close() error {
+	return r.closer.Close()
+}
+
 func (s *LocalStore) Stat(ctx context.Context, path string) (ObjectInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return ObjectInfo{}, err

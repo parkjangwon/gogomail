@@ -26,9 +26,15 @@ type ObjectListPage struct {
 	HasMore    bool
 }
 
+type RangeRequest struct {
+	Offset int64
+	Length int64
+}
+
 type Store interface {
 	Put(ctx context.Context, path string, body io.Reader) error
 	Get(ctx context.Context, path string) (io.ReadCloser, error)
+	GetRange(ctx context.Context, path string, req RangeRequest) (io.ReadCloser, error)
 	Stat(ctx context.Context, path string) (ObjectInfo, error)
 	Copy(ctx context.Context, sourcePath string, destPath string) error
 	Move(ctx context.Context, sourcePath string, destPath string) error

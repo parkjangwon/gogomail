@@ -425,6 +425,10 @@ func (s fakeStore) Get(context.Context, string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
+func (s fakeStore) GetRange(context.Context, string, storage.RangeRequest) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (s fakeStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
 	if s.err != nil {
 		return storage.ObjectInfo{}, s.err

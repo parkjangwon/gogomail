@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive file download API)
+Last updated: 2026-05-06 (updated after Drive range download API)
 
 ## Current phase
 
@@ -376,6 +376,10 @@ guidance.
 - Mail API also exposes `HEAD /api/v1/drive/nodes/{id}/download` so production
   clients can verify active file metadata and object existence without opening
   or transferring the object body.
+- Drive downloads now support a single satisfiable HTTP byte range through the
+  shared local/NFS and S3-compatible `GetRange` storage contract, giving
+  production webmail clients resumable download and media-preview building
+  blocks without backend-specific object access.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.

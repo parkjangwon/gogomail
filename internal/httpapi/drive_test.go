@@ -110,6 +110,113 @@ func TestDriveDownloadNodeHandler(t *testing.T) {
 	}
 }
 
+func TestDriveDownloadNodeHandlerSupportsByteRange(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{
+		metadata: drive.FileMetadata{
+			Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, Status: drive.NodeStatusActive},
+			Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+		},
+		rangeDownload: drive.FileDownload{
+			Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, Status: drive.NodeStatusActive},
+			Body: io.NopCloser(strings.NewReader("nte")),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1/download?user_id=user-1", nil)
+	req.Header.Set("Range", "bytes=2-4")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPartialContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.statReq.UserID != "user-1" || service.statReq.NodeID != "node-1" {
+		t.Fatalf("stat request = %+v, want user/node", service.statReq)
+	}
+	if service.openRangeReq.UserID != "user-1" || service.openRangeReq.NodeID != "node-1" || service.openRangeReq.Offset != 2 || service.openRangeReq.Length != 3 {
+		t.Fatalf("range request = %+v, want offset/length", service.openRangeReq)
+	}
+	if rec.Body.String() != "nte" {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Range"); got != "bytes 2-4/7" {
+		t.Fatalf("Content-Range = %q", got)
+	}
+	if got := rec.Header().Get("Content-Length"); got != "3" {
+		t.Fatalf("Content-Length = %q", got)
+	}
+	if got := rec.Header().Get("Accept-Ranges"); got != "bytes" {
+		t.Fatalf("Accept-Ranges = %q", got)
+	}
+}
+
+func TestDriveDownloadNodeHandlerRejectsUnsatisfiableByteRange(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{metadata: drive.FileMetadata{
+		Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1/download?user_id=user-1", nil)
+	req.Header.Set("Range", "bytes=9-10")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestedRangeNotSatisfiable {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Range"); got != "bytes */7" {
+		t.Fatalf("Content-Range = %q", got)
+	}
+	if service.openRangeReq.NodeID != "" {
+		t.Fatalf("range open should not run for unsatisfiable range: %+v", service.openRangeReq)
+	}
+}
+
+func TestParseSingleHTTPByteRange(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		header string
+		total  int64
+		offset int64
+		length int64
+	}{
+		{header: "bytes=2-4", total: 7, offset: 2, length: 3},
+		{header: "bytes=4-", total: 7, offset: 4, length: 3},
+		{header: "bytes=-3", total: 7, offset: 4, length: 3},
+		{header: "bytes=0-99", total: 7, offset: 0, length: 7},
+	} {
+		got, err := parseSingleHTTPByteRange(tc.header, tc.total)
+		if err != nil {
+			t.Fatalf("parseSingleHTTPByteRange(%q) returned error: %v", tc.header, err)
+		}
+		if got.Offset != tc.offset || got.Length != tc.length || got.Total != tc.total {
+			t.Fatalf("parseSingleHTTPByteRange(%q) = %+v", tc.header, got)
+		}
+	}
+
+	for _, header := range []string{
+		"bytes=7-8",
+		"bytes=4-2",
+		"bytes=-0",
+		"bytes=1-2,4-5",
+		"items=0-1",
+		"bytes=+1-2",
+	} {
+		if _, err := parseSingleHTTPByteRange(header, 7); err == nil {
+			t.Fatalf("parseSingleHTTPByteRange(%q) succeeded, want error", header)
+		}
+	}
+}
+
 func TestDriveHeadDownloadNodeHandler(t *testing.T) {
 	t.Parallel()
 
@@ -653,11 +760,13 @@ type fakeDriveService struct {
 	uploadSession             drive.UploadSession
 	uploadSessions            []drive.UploadSession
 	download                  drive.FileDownload
+	rangeDownload             drive.FileDownload
 	metadata                  drive.FileMetadata
 	usageSummary              drive.UsageSummary
 	err                       error
 	getReq                    drive.GetNodeRequest
 	openReq                   drive.OpenFileRequest
+	openRangeReq              drive.OpenFileRangeRequest
 	statReq                   drive.OpenFileRequest
 	usageReq                  drive.GetUsageSummaryRequest
 	getUploadSessionReq       drive.GetUploadSessionRequest
@@ -711,6 +820,20 @@ func (f *fakeDriveService) OpenFile(_ context.Context, req drive.OpenFileRequest
 	}
 	return drive.FileDownload{
 		Node: drive.Node{ID: "node-1", UserID: req.UserID, Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Body: io.NopCloser(strings.NewReader("content")),
+	}, nil
+}
+
+func (f *fakeDriveService) OpenFileRange(_ context.Context, req drive.OpenFileRangeRequest) (drive.FileDownload, error) {
+	f.openRangeReq = req
+	if f.err != nil {
+		return drive.FileDownload{}, f.err
+	}
+	if f.rangeDownload.Body != nil {
+		return f.rangeDownload, nil
+	}
+	return drive.FileDownload{
+		Node: drive.Node{ID: "node-1", UserID: req.UserID, Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: req.Length, Status: drive.NodeStatusActive},
 		Body: io.NopCloser(strings.NewReader("content")),
 	}, nil
 }
