@@ -1199,6 +1199,9 @@ Current state:
   messages become active again.
 - Mail API now supports bounded thread-level restore so selected soft-deleted
   conversations can be recovered through the same quota-protected restore path.
+- Restore actions now best-effort assign IMAP UIDs and publish `EXISTS` events
+  for restored active messages, keeping connected IMAP clients closer to
+  webmail recovery state without a separate backfill pass.
 
 Next:
 

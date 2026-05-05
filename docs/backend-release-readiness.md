@@ -43,6 +43,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   restored messages become active again.
 - Mail API exposes bounded thread-level restore so production webmail clients
   can recover whole soft-deleted conversations behind the same quota guard.
+- Restore actions best-effort assign IMAP UIDs and publish `EXISTS` events for
+  restored active messages, so connected IMAP clients can observe webmail
+  recovery actions without a separate operator backfill step.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

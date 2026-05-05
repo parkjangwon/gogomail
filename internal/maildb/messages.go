@@ -133,6 +133,11 @@ type BulkMessageRestoreRequest struct {
 	MessageIDs []string `json:"message_ids"`
 }
 
+type BulkMessageRestoreResult struct {
+	Updated    int64
+	MessageIDs []string
+}
+
 const BulkMessageMaxIDs = 500
 const maxMailboxResourceIDBytes = 200
 const maxFolderNameBytes = 200
@@ -1262,73 +1267,77 @@ WHERE user_id = $1
 	return affected, nil
 }
 
-func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRestoreRequest) (int64, error) {
+func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRestoreRequest) (BulkMessageRestoreResult, error) {
 	if r.db == nil {
-		return 0, fmt.Errorf("database handle is required")
+		return BulkMessageRestoreResult{}, fmt.Errorf("database handle is required")
 	}
 	if err := ValidateBulkMessageRestoreRequest(req); err != nil {
-		return 0, err
+		return BulkMessageRestoreResult{}, err
 	}
 	rawIDs, err := json.Marshal(req.MessageIDs)
 	if err != nil {
-		return 0, fmt.Errorf("encode message ids: %w", err)
+		return BulkMessageRestoreResult{}, fmt.Errorf("encode message ids: %w", err)
 	}
 	userID := strings.TrimSpace(req.UserID)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, fmt.Errorf("begin bulk restore transaction: %w", err)
+		return BulkMessageRestoreResult{}, fmt.Errorf("begin bulk restore transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	rows, err := tx.QueryContext(ctx, `
-SELECT COALESCE(size, 0)
+SELECT id::text, COALESCE(size, 0)
 FROM messages
 WHERE user_id = $1
   AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
   AND status = 'deleted'
 FOR UPDATE`, userID, string(rawIDs))
 	if err != nil {
-		return 0, fmt.Errorf("list message sizes for bulk restore: %w", err)
+		return BulkMessageRestoreResult{}, fmt.Errorf("list messages for bulk restore: %w", err)
 	}
+	var restoredIDs []string
 	var totalSize int64
 	for rows.Next() {
+		var id string
 		var size int64
-		if err := rows.Scan(&size); err != nil {
+		if err := rows.Scan(&id, &size); err != nil {
 			rows.Close()
-			return 0, fmt.Errorf("scan message size for bulk restore: %w", err)
+			return BulkMessageRestoreResult{}, fmt.Errorf("scan message for bulk restore: %w", err)
 		}
+		restoredIDs = append(restoredIDs, id)
 		totalSize += size
 	}
 	if err := rows.Close(); err != nil {
-		return 0, fmt.Errorf("close bulk restore size rows: %w", err)
+		return BulkMessageRestoreResult{}, fmt.Errorf("close bulk restore rows: %w", err)
 	}
 	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("iterate bulk restore size rows: %w", err)
+		return BulkMessageRestoreResult{}, fmt.Errorf("iterate bulk restore rows: %w", err)
 	}
 	if err := checkAndIncrementUserQuota(ctx, tx, userID, totalSize); err != nil {
-		return 0, err
+		return BulkMessageRestoreResult{}, err
 	}
 
-	result, err := tx.ExecContext(ctx, `
+	if len(restoredIDs) > 0 {
+		rawRestoredIDs, err := json.Marshal(restoredIDs)
+		if err != nil {
+			return BulkMessageRestoreResult{}, fmt.Errorf("encode restored message ids: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET status = 'active',
     deleted_at = NULL,
     updated_at = now()
 WHERE user_id = $1
   AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'deleted'`, userID, string(rawIDs))
-	if err != nil {
-		return 0, fmt.Errorf("bulk restore messages: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("inspect bulk message restore: %w", err)
+  AND status = 'deleted'`, userID, string(rawRestoredIDs)); err != nil {
+			return BulkMessageRestoreResult{}, fmt.Errorf("bulk restore messages: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit bulk restore transaction: %w", err)
+		return BulkMessageRestoreResult{}, fmt.Errorf("commit bulk restore transaction: %w", err)
 	}
-	return affected, nil
+	return BulkMessageRestoreResult{Updated: int64(len(restoredIDs)), MessageIDs: restoredIDs}, nil
 }
 
 func (r *Repository) BulkRestoreThreads(ctx context.Context, req BulkThreadRestoreRequest) (BulkThreadRestoreResult, error) {

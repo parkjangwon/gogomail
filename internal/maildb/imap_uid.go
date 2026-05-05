@@ -1664,6 +1664,74 @@ func normalizeExistingIMAPMessageIDs(messageIDs []string) []string {
 	return out
 }
 
+func (r *Repository) EnsureIMAPMessageUIDsForMessages(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	messageIDs = normalizeExistingIMAPMessageIDs(messageIDs)
+	if len(messageIDs) == 0 {
+		return nil, nil
+	}
+	rawIDs, err := json.Marshal(messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("encode imap message ids: %w", err)
+	}
+
+	const query = `
+WITH requested AS (
+  SELECT value AS message_id, ord
+  FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY AS requested(value, ord)
+)
+SELECT m.id::text, m.folder_id::text
+FROM requested
+JOIN messages m ON m.id = requested.message_id::uuid
+WHERE m.user_id = $1::uuid
+  AND m.status = 'active'
+ORDER BY requested.ord`
+	rows, err := r.db.QueryContext(ctx, query, userID, string(rawIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list active imap message uid targets: %w", err)
+	}
+	type target struct {
+		messageID string
+		mailboxID string
+	}
+	targets := make([]target, 0, len(messageIDs))
+	for rows.Next() {
+		var item target
+		if err := rows.Scan(&item.messageID, &item.mailboxID); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan active imap message uid target: %w", err)
+		}
+		targets = append(targets, item)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close active imap message uid targets: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate active imap message uid targets: %w", err)
+	}
+
+	assigned := make([]IMAPMessageUID, 0, len(targets))
+	for _, target := range targets {
+		uid, err := r.EnsureIMAPMessageUID(ctx, userID, target.mailboxID, target.messageID)
+		if err != nil {
+			return nil, err
+		}
+		sequenceNumber, err := imapSequenceNumberForUID(ctx, r.db, userID, target.mailboxID, uid.UID)
+		if err != nil {
+			return nil, err
+		}
+		uid.SequenceNumber = sequenceNumber
+		assigned = append(assigned, uid)
+	}
+	return assigned, nil
+}
+
 func (r *Repository) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]IMAPMessageUID, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

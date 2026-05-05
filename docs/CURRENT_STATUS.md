@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after thread bulk delete actions)
+Last updated: 2026-05-06 (updated after restore-to-IMAP live events)
 
 ## Current phase
 
@@ -121,6 +121,9 @@ guidance.
 - Mail API now supports bounded thread-level restore for soft-deleted
   conversations, reactivating selected conversation messages only after the
   same hierarchical quota guard used by message restore succeeds.
+- Mail API restore flows now best-effort assign IMAP UIDs to restored active
+  messages and publish IMAP `EXISTS` events, reducing stale selected-mailbox
+  views for clients that are connected while webmail recovery actions run.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.
