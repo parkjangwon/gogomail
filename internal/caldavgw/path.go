@@ -134,6 +134,12 @@ func ParseResourceHref(raw string) (ResourcePath, error) {
 		return ResourcePath{}, fmt.Errorf("decode caldav href: %w", err)
 	}
 	if parsed.IsAbs() {
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return ResourcePath{}, fmt.Errorf("caldav href absolute URI scheme must be http or https")
+		}
+		if parsed.Host == "" || parsed.User != nil {
+			return ResourcePath{}, fmt.Errorf("caldav href absolute URI authority is invalid")
+		}
 		if parsed.Opaque != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 			return ResourcePath{}, fmt.Errorf("caldav href must not include opaque data, query, or fragment")
 		}
