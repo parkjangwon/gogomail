@@ -1481,7 +1481,8 @@ Current state:
   collections, returning RFC-shaped `text/calendar` `VFREEBUSY` responses for
   `Depth: 1` child VEVENTs while clipping to the requested UTC time range,
   skipping transparent/cancelled events, mapping tentative events to
-  `BUSY-TENTATIVE`, and coalescing same-type overlaps.
+  `BUSY-TENTATIVE`, ingesting stored VFREEBUSY `FREEBUSY` source periods, and
+  coalescing same-type overlaps.
 - CalDAV now handles `MKCALENDAR` on authenticated calendar collection paths
   with UUID Request-URI segments. Creation XML is bounded and namespace-aware
   for display name, description, and CalendarServer/Apple calendar color, and
@@ -1585,10 +1586,9 @@ Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
   gates are closed: recurrence-aware calendar-query/free-busy expansion,
-  sync retention and collection-deletion deltas, VFREEBUSY source-object
-  support, slug/path-alias support for friendlier MKCALENDAR clients,
-  scheduling semantics, and broader Apple/Android/Windows/macOS compatibility
-  tests.
+  sync retention and collection-deletion deltas, slug/path-alias support for
+  friendlier MKCALENDAR clients, scheduling semantics, and broader
+  Apple/Android/Windows/macOS compatibility tests.
 - Before public shared/delegated calendar or resource-booking features,
   establish the platform boundaries CalDAV depends on: Directory/Identity for
   users, teams, groups, resources, aliases, memberships, delegation, and
