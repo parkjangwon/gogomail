@@ -812,6 +812,8 @@ The platform hardening sprint completed the following:
   sanitized wire names.
 - IMAP `SELECT`/`EXAMINE` emit `[PERMANENTFLAGS]` response codes for writable
   versus read-only selected-mailbox state.
+- IMAP `SELECT`/`EXAMINE` emit RFC-shaped untagged `RECENT` counts alongside
+  `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
 - IMAP `UID STORE` supports `.SILENT` flag mutation modes and suppresses
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`

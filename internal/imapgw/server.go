@@ -335,6 +335,9 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", mailboxState.Messages)); err != nil {
 			return false, err
 		}
+		if _, err := writer.WriteString(fmt.Sprintf("* %d RECENT\r\n", mailboxState.Recent)); err != nil {
+			return false, err
+		}
 		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", mailboxState.UIDValidity)); err != nil {
 			return false, err
 		}
