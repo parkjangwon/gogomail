@@ -891,6 +891,8 @@ Implementation order:
 722. IMAP `SEARCH` and `UID SEARCH` now support `SINCE` and `BEFORE` date
      criteria over message `INTERNALDATE`, using RFC-style `DD-Mon-YYYY`
      criteria parsing.
+723. IMAP `SEARCH` and `UID SEARCH` now support basic `FROM` and `SUBJECT`
+     substring criteria over selected-mailbox message summaries.
 
 ## Deferred until backend contracts stabilize
 

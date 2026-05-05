@@ -1162,6 +1162,63 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH SUBJECT IMAP\r\na4 UID SEARCH FROM archive\r\n")); err != nil {
+		t.Fatalf("write text search: %v", err)
+	}
+	want := []string{
+		"* SEARCH 1\r\n",
+		"a3 OK SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a4 OK UID SEARCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read text search response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("text search response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesFetchEnvelopeAndInternalDate(t *testing.T) {
 	t.Parallel()
 
@@ -1898,8 +1955,8 @@ func (fakeBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, erro
 
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{
-		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Flags: MessageFlags{Read: true, Starred: true}},
-		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)},
+		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}}, Flags: MessageFlags{Read: true, Starred: true}},
+		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Archive", From: []Address{{Name: "Archive Bot", Mailbox: "archive", Host: "example.net"}}}},
 	}, nil
 }
 
