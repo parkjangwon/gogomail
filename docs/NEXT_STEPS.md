@@ -283,6 +283,10 @@ Current state:
   Trash, Junk, Archive, All, and Flagged when those folder roles are present in
   storage metadata, and extended
   `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
+- `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`; extended
+  `LIST ... RETURN (STATUS (...))` emits the requested `STATUS` data directly
+  after each matching selectable mailbox to reduce client folder-list round
+  trips.
 - `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata, matching client namespace delimiter
   probes before persistent subscription storage exists.

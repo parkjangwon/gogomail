@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after same-mailbox IMAP MOVE support)
+Last updated: 2026-05-05 (updated after IMAP LIST-STATUS support)
 
 ## Current phase
 
@@ -831,6 +831,9 @@ The platform hardening sprint completed the following:
   Trash, Junk, Archive, All, and Flagged when those folder roles are present in
   storage metadata, and extended
   `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
+- IMAP `CAPABILITY` advertises RFC 5819 `LIST-STATUS`; extended
+  `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata after each
+  matching selectable mailbox.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.

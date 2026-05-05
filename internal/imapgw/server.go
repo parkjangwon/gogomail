@@ -596,14 +596,17 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	if subscribed {
 		command = "LSUB"
 	}
-	listFields, specialUseOnly, ok := imapListCommandFields(fields[2:], subscribed)
-	if !ok || len(listFields) != 2 {
+	listOptions, ok := imapListCommandOptions(fields[2:], subscribed)
+	if !ok || len(listOptions.fields) != 2 {
 		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
 		return false, err
 	}
-	pattern := imapListPattern(listFields[0], listFields[1])
+	if imapStatusRequestsItem(listOptions.statusItems, "HIGHESTMODSEQ") {
+		state.condstoreAware = true
+	}
+	pattern := imapListPattern(listOptions.fields[0], listOptions.fields[1])
 	if pattern == "" {
-		if specialUseOnly {
+		if listOptions.specialUseOnly {
 			_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
 			return false, err
 		}
@@ -628,11 +631,16 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 			continue
 		}
 		attributes := imapMailboxListAttributes(mailbox, children[mailbox.ID])
-		if specialUseOnly && len(attributes) == 1 {
+		if listOptions.specialUseOnly && len(attributes) == 1 {
 			continue
 		}
 		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
 			return false, err
+		}
+		if len(listOptions.statusItems) > 0 {
+			if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(displayName), imapStatusData(mailbox, listOptions.statusItems))); err != nil {
+				return false, err
+			}
 		}
 	}
 	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
@@ -3514,7 +3522,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
@@ -3904,27 +3912,62 @@ func imapMailboxChildren(mailboxes []Mailbox) map[MailboxID]bool {
 	return children
 }
 
-func imapListCommandFields(fields []string, subscribed bool) ([]string, bool, bool) {
+type imapListOptions struct {
+	fields         []string
+	specialUseOnly bool
+	statusItems    []string
+}
+
+func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, bool) {
 	if subscribed {
-		return fields, false, true
+		return imapListOptions{fields: fields}, true
 	}
-	specialUseOnly := false
+	options := imapListOptions{}
 	if len(fields) > 0 && strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
 		tokens := imapFetchNormalizedTokens([]string{fields[0]})
 		if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SPECIAL-USE") {
-			return nil, false, false
+			return imapListOptions{}, false
 		}
-		specialUseOnly = true
+		options.specialUseOnly = true
 		fields = fields[1:]
 	}
-	if len(fields) == 4 && strings.EqualFold(fields[2], "RETURN") {
-		tokens := imapFetchNormalizedTokens([]string{fields[3]})
-		if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SPECIAL-USE") {
-			return nil, false, false
-		}
-		fields = fields[:2]
+	if len(fields) < 2 {
+		return imapListOptions{}, false
 	}
-	return fields, specialUseOnly, true
+	options.fields = fields[:2]
+	if len(fields) == 2 {
+		return options, true
+	}
+	if len(fields) < 4 || !strings.EqualFold(fields[2], "RETURN") {
+		return imapListOptions{}, false
+	}
+	tokens := imapFetchNormalizedTokens(fields[3:])
+	if len(tokens) == 0 {
+		return imapListOptions{}, false
+	}
+	for i := 0; i < len(tokens); {
+		switch strings.ToUpper(tokens[i]) {
+		case "SPECIAL-USE":
+			i++
+		case "STATUS":
+			i++
+			start := i
+			for i < len(tokens) && !strings.EqualFold(tokens[i], "SPECIAL-USE") {
+				i++
+			}
+			if start == i {
+				return imapListOptions{}, false
+			}
+			statusItems, ok := imapStatusItems(tokens[start:i])
+			if !ok {
+				return imapListOptions{}, false
+			}
+			options.statusItems = statusItems
+		default:
+			return imapListOptions{}, false
+		}
+	}
+	return options, true
 }
 
 func imapMailboxWireName(value string) string {

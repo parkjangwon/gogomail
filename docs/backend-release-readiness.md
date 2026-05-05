@@ -344,6 +344,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Drafts, Sent, Trash, Junk, Archive, All, and Flagged when those folder roles
   are present in storage metadata, and extended
   `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
+- IMAP `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`; extended
+  `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata
+  immediately after each matching selectable mailbox so compatible clients can
+  avoid per-folder `STATUS` round trips.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts
