@@ -504,6 +504,68 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerNoopDrainsMailboxEvents(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &eventBackend{events: make(chan MailboxEvent, 4)}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 3}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}
+	if _, err := client.Write([]byte("a3 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop: %v", err)
+	}
+	want := []string{
+		"* 3 EXISTS\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged))\r\n",
+		"a3 OK NOOP completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read noop event response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("noop event response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if !backendImpl.canceled {
+		t.Fatal("event subscription was not canceled")
+	}
+}
+
 func TestServerHandlesListAfterLogin(t *testing.T) {
 	t.Parallel()
 
@@ -1444,4 +1506,17 @@ func (fakeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan Mailbox
 	events := make(chan MailboxEvent)
 	cancel := func() { close(events) }
 	return events, cancel, nil
+}
+
+type eventBackend struct {
+	fakeBackend
+	events   chan MailboxEvent
+	canceled bool
+}
+
+func (b *eventBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
+	cancel := func() {
+		b.canceled = true
+	}
+	return b.events, cancel, nil
 }
