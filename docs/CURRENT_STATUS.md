@@ -819,9 +819,11 @@ The platform hardening sprint completed the following:
   commands.
 - IMAP `LIST` filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
-- IMAP `LIST` includes RFC 6154 special-use attributes for system folders such
-  as Drafts, Sent, Trash, Junk, Archive, All, and Flagged when those folder
-  roles are present in storage metadata.
+- IMAP `CAPABILITY` advertises `SPECIAL-USE`; `LIST` includes RFC 6154
+  special-use attributes for system folders such as Drafts, Sent, Trash, Junk,
+  Archive, All, and Flagged when those folder roles are present in storage
+  metadata, and extended `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms
+  are accepted.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.

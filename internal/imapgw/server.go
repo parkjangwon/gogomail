@@ -595,7 +595,8 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	if subscribed {
 		command = "LSUB"
 	}
-	if len(fields) != 4 {
+	listFields, specialUseOnly, ok := imapListCommandFields(fields[2:], subscribed)
+	if !ok || len(listFields) != 2 {
 		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
 		return false, err
 	}
@@ -604,8 +605,12 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
 	}
-	pattern := imapListPattern(fields[2], fields[3])
+	pattern := imapListPattern(listFields[0], listFields[1])
 	if pattern == "" {
+		if specialUseOnly {
+			_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
+			return false, err
+		}
 		if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ""` + "\r\n"); err != nil {
 			return false, err
 		}
@@ -618,6 +623,9 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 			continue
 		}
 		attributes := imapMailboxListAttributes(mailbox)
+		if specialUseOnly && len(attributes) == 1 {
+			continue
+		}
 		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(displayName) + "\r\n"); err != nil {
 			return false, err
 		}
@@ -3370,7 +3378,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
@@ -3700,6 +3708,29 @@ func imapMailboxListAttributes(mailbox Mailbox) []string {
 		attributes = append(attributes, `\Trash`)
 	}
 	return attributes
+}
+
+func imapListCommandFields(fields []string, subscribed bool) ([]string, bool, bool) {
+	if subscribed {
+		return fields, false, true
+	}
+	specialUseOnly := false
+	if len(fields) > 0 && strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
+		tokens := imapFetchNormalizedTokens([]string{fields[0]})
+		if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SPECIAL-USE") {
+			return nil, false, false
+		}
+		specialUseOnly = true
+		fields = fields[1:]
+	}
+	if len(fields) == 4 && strings.EqualFold(fields[2], "RETURN") {
+		tokens := imapFetchNormalizedTokens([]string{fields[3]})
+		if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SPECIAL-USE") {
+			return nil, false, false
+		}
+		fields = fields[:2]
+	}
+	return fields, specialUseOnly, true
 }
 
 func imapMailboxWireName(value string) string {
