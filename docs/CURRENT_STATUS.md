@@ -806,6 +806,8 @@ The platform hardening sprint completed the following:
   mutations in that state.
 - IMAP `CHECK` and `CLOSE` support selected-mailbox lifecycle handling; `CLOSE`
   clears selected state without enabling EXPUNGE/`\Deleted` behavior yet.
+- IMAP `STATUS` validates requested status data items and returns only the
+  requested mailbox metadata fields.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

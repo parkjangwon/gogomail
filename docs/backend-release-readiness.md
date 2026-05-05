@@ -316,6 +316,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   while the selected mailbox is read-only.
 - IMAP `CHECK` and `CLOSE` now provide safe selected-mailbox lifecycle handling,
   with `CLOSE` clearing selected state while EXPUNGE/`\Deleted` remain deferred.
+- IMAP `STATUS` now validates requested status data items and emits only those
+  requested fields, including `RECENT`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
