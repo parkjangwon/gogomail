@@ -991,6 +991,10 @@ Implementation order:
 760. IMAP `SEARCH` and `UID SEARCH` now support `RECENT`, `OLD`, and `NEW`,
      returning no recent/new matches while durable recent-state semantics remain
      deferred and treating active messages as old.
+761. IMAP `SEARCH` and `UID SEARCH` now support `KEYWORD` and `UNKEYWORD`
+     criteria with validated keyword atoms, returning no custom-keyword matches
+     until durable user keyword storage exists and treating active messages as
+     unkeyworded.
 
 ## Deferred until backend contracts stabilize
 
