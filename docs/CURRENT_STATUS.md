@@ -807,6 +807,9 @@ The platform hardening sprint completed the following:
 - IMAP `EXAMINE` passes read-only selection intent through the backend
   `SelectMailboxRequest`, so service adapters can distinguish read-only
   sessions from writable `SELECT`.
+- IMAP `SELECT`/`EXAMINE` now establish mailbox event subscriptions before
+  emitting selected-mailbox response data, avoiding ambiguous partial selection
+  state when subscription setup fails.
 - IMAP `CHECK` and `CLOSE` support selected-mailbox lifecycle handling; `CLOSE`
   clears selected state without enabling EXPUNGE/`\Deleted` behavior yet.
 - IMAP `STATUS` validates requested status data items and returns only the

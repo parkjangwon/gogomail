@@ -340,6 +340,11 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
 			return false, writeErr
 		}
+		events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, mailboxState.ID)
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
+			return false, writeErr
+		}
 		if _, err := writer.WriteString("* FLAGS " + imapFlagList(mailboxState.PermanentFlags) + "\r\n"); err != nil {
 			return false, err
 		}
@@ -359,11 +364,6 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
-		events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, state.selectedMailbox)
-		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
-			return false, writeErr
-		}
 		state.events = events
 		state.cancelEvents = cancel
 		if state.readOnly {

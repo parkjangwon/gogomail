@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -686,6 +687,51 @@ func TestServerSelectUsesCanonicalMailboxID(t *testing.T) {
 	}
 	if backend.subscribeMailboxID != "mailbox-uuid" {
 		t.Fatalf("subscribe mailbox id = %q, want canonical id", backend.subscribeMailboxID)
+	}
+}
+
+func TestServerSelectFailsBeforeSelectedStateWhenSubscriptionFails(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: failingSubscribeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 FETCH 1 FLAGS\r\n")); err != nil {
+		t.Fatalf("write select/fetch: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"a2 NO SELECT failed\r\n",
+		"a3 NO mailbox must be selected\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
 	}
 }
 
@@ -3717,4 +3763,12 @@ type selectModeBackend struct {
 func (b *selectModeBackend) SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error) {
 	b.readOnly = req.ReadOnly
 	return b.fakeBackend.SelectMailbox(ctx, req)
+}
+
+type failingSubscribeBackend struct {
+	fakeBackend
+}
+
+func (failingSubscribeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
+	return nil, nil, errors.New("subscription unavailable")
 }
