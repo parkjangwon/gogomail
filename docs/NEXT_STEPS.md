@@ -1443,6 +1443,9 @@ Current state:
 - CalDAV now handles `REPORT calendar-multiget` for authenticated calendar
   collections, returning requested ETags and `calendar-data` through WebDAV
   multistatus responses.
+- CalDAV now handles authenticated calendar object `GET`, `HEAD`, `PUT`, and
+  `DELETE` with strong ETag headers, bounded iCalendar writes, and
+  `If-Match`/`If-None-Match` precondition handling.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1452,8 +1455,8 @@ Current state:
 
 Next:
 
-- Continue CalDAV with calendar-query/sync-collection handlers and object
-  GET/PUT/DELETE semantics before advertising client-ready compatibility.
+- Continue CalDAV with calendar-query/sync-collection handlers and broader
+  compatibility tests before advertising client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

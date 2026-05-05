@@ -117,6 +117,11 @@ use it after discovery to hydrate event resources by href. Missing hrefs remain
 inside the multistatus response as 404 propstats instead of failing the whole
 REPORT request.
 
+Calendar object reads and mutations are handled directly by the CalDAV gateway
+rather than Mail API routes. `PUT` reuses the iCalendar validation and strong
+ETag repository boundary, while `If-Match` and `If-None-Match` checks keep
+native client cache/write behavior coherent.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

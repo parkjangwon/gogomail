@@ -221,6 +221,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   collections, including requested `calendar-data` bodies and missing-object
   404 propstats. Calendar-query, sync-collection, and object mutation/read
   handlers remain incomplete.
+- CalDAV now handles calendar object `GET`, `HEAD`, `PUT`, and `DELETE` with
+  strong ETag headers, bounded iCalendar validation, and conditional request
+  preconditions. Calendar-query and sync-collection handlers remain incomplete.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded
