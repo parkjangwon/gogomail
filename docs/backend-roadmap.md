@@ -733,6 +733,21 @@ Implementation order:
 673. Attachment scanner and push-notification webhook senders now reject CR/LF-bearing
     configured tokens or endpoints and collapse non-2xx response bodies into bounded
     one-line UTF-8 previews before surfacing endpoint failures.
+674. OpenSearch writer construction now rejects CR/LF-bearing direct endpoint
+     values before URL parsing, keeping adapter calls aligned with startup config
+     endpoint validation.
+675. Runtime config now loads and validates `GOGOMAIL_IMAP_ADDR` as required TCP
+     listener metadata for the IMAP scaffold, preparing future protocol listener
+     wiring without opening the port yet.
+676. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore`
+     for SELECT-style mailbox state and event subscriptions, while MOVE and
+     EXPUNGE return an explicit unsupported mutation error until IMAP-safe
+     semantics are reviewed.
+677. Runtime storage wiring now supports `GOGOMAIL_STORAGE_BACKEND=s3` and
+     `GOGOMAIL_STORAGE_BACKEND=minio` through a standard SigV4 S3-compatible
+     adapter with endpoint, region, bucket, prefix, credential, session-token,
+     and path-style settings, while preserving local filesystem/NFS storage as
+     the default backend.
 
 ## Deferred until backend contracts stabilize
 

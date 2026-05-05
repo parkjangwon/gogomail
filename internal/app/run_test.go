@@ -18,6 +18,7 @@ import (
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func TestSMTPTLSConfigRequiresCertAndKeyTogether(t *testing.T) {
@@ -95,12 +96,51 @@ func TestNewHTTPServerUsesConfiguredOperationalGuardrails(t *testing.T) {
 	}
 }
 
-func TestLocalStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
+func TestObjectStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
 	t.Parallel()
 
-	store, err := localStoreForConfig(config.Config{StorageBackend: "minio", MailstoreRoot: t.TempDir()})
+	store, err := objectStoreForConfig(config.Config{StorageBackend: "minio", MailstoreRoot: t.TempDir()})
 	if err == nil || !strings.Contains(err.Error(), "unsupported storage backend") {
 		t.Fatalf("store = %+v err = %v", store, err)
+	}
+}
+
+func TestObjectStoreForConfigBuildsS3Backend(t *testing.T) {
+	t.Parallel()
+
+	store, err := objectStoreForConfig(config.Config{
+		StorageBackend:           "s3",
+		StorageS3Endpoint:        "http://localhost:9000",
+		StorageS3Region:          "us-east-1",
+		StorageS3Bucket:          "gogomail",
+		StorageS3AccessKeyID:     "access",
+		StorageS3SecretAccessKey: "secret",
+		StorageS3ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("objectStoreForConfig returned error: %v", err)
+	}
+	if _, ok := store.(*storage.S3Store); !ok {
+		t.Fatalf("store = %T, want *storage.S3Store", store)
+	}
+}
+
+func TestObjectStoreForConfigBuildsMinIOBackend(t *testing.T) {
+	t.Parallel()
+
+	store, err := objectStoreForConfig(config.Config{
+		StorageBackend:           "minio",
+		StorageS3Endpoint:        "http://localhost:9000",
+		StorageS3Region:          "us-east-1",
+		StorageS3Bucket:          "gogomail",
+		StorageS3AccessKeyID:     "access",
+		StorageS3SecretAccessKey: "secret",
+	})
+	if err != nil {
+		t.Fatalf("objectStoreForConfig returned error: %v", err)
+	}
+	if _, ok := store.(*storage.S3Store); !ok {
+		t.Fatalf("store = %T, want *storage.S3Store", store)
 	}
 }
 

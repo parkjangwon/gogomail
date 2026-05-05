@@ -252,6 +252,9 @@ func TestOpenSearchIndexerRequiresOptions(t *testing.T) {
 	if _, err := NewOpenSearchIndexer(OpenSearchOptions{}); err == nil {
 		t.Fatal("NewOpenSearchIndexer accepted empty options")
 	}
+	if _, err := NewOpenSearchIndexer(OpenSearchOptions{Endpoint: "http://localhost:9200\r\nX-Bad: value", Index: "messages"}); err == nil {
+		t.Fatal("NewOpenSearchIndexer accepted endpoint with line break")
+	}
 	if _, err := NewOpenSearchIndexer(OpenSearchOptions{Endpoint: "http://localhost:9200", Index: "../bad"}); err == nil {
 		t.Fatal("NewOpenSearchIndexer accepted unsafe index")
 	}

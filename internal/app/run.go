@@ -150,7 +150,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	defer db.Close()
 
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -158,6 +158,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	logger.Info(
 		"imap gateway scaffold ready",
 		"mode", ModeIMAP,
+		"addr", cfg.IMAPAddr,
 		"mailbox_event_broker", runtime.events != nil,
 		"store_adapter", "service",
 		"protocol_listener", "deferred",
@@ -172,7 +173,7 @@ func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *
 	}
 	defer db.Close()
 
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -427,7 +428,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		return err
 	}
 	hooks = append(hooks, attachmentHooks...)
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -485,7 +486,7 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 	if err != nil {
 		return err
 	}
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -667,7 +668,7 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err := router.Register("mail.delivered", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
 		return err
 	}
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -755,7 +756,7 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	if err := maybeBootstrapSearchIndex(ctx, cfg, indexer); err != nil {
 		return err
 	}
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -1027,7 +1028,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		logger.Info("delivery worker enabled DKIM signing transformer")
 	}
 	deliveryRecorder := delivery.NewPostgresRecorder(db)
-	store, err := localStoreForConfig(cfg)
+	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -1265,7 +1266,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		defer db.Close()
 		readinessChecks = append(readinessChecks, databaseReadinessCheck("mail_database", db, cfg.MigrationDir))
 
-		store, err := localStoreForConfig(cfg)
+		store, err := objectStoreForConfig(cfg)
 		if err != nil {
 			return err
 		}
@@ -1309,7 +1310,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			pressure = backpressure.NewRedisBackpressure(redisClient, backpressure.DefaultStateKey)
 		}
 
-		store, err := localStoreForConfig(cfg)
+		store, err := objectStoreForConfig(cfg)
 		if err != nil {
 			return err
 		}
@@ -1382,15 +1383,33 @@ func modeIncludesAdminAPI(mode Mode) bool {
 	return mode == ModeAdminAPI || mode == ModeAllInOne
 }
 
-func localStoreForConfig(cfg config.Config) (*storage.LocalStore, error) {
+type configuredObjectStore interface {
+	storage.Store
+	Check(context.Context) error
+}
+
+func objectStoreForConfig(cfg config.Config) (configuredObjectStore, error) {
 	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
 	if backend == "" {
 		backend = "local"
 	}
-	if backend != "local" {
+	switch backend {
+	case "local":
+		return storage.NewLocalStore(cfg.MailstoreRoot), nil
+	case "s3", "minio":
+		return storage.NewS3Store(storage.S3Options{
+			Endpoint:        cfg.StorageS3Endpoint,
+			Region:          cfg.StorageS3Region,
+			Bucket:          cfg.StorageS3Bucket,
+			Prefix:          cfg.StorageS3Prefix,
+			AccessKeyID:     cfg.StorageS3AccessKeyID,
+			SecretAccessKey: cfg.StorageS3SecretAccessKey,
+			SessionToken:    cfg.StorageS3SessionToken,
+			ForcePathStyle:  cfg.StorageS3ForcePathStyle || backend == "minio",
+		})
+	default:
 		return nil, fmt.Errorf("unsupported storage backend %q", cfg.StorageBackend)
 	}
-	return storage.NewLocalStore(cfg.MailstoreRoot), nil
 }
 
 func storageReadinessCheck(name string, store interface {

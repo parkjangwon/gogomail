@@ -18,6 +18,7 @@ type Config struct {
 	SMTPAddr                            string
 	InboundSMTPAddr                     string
 	InboundTrustedRelays                []string
+	IMAPAddr                            string
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxRecipients             int
@@ -33,6 +34,14 @@ type Config struct {
 	DatabaseURL                         string
 	RedisAddr                           string
 	StorageBackend                      string
+	StorageS3Endpoint                   string
+	StorageS3Region                     string
+	StorageS3Bucket                     string
+	StorageS3Prefix                     string
+	StorageS3AccessKeyID                string
+	StorageS3SecretAccessKey            string
+	StorageS3SessionToken               string
+	StorageS3ForcePathStyle             bool
 	MigrationDir                        string
 	SMTPDomain                          string
 	SMTPReadTimeout                     time.Duration
@@ -172,6 +181,7 @@ func Load() Config {
 		SMTPAddr:                            envOrDefault("GOGOMAIL_SMTP_ADDR", ":2525"),
 		InboundSMTPAddr:                     envOrDefault("GOGOMAIL_INBOUND_SMTP_ADDR", ":2526"),
 		InboundTrustedRelays:                splitCSV(envOrDefault("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "127.0.0.1/32,::1/128")),
+		IMAPAddr:                            envOrDefault("GOGOMAIL_IMAP_ADDR", ":1143"),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxRecipients:             intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
@@ -187,6 +197,14 @@ func Load() Config {
 		DatabaseURL:                         envOrDefault("GOGOMAIL_DATABASE_URL", "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"),
 		RedisAddr:                           envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
 		StorageBackend:                      envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
+		StorageS3Endpoint:                   envOrDefault("GOGOMAIL_STORAGE_S3_ENDPOINT", ""),
+		StorageS3Region:                     envOrDefault("GOGOMAIL_STORAGE_S3_REGION", "us-east-1"),
+		StorageS3Bucket:                     envOrDefault("GOGOMAIL_STORAGE_S3_BUCKET", ""),
+		StorageS3Prefix:                     envOrDefault("GOGOMAIL_STORAGE_S3_PREFIX", ""),
+		StorageS3AccessKeyID:                envOrDefault("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", ""),
+		StorageS3SecretAccessKey:            os.Getenv("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY"),
+		StorageS3SessionToken:               os.Getenv("GOGOMAIL_STORAGE_S3_SESSION_TOKEN"),
+		StorageS3ForcePathStyle:             boolEnvOrDefault("GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE", false),
 		MigrationDir:                        envOrDefault("GOGOMAIL_MIGRATION_DIR", "migrations"),
 		SMTPDomain:                          envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
 		SMTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_SMTP_READ_TIMEOUT", 30*time.Second),

@@ -16,6 +16,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_INBOUND_SMTP_ADDR", "")
 	t.Setenv("GOGOMAIL_INBOUND_TRUSTED_RELAYS", "")
+	t.Setenv("GOGOMAIL_IMAP_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
@@ -31,6 +32,14 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DATABASE_URL", "")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_ENDPOINT", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_REGION", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_BUCKET", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_PREFIX", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_SESSION_TOKEN", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE", "")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
 	t.Setenv("GOGOMAIL_SMTP_READ_TIMEOUT", "")
@@ -128,6 +137,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if len(cfg.InboundTrustedRelays) != 2 {
 		t.Fatalf("InboundTrustedRelays = %+v, want loopback defaults", cfg.InboundTrustedRelays)
 	}
+	if cfg.IMAPAddr != ":1143" {
+		t.Fatalf("IMAPAddr = %q, want :1143", cfg.IMAPAddr)
+	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
 	}
@@ -166,6 +178,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.StorageBackend != "local" {
 		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)
+	}
+	if cfg.StorageS3Region != "us-east-1" || cfg.StorageS3Bucket != "" || cfg.StorageS3ForcePathStyle {
+		t.Fatalf("S3 storage defaults = region:%q bucket:%q force_path:%v", cfg.StorageS3Region, cfg.StorageS3Bucket, cfg.StorageS3ForcePathStyle)
 	}
 	if cfg.MigrationDir != "migrations" {
 		t.Fatalf("MigrationDir = %q, want migrations", cfg.MigrationDir)
