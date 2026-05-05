@@ -379,6 +379,23 @@ func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "caldav calendar deleter is not configured", http.StatusNotImplemented)
 		return
 	}
+	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
+	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
+	if ifMatch != "" || ifUnmodifiedSince != "" {
+		calendar, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID)
+		if err != nil {
+			http.Error(w, "caldav calendar not found", http.StatusPreconditionFailed)
+			return
+		}
+		if ifMatch != "" && ifMatch != "*" {
+			http.Error(w, "caldav calendar collection etag precondition cannot be evaluated", http.StatusPreconditionFailed)
+			return
+		}
+		if objectModifiedSince(ifUnmodifiedSince, calendar.UpdatedAt) {
+			http.Error(w, "caldav calendar modified since precondition", http.StatusPreconditionFailed)
+			return
+		}
+	}
 	if _, err := store.DeleteCalendar(r.Context(), DeleteCalendarRequest{UserID: userID, CalendarID: resource.CalendarID}); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
