@@ -849,6 +849,8 @@ The platform hardening sprint completed the following:
   MIME parts without fetching the full message.
 - IMAP `FETCH`/`UID FETCH` can stream bounded nested multipart body-section
   literals such as `BODY[1.2]` with a capped MIME part path depth.
+- IMAP `FETCH`/`UID FETCH` can stream bounded partial windows over multipart
+  body-section literals such as `BODY.PEEK[2]<4.4>`.
 - IMAP `FETCH`/`UID FETCH` can answer conservative single-part MIME header
   requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - IMAP `FETCH`/`UID FETCH` can stream actual multipart child MIME headers for
