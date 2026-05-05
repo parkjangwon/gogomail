@@ -258,6 +258,8 @@ Current state:
   requested mailbox metadata fields.
 - `LIST` now filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
+- `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes so clients can
+  distinguish writable and read-only flag state.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

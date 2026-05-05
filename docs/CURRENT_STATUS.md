@@ -810,6 +810,8 @@ The platform hardening sprint completed the following:
   requested mailbox metadata fields.
 - IMAP `LIST` filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
+- IMAP `SELECT`/`EXAMINE` emit `[PERMANENTFLAGS]` response codes for writable
+  versus read-only selected-mailbox state.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
