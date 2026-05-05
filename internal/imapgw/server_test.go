@@ -5804,6 +5804,144 @@ func TestServerHandlesMessageRFC822BodyStructure(t *testing.T) {
 	}
 }
 
+func TestServerHandlesMessageRFC822SectionFetch(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 13 BODY.PEEK[1.HEADER]\r\n")); err != nil {
+		t.Fatalf("write uid fetch nested message header: %v", err)
+	}
+	bodySize := len(testMessageRFC822Body())
+	header := "Subject: Nested\r\nFrom: nested@example.net\r\n\r\n"
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read nested message header literal header: %v", err)
+	}
+	wantPrefix := fmt.Sprintf("* 7 FETCH (UID 13 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.HEADER] {%d}\r\n", bodySize, len(header))
+	if line != wantPrefix {
+		t.Fatalf("nested message header literal header = %q, want %q", line, wantPrefix)
+	}
+	literal := make([]byte, len(header))
+	if _, err := io.ReadFull(reader, literal); err != nil {
+		t.Fatalf("read nested message header literal: %v", err)
+	}
+	if string(literal) != header {
+		t.Fatalf("nested message header literal = %q, want %q", literal, header)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("nested message header close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("nested message header completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 UID FETCH 13 BODY.PEEK[1.TEXT]<0.6>\r\n")); err != nil {
+		t.Fatalf("write uid fetch nested message text partial: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read nested message text literal header: %v", err)
+	}
+	wantPrefix = fmt.Sprintf("* 7 FETCH (UID 13 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.TEXT]<0> {6}\r\n", bodySize)
+	if line != wantPrefix {
+		t.Fatalf("nested message text literal header = %q, want %q", line, wantPrefix)
+	}
+	text := make([]byte, 6)
+	if _, err := io.ReadFull(reader, text); err != nil {
+		t.Fatalf("read nested message text literal: %v", err)
+	}
+	if string(text) != "nested" {
+		t.Fatalf("nested message text literal = %q", text)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("nested message text close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("nested message text completion = %q err = %v", line, err)
+	}
+}
+
+func TestServerHandlesMultipartMessageRFC822SectionFetch(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 14 BODY.PEEK[2.HEADER]\r\n")); err != nil {
+		t.Fatalf("write uid fetch attached message header: %v", err)
+	}
+	bodySize := len(testMultipartMessageRFC822Body())
+	header := "Subject: Attached\r\nFrom: attached@example.net\r\n\r\n"
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read attached message header literal header: %v", err)
+	}
+	wantPrefix := fmt.Sprintf("* 8 FETCH (UID 14 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[2.HEADER] {%d}\r\n", bodySize, len(header))
+	if line != wantPrefix {
+		t.Fatalf("attached message header literal header = %q, want %q", line, wantPrefix)
+	}
+	literal := make([]byte, len(header))
+	if _, err := io.ReadFull(reader, literal); err != nil {
+		t.Fatalf("read attached message header literal: %v", err)
+	}
+	if string(literal) != header {
+		t.Fatalf("attached message header literal = %q, want %q", literal, header)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("attached message header close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("attached message header completion = %q err = %v", line, err)
+	}
+}
+
 func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	t.Parallel()
 
@@ -6331,6 +6469,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 		body = testMessageRFC822Body()
 		size = int64(len(body))
 	}
+	if req.UID == 14 {
+		body = testMultipartMessageRFC822Body()
+		size = int64(len(body))
+	}
 	return Message{
 		Summary: MessageSummary{
 			ID:             "message-1",
@@ -6402,6 +6544,26 @@ func testMessageRFC822Body() string {
 		"From: nested@example.net",
 		"",
 		"nested body",
+	}, "\r\n")
+}
+
+func testMultipartMessageRFC822Body() string {
+	return strings.Join([]string{
+		"Content-Type: multipart/mixed; boundary=forwarded",
+		"",
+		"--forwarded",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"see attached",
+		"--forwarded",
+		"Content-Type: message/rfc822",
+		"",
+		"Subject: Attached",
+		"From: attached@example.net",
+		"",
+		"attached body",
+		"--forwarded--",
+		"",
 	}, "\r\n")
 }
 
