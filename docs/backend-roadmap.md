@@ -1331,6 +1331,10 @@ Implementation order:
      the read-only response, including invalid UID/sequence sets, unsupported
      STORE modes/flags, and modified UTF-7 destination mailbox names, while
      avoiding backend mutation work for syntactically valid `EXAMINE` attempts.
+855. IMAP mailbox mutation handling now rejects generic `RENAME ... INBOX`
+     attempts before backend folder mutation, keeping INBOX special semantics
+     out of ordinary rename flows alongside existing create/delete/source-INBOX
+     guardrails.
 
 ## Deferred until backend contracts stabilize
 

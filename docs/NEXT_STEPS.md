@@ -27,6 +27,9 @@ Current state:
   returning read-only `NO` failures for syntactically valid mutations,
   including invalid UID/sequence sets, STORE modes/flags, and destination
   mailbox names.
+- IMAP mailbox mutation handling rejects `CREATE INBOX`, `DELETE INBOX`,
+  `RENAME INBOX ...`, and `RENAME ... INBOX`, keeping the special INBOX
+  namespace out of generic folder mutation paths.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

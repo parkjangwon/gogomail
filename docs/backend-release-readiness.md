@@ -1065,6 +1065,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   mutation commands before returning read-only `NO` responses for valid
   mutations, without invoking backend mutation paths for syntactically valid
   mutation attempts against `EXAMINE`-selected mailboxes.
+- IMAP generic mailbox mutation commands now keep INBOX special semantics out
+  of normal folder operations by rejecting create/delete/rename-from/rename-to
+  INBOX attempts before backend folder mutation.
 
 ## Must verify before release cut
 
