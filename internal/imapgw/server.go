@@ -237,6 +237,7 @@ type imapConnState struct {
 	selectedMessages uint32
 	readOnly         bool
 	condstoreAware   bool
+	savedSearch      []imapSearchSavedMessage
 	pendingAuthTag   string
 	pendingIdleTag   string
 	startTLS         bool
@@ -419,6 +420,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
+		state.savedSearch = nil
 		if condstore {
 			state.condstoreAware = true
 		}
@@ -538,6 +540,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
 		state.readOnly = false
+		state.savedSearch = nil
 		state.closeSubscription()
 		_, err := writer.WriteString(tag + " OK UNSELECT completed\r\n")
 		return false, err
@@ -1080,6 +1083,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	}
 	criteria, charsetOK := imapSearchCriteria(searchFields)
 	if !charsetOK {
+		if returnOptions.save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n")
 		return false, err
 	}
@@ -1093,6 +1099,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		Limit:     int(state.selectedMessages),
 	})
 	if err != nil {
+		if returnOptions.save {
+			state.savedSearch = nil
+		}
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
 	}
@@ -1109,11 +1118,14 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
 		return false, err
 	}
-	if returnOptions.extended {
+	if returnOptions.save {
+		state.savedSearch = imapSavedSearchResults(results, returnOptions.options)
+	}
+	if returnOptions.extended && len(returnOptions.options) > 0 {
 		if _, err := writer.WriteString(imapESearchResponse(tag, results, uidMode, returnOptions.options, highestModSeq, requestsModSeq) + "\r\n"); err != nil {
 			return false, err
 		}
-	} else {
+	} else if !returnOptions.save {
 		if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(imapSearchResultValues(results), highestModSeq, requestsModSeq) + "\r\n"); err != nil {
 			return false, err
 		}
@@ -1128,6 +1140,7 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 
 type imapSearchReturnSpec struct {
 	extended bool
+	save     bool
 	options  []string
 }
 
@@ -1151,7 +1164,7 @@ func imapSearchReturnOptions(fields []string) (imapSearchReturnSpec, []string, b
 	for _, token := range tokens {
 		option := strings.ToUpper(token)
 		switch option {
-		case "MIN", "MAX", "ALL", "COUNT":
+		case "MIN", "MAX", "ALL", "COUNT", "SAVE":
 		default:
 			return imapSearchReturnSpec{}, nil, false
 		}
@@ -1159,9 +1172,13 @@ func imapSearchReturnOptions(fields []string) (imapSearchReturnSpec, []string, b
 			return imapSearchReturnSpec{}, nil, false
 		}
 		seen[option] = struct{}{}
+		if option == "SAVE" {
+			continue
+		}
 		options = append(options, option)
 	}
-	return imapSearchReturnSpec{extended: true, options: options}, rest, true
+	_, save := seen["SAVE"]
+	return imapSearchReturnSpec{extended: true, save: save, options: options}, rest, true
 }
 
 func imapConsumeParenthesizedFields(fields []string) ([]string, []string, bool) {
@@ -1221,8 +1238,15 @@ func imapNormalizeSearchCriteria(criteria []string) []string {
 }
 
 type imapSearchMatch struct {
-	value  uint32
-	modSeq uint64
+	value          uint32
+	uid            UID
+	sequenceNumber uint32
+	modSeq         uint64
+}
+
+type imapSearchSavedMessage struct {
+	uid            UID
+	sequenceNumber uint32
 }
 
 func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, criteria []string, messages []MessageSummary, uidMode bool, requestsModSeq bool) ([]imapSearchMatch, uint64, bool, error) {
@@ -1231,7 +1255,7 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 	}
 	predicates := make([]imapSearchPredicate, 0, len(criteria))
 	for i := 0; i < len(criteria); {
-		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages)
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages, state)
 		if !ok {
 			return nil, 0, false, nil
 		}
@@ -1259,7 +1283,12 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		} else {
 			value = imapSearchSequenceNumber(summary, i)
 		}
-		results = append(results, imapSearchMatch{value: value, modSeq: summary.ModSeq})
+		results = append(results, imapSearchMatch{
+			value:          value,
+			uid:            summary.UID,
+			sequenceNumber: imapSearchSequenceNumber(summary, i),
+			modSeq:         summary.ModSeq,
+		})
 	}
 	if len(results) == 0 {
 		highestModSeq = 0
@@ -1269,7 +1298,7 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 
 type imapSearchPredicate func(context.Context, *Server, *imapConnState, MessageSummary, int) (bool, error)
 
-func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearchPredicate, int, bool) {
+func imapParseSearchPredicate(criteria []string, maxSequence uint32, state *imapConnState) (imapSearchPredicate, int, bool) {
 	if len(criteria) == 0 {
 		return nil, 0, false
 	}
@@ -1282,7 +1311,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 			if criteria[i] == ")" {
 				break
 			}
-			predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], maxSequence)
+			predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], maxSequence, state)
 			if !ok {
 				return nil, 0, false
 			}
@@ -1309,7 +1338,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 	case "ALL":
 		return nil, 1, true
 	case "NOT":
-		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence)
+		predicate, consumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence, state)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1324,11 +1353,11 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 			return !matches, nil
 		}, consumed + 1, true
 	case "OR":
-		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence)
+		left, leftConsumed, ok := imapParseSearchPredicate(criteria[1:], maxSequence, state)
 		if !ok {
 			return nil, 0, false
 		}
-		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:], maxSequence)
+		right, rightConsumed, ok := imapParseSearchPredicate(criteria[1+leftConsumed:], maxSequence, state)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1350,7 +1379,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 		if len(criteria) < 2 {
 			return nil, 0, false
 		}
-		uids, ok := parseIMAPUIDSet(criteria[1])
+		uids, ok := parseIMAPUIDSetForState(criteria[1], state)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1436,7 +1465,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32) (imapSearch
 			return server.imapMessageMatchesBodySearch(ctx, state, summary, criterion, query)
 		}, 2, true
 	default:
-		sequenceNumbers, ok := parseIMAPSequenceSet(criteria[0], maxSequence)
+		sequenceNumbers, ok := parseIMAPSequenceSetForState(criteria[0], maxSequence, state)
 		if ok {
 			allowed := make(map[uint32]struct{}, len(sequenceNumbers))
 			for _, sequenceNumber := range sequenceNumbers {
@@ -2009,8 +2038,57 @@ func imapSearchResultModSeq(results []imapSearchMatch, value uint32) uint64 {
 	return 0
 }
 
+func imapSavedSearchResults(results []imapSearchMatch, options []string) []imapSearchSavedMessage {
+	if len(results) == 0 {
+		return nil
+	}
+	values := imapSearchResultValues(results)
+	saveAll := len(options) == 0 || imapSearchReturnHas(options, "ALL") || imapSearchReturnHas(options, "COUNT")
+	if saveAll {
+		return imapSavedSearchMatches(results)
+	}
+	saved := make([]imapSearchSavedMessage, 0, 2)
+	if imapSearchReturnHas(options, "MIN") {
+		if result, ok := imapSearchResultForValue(results, imapMinSearchResult(values)); ok {
+			saved = append(saved, imapSearchSavedMessage{uid: result.uid, sequenceNumber: result.sequenceNumber})
+		}
+	}
+	if imapSearchReturnHas(options, "MAX") {
+		if result, ok := imapSearchResultForValue(results, imapMaxSearchResult(values)); ok && !imapSavedSearchContains(saved, result) {
+			saved = append(saved, imapSearchSavedMessage{uid: result.uid, sequenceNumber: result.sequenceNumber})
+		}
+	}
+	return saved
+}
+
+func imapSavedSearchMatches(results []imapSearchMatch) []imapSearchSavedMessage {
+	saved := make([]imapSearchSavedMessage, 0, len(results))
+	for _, result := range results {
+		saved = append(saved, imapSearchSavedMessage{uid: result.uid, sequenceNumber: result.sequenceNumber})
+	}
+	return saved
+}
+
+func imapSearchResultForValue(results []imapSearchMatch, value uint32) (imapSearchMatch, bool) {
+	for _, result := range results {
+		if result.value == value {
+			return result, true
+		}
+	}
+	return imapSearchMatch{}, false
+}
+
+func imapSavedSearchContains(saved []imapSearchSavedMessage, result imapSearchMatch) bool {
+	for _, existing := range saved {
+		if existing.uid == result.uid && existing.sequenceNumber == result.sequenceNumber {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	uids, ok := parseIMAPUIDSet(fields[3])
+	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
 		return false, err
@@ -2023,7 +2101,7 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID COPY requires UID set and destination mailbox\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSet(fields[3])
+	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
 		return false, err
@@ -2036,7 +2114,7 @@ func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires UID set and destination mailbox\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSet(fields[3])
+	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 		return false, err
@@ -2049,7 +2127,7 @@ func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []str
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSet(fields[3])
+	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires a positive UID set\r\n")
 		return false, err
@@ -2070,7 +2148,7 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD FETCH requires sequence set and data items\r\n")
 		return false, err
 	}
-	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
 		return false, err
@@ -2096,7 +2174,7 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD COPY requires sequence set and destination mailbox\r\n")
 		return false, err
 	}
-	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
 		return false, err
@@ -2122,7 +2200,7 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD MOVE requires sequence set and destination mailbox\r\n")
 		return false, err
 	}
-	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
 		return false, err
@@ -2261,6 +2339,10 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 }
 
 func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
+	if len(uids) == 0 {
+		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+		return false, err
+	}
 	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
@@ -2299,6 +2381,10 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 }
 
 func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
+	if len(uids) == 0 {
+		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+		return false, err
+	}
 	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
@@ -2342,6 +2428,10 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 }
 
 func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
+	if uids != nil && len(uids) == 0 {
+		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+		return false, err
+	}
 	summaries, err := s.options.Backend.Expunge(context.Background(), ExpungeRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
@@ -2372,6 +2462,7 @@ func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, st
 			return false, err
 		}
 	}
+	state.removeExpungedFromSavedSearch(summaries)
 	if uint32(len(summaries)) >= state.selectedMessages {
 		state.selectedMessages = 0
 	} else {
@@ -2379,6 +2470,37 @@ func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, st
 	}
 	_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err
+}
+
+func (state *imapConnState) removeExpungedFromSavedSearch(summaries []MessageSummary) {
+	if state == nil || len(state.savedSearch) == 0 || len(summaries) == 0 {
+		return
+	}
+	expunged := make([]uint32, 0, len(summaries))
+	for _, summary := range summaries {
+		if summary.SequenceNumber > 0 {
+			expunged = append(expunged, summary.SequenceNumber)
+		}
+	}
+	sort.Slice(expunged, func(i, j int) bool {
+		return expunged[i] < expunged[j]
+	})
+	for _, sequenceNumber := range expunged {
+		next := state.savedSearch[:0]
+		for _, saved := range state.savedSearch {
+			switch {
+			case saved.sequenceNumber == sequenceNumber:
+				continue
+			case saved.sequenceNumber > sequenceNumber:
+				saved.sequenceNumber--
+			}
+			next = append(next, saved)
+		}
+		state.savedSearch = next
+	}
+	if len(state.savedSearch) == 0 {
+		state.savedSearch = nil
+	}
 }
 
 func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnState, sequenceNumbers []uint32) ([]UID, error) {
@@ -2760,6 +2882,33 @@ func parseIMAPUIDSet(value string) ([]UID, bool) {
 	return uids, len(uids) > 0
 }
 
+func parseIMAPUIDSetForState(value string, state *imapConnState) ([]UID, bool) {
+	if strings.TrimSpace(value) != "$" {
+		return parseIMAPUIDSet(value)
+	}
+	uids := imapSavedSearchUIDs(state)
+	return uids, true
+}
+
+func imapSavedSearchUIDs(state *imapConnState) []UID {
+	if state == nil || len(state.savedSearch) == 0 {
+		return nil
+	}
+	seen := make(map[UID]struct{}, len(state.savedSearch))
+	uids := make([]UID, 0, len(state.savedSearch))
+	for _, saved := range state.savedSearch {
+		if saved.uid == 0 {
+			continue
+		}
+		if _, ok := seen[saved.uid]; ok {
+			continue
+		}
+		seen[saved.uid] = struct{}{}
+		uids = append(uids, saved.uid)
+	}
+	return uids
+}
+
 func parseIMAPUIDSetNumber(value string) (UID, bool) {
 	uid64, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
 	if err != nil || uid64 == 0 {
@@ -2781,6 +2930,33 @@ func parseIMAPSequenceSet(value string, maxSequence uint32) ([]uint32, bool) {
 		out[i] = uint32(uid)
 	}
 	return out, true
+}
+
+func parseIMAPSequenceSetForState(value string, maxSequence uint32, state *imapConnState) ([]uint32, bool) {
+	if strings.TrimSpace(value) != "$" {
+		return parseIMAPSequenceSet(value, maxSequence)
+	}
+	sequenceNumbers := imapSavedSearchSequenceNumbers(state, maxSequence)
+	return sequenceNumbers, true
+}
+
+func imapSavedSearchSequenceNumbers(state *imapConnState, maxSequence uint32) []uint32 {
+	if state == nil || len(state.savedSearch) == 0 {
+		return nil
+	}
+	seen := make(map[uint32]struct{}, len(state.savedSearch))
+	sequenceNumbers := make([]uint32, 0, len(state.savedSearch))
+	for _, saved := range state.savedSearch {
+		if saved.sequenceNumber == 0 || saved.sequenceNumber > maxSequence {
+			continue
+		}
+		if _, ok := seen[saved.sequenceNumber]; ok {
+			continue
+		}
+		seen[saved.sequenceNumber] = struct{}{}
+		sequenceNumbers = append(sequenceNumbers, saved.sequenceNumber)
+	}
+	return sequenceNumbers
 }
 
 func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([]UID, bool) {
@@ -3732,7 +3908,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
@@ -3799,7 +3975,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSet(fields[3])
+	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
 		return false, err
@@ -3835,7 +4011,7 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD STORE requires sequence set, mode, and flags\r\n")
 		return false, err
 	}
-	sequenceNumbers, ok := parseIMAPSequenceSet(fields[2], state.selectedMessages)
+	sequenceNumbers, ok := parseIMAPSequenceSetForState(fields[2], state.selectedMessages, state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD STORE requires a valid message sequence set\r\n")
 		return false, err
@@ -3866,6 +4042,10 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, unchangedSince uint64, completionCommand string) (bool, error) {
 	if unchangedSince > 0 {
 		state.condstoreAware = true
+	}
+	if len(uids) == 0 {
+		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+		return false, err
 	}
 	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
 		UserID:         state.session.UserID,

@@ -1199,6 +1199,10 @@ Implementation order:
      and `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses
      with requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and
      CONDSTORE `MODSEQ` data.
+819. IMAP `CAPABILITY` now advertises RFC 5182 `SEARCHRES`; `SEARCH RETURN
+     (SAVE)` stores selected-session search results so `$` can be reused by
+     subsequent sequence-set and UID-set commands without sending result sets
+     back through the client.
 
 ## Deferred until backend contracts stabilize
 
