@@ -932,6 +932,9 @@ Implementation order:
 738. IMAP now advertises `SASL-IR` before authentication and accepts
      `AUTHENTICATE PLAIN` initial responses for compatible clients that avoid
      an extra SASL continuation round trip.
+739. IMAP plaintext sessions now advertise `LOGINDISABLED` and reject
+     `LOGIN`/`AUTHENTICATE` with `[PRIVACYREQUIRED]` when insecure auth is
+     disabled before STARTTLS.
 
 ## Deferred until backend contracts stabilize
 

@@ -383,6 +383,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   responses while `\Deleted` semantics remain deferred.
 - IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
   advertising it before authentication and removing it after upgrade.
+- IMAP plaintext sessions advertise `LOGINDISABLED` and reject
+  `LOGIN`/`AUTHENTICATE` with `[PRIVACYREQUIRED]` when insecure auth is disabled
+  before STARTTLS.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
