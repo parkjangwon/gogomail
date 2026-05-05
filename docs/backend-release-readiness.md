@@ -485,6 +485,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and oversized structured subject/address/message-id-list headers are
   pre-bounded before decoding or list parsing so they cannot expand downstream
   storage and search metadata without bound.
+- `internal/message` exposes a bounded streaming MIME-structure parser that
+  walks multipart trees, preserves raw transfer-encoding metadata, counts body
+  octets/lines, and avoids retaining attachment payloads for future IMAP
+  `BODYSTRUCTURE` serialization.
 - EML attachment metadata detection includes inline filename parts and non-text
   inline parts without reading attachment bodies.
 - The audit `mail.stored` consumer trims event, tenant, recipient, subject,

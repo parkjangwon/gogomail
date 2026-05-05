@@ -358,11 +358,15 @@ Current state:
   committed `mail.stored` events and publishes UID-bearing `EXISTS` updates
   into its process-local mailbox event broker so live IDLE sessions can observe
   newly delivered mail.
+- `internal/message` now has a bounded streaming MIME-structure parser that
+  walks multipart trees, preserves raw transfer-encoding metadata, counts body
+  octets/lines, and avoids retaining attachment payloads for future IMAP
+  `BODYSTRUCTURE` serialization.
 
 Next:
 
-- Add richer MIME-tree `BODYSTRUCTURE` support for higher-fidelity client
-  previews.
+- Wire the new streaming MIME-structure parser into IMAP `BODYSTRUCTURE` for
+  higher-fidelity client previews.
 
 Frontend note:
 

@@ -914,6 +914,10 @@ The platform hardening sprint completed the following:
   bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
   `PartsTruncated` for pathological MIME part counts, plus address/reference
   metadata caps for oversized headers.
+- `internal/message` exposes a bounded streaming MIME-structure parser that
+  walks multipart trees, preserves raw transfer-encoding metadata, counts body
+  octets/lines, and avoids retaining attachment payloads for future IMAP
+  `BODYSTRUCTURE` serialization.
 - EML attachment detection records inline parts with filenames and non-text
   inline parts from headers only, improving `has_attachment` accuracy without
   reading attachment bodies.
