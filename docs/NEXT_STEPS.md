@@ -1075,6 +1075,9 @@ Next:
   `preview` string from the asynchronous search-document read model, so
   production webmail lists can render body context without reading stored EML
   objects during list pagination.
+- Mail API now supports bounded `PATCH /api/v1/threads/bulk/flags` for
+  conversation-list read/starred/answered/forwarded actions with best-effort
+  IMAP flag notifications for the updated messages.
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,

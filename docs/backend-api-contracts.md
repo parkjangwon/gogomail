@@ -208,11 +208,15 @@ in every client.
 
 ## Mailbox bulk actions
 
-Bulk mailbox mutations are bounded to 500 unique message IDs per request and only affect active messages owned by the authenticated user.
+Bulk mailbox mutations are bounded to 500 unique message or thread IDs per
+request and only affect active messages owned by the authenticated user.
 
 - `PATCH /api/v1/messages/bulk/flags`
   - Body: `{"message_ids":["..."],"flag":"read|starred|answered|forwarded","value":true}`
   - Response: `{"status":"ok","updated":2}`
+- `PATCH /api/v1/threads/bulk/flags`
+  - Body: `{"thread_ids":["..."],"flag":"read|starred|answered|forwarded","value":true}`
+  - Response: `{"status":"ok","updated":5}`
 - `PATCH /api/v1/messages/bulk/folder`
   - Body: `{"message_ids":["..."],"folder_id":"..."}`
   - Response: `{"status":"ok","updated":2}`
@@ -221,7 +225,10 @@ Bulk mailbox mutations are bounded to 500 unique message IDs per request and onl
   - Response: `{"status":"ok","updated":2}`
 
 Bulk endpoints reject missing, blank, duplicate, over-limit, CR/LF-bearing, or
-oversized message IDs instead of silently ignoring ambiguous client intent.
+oversized message/thread IDs instead of silently ignoring ambiguous client
+intent. Thread flag updates use `COALESCE(thread_id, id)` so legacy unthreaded
+messages can still be handled as single-message conversations, and the updated
+message IDs are used for best-effort IMAP flag notifications.
 
 ## Compose requests
 

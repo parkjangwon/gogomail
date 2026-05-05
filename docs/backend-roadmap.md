@@ -1704,6 +1704,9 @@ Implementation order:
      `preview` string from the asynchronous search-document read model,
      enabling production webmail list body context without opening stored EML
      objects on the list hot path.
+957. Mail API now exposes bounded thread-level bulk flag updates, enabling
+     conversation-list read/starred/answered/forwarded actions while using the
+     updated message IDs for best-effort IMAP flag event fanout.
 
 ## Deferred until backend contracts stabilize
 

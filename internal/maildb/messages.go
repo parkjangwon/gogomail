@@ -74,6 +74,18 @@ type BulkMessageFlagRequest struct {
 	Value      bool     `json:"value"`
 }
 
+type BulkThreadFlagRequest struct {
+	UserID    string   `json:"user_id,omitempty"`
+	ThreadIDs []string `json:"thread_ids"`
+	Flag      string   `json:"flag"`
+	Value     bool     `json:"value"`
+}
+
+type BulkThreadFlagResult struct {
+	Updated    int64
+	MessageIDs []string
+}
+
 type BulkMessageMoveRequest struct {
 	UserID     string   `json:"user_id,omitempty"`
 	MessageIDs []string `json:"message_ids"`
@@ -100,6 +112,25 @@ func ValidateBulkMessageFlagRequest(req BulkMessageFlagRequest) error {
 		return fmt.Errorf("too many message_ids")
 	}
 	if err := validateBulkMessageIDs(req.MessageIDs); err != nil {
+		return err
+	}
+	if !allowedMessageFlag(strings.TrimSpace(req.Flag)) {
+		return fmt.Errorf("unsupported message flag %q", req.Flag)
+	}
+	return nil
+}
+
+func ValidateBulkThreadFlagRequest(req BulkThreadFlagRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if len(req.ThreadIDs) == 0 {
+		return fmt.Errorf("thread_ids is required")
+	}
+	if len(req.ThreadIDs) > BulkMessageMaxIDs {
+		return fmt.Errorf("too many thread_ids")
+	}
+	if err := validateBulkThreadIDs(req.ThreadIDs); err != nil {
 		return err
 	}
 	if !allowedMessageFlag(strings.TrimSpace(req.Flag)) {
@@ -152,6 +183,24 @@ func validateBulkMessageIDs(messageIDs []string) error {
 		}
 		if _, ok := seen[id]; ok {
 			return fmt.Errorf("message id %q is duplicated", id)
+		}
+		seen[id] = struct{}{}
+	}
+	return nil
+}
+
+func validateBulkThreadIDs(threadIDs []string) error {
+	seen := make(map[string]struct{}, len(threadIDs))
+	for _, id := range threadIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return fmt.Errorf("thread id must not be blank")
+		}
+		if err := validateMailboxResourceID("thread id", id); err != nil {
+			return err
+		}
+		if _, ok := seen[id]; ok {
+			return fmt.Errorf("thread id %q is duplicated", id)
 		}
 		seen[id] = struct{}{}
 	}
@@ -698,6 +747,60 @@ WHERE user_id = $1
 	}
 	return affected, nil
 }
+
+func (r *Repository) BulkSetThreadFlag(ctx context.Context, req BulkThreadFlagRequest) (BulkThreadFlagResult, error) {
+	if r.db == nil {
+		return BulkThreadFlagResult{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkThreadFlagRequest(req); err != nil {
+		return BulkThreadFlagResult{}, err
+	}
+	rawIDs, err := json.Marshal(req.ThreadIDs)
+	if err != nil {
+		return BulkThreadFlagResult{}, fmt.Errorf("encode thread ids: %w", err)
+	}
+	flag := strings.TrimSpace(req.Flag)
+
+	rows, err := r.db.QueryContext(ctx, bulkSetThreadFlagSQL, strings.TrimSpace(req.UserID), string(rawIDs), "{"+flag+"}", req.Value)
+	if err != nil {
+		return BulkThreadFlagResult{}, fmt.Errorf("bulk set thread flag: %w", err)
+	}
+	defer rows.Close()
+
+	var messageIDs []string
+	for rows.Next() {
+		var messageID string
+		if err := rows.Scan(&messageID); err != nil {
+			return BulkThreadFlagResult{}, fmt.Errorf("scan bulk thread flag message: %w", err)
+		}
+		messageIDs = append(messageIDs, messageID)
+	}
+	if err := rows.Err(); err != nil {
+		return BulkThreadFlagResult{}, fmt.Errorf("iterate bulk thread flag messages: %w", err)
+	}
+	return BulkThreadFlagResult{Updated: int64(len(messageIDs)), MessageIDs: messageIDs}, nil
+}
+
+const bulkSetThreadFlagSQL = `
+WITH target_messages AS (
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'active'
+    AND COALESCE(thread_id, id)::text IN (
+      SELECT value FROM jsonb_array_elements_text($2::jsonb)
+    )
+),
+updated_messages AS (
+  UPDATE messages
+  SET flags = jsonb_set(flags, $3::text[], to_jsonb($4::boolean), true),
+      updated_at = now()
+  WHERE id IN (SELECT id FROM target_messages)
+  RETURNING id::text
+)
+SELECT id
+FROM updated_messages
+ORDER BY id`
 
 func (r *Repository) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
 	if r.db == nil {

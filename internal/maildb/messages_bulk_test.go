@@ -39,6 +39,54 @@ func TestValidateBulkMessageFlagRequestRejectsUnsafeIDs(t *testing.T) {
 	}
 }
 
+func TestValidateBulkThreadFlagRequestRejectsDuplicateIDs(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateBulkThreadFlagRequest(BulkThreadFlagRequest{
+		UserID:    "user-1",
+		ThreadIDs: []string{"thread-1", "thread-1"},
+		Flag:      "read",
+		Value:     true,
+	})
+	if err == nil {
+		t.Fatal("ValidateBulkThreadFlagRequest accepted duplicate thread IDs")
+	}
+}
+
+func TestValidateBulkThreadFlagRequestRejectsUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := [][]string{
+		{"thread-1\r\nthread-2"},
+		{strings.Repeat("x", maxMailboxResourceIDBytes+1)},
+	}
+	for _, ids := range tests {
+		err := ValidateBulkThreadFlagRequest(BulkThreadFlagRequest{
+			UserID:    "user-1",
+			ThreadIDs: ids,
+			Flag:      "read",
+			Value:     true,
+		})
+		if err == nil {
+			t.Fatalf("ValidateBulkThreadFlagRequest accepted unsafe ids %+v", ids)
+		}
+	}
+}
+
+func TestBulkSetThreadFlagSQLUpdatesActiveThreadMessages(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"COALESCE(thread_id, id)::text IN",
+		"jsonb_array_elements_text($2::jsonb)",
+		"RETURNING id::text",
+	} {
+		if !strings.Contains(bulkSetThreadFlagSQL, want) {
+			t.Fatalf("bulk thread flag SQL does not include %q:\n%s", want, bulkSetThreadFlagSQL)
+		}
+	}
+}
+
 func TestValidateBulkMessageMoveRequestRejectsTooManyIDs(t *testing.T) {
 	t.Parallel()
 

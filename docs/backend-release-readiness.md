@@ -29,6 +29,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   string from the asynchronous search-document read model, keeping production
   webmail list rendering informative without parsing stored EML bodies on the
   list hot path.
+- Mail API exposes bounded thread-level bulk flag updates for efficient
+  conversation-list read/starred/answered/forwarded actions with IMAP flag
+  event fanout for the updated messages.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

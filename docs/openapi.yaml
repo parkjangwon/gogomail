@@ -379,6 +379,19 @@ paths:
           $ref: "#/components/responses/BulkUpdate"
         default:
           $ref: "#/components/responses/Error"
+  /threads/bulk/flags:
+    patch:
+      operationId: bulkUpdateThreadFlags
+      summary: Bounded bulk conversation flag update
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/BulkThreadFlagUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/attachments:
     get:
       operationId: listMessageAttachments
@@ -3075,6 +3088,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/BulkMessageFlagUpdateRequest"
+    BulkThreadFlagUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkThreadFlagUpdateRequest"
     BulkMessageMove:
       required: true
       content:
@@ -3821,13 +3840,15 @@ components:
             enum: [read, starred, answered, forwarded]
         bulk_actions:
           type: object
-          required: [max_message_ids, flags, move, delete]
+          required: [max_message_ids, flags, thread_flags, move, delete]
           properties:
             max_message_ids:
               type: integer
               minimum: 1
               maximum: 500
             flags:
+              type: boolean
+            thread_flags:
               type: boolean
             move:
               type: boolean
@@ -6302,6 +6323,21 @@ components:
       required: [message_ids, flag, value]
       properties:
         message_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            maxLength: 200
+        flag:
+          type: string
+          enum: [read, starred, answered, forwarded]
+        value:
+          type: boolean
+    BulkThreadFlagUpdateRequest:
+      type: object
+      required: [thread_ids, flag, value]
+      properties:
+        thread_ids:
           type: array
           maxItems: 500
           items:
