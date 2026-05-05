@@ -1268,6 +1268,10 @@ Implementation order:
      `SELECT`, `EXAMINE`, `STATUS`, `APPEND`, `COPY`, `MOVE`, `CREATE`,
      `DELETE`, `RENAME`, `SUBSCRIBE`, and `UNSUBSCRIBE` reject raw 8-bit and
      malformed modified UTF-7 instead of leaking wire names into storage.
+837. IMAP `BODYSTRUCTURE` regression coverage now includes multipart messages
+     that attach a `message/rfc822` whose encapsulated body is itself
+     multipart, guarding nested `MESSAGE/RFC822` serialization for forwarded
+     message compatibility.
 
 ## Deferred until backend contracts stabilize
 

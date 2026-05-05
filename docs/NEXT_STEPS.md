@@ -378,6 +378,9 @@ Current state:
 - IMAP literal-fetch regression coverage now includes multipart messages that
   attach a `message/rfc822` whose encapsulated body is itself multipart,
   guarding forwarded-message paths such as `BODY[2.2]` and `BODY[2.2.MIME]`.
+- IMAP `BODYSTRUCTURE` regression coverage now includes the same forwarded
+  multipart shape, guarding nested `MESSAGE/RFC822` serialization when the
+  encapsulated message body is multipart.
 - Malformed encapsulated `message/rfc822` literals now degrade gracefully for
   nested section fetches, returning an empty header section and raw text bytes
   instead of failing the whole IMAP `FETCH`.
