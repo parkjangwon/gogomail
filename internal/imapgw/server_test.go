@@ -3513,6 +3513,61 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerRoutesMalformedUIDSubcommandsToSpecificHandlers(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID SEARCH\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID EXPUNGE\r\na7 UID COPY\r\n")); err != nil {
+		t.Fatalf("write malformed uid subcommands: %v", err)
+	}
+	want := []string{
+		"a3 BAD SEARCH requires criteria\r\n",
+		"a4 BAD UID FETCH requires UID set and data items\r\n",
+		"a5 BAD UID STORE requires UID, mode, and flags\r\n",
+		"a6 BAD UID EXPUNGE requires UID set\r\n",
+		"a7 BAD UID COPY requires UID set and destination mailbox\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read malformed uid response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("malformed uid response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesUIDFetchModSeqAfterSelect(t *testing.T) {
 	t.Parallel()
 

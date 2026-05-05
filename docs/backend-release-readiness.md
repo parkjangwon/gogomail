@@ -566,6 +566,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `EXAMINE` setup failures return `NO EXAMINE failed` instead of
   `NO SELECT failed`, keeping tagged failure responses aligned with the
   selected-mailbox command clients actually issued.
+- IMAP malformed recognized `UID` subcommands are routed to their
+  command-specific validators, so incomplete `UID SEARCH`, `UID FETCH`,
+  `UID STORE`, `UID EXPUNGE`, and `UID COPY` receive precise tagged `BAD`
+  responses instead of a generic UID-dispatch failure.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

@@ -553,6 +553,10 @@ Current state:
 - `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
   `NO SELECT failed`, keeping tagged failure responses aligned with the command
   clients actually issued.
+- Malformed recognized `UID` subcommands now reach their command-specific
+  validators, so incomplete `UID SEARCH`, `UID FETCH`, `UID STORE`,
+  `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD` responses instead
+  of a generic UID-dispatch failure.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response

@@ -1292,6 +1292,10 @@ Implementation order:
 843. IMAP `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
      `NO SELECT failed`, keeping tagged failure responses aligned with the
      selected-mailbox command clients actually issued.
+844. IMAP malformed recognized `UID` subcommands now reach their
+     command-specific validators, so incomplete `UID SEARCH`, `UID FETCH`,
+     `UID STORE`, `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD`
+     responses instead of a generic UID-dispatch failure.
 
 ## Deferred until backend contracts stabilize
 

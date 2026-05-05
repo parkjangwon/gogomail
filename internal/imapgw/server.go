@@ -1095,7 +1095,7 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
-	if len(fields) < 4 {
+	if len(fields) < 3 {
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
 	}
@@ -2568,6 +2568,10 @@ func imapSavedSearchContains(saved []imapSearchSavedMessage, result imapSearchMa
 }
 
 func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) < 5 {
+		_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
+		return false, err
+	}
 	uids, ok := parseIMAPUIDSetForState(fields[3], state)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
