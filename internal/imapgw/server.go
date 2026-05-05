@@ -2028,7 +2028,7 @@ func imapParseMIMEPartRequestToken(token string) (imapMIMEPartRequest, bool) {
 		}
 		path = append(path, value)
 	}
-	if len(path) == 1 && path[0] == 1 {
+	if len(path) == 1 && path[0] == 1 && !mimeSection {
 		return imapMIMEPartRequest{}, false
 	}
 	req := imapMIMEPartRequest{path: path, mime: mimeSection}
@@ -2093,7 +2093,10 @@ func readIMAPMIMEPartLiteral(reader io.Reader, req imapMIMEPartRequest) ([]byte,
 		return nil, false, nil
 	}
 	mediaType, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
-	if err != nil || !strings.EqualFold(mediaType, "multipart/mixed") && !strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
+	if err != nil || !strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
+		if len(req.path) == 1 && req.path[0] == 1 && req.mime {
+			return []byte("\r\n"), true, nil
+		}
 		return nil, false, nil
 	}
 	boundary := strings.TrimSpace(params["boundary"])

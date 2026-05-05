@@ -849,6 +849,8 @@ The platform hardening sprint completed the following:
   without fetching the full message.
 - IMAP `FETCH`/`UID FETCH` can answer conservative single-part MIME header
   requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
+- IMAP `FETCH`/`UID FETCH` can stream actual multipart child MIME headers for
+  `BODY[n.MIME]`/`BODY.PEEK[n.MIME]` requests when the selected part exists.
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
 - IMAP non-UID `STORE` accepts bounded sequence sets/ranges and maps them to
   the same service-backed flag mutation boundary as `UID STORE`.

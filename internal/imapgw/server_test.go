@@ -3231,7 +3231,32 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 UID FETCH 11 BODY.PEEK[1.MIME]\r\n")); err != nil {
+		t.Fatalf("write uid fetch part mime: %v", err)
+	}
+	header := "Content-Transfer-Encoding: 7bit\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n"
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read part mime literal header: %v", err)
+	}
+	wantPrefix = fmt.Sprintf("* 5 FETCH (UID 11 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODY[1.MIME] {%d}\r\n", bodySize, len(header))
+	if line != wantPrefix {
+		t.Fatalf("part mime literal header = %q, want %q", line, wantPrefix)
+	}
+	mimeLiteral := make([]byte, len(header))
+	if _, err := io.ReadFull(reader, mimeLiteral); err != nil {
+		t.Fatalf("read part mime literal: %v", err)
+	}
+	if string(mimeLiteral) != header {
+		t.Fatalf("part mime literal = %q", mimeLiteral)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("part mime close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("part mime completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
