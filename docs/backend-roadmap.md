@@ -1823,6 +1823,9 @@ Implementation order:
 985. Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/name`, letting
      production Drive clients rename active files and folders through the
      repository normalization and active sibling uniqueness boundary.
+986. Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/parent`, letting
+     production Drive clients move active files and folders into destination
+     folders or back to root while rejecting self/subtree cycles.
 
 ## Deferred until backend contracts stabilize
 

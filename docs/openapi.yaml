@@ -234,6 +234,20 @@ paths:
           $ref: "#/components/responses/DriveNode"
         default:
           $ref: "#/components/responses/Error"
+  /drive/nodes/{id}/parent:
+    patch:
+      operationId: moveDriveNode
+      summary: Move an active Drive node to another folder
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveNodeMove"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
@@ -3305,6 +3319,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveNodeRenameRequest"
+    DriveNodeMove:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveNodeMoveRequest"
     MessageFlagUpdate:
       required: true
       content:
@@ -3786,6 +3806,13 @@ components:
           type: string
           minLength: 1
           maxLength: 255
+    DriveNodeMoveRequest:
+      type: object
+      properties:
+        parent_id:
+          type: string
+          maxLength: 200
+          description: Destination folder id. Omit or send an empty string to move the node to the Drive root.
     MailboxOverview:
       type: object
       required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]

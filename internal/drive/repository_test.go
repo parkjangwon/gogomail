@@ -258,6 +258,48 @@ func TestValidateRenameNodeRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateMoveNodeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateMoveNodeRequest(MoveNodeRequest{UserID: " user-1 ", NodeID: " node-1 ", ParentID: " parent-1 "})
+	if err != nil {
+		t.Fatalf("ValidateMoveNodeRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.NodeID != "node-1" || req.ParentID != "parent-1" {
+		t.Fatalf("request = %+v, want trimmed fields", req)
+	}
+	rootReq, err := ValidateMoveNodeRequest(MoveNodeRequest{UserID: "user-1", NodeID: "node-1"})
+	if err != nil {
+		t.Fatalf("ValidateMoveNodeRequest root move returned error: %v", err)
+	}
+	if rootReq.ParentID != "" {
+		t.Fatalf("root request = %+v, want empty parent", rootReq)
+	}
+}
+
+func TestValidateMoveNodeRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []MoveNodeRequest{
+		{NodeID: "node-1", ParentID: "parent-1"},
+		{UserID: "user-1", ParentID: "parent-1"},
+		{UserID: "user\n1", NodeID: "node-1", ParentID: "parent-1"},
+		{UserID: "user-1", NodeID: "node\n1", ParentID: "parent-1"},
+		{UserID: "user-1", NodeID: "node-1", ParentID: "parent\n1"},
+		{UserID: "user-1", NodeID: "same-1", ParentID: "same-1"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.NodeID+"-"+tc.ParentID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateMoveNodeRequest(tc); err == nil {
+				t.Fatalf("ValidateMoveNodeRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidatePermanentDeleteNodeRequest(t *testing.T) {
 	t.Parallel()
 
