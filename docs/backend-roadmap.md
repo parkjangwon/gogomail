@@ -1601,6 +1601,10 @@ Implementation order:
 929. IMAP partial fetch windows now reject trailing characters after the
      closing `>` in tokens such as `BODY[]<12.34>BAD`, preventing malformed
      body-section requests from being silently repaired.
+930. Attachment-scan webhooks, push-notification webhooks, and OpenSearch
+     writer/searcher calls now share bounded response drain-and-close cleanup,
+     improving HTTP connection reuse for external adapters without allowing
+     oversized response bodies to stall cleanup.
 
 ## Deferred until backend contracts stabilize
 

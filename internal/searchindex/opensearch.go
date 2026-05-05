@@ -114,7 +114,7 @@ func (i OpenSearchIndexer) IndexMessage(ctx context.Context, doc Document) error
 	if err != nil {
 		return fmt.Errorf("index opensearch message %q: %w", messageID, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("index opensearch message %q: status %d: %s", messageID, resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}
@@ -156,7 +156,7 @@ func (i OpenSearchIndexer) EnsureIndex(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ensure opensearch index %q: %w", i.index, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("ensure opensearch index %q: status %d: %s", i.index, resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
 	}

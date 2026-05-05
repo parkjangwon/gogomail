@@ -7,6 +7,7 @@ import (
 )
 
 const maxWebhookErrorBodyPreviewBytes = 512
+const DefaultDrainBytes int64 = 4096
 
 func NormalizeWebhookToken(value string, maxBytes int) (string, error) {
 	token := strings.ToValidUTF8(strings.TrimSpace(value), "")
@@ -32,4 +33,21 @@ func ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 		return r
 	}, preview)
 	return strings.Join(strings.Fields(preview), " ")
+}
+
+func DrainAndClose(body io.ReadCloser, maxBytes int64) error {
+	if body == nil {
+		return nil
+	}
+	var readErr error
+	if maxBytes > 0 {
+		if _, err := io.CopyN(io.Discard, body, maxBytes); err != nil && err != io.EOF {
+			readErr = err
+		}
+	}
+	closeErr := body.Close()
+	if readErr != nil {
+		return readErr
+	}
+	return closeErr
 }

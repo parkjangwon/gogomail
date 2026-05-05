@@ -78,7 +78,7 @@ func (s *WebhookSink) EnqueuePush(ctx context.Context, notification Notification
 	if err != nil {
 		return fmt.Errorf("call push notification webhook: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		if preview := webhook.ErrorBodyPreview(resp.Body, 512); preview != "" {
 			return fmt.Errorf("push notification webhook returned HTTP %d: %s", resp.StatusCode, preview)

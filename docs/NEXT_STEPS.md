@@ -858,6 +858,10 @@ Current state:
   state semantics. Target resolution drops blank, CR/LF-bearing, oversized, or
   unsupported targets before candidate recording, and the webhook sink bounds
   direct-call payload metadata before JSON serialization.
+- Shared webhook/OpenSearch HTTP response cleanup drains a small bounded body
+  window before close, improving connection reuse for external scanner, push,
+  indexing, bootstrap, and relevance-query calls without unbounded cleanup
+  reads.
 - Admin push-notification attempt/stats repository filters reject
   invalid-UTF-8, CR/LF-bearing, or oversized direct-call values before SQL
   dispatch.

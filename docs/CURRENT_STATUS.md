@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP partial-fetch grammar hardening)
+Last updated: 2026-05-05 (updated after bounded external HTTP response cleanup)
 
 ## Current phase
 
@@ -485,7 +485,9 @@ guidance.
   external signer errors from leaking into export/billing diagnostics.
 - Attachment scan and push-notification webhooks now reject CR/LF-bearing
   configured tokens or endpoints and collapse non-2xx HTTP response bodies into
-  bounded one-line UTF-8 previews before surfacing delivery failures.
+  bounded one-line UTF-8 previews before surfacing delivery failures. Shared
+  webhook HTTP response cleanup now drains a small bounded body window before
+  close so keep-alive connections can be reused without unbounded cleanup reads.
 - API metering middleware falls back to `METHOD /path` when no `http.ServeMux`
   route pattern is available, keeping durable event route keys nonblank.
 - API metering now records immutable `api_usage_ledger` rows before aggregate
@@ -846,6 +848,9 @@ The platform hardening sprint completed the following:
   selected.
 - OpenSearch writer/searcher HTTP calls use a configurable timeout through
   `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT`, defaulting to 10 seconds.
+- OpenSearch writer/searcher HTTP responses now use the shared bounded
+  drain-and-close helper, improving connection reuse for indexing, bootstrap,
+  and relevance queries without allowing oversized responses to stall cleanup.
 - OpenSearch endpoint configuration is now validated as an HTTP(S) URL with a
   host during startup config validation, so malformed search backend endpoints
   fail before worker/search adapter construction.

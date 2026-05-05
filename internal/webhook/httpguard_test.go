@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"io"
 	"strings"
 	"testing"
 )
@@ -33,3 +34,37 @@ func TestErrorBodyPreview(t *testing.T) {
 		t.Fatalf("preview = %q", preview)
 	}
 }
+
+func TestDrainAndCloseIsBounded(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{Reader: strings.NewReader("abcdef")}
+	if err := DrainAndClose(body, 3); err != nil {
+		t.Fatalf("DrainAndClose returned error: %v", err)
+	}
+	if body.closed != 1 {
+		t.Fatalf("closed = %d, want 1", body.closed)
+	}
+	if body.read != 3 {
+		t.Fatalf("read = %d, want 3", body.read)
+	}
+}
+
+type trackingReadCloser struct {
+	*strings.Reader
+	closed int
+	read   int
+}
+
+func (r *trackingReadCloser) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.read += n
+	return n, err
+}
+
+func (r *trackingReadCloser) Close() error {
+	r.closed++
+	return nil
+}
+
+var _ io.ReadCloser = (*trackingReadCloser)(nil)
