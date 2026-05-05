@@ -86,6 +86,9 @@ Current state:
 - S3-compatible bucket validation rejects IP-address-shaped names plus
   AWS-reserved bucket prefixes and suffixes before storage adapter construction,
   keeping AWS and MinIO-style deployment failures early and explicit.
+- S3-compatible endpoint validation rejects userinfo, query strings, fragments,
+  non-HTTP schemes, and CR/LF-bearing targets before storage adapter
+  construction, keeping SigV4 signing and object addressing deterministic.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default `gogomail` bucket for local S3-compatible runs.

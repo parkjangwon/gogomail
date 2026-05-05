@@ -1401,6 +1401,10 @@ Implementation order:
      AWS-reserved bucket prefixes and suffixes at adapter/config validation
      time, aligning gogomail's object-storage startup checks with current AWS
      general purpose bucket naming restrictions.
+873. S3-compatible endpoint validation now rejects userinfo, query strings,
+     fragments, non-HTTP schemes, and CR/LF-bearing target text before
+     adapter construction, keeping SigV4 signing and object addressing
+     deterministic across AWS S3, MinIO, and compatible providers.
 
 ## Deferred until backend contracts stabilize
 

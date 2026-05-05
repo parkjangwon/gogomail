@@ -52,9 +52,11 @@ GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID=...
 GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY=...
 ```
 
-Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Set
-`GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider or local network
-does not support virtual-hosted bucket names.
+Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Endpoints
+must be plain HTTP(S) origins with an optional base path; userinfo, query
+strings, and fragments are rejected so SigV4 signing and object addressing stay
+unambiguous. Set `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider
+or local network does not support virtual-hosted bucket names.
 
 ## Integration verification
 

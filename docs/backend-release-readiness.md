@@ -1030,6 +1030,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible object prefixes are validated as canonical relative object-key
   prefixes during config validation, surfacing duplicate separators, dot
   segments, traversal, or backslash mistakes before adapter construction.
+- S3-compatible endpoints are validated as plain HTTP(S) origins without
+  userinfo, query strings, fragments, or CR/LF-bearing target text, preventing
+  ambiguous SigV4 signing and object-addressing configuration from reaching
+  runtime storage probes.
 - Optional S3-compatible integration coverage can exercise real
   `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
   `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are

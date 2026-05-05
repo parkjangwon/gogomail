@@ -127,6 +127,19 @@ func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsAmbiguousS3Endpoint(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = "http://localhost:9000?bucket=gogomail"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want ambiguous S3 endpoint rejection")
+	}
+}
+
 func TestValidateRejectsReservedS3BucketName(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "s3"

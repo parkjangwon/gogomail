@@ -193,6 +193,27 @@ func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
 	}
 }
 
+func TestValidateS3EndpointRejectsAmbiguousTargets(t *testing.T) {
+	t.Parallel()
+
+	for _, endpoint := range []string{
+		"ftp://localhost:9000",
+		"http://access:secret@localhost:9000",
+		"http://localhost:9000?region=us-east-1",
+		"http://localhost:9000#bucket",
+		"http://localhost:9000\nx",
+	} {
+		endpoint := endpoint
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateS3Endpoint(endpoint); err == nil {
+				t.Fatalf("ValidateS3Endpoint(%q) error = nil, want rejection", endpoint)
+			}
+		})
+	}
+}
+
 func TestValidateS3RegionRejectsUnsafeValues(t *testing.T) {
 	t.Parallel()
 

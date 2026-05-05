@@ -162,6 +162,10 @@ guidance.
 - S3-compatible bucket validation now rejects IP-address-shaped names plus
   AWS-reserved bucket prefixes and suffixes during config validation, so S3
   deployment mistakes fail before adapter construction or readiness probes.
+- S3-compatible endpoint validation now rejects userinfo, query strings,
+  fragments, non-HTTP schemes, and CR/LF-bearing targets before adapter
+  construction, keeping SigV4 signing and object addressing unambiguous across
+  AWS S3, MinIO, and compatible providers.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
