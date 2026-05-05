@@ -1655,6 +1655,10 @@ Implementation order:
 944. IMAP shared fetch failure paths now preserve the issued command name in
      tagged `NO` responses, so regular `FETCH` failures do not surface as
      `UID FETCH failed` while `UID FETCH` keeps UID-specific wording.
+945. S3-compatible access key IDs, secret access keys, and session tokens now
+     reject oversized direct adapter inputs using the same bounds as startup
+     config validation, keeping SigV4 request construction bounded even when
+     `NewS3Store` is called outside the app config path.
 
 ## Deferred until backend contracts stabilize
 

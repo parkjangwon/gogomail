@@ -244,6 +244,9 @@ Current state:
 - S3-compatible access key IDs reject spaces, tabs, and line breaks during
   config validation and adapter construction, preventing copied credential
   mistakes from being silently trimmed before SigV4 signing.
+- S3-compatible access key IDs, secret access keys, and session tokens also
+  reject oversized direct adapter inputs using the same bounds as startup
+  config validation, keeping SigV4 request construction bounded.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, including the `GOGOMAIL_STORAGE_ROOT` compatibility alias for
   `GOGOMAIL_MAILSTORE_ROOT`, and the development compose stack includes
