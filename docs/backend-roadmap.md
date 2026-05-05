@@ -955,6 +955,8 @@ Implementation order:
      literals for `BODY[1]` and `BODY.PEEK[1]`.
 748. IMAP `FETCH` and `UID FETCH` now answer conservative single-part MIME
      header requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
+749. IMAP non-UID `FETCH` now uses the same bounded header literal path as
+     `UID FETCH` for `BODY[HEADER]` and `RFC822.HEADER`.
 
 ## Deferred until backend contracts stabilize
 

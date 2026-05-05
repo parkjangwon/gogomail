@@ -338,6 +338,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   macros, including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` now support bounded header-only literals for
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
+- IMAP non-UID `FETCH` now uses the same bounded header literal path as
+  `UID FETCH` for `BODY[HEADER]` and `RFC822.HEADER`.
 - IMAP `FETCH`/`UID FETCH` now support `BODY[TEXT]`, `BODY.PEEK[TEXT]`, and
   `RFC822.TEXT` section literals without returning the message headers.
 - IMAP `FETCH`/`UID FETCH` now supports conservative single-part text literals

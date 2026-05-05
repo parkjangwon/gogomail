@@ -824,6 +824,8 @@ The platform hardening sprint completed the following:
   including the non-extensible `BODY` attribute for `FULL`.
 - IMAP `FETCH`/`UID FETCH` can stream bounded header-only literals for
   `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
+- IMAP non-UID `FETCH` uses the same bounded header literal path as `UID FETCH`
+  for `BODY[HEADER]` and `RFC822.HEADER`.
 - IMAP `FETCH`/`UID FETCH` can stream text-only literals for `BODY[TEXT]`,
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - IMAP `FETCH`/`UID FETCH` can stream conservative single-part text literals
