@@ -157,7 +157,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Drive storage layout scoped and portable across storage backends.
 - Drive cleanup failures after permanent-delete metadata commits can now be
   recorded as de-duplicated PostgreSQL retry records with bounded diagnostics,
-  preparing worker retries and admin visibility for object cleanup drift.
+  preparing worker retries and admin visibility for object cleanup drift while
+  rejecting object paths outside the owning user's `drive/users/{user_id}/...`
+  prefix at record ingestion.
 - Drive cleanup-failure records can now be listed and resolved through bounded
   repository methods, giving future cleanup retry workers and admin consoles a
   controlled path to inspect and close pending object cleanup drift.
@@ -1561,6 +1563,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify webmail clients use `HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download` for attachment metadata previews when they need object-backed size/header checks before streaming bytes.
 - Verify Drive copy UX respects the advertised `max_copy_nodes` cap when calling `POST /api/v1/drive/nodes/{id}/copy` for files or folder trees.
 - Verify Drive cleanup-failure operations include node-less copied-object cleanup rows caused by failed copy metadata creation.
+- Verify Drive cleanup-failure recording rejects object paths outside the owning user's `drive/users/{user_id}/...` prefix.
 - Verify Drive clients treat HTTP 507 `insufficient_storage` from finalize/copy paths as quota pressure, distinct from validation failures.
 - Verify Drive clients only pass storage paths returned by the authenticated user's staged/upload-session endpoints; finalize rejects object keys outside that user's `drive/users/{user_id}/...` prefix.
 

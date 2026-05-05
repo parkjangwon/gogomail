@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/gogomail/gogomail/internal/storage"
 )
 
 const maxObjectCleanupErrorBytes = 2048
@@ -224,7 +222,7 @@ func ValidateObjectCleanupFailure(failure ObjectCleanupFailure) (ObjectCleanupFa
 	if err != nil {
 		return ObjectCleanupFailure{}, err
 	}
-	storagePath, err := storage.ValidateObjectPath(failure.StoragePath)
+	storagePath, err := validateUserObjectPath(userID, failure.StoragePath)
 	if err != nil {
 		return ObjectCleanupFailure{}, fmt.Errorf("unsafe storage path %q: %w", failure.StoragePath, err)
 	}

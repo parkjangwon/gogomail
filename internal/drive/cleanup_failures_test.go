@@ -52,6 +52,7 @@ func TestValidateObjectCleanupFailureRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user-1", NodeID: "node\n1", StorageBackend: "s3", StoragePath: "drive/users/user-1/objects/node-1", LastError: "failed"},
 		{UserID: "user-1", StorageBackend: "", StoragePath: "drive/users/user-1/objects/node-1", LastError: "failed"},
 		{UserID: "user-1", StorageBackend: "s3", StoragePath: "../bad", LastError: "failed"},
+		{UserID: "user-1", StorageBackend: "s3", StoragePath: "drive/users/user-2/objects/node-1", LastError: "failed"},
 		{UserID: "user-1", StorageBackend: "s3", StoragePath: "drive/users/user-1/objects/node-1"},
 	}
 	for _, tc := range tests {
