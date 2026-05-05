@@ -4285,7 +4285,7 @@ func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
 		return imapPartialBodyRequest{}, false
 	}
 	count, err := strconv.ParseUint(countText, 10, 31)
-	if err != nil {
+	if err != nil || count == 0 {
 		return imapPartialBodyRequest{}, false
 	}
 	return imapPartialBodyRequest{offset: offset, count: count}, true

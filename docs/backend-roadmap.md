@@ -1595,6 +1595,9 @@ Implementation order:
      reads now enforce the same bounded text-literal ceiling as other IMAP
      body fetch paths, rejecting oversized section bodies before unbounded
      allocation.
+928. IMAP partial fetch windows now reject zero-length counts such as
+     `BODY[]<12.0>`, aligning parser validation with RFC 3501 `nz-number`
+     grammar before fetch processing.
 
 ## Deferred until backend contracts stabilize
 
