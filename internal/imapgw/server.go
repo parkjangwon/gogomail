@@ -487,6 +487,8 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		return s.handleSearch(writer, tag, fields, state, false)
 	case "SORT":
 		return s.handleSort(writer, tag, fields, state, false)
+	case "THREAD":
+		return s.handleThread(writer, tag, fields, state, false)
 	case "STORE":
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
@@ -1043,6 +1045,8 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		return s.handleSearch(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "SORT":
 		return s.handleSort(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
+	case "THREAD":
+		return s.handleThread(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "STORE":
 		if state.readOnly {
 			_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
@@ -1199,6 +1203,69 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 	completion := "SORT"
 	if uidMode {
 		completion = "UID SORT"
+	}
+	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if state.selectedMailbox == "" {
+		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
+		return false, err
+	}
+	if len(fields) < 5 {
+		_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
+		return false, err
+	}
+	algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[2:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
+		return false, err
+	}
+	if !charsetOK {
+		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n")
+		return false, err
+	}
+	if algorithm != "ORDEREDSUBJECT" {
+		_, err := writer.WriteString(tag + " BAD THREAD algorithm is unsupported\r\n")
+		return false, err
+	}
+	if len(searchFields) == 0 {
+		_, err := writer.WriteString(tag + " BAD THREAD requires search criteria\r\n")
+		return false, err
+	}
+	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		Limit:     int(state.selectedMessages),
+	})
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO THREAD failed\r\n")
+		return false, writeErr
+	}
+	requestsModSeq := imapSearchRequestsModSeq(searchFields)
+	if requestsModSeq {
+		state.condstoreAware = true
+	}
+	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO THREAD failed\r\n")
+		return false, writeErr
+	}
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD THREAD search criteria are unsupported\r\n")
+		return false, err
+	}
+	if _, err := writer.WriteString(imapOrderedSubjectThreadResponse(results) + "\r\n"); err != nil {
+		return false, err
+	}
+	completion := "THREAD"
+	if uidMode {
+		completion = "UID THREAD"
 	}
 	_, err = writer.WriteString(tag + " OK " + completion + " completed\r\n")
 	return false, err
@@ -1387,6 +1454,20 @@ func imapSortCommandArguments(fields []string) ([]imapSortCriterion, []string, b
 	return criteria, imapNormalizeSearchCriteria(rest[1:]), true, true
 }
 
+func imapThreadCommandArguments(fields []string) (string, []string, bool, bool) {
+	if len(fields) < 3 {
+		return "", nil, true, false
+	}
+	algorithm := strings.ToUpper(strings.Trim(fields[0], `"`))
+	charset := strings.ToUpper(strings.Trim(fields[1], `"`))
+	switch charset {
+	case "US-ASCII", "UTF-8":
+	default:
+		return "", nil, false, true
+	}
+	return algorithm, imapNormalizeSearchCriteria(fields[2:]), true, true
+}
+
 func imapSortCriteria(fields []string) ([]imapSortCriterion, bool) {
 	tokens := imapFetchNormalizedTokens(fields)
 	criteria := make([]imapSortCriterion, 0, len(tokens))
@@ -1426,6 +1507,62 @@ func imapSortMatches(matches []imapSearchMatch, criteria []imapSortCriterion) {
 		}
 		return left.sequenceNumber < right.sequenceNumber
 	})
+}
+
+type imapThreadGroup struct {
+	subject string
+	matches []imapSearchMatch
+}
+
+func imapOrderedSubjectThreadResponse(matches []imapSearchMatch) string {
+	if len(matches) == 0 {
+		return "* THREAD"
+	}
+	criteria := []imapSortCriterion{{key: "SUBJECT"}, {key: "DATE"}}
+	imapSortMatches(matches, criteria)
+	groups := make([]imapThreadGroup, 0, len(matches))
+	groupIndex := make(map[string]int)
+	for _, match := range matches {
+		subject := imapBaseSubject(match.summary.Envelope.Subject)
+		key := strings.ToLower(subject)
+		if index, ok := groupIndex[key]; ok {
+			groups[index].matches = append(groups[index].matches, match)
+			continue
+		}
+		groupIndex[key] = len(groups)
+		groups = append(groups, imapThreadGroup{subject: key, matches: []imapSearchMatch{match}})
+	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		left := groups[i].matches[0]
+		right := groups[j].matches[0]
+		cmp := imapCompareTime(imapSortSentDate(left.summary), imapSortSentDate(right.summary))
+		if cmp != 0 {
+			return cmp < 0
+		}
+		return left.sequenceNumber < right.sequenceNumber
+	})
+	threads := make([]string, 0, len(groups))
+	for _, group := range groups {
+		threads = append(threads, imapOrderedSubjectThread(group.matches))
+	}
+	return "* THREAD " + strings.Join(threads, "")
+}
+
+func imapOrderedSubjectThread(matches []imapSearchMatch) string {
+	if len(matches) == 0 {
+		return "()"
+	}
+	if len(matches) == 1 {
+		return fmt.Sprintf("(%d)", matches[0].value)
+	}
+	if len(matches) == 2 {
+		return fmt.Sprintf("(%d %d)", matches[0].value, matches[1].value)
+	}
+	children := make([]string, 0, len(matches)-1)
+	for _, match := range matches[1:] {
+		children = append(children, fmt.Sprintf("(%d)", match.value))
+	}
+	return fmt.Sprintf("(%d %s)", matches[0].value, strings.Join(children, ""))
 }
 
 func imapCompareSortCriterion(collator *collate.Collator, left MessageSummary, right MessageSummary, key string) int {
@@ -4181,7 +4318,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT"}
+	capabilities := []string{"IMAP4rev1", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT", "THREAD=ORDEREDSUBJECT"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
