@@ -3582,7 +3582,8 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 	if err != nil {
 		var modified *StoreModifiedError
 		if errors.As(err, &modified) {
-			if err := s.writeStoreFetchResponses(writer, tag, summaries, state.condstoreAware, completionCommand); err != nil {
+			successfulSummaries := imapStoreSuccessfulSummaries(summaries, modified)
+			if err := s.writeStoreFetchResponses(writer, tag, successfulSummaries, state.condstoreAware, completionCommand); err != nil {
 				return false, err
 			}
 			modifiedSet, err := s.storeModifiedSetResponse(context.Background(), state, modified.UIDs, completionCommand == "UID STORE")
@@ -3626,6 +3627,31 @@ func (s *Server) writeStoreFetchResponses(writer *bufio.Writer, tag string, summ
 		}
 	}
 	return nil
+}
+
+func imapStoreSuccessfulSummaries(summaries []MessageSummary, modified *StoreModifiedError) []MessageSummary {
+	if modified == nil {
+		return summaries
+	}
+	source := modified.Summaries
+	if len(source) == 0 {
+		source = summaries
+	}
+	if len(source) == 0 || len(modified.UIDs) == 0 {
+		return source
+	}
+	modifiedUIDs := make(map[UID]struct{}, len(modified.UIDs))
+	for _, uid := range modified.UIDs {
+		modifiedUIDs[uid] = struct{}{}
+	}
+	successful := make([]MessageSummary, 0, len(source))
+	for _, summary := range source {
+		if _, stale := modifiedUIDs[summary.UID]; stale {
+			continue
+		}
+		successful = append(successful, summary)
+	}
+	return successful
 }
 
 func (s *Server) storeModifiedSetResponse(ctx context.Context, state *imapConnState, uids []UID, uidMode bool) (string, error) {

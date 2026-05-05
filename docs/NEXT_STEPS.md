@@ -311,7 +311,8 @@ Current state:
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
   success for passing messages, and UID/sequence `[MODIFIED ...]`
-  stale-write responses.
+  stale-write responses. Conditional store response/event paths filter modified
+  stale UIDs out of successful `FETCH` echoes and mailbox flag notifications.
 - `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
   parameter and mark the session CONDSTORE-aware.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`

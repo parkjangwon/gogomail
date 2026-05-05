@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP MOVE HIGHESTMODSEQ support)
+Last updated: 2026-05-05 (updated after IMAP conditional STORE filtering)
 
 ## Current phase
 
@@ -859,7 +859,8 @@ The platform hardening sprint completed the following:
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
   passing updates and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]`
-  for stale messages.
+  for stale messages. Conditional store response/event paths filter modified
+  stale UIDs out of successful `FETCH` echoes and mailbox flag notifications.
 - IMAP `SELECT` and `EXAMINE` accept the RFC 4551-shaped `(CONDSTORE)`
   parameter and mark the session CONDSTORE-aware.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part

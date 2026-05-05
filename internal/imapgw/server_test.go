@@ -4212,6 +4212,58 @@ func TestServerUIDStoreUnchangedSinceReturnsModified(t *testing.T) {
 	}
 }
 
+func TestServerUIDStoreModifiedFiltersStaleSummaries(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: staleStoreBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID STORE 7:8 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\n")); err != nil {
+		t.Fatalf("write uid store unchanged since: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (27))\r\n",
+		"a3 OK [MODIFIED 8] UID STORE conditional store completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid store modified response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid store modified response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerStoreUnchangedSinceReturnsSequenceModified(t *testing.T) {
 	t.Parallel()
 
@@ -5064,6 +5116,18 @@ func (fakeBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]Messa
 		return summaries, &StoreModifiedError{UIDs: modified, Summaries: summaries}
 	}
 	return summaries, nil
+}
+
+type staleStoreBackend struct {
+	fakeBackend
+}
+
+func (staleStoreBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
+	summaries := []MessageSummary{
+		{ID: "message-7", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Read: req.Flags.Read}, ModSeq: 27},
+		{ID: "message-8", UID: 8, SequenceNumber: 2, Flags: MessageFlags{Read: false}, ModSeq: 29},
+	}
+	return summaries, &StoreModifiedError{UIDs: []UID{8}, Summaries: summaries}
 }
 
 func (fakeBackend) AppendMessage(context.Context, AppendMessageRequest) (AppendMessageResult, error) {

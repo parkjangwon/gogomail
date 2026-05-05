@@ -839,6 +839,41 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 }
 
+func TestStoreIMAPFlagsModifiedPublishesOnlySuccessfulSummaries(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		imapFlagSummaries: []imapgw.MessageSummary{
+			{ID: "msg-1", MailboxID: "inbox", UID: 12},
+			{ID: "msg-2", MailboxID: "inbox", UID: 13},
+		},
+		imapFlagErr: &imapgw.StoreModifiedError{
+			UIDs: []imapgw.UID{13},
+			Summaries: []imapgw.MessageSummary{
+				{ID: "msg-1", MailboxID: "inbox", UID: 12},
+				{ID: "msg-2", MailboxID: "inbox", UID: 13},
+			},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	_, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		UIDs:      []imapgw.UID{12, 13},
+		Flags:     imapgw.MessageFlags{Read: true},
+		Mode:      imapgw.StoreFlagsAdd,
+	})
+	var modified *imapgw.StoreModifiedError
+	if !errors.As(err, &modified) {
+		t.Fatalf("StoreIMAPFlags error = %v, want StoreModifiedError", err)
+	}
+	if len(events.events) != 1 || events.events[0].UID != 12 {
+		t.Fatalf("events = %#v, want only successful UID 12", events.events)
+	}
+}
+
 func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -1497,6 +1532,7 @@ type fakeRepository struct {
 	detail                         maildb.MessageDetail
 	imapMessage                    maildb.IMAPStoredMessage
 	imapFlagSummaries              []imapgw.MessageSummary
+	imapFlagErr                    error
 	imapAppendTarget               maildb.IMAPAppendTarget
 	imapAppendResult               imapgw.AppendMessageResult
 	imapAppendStoredErr            error
@@ -1774,6 +1810,9 @@ func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailbo
 	f.lastIMAPFlags = flags
 	f.lastIMAPFlagMode = mode
 	f.lastIMAPFlagUnchangedSince = unchangedSince
+	if f.imapFlagErr != nil {
+		return f.imapFlagSummaries, f.imapFlagErr
+	}
 	return f.imapFlagSummaries, nil
 }
 
