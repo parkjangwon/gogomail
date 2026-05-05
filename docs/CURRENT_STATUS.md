@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP SEARCH size number hardening)
+Last updated: 2026-05-05 (updated after IMAP mod-sequence number hardening)
 
 ## Current phase
 
@@ -237,6 +237,9 @@ guidance.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
   instead of silently treating them as valid sizes.
+- IMAP mod-sequence numeric inputs now require digit-only atoms across
+  `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
+  `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -1492,6 +1492,9 @@ Implementation order:
 898. IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now
      require digit-only RFC 3501 number atoms, rejecting signed values such as
      `+20` instead of silently treating them as valid sizes.
+899. IMAP mod-sequence numeric inputs now require digit-only atoms across
+     `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
+     `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
 
 ## Deferred until backend contracts stabilize
 
