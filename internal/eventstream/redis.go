@@ -57,14 +57,17 @@ func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 	if opts.Client == nil {
 		return nil, fmt.Errorf("redis client is required")
 	}
-	if opts.Stream == "" {
-		return nil, fmt.Errorf("redis stream is required")
+	stream, err := validateRedisConsumerIdentifier("redis stream", opts.Stream)
+	if err != nil {
+		return nil, err
 	}
-	if opts.Group == "" {
-		return nil, fmt.Errorf("redis consumer group is required")
+	group, err := validateRedisConsumerIdentifier("redis consumer group", opts.Group)
+	if err != nil {
+		return nil, err
 	}
-	if opts.Consumer == "" {
-		return nil, fmt.Errorf("redis consumer name is required")
+	consumer, err := validateRedisConsumerIdentifier("redis consumer name", opts.Consumer)
+	if err != nil {
+		return nil, err
 	}
 	if opts.Handler == nil {
 		return nil, fmt.Errorf("event handler is required")
@@ -86,7 +89,7 @@ func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 	}
 	opts.DeadLetterStream = strings.TrimSpace(opts.DeadLetterStream)
 	if opts.DeadLetterStream == "" {
-		opts.DeadLetterStream = opts.Stream + ".dead"
+		opts.DeadLetterStream = stream + ".dead"
 	}
 	if strings.ContainsAny(opts.DeadLetterStream, "\r\n") {
 		return nil, fmt.Errorf("redis consumer dead-letter stream is invalid")
@@ -100,9 +103,9 @@ func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 
 	return &RedisConsumer{
 		client:           opts.Client,
-		stream:           opts.Stream,
-		group:            opts.Group,
-		consumer:         opts.Consumer,
+		stream:           stream,
+		group:            group,
+		consumer:         consumer,
 		count:            opts.Count,
 		block:            opts.Block,
 		claimIdle:        opts.ClaimIdle,
@@ -112,6 +115,20 @@ func NewRedisConsumer(opts RedisConsumerOptions) (*RedisConsumer, error) {
 		handler:          opts.Handler,
 		logger:           opts.Logger,
 	}, nil
+}
+
+func validateRedisConsumerIdentifier(name string, value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("%s is required", name)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("%s is invalid", name)
+	}
+	if len(value) > maxRedisMetadataBytes {
+		return "", fmt.Errorf("%s is too long", name)
+	}
+	return value, nil
 }
 
 func (c *RedisConsumer) EnsureGroup(ctx context.Context) error {
