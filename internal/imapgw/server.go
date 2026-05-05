@@ -2337,7 +2337,10 @@ func parseIMAPModSeqValue(value string) (uint64, bool) {
 }
 
 func imapSearchModSeqEntryTypeValid(value string) bool {
-	switch strings.ToUpper(strings.Trim(value, `"`)) {
+	if strings.Contains(value, `"`) {
+		return false
+	}
+	switch strings.ToUpper(strings.TrimSpace(value)) {
 	case "SHARED", "PRIV", "ALL":
 		return true
 	default:

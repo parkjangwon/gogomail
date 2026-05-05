@@ -109,6 +109,9 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` `MODSEQ` numeric thresholds reject malformed
   values that still contain quote characters after command parsing, so broken
   inputs such as `MODSEQ 20"` are not silently normalized.
+- IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types reject malformed atoms that
+  still contain quote characters after command parsing, preventing broken
+  `MODSEQ "/flags/\\Seen" all" 17` style inputs from being silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

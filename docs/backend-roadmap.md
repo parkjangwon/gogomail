@@ -1478,6 +1478,10 @@ Implementation order:
      malformed values that still contain quote characters after command
      parsing, preventing broken `MODSEQ 20"` style inputs from being silently
      normalized.
+895. IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types now reject malformed
+     atoms that still contain quote characters after command parsing,
+     preventing broken `MODSEQ "/flags/\\Seen" all" 17` style inputs from
+     being silently normalized.
 
 ## Deferred until backend contracts stabilize
 
