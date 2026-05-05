@@ -93,6 +93,65 @@ func TestValidateCreateCalendarAtPathRequestRejectsNonUUIDPathIDs(t *testing.T) 
 	}
 }
 
+func TestValidateUpdateCalendarRequest(t *testing.T) {
+	t.Parallel()
+
+	name := " Product "
+	color := " #aabbcc "
+	description := " Launch dates "
+	req, normalizedName, syncToken, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
+		UserID:      " user-1 ",
+		CalendarID:  " calendar-1 ",
+		Name:        &name,
+		Color:       &color,
+		Description: &description,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpdateCalendarRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.CalendarID != "calendar-1" {
+		t.Fatalf("request ids = %+v", req)
+	}
+	if req.Name == nil || *req.Name != "Product" || normalizedName != "product" {
+		t.Fatalf("name = %v normalized = %q", req.Name, normalizedName)
+	}
+	if req.Color == nil || *req.Color != "#AABBCC" {
+		t.Fatalf("color = %v", req.Color)
+	}
+	if req.Description == nil || *req.Description != "Launch dates" {
+		t.Fatalf("description = %v", req.Description)
+	}
+	if !strings.HasPrefix(syncToken, "sync-") {
+		t.Fatalf("sync token = %q", syncToken)
+	}
+}
+
+func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	validName := "Work"
+	badName := "bad\nname"
+	badColor := "blue"
+	badDescription := "bad\nline"
+	tests := []UpdateCalendarRequest{
+		{CalendarID: "calendar-1", Name: &validName},
+		{UserID: "user-1", CalendarID: "calendar-1"},
+		{UserID: "user-1", CalendarID: "calendar-1", Name: &badName},
+		{UserID: "user-1", CalendarID: "calendar-1", Color: &badColor},
+		{UserID: "user-1", CalendarID: "calendar-1", Description: &badDescription},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.UserID+"/"+req.CalendarID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, _, err := ValidateUpdateCalendarRequest(req); err == nil {
+				t.Fatalf("ValidateUpdateCalendarRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestValidateUpsertObjectRequest(t *testing.T) {
 	t.Parallel()
 

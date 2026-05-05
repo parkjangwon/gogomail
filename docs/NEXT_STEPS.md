@@ -1475,6 +1475,12 @@ Current state:
 - CalDAV now supports RFC 6764-style service discovery: `/.well-known/caldav`
   redirects to `/caldav/`, and authenticated root `PROPFIND` exposes principal
   and calendar-home discovery properties.
+- CalDAV now handles WebDAV `PROPPATCH` on authenticated calendar collections
+  for display name, description, and CalendarServer/Apple calendar color.
+  The parser is bounded and namespace-aware, optional properties can be
+  removed, `displayname` cannot be removed, and the repository records a
+  transactional `collection-updated` sync marker instead of hiding metadata
+  changes from WebDAV sync state.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1484,11 +1490,19 @@ Current state:
 
 Next:
 
-- Continue CalDAV with recurrence-aware calendar-query/free-busy expansion,
-  sync retention/collection-deletion deltas, VFREEBUSY source-object support,
-  slug/path-alias support for friendlier MKCALENDAR clients, scheduling
-  semantics, and broader compatibility tests before advertising client-ready
-  compatibility.
+- Keep CalDAV in an experimental/backend-only release tier until client-ready
+  gates are closed: recurrence-aware calendar-query/free-busy expansion,
+  sync retention and collection-deletion deltas, VFREEBUSY source-object
+  support, slug/path-alias support for friendlier MKCALENDAR clients,
+  scheduling semantics, and broader Apple/Android/Windows/macOS compatibility
+  tests.
+- Before public shared/delegated calendar or resource-booking features,
+  establish the platform boundaries CalDAV depends on: Directory/Identity for
+  users, teams, groups, resources, aliases, memberships, delegation, and
+  principal resolution; Contacts/CardDAV for personal/external people and
+  address books; Notification & Sync for reminders, devices, quiet hours, and
+  delta fan-out; Search for unified event/person/resource lookup; and
+  Policy/Audit for retention, admin controls, and traceable calendar access.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

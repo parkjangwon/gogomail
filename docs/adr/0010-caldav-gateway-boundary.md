@@ -177,6 +177,29 @@ to `/caldav/`, and root `PROPFIND` exposes the authenticated principal and
 calendar-home links. This keeps RFC 6764 entry-point compatibility decoupled
 from product-specific webmail APIs.
 
+Calendar collection `PROPPATCH` is gateway-owned WebDAV behavior, not a generic
+product update API. The first supported properties are `DAV:displayname`,
+`CALDAV:calendar-description`, and CalendarServer/Apple `calendar-color`.
+Propertyupdate parsing stays bounded and namespace-aware, removal is allowed
+only for optional description/color properties, and each accepted update refreshes
+the collection sync token plus a durable `collection-updated` marker. Calendar
+object property patching, scheduling preference changes, and product policy
+decisions remain outside this gateway method until their backend boundaries are
+defined.
+
+CalDAV must also depend on platform-level principal boundaries instead of
+inventing a private calendar identity model. Directory/Identity should own
+users, organization hierarchy, teams/groups, aliases, mailing lists, resources,
+memberships, delegated relationships, and principal resolution. Contacts/CardDAV
+should own personal contacts, external people, personal address books, and
+user-specific metadata. Notification & Sync should own domain events, reminder
+decisions, device registry, delivery adapters, quiet-hours/per-device policy,
+and delta fan-out. Search and Policy/Audit should own unified event/person/
+resource lookup, retention, admin controls, and traceable access decisions.
+Until these boundaries exist, shared calendars, delegated access, resource
+booking, attendee auto-complete, and reminder delivery remain release gates
+rather than isolated CalDAV CRUD features.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles
@@ -187,3 +210,7 @@ from product-specific webmail APIs.
   listener is advertised as ready.
 - The frontend calendar can be built later without bypassing the standards
   boundary needed by native clients.
+- Public CalDAV compatibility is experimental until recurrence, scheduling,
+  retention-aware sync, collection-deletion deltas, native-client compatibility
+  testing, and the shared Directory/Contacts/Notification/Search/Policy
+  boundaries are in place.
