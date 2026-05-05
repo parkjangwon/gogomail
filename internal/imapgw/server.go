@@ -631,10 +631,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		return s.writeExpungeResponses(writer, tag, state, nil, "EXPUNGE")
 	case "MOVE":
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
 		if len(fields) != 4 {
 			return s.handleMove(writer, tag, fields, state)
 		}
@@ -2766,12 +2762,12 @@ func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []str
 }
 
 func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 4 {
 		_, err := writer.WriteString(tag + " BAD FETCH requires sequence set and data items\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if state.selectedMailbox == "" {
@@ -2792,10 +2788,6 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 }
 
 func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) != 4 {
 		_, err := writer.WriteString(tag + " BAD COPY requires sequence set and destination mailbox\r\n")
 		return false, err
@@ -2803,6 +2795,10 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 	destMailbox, destOK := imapDecodeMailboxName(fields[3])
 	if !destOK {
 		_, err := writer.WriteString(tag + " BAD COPY destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if state.selectedMailbox == "" {
@@ -2823,10 +2819,6 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 }
 
 func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) != 4 {
 		_, err := writer.WriteString(tag + " BAD MOVE requires sequence set and destination mailbox\r\n")
 		return false, err
@@ -2834,6 +2826,10 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 	destMailbox, destOK := imapDecodeMailboxName(fields[3])
 	if !destOK {
 		_, err := writer.WriteString(tag + " BAD MOVE destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if state.selectedMailbox == "" {
@@ -5033,12 +5029,12 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 }
 
 func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 5 {
 		_, err := writer.WriteString(tag + " BAD STORE requires sequence set, mode, and flags\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if state.selectedMailbox == "" {
