@@ -182,7 +182,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 	command := strings.ToUpper(fields[1])
 	switch command {
 	case "CAPABILITY":
-		if _, err := writer.WriteString("* CAPABILITY IMAP4rev1 AUTH=PLAIN\r\n"); err != nil {
+		if _, err := writer.WriteString("* CAPABILITY " + strings.Join(s.imapCapabilities(state), " ") + "\r\n"); err != nil {
 			return false, err
 		}
 		_, err := writer.WriteString(tag + " OK CAPABILITY completed\r\n")
@@ -382,6 +382,14 @@ func imapFetchRequestsBody(items []string) bool {
 	return false
 }
 
+func (s *Server) imapCapabilities(state *imapConnState) []string {
+	capabilities := []string{"IMAP4rev1"}
+	if state == nil || state.session == nil {
+		capabilities = append(capabilities, "AUTH=PLAIN")
+	}
+	return capabilities
+}
+
 func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if len(fields) < 6 {
 		_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
@@ -547,7 +555,23 @@ func parseIMAPFields(line string) ([]string, error) {
 		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
 			i++
 		}
-		fields = append(fields, line[start:i])
+		field := line[start:i]
+		if imapLooksLikeLiteral(field) {
+			return nil, fmt.Errorf("imap literals are not supported")
+		}
+		fields = append(fields, field)
 	}
 	return fields, nil
+}
+
+func imapLooksLikeLiteral(field string) bool {
+	if len(field) < 3 || field[0] != '{' || field[len(field)-1] != '}' {
+		return false
+	}
+	for i := 1; i < len(field)-1; i++ {
+		if field[i] < '0' || field[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
