@@ -1604,10 +1604,11 @@ Next:
   repository, bounded vCard 4.0 semantic validation, REPORT parsing,
   multistatus rendering, and internal `OPTIONS`/`PROPFIND` discovery handler
   now includes internal `addressbook-query`, `addressbook-multiget`, and
-  `sync-collection` execution. It should be followed by auth/listener wiring,
-  object `GET`/`PUT`/`DELETE`, richer CardDAV filter semantics, broader vCard
-  compatibility, and native-client compatibility tests before any public
-  contacts UI or API treats it as production-ready.
+  `sync-collection` execution plus contact-object `GET`, `HEAD`, `PUT`, and
+  `DELETE` semantics. It should be followed by auth/listener wiring, richer
+  CardDAV filter semantics, broader vCard compatibility, and native-client
+  compatibility tests before any public contacts UI or API treats it as
+  production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

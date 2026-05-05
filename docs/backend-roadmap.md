@@ -2329,6 +2329,12 @@ Implementation order:
       first text-match filter, and sync responses emit the current collection
       sync token while returning full snapshots or bounded change rows,
       including 404 responses for deleted contact objects.
+1107. CardDAV now handles internal contact-object `GET`, `HEAD`, `PUT`, and
+      `DELETE` paths with `text/vcard` content negotiation, bounded body reads,
+      strong ETag and Last-Modified response headers, HTTP cache/precondition
+      handling, vCard validation through the repository write path, and
+      standard 201/204/304/412 outcomes for create, update, delete, and
+      conditional reads.
 
 ## Deferred until backend contracts stabilize
 
@@ -2342,11 +2348,11 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV authenticated listener wiring, object `GET`/`PUT`/`DELETE`,
-  richer CardDAV filter semantics, broader vCard compatibility, and
-  native-client compatibility beyond the internal discovery/REPORT, path/href,
-  storage metadata, repository, bounded vCard 4.0 validation, REPORT parsing,
-  and multistatus response boundaries
+- Contacts/CardDAV authenticated listener wiring, richer CardDAV filter
+  semantics, broader vCard compatibility, and native-client compatibility
+  beyond the internal discovery/REPORT/object I/O, path/href, storage metadata,
+  repository, bounded vCard 4.0 validation, REPORT parsing, and multistatus
+  response boundaries
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
