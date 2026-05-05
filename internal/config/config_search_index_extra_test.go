@@ -72,6 +72,22 @@ func TestValidateRejectsInvalidOpenSearchEndpoint(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidOpenSearchIndexName(t *testing.T) {
+	for _, index := range []string{"../bad", ".hidden", "_system", "bad name", "bad:index"} {
+		index := index
+		t.Run(index, func(t *testing.T) {
+			cfg := Load()
+			cfg.SearchIndexBackend = "opensearch"
+			cfg.SearchIndexOpenSearchEndpoint = "https://search.example.com"
+			cfg.SearchIndexOpenSearchIndex = index
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate accepted invalid opensearch index name")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositiveSearchIndexLimits(t *testing.T) {
 	tests := []struct {
 		name string

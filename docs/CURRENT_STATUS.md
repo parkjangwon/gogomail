@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after OpenSearch endpoint validation)
+Last updated: 2026-05-05 (updated after OpenSearch index validation)
 
 ## Current phase
 
@@ -647,6 +647,9 @@ The platform hardening sprint completed the following:
 - OpenSearch endpoint configuration is now validated as an HTTP(S) URL with a
   host during startup config validation, so malformed search backend endpoints
   fail before worker/search adapter construction.
+- OpenSearch index names are now validated during startup config validation
+  using the same unsafe-character and reserved-prefix guardrails as the
+  adapter, so invalid index configuration fails before worker/search setup.
 - Search contract expansion: clients can request `sort=relevance`,
   `include_rank=true`, and `include_highlights=true` without changing the
   default message list shape.

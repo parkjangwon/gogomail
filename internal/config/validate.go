@@ -275,6 +275,9 @@ func (c Config) Validate() error {
 		if strings.TrimSpace(c.SearchIndexOpenSearchIndex) == "" {
 			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX is required when GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch")
 		}
+		if err := validateOpenSearchIndexName("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX", c.SearchIndexOpenSearchIndex); err != nil {
+			return err
+		}
 	}
 	if c.SearchIndexMaxBodyBytes <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_MAX_BODY_BYTES must be positive")
@@ -430,6 +433,17 @@ func validateHTTPURL(name string, value string) error {
 	}
 	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return fmt.Errorf("%s must be an http or https URL", name)
+	}
+	return nil
+}
+
+func validateOpenSearchIndexName(name string, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	if strings.ContainsAny(value, `/\?#*:,"<>| `) || strings.HasPrefix(value, ".") || strings.HasPrefix(value, "_") {
+		return fmt.Errorf("%s is invalid", name)
 	}
 	return nil
 }
