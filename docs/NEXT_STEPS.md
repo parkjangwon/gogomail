@@ -95,6 +95,9 @@ Current state:
 - IMAP `SEARCH UID <sequence-set>` and `UID SEARCH UID <sequence-set>` resolve
   `*` UID ranges against the selected mailbox's visible UIDs, aligning
   search-key filtering with UID command range handling.
+- IMAP command tag validation rejects `+` in tags before command routing,
+  matching RFC 3501 tag grammar and avoiding ambiguity with continuation
+  protocol markers.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

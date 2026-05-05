@@ -5978,7 +5978,7 @@ func imapCommandArgumentString(line string) string {
 }
 
 func imapTagValid(tag string) bool {
-	return imapAtomValid(tag)
+	return imapAtomValid(tag) && !strings.Contains(tag, "+")
 }
 
 func imapAtomValid(tag string) bool {

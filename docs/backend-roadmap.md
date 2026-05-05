@@ -1462,6 +1462,9 @@ Implementation order:
 889. IMAP `SEARCH UID <sequence-set>` and `UID SEARCH UID <sequence-set>` now
      resolve `*` UID ranges against the selected mailbox's visible UIDs,
      aligning search-key filtering with UID command range handling.
+890. IMAP command tag validation now rejects `+` in tags before command
+     routing, matching RFC 3501 tag grammar and avoiding ambiguity with
+     continuation protocol markers.
 
 ## Deferred until backend contracts stabilize
 
