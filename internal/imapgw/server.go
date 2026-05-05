@@ -627,6 +627,16 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 		}
 		return results, true
 	}
+	if len(criteria) == 2 {
+		switch strings.ToUpper(criteria[0]) {
+		case "SINCE", "BEFORE":
+			day, ok := parseIMAPSearchDate(criteria[1])
+			if !ok {
+				return nil, false
+			}
+			return imapSearchDateResults(messages, uidMode, strings.ToUpper(criteria[0]), day), true
+		}
+	}
 	return nil, false
 }
 
@@ -682,6 +692,49 @@ func imapSearchAllResults(messages []MessageSummary, uidMode bool) []uint32 {
 		results = append(results, sequenceNumber)
 	}
 	return results
+}
+
+func imapSearchDateResults(messages []MessageSummary, uidMode bool, criterion string, day time.Time) []uint32 {
+	results := make([]uint32, 0, len(messages))
+	for i, summary := range messages {
+		if !imapMessageMatchesDateSearch(summary, criterion, day) {
+			continue
+		}
+		if uidMode {
+			results = append(results, uint32(summary.UID))
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		results = append(results, sequenceNumber)
+	}
+	return results
+}
+
+func imapMessageMatchesDateSearch(summary MessageSummary, criterion string, day time.Time) bool {
+	date := summary.InternalDate
+	if date.IsZero() {
+		return false
+	}
+	messageDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	switch criterion {
+	case "SINCE":
+		return !messageDay.Before(day)
+	case "BEFORE":
+		return messageDay.Before(day)
+	default:
+		return false
+	}
+}
+
+func parseIMAPSearchDate(value string) (time.Time, bool) {
+	day, err := time.Parse("02-Jan-2006", strings.Trim(value, `"`))
+	if err != nil {
+		return time.Time{}, false
+	}
+	return day, true
 }
 
 func imapSearchResultSuffix(results []uint32) string {
