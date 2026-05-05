@@ -345,9 +345,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   flag changes through the service-backed flag boundary.
 - IMAP `FETCH`/`UID FETCH` now include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes when requested, enabling standard mailbox list metadata reads.
-- IMAP `CAPABILITY` now advertises `CONDSTORE` after the RFC 4551-shaped
-  mod-sequence fetch/search/status/select/store paths were wired through
-  durable mailbox/message state.
+- IMAP `CAPABILITY` now advertises `CONDSTORE` and `ENABLE` after the RFC
+  4551-shaped mod-sequence fetch/search/status/select/store paths were wired
+  through durable mailbox/message state; RFC 5161-shaped `ENABLE CONDSTORE`
+  marks sessions CONDSTORE-aware before mailbox selection.
 - IMAP `FETCH`/`UID FETCH` now include RFC 4551-shaped `MODSEQ (n)` attributes
   when requested, surfacing durable per-message mod-sequences.
 - IMAP `SEARCH`/`UID SEARCH` now support RFC 4551-shaped `MODSEQ` criteria and

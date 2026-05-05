@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP CONDSTORE capability advertisement)
+Last updated: 2026-05-05 (updated after IMAP ENABLE CONDSTORE support)
 
 ## Current phase
 
@@ -832,8 +832,8 @@ The platform hardening sprint completed the following:
   untagged flag echo responses when requested.
 - IMAP `FETCH`/`UID FETCH` can include `INTERNALDATE` and RFC-shaped `ENVELOPE`
   attributes from message summaries for mailbox list rendering.
-- IMAP `CAPABILITY` advertises `CONDSTORE`; implemented RFC 4551 paths use
-  durable mailbox/message mod-sequences for standard client cache sync.
+- IMAP `CAPABILITY` advertises `CONDSTORE` and `ENABLE`; RFC 5161-shaped
+  `ENABLE CONDSTORE` marks sessions CONDSTORE-aware before mailbox selection.
 - IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes
   when requested, using durable per-message mod-sequences.
 - IMAP `SEARCH`/`UID SEARCH` can match RFC 4551-shaped `MODSEQ` criteria,
