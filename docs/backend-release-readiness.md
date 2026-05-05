@@ -28,6 +28,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   OpenSearch endpoint configuration is validated as an HTTP(S) URL with a host
   during startup config validation, so malformed search backend endpoints fail
   before worker/search adapter construction.
+  OpenSearch index names are also validated during startup config validation
+  using the same unsafe-character and reserved-prefix guardrails as the
+  adapter, so invalid index configuration fails before worker/search setup.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.
