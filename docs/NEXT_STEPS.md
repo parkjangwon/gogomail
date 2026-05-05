@@ -252,6 +252,9 @@ Current state:
   metadata/body responses.
 - `EXAMINE` now selects a mailbox read-only and blocks `UID STORE`, giving
   clients a standards-shaped read-only mailbox state.
+- `EXAMINE` now passes read-only selection intent through the backend
+  `SelectMailboxRequest`, so service adapters can distinguish read-only
+  sessions from writable `SELECT`.
 - `CHECK` and `CLOSE` now cover selected-mailbox lifecycle calls; `CLOSE`
   clears selected state while leaving EXPUNGE/`\Deleted` semantics deferred.
 - `STATUS` now validates requested status data items and returns only the

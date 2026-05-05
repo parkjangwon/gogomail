@@ -587,15 +587,16 @@ func TestServerHandlesSelectAfterLogin(t *testing.T) {
 func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	backend := &selectModeBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backend, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
-	client, backend := net.Pipe()
+	client, pipe := net.Pipe()
 	defer client.Close()
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.ServeConn(backend)
+		errCh <- server.ServeConn(pipe)
 	}()
 
 	reader := bufio.NewReader(client)
@@ -639,6 +640,9 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	_, _ = reader.ReadString('\n')
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if !backend.readOnly {
+		t.Fatal("EXAMINE did not pass ReadOnly to backend selection")
 	}
 }
 
@@ -3703,4 +3707,14 @@ func (b *canonicalMailboxBackend) Subscribe(_ context.Context, _ UserID, mailbox
 	events := make(chan MailboxEvent)
 	cancel := func() { close(events) }
 	return events, cancel, nil
+}
+
+type selectModeBackend struct {
+	fakeBackend
+	readOnly bool
+}
+
+func (b *selectModeBackend) SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error) {
+	b.readOnly = req.ReadOnly
+	return b.fakeBackend.SelectMailbox(ctx, req)
 }
