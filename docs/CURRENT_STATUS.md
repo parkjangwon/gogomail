@@ -828,6 +828,8 @@ The platform hardening sprint completed the following:
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - IMAP `FETCH`/`UID FETCH` can stream conservative single-part text literals
   for `BODY[1]` and `BODY.PEEK[1]`.
+- IMAP `FETCH`/`UID FETCH` can answer conservative single-part MIME header
+  requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
 - IMAP non-UID `STORE` accepts bounded sequence sets/ranges and maps them to
   the same service-backed flag mutation boundary as `UID STORE`.

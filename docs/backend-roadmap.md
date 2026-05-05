@@ -953,6 +953,8 @@ Implementation order:
      alongside `EXISTS`, `UIDVALIDITY`, and `UIDNEXT`.
 747. IMAP `FETCH` and `UID FETCH` now support conservative single-part text
      literals for `BODY[1]` and `BODY.PEEK[1]`.
+748. IMAP `FETCH` and `UID FETCH` now answer conservative single-part MIME
+     header requests for `BODY[1.MIME]` and `BODY.PEEK[1.MIME]`.
 
 ## Deferred until backend contracts stabilize
 
