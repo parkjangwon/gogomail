@@ -90,10 +90,17 @@ func (r *Repository) SubscribeIMAPMailbox(ctx context.Context, userID string, ma
 		return imapgw.MailboxSubscription{}, fmt.Errorf("mailbox_id is required")
 	}
 	mailbox, err := r.GetIMAPMailbox(ctx, userID, mailboxID)
+	exists := true
+	name := ""
 	if err != nil {
-		return imapgw.MailboxSubscription{}, err
+		if !isIMAPMailboxNotFound(err) {
+			return imapgw.MailboxSubscription{}, err
+		}
+		exists = false
+		name = strings.Trim(strings.TrimSpace(mailboxID), `"`)
+	} else {
+		name = imapSubscriptionDisplayName(mailbox)
 	}
-	name := imapSubscriptionDisplayName(mailbox)
 	canonical := canonicalIMAPSubscriptionName(name)
 	if canonical == "" {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("imap mailbox subscription name is required")
@@ -105,7 +112,7 @@ ON CONFLICT (user_id, canonical_name)
 DO UPDATE SET mailbox_name = EXCLUDED.mailbox_name`, userID, name, canonical); err != nil {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("subscribe imap mailbox: %w", err)
 	}
-	return imapgw.MailboxSubscription{Name: name, Mailbox: mailbox, Exists: true}, nil
+	return imapgw.MailboxSubscription{Name: name, Mailbox: mailbox, Exists: exists}, nil
 }
 
 func (r *Repository) UnsubscribeIMAPMailbox(ctx context.Context, userID string, mailboxID string) error {

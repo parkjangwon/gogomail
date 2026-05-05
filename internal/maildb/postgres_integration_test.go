@@ -962,6 +962,21 @@ func TestPostgresIMAPMailboxSubscriptionsPersistNames(t *testing.T) {
 		t.Fatalf("deleted mailbox subscription = %#v, want retained noselect name", listed)
 	}
 
+	missingSubscription, err := repo.SubscribeIMAPMailbox(ctx, seed.userID, "Retired")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailbox for missing mailbox returned error: %v", err)
+	}
+	if missingSubscription.Exists || missingSubscription.Name != "Retired" {
+		t.Fatalf("missing mailbox subscription = %#v, want retained Retired noselect name", missingSubscription)
+	}
+	listed, err = repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes after missing subscribe returned error: %v", err)
+	}
+	if len(listed) != 2 || listed[0].Exists || listed[0].Name != "Inbox" || listed[1].Exists || listed[1].Name != "Retired" {
+		t.Fatalf("listed missing subscriptions = %#v, want Inbox and Retired noselect entries", listed)
+	}
+
 	if err := repo.UnsubscribeIMAPMailbox(ctx, seed.userID, "INBOX"); err != nil {
 		t.Fatalf("UnsubscribeIMAPMailbox returned error: %v", err)
 	}

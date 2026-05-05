@@ -523,6 +523,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP now persists authenticated `SUBSCRIBE`/`UNSUBSCRIBE` mailbox
   subscriptions and returns the saved set from `LSUB` instead of every visible
   mailbox.
+- IMAP `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can report
+  them with `\Noselect`, keeping subscription state useful across mailbox
+  migration, deletion, and delayed creation flows.
 - IMAP `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
   `\Noselect` and `/` delimiter metadata for clients that probe namespace
   delimiters through LIST-compatible commands.
