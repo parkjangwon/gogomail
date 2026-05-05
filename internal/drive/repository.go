@@ -431,7 +431,7 @@ INSERT INTO drive_nodes (
   status
 )
 SELECT
-  COALESCE(NULLIF($10, '')::uuid, gen_random_uuid()),
+  gen_random_uuid(),
   owner.company_id,
   owner.domain_id,
   owner.user_id,

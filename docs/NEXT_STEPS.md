@@ -320,7 +320,9 @@ Current state:
 - `internal/drive.Repository.CreateFolder` can create active folder nodes for
   active users, derive company/domain scope from the user row, validate active
   parent folders, and rely on the `drive_nodes` active sibling uniqueness
-  constraint before any Drive HTTP API is exposed.
+  constraint before any Drive HTTP API is exposed. Folder creation SQL uses
+  only the bound request parameters, keeping the production folder-create path
+  aligned with the HTTP contract.
 - `internal/drive.Repository.CreateFileFromObject` validates file metadata,
   verifies the referenced object through the shared storage `Stat` contract,
   and increments the company/domain/user quota ledger in the same transaction
