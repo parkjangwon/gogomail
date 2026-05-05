@@ -950,6 +950,10 @@ The platform hardening sprint completed the following:
   selected mailbox, validate a different destination mailbox, move active
   messages transactionally, remove source mailbox UID rows, and emit RFC-shaped
   source `EXPUNGE` responses. `APPEND` remains explicitly unsupported.
+- IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
+  literal body, and size after bounded literal framing, while service-backed
+  storage intentionally returns an explicit unsupported response until the
+  repository/storage append model is accepted.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

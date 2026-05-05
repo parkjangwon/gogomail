@@ -472,6 +472,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   messages transactionally, remove source mailbox UID rows, emit RFC-shaped
   source `EXPUNGE` responses, and publish best-effort source expunge events.
   `APPEND` remains explicitly unsupported.
+- IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
+  literal body, and size after bounded literal framing, while service-backed
+  storage intentionally returns an explicit unsupported response until the
+  repository/storage append model is accepted.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

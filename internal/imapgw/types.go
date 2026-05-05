@@ -83,6 +83,15 @@ type StoreFlagsRequest struct {
 	Mode      StoreFlagsMode
 }
 
+type AppendMessageRequest struct {
+	UserID       UserID
+	MailboxID    MailboxID
+	Flags        MessageFlags
+	InternalDate time.Time
+	Size         int64
+	Body         io.Reader
+}
+
 type StoreFlagsMode string
 
 const (
@@ -103,6 +112,7 @@ type MessageStore interface {
 	ListMessages(ctx context.Context, req ListMessagesRequest) ([]MessageSummary, error)
 	FetchMessage(ctx context.Context, req FetchMessageRequest) (Message, error)
 	StoreFlags(ctx context.Context, req StoreFlagsRequest) ([]MessageSummary, error)
+	AppendMessage(ctx context.Context, req AppendMessageRequest) (MessageSummary, error)
 }
 
 type Store interface {

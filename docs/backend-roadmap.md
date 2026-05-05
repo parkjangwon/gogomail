@@ -1070,6 +1070,10 @@ Implementation order:
      continuation response, preserves the literal as the final parsed command
      field, rejects unsupported non-synchronizing literals, and keeps the
      connection framed even while `APPEND` storage remains deferred.
+783. IMAP `APPEND` now has a protocol-to-backend request boundary carrying the
+     destination mailbox, literal body reader, and size, with the service adapter
+     returning an explicit unsupported error until repository/storage append
+     semantics are implemented.
 
 ## Deferred until backend contracts stabilize
 
