@@ -321,6 +321,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   with `CLOSE` clearing selected state while EXPUNGE/`\Deleted` remain deferred.
 - IMAP `STATUS` now validates requested status data items and emits only those
   requested fields, including `RECENT`.
+- IMAP mailbox lookup now resolves wire names such as `INBOX` and
+  `Archive/2026` to the stored mailbox ID before selected-mailbox state is used
+  by follow-up commands.
 - IMAP `LIST` now applies exact, `*`, and `%` mailbox pattern matching before
   returning sanitized quoted mailbox names.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for

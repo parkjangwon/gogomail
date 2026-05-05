@@ -355,7 +355,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			return false, err
 		}
 		state.closeSubscription()
-		state.selectedMailbox = MailboxID(fields[2])
+		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
 		events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, state.selectedMailbox)
@@ -2909,7 +2909,9 @@ func imapStoreFlags(value string) (MessageFlags, bool) {
 
 func imapMailboxDisplayName(mailbox Mailbox) string {
 	if strings.TrimSpace(mailbox.FullPath) != "" {
-		return strings.TrimSpace(mailbox.FullPath)
+		if value := strings.Trim(strings.TrimSpace(mailbox.FullPath), "/"); value != "" {
+			return value
+		}
 	}
 	if strings.TrimSpace(mailbox.Name) != "" {
 		return strings.TrimSpace(mailbox.Name)

@@ -73,6 +73,7 @@ func (r *Repository) GetIMAPMailbox(ctx context.Context, userID string, mailboxI
 	if mailboxID == "" {
 		return imapgw.Mailbox{}, fmt.Errorf("mailbox_id is required")
 	}
+	mailboxName := normalizeIMAPMailboxLookupName(mailboxID)
 
 	const query = `
 SELECT
@@ -99,10 +100,20 @@ LEFT JOIN (
   GROUP BY folder_id
 ) c ON c.folder_id = f.id
 WHERE f.user_id = $1::uuid
-  AND f.id = $2::uuid`
+  AND (
+    f.id::text = $2
+    OR lower(f.name) = $3
+    OR lower(trim(both '/' from f.full_path)) = $3
+    OR ($3 = 'inbox' AND lower(COALESCE(f.system_type, '')) = 'inbox')
+  )
+ORDER BY
+  CASE WHEN lower(COALESCE(f.system_type, '')) = 'inbox' THEN 0 ELSE 1 END,
+  f.full_path,
+  f.name
+LIMIT 1`
 
 	var folder Folder
-	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID).Scan(
+	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID, mailboxName).Scan(
 		&folder.ID,
 		&folder.ParentID,
 		&folder.Name,
@@ -124,6 +135,14 @@ WHERE f.user_id = $1::uuid
 		return imapgw.Mailbox{}, err
 	}
 	return imapMailboxFromFolder(folder, state), nil
+}
+
+func normalizeIMAPMailboxLookupName(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.Trim(value, `"`)
+	value = strings.Trim(value, "/")
+	value = strings.Join(strings.Fields(value), " ")
+	return strings.ToLower(value)
 }
 
 func (r *Repository) ListIMAPMessages(ctx context.Context, userID string, mailboxID string, limit int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {

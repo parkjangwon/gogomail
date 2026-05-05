@@ -642,6 +642,49 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	}
 }
 
+func TestServerSelectUsesCanonicalMailboxID(t *testing.T) {
+	t.Parallel()
+
+	backend := &canonicalMailboxBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backend, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, pipe := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(pipe)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT INBOX\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write select/logout: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if backend.selectMailboxID != "INBOX" {
+		t.Fatalf("select mailbox id = %q, want wire name", backend.selectMailboxID)
+	}
+	if backend.subscribeMailboxID != "mailbox-uuid" {
+		t.Fatalf("subscribe mailbox id = %q, want canonical id", backend.subscribeMailboxID)
+	}
+}
+
 func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	t.Parallel()
 
@@ -3115,6 +3158,15 @@ func TestFilterIMAPHeaderFields(t *testing.T) {
 	}
 }
 
+func TestIMAPMailboxDisplayNameTrimsStoredRootPrefix(t *testing.T) {
+	t.Parallel()
+
+	got := imapMailboxDisplayName(Mailbox{ID: "mailbox-1", FullPath: "/Archive/2026"})
+	if got != "Archive/2026" {
+		t.Fatalf("display name = %q, want Archive/2026", got)
+	}
+}
+
 func TestIMAPBodyStructureDefersMultipartHeaders(t *testing.T) {
 	t.Parallel()
 
@@ -3630,4 +3682,25 @@ func (b *eventBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan Mai
 		b.canceled = true
 	}
 	return b.events, cancel, nil
+}
+
+type canonicalMailboxBackend struct {
+	fakeBackend
+	selectMailboxID    MailboxID
+	subscribeMailboxID MailboxID
+}
+
+func (b *canonicalMailboxBackend) SelectMailbox(_ context.Context, req SelectMailboxRequest) (MailboxState, error) {
+	b.selectMailboxID = req.MailboxID
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "mailbox-uuid", Name: "INBOX", UIDValidity: 1, UIDNext: 1},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft},
+	}, nil
+}
+
+func (b *canonicalMailboxBackend) Subscribe(_ context.Context, _ UserID, mailboxID MailboxID) (<-chan MailboxEvent, func(), error) {
+	b.subscribeMailboxID = mailboxID
+	events := make(chan MailboxEvent)
+	cancel := func() { close(events) }
+	return events, cancel, nil
 }

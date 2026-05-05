@@ -808,6 +808,9 @@ The platform hardening sprint completed the following:
   clears selected state without enabling EXPUNGE/`\Deleted` behavior yet.
 - IMAP `STATUS` validates requested status data items and returns only the
   requested mailbox metadata fields.
+- IMAP mailbox lookup resolves wire names such as `INBOX` and `Archive/2026`
+  to the stored mailbox ID before selected-mailbox state is used by follow-up
+  commands.
 - IMAP `LIST` filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
 - IMAP `LIST "" ""` and `LSUB "" ""` return the hierarchy root with

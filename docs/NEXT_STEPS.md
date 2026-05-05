@@ -256,6 +256,9 @@ Current state:
   clears selected state while leaving EXPUNGE/`\Deleted` semantics deferred.
 - `STATUS` now validates requested status data items and returns only the
   requested mailbox metadata fields.
+- IMAP mailbox lookup now resolves wire names such as `INBOX` and
+  `Archive/2026` to the stored mailbox ID before selected-mailbox state is used
+  by follow-up commands.
 - `LIST` now filters mailbox responses with exact, `*`, and `%` patterns over
   sanitized wire names.
 - `LIST "" ""` and `LSUB "" ""` now return the hierarchy root with
