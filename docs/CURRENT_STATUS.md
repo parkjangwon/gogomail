@@ -70,8 +70,10 @@ It now honors RFC 6352 `test=anyof|allof` composition on the top-level
 project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
 `version` values instead of returning data under an unimplemented format
-contract. It remains gated on broader vCard compatibility and native-client
-tests. The handler is deliberately experimental and does not yet make CardDAV
+contract. Returned `address-data` elements also carry explicit `content-type`
+and `version` attributes matching the advertised `text/vcard` 4.0 support. It
+remains gated on broader vCard compatibility and native-client tests. The
+handler is deliberately experimental and does not yet make CardDAV
 public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
@@ -2399,7 +2401,9 @@ The platform hardening sprint completed the following:
   structural BEGIN/VERSION/END lines present while omitting unrequested contact
   properties. REPORT parsing also rejects unsupported requested address-data
   `content-type` or `version` values so the handler stays aligned with the
-  advertised supported vCard data type. The repository can
+  advertised supported vCard data type. Returned `address-data` elements carry
+  explicit `content-type="text/vcard"` and `version="4.0"` attributes. The
+  repository can
   list address-book changes since a stored sync token and rejects missing or
   unsafe sync tokens before SQL work. This still does not advertise public
   native-client compatibility because broader vCard compatibility and client

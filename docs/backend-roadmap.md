@@ -2367,6 +2367,10 @@ Implementation order:
       `content-type` and `version` attributes against the advertised supported
       `text/vcard` 4.0 data type, rejecting unsupported formats before handler
       execution.
+1115. CardDAV REPORT `address-data` responses now emit explicit
+      `content-type="text/vcard"` and `version="4.0"` attributes, keeping
+      returned contact data aligned with the advertised supported address-data
+      type.
 
 ## Deferred until backend contracts stabilize
 

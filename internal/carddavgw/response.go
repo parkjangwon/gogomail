@@ -379,6 +379,12 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 		return err
 	}
 	start := xml.StartElement{Name: xml.Name{Local: name}}
+	if prop.Name == PropAddressData {
+		start.Attr = append(start.Attr,
+			xml.Attr{Name: xml.Name{Local: "content-type"}, Value: "text/vcard"},
+			xml.Attr{Name: xml.Name{Local: "version"}, Value: "4.0"},
+		)
+	}
 	if err := enc.EncodeToken(start); err != nil {
 		return err
 	}
