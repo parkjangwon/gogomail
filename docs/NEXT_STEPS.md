@@ -72,6 +72,9 @@ Current state:
   UTF-7 mailbox names before authentication failures, while well-formed
   unauthenticated appends still consume the RFC literal and return
   `NO authentication required` before backend storage.
+- `ENABLE` validates missing capability arguments before authentication
+  failures, while well-formed unauthenticated enable attempts still return
+  `NO authentication required` without mutating session feature state.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
