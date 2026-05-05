@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP mailbox spacing preservation)
+Last updated: 2026-05-05 (updated after IMAP UID-set star handling)
 
 ## Current phase
 
@@ -207,6 +207,10 @@ guidance.
 - IMAP mailbox wire-name formatting now preserves ordinary internal spacing
   while still collapsing control-character runs, preventing `LIST`, `LSUB`, and
   `STATUS` responses from changing distinct user-visible mailbox names.
+- IMAP UID `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` commands now resolve
+  `*` UID sequence ranges against selected-mailbox UIDs, so common client
+  requests such as `UID FETCH 1:*` include the last visible UID without
+  expanding through non-existent UID gaps.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

@@ -2696,7 +2696,11 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSetForState(fields[3], state)
+	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
+		return false, writeErr
+	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
 		return false, err
@@ -2714,7 +2718,11 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSetForState(fields[3], state)
+	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID COPY failed\r\n")
+		return false, writeErr
+	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
 		return false, err
@@ -2732,7 +2740,11 @@ func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSetForState(fields[3], state)
+	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID MOVE failed\r\n")
+		return false, writeErr
+	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 		return false, err
@@ -2749,7 +2761,11 @@ func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []str
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSetForState(fields[3], state)
+	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID EXPUNGE failed\r\n")
+		return false, writeErr
+	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires a positive UID set\r\n")
 		return false, err
@@ -3608,6 +3624,104 @@ func parseIMAPUIDSetForState(value string, state *imapConnState) ([]UID, bool) {
 		return parseIMAPUIDSet(value)
 	}
 	uids := imapSavedSearchUIDs(state)
+	return uids, true
+}
+
+type imapUIDRange struct {
+	start UID
+	end   UID
+}
+
+func (s *Server) uidsForUIDSet(ctx context.Context, state *imapConnState, value string) ([]UID, bool, error) {
+	if strings.TrimSpace(value) == "$" {
+		uids := imapSavedSearchUIDs(state)
+		return uids, true, nil
+	}
+	if !strings.Contains(value, "*") || s == nil || s.options.Backend == nil || state == nil || state.session == nil || state.selectedMailbox == "" {
+		uids, ok := parseIMAPUIDSet(value)
+		return uids, ok, nil
+	}
+	messages, err := s.options.Backend.ListMessages(ctx, ListMessagesRequest{
+		UserID:    state.session.UserID,
+		MailboxID: state.selectedMailbox,
+		Limit:     int(state.selectedMessages),
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	var maxUID UID
+	for _, message := range messages {
+		if message.UID > maxUID {
+			maxUID = message.UID
+		}
+	}
+	ranges, ok := parseIMAPUIDSetRanges(value, maxUID)
+	if !ok {
+		return nil, false, nil
+	}
+	uids, ok := imapUIDsMatchingRanges(messages, ranges)
+	return uids, ok, nil
+}
+
+func parseIMAPUIDSetRanges(value string, maxUID UID) ([]imapUIDRange, bool) {
+	ranges := make([]imapUIDRange, 0, 1)
+	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
+		part := strings.TrimSpace(rawPart)
+		if part == "" {
+			return nil, false
+		}
+		startText, endText, hasRange := strings.Cut(part, ":")
+		start, ok := parseIMAPUIDSetRangeNumber(startText, maxUID)
+		if !ok {
+			return nil, false
+		}
+		end := start
+		if hasRange {
+			end, ok = parseIMAPUIDSetRangeNumber(endText, maxUID)
+			if !ok {
+				return nil, false
+			}
+		}
+		if start > end {
+			start, end = end, start
+		}
+		ranges = append(ranges, imapUIDRange{start: start, end: end})
+	}
+	return ranges, len(ranges) > 0
+}
+
+func parseIMAPUIDSetRangeNumber(value string, maxUID UID) (UID, bool) {
+	value = strings.TrimSpace(value)
+	if value == "*" {
+		return maxUID, true
+	}
+	return parseIMAPUIDSetNumber(value)
+}
+
+func imapUIDsMatchingRanges(messages []MessageSummary, ranges []imapUIDRange) ([]UID, bool) {
+	const maxUIDSetItems = 500
+
+	seen := make(map[UID]struct{})
+	uids := make([]UID, 0, len(messages))
+	for _, message := range messages {
+		if message.UID == 0 {
+			continue
+		}
+		for _, uidRange := range ranges {
+			if message.UID < uidRange.start || message.UID > uidRange.end {
+				continue
+			}
+			if _, ok := seen[message.UID]; ok {
+				break
+			}
+			seen[message.UID] = struct{}{}
+			uids = append(uids, message.UID)
+			if len(uids) > maxUIDSetItems {
+				return nil, false
+			}
+			break
+		}
+	}
 	return uids, true
 }
 
@@ -5005,7 +5119,11 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
 		return false, err
 	}
-	uids, ok := parseIMAPUIDSetForState(fields[3], state)
+	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO UID STORE failed\r\n")
+		return false, writeErr
+	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
 		return false, err

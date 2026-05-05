@@ -88,6 +88,10 @@ Current state:
 - IMAP mailbox wire-name formatting preserves ordinary internal spacing while
   still collapsing control-character runs, preventing folder list/status
   responses from changing distinct user-visible mailbox names.
+- IMAP UID `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` commands resolve
+  `*` UID sequence ranges against selected-mailbox UIDs, so common client
+  requests such as `UID FETCH 1:*` include the last visible UID without
+  expanding through non-existent UID gaps.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in
