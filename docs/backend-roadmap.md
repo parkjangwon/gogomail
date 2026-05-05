@@ -885,6 +885,9 @@ Implementation order:
 720. IMAP `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
      `BODY.PEEK[HEADER.FIELDS (...)]`, returning bounded header literals with
      only the requested fields and continuations.
+721. IMAP `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
+     `BODY.PEEK[HEADER.FIELDS.NOT (...)]`, returning bounded header literals
+     with requested fields excluded.
 
 ## Deferred until backend contracts stabilize
 
