@@ -205,6 +205,9 @@ Current state:
   Submission/local-password authentication boundary into `imapgw.Session`
   values, giving the future listener a protocol-native authenticator without
   coupling IMAP to JWT middleware.
+- `mailservice.NewIMAPBackendAdapter` composes the protocol authenticator with
+  the service-backed store/session adapter, so the future TCP listener can take
+  one `imapgw.Backend` boundary.
 
 Next:
 

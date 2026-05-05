@@ -685,6 +685,26 @@ func TestIMAPAuthenticatorAdapterRejectsUnsafeCredentials(t *testing.T) {
 	}
 }
 
+func TestIMAPBackendAdapterComposesAuthenticatorAndSessionStore(t *testing.T) {
+	t.Parallel()
+
+	auth := &fakeSubmissionAuthenticator{user: smtpd.SubmissionUser{UserID: "user-1", DomainID: "domain-1", Address: "user@example.com"}}
+	service := New(&fakeRepository{imapMailboxes: []imapgw.Mailbox{{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}}}, nil)
+	backend := NewIMAPBackendAdapter(auth, service)
+
+	session, err := backend.Authenticate(context.Background(), "user@example.com", "secret")
+	if err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	state, err := backend.SelectMailbox(context.Background(), imapgw.SelectMailboxRequest{UserID: session.UserID, MailboxID: "inbox"})
+	if err != nil {
+		t.Fatalf("SelectMailbox returned error: %v", err)
+	}
+	if session.UserID != "user-1" || state.ID != "inbox" || state.UIDValidity != 1 {
+		t.Fatalf("session/state = %#v/%#v", session, state)
+	}
+}
+
 func TestBackfillIMAPMailboxUIDsDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
