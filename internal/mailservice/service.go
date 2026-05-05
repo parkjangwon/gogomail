@@ -42,8 +42,9 @@ type Repository interface {
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
 	BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDeleteRequest) (maildb.BulkThreadDeleteResult, error)
 	RestoreMessage(ctx context.Context, userID string, messageID string) error
-	BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (int64, error)
+	BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (maildb.BulkMessageRestoreResult, error)
 	BulkRestoreThreads(ctx context.Context, req maildb.BulkThreadRestoreRequest) (maildb.BulkThreadRestoreResult, error)
+	EnsureIMAPMessageUIDsForMessages(ctx context.Context, userID string, messageIDs []string) ([]maildb.IMAPMessageUID, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
 	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
 	DeletePushDevice(ctx context.Context, userID string, id string) error
@@ -1066,6 +1067,17 @@ func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.Mai
 	return nil
 }
 
+func (s *Service) publishIMAPRestoredMessageEvents(ctx context.Context, userID string, messageIDs []string) error {
+	if s.imapEvents == nil || len(messageIDs) == 0 {
+		return nil
+	}
+	uids, err := s.repository.EnsureIMAPMessageUIDsForMessages(ctx, userID, messageIDs)
+	if err != nil {
+		return err
+	}
+	return s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExists, userID, uids)
+}
+
 func imapUIDEventSequenceNumber(eventType imapgw.MailboxEventType, uid maildb.IMAPMessageUID) uint32 {
 	if eventType == imapgw.MailboxEventExpunge {
 		return uid.SequenceNumber
@@ -1277,7 +1289,11 @@ func (s *Service) RestoreMessage(ctx context.Context, userID string, messageID s
 	if err := validateServiceResourceID("message_id", messageID); err != nil {
 		return err
 	}
-	return s.repository.RestoreMessage(ctx, userID, messageID)
+	if err := s.repository.RestoreMessage(ctx, userID, messageID); err != nil {
+		return err
+	}
+	_ = s.publishIMAPRestoredMessageEvents(ctx, userID, []string{messageID})
+	return nil
 }
 
 func (s *Service) BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (int64, error) {
@@ -1285,7 +1301,12 @@ func (s *Service) BulkRestoreMessages(ctx context.Context, req maildb.BulkMessag
 	if err := maildb.ValidateBulkMessageRestoreRequest(req); err != nil {
 		return 0, err
 	}
-	return s.repository.BulkRestoreMessages(ctx, req)
+	result, err := s.repository.BulkRestoreMessages(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	_ = s.publishIMAPRestoredMessageEvents(ctx, req.UserID, result.MessageIDs)
+	return result.Updated, nil
 }
 
 func (s *Service) BulkRestoreThreads(ctx context.Context, req maildb.BulkThreadRestoreRequest) (int64, error) {
@@ -1297,6 +1318,7 @@ func (s *Service) BulkRestoreThreads(ctx context.Context, req maildb.BulkThreadR
 	if err != nil {
 		return 0, err
 	}
+	_ = s.publishIMAPRestoredMessageEvents(ctx, req.UserID, result.MessageIDs)
 	return result.Updated, nil
 }
 

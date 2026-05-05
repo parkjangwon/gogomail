@@ -1730,6 +1730,9 @@ Implementation order:
 963. Mail API now exposes bounded thread-level restore for soft-deleted
      conversations, giving production webmail clients a quota-protected
      conversation recovery primitive alongside thread delete/move/flag actions.
+964. Mail API restore flows now bridge back into IMAP by best-effort assigning
+     UIDs to restored active messages and publishing IMAP `EXISTS` events,
+     improving live client compatibility after webmail recovery actions.
 
 ## Deferred until backend contracts stabilize
 

@@ -1759,8 +1759,11 @@ func TestDeleteMessagePublishesIMAPExpungeEvent(t *testing.T) {
 func TestRestoreMessageDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
-	repo := &fakeRepository{}
-	service := New(repo, nil)
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		ensuredIMAPUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 44, SequenceNumber: 3, ModSeq: 9}},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	if err := service.RestoreMessage(context.Background(), " user-1 ", " msg-1 "); err != nil {
 		t.Fatalf("RestoreMessage returned error: %v", err)
@@ -1768,13 +1771,26 @@ func TestRestoreMessageDelegatesToRepository(t *testing.T) {
 	if repo.lastMutationUserID != "user-1" || repo.lastRestoreMessageID != "msg-1" {
 		t.Fatalf("restore mutation = %q/%q", repo.lastMutationUserID, repo.lastRestoreMessageID)
 	}
+	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 1 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" {
+		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 {
+		t.Fatalf("events = %#v, want exists event", events.events)
+	}
 }
 
 func TestBulkRestoreMessagesNormalizesRequest(t *testing.T) {
 	t.Parallel()
 
-	repo := &fakeRepository{}
-	service := New(repo, nil)
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		bulkRestoreResult: maildb.BulkMessageRestoreResult{Updated: 2, MessageIDs: []string{"msg-1", "msg-2"}},
+		ensuredIMAPUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 44, SequenceNumber: 3, ModSeq: 9},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 45, SequenceNumber: 4, ModSeq: 10},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	updated, err := service.BulkRestoreMessages(context.Background(), maildb.BulkMessageRestoreRequest{
 		UserID:     " user-1 ",
@@ -1789,15 +1805,26 @@ func TestBulkRestoreMessagesNormalizesRequest(t *testing.T) {
 	if repo.lastBulkRestore.UserID != "user-1" || len(repo.lastBulkRestore.MessageIDs) != 2 || repo.lastBulkRestore.MessageIDs[0] != "msg-1" || repo.lastBulkRestore.MessageIDs[1] != "msg-2" {
 		t.Fatalf("bulk restore request = %#v", repo.lastBulkRestore)
 	}
+	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 2 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" || repo.lastEnsureIMAPUIDMessageIDs[1] != "msg-2" {
+		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
+	}
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[1].UID != 45 {
+		t.Fatalf("events = %#v, want exists events", events.events)
+	}
 }
 
 func TestBulkRestoreThreadsNormalizesRequest(t *testing.T) {
 	t.Parallel()
 
+	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
 		bulkThreadRestoreResult: maildb.BulkThreadRestoreResult{Updated: 2, MessageIDs: []string{"msg-1", "msg-2"}},
+		ensuredIMAPUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 44, SequenceNumber: 3, ModSeq: 9},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 45, SequenceNumber: 4, ModSeq: 10},
+		},
 	}
-	service := New(repo, nil)
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	updated, err := service.BulkRestoreThreads(context.Background(), maildb.BulkThreadRestoreRequest{
 		UserID:    " user-1 ",
@@ -1811,6 +1838,12 @@ func TestBulkRestoreThreadsNormalizesRequest(t *testing.T) {
 	}
 	if repo.lastBulkThreadRestore.UserID != "user-1" || len(repo.lastBulkThreadRestore.ThreadIDs) != 2 || repo.lastBulkThreadRestore.ThreadIDs[0] != "thread-1" || repo.lastBulkThreadRestore.ThreadIDs[1] != "thread-2" {
 		t.Fatalf("bulk thread restore request = %#v", repo.lastBulkThreadRestore)
+	}
+	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 2 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" || repo.lastEnsureIMAPUIDMessageIDs[1] != "msg-2" {
+		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
+	}
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[1].UID != 45 {
+		t.Fatalf("events = %#v, want exists events", events.events)
 	}
 }
 
@@ -2237,12 +2270,14 @@ type fakeRepository struct {
 	imapSubscription               imapgw.MailboxSubscription
 	imapMessages                   []imapgw.MessageSummary
 	backfilledIMAPUIDs             []maildb.IMAPMessageUID
+	ensuredIMAPUIDs                []maildb.IMAPMessageUID
 	attachments                    []maildb.Attachment
 	list                           []maildb.MessageSummary
 	draftSearchResults             []maildb.MessageDetail
 	bulkThreadFlagResult           maildb.BulkThreadFlagResult
 	bulkThreadMoveResult           maildb.BulkThreadMoveResult
 	bulkThreadDeleteResult         maildb.BulkThreadDeleteResult
+	bulkRestoreResult              maildb.BulkMessageRestoreResult
 	bulkThreadRestoreResult        maildb.BulkThreadRestoreResult
 	threadMessageIDs               []string
 	messagesByID                   []maildb.MessageSummary
@@ -2361,6 +2396,8 @@ type fakeRepository struct {
 	lastIMAPExpungeUIDs            []imapgw.UID
 	lastIMAPUIDLookupUserID        string
 	lastIMAPUIDLookupMessageIDs    []string
+	lastEnsureIMAPUIDUserID        string
+	lastEnsureIMAPUIDMessageIDs    []string
 	lastIMAPMailboxUserID          string
 	lastIMAPMessageUserID          string
 	lastIMAPMessageMailboxID       string
@@ -2659,9 +2696,12 @@ func (f *fakeRepository) RestoreMessage(_ context.Context, userID string, messag
 	return nil
 }
 
-func (f *fakeRepository) BulkRestoreMessages(_ context.Context, req maildb.BulkMessageRestoreRequest) (int64, error) {
+func (f *fakeRepository) BulkRestoreMessages(_ context.Context, req maildb.BulkMessageRestoreRequest) (maildb.BulkMessageRestoreResult, error) {
 	f.lastBulkRestore = req
-	return int64(len(req.MessageIDs)), nil
+	if f.bulkRestoreResult.Updated != 0 || len(f.bulkRestoreResult.MessageIDs) > 0 {
+		return f.bulkRestoreResult, nil
+	}
+	return maildb.BulkMessageRestoreResult{Updated: int64(len(req.MessageIDs)), MessageIDs: append([]string(nil), req.MessageIDs...)}, nil
 }
 
 func (f *fakeRepository) BulkRestoreThreads(_ context.Context, req maildb.BulkThreadRestoreRequest) (maildb.BulkThreadRestoreResult, error) {
@@ -2670,6 +2710,12 @@ func (f *fakeRepository) BulkRestoreThreads(_ context.Context, req maildb.BulkTh
 		return f.bulkThreadRestoreResult, nil
 	}
 	return maildb.BulkThreadRestoreResult{Updated: int64(len(req.ThreadIDs)), MessageIDs: []string{"msg-thread"}}, nil
+}
+
+func (f *fakeRepository) EnsureIMAPMessageUIDsForMessages(_ context.Context, userID string, messageIDs []string) ([]maildb.IMAPMessageUID, error) {
+	f.lastEnsureIMAPUIDUserID = userID
+	f.lastEnsureIMAPUIDMessageIDs = append([]string(nil), messageIDs...)
+	return f.ensuredIMAPUIDs, nil
 }
 
 func (f *fakeRepository) ListPushDevices(_ context.Context, userID string, limit int) ([]maildb.PushDevice, error) {

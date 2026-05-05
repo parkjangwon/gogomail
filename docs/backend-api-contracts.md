@@ -249,7 +249,10 @@ conversations, invalidate affected IMAP UID rows, decrement stored-byte quota in
 the same transaction, and publish best-effort IMAP expunge events from the
 pre-delete UID snapshot. Message restores flip soft-deleted messages back to
 `active`, clear `deleted_at`, and re-check/re-increment the hierarchical quota
-ledger in the same transaction so recovery cannot bypass storage limits.
+ledger in the same transaction so recovery cannot bypass storage limits. After
+successful restore, the service best-effort assigns IMAP UIDs for restored
+active messages and publishes IMAP `EXISTS` events so selected clients can
+discover recovered mail without waiting for a manual UID backfill run.
 Thread restores apply the same quota-protected reactivation across every
 soft-deleted message in selected conversations.
 
