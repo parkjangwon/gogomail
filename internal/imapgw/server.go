@@ -3676,9 +3676,9 @@ func (s *Server) markFetchSeen(ctx context.Context, state *imapConnState, summar
 	return summary, nil
 }
 
-func parseIMAPUIDSet(value string) ([]UID, bool) {
-	const maxUIDSetItems = 500
+const maxIMAPExpandedSetItems = 10000
 
+func parseIMAPUIDSet(value string) ([]UID, bool) {
 	seen := make(map[UID]struct{})
 	uids := make([]UID, 0, 1)
 	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
@@ -3707,7 +3707,7 @@ func parseIMAPUIDSet(value string) ([]UID, bool) {
 			}
 			seen[uid] = struct{}{}
 			uids = append(uids, uid)
-			if len(uids) > maxUIDSetItems {
+			if len(uids) > maxIMAPExpandedSetItems {
 				return nil, false
 			}
 			if uid == UID(^uint32(0)) {
@@ -3798,8 +3798,6 @@ func parseIMAPUIDSetRangeNumber(value string, maxUID UID) (UID, bool) {
 }
 
 func imapUIDsMatchingRanges(messages []MessageSummary, ranges []imapUIDRange) ([]UID, bool) {
-	const maxUIDSetItems = 500
-
 	seen := make(map[UID]struct{})
 	uids := make([]UID, 0, len(messages))
 	for _, message := range messages {
@@ -3812,7 +3810,7 @@ func imapUIDsMatchingRanges(messages []MessageSummary, ranges []imapUIDRange) ([
 			}
 			seen[message.UID] = struct{}{}
 			uids = append(uids, message.UID)
-			if len(uids) > maxUIDSetItems {
+			if len(uids) > maxIMAPExpandedSetItems {
 				return nil, false
 			}
 		}
@@ -3906,8 +3904,6 @@ func imapSavedSearchSequenceNumbers(state *imapConnState, maxSequence uint32) []
 }
 
 func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([]UID, bool) {
-	const maxSetItems = 500
-
 	seen := make(map[UID]struct{})
 	values := make([]UID, 0, 1)
 	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
@@ -3936,7 +3932,7 @@ func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([
 			}
 			seen[value] = struct{}{}
 			values = append(values, value)
-			if len(values) > maxSetItems {
+			if len(values) > maxIMAPExpandedSetItems {
 				return nil, false
 			}
 			if value == UID(maxValue) {
