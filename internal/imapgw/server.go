@@ -635,6 +635,8 @@ func imapSearchResults(criteria []string, messages []MessageSummary, uidMode boo
 				return nil, false
 			}
 			return imapSearchDateResults(messages, uidMode, strings.ToUpper(criteria[0]), day), true
+		case "FROM", "SUBJECT":
+			return imapSearchTextResults(messages, uidMode, strings.ToUpper(criteria[0]), criteria[1]), true
 		}
 	}
 	return nil, false
@@ -735,6 +737,47 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return day, true
+}
+
+func imapSearchTextResults(messages []MessageSummary, uidMode bool, criterion string, query string) []uint32 {
+	query = strings.ToLower(strings.Trim(query, `"`))
+	results := make([]uint32, 0, len(messages))
+	for i, summary := range messages {
+		if !imapMessageMatchesTextSearch(summary, criterion, query) {
+			continue
+		}
+		if uidMode {
+			results = append(results, uint32(summary.UID))
+			continue
+		}
+		sequenceNumber := summary.SequenceNumber
+		if sequenceNumber == 0 {
+			sequenceNumber = uint32(i + 1)
+		}
+		results = append(results, sequenceNumber)
+	}
+	return results
+}
+
+func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, query string) bool {
+	if query == "" {
+		return false
+	}
+	switch criterion {
+	case "SUBJECT":
+		return strings.Contains(strings.ToLower(summary.Envelope.Subject), query)
+	case "FROM":
+		for _, address := range summary.Envelope.From {
+			if strings.Contains(strings.ToLower(address.Name), query) ||
+				strings.Contains(strings.ToLower(address.Mailbox), query) ||
+				strings.Contains(strings.ToLower(address.Host), query) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
 }
 
 func imapSearchResultSuffix(results []uint32) string {
