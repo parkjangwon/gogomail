@@ -4467,6 +4467,7 @@ components:
         - compose
         - search
         - attachments
+        - drive
         - push_notifications
       properties:
         contract_version:
@@ -4578,6 +4579,48 @@ components:
               maximum: 1024
         attachments:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
+        drive:
+          type: object
+          required: [nodes, node_detail, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          properties:
+            nodes:
+              type: boolean
+            node_detail:
+              type: boolean
+            create_folders:
+              type: boolean
+            rename_nodes:
+              type: boolean
+            move_nodes:
+              type: boolean
+            trash_restore:
+              type: boolean
+            permanent_delete:
+              type: boolean
+            upload_sessions:
+              type: boolean
+            upload_session_body:
+              type: boolean
+            upload_session_checksum:
+              type: boolean
+            finalize_upload_sessions:
+              type: boolean
+            cancel_upload_sessions:
+              type: boolean
+            resumable_chunked_uploads:
+              type: boolean
+            max_upload_session_bytes:
+              type: integer
+              format: int64
+              maximum: 5368709120
+            max_session_ttl_seconds:
+              type: integer
+              format: int64
+              maximum: 604800
+            default_session_ttl_seconds:
+              type: integer
+              format: int64
+              maximum: 86400
         push_notifications:
           type: object
           required: [devices, platforms]

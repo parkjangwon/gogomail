@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
@@ -366,6 +367,9 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	}
 	if !got.Attachments.UploadSessions || got.Attachments.MaxAttachmentBytes != mailservice.MaxAttachmentUploadBytes {
 		t.Fatalf("attachment caps = %#v", got.Attachments)
+	}
+	if !got.Drive.UploadSessions || !got.Drive.FinalizeUploadSessions || got.Drive.MaxUploadSessionBytes != drive.MaxUploadSessionBytes {
+		t.Fatalf("drive caps = %#v", got.Drive)
 	}
 	if service.lastUserID != "" {
 		t.Fatalf("capability read should not dispatch service calls, lastUserID = %q", service.lastUserID)

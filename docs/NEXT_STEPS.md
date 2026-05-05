@@ -397,6 +397,9 @@ Current state:
 - Mail API now exposes `POST /api/v1/drive/upload-sessions/{id}/finalize`,
   completing the create/read/cancel/body/finalize Drive upload-session API
   flow for full-body uploads.
+- Webmail capabilities now advertise Drive node operations, upload-session
+  create/read/cancel/body/finalize support, checksum preconditions, and Drive
+  upload size/TTL limits for production client bootstrap.
 
 Next:
 

@@ -144,8 +144,8 @@ surface for future production webmail clients. It returns
 `{"webmail_capabilities":{...}}` with the backend contract version, available
 mail and Drive module markers, list pagination cap, supported message flags,
 bulk-action max item count, folder/thread/draft support, compose limits and
-intents, search controls, attachment upload capabilities, and push-device
-platforms.
+intents, search controls, attachment upload capabilities, Drive node/upload
+session capabilities and limits, and push-device platforms.
 
 Clients should use this endpoint to enable controls and validate local form
 limits instead of copying backend constants into the frontend. The route is a
@@ -205,9 +205,9 @@ or development `user_id` fallback path as webmail mail routes:
   releases quota through the Drive service, attempts backend object cleanup,
   records cleanup drift when needed, and returns `{"drive_delete":{...}}`.
 
-Drive resumable/session routes remain intentionally separate future contracts
-so quota reservation, chunking behavior, retries, and frontend upload ergonomics
-can be documented precisely before exposure.
+Drive chunked/resumable transfer routes remain intentionally separate future
+contracts so chunk ordering, retry windows, and frontend upload ergonomics can
+be documented precisely before exposure.
 
 `GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap
 surface for future production operator consoles. It returns

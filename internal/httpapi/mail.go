@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
@@ -113,6 +114,7 @@ type webmailCapabilities struct {
 	Compose               webmailComposeCapabilities    `json:"compose"`
 	Search                webmailSearchCapabilities     `json:"search"`
 	Attachments           webmailAttachmentCapabilities `json:"attachments"`
+	Drive                 webmailDriveCapabilities      `json:"drive"`
 	PushNotifications     webmailPushCapabilities       `json:"push_notifications"`
 }
 
@@ -169,6 +171,25 @@ type webmailAttachmentCapabilities struct {
 	QuotaReservedOnMetadata bool  `json:"quota_reserved_on_metadata"`
 	RequiresDeclaredSize    bool  `json:"requires_declared_size"`
 	MaxSessionTTLSeconds    int64 `json:"max_session_ttl_seconds"`
+}
+
+type webmailDriveCapabilities struct {
+	Nodes                    bool  `json:"nodes"`
+	NodeDetail               bool  `json:"node_detail"`
+	CreateFolders            bool  `json:"create_folders"`
+	RenameNodes              bool  `json:"rename_nodes"`
+	MoveNodes                bool  `json:"move_nodes"`
+	TrashRestore             bool  `json:"trash_restore"`
+	PermanentDelete          bool  `json:"permanent_delete"`
+	UploadSessions           bool  `json:"upload_sessions"`
+	UploadSessionBody        bool  `json:"upload_session_body"`
+	UploadSessionChecksum    bool  `json:"upload_session_checksum"`
+	FinalizeUploadSessions   bool  `json:"finalize_upload_sessions"`
+	CancelUploadSessions     bool  `json:"cancel_upload_sessions"`
+	ResumableChunkedUploads  bool  `json:"resumable_chunked_uploads"`
+	MaxUploadSessionBytes    int64 `json:"max_upload_session_bytes"`
+	MaxSessionTTLSeconds     int64 `json:"max_session_ttl_seconds"`
+	DefaultSessionTTLSeconds int64 `json:"default_session_ttl_seconds"`
 }
 
 type webmailPushCapabilities struct {
@@ -250,6 +271,24 @@ func currentWebmailCapabilities() webmailCapabilities {
 			QuotaReservedOnMetadata: true,
 			RequiresDeclaredSize:    true,
 			MaxSessionTTLSeconds:    int64(mailservice.MaxAttachmentUploadSessionTTL.Seconds()),
+		},
+		Drive: webmailDriveCapabilities{
+			Nodes:                    true,
+			NodeDetail:               true,
+			CreateFolders:            true,
+			RenameNodes:              true,
+			MoveNodes:                true,
+			TrashRestore:             true,
+			PermanentDelete:          true,
+			UploadSessions:           true,
+			UploadSessionBody:        true,
+			UploadSessionChecksum:    true,
+			FinalizeUploadSessions:   true,
+			CancelUploadSessions:     true,
+			ResumableChunkedUploads:  false,
+			MaxUploadSessionBytes:    drive.MaxUploadSessionBytes,
+			MaxSessionTTLSeconds:     int64(drive.MaxUploadSessionTTL.Seconds()),
+			DefaultSessionTTLSeconds: int64(drive.DefaultUploadSessionTTL.Seconds()),
 		},
 		PushNotifications: webmailPushCapabilities{
 			Devices:   true,

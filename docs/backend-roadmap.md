@@ -1861,6 +1861,10 @@ Implementation order:
 996. Mail API now exposes `POST /api/v1/drive/upload-sessions/{id}/finalize`,
      completing the production-facing full-body Drive upload-session path from
      session creation through body storage into quota-accounted file metadata.
+997. Webmail capabilities now advertise Drive node operations, Drive
+     upload-session create/read/cancel/body/finalize support, checksum
+     preconditions, and Drive upload size/TTL limits so production clients can
+     bootstrap Drive controls without copying backend constants.
 
 ## Deferred until backend contracts stabilize
 

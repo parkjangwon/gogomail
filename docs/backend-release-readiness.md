@@ -103,6 +103,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session finalization is now exposed through a Mail API route,
   completing a production-facing full-body upload path from session creation to
   quota-accounted Drive file metadata.
+- Webmail capabilities now expose Drive node/upload-session availability and
+  Drive upload size/TTL limits, giving production clients a single bootstrap
+  contract for mail, attachment, push, and Drive feature gating.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.
