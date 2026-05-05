@@ -21,6 +21,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func TestListMessagesHandler(t *testing.T) {
@@ -2523,6 +2524,45 @@ func TestDownloadAttachmentHandler(t *testing.T) {
 	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("X-Content-Type-Options = %q", got)
 	}
+	if got := rec.Header().Get("Content-Length"); got != "7" {
+		t.Fatalf("Content-Length = %q", got)
+	}
+}
+
+func TestHeadDownloadAttachmentHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		attachmentMetadata: mailservice.AttachmentMetadata{
+			Attachment: maildb.Attachment{ID: "att-1", Filename: "report.pdf", MIMEType: "application/pdf", Size: 1},
+			Object:     storage.ObjectInfo{Path: "attachments/att-1", Size: 7},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodHead, "/api/v1/messages/msg-1/attachments/att-1/download?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" || service.lastMessageID != "msg-1" || service.lastAttachmentID != "att-1" {
+		t.Fatalf("stat request = user %q message %q attachment %q", service.lastUserID, service.lastMessageID, service.lastAttachmentID)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("HEAD body length = %d, want 0", rec.Body.Len())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/pdf" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `filename="report.pdf"`) {
+		t.Fatalf("Content-Disposition = %q", got)
+	}
+	if got := rec.Header().Get("Content-Length"); got != "7" {
+		t.Fatalf("Content-Length = %q", got)
+	}
 }
 
 func TestDownloadAttachmentHandlerUsesUTF8FilenameParameter(t *testing.T) {
@@ -2992,12 +3032,14 @@ type fakeMessageService struct {
 	attachments                 []maildb.Attachment
 	pushDevices                 []maildb.PushDevice
 	download                    mailservice.AttachmentDownload
+	attachmentMetadata          mailservice.AttachmentMetadata
 	detail                      maildb.MessageDetail
 	sendResult                  mailservice.SendTextResult
 	deliveryStatus              maildb.MessageDeliveryStatusView
 	lastSend                    mailservice.SendTextRequest
 	lastDraft                   mailservice.SaveDraftRequest
 	lastAttachmentUpload        mailservice.CreateAttachmentUploadRequest
+	lastAttachmentID            string
 	lastUploadSession           mailservice.CreateAttachmentUploadSessionRequest
 	lastCancelAttachmentID      string
 	lastCancelUploadSessionID   string
@@ -3300,12 +3342,29 @@ func (f *fakeMessageService) ListAttachments(_ context.Context, userID string, m
 func (f *fakeMessageService) OpenAttachment(_ context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error) {
 	f.lastUserID = userID
 	f.lastMessageID = messageID
+	f.lastAttachmentID = attachmentID
 	if f.download.Body != nil {
 		return f.download, nil
 	}
 	return mailservice.AttachmentDownload{
 		Attachment: maildb.Attachment{ID: attachmentID, Filename: "report.pdf", MIMEType: "application/pdf", Size: 7},
 		Body:       io.NopCloser(strings.NewReader("content")),
+	}, nil
+}
+
+func (f *fakeMessageService) StatAttachment(_ context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentMetadata, error) {
+	f.lastUserID = userID
+	f.lastMessageID = messageID
+	f.lastAttachmentID = attachmentID
+	if f.attachmentErr != nil {
+		return mailservice.AttachmentMetadata{}, f.attachmentErr
+	}
+	if f.attachmentMetadata.Attachment.ID != "" {
+		return f.attachmentMetadata, nil
+	}
+	return mailservice.AttachmentMetadata{
+		Attachment: maildb.Attachment{ID: attachmentID, Filename: "report.pdf", MIMEType: "application/pdf", Size: 7},
+		Object:     storage.ObjectInfo{Path: "attachments/att-1", Size: 7},
 	}, nil
 }
 

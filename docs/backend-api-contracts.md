@@ -539,9 +539,13 @@ Attachment downloads set private `no-store` responses and include both a safe
 ASCII `filename` fallback and a UTF-8 `filename*` parameter in
 `Content-Disposition` so internationalized filenames survive browser downloads
 without permitting header injection. Unsafe or blank stored attachment MIME
-types fall back to `application/octet-stream` at the download boundary. The
-OpenAPI contract documents the binary media type plus `Content-Disposition` and
-`Cache-Control` response headers for generated clients.
+types fall back to `application/octet-stream` at the download boundary.
+`HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download` validates the
+same message, attachment, and stored-object boundary as `GET`, returning
+`Content-Type`, `Content-Disposition`, object-backed `Content-Length`,
+`Cache-Control: no-store`, and `X-Content-Type-Options: nosniff` without
+streaming a response body. The OpenAPI contract documents the binary media type
+plus defensive download headers for generated clients.
 
 API usage artifact downloads apply the same defensive response-header stance:
 unsafe or blank stored content types fall back to `application/x-ndjson`, and

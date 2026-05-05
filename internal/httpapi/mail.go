@@ -84,6 +84,7 @@ type MessageService interface {
 	FinalizeAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.Attachment, error)
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentDownload, error)
+	StatAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentMetadata, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
 }
@@ -1558,15 +1559,33 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		defer download.Body.Close()
 
-		w.Header().Set("Content-Type", attachmentContentType(download.Attachment.MIMEType))
-		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Attachment.Filename))
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if download.Attachment.Size > 0 {
-			w.Header().Set("Content-Length", strconv.FormatInt(download.Attachment.Size, 10))
-		}
+		writeAttachmentDownloadHeaders(w, download.Attachment)
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, download.Body)
+	})
+
+	mux.HandleFunc("HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		messageID, attachmentID, ok := parseBoundedHTTPPathPair(w, r, "id", "attachment_id")
+		if !ok {
+			return
+		}
+		metadata, err := service.StatAttachment(r.Context(), userID, messageID, attachmentID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeAttachmentDownloadHeaders(w, attachmentWithStatSize(metadata.Attachment, metadata.Object.Size))
+		w.WriteHeader(http.StatusOK)
 	})
 
 	mux.HandleFunc("GET /api/v1/push-devices", func(w http.ResponseWriter, r *http.Request) {
@@ -1995,6 +2014,21 @@ func contentDispositionAttachment(filename string) string {
 	utf8Name = truncateRunes(utf8Name, 180)
 	asciiName := asciiAttachmentFilename(utf8Name)
 	return `attachment; filename="` + asciiName + `"; filename*=UTF-8''` + url.PathEscape(utf8Name)
+}
+
+func writeAttachmentDownloadHeaders(w http.ResponseWriter, attachment maildb.Attachment) {
+	w.Header().Set("Content-Type", attachmentContentType(attachment.MIMEType))
+	w.Header().Set("Content-Disposition", contentDispositionAttachment(attachment.Filename))
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if attachment.Size >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(attachment.Size, 10))
+	}
+}
+
+func attachmentWithStatSize(attachment maildb.Attachment, size int64) maildb.Attachment {
+	attachment.Size = size
+	return attachment
 }
 
 func truncateRunes(value string, max int) string {

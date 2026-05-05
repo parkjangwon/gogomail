@@ -1912,24 +1912,16 @@ type AttachmentDownload struct {
 	Body       io.ReadCloser
 }
 
+type AttachmentMetadata struct {
+	Attachment maildb.Attachment
+	Object     storage.ObjectInfo
+}
+
 func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (AttachmentDownload, error) {
 	if s.store == nil {
 		return AttachmentDownload{}, fmt.Errorf("mail storage is required")
 	}
-	userID = strings.TrimSpace(userID)
-	messageID = strings.TrimSpace(messageID)
-	attachmentID = strings.TrimSpace(attachmentID)
-	if err := validateServiceResourceID("message_id", messageID); err != nil {
-		return AttachmentDownload{}, err
-	}
-	if err := validateServiceResourceID("attachment_id", attachmentID); err != nil {
-		return AttachmentDownload{}, err
-	}
-	attachment, err := s.repository.GetAttachment(ctx, userID, messageID, attachmentID)
-	if err != nil {
-		return AttachmentDownload{}, err
-	}
-	storagePath, err := requireStoredObjectPath("attachment body", attachment.StoragePath)
+	attachment, storagePath, err := s.attachmentObject(ctx, userID, messageID, attachmentID)
 	if err != nil {
 		return AttachmentDownload{}, err
 	}
@@ -1938,6 +1930,42 @@ func (s *Service) OpenAttachment(ctx context.Context, userID string, messageID s
 		return AttachmentDownload{}, fmt.Errorf("open attachment body: %w", err)
 	}
 	return AttachmentDownload{Attachment: attachment, Body: body}, nil
+}
+
+func (s *Service) StatAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (AttachmentMetadata, error) {
+	if s.store == nil {
+		return AttachmentMetadata{}, fmt.Errorf("mail storage is required")
+	}
+	attachment, storagePath, err := s.attachmentObject(ctx, userID, messageID, attachmentID)
+	if err != nil {
+		return AttachmentMetadata{}, err
+	}
+	info, err := s.store.Stat(ctx, storagePath)
+	if err != nil {
+		return AttachmentMetadata{}, fmt.Errorf("stat attachment body: %w", err)
+	}
+	return AttachmentMetadata{Attachment: attachment, Object: info}, nil
+}
+
+func (s *Service) attachmentObject(ctx context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, string, error) {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	attachmentID = strings.TrimSpace(attachmentID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return maildb.Attachment{}, "", err
+	}
+	if err := validateServiceResourceID("attachment_id", attachmentID); err != nil {
+		return maildb.Attachment{}, "", err
+	}
+	attachment, err := s.repository.GetAttachment(ctx, userID, messageID, attachmentID)
+	if err != nil {
+		return maildb.Attachment{}, "", err
+	}
+	storagePath, err := requireStoredObjectPath("attachment body", attachment.StoragePath)
+	if err != nil {
+		return maildb.Attachment{}, "", err
+	}
+	return attachment, storagePath, nil
 }
 
 func (s *Service) ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error) {

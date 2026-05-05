@@ -1940,6 +1940,11 @@ Implementation order:
       carries a recorded whole-object digest, giving webmail and automation
       clients a backend-neutral integrity signal across local/NFS, MinIO, and
       S3-compatible storage.
+1019. Mail API now exposes
+      `HEAD /api/v1/messages/{id}/attachments/{attachment_id}/download`,
+      reusing message, attachment, and storage-object validation to return safe
+      download headers and object-backed `Content-Length` without streaming
+      attachment bytes.
 
 ## Deferred until backend contracts stabilize
 
