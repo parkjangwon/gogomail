@@ -553,7 +553,7 @@ func TestServerValidatesAppendSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 APPEND\r\na2 APPEND inbox BAD\r\na3 APPEND &Jjo! {5+}\r\nhello\r\na4 APPEND inbox BAD {5+}\r\nhello\r\na5 APPEND inbox {5+}\r\nhello\r\na6 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 APPEND\r\na2 APPEND inbox BAD\r\na3 APPEND &Jjo! {5+}\r\nhello\r\na4 APPEND inbox BAD {5+}\r\nhello\r\na5 APPEND inbox (\\Seen {5+}\r\nhello\r\na6 APPEND inbox {5+}\r\nhello\r\na7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write append auth commands: %v", err)
 	}
 	want := []string{
@@ -561,9 +561,10 @@ func TestServerValidatesAppendSyntaxBeforeAuthentication(t *testing.T) {
 		"a2 BAD APPEND requires mailbox and literal\r\n",
 		"a3 BAD APPEND mailbox name is not valid modified UTF-7\r\n",
 		"a4 BAD APPEND options are unsupported\r\n",
-		"a5 NO authentication required\r\n",
+		"a5 BAD APPEND options are unsupported\r\n",
+		"a6 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a6 OK LOGOUT completed\r\n",
+		"a7 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6580,6 +6581,59 @@ func TestServerHandlesEmptyStoreFlagLists(t *testing.T) {
 		t.Fatalf("empty flag-list backend calls=%d mode=%q flags=%#v", backendImpl.calls, backendImpl.lastMode, backendImpl.lastFlags)
 	}
 	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsUnbalancedStoreFlagLists(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 STORE 1 +FLAGS \\Seen\r\na4 STORE 1 +FLAGS (\\Seen\r\na5 UID STORE 7 +FLAGS \\Seen)\r\n")); err != nil {
+		t.Fatalf("write unbalanced flag-list stores: %v", err)
+	}
+	want := []string{
+		"a3 BAD STORE flags are unsupported\r\n",
+		"a4 BAD STORE flags are unsupported\r\n",
+		"a5 BAD UID STORE flags are unsupported\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read unbalanced flag-list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("unbalanced flag-list response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

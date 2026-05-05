@@ -1440,6 +1440,9 @@ Implementation order:
 882. Local/NFS-style storage deletes now treat already-missing objects as
      success, aligning lifecycle cleanup semantics with S3-compatible object
      deletion across storage backends.
+883. IMAP `APPEND`, `STORE`, and `UID STORE` flag-list parsing now rejects
+     unparenthesized or unbalanced flag lists instead of silently trimming stray
+     parentheses before backend mutation.
 
 ## Deferred until backend contracts stabilize
 

@@ -5252,7 +5252,10 @@ func imapStoreFlags(value string) (MessageFlags, bool) {
 	var flags MessageFlags
 	ok := false
 	trimmed := strings.TrimSpace(value)
-	inner := strings.Trim(trimmed, "()")
+	if trimmed != "()" && (!strings.HasPrefix(trimmed, "(") || !strings.HasSuffix(trimmed, ")")) {
+		return MessageFlags{}, false
+	}
+	inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "("), ")")
 	tokens := strings.Fields(inner)
 	if len(tokens) == 0 {
 		return flags, trimmed == "()"
