@@ -39,6 +39,25 @@ type Node struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+type UsageSummary struct {
+	UserID                  string `json:"user_id"`
+	QuotaUsed               int64  `json:"quota_used"`
+	QuotaLimit              int64  `json:"quota_limit"`
+	TotalNodes              int64  `json:"total_nodes"`
+	ActiveNodes             int64  `json:"active_nodes"`
+	TrashedNodes            int64  `json:"trashed_nodes"`
+	DeletedNodes            int64  `json:"deleted_nodes"`
+	FolderCount             int64  `json:"folder_count"`
+	FileCount               int64  `json:"file_count"`
+	ActiveBytes             int64  `json:"active_bytes"`
+	TrashedBytes            int64  `json:"trashed_bytes"`
+	DeletedBytes            int64  `json:"deleted_bytes"`
+	PendingUploadSessions   int64  `json:"pending_upload_sessions"`
+	UploadingUploadSessions int64  `json:"uploading_upload_sessions"`
+	FailedUploadSessions    int64  `json:"failed_upload_sessions"`
+	PendingUploadBytes      int64  `json:"pending_upload_bytes"`
+}
+
 type CreateFolderRequest struct {
 	UserID   string
 	ParentID string
@@ -61,6 +80,10 @@ type ListNodesRequest struct {
 	Status   string
 	Query    string
 	Limit    int
+}
+
+type GetUsageSummaryRequest struct {
+	UserID string
 }
 
 type GetNodeRequest struct {
@@ -205,6 +228,14 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 		Query:    query,
 		Limit:    limit,
 	}, nil
+}
+
+func ValidateGetUsageSummaryRequest(req GetUsageSummaryRequest) (GetUsageSummaryRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return GetUsageSummaryRequest{}, err
+	}
+	return GetUsageSummaryRequest{UserID: userID}, nil
 }
 
 func ValidateGetNodeRequest(req GetNodeRequest) (GetNodeRequest, error) {
@@ -469,6 +500,94 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate drive nodes: %w", err)
 	}
 	return nodes, nil
+}
+
+func (r *Repository) GetUsageSummary(ctx context.Context, req GetUsageSummaryRequest) (UsageSummary, error) {
+	if r == nil || r.db == nil {
+		return UsageSummary{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateGetUsageSummaryRequest(req)
+	if err != nil {
+		return UsageSummary{}, err
+	}
+	const query = `
+WITH owner AS (
+  SELECT
+    u.id,
+    u.quota_used,
+    COALESCE(u.quota_limit, 0) AS quota_limit
+  FROM users u
+  WHERE u.id = $1::uuid
+),
+node_stats AS (
+  SELECT
+    COUNT(*) AS total_nodes,
+    COUNT(*) FILTER (WHERE status = 'active') AS active_nodes,
+    COUNT(*) FILTER (WHERE status = 'trashed') AS trashed_nodes,
+    COUNT(*) FILTER (WHERE status = 'deleted') AS deleted_nodes,
+    COUNT(*) FILTER (WHERE node_type = 'folder' AND status <> 'deleted') AS folder_count,
+    COUNT(*) FILTER (WHERE node_type = 'file' AND status <> 'deleted') AS file_count,
+    COALESCE(SUM(size) FILTER (WHERE status = 'active' AND node_type = 'file'), 0) AS active_bytes,
+    COALESCE(SUM(size) FILTER (WHERE status = 'trashed' AND node_type = 'file'), 0) AS trashed_bytes,
+    COALESCE(SUM(size) FILTER (WHERE status = 'deleted' AND node_type = 'file'), 0) AS deleted_bytes
+  FROM drive_nodes
+  WHERE user_id = $1::uuid
+),
+upload_stats AS (
+  SELECT
+    COUNT(*) FILTER (WHERE status = 'pending') AS pending_upload_sessions,
+    COUNT(*) FILTER (WHERE status = 'uploading') AS uploading_upload_sessions,
+    COUNT(*) FILTER (WHERE status = 'failed') AS failed_upload_sessions,
+    COALESCE(SUM(declared_size) FILTER (WHERE status IN ('pending', 'uploading', 'failed')), 0) AS pending_upload_bytes
+  FROM drive_upload_sessions
+  WHERE user_id = $1::uuid
+)
+SELECT
+  owner.id::text,
+  owner.quota_used,
+  owner.quota_limit,
+  COALESCE(node_stats.total_nodes, 0),
+  COALESCE(node_stats.active_nodes, 0),
+  COALESCE(node_stats.trashed_nodes, 0),
+  COALESCE(node_stats.deleted_nodes, 0),
+  COALESCE(node_stats.folder_count, 0),
+  COALESCE(node_stats.file_count, 0),
+  COALESCE(node_stats.active_bytes, 0),
+  COALESCE(node_stats.trashed_bytes, 0),
+  COALESCE(node_stats.deleted_bytes, 0),
+  COALESCE(upload_stats.pending_upload_sessions, 0),
+  COALESCE(upload_stats.uploading_upload_sessions, 0),
+  COALESCE(upload_stats.failed_upload_sessions, 0),
+  COALESCE(upload_stats.pending_upload_bytes, 0)
+FROM owner
+CROSS JOIN node_stats
+CROSS JOIN upload_stats`
+	var summary UsageSummary
+	err = r.db.QueryRowContext(ctx, query, req.UserID).Scan(
+		&summary.UserID,
+		&summary.QuotaUsed,
+		&summary.QuotaLimit,
+		&summary.TotalNodes,
+		&summary.ActiveNodes,
+		&summary.TrashedNodes,
+		&summary.DeletedNodes,
+		&summary.FolderCount,
+		&summary.FileCount,
+		&summary.ActiveBytes,
+		&summary.TrashedBytes,
+		&summary.DeletedBytes,
+		&summary.PendingUploadSessions,
+		&summary.UploadingUploadSessions,
+		&summary.FailedUploadSessions,
+		&summary.PendingUploadBytes,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return UsageSummary{}, fmt.Errorf("drive usage user not found")
+		}
+		return UsageSummary{}, fmt.Errorf("get drive usage summary: %w", err)
+	}
+	return summary, nil
 }
 
 func (r *Repository) GetNode(ctx context.Context, req GetNodeRequest) (Node, error) {

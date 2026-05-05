@@ -170,6 +170,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin API exposes `GET /admin/v1/drive-nodes/{id}` so operator consoles can
   inspect one Drive file/folder metadata row with explicit user scope and
   lifecycle filtering.
+- Admin API exposes `GET /admin/v1/drive-usage` so operator consoles can show
+  user Drive quota, node lifecycle, byte usage, and pending upload-session
+  dashboard summaries.
 - Admin API exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operator consoles can preview stale Drive upload-session cleanup impact
   before relying on the worker loop.

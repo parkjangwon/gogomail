@@ -278,6 +278,13 @@ func (s *Service) GetNode(ctx context.Context, req GetNodeRequest) (Node, error)
 	return s.repo.GetNode(ctx, req)
 }
 
+func (s *Service) GetUsageSummary(ctx context.Context, req GetUsageSummaryRequest) (UsageSummary, error) {
+	if s == nil || s.repo == nil {
+		return UsageSummary{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.GetUsageSummary(ctx, req)
+}
+
 func (s *Service) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {
 	if s == nil || s.repo == nil {
 		return Node{}, 0, fmt.Errorf("drive repository is required")

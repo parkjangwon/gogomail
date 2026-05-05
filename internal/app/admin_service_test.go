@@ -261,6 +261,25 @@ func TestAdminServiceGetDriveNodeDelegatesToDrive(t *testing.T) {
 	}
 }
 
+func TestAdminServiceGetDriveUsageSummaryDelegatesToDrive(t *testing.T) {
+	t.Parallel()
+
+	driveStore := &fakeAdminDrive{
+		usageSummary: drive.UsageSummary{UserID: "user-1", QuotaUsed: 1024, ActiveNodes: 3, ActiveBytes: 1024},
+	}
+	service := adminService{drive: driveStore}
+	summary, err := service.GetDriveUsageSummary(t.Context(), drive.GetUsageSummaryRequest{UserID: " user-1 "})
+	if err != nil {
+		t.Fatalf("GetDriveUsageSummary returned error: %v", err)
+	}
+	if summary.UserID != "user-1" || summary.ActiveBytes != 1024 {
+		t.Fatalf("summary = %+v", summary)
+	}
+	if driveStore.lastUsageReq.UserID != "user-1" {
+		t.Fatalf("lastUsageReq = %+v", driveStore.lastUsageReq)
+	}
+}
+
 func TestAdminServiceDriveUploadCleanupPreviewDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -458,6 +477,7 @@ type fakeAdminAttachmentCleanup struct {
 type fakeAdminDrive struct {
 	node            drive.Node
 	nodes           []drive.Node
+	usageSummary    drive.UsageSummary
 	sessions        []drive.UploadSession
 	count           drive.StaleUploadSessionCount
 	failures        []drive.ObjectCleanupFailure
@@ -466,6 +486,7 @@ type fakeAdminDrive struct {
 	retryErr        error
 	lastGetNodeReq  drive.GetNodeRequest
 	lastNodeReq     drive.ListNodesRequest
+	lastUsageReq    drive.GetUsageSummaryRequest
 	lastReq         drive.ListUploadSessionsRequest
 	lastCleanupReq  drive.ExpireUploadSessionsRequest
 	lastFailureReq  drive.ListObjectCleanupFailuresRequest
@@ -476,6 +497,11 @@ type fakeAdminDrive struct {
 func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {
 	f.lastGetNodeReq = req
 	return f.node, nil
+}
+
+func (f *fakeAdminDrive) GetUsageSummary(_ context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error) {
+	f.lastUsageReq = req
+	return f.usageSummary, nil
 }
 
 func (f *fakeAdminDrive) ListNodes(_ context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {
