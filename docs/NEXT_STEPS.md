@@ -275,6 +275,10 @@ Current state:
   parser to return multipart child order, subtype, parameters, transfer
   encodings, dispositions, body octets, and text line counts without retaining
   attachment payloads.
+- Combined `BODYSTRUCTURE` plus literal body/header fetches can reopen the raw
+  message for MIME metadata while preserving the original reader for literal
+  streaming, so common preview/header fetch batches keep rich structure
+  responses.
 - `FETCH`/`UID FETCH` now supports standard `FAST`, `ALL`, and `FULL` macros,
   including the non-extensible `BODY` attribute for `FULL`.
 - `FETCH`/`UID FETCH` now support bounded header-only literals for
@@ -369,8 +373,8 @@ Current state:
 
 Next:
 
-- Extend MIME-tree metadata reuse to combined `BODYSTRUCTURE` plus literal body
-  fetches by adding a safe reopen or precomputed metadata path.
+- Extend part-number-aware MIME literal fetches beyond the current conservative
+  single-part `BODY[1]` and `BODY[1.MIME]` behavior.
 
 Frontend note:
 
