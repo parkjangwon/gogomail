@@ -391,6 +391,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   responses while `\Deleted` semantics remain deferred.
 - IMAP `COPY` and `UID COPY` now return explicit unsupported `NO` responses
   while cross-mailbox copy semantics remain deferred.
+- IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
+  explicit unsupported `NO` responses while mailbox CRUD semantics remain
+  deferred.
 - IMAP now supports `STARTTLS` on plaintext listeners with configured TLS,
   advertising it before authentication and removing it after upgrade.
 - IMAP plaintext sessions advertise `LOGINDISABLED` and reject

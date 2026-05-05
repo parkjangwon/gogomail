@@ -1219,6 +1219,53 @@ func TestServerHandlesSubscriptionCommandsAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 CREATE Projects\r\na2 LOGIN user@example.com secret\r\na3 CREATE Projects\r\na4 DELETE Projects\r\na5 RENAME Projects Archive/Projects\r\n")); err != nil {
+		t.Fatalf("write mailbox mutations: %v", err)
+	}
+	want := []string{
+		"a1 NO authentication required\r\n",
+		"a2 OK LOGIN completed\r\n",
+		"a3 NO CREATE is not supported\r\n",
+		"a4 NO DELETE is not supported\r\n",
+		"a5 NO RENAME is not supported\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read mailbox mutation response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("mailbox mutation response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesStatusAfterLogin(t *testing.T) {
 	t.Parallel()
 

@@ -368,6 +368,13 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		return s.handleList(writer, tag, fields, state, false)
 	case "LSUB":
 		return s.handleList(writer, tag, fields, state, true)
+	case "CREATE", "DELETE", "RENAME":
+		if state.session == nil {
+			_, err := writer.WriteString(tag + " NO authentication required\r\n")
+			return false, err
+		}
+		_, err := writer.WriteString(tag + " NO " + command + " is not supported\r\n")
+		return false, err
 	case "SUBSCRIBE", "UNSUBSCRIBE":
 		return s.handleSubscriptionCommand(writer, tag, fields, state, command)
 	case "STATUS":

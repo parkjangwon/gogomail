@@ -322,6 +322,9 @@ Current state:
   while `\Deleted` semantics remain deferred.
 - `COPY` and `UID COPY` now return explicit unsupported `NO` responses while
   cross-mailbox copy semantics remain deferred.
+- Mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
+  explicit unsupported `NO` responses while mailbox CRUD semantics remain
+  deferred.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - Plaintext IMAP sessions advertise `LOGINDISABLED` and reject
