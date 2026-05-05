@@ -303,6 +303,9 @@ Current state:
   the client is waiting and completing when the client sends `DONE`.
 - `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now work over the
   selected mailbox message list.
+- `SEARCH`/`UID SEARCH` now accepts sequence-set criteria such as `2:*`,
+  letting clients intersect standard search predicates with selected mailbox
+  sequence ranges.
 - `SEARCH`/`UID SEARCH` can combine supported criteria with RFC default AND
   semantics, including `ALL` plus flag, date, size, address, and UID filters.
 - `SEARCH`/`UID SEARCH` supports RFC `NOT` and binary `OR` criteria

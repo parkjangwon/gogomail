@@ -369,6 +369,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   streaming selected-mailbox events while the client waits for `DONE`.
 - IMAP `SEARCH ALL`, `SEARCH UID <set>`, and `UID SEARCH ALL` now return
   selected-mailbox sequence numbers or UIDs for basic client indexing flows.
+- IMAP `SEARCH`/`UID SEARCH` now accepts sequence-set criteria such as `2:*`,
+  letting clients intersect standard search predicates with selected mailbox
+  sequence ranges.
 - IMAP `SEARCH`/`UID SEARCH` can combine supported criteria with RFC default
   AND semantics, including `ALL` plus flag, date, size, address, and UID
   filters.

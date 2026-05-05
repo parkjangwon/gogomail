@@ -995,6 +995,9 @@ Implementation order:
      criteria with validated keyword atoms, returning no custom-keyword matches
      until durable user keyword storage exists and treating active messages as
      unkeyworded.
+762. IMAP `SEARCH` and `UID SEARCH` now accept sequence-set criteria such as
+     `2:*`, letting clients intersect standard search predicates with selected
+     mailbox sequence ranges.
 
 ## Deferred until backend contracts stabilize
 
