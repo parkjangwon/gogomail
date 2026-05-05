@@ -2209,6 +2209,10 @@ Implementation order:
       children, preventing stale native-client deletes while failing closed for
       non-star collection ETag preconditions until collection ETags are
       explicitly advertised.
+1081. CalDAV collection `PROPPATCH` now shares the collection precondition gate,
+      rejecting stale `If-Unmodified-Since` metadata edits and non-star
+      collection `If-Match` conditions before reading or parsing XML request
+      bodies.
 
 ## Deferred until backend contracts stabilize
 
