@@ -238,6 +238,29 @@ func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 	}
 }
 
+func TestAdminServiceGetDriveNodeDelegatesToDrive(t *testing.T) {
+	t.Parallel()
+
+	driveStore := &fakeAdminDrive{
+		node: drive.Node{ID: "node-1", UserID: "user-1", Name: "Report.pdf", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive},
+	}
+	service := adminService{drive: driveStore}
+	node, err := service.GetDriveNode(t.Context(), drive.GetNodeRequest{
+		UserID: " user-1 ",
+		NodeID: " node-1 ",
+		Status: " active ",
+	})
+	if err != nil {
+		t.Fatalf("GetDriveNode returned error: %v", err)
+	}
+	if node.ID != "node-1" {
+		t.Fatalf("node = %+v", node)
+	}
+	if driveStore.lastGetNodeReq.UserID != "user-1" || driveStore.lastGetNodeReq.NodeID != "node-1" || driveStore.lastGetNodeReq.Status != drive.NodeStatusActive {
+		t.Fatalf("lastGetNodeReq = %+v", driveStore.lastGetNodeReq)
+	}
+}
+
 func TestAdminServiceDriveUploadCleanupPreviewDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -433,6 +456,7 @@ type fakeAdminAttachmentCleanup struct {
 }
 
 type fakeAdminDrive struct {
+	node            drive.Node
 	nodes           []drive.Node
 	sessions        []drive.UploadSession
 	count           drive.StaleUploadSessionCount
@@ -440,12 +464,18 @@ type fakeAdminDrive struct {
 	resolvedFailure drive.ObjectCleanupFailure
 	retryResult     drive.RetryObjectCleanupFailuresResult
 	retryErr        error
+	lastGetNodeReq  drive.GetNodeRequest
 	lastNodeReq     drive.ListNodesRequest
 	lastReq         drive.ListUploadSessionsRequest
 	lastCleanupReq  drive.ExpireUploadSessionsRequest
 	lastFailureReq  drive.ListObjectCleanupFailuresRequest
 	lastResolveReq  drive.ResolveObjectCleanupFailureRequest
 	lastRetryReq    drive.ListObjectCleanupFailuresRequest
+}
+
+func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {
+	f.lastGetNodeReq = req
+	return f.node, nil
 }
 
 func (f *fakeAdminDrive) ListNodes(_ context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {

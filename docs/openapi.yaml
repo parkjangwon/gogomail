@@ -1318,6 +1318,31 @@ paths:
           $ref: "#/components/responses/DriveNodeList"
         default:
           $ref: "#/components/responses/Error"
+  /drive-nodes/{id}:
+    get:
+      operationId: getAdminDriveNode
+      summary: Admin inspect one Drive node for a user
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+          description: Required user scope for Drive node inspection.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, trashed, deleted]
+            default: active
+          description: Required lifecycle view for the Drive node lookup.
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
   /drive-upload-cleanup/candidates:
     post:
       operationId: listAdminDriveUploadCleanupCandidates
@@ -5043,7 +5068,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, drive_upload_sessions, drive_nodes, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, drive_upload_sessions, drive_nodes, drive_node_detail, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -5062,6 +5087,8 @@ components:
             drive_upload_sessions:
               type: boolean
             drive_nodes:
+              type: boolean
+            drive_node_detail:
               type: boolean
             drive_upload_cleanup:
               type: boolean

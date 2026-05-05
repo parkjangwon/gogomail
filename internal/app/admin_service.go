@@ -40,6 +40,7 @@ type adminService struct {
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
 	drive                       interface {
 		ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
+		GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 		ListUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 		CountStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) (drive.StaleUploadSessionCount, error)
 		ListStaleUploadSessions(ctx context.Context, req drive.ExpireUploadSessionsRequest) ([]drive.UploadSession, error)
@@ -304,6 +305,17 @@ func (s adminService) ListDriveNodes(ctx context.Context, req drive.ListNodesReq
 		return nil, err
 	}
 	return s.drive.ListNodes(ctx, req)
+}
+
+func (s adminService) GetDriveNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error) {
+	if s.drive == nil {
+		return drive.Node{}, fmt.Errorf("drive service is not configured")
+	}
+	req, err := drive.ValidateGetNodeRequest(req)
+	if err != nil {
+		return drive.Node{}, err
+	}
+	return s.drive.GetNode(ctx, req)
 }
 
 func (s adminService) CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error) {

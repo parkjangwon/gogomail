@@ -360,6 +360,9 @@ guidance.
 - Admin API now exposes `GET /admin/v1/drive-nodes` with required user scope
   plus parent/status/name/limit filters so operator consoles can inspect a
   user's Drive inventory through bounded backend contracts.
+- Admin API now exposes `GET /admin/v1/drive-nodes/{id}` with required user
+  scope and lifecycle status filtering so operator consoles can inspect one
+  Drive file or folder without entering user-facing auth paths.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.
