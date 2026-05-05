@@ -41,6 +41,8 @@ paths:
     get:
       operationId: listFolders
       summary: List folders
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/FolderList"
@@ -49,6 +51,8 @@ paths:
     post:
       operationId: createFolder
       summary: Create a user folder
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/FolderCreate"
       responses:
@@ -62,6 +66,7 @@ paths:
       summary: Rename a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/FolderRename"
       responses:
@@ -74,6 +79,7 @@ paths:
       summary: Delete a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -84,6 +90,7 @@ paths:
       operationId: listMessages
       summary: List messages with opaque cursor pagination
       parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
         - name: folder_id
           in: query
@@ -105,6 +112,7 @@ paths:
       operationId: searchMessages
       summary: Search messages using the current backend search implementation
       parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
         - name: q
           in: query
@@ -130,11 +138,6 @@ paths:
           in: query
           schema:
             type: boolean
-        - name: cursor
-          in: query
-          schema:
-            type: string
-            maxLength: 1024
         - name: sort
           in: query
           schema:
@@ -163,6 +166,7 @@ paths:
       summary: Get message detail
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/Message"
@@ -173,6 +177,7 @@ paths:
       summary: Soft-delete a message
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -184,6 +189,7 @@ paths:
       summary: Get user-scoped delivery and bounce status for a sent message
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/MessageDeliveryStatus"
@@ -194,6 +200,7 @@ paths:
       operationId: listThreads
       summary: List message threads for the current mailbox
       parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
         - name: cursor
           in: query
@@ -211,6 +218,7 @@ paths:
       summary: List messages inside a thread in chronological order
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
         - name: cursor
           in: query
@@ -228,6 +236,7 @@ paths:
       summary: Update one message flag
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/MessageFlagUpdate"
       responses:
@@ -241,6 +250,7 @@ paths:
       summary: Move one message to a folder
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/MessageMove"
       responses:
@@ -252,6 +262,8 @@ paths:
     patch:
       operationId: bulkUpdateMessageFlags
       summary: Bounded bulk flag update
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageFlagUpdate"
       responses:
@@ -263,6 +275,8 @@ paths:
     patch:
       operationId: bulkMoveMessages
       summary: Bounded bulk folder move
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageMove"
       responses:
@@ -274,6 +288,8 @@ paths:
     post:
       operationId: bulkDeleteMessages
       summary: Bounded bulk soft delete
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageDelete"
       responses:
@@ -287,6 +303,7 @@ paths:
       summary: List message attachments
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentList"
@@ -299,6 +316,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/AttachmentID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           description: Attachment bytes
@@ -328,6 +346,8 @@ paths:
     post:
       operationId: sendMessage
       summary: Compose and queue a new/reply/forward message
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/ComposeSend"
       responses:
@@ -339,6 +359,8 @@ paths:
     post:
       operationId: saveDraft
       summary: Save or update a draft
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
@@ -351,6 +373,7 @@ paths:
       operationId: searchDrafts
       summary: Search active drafts using the compose-focused draft store
       parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
         - name: q
           in: query
@@ -387,6 +410,7 @@ paths:
       summary: Update an existing draft
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
@@ -399,6 +423,7 @@ paths:
       summary: Delete a draft
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -410,6 +435,7 @@ paths:
       summary: Send an existing draft
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "202":
           $ref: "#/components/responses/SendQueued"
@@ -419,6 +445,8 @@ paths:
     post:
       operationId: reserveAttachment
       summary: Reserve attachment upload metadata
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/AttachmentReserve"
       responses:
@@ -432,6 +460,8 @@ paths:
     post:
       operationId: uploadAttachment
       summary: Direct multipart attachment upload
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/AttachmentMultipartUpload"
       responses:
@@ -445,6 +475,8 @@ paths:
     post:
       operationId: createAttachmentUploadSession
       summary: Create a resumable attachment upload session
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/AttachmentUploadSessionCreate"
       responses:
@@ -458,6 +490,8 @@ paths:
     get:
       operationId: getAttachmentUploadCapabilities
       summary: Get attachment upload limits and supported modes
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentUploadCapabilities"
@@ -469,6 +503,7 @@ paths:
       summary: Cancel a pending attachment upload and release reserved quota
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/Attachment"
@@ -480,6 +515,7 @@ paths:
       summary: Get a resumable attachment upload session
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentUploadSession"
@@ -490,6 +526,7 @@ paths:
       summary: Cancel a pending resumable attachment upload session
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentUploadSession"
@@ -501,6 +538,7 @@ paths:
       summary: Store a complete resumable attachment upload session body
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
         - name: X-Content-SHA256
           in: header
           required: false
@@ -523,6 +561,7 @@ paths:
       summary: Finalize a stored attachment upload session body
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "201":
           $ref: "#/components/responses/Attachment"
@@ -533,6 +572,7 @@ paths:
       operationId: listPushDevices
       summary: List user push notification devices
       parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -542,6 +582,8 @@ paths:
     post:
       operationId: upsertPushDevice
       summary: Register or refresh a user push notification device
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/PushDeviceUpsert"
       responses:
@@ -555,6 +597,7 @@ paths:
       summary: Delete a user push notification device
       parameters:
         - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"

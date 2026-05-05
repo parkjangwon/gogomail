@@ -98,6 +98,9 @@ including health and service-info envelopes, also return
 - Without JWT configuration, development requests must pass `user_id` as a query parameter.
 - Development `user_id` query fallback values are trimmed and reject CR/LF-bearing
   or oversized identifiers before Mail API service dispatch.
+- The OpenAPI draft documents that reusable development-only `user_id` fallback
+  parameter on every user-scoped Mail operation that can use it when JWT auth is
+  disabled.
 - Admin API uses `Authorization: Bearer <token>` or `X-Admin-Token` when `GOGOMAIL_ADMIN_TOKEN` is configured.
 - Mail/Admin authentication headers are size-bounded before bearer parsing,
   JWT decoding, or admin-token comparison.

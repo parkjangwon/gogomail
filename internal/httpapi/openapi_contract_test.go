@@ -887,6 +887,58 @@ func TestOpenAPIDraftDocumentsDevelopmentUserIDFallbackParameter(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftWiresMailUserIDFallbackParameter(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range []string{
+		"GET /folders",
+		"POST /folders",
+		"PATCH /folders/{id}",
+		"DELETE /folders/{id}",
+		"GET /messages",
+		"GET /search",
+		"GET /messages/{id}",
+		"DELETE /messages/{id}",
+		"GET /messages/{id}/delivery-status",
+		"GET /threads",
+		"GET /threads/{id}/messages",
+		"PATCH /messages/{id}/flags",
+		"PATCH /messages/{id}/folder",
+		"PATCH /messages/bulk/flags",
+		"PATCH /messages/bulk/folder",
+		"POST /messages/bulk/delete",
+		"GET /messages/{id}/attachments",
+		"GET /messages/{id}/attachments/{attachment_id}/download",
+		"POST /messages/send",
+		"POST /drafts",
+		"GET /drafts/search",
+		"PATCH /drafts/{id}",
+		"DELETE /drafts/{id}",
+		"POST /drafts/{id}/send",
+		"POST /attachments",
+		"POST /attachments/upload",
+		"POST /attachments/upload-sessions",
+		"GET /attachments/capabilities",
+		"DELETE /attachments/{id}",
+		"GET /attachments/upload-sessions/{id}",
+		"DELETE /attachments/upload-sessions/{id}",
+		"PUT /attachments/upload-sessions/{id}/body",
+		"POST /attachments/upload-sessions/{id}/finalize",
+		"GET /push-devices",
+		"POST /push-devices",
+		"DELETE /push-devices/{id}",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if !strings.Contains(block, "#/components/parameters/UserIDFallback") {
+			t.Fatalf("OpenAPI operation %s must document UserIDFallback:\n%s", route, block)
+		}
+	}
+}
+
 func openAPIRequiredListContains(block string, key string) bool {
 	for _, line := range strings.Split(block, "\n") {
 		line = strings.TrimSpace(line)

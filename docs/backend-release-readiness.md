@@ -425,6 +425,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   CR/LF-bearing, or oversized values before service dispatch.
 - Mail API development `user_id` query fallback values are trimmed and reject
   CR/LF-bearing or oversized identifiers before service dispatch.
+- OpenAPI documents the development-only `user_id` fallback parameter on every
+  user-scoped Mail operation that can use it when JWT auth is disabled, keeping
+  generated local/all-in-one clients aligned with runtime behavior.
 - Mail API folder, thread, message, draft, attachment, and push-device path
   identifiers reject blank, CR/LF-bearing, or oversized values before service
   dispatch.
