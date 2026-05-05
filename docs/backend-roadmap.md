@@ -1482,6 +1482,10 @@ Implementation order:
      atoms that still contain quote characters after command parsing,
      preventing broken `MODSEQ "/flags/\\Seen" all" 17` style inputs from
      being silently normalized.
+896. Runtime config validation now rejects whitespace-bearing S3-compatible
+     secret access keys and session tokens for both `s3` and `minio` backends,
+     matching adapter construction guardrails before readiness probes or
+     runtime object-storage authentication.
 
 ## Deferred until backend contracts stabilize
 

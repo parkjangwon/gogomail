@@ -115,6 +115,38 @@ func TestValidateRejectsIncompleteS3StorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsS3SecretCredentialWhitespace(t *testing.T) {
+	for _, backend := range []string{"s3", "minio"} {
+		backend := backend
+		for _, tt := range []struct {
+			name   string
+			mutate func(*Config)
+		}{
+			{name: "secret leading space", mutate: func(cfg *Config) { cfg.StorageS3SecretAccessKey = " secret" }},
+			{name: "secret trailing space", mutate: func(cfg *Config) { cfg.StorageS3SecretAccessKey = "secret " }},
+			{name: "secret tab", mutate: func(cfg *Config) { cfg.StorageS3SecretAccessKey = "secret\tvalue" }},
+			{name: "session leading space", mutate: func(cfg *Config) { cfg.StorageS3SessionToken = " token" }},
+			{name: "session trailing space", mutate: func(cfg *Config) { cfg.StorageS3SessionToken = "token " }},
+			{name: "session tab", mutate: func(cfg *Config) { cfg.StorageS3SessionToken = "token\tvalue" }},
+		} {
+			tt := tt
+			t.Run(backend+" "+tt.name, func(t *testing.T) {
+				cfg := Load()
+				cfg.StorageBackend = backend
+				cfg.StorageS3Endpoint = "http://localhost:9000"
+				cfg.StorageS3Region = "us-east-1"
+				cfg.StorageS3Bucket = "gogomail"
+				cfg.StorageS3AccessKeyID = "access"
+				cfg.StorageS3SecretAccessKey = "secret"
+				tt.mutate(&cfg)
+				if err := cfg.Validate(); err == nil {
+					t.Fatal("Validate() error = nil, want S3 credential whitespace rejection")
+				}
+			})
+		}
+	}
+}
+
 func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "s3"
