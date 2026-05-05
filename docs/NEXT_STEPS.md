@@ -1611,7 +1611,8 @@ Next:
   including RFC 6352 match-type, `negate-condition`, default
   `i;unicode-casemap`, nested `param-filter`, and `test=anyof|allof`
   composition for top-level filters and prop-filters. REPORT `address-data`
-  can also project returned vCards to requested property names. It should be
+  can also project returned vCards to requested property names and rejects
+  unsupported requested address-data content types or versions. It should be
   followed by broader vCard compatibility and native-client compatibility tests
   before any public contacts UI or API treats it as production-ready.
 - Add public Drive share-link resolution/download routes with strict token hash

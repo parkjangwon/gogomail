@@ -385,6 +385,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   parameters for `param-filter` existence, `is-not-defined`, and parameter
   text-match checks. REPORT `address-data` can project returned vCards to
   requested property names while preserving structural BEGIN/VERSION/END lines.
+  Requested address-data content types and versions are validated against the
+  advertised `text/vcard` 4.0 support before handler execution.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

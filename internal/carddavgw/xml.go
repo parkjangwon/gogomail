@@ -374,7 +374,7 @@ func parsePropElementDetailed(dec *xml.Decoder, propName xml.Name) ([]XMLName, [
 			}
 			properties = append(properties, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			if sameXMLName(tok.Name, CardDAVNamespace, "address-data") {
-				names, err := parseAddressDataElement(dec, tok.Name)
+				names, err := parseAddressDataElement(dec, tok)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -391,7 +391,10 @@ func parsePropElementDetailed(dec *xml.Decoder, propName xml.Name) ([]XMLName, [
 	}
 }
 
-func parseAddressDataElement(dec *xml.Decoder, name xml.Name) ([]string, error) {
+func parseAddressDataElement(dec *xml.Decoder, el xml.StartElement) ([]string, error) {
+	if err := validateAddressDataAttributes(el); err != nil {
+		return nil, err
+	}
 	var properties []string
 	for {
 		tok, err := dec.Token()
@@ -421,11 +424,32 @@ func parseAddressDataElement(dec *xml.Decoder, name xml.Name) ([]string, error) 
 				return nil, err
 			}
 		case xml.EndElement:
-			if sameName(tok.Name, name) {
+			if sameName(tok.Name, el.Name) {
 				return properties, nil
 			}
 		}
 	}
+}
+
+func validateAddressDataAttributes(el xml.StartElement) error {
+	for _, attr := range el.Attr {
+		if strings.ContainsAny(attr.Value, "\r\n") {
+			return fmt.Errorf("CardDAV address-data attribute is invalid")
+		}
+		switch attr.Name.Local {
+		case "content-type":
+			contentType := strings.ToLower(strings.TrimSpace(attr.Value))
+			if contentType != "text/vcard" {
+				return fmt.Errorf("unsupported CardDAV address-data content-type %q", contentType)
+			}
+		case "version":
+			version := strings.TrimSpace(attr.Value)
+			if version != "4.0" {
+				return fmt.Errorf("unsupported CardDAV address-data version %q", version)
+			}
+		}
+	}
+	return nil
 }
 
 type AddressBookQueryFilter struct {
