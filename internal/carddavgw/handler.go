@@ -551,7 +551,11 @@ func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID strin
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
+			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, dataProp)
 		}
 		objectHref, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -599,7 +603,11 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
+			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, dataProp)
 		}
 		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -629,7 +637,11 @@ func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker Obje
 			return false, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
+			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+			if err != nil {
+				return false, err
+			}
+			props = append(props, dataProp)
 		}
 		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -789,7 +801,11 @@ func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, re
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
+			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, dataProp)
 		}
 		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
@@ -845,7 +861,11 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
-			props = append(props, ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties))
+			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, dataProp)
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}

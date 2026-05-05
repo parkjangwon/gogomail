@@ -2378,6 +2378,9 @@ Implementation order:
       walker path, letting handlers evaluate filters and stop once
       `limit/nresults` is satisfied without materializing the whole address
       book collection.
+1118. CardDAV `address-data` projection failures now return explicit handler
+      errors instead of silently falling back to full vCard bodies when a
+      projected response cannot be built.
 
 ## Deferred until backend contracts stabilize
 

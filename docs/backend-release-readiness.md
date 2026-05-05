@@ -392,6 +392,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
   Repository-backed query execution can stream contact objects and stop once the
   response cap is satisfied instead of materializing the whole address book.
+  Address-data projection failures are explicit errors rather than silent
+  full-body fallbacks.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition
