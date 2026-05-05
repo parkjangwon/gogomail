@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after folder-scoped thread lists)
+Last updated: 2026-05-05 (updated after mailbox list sort controls)
 
 ## Current phase
 
@@ -98,6 +98,9 @@ guidance.
 - Mail API thread lists now also support `folder_id`, enabling folder-scoped
   conversation views for inbox, sent, archive, and custom folders without
   falling back to flat message lists.
+- Mail API message and thread lists now support `sort=newest|oldest` with
+  bounded query validation, giving production webmail clients explicit
+  newest-first and oldest-first mailbox/conversation list controls.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

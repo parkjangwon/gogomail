@@ -384,7 +384,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -421,10 +421,20 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		sortMode, ok := parseBoundedHTTPQuery(w, r, "sort", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		sortMode, valid := maildb.NormalizeListSort(sortMode)
+		if !valid {
+			writeError(w, http.StatusBadRequest, "sort must be newest or oldest")
+			return
+		}
 		messages, err := service.ListMessagesPage(r.Context(), userID, folderID, limit, cursor, maildb.MessageListFilter{
 			Read:          read,
 			Starred:       starred,
 			HasAttachment: hasAttachment,
+			Sort:          sortMode,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -548,7 +558,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -584,11 +594,21 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		sortMode, ok := parseBoundedHTTPQuery(w, r, "sort", false, maxHTTPControlBytes)
+		if !ok {
+			return
+		}
+		sortMode, valid := maildb.NormalizeListSort(sortMode)
+		if !valid {
+			writeError(w, http.StatusBadRequest, "sort must be newest or oldest")
+			return
+		}
 		threads, err := service.ListThreadsPage(r.Context(), userID, limit, cursor, maildb.ThreadListFilter{
 			FolderID:      folderID,
 			Read:          read,
 			Starred:       starred,
 			HasAttachment: hasAttachment,
+			Sort:          sortMode,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

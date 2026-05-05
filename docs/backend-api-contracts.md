@@ -171,7 +171,10 @@ manufacture cursors. Incoming cursor strings are bounded before decode so
 malformed or oversized tokens fail before allocating decoded payloads.
 `GET /api/v1/messages` accepts optional `read=true|false`,
 `starred=true|false`, and `has_attachment=true|false` filters in addition to
-`folder_id`, `limit`, and `cursor`.
+`folder_id`, `limit`, `cursor`, and `sort=newest|oldest`. The default message
+list sort is `newest`. Opaque cursors are tied to the exact list controls used
+to create them, so clients must not reuse a cursor after changing filters,
+folder scope, or sort direction.
 Boolean filters reject malformed or repeated scalar values before service
 dispatch, allowing webmail clients to render unread/read, starred/unstarred,
 and attachment-presence quick views without invoking full-text search.
@@ -692,7 +695,9 @@ conversation rendering. Both thread reads support `limit` plus opaque `cursor`
 pagination and return `has_more`/`next_cursor` alongside the existing
 `threads` or `messages` arrays.
 Thread list reads also accept optional `folder_id`, `read=true|false`,
-`starred=true|false`, and `has_attachment=true|false` filters. For
+`starred=true|false`, `has_attachment=true|false`, and `sort=newest|oldest`
+filters. The default thread sort is `newest`; oldest-first cursors are valid
+only while the client keeps the same folder/filter/sort controls. For
 conversations, `read=false` means at least one message in the thread is unread,
 while `read=true` means the thread has no unread messages; `starred` and
 `has_attachment` match conversations where any message has the matching state.

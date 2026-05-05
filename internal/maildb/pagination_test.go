@@ -67,6 +67,33 @@ func TestNormalizeMessageListLimitCapsLargeValues(t *testing.T) {
 	}
 }
 
+func TestNormalizeListSort(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+		ok   bool
+	}{
+		{name: "default", want: ListSortNewest, ok: true},
+		{name: "newest", in: " newest ", want: ListSortNewest, ok: true},
+		{name: "oldest", in: "OLDEST", want: ListSortOldest, ok: true},
+		{name: "invalid", in: "sideways"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := NormalizeListSort(tt.in)
+			if ok != tt.ok || got != tt.want {
+				t.Fatalf("NormalizeListSort(%q) = %q, %v; want %q, %v", tt.in, got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
 func TestNewMessageListPageBuildsNextCursor(t *testing.T) {
 	t.Parallel()
 

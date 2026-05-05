@@ -1696,6 +1696,10 @@ Implementation order:
 954. Mail API thread list pagination now accepts a bounded `folder_id` filter,
      enabling folder-scoped conversation views for system and custom folders
      while retaining opaque cursor pagination and thread-level quick filters.
+955. Mail API message and thread list pagination now accepts
+     `sort=newest|oldest`, enabling explicit newest-first and oldest-first
+     production webmail list controls while preserving bounded validation and
+     opaque cursor pagination.
 
 ## Deferred until backend contracts stabilize
 

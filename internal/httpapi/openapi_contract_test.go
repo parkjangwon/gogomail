@@ -510,7 +510,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, params := range map[string][]string{
-		"GET /messages":                                        {"limit", "cursor", "folder_id", "read", "starred", "has_attachment"},
+		"GET /messages":                                        {"limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort"},
 		"GET /search":                                          {"limit", "q", "folder_id", "from", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
 		"GET /drafts/search":                                   {"limit", "cursor", "q", "from", "subject", "has_attachment"},
 		"GET /companies":                                       {"limit", "status"},
@@ -590,14 +590,34 @@ func TestOpenAPIDraftKeepsThreadListParametersScoped(t *testing.T) {
 	if !ok {
 		t.Fatal("OpenAPI operation GET /threads is missing")
 	}
-	for _, want := range []string{"#/components/parameters/Limit", "name: folder_id", "name: cursor", "name: read", "name: starred", "name: has_attachment"} {
+	for _, want := range []string{"#/components/parameters/Limit", "name: folder_id", "name: cursor", "name: read", "name: starred", "name: has_attachment", "name: sort"} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("GET /threads must document %q, got:\n%s", want, block)
+		}
+	}
+	for _, want := range []string{"newest", "oldest"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("GET /threads sort parameter must document %q, got:\n%s", want, block)
 		}
 	}
 	for _, param := range []string{"tenant_id", "principal_id", "from", "to"} {
 		if openAPIOperationDocumentsParameter(block, param) {
 			t.Fatalf("GET /threads must not document API usage filter parameter %q", param)
+		}
+	}
+}
+
+func TestOpenAPIDraftDocumentsMessageListSortEnum(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["GET /messages"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /messages is missing")
+	}
+	for _, want := range []string{"name: sort", "newest", "oldest"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("GET /messages sort parameter must document %q, got:\n%s", want, block)
 		}
 	}
 }
