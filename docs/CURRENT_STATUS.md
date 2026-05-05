@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Redis worker identifier validation)
+Last updated: 2026-05-05 (updated after Redis consumer identifier hardening)
 
 ## Current phase
 
@@ -544,6 +544,10 @@ guidance.
   search-index, API-metering, push-notification, and delivery workers are now
   required, CR/LF-rejected, and size-bounded during startup config validation,
   surfacing worker identity mistakes before consumer construction.
+- `eventstream.NewRedisConsumer` now applies the same trim, required,
+  CR/LF-rejection, and size-bound guardrails to stream, group, and consumer
+  identifiers, keeping direct adapter callers aligned with runtime config
+  validation.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing or oversized event names before worker dispatch.
 - Redis stream event decoding rejects CR/LF-bearing or oversized outbox IDs,

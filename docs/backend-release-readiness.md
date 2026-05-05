@@ -252,6 +252,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   search-index, API-metering, push-notification, and delivery workers are
   required, CR/LF-rejected, and size-bounded during startup config validation,
   surfacing worker identity mistakes before consumer construction.
+- `eventstream.NewRedisConsumer` applies the same trim, required,
+  CR/LF-rejection, and size-bound guardrails to stream, group, and consumer
+  identifiers, keeping direct adapter callers aligned with runtime config
+  validation.
 - Event routing trims registered and payload event names and rejects
   CR/LF-bearing or oversized event names before worker dispatch.
 - Redis stream event decoding trims outbox id, partition key, and payload

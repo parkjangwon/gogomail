@@ -312,9 +312,9 @@ func TestNewRedisConsumerDefaultDeadLetterPolicy(t *testing.T) {
 
 	consumer, err := NewRedisConsumer(RedisConsumerOptions{
 		Client:   redis.NewClient(&redis.Options{Addr: "localhost:6379"}),
-		Stream:   "mail.event",
-		Group:    "gogomail.event-worker",
-		Consumer: "worker-1",
+		Stream:   " mail.event ",
+		Group:    " gogomail.event-worker ",
+		Consumer: " worker-1 ",
 		Handler:  HandlerFunc(func(context.Context, Message) error { return nil }),
 		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -326,6 +326,9 @@ func TestNewRedisConsumerDefaultDeadLetterPolicy(t *testing.T) {
 	}
 	if consumer.deadLetterStream != "mail.event.dead" {
 		t.Fatalf("deadLetterStream = %q, want mail.event.dead", consumer.deadLetterStream)
+	}
+	if consumer.stream != "mail.event" || consumer.group != "gogomail.event-worker" || consumer.consumer != "worker-1" {
+		t.Fatalf("consumer identifiers = %q/%q/%q", consumer.stream, consumer.group, consumer.consumer)
 	}
 }
 
@@ -343,6 +346,41 @@ func TestNewRedisConsumerRejectsNegativeMaxDeliveries(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("NewRedisConsumer accepted negative max deliveries")
+	}
+}
+
+func TestNewRedisConsumerRejectsUnsafeIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		edit func(*RedisConsumerOptions)
+	}{
+		{name: "blank stream", edit: func(opts *RedisConsumerOptions) { opts.Stream = " " }},
+		{name: "stream newline", edit: func(opts *RedisConsumerOptions) { opts.Stream = "mail.event\nbad" }},
+		{name: "blank group", edit: func(opts *RedisConsumerOptions) { opts.Group = "" }},
+		{name: "group newline", edit: func(opts *RedisConsumerOptions) { opts.Group = "group\nbad" }},
+		{name: "blank consumer", edit: func(opts *RedisConsumerOptions) { opts.Consumer = "\t" }},
+		{name: "consumer too long", edit: func(opts *RedisConsumerOptions) { opts.Consumer = strings.Repeat("c", maxRedisMetadataBytes+1) }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			opts := RedisConsumerOptions{
+				Client:   redis.NewClient(&redis.Options{Addr: "localhost:6379"}),
+				Stream:   "mail.event",
+				Group:    "gogomail.event-worker",
+				Consumer: "worker-1",
+				Handler:  HandlerFunc(func(context.Context, Message) error { return nil }),
+				Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+			}
+			tt.edit(&opts)
+			if _, err := NewRedisConsumer(opts); err == nil {
+				t.Fatal("NewRedisConsumer accepted unsafe identifier")
+			}
+		})
 	}
 }
 
