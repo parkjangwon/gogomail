@@ -369,12 +369,15 @@ Current state:
 - Mail API now exposes `PUT /api/v1/drive/files/staged/{upload_id}/body` for
   bounded direct staged object uploads, returning canonical storage path, size,
   and SHA-256 for the finalize request.
+- Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/name` for validated
+  active file/folder renames using the Drive normalized-name rules.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session contracts on top of staged object uploads so clients
-  can reserve quota, retry large objects, and surface resumable upload state.
+- Add Drive move/reparent and upload-session contracts so clients can organize
+  folders, reserve quota, retry large objects, and surface resumable upload
+  state.
 
 ### 2. Message threading and search
 

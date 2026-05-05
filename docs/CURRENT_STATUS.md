@@ -298,6 +298,9 @@ guidance.
   S3-compatible backend, deriving the canonical Drive staging key, computing
   size and SHA-256, and returning a frontend-ready staged-object envelope for
   file finalization.
+- Drive nodes can now be renamed through `PATCH /api/v1/drive/nodes/{id}/name`,
+  keeping active file/folder metadata aligned with normalized-name validation
+  and sibling uniqueness before future production Drive UI work begins.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

@@ -1820,6 +1820,9 @@ Implementation order:
      streaming bounded Drive object bodies to local/NFS, MinIO, or
      S3-compatible storage, deriving canonical staging keys, and returning
      size/SHA-256 metadata for file finalization.
+985. Mail API now exposes `PATCH /api/v1/drive/nodes/{id}/name`, letting
+     production Drive clients rename active files and folders through the
+     repository normalization and active sibling uniqueness boundary.
 
 ## Deferred until backend contracts stabilize
 

@@ -220,6 +220,44 @@ func TestValidateRestoreNodeRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateRenameNodeRequest(t *testing.T) {
+	t.Parallel()
+
+	req, normalizedName, err := ValidateRenameNodeRequest(RenameNodeRequest{UserID: " user-1 ", NodeID: " node-1 ", Name: "  Report.PDF  "})
+	if err != nil {
+		t.Fatalf("ValidateRenameNodeRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.NodeID != "node-1" || req.Name != "Report.PDF" {
+		t.Fatalf("request = %+v, want trimmed fields", req)
+	}
+	if normalizedName != "report.pdf" {
+		t.Fatalf("normalized name = %q, want report.pdf", normalizedName)
+	}
+}
+
+func TestValidateRenameNodeRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []RenameNodeRequest{
+		{NodeID: "node-1", Name: "Report.pdf"},
+		{UserID: "user-1", Name: "Report.pdf"},
+		{UserID: "user\n1", NodeID: "node-1", Name: "Report.pdf"},
+		{UserID: "user-1", NodeID: "node\n1", Name: "Report.pdf"},
+		{UserID: "user-1", NodeID: "node-1", Name: ""},
+		{UserID: "user-1", NodeID: "node-1", Name: "Reports/2026"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.NodeID+"-"+tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, err := ValidateRenameNodeRequest(tc); err == nil {
+				t.Fatalf("ValidateRenameNodeRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidatePermanentDeleteNodeRequest(t *testing.T) {
 	t.Parallel()
 

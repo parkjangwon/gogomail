@@ -72,6 +72,12 @@ type RestoreNodeRequest struct {
 	NodeID string
 }
 
+type RenameNodeRequest struct {
+	UserID string
+	NodeID string
+	Name   string
+}
+
 type PermanentDeleteNodeRequest struct {
 	UserID string
 	NodeID string
@@ -205,6 +211,26 @@ func ValidateRestoreNodeRequest(req RestoreNodeRequest) (RestoreNodeRequest, err
 		return RestoreNodeRequest{}, err
 	}
 	return RestoreNodeRequest{UserID: userID, NodeID: nodeID}, nil
+}
+
+func ValidateRenameNodeRequest(req RenameNodeRequest) (RenameNodeRequest, string, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return RenameNodeRequest{}, "", err
+	}
+	nodeID, err := validateDriveID("node_id", req.NodeID, true)
+	if err != nil {
+		return RenameNodeRequest{}, "", err
+	}
+	name, err := ValidateNodeName(req.Name)
+	if err != nil {
+		return RenameNodeRequest{}, "", err
+	}
+	normalizedName, err := NormalizeNodeName(name)
+	if err != nil {
+		return RenameNodeRequest{}, "", err
+	}
+	return RenameNodeRequest{UserID: userID, NodeID: nodeID, Name: name}, normalizedName, nil
 }
 
 func ValidatePermanentDeleteNodeRequest(req PermanentDeleteNodeRequest) (PermanentDeleteNodeRequest, error) {
@@ -446,6 +472,80 @@ func (r *Repository) RestoreNode(ctx context.Context, req RestoreNodeRequest) (N
 	root.Status = NodeStatusActive
 	root.UpdatedAt = time.Now().UTC()
 	return root, updated, nil
+}
+
+func (r *Repository) RenameNode(ctx context.Context, req RenameNodeRequest) (Node, error) {
+	if r == nil || r.db == nil {
+		return Node{}, fmt.Errorf("database handle is required")
+	}
+	req, normalizedName, err := ValidateRenameNodeRequest(req)
+	if err != nil {
+		return Node{}, err
+	}
+	const query = `
+WITH owner AS (
+  SELECT u.id AS user_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+),
+updated AS (
+  UPDATE drive_nodes n
+  SET
+    name = $3,
+    normalized_name = $4,
+    updated_at = now()
+  FROM owner
+  WHERE n.id = $2::uuid
+    AND n.user_id = owner.user_id
+    AND n.status = 'active'
+  RETURNING
+    n.id::text,
+    n.company_id::text,
+    n.domain_id::text,
+    n.user_id::text,
+    COALESCE(n.parent_id::text, ''),
+    n.node_type,
+    n.name,
+    n.normalized_name,
+    n.mime_type,
+    n.size,
+    n.storage_backend,
+    n.storage_path,
+    n.checksum_sha256,
+    n.status,
+    n.created_at,
+    n.updated_at
+)
+SELECT * FROM updated`
+	var node Node
+	err = r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, req.Name, normalizedName).Scan(
+		&node.ID,
+		&node.CompanyID,
+		&node.DomainID,
+		&node.UserID,
+		&node.ParentID,
+		&node.Type,
+		&node.Name,
+		&node.NormalizedName,
+		&node.MIMEType,
+		&node.Size,
+		&node.StorageBackend,
+		&node.StoragePath,
+		&node.ChecksumSHA256,
+		&node.Status,
+		&node.CreatedAt,
+		&node.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Node{}, fmt.Errorf("active drive node not found")
+		}
+		return Node{}, fmt.Errorf("rename drive node: %w", err)
+	}
+	return node, nil
 }
 
 func (r *Repository) PermanentDeleteNode(ctx context.Context, req PermanentDeleteNodeRequest) (PermanentDeleteResult, error) {
