@@ -774,7 +774,7 @@ func TestAdminDriveNodesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-nodes?limit=5&user_id=%20user-1%20&parent_id=%20parent-1%20&status=active&q=%20Report%20", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-nodes?limit=5&user_id=%20user-1%20&parent_id=%20parent-1%20&status=active&q=%20Report%20&sort=updated", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -794,7 +794,8 @@ func TestAdminDriveNodesHandler(t *testing.T) {
 		service.lastDriveNodeList.UserID != "user-1" ||
 		service.lastDriveNodeList.ParentID != "parent-1" ||
 		service.lastDriveNodeList.Status != drive.NodeStatusActive ||
-		service.lastDriveNodeList.Query != "report" {
+		service.lastDriveNodeList.Query != "report" ||
+		service.lastDriveNodeList.Sort != drive.NodeSortUpdated {
 		t.Fatalf("lastDriveNodeList = %+v", service.lastDriveNodeList)
 	}
 }
@@ -806,6 +807,7 @@ func TestAdminDriveNodesHandlerRejectsUnsafeFilters(t *testing.T) {
 		"/admin/v1/drive-nodes?user_id=user%0Abad",
 		"/admin/v1/drive-nodes?status=missing&user_id=user-1",
 		"/admin/v1/drive-nodes?q=report%0Abad&user_id=user-1",
+		"/admin/v1/drive-nodes?sort=owner&user_id=user-1",
 		"/admin/v1/drive-nodes?cursor=opaque&user_id=user-1",
 		"/admin/v1/drive-nodes",
 	}

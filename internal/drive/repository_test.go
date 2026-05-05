@@ -116,12 +116,13 @@ func TestValidateListNodesRequest(t *testing.T) {
 		ParentID: " parent-1 ",
 		Status:   " Trashed ",
 		Query:    " Report_% ",
+		Sort:     " Updated ",
 		Limit:    500,
 	})
 	if err != nil {
 		t.Fatalf("ValidateListNodesRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed || req.Query != "report_%" {
+	if req.UserID != "user-1" || req.ParentID != "parent-1" || req.Status != NodeStatusTrashed || req.Query != "report_%" || req.Sort != NodeSortUpdated {
 		t.Fatalf("request = %+v, want trimmed status-normalized request", req)
 	}
 	if got := escapeDriveNodeLikeQuery(req.Query); got != `report\_\%` {
@@ -135,7 +136,7 @@ func TestValidateListNodesRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateListNodesRequest default returned error: %v", err)
 	}
-	if defaulted.Status != NodeStatusActive || defaulted.Limit != 50 {
+	if defaulted.Status != NodeStatusActive || defaulted.Sort != NodeSortName || defaulted.Limit != 50 {
 		t.Fatalf("defaulted request = %+v, want active/50", defaulted)
 	}
 }
@@ -148,6 +149,7 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user\n1", Status: NodeStatusActive},
 		{UserID: "user-1", ParentID: "parent\n1", Status: NodeStatusActive},
 		{UserID: "user-1", Status: "archived"},
+		{UserID: "user-1", Status: NodeStatusActive, Sort: "owner"},
 		{UserID: "user-1", Status: NodeStatusActive, Query: strings.Repeat("q", MaxNodeNameBytes+1)},
 		{UserID: "user-1", Status: NodeStatusActive, Query: "report\nbad"},
 	}
@@ -158,6 +160,34 @@ func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 
 			if _, err := ValidateListNodesRequest(tc); err == nil {
 				t.Fatalf("ValidateListNodesRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
+func TestDriveNodeListOrderBy(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string][]string{
+		NodeSortName:    {"normalized_name ASC", "id ASC"},
+		NodeSortUpdated: {"updated_at DESC", "normalized_name ASC"},
+		NodeSortCreated: {"created_at DESC", "normalized_name ASC"},
+		NodeSortSize:    {"size DESC", "normalized_name ASC"},
+	}
+	for sortMode, wants := range tests {
+		sortMode := sortMode
+		wants := wants
+		t.Run(sortMode, func(t *testing.T) {
+			t.Parallel()
+
+			got := driveNodeListOrderBy(sortMode)
+			if !strings.Contains(got, "CASE WHEN node_type = 'folder'") {
+				t.Fatalf("order by = %q, want folder-first ordering", got)
+			}
+			for _, want := range wants {
+				if !strings.Contains(got, want) {
+					t.Fatalf("order by = %q, want %q", got, want)
+				}
 			}
 		})
 	}

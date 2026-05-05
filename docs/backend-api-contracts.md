@@ -157,9 +157,12 @@ The first Drive Mail API surface is authenticated through the same bearer token
 or development `user_id` fallback path as webmail mail routes:
 
 - `GET /api/v1/drive/nodes` returns `{"drive_nodes":[...]}` and accepts
-  bounded `parent_id`, `status=active|trashed|deleted`, `q`, and `limit`
-  filters. `q` is a case-insensitive node-name filter scoped to the selected
-  parent/status view and treats SQL wildcard characters literally.
+  bounded `parent_id`, `status=active|trashed|deleted`,
+  `sort=name|updated|created|size`, `q`, and `limit` filters. `q` is a
+  case-insensitive node-name filter scoped to the selected parent/status view
+  and treats SQL wildcard characters literally. Sort modes keep folders grouped
+  before files so Drive browsers can switch ordering without losing folder
+  hierarchy affordances.
 - `GET /api/v1/drive/nodes/{id}` returns `{"drive_node":{...}}` for a single
   node and accepts bounded `status=active|trashed|deleted` so clients can
   refresh selected metadata after edits.
@@ -435,9 +438,10 @@ The Admin API also exposes `GET /admin/v1/drive-upload-sessions` with required
 `user_id`, bounded `status`, and `limit` filters so operators can inspect
 Drive upload session state for a user without entering the webmail API surface.
 `GET /admin/v1/drive-nodes` returns `{"drive_nodes":[...]}` with required
-`user_id` plus bounded `parent_id`, lifecycle `status`, `q`, and `limit`
-filters so operator consoles can inspect or name-filter a user's Drive
-inventory through the same node read model used by webmail clients.
+`user_id` plus bounded `parent_id`, lifecycle `status`, `q`, `sort`, and
+`limit` filters so operator consoles can inspect, name-filter, and order a
+user's Drive inventory through the same node read model used by webmail
+clients.
 `GET /admin/v1/drive-nodes/{id}` returns `{"drive_node":{...}}` with required
 `user_id` and optional lifecycle `status`, giving operator consoles a bounded
 single-node metadata view for files and folders.

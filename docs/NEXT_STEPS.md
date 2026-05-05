@@ -1383,6 +1383,9 @@ Current state:
   synchronized by passing a preallocated node UUID into the metadata insert.
 - Drive file write APIs now return HTTP 507 `insufficient_storage` for quota
   exhaustion on finalize/copy paths.
+- Drive node listing now supports webmail/admin `sort=name|updated|created|size`
+  controls with folder-first ordering, giving future Drive screens predictable
+  production browsing controls without frontend-specific assumptions.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
   permanent-delete cleanup, cleanup-failure retry, download, and copy paths
   enforce the owning user's

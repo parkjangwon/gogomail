@@ -2026,6 +2026,9 @@ The platform hardening sprint completed the following:
 - Drive upload-session finalization, staged-object finalization, and file copy
   now map quota exhaustion to HTTP 507 `insufficient_storage`, giving webmail
   clients a precise storage-pressure response.
+- Drive node listing now supports explicit `sort=name|updated|created|size`
+  controls on both webmail and admin APIs while preserving folder-first
+  ordering for production Drive browser ergonomics.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
   permanent-delete cleanup, cleanup-failure retry, download, and copy paths now
   enforce that stored object keys remain under the owning user's

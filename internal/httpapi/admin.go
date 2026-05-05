@@ -1153,7 +1153,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "parent_id", "status", "q") {
+		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "parent_id", "status", "q", "sort") {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -1180,11 +1180,16 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
+		sortMode, ok := parseBoundedAdminQuery(w, r, "sort")
+		if !ok {
+			return
+		}
 		req := drive.ListNodesRequest{
 			UserID:   userID,
 			ParentID: parentID,
 			Status:   status,
 			Query:    searchQuery,
+			Sort:     sortMode,
 			Limit:    limit,
 		}
 		req, err := drive.ValidateListNodesRequest(req)
