@@ -79,15 +79,14 @@ const (
 )
 
 type ReportRequest struct {
-	Kind           ReportKind
-	Properties     []XMLName
-	Hrefs          []string
-	SyncToken      string
-	SyncLevel      string
-	Limit          int
-	HasFilter      bool
-	FilterProperty string
-	TextMatch      string
+	Kind       ReportKind
+	Properties []XMLName
+	Hrefs      []string
+	SyncToken  string
+	SyncLevel  string
+	Limit      int
+	HasFilter  bool
+	Filter     AddressBookQueryFilter
 }
 
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
@@ -248,8 +247,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				if err != nil {
 					return ReportRequest{}, err
 				}
-				req.FilterProperty = filter.PropertyName
-				req.TextMatch = filter.TextMatch
+				req.Filter = filter
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return ReportRequest{}, err
@@ -376,9 +374,27 @@ func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
 }
 
 type AddressBookQueryFilter struct {
-	PropertyName string
-	TextMatch    string
+	PropertyName  string
+	TextMatch     CardDAVTextMatch
+	HasTextMatch  bool
+	HasPropFilter bool
 }
+
+type CardDAVTextMatch struct {
+	Text      string
+	MatchType string
+	Collation string
+	Negate    bool
+}
+
+const (
+	TextMatchEquals     = "equals"
+	TextMatchContains   = "contains"
+	TextMatchStartsWith = "starts-with"
+	TextMatchEndsWith   = "ends-with"
+
+	TextMatchUnicodeCasemap = "i;unicode-casemap"
+)
 
 func parseAddressBookFilter(dec *xml.Decoder, filterName xml.Name) (AddressBookQueryFilter, error) {
 	return parseAddressBookFilterDepth(dec, filterName, 1, "")
@@ -409,27 +425,32 @@ func parseAddressBookFilterDepth(dec *xml.Decoder, filterName xml.Name, depth in
 				if err != nil {
 					return AddressBookQueryFilter{}, err
 				}
-				if filter.TextMatch == "" {
+				if !nested.HasPropFilter {
+					nested.PropertyName = propName
+					nested.HasPropFilter = true
+				}
+				if !filter.HasTextMatch && !filter.HasPropFilter {
 					filter = nested
 				}
 			case sameXMLName(tok.Name, CardDAVNamespace, "text-match"):
-				text, err := readSimpleElementText(dec, tok.Name)
+				match, err := parseTextMatchElement(dec, tok)
 				if err != nil {
 					return AddressBookQueryFilter{}, err
 				}
-				text = strings.TrimSpace(text)
-				if len(text) > 512 || strings.ContainsAny(text, "\r\n") {
-					return AddressBookQueryFilter{}, fmt.Errorf("CardDAV text-match is invalid")
-				}
-				if filter.TextMatch == "" {
-					filter = AddressBookQueryFilter{PropertyName: currentProperty, TextMatch: text}
+				if !filter.HasTextMatch {
+					filter = AddressBookQueryFilter{
+						PropertyName:  currentProperty,
+						TextMatch:     match,
+						HasTextMatch:  true,
+						HasPropFilter: currentProperty != "",
+					}
 				}
 			default:
 				nested, err := parseAddressBookFilterDepth(dec, tok.Name, depth+1, currentProperty)
 				if err != nil {
 					return AddressBookQueryFilter{}, err
 				}
-				if filter.TextMatch == "" {
+				if !filter.HasTextMatch && !filter.HasPropFilter {
 					filter = nested
 				}
 			}
@@ -461,6 +482,54 @@ func propFilterName(el xml.StartElement) (string, error) {
 		return name, nil
 	}
 	return "", fmt.Errorf("CardDAV prop-filter name is required")
+}
+
+func parseTextMatchElement(dec *xml.Decoder, el xml.StartElement) (CardDAVTextMatch, error) {
+	match := CardDAVTextMatch{MatchType: TextMatchContains, Collation: TextMatchUnicodeCasemap}
+	for _, attr := range el.Attr {
+		if strings.ContainsAny(attr.Value, "\r\n") {
+			return CardDAVTextMatch{}, fmt.Errorf("CardDAV text-match attribute is invalid")
+		}
+		switch attr.Name.Local {
+		case "collation":
+			collation := strings.ToLower(strings.TrimSpace(attr.Value))
+			if collation == "" || len(collation) > 128 {
+				return CardDAVTextMatch{}, fmt.Errorf("CardDAV text-match collation is invalid")
+			}
+			if collation != TextMatchUnicodeCasemap {
+				return CardDAVTextMatch{}, fmt.Errorf("unsupported CardDAV text-match collation %q", collation)
+			}
+			match.Collation = collation
+		case "match-type":
+			matchType := strings.ToLower(strings.TrimSpace(attr.Value))
+			switch matchType {
+			case TextMatchEquals, TextMatchContains, TextMatchStartsWith, TextMatchEndsWith:
+				match.MatchType = matchType
+			default:
+				return CardDAVTextMatch{}, fmt.Errorf("unsupported CardDAV text-match match-type %q", matchType)
+			}
+		case "negate-condition":
+			negate := strings.ToLower(strings.TrimSpace(attr.Value))
+			switch negate {
+			case "yes":
+				match.Negate = true
+			case "no":
+				match.Negate = false
+			default:
+				return CardDAVTextMatch{}, fmt.Errorf("CardDAV text-match negate-condition is invalid")
+			}
+		}
+	}
+	text, err := readSimpleElementText(dec, el.Name)
+	if err != nil {
+		return CardDAVTextMatch{}, err
+	}
+	text = strings.TrimSpace(text)
+	if len(text) > 512 || strings.ContainsAny(text, "\r\n") {
+		return CardDAVTextMatch{}, fmt.Errorf("CardDAV text-match is invalid")
+	}
+	match.Text = text
+	return match, nil
 }
 
 func parseLimitElement(dec *xml.Decoder, name xml.Name) (int, error) {
