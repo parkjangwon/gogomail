@@ -51,6 +51,11 @@ Current state:
 - `LOGIN` and `AUTHENTICATE` validate malformed argument shape or unsupported
   mechanisms before plaintext `[PRIVACYREQUIRED]` responses on TLS-required
   listeners.
+- Mailbox management and subscription commands validate malformed `LIST`,
+  `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and `UNSUBSCRIBE`
+  argument shape or modified UTF-7 mailbox names before authentication
+  failures, while well-formed unauthenticated commands still return
+  `NO authentication required`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object

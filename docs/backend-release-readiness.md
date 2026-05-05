@@ -346,6 +346,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `SELECT`, `EXAMINE`, `STATUS`, `APPEND`, `COPY`, `MOVE`, `CREATE`, `DELETE`,
   `RENAME`, `SUBSCRIBE`, `UNSUBSCRIBE`, `LIST`, and `LSUB` while rejecting raw
   8-bit or malformed modified UTF-7 forms.
+- IMAP mailbox management and subscription commands now reject malformed
+  `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
+  `UNSUBSCRIBE` syntax before authentication failures, preserving precise
+  tagged `BAD` diagnostics while keeping valid unauthenticated commands behind
+  `NO authentication required`.
 - IMAP `CAPABILITY` now advertises `SPECIAL-USE` and RFC 3348 `CHILDREN`;
   `LIST` includes RFC 3348 `\HasChildren` / `\HasNoChildren` hierarchy
   attributes plus RFC 6154 special-use attributes for system folders such as

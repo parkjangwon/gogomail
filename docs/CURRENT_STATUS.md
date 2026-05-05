@@ -1508,6 +1508,11 @@ The platform hardening sprint completed the following:
 - IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
   unsupported mechanisms before returning `[PRIVACYREQUIRED]` on plaintext
   TLS-required listeners.
+- IMAP mailbox management and subscription commands now validate malformed
+  `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
+  `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before
+  authentication failures, while valid unauthenticated commands still return
+  `NO authentication required`.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.
