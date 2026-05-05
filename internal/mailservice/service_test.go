@@ -872,6 +872,88 @@ func TestIMAPServicesRejectZeroUIDs(t *testing.T) {
 	}
 }
 
+func TestIMAPMutationServicesRejectEmptyUIDSets(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		call   func(*Service) error
+		called func(*fakeRepository) bool
+	}{
+		{
+			name: "store empty uids",
+			call: func(service *Service) error {
+				_, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
+					UserID:    "user-1",
+					MailboxID: "inbox",
+					Flags:     imapgw.MessageFlags{Read: true},
+					Mode:      imapgw.StoreFlagsAdd,
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPFlagUserID != "" },
+		},
+		{
+			name: "copy empty uids",
+			call: func(service *Service) error {
+				_, err := service.CopyIMAPMessages(context.Background(), imapgw.CopyMessagesRequest{
+					UserID:          "user-1",
+					SourceMailboxID: "inbox",
+					DestMailboxID:   "archive",
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPCopyUserID != "" },
+		},
+		{
+			name: "move empty uids",
+			call: func(service *Service) error {
+				_, err := service.MoveIMAPMessages(context.Background(), imapgw.MoveMessagesRequest{
+					UserID:          "user-1",
+					SourceMailboxID: "inbox",
+					DestMailboxID:   "archive",
+				})
+				return err
+			},
+			called: func(repo *fakeRepository) bool { return repo.lastIMAPMoveUserID != "" },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &fakeRepository{}
+			service := New(repo, nil)
+			if err := tc.call(service); err == nil {
+				t.Fatal("IMAP mutation service accepted empty UID set")
+			}
+			if tc.called(repo) {
+				t.Fatal("repository was called before empty UID validation")
+			}
+		})
+	}
+}
+
+func TestExpungeIMAPMessagesAllowsNilUIDsForCloseSemantics(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapExpungeSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.ExpungeIMAPMessages(context.Background(), imapgw.ExpungeRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		UIDs:      nil,
+	})
+	if err != nil {
+		t.Fatalf("ExpungeIMAPMessages returned error: %v", err)
+	}
+	if len(got) != 1 || repo.lastIMAPExpungeUserID != "user-1" || repo.lastIMAPExpungeMailboxID != "inbox" || repo.lastIMAPExpungeUIDs != nil {
+		t.Fatalf("expunge result = %#v, request = %q/%q/%v", got, repo.lastIMAPExpungeUserID, repo.lastIMAPExpungeMailboxID, repo.lastIMAPExpungeUIDs)
+	}
+}
+
 func TestSubscribeIMAPMailboxUsesEventBroker(t *testing.T) {
 	t.Parallel()
 

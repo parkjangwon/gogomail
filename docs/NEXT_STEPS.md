@@ -767,6 +767,9 @@ Current state:
 - Service-level IMAP `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
   reject zero UIDs before repository or storage work, keeping direct callers
   aligned with RFC 3501's positive UID model.
+- Service-level IMAP `STORE`, `COPY`, and `MOVE` calls reject empty UID sets
+  before repository work, while `EXPUNGE` preserves nil UID sets for `CLOSE`
+  style "all deleted messages" semantics.
 - Folder list/create/rename/delete service methods reject CR/LF-bearing or
   oversized user identifiers, and create/rename reject unsafe folder names,
   before repository work.
