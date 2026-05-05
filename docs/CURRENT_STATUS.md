@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after S3-compatible object storage groundwork)
+Last updated: 2026-05-05 (updated after IMAP COPY groundwork)
 
 ## Current phase
 
@@ -793,8 +793,9 @@ The platform hardening sprint completed the following:
   protocol listener can depend on the gateway interface while still routing
   through service methods.
 - `IMAPStoreAdapter` now also satisfies `imapgw.MailboxSessionStore` for
-  mailbox selection and event subscription, while MOVE and EXPUNGE return an
-  explicit unsupported mutation error until IMAP-safe semantics are reviewed.
+  mailbox selection, service-backed COPY, and event subscription, while MOVE
+  and EXPUNGE return an explicit unsupported mutation error until IMAP-safe
+  destructive semantics are reviewed.
 - IMAP `UID FETCH` and `UID STORE` untagged `FETCH` responses use message
   sequence numbers per RFC 3501 while keeping the requested UID in response
   attributes, and `RFC822.SIZE` metadata requests do not trigger body streaming.
@@ -937,8 +938,11 @@ The platform hardening sprint completed the following:
   without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` return explicit unsupported `NO` responses
   while `\Deleted` semantics remain deferred.
-- IMAP `COPY` and `UID COPY` return explicit unsupported `NO` responses while
-  cross-mailbox copy semantics remain deferred.
+- IMAP `COPY` and `UID COPY` resolve sequence/UID sets through the selected
+  mailbox, validate the destination mailbox, duplicate active message metadata
+  and attachment rows transactionally, assign fresh destination mailbox UIDs,
+  and publish best-effort destination `EXISTS` events through the service
+  boundary.
 - IMAP `MOVE`, `UID MOVE`, and `APPEND` return explicit unsupported `NO`
   responses while mailbox mutation/import semantics remain deferred.
 - IMAP mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` return

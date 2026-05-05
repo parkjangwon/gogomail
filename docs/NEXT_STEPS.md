@@ -191,9 +191,9 @@ Current state:
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for protocol listener
   wiring through the service boundary.
 - `mailservice.IMAPStoreAdapter` also satisfies `imapgw.MailboxSessionStore`
-  for SELECT-style mailbox state and mailbox-event subscription. MOVE and
-  EXPUNGE intentionally return an explicit unsupported mutation error until
-  IMAP-safe mutation semantics are reviewed.
+  for SELECT-style mailbox state, service-backed COPY, and mailbox-event
+  subscription. MOVE and EXPUNGE intentionally return an explicit unsupported
+  mutation error until IMAP-safe destructive semantics are reviewed.
 - `gogomail --mode=imap` is now a separate gateway that opens the
   service-backed IMAP store adapter, wires a process-local mailbox event broker
   for future IDLE sessions, and serves the configured TCP protocol listener.
@@ -386,8 +386,10 @@ Current state:
   without invoking `CLOSE`/EXPUNGE semantics.
 - `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO` responses
   while `\Deleted` semantics remain deferred.
-- `COPY` and `UID COPY` now return explicit unsupported `NO` responses while
-  cross-mailbox copy semantics remain deferred.
+- `COPY` and `UID COPY` now resolve source message sequence/UID sets, validate
+  the destination mailbox, duplicate active message metadata and attachment
+  rows transactionally, assign fresh destination mailbox UIDs, and publish
+  best-effort destination `EXISTS` events through the service boundary.
 - `MOVE`, `UID MOVE`, and `APPEND` now return explicit unsupported `NO`
   responses while mailbox mutation/import semantics remain deferred.
 - Mailbox mutation commands `CREATE`, `DELETE`, and `RENAME` now return
