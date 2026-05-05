@@ -178,6 +178,7 @@ SELECT
   COALESCE((m.flags->>'answered')::boolean, false) AS answered,
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
   m.status,
   i.uid,
   i.modseq
@@ -219,6 +220,7 @@ LIMIT $4`
 			&row.Answered,
 			&row.Forwarded,
 			&row.Draft,
+			&row.Deleted,
 			&row.Status,
 			&uid,
 			&modseq,
@@ -283,6 +285,7 @@ SELECT
   COALESCE((m.flags->>'answered')::boolean, false) AS answered,
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
   m.status,
   m.storage_path,
   i.uid,
@@ -314,6 +317,7 @@ LIMIT 1`
 		&row.Answered,
 		&row.Forwarded,
 		&row.Draft,
+		&row.Deleted,
 		&row.Status,
 		&storagePath,
 		&messageUID.UID,
@@ -706,6 +710,7 @@ SELECT
   COALESCE((source.flags->>'answered')::boolean, false) AS answered,
   COALESCE((source.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((source.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((source.flags->>'imap_deleted')::boolean, false) AS deleted,
   'active' AS status,
   inserted_uids.uid,
   inserted_uids.modseq,
@@ -739,6 +744,7 @@ ORDER BY source.rn`
 			&row.Answered,
 			&row.Forwarded,
 			&row.Draft,
+			&row.Deleted,
 			&row.Status,
 			&messageUID.UID,
 			&messageUID.ModSeq,
@@ -1031,6 +1037,7 @@ type imapMessageRow struct {
 	Answered     bool
 	Forwarded    bool
 	Draft        bool
+	Deleted      bool
 	Status       string
 }
 
@@ -1038,6 +1045,7 @@ type imapStoreFlagChanges struct {
 	Read     *bool
 	Starred  *bool
 	Answered *bool
+	Deleted  *bool
 }
 
 func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) (imapStoreFlagChanges, error) {
@@ -1056,6 +1064,9 @@ func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMo
 		if flags.Answered {
 			changes.Answered = boolPointer(true)
 		}
+		if flags.Deleted {
+			changes.Deleted = boolPointer(true)
+		}
 	case imapgw.StoreFlagsRemove:
 		if flags.Read {
 			changes.Read = boolPointer(false)
@@ -1066,14 +1077,18 @@ func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMo
 		if flags.Answered {
 			changes.Answered = boolPointer(false)
 		}
+		if flags.Deleted {
+			changes.Deleted = boolPointer(false)
+		}
 	case imapgw.StoreFlagsReplace:
 		changes.Read = boolPointer(flags.Read)
 		changes.Starred = boolPointer(flags.Starred)
 		changes.Answered = boolPointer(flags.Answered)
+		changes.Deleted = boolPointer(flags.Deleted)
 	default:
 		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flags mode %q", mode)
 	}
-	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil {
+	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil && changes.Deleted == nil {
 		return imapStoreFlagChanges{}, fmt.Errorf("imap flags are required")
 	}
 	return changes, nil
@@ -1090,7 +1105,10 @@ func applyIMAPStoreFlagChanges(row imapMessageRow, changes imapStoreFlagChanges)
 	if changes.Answered != nil {
 		next.Answered = *changes.Answered
 	}
-	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered
+	if changes.Deleted != nil {
+		next.Deleted = *changes.Deleted
+	}
+	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered || next.Deleted != row.Deleted
 }
 
 func boolPointer(value bool) *bool {
@@ -1124,6 +1142,7 @@ func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSu
 			Answered:  row.Answered,
 			Forwarded: row.Forwarded,
 			Draft:     row.Draft,
+			Deleted:   row.Deleted,
 			Status:    row.Status,
 		},
 		InternalDate: row.InternalDate,
@@ -1188,6 +1207,7 @@ SELECT
   COALESCE((m.flags->>'answered')::boolean, false) AS answered,
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
   m.status,
   i.uid,
   i.modseq
@@ -1218,6 +1238,7 @@ FOR UPDATE OF i, m`
 		&row.Answered,
 		&row.Forwarded,
 		&row.Draft,
+		&row.Deleted,
 		&row.Status,
 		&messageUID.UID,
 		&messageUID.ModSeq,
@@ -1240,14 +1261,17 @@ func updateIMAPMessageFlags(ctx context.Context, tx *sql.Tx, messageID string, m
 UPDATE messages
 SET flags = jsonb_set(
       jsonb_set(
-        jsonb_set(flags, '{read}', to_jsonb($2::boolean), true),
-        '{starred}', to_jsonb($3::boolean), true
+        jsonb_set(
+          jsonb_set(flags, '{read}', to_jsonb($2::boolean), true),
+          '{starred}', to_jsonb($3::boolean), true
+        ),
+        '{answered}', to_jsonb($4::boolean), true
       ),
-      '{answered}', to_jsonb($4::boolean), true
+      '{imap_deleted}', to_jsonb($5::boolean), true
     ),
     updated_at = now()
 WHERE id = $1::uuid`
-	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered); err != nil {
+	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered, row.Deleted); err != nil {
 		return fmt.Errorf("update imap message flags: %w", err)
 	}
 

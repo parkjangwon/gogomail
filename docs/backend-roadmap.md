@@ -988,9 +988,9 @@ Implementation order:
 758. IMAP `SEARCH` and `UID SEARCH` now accept `CHARSET US-ASCII` and
      `CHARSET UTF-8` prefixes and return an RFC-shaped `[BADCHARSET]` response
      for unsupported search charsets.
-759. IMAP `SEARCH` and `UID SEARCH` now support `DELETED` and `UNDELETED`,
-     returning no deleted matches while `\Deleted`/EXPUNGE semantics remain
-     deferred and treating active messages as undeleted.
+759. IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
+     separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
+     that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
 760. IMAP `SEARCH` and `UID SEARCH` now support `RECENT`, `OLD`, and `NEW`,
      returning no recent/new matches while durable recent-state semantics remain
      deferred and treating active messages as old.
@@ -1043,6 +1043,9 @@ Implementation order:
      adapter coverage over the existing folder CRUD boundary, improving
      standards-shaped mailbox management compatibility while keeping hierarchy
      semantics constrained by the current flat folder model.
+776. IMAP `\Deleted` is now a first-class protocol flag in the gateway and
+     repository flag store, giving future `EXPUNGE` work a standards-shaped
+     marker without conflating it with gogomail's soft-delete message status.
 
 ## Deferred until backend contracts stabilize
 

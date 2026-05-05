@@ -10,9 +10,10 @@ func TestMapMessageFlagsUsesRFC3501SystemFlags(t *testing.T) {
 		Read:      true,
 		Starred:   true,
 		Answered:  true,
+		Deleted:   true,
 		Forwarded: true,
 	})
-	want := []string{FlagSeen, FlagFlagged, FlagAnswered}
+	want := []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDeleted}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("MapMessageFlags() = %#v, want %#v", got, want)
 	}
@@ -38,8 +39,8 @@ func TestMapMessageFlagsDoesNotMapSoftDeletedStatusToDeleted(t *testing.T) {
 	if len(got) != 0 {
 		t.Fatalf("MapMessageFlags(deleted status) = %#v, want no IMAP flags", got)
 	}
-	if PlannedFlagDeleted != `\Deleted` {
-		t.Fatalf("PlannedFlagDeleted = %q, want \\\\Deleted", PlannedFlagDeleted)
+	if FlagDeleted != `\Deleted` {
+		t.Fatalf("FlagDeleted = %q, want \\\\Deleted", FlagDeleted)
 	}
 }
 
@@ -65,14 +66,14 @@ func TestApplyIMAPFlagMapsKnownMutableFlags(t *testing.T) {
 	}
 }
 
-func TestApplyIMAPFlagRejectsDeletedForCurrentModel(t *testing.T) {
+func TestApplyIMAPFlagMapsDeletedSeparatelyFromSoftDelete(t *testing.T) {
 	flags := MessageFlags{Read: true}
 	got, ok := ApplyIMAPFlag(flags, `\Deleted`, true)
-	if ok {
-		t.Fatal("ApplyIMAPFlag(Deleted) succeeded; current soft-delete is not IMAP Deleted")
+	if !ok || !got.Deleted || got.Status != "" {
+		t.Fatalf("ApplyIMAPFlag(Deleted) = %#v, %v; want IMAP-only deleted flag", got, ok)
 	}
-	if !reflect.DeepEqual(got, flags) {
-		t.Fatalf("ApplyIMAPFlag(Deleted) mutated flags to %#v", got)
+	if !got.Read {
+		t.Fatalf("ApplyIMAPFlag(Deleted) lost existing read flag: %#v", got)
 	}
 }
 

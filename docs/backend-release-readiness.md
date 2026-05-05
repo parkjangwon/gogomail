@@ -325,7 +325,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   emitting selected-mailbox response data, avoiding ambiguous partial selection
   state when subscription setup fails.
 - IMAP `CHECK` and `CLOSE` now provide safe selected-mailbox lifecycle handling,
-  with `CLOSE` clearing selected state while EXPUNGE/`\Deleted` remain deferred.
+  with `CLOSE` clearing selected state without expunging messages.
 - IMAP `STATUS` now validates requested status data items and emits only those
   requested fields, including `RECENT`.
 - IMAP mailbox lookup now resolves wire names such as `INBOX` and
@@ -406,9 +406,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` now support common flag criteria including
   `SEEN`, `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, `UNANSWERED`,
   `DRAFT`, and `UNDRAFT`.
-- IMAP `SEARCH`/`UID SEARCH` now supports `DELETED` and `UNDELETED`, returning
-  no deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
-  treating active messages as undeleted.
+- IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
+  separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
+  that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
 - IMAP `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning
   no recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
@@ -456,7 +456,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   and event subscriptions without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO`
-  responses while `\Deleted` semantics remain deferred.
+  responses while destructive expunge semantics remain deferred.
 - IMAP `COPY` and `UID COPY` now resolve source sequence/UID sets through the
   selected mailbox, validate the destination mailbox, duplicate active message
   metadata and attachment rows transactionally, assign fresh destination

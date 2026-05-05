@@ -7,10 +7,7 @@ const (
 	FlagFlagged  = `\Flagged`
 	FlagAnswered = `\Answered`
 	FlagDraft    = `\Draft`
-
-	// PlannedFlagDeleted is reserved for a future IMAP expunge/delete model.
-	// gogomail's current soft-delete status is intentionally not mapped to it.
-	PlannedFlagDeleted = `\Deleted`
+	FlagDeleted  = `\Deleted`
 )
 
 type MessageFlags struct {
@@ -19,6 +16,7 @@ type MessageFlags struct {
 	Answered  bool
 	Forwarded bool
 	Draft     bool
+	Deleted   bool
 	Status    string
 }
 
@@ -40,6 +38,9 @@ func MapMessageFlags(flags MessageFlags) []string {
 	if flags.Draft || strings.EqualFold(strings.TrimSpace(flags.Status), "draft") {
 		imapFlags = append(imapFlags, FlagDraft)
 	}
+	if flags.Deleted {
+		imapFlags = append(imapFlags, FlagDeleted)
+	}
 	return imapFlags
 }
 
@@ -58,6 +59,8 @@ func ApplyIMAPFlag(flags MessageFlags, imapFlag string, value bool) (MessageFlag
 		} else if strings.EqualFold(strings.TrimSpace(flags.Status), "draft") {
 			flags.Status = ""
 		}
+	case FlagDeleted:
+		flags.Deleted = value
 	default:
 		return flags, false
 	}
@@ -88,7 +91,7 @@ func CanonicalIMAPFlag(flag string) string {
 	case `\draft`:
 		return FlagDraft
 	case `\deleted`:
-		return PlannedFlagDeleted
+		return FlagDeleted
 	default:
 		return strings.TrimSpace(flag)
 	}

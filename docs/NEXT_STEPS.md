@@ -259,7 +259,7 @@ Current state:
   selected-mailbox response data, avoiding ambiguous partial selection state
   when subscription setup fails.
 - `CHECK` and `CLOSE` now cover selected-mailbox lifecycle calls; `CLOSE`
-  clears selected state while leaving EXPUNGE/`\Deleted` semantics deferred.
+  clears selected state without expunging messages.
 - `STATUS` now validates requested status data items and returns only the
   requested mailbox metadata fields.
 - IMAP mailbox lookup now resolves wire names such as `INBOX` and
@@ -340,9 +340,9 @@ Current state:
   `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]` requests.
 - `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,
   `FLAGGED`, `ANSWERED`, and `DRAFT` for standard client views.
-- `SEARCH`/`UID SEARCH` now supports `DELETED` and `UNDELETED`, returning no
-  deleted matches while `\Deleted`/EXPUNGE semantics remain deferred and
-  treating active messages as undeleted.
+- `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag separately
+  from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose that flag
+  through `FLAGS`, `DELETED`, and `UNDELETED`.
 - `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning no
   recent/new matches while durable recent-state semantics remain deferred and
   treating active messages as old.
@@ -385,7 +385,7 @@ Current state:
 - IMAP now advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
 - `EXPUNGE` and `UID EXPUNGE` now return explicit unsupported `NO` responses
-  while `\Deleted` semantics remain deferred.
+  while destructive expunge semantics remain deferred.
 - `COPY` and `UID COPY` now resolve source message sequence/UID sets, validate
   the destination mailbox, duplicate active message metadata and attachment
   rows transactionally, assign fresh destination mailbox UIDs, and publish
