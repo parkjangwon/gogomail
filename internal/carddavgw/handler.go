@@ -597,35 +597,83 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 }
 
 func contactObjectMatchesFilter(object ContactObject, filter AddressBookQueryFilter) bool {
-	if !filter.HasPropFilter && !filter.HasTextMatch {
+	if len(filter.PropFilters) == 0 {
 		return true
-	}
-	propertyName := strings.ToUpper(strings.TrimSpace(filter.PropertyName))
-	if propertyName == "" {
-		return textMatchApplies(string(object.VCard), filter.TextMatch)
 	}
 	lines, err := unfoldVCardLines(string(object.VCard))
 	if err != nil {
 		return false
 	}
-	propertyExists := false
+	parsedLines := make([]vCardContentLine, 0, len(lines))
 	for _, line := range lines {
 		parsed, err := parseVCardContentLineParts(line)
 		if err != nil {
 			continue
 		}
-		if parsed.Name != propertyName {
-			continue
+		parsedLines = append(parsedLines, parsed)
+	}
+	if filter.Test == FilterTestAllOf {
+		for _, propFilter := range filter.PropFilters {
+			if !vCardPropFilterApplies(parsedLines, propFilter) {
+				return false
+			}
 		}
-		propertyExists = true
-		if filter.HasParamFilter && !vCardParamFilterApplies(parsed.Params, filter.ParamFilter) {
-			continue
-		}
-		if !filter.HasTextMatch || textMatchApplies(parsed.Value, filter.TextMatch) {
+		return true
+	}
+	for _, propFilter := range filter.PropFilters {
+		if vCardPropFilterApplies(parsedLines, propFilter) {
 			return true
 		}
 	}
-	return propertyExists && !filter.HasTextMatch && !filter.HasParamFilter
+	return false
+}
+
+func vCardPropFilterApplies(lines []vCardContentLine, filter CardDAVPropFilter) bool {
+	propertyExists := false
+	for _, line := range lines {
+		if line.Name != filter.Name {
+			continue
+		}
+		propertyExists = true
+		if vCardPropertyMatchesConditions(line, filter) {
+			return true
+		}
+	}
+	if filter.IsNotDefined {
+		return !propertyExists
+	}
+	return propertyExists && len(filter.TextMatches) == 0 && len(filter.ParamFilters) == 0
+}
+
+func vCardPropertyMatchesConditions(line vCardContentLine, filter CardDAVPropFilter) bool {
+	conditionCount := len(filter.TextMatches) + len(filter.ParamFilters)
+	if conditionCount == 0 {
+		return true
+	}
+	if filter.Test == FilterTestAllOf {
+		for _, match := range filter.TextMatches {
+			if !textMatchApplies(line.Value, match) {
+				return false
+			}
+		}
+		for _, paramFilter := range filter.ParamFilters {
+			if !vCardParamFilterApplies(line.Params, paramFilter) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, match := range filter.TextMatches {
+		if textMatchApplies(line.Value, match) {
+			return true
+		}
+	}
+	for _, paramFilter := range filter.ParamFilters {
+		if vCardParamFilterApplies(line.Params, paramFilter) {
+			return true
+		}
+	}
+	return false
 }
 
 func vCardParamFilterApplies(params map[string][]string, filter CardDAVParamFilter) bool {

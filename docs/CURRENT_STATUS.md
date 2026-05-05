@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV text-match semantics)
+Last updated: 2026-05-06 (updated after CardDAV filter composition)
 
 ## Current phase
 
@@ -64,10 +64,11 @@ execution for `addressbook-query`, `addressbook-multiget`, and
 property values instead of only scanning the whole object body. It also honors
 the RFC 6352 default `i;unicode-casemap` collation plus `equals`, `contains`,
 `starts-with`, `ends-with`, and `negate-condition` text-match attributes, and
-can evaluate the first nested `param-filter` against parsed vCard parameter
-values. It remains gated on broader vCard/filter-tree compatibility and
-native-client tests. The handler is deliberately experimental and does not yet
-make CardDAV public/client-ready.
+evaluates nested `param-filter` entries against parsed vCard parameter values.
+It now honors RFC 6352 `test=anyof|allof` composition on the top-level
+`filter` and individual `prop-filter` elements. It remains gated on broader
+vCard compatibility and native-client tests. The handler is deliberately
+experimental and does not yet make CardDAV public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,
@@ -2358,10 +2359,11 @@ The platform hardening sprint completed the following:
   changes transactionally.
 - CardDAV REPORT parsing now recognizes bounded `addressbook-query`,
   `addressbook-multiget`, and WebDAV `sync-collection` request bodies,
-  collecting requested properties, hrefs, sync token/level, limits, and first
-  text-match filter plus its enclosing `prop-filter` name while rejecting
-  malformed, oversized, deeply nested, invalid prop-filter, or unsupported
-  sync-level shapes before handlers are exposed.
+  collecting requested properties, hrefs, sync token/level, limits, CardDAV
+  `filter`/`prop-filter` `test` attributes, text-match predicates, and
+  nested param-filters while rejecting malformed, oversized, deeply nested,
+  invalid filter/test attributes, or unsupported sync-level shapes before
+  handlers are exposed.
 - CardDAV now has a WebDAV `multistatus` response builder for future PROPFIND,
   REPORT, and sync handlers. It renders principal discovery, address-book
   collection metadata, contact-object metadata, requested `address-data`,
@@ -2379,21 +2381,19 @@ The platform hardening sprint completed the following:
 - CardDAV now executes the three parsed REPORT shapes internally:
   `addressbook-multiget` returns requested contact metadata and optional
   `address-data` with per-href 404 propstats, `addressbook-query` scans active
-  address-book objects with the current bounded first text-match filter, and
+  address-book objects with the current bounded CardDAV filter tree, and
   `sync-collection` returns full snapshots or bounded change rows with root
   sync-token emission and deleted contact 404 responses. Query filtering now
-  applies the first `text-match` to the parsed unfolded vCard property named by
-  the enclosing `prop-filter`, falling back to whole-body matching only when no
-  property is present. The first text-match evaluator honors the RFC 6352
-  default `i;unicode-casemap` collation, rejects unsupported collations instead
-  of silently changing semantics, and supports `equals`, `contains`,
-  `starts-with`, `ends-with`, and `negate-condition`. It can also evaluate the
-  first nested `param-filter` by parsing vCard content-line parameters and
-  matching parameter existence, absence, or text-match values. The repository can
+  evaluates multiple `prop-filter` entries and per-property text/parameter
+  conditions using RFC 6352 `test=anyof|allof` composition. The text-match
+  evaluator honors the RFC 6352 default `i;unicode-casemap` collation, rejects
+  unsupported collations instead of silently changing semantics, and supports
+  `equals`, `contains`, `starts-with`, `ends-with`, and `negate-condition`.
+  Param-filter evaluation parses vCard content-line parameters and matches
+  parameter existence, absence, or text-match values. The repository can
   list address-book changes since a stored sync token and rejects missing or
   unsafe sync tokens before SQL work. This still does not advertise public
-  native-client compatibility because broader CardDAV filter trees,
-  `test=anyof|allof` composition, broader vCard compatibility, and client
+  native-client compatibility because broader vCard compatibility and client
   compatibility tests are still pending.
 - CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
@@ -2410,8 +2410,7 @@ The platform hardening sprint completed the following:
   rejects insecure Basic auth in production through
   `GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH=false`. This enables deployment smoke
   testing of the CardDAV gateway while keeping public/client-ready status gated
-  on broader filter tree composition, vCard compatibility, and native-client
-  verification.
+  on broader vCard compatibility and native-client verification.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

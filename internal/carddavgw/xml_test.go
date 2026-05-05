@@ -167,11 +167,15 @@ func TestParseReportCollectsAddressBookQueryTextMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseReport returned error: %v", err)
 	}
-	if !req.HasFilter || req.Filter.PropertyName != "FN" || !req.Filter.HasTextMatch || req.Filter.TextMatch.Text != "Alice" {
+	if !req.HasFilter || req.Filter.Test != FilterTestAnyOf || len(req.Filter.PropFilters) != 1 {
 		t.Fatalf("filter = %+v", req)
 	}
-	if req.Filter.TextMatch.Collation != TextMatchUnicodeCasemap || req.Filter.TextMatch.MatchType != TextMatchContains || req.Filter.TextMatch.Negate {
-		t.Fatalf("text-match defaults = %+v", req.Filter.TextMatch)
+	propFilter := req.Filter.PropFilters[0]
+	if propFilter.Name != "FN" || propFilter.Test != FilterTestAnyOf || len(propFilter.TextMatches) != 1 {
+		t.Fatalf("prop-filter = %+v", propFilter)
+	}
+	if propFilter.TextMatches[0].Text != "Alice" || propFilter.TextMatches[0].Collation != TextMatchUnicodeCasemap || propFilter.TextMatches[0].MatchType != TextMatchContains || propFilter.TextMatches[0].Negate {
+		t.Fatalf("text-match defaults = %+v", propFilter.TextMatches[0])
 	}
 }
 
@@ -189,11 +193,16 @@ func TestParseReportCollectsAddressBookQueryTextMatchAttributes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseReport returned error: %v", err)
 	}
-	if req.Filter.PropertyName != "EMAIL" || !req.Filter.HasTextMatch {
+	if len(req.Filter.PropFilters) != 1 {
 		t.Fatalf("filter = %+v", req.Filter)
 	}
-	if req.Filter.TextMatch.Text != "example.net" || req.Filter.TextMatch.MatchType != TextMatchEndsWith || req.Filter.TextMatch.Collation != TextMatchUnicodeCasemap || !req.Filter.TextMatch.Negate {
-		t.Fatalf("text-match = %+v", req.Filter.TextMatch)
+	propFilter := req.Filter.PropFilters[0]
+	if propFilter.Name != "EMAIL" || len(propFilter.TextMatches) != 1 {
+		t.Fatalf("prop-filter = %+v", propFilter)
+	}
+	match := propFilter.TextMatches[0]
+	if match.Text != "example.net" || match.MatchType != TextMatchEndsWith || match.Collation != TextMatchUnicodeCasemap || !match.Negate {
+		t.Fatalf("text-match = %+v", match)
 	}
 }
 
@@ -211,14 +220,43 @@ func TestParseReportCollectsAddressBookQueryParamFilter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseReport returned error: %v", err)
 	}
-	if req.Filter.PropertyName != "EMAIL" || !req.Filter.HasParamFilter {
+	if len(req.Filter.PropFilters) != 1 {
 		t.Fatalf("filter = %+v", req.Filter)
 	}
-	if req.Filter.ParamFilter.Name != "TYPE" || !req.Filter.ParamFilter.HasTextMatch {
-		t.Fatalf("param-filter = %+v", req.Filter.ParamFilter)
+	propFilter := req.Filter.PropFilters[0]
+	if propFilter.Name != "EMAIL" || len(propFilter.ParamFilters) != 1 {
+		t.Fatalf("prop-filter = %+v", propFilter)
 	}
-	if req.Filter.ParamFilter.TextMatch.Text != "home" || req.Filter.ParamFilter.TextMatch.MatchType != TextMatchEquals {
-		t.Fatalf("param text-match = %+v", req.Filter.ParamFilter.TextMatch)
+	paramFilter := propFilter.ParamFilters[0]
+	if paramFilter.Name != "TYPE" || !paramFilter.HasTextMatch {
+		t.Fatalf("param-filter = %+v", paramFilter)
+	}
+	if paramFilter.TextMatch.Text != "home" || paramFilter.TextMatch.MatchType != TextMatchEquals {
+		t.Fatalf("param text-match = %+v", paramFilter.TextMatch)
+	}
+}
+
+func TestParseReportCollectsAddressBookQueryFilterTests(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <C:filter test="allof">
+    <C:prop-filter name="FN"><C:text-match>Contact</C:text-match></C:prop-filter>
+    <C:prop-filter name="EMAIL" test="allof">
+      <C:text-match match-type="ends-with">example.com</C:text-match>
+      <C:param-filter name="TYPE"><C:text-match match-type="equals">work</C:text-match></C:param-filter>
+    </C:prop-filter>
+  </C:filter>
+</C:addressbook-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if req.Filter.Test != FilterTestAllOf || len(req.Filter.PropFilters) != 2 {
+		t.Fatalf("filter = %+v", req.Filter)
+	}
+	if req.Filter.PropFilters[1].Test != FilterTestAllOf || len(req.Filter.PropFilters[1].TextMatches) != 1 || len(req.Filter.PropFilters[1].ParamFilters) != 1 {
+		t.Fatalf("second prop-filter = %+v", req.Filter.PropFilters[1])
 	}
 }
 
@@ -238,6 +276,8 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"bad match type":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match match-type="wildcard">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad negate condition":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match negate-condition="maybe">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"unsupported collation":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match collation="i;octet">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"bad filter test":        `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter test="maybe"><C:prop-filter name="FN"/></C:filter></C:addressbook-query>`,
+		"bad prop filter test":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN" test="maybe"/></C:filter></C:addressbook-query>`,
 		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"param filter no parent": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:param-filter name="TYPE"><C:text-match>home</C:text-match></C:param-filter></C:filter></C:addressbook-query>`,

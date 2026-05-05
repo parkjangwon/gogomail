@@ -243,7 +243,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				req.Limit = limit
 			case sameXMLName(tok.Name, CardDAVNamespace, "filter"):
 				req.HasFilter = true
-				filter, err := parseAddressBookFilter(dec, tok.Name)
+				filter, err := parseAddressBookFilter(dec, tok)
 				if err != nil {
 					return ReportRequest{}, err
 				}
@@ -374,12 +374,16 @@ func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
 }
 
 type AddressBookQueryFilter struct {
-	PropertyName   string
-	TextMatch      CardDAVTextMatch
-	HasTextMatch   bool
-	HasPropFilter  bool
-	ParamFilter    CardDAVParamFilter
-	HasParamFilter bool
+	Test        string
+	PropFilters []CardDAVPropFilter
+}
+
+type CardDAVPropFilter struct {
+	Name         string
+	Test         string
+	TextMatches  []CardDAVTextMatch
+	ParamFilters []CardDAVParamFilter
+	IsNotDefined bool
 }
 
 type CardDAVParamFilter struct {
@@ -397,6 +401,9 @@ type CardDAVTextMatch struct {
 }
 
 const (
+	FilterTestAnyOf = "anyof"
+	FilterTestAllOf = "allof"
+
 	TextMatchEquals     = "equals"
 	TextMatchContains   = "contains"
 	TextMatchStartsWith = "starts-with"
@@ -405,15 +412,19 @@ const (
 	TextMatchUnicodeCasemap = "i;unicode-casemap"
 )
 
-func parseAddressBookFilter(dec *xml.Decoder, filterName xml.Name) (AddressBookQueryFilter, error) {
-	return parseAddressBookFilterDepth(dec, filterName, 1, "")
+func parseAddressBookFilter(dec *xml.Decoder, el xml.StartElement) (AddressBookQueryFilter, error) {
+	test, err := filterTestAttribute(el, "filter")
+	if err != nil {
+		return AddressBookQueryFilter{}, err
+	}
+	filter := AddressBookQueryFilter{Test: test}
+	return parseAddressBookFilterChildren(dec, el.Name, 1, filter)
 }
 
-func parseAddressBookFilterDepth(dec *xml.Decoder, filterName xml.Name, depth int, currentProperty string) (AddressBookQueryFilter, error) {
+func parseAddressBookFilterChildren(dec *xml.Decoder, filterName xml.Name, depth int, filter AddressBookQueryFilter) (AddressBookQueryFilter, error) {
 	if depth > MaxWebDAVXMLDepth {
 		return AddressBookQueryFilter{}, fmt.Errorf("WebDAV XML exceeds maximum depth")
 	}
-	var filter AddressBookQueryFilter
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -426,55 +437,19 @@ func parseAddressBookFilterDepth(dec *xml.Decoder, filterName xml.Name, depth in
 		case xml.StartElement:
 			switch {
 			case sameXMLName(tok.Name, CardDAVNamespace, "prop-filter"):
-				propName, err := propFilterName(tok)
+				propFilter, err := parsePropFilterElement(dec, tok, depth+1)
 				if err != nil {
 					return AddressBookQueryFilter{}, err
 				}
-				nested, err := parseAddressBookFilterDepth(dec, tok.Name, depth+1, propName)
-				if err != nil {
-					return AddressBookQueryFilter{}, err
+				filter.PropFilters = append(filter.PropFilters, propFilter)
+				if len(filter.PropFilters) > MaxWebDAVProperties {
+					return AddressBookQueryFilter{}, fmt.Errorf("too many CardDAV prop-filter elements")
 				}
-				if !nested.HasPropFilter {
-					nested.PropertyName = propName
-					nested.HasPropFilter = true
-				}
-				if addressBookQueryFilterEmpty(filter) {
-					filter = nested
-				}
-			case sameXMLName(tok.Name, CardDAVNamespace, "param-filter"):
-				if currentProperty == "" {
-					return AddressBookQueryFilter{}, fmt.Errorf("CardDAV param-filter requires a prop-filter parent")
-				}
-				paramFilter, err := parseParamFilterElement(dec, tok)
-				if err != nil {
-					return AddressBookQueryFilter{}, err
-				}
-				if !filter.HasParamFilter {
-					filter.PropertyName = currentProperty
-					filter.HasPropFilter = true
-					filter.ParamFilter = paramFilter
-					filter.HasParamFilter = true
-				}
-			case sameXMLName(tok.Name, CardDAVNamespace, "text-match"):
-				match, err := parseTextMatchElement(dec, tok)
-				if err != nil {
-					return AddressBookQueryFilter{}, err
-				}
-				if !filter.HasTextMatch {
-					filter = AddressBookQueryFilter{
-						PropertyName:  currentProperty,
-						TextMatch:     match,
-						HasTextMatch:  true,
-						HasPropFilter: currentProperty != "",
-					}
-				}
+			case tok.Name.Space == CardDAVNamespace:
+				return AddressBookQueryFilter{}, fmt.Errorf("unsupported CardDAV filter element {%s}%s", tok.Name.Space, tok.Name.Local)
 			default:
-				nested, err := parseAddressBookFilterDepth(dec, tok.Name, depth+1, currentProperty)
-				if err != nil {
+				if err := skipElement(dec, tok.Name); err != nil {
 					return AddressBookQueryFilter{}, err
-				}
-				if addressBookQueryFilterEmpty(filter) {
-					filter = nested
 				}
 			}
 		case xml.EndElement:
@@ -485,8 +460,67 @@ func parseAddressBookFilterDepth(dec *xml.Decoder, filterName xml.Name, depth in
 	}
 }
 
-func addressBookQueryFilterEmpty(filter AddressBookQueryFilter) bool {
-	return !filter.HasPropFilter && !filter.HasTextMatch && !filter.HasParamFilter
+func parsePropFilterElement(dec *xml.Decoder, el xml.StartElement, depth int) (CardDAVPropFilter, error) {
+	if depth > MaxWebDAVXMLDepth {
+		return CardDAVPropFilter{}, fmt.Errorf("WebDAV XML exceeds maximum depth")
+	}
+	name, err := propFilterName(el)
+	if err != nil {
+		return CardDAVPropFilter{}, err
+	}
+	test, err := filterTestAttribute(el, "prop-filter")
+	if err != nil {
+		return CardDAVPropFilter{}, err
+	}
+	filter := CardDAVPropFilter{Name: name, Test: test}
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return CardDAVPropFilter{}, fmt.Errorf("unterminated prop-filter element")
+		}
+		if err != nil {
+			return CardDAVPropFilter{}, fmt.Errorf("decode prop-filter element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, CardDAVNamespace, "text-match"):
+				if filter.IsNotDefined {
+					return CardDAVPropFilter{}, fmt.Errorf("CardDAV prop-filter cannot mix is-not-defined and match conditions")
+				}
+				match, err := parseTextMatchElement(dec, tok)
+				if err != nil {
+					return CardDAVPropFilter{}, err
+				}
+				filter.TextMatches = append(filter.TextMatches, match)
+			case sameXMLName(tok.Name, CardDAVNamespace, "param-filter"):
+				if filter.IsNotDefined {
+					return CardDAVPropFilter{}, fmt.Errorf("CardDAV prop-filter cannot mix is-not-defined and match conditions")
+				}
+				paramFilter, err := parseParamFilterElement(dec, tok)
+				if err != nil {
+					return CardDAVPropFilter{}, err
+				}
+				filter.ParamFilters = append(filter.ParamFilters, paramFilter)
+			case sameXMLName(tok.Name, CardDAVNamespace, "is-not-defined"):
+				if len(filter.TextMatches) > 0 || len(filter.ParamFilters) > 0 {
+					return CardDAVPropFilter{}, fmt.Errorf("CardDAV prop-filter cannot mix is-not-defined and match conditions")
+				}
+				filter.IsNotDefined = true
+				if err := skipElement(dec, tok.Name); err != nil {
+					return CardDAVPropFilter{}, err
+				}
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return CardDAVPropFilter{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, el.Name) {
+				return filter, nil
+			}
+		}
+	}
 }
 
 func propFilterName(el xml.StartElement) (string, error) {
@@ -541,6 +575,25 @@ func parseParamFilterElement(dec *xml.Decoder, el xml.StartElement) (CardDAVPara
 			}
 		}
 	}
+}
+
+func filterTestAttribute(el xml.StartElement, element string) (string, error) {
+	test := FilterTestAnyOf
+	for _, attr := range el.Attr {
+		if attr.Name.Local != "test" {
+			continue
+		}
+		if strings.ContainsAny(attr.Value, "\r\n") {
+			return "", fmt.Errorf("CardDAV %s test attribute is invalid", element)
+		}
+		test = strings.ToLower(strings.TrimSpace(attr.Value))
+		switch test {
+		case FilterTestAnyOf, FilterTestAllOf:
+		default:
+			return "", fmt.Errorf("unsupported CardDAV %s test %q", element, test)
+		}
+	}
+	return test, nil
 }
 
 func parseTextMatchElement(dec *xml.Decoder, el xml.StartElement) (CardDAVTextMatch, error) {

@@ -47,16 +47,16 @@ and requires contact-object discovery to use `Depth: 0`.
 
 Internal REPORT execution now covers the parsed `addressbook-multiget`,
 `addressbook-query`, and `sync-collection` shapes. Multiget scopes hrefs to the
-requested home or collection, query execution preserves the first
-`prop-filter` name and applies the current bounded `text-match` filter to
-parsed unfolded vCard property values. The first text-match evaluator supports
-the RFC 6352 default `i;unicode-casemap` collation, `equals`, `contains`,
-`starts-with`, `ends-with`, and `negate-condition`, while rejecting unsupported
-collations rather than pretending a different matching semantic is equivalent.
-It can also evaluate the first nested `param-filter` by parsing vCard
-content-line parameters and applying parameter existence, `is-not-defined`, or
-text-match checks. Sync execution can return full snapshots or bounded change
-rows since a stored sync token.
+requested home or collection, and query execution evaluates bounded CardDAV
+filters over parsed unfolded vCard property values. The text-match evaluator
+supports the RFC 6352 default `i;unicode-casemap` collation, `equals`,
+`contains`, `starts-with`, `ends-with`, and `negate-condition`, while rejecting
+unsupported collations rather than pretending a different matching semantic is
+equivalent. Query execution parses vCard content-line parameters for
+`param-filter` existence, `is-not-defined`, or text-match checks, and composes
+multiple top-level `prop-filter` predicates plus per-property text/parameter
+predicates with RFC 6352 `test=anyof|allof` semantics. Sync execution can return
+full snapshots or bounded change rows since a stored sync token.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
@@ -67,10 +67,9 @@ The first runtime wiring starts `gogomail --mode=carddav` on a dedicated
 `GOGOMAIL_CARDDAV_ADDR` listener. It uses HTTP Basic authentication over TLS by
 default, shares the existing Submission password verifier, permits insecure
 Basic auth only when explicitly configured for non-production environments, and
-reuses the existing HTTP server timeout/header guardrails. Richer CardDAV
-filter-tree composition semantics, broader vCard compatibility, and
-native-client verification will be added only when their semantics are
-implemented and tested.
+reuses the existing HTTP server timeout/header guardrails. Broader CardDAV
+vCard compatibility and native-client verification will be added only when their
+semantics are implemented and tested.
 
 ## Consequences
 
@@ -79,5 +78,4 @@ implemented and tested.
 - Future CalDAV attendee and resource lookup can depend on Directory plus
   Contacts/CardDAV without inventing private person models.
 - Public CardDAV compatibility remains out of scope until authenticated
-  native-client testing, broader filter-tree composition semantics, and broader
-  vCard compatibility are implemented.
+  native-client testing and broader vCard compatibility are implemented.
