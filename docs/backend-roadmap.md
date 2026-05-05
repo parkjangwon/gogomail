@@ -1495,6 +1495,9 @@ Implementation order:
 899. IMAP mod-sequence numeric inputs now require digit-only atoms across
      `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
      `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+900. IMAP UID and message sequence-set numbers now require digit-only atoms,
+     rejecting signed values such as `UID FETCH +7` and `FETCH +1` before
+     command execution.
 
 ## Deferred until backend contracts stabilize
 

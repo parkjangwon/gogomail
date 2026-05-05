@@ -121,6 +121,8 @@ Current state:
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+- IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
+  signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

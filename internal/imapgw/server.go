@@ -3795,7 +3795,16 @@ func imapSavedSearchUIDs(state *imapConnState) []UID {
 }
 
 func parseIMAPUIDSetNumber(value string) (UID, bool) {
-	uid64, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, false
+	}
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, false
+		}
+	}
+	uid64, err := strconv.ParseUint(value, 10, 32)
 	if err != nil || uid64 == 0 {
 		return 0, false
 	}
