@@ -1644,6 +1644,10 @@ Implementation order:
 941. IMAP service-backed `STORE`, `COPY`, and `MOVE` calls now reject empty UID
      sets before repository work, while `EXPUNGE` preserves nil UID sets for
      `CLOSE`-style "all deleted messages" semantics.
+942. IMAP `SEARCH` and `UID SEARCH` date criteria now accept one-digit
+     date-day atoms such as `SINCE 5-May-2026` while preserving malformed quote
+     rejection for broken atoms such as `SINCE 05-May-2026"`, improving client
+     compatibility without weakening syntax guardrails.
 
 ## Deferred until backend contracts stabilize
 

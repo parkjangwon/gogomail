@@ -2344,11 +2344,14 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 	if strings.Contains(value, `"`) {
 		return time.Time{}, false
 	}
-	day, err := time.Parse("02-Jan-2006", strings.TrimSpace(value))
-	if err != nil {
-		return time.Time{}, false
+	value = strings.TrimSpace(value)
+	for _, layout := range []string{"02-Jan-2006", "2-Jan-2006"} {
+		day, err := time.Parse(layout, value)
+		if err == nil {
+			return day, true
+		}
 	}
-	return day, true
+	return time.Time{}, false
 }
 
 func parseIMAPSearchSize(value string) (int64, bool) {
