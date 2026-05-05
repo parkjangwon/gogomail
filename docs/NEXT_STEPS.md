@@ -118,6 +118,9 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
   instead of silently treating them as valid sizes.
+- IMAP mod-sequence numeric inputs require digit-only atoms across
+  `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
+  `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

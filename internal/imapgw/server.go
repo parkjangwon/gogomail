@@ -2335,10 +2335,16 @@ func parseIMAPSearchModSeq(criteria []string) (uint64, int, bool) {
 }
 
 func parseIMAPModSeqValue(value string) (uint64, bool) {
-	if strings.Contains(value, `"`) {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return 0, false
 	}
-	modseq, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64)
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, false
+		}
+	}
+	modseq, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
 		return 0, false
 	}
