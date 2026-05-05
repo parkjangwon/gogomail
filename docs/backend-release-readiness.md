@@ -573,6 +573,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   adapter boundary and signs streaming `PUT`, `GET`, and `DELETE` requests with
   AWS SigV4, keeping AWS S3 and MinIO-style deployments behind the existing
   storage interface.
+- Optional S3-compatible integration coverage can exercise real
+  `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
+  `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are
+  configured.
   reads, writes, or deletes.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.
