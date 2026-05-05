@@ -593,6 +593,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible storage status-error diagnostics collapse backend response
   bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing object
   store errors from leaking into readiness or storage operation diagnostics.
+- S3-compatible bucket names are validated with shared adapter/config guardrails
+  before runtime wiring, surfacing uppercase, undersized, slash-bearing, or
+  punctuation-adjacent deployment mistakes before storage calls.
 - Optional S3-compatible integration coverage can exercise real
   `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
   `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables are

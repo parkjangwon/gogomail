@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 const (
@@ -96,6 +98,9 @@ func (c Config) Validate() error {
 		}
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_BUCKET", c.StorageS3Bucket, 255); err != nil {
 			return err
+		}
+		if err := storage.ValidateS3BucketName(c.StorageS3Bucket); err != nil {
+			return fmt.Errorf("GOGOMAIL_STORAGE_S3_BUCKET: %w", err)
 		}
 		if err := validateBoundedNoCRLF("GOGOMAIL_STORAGE_S3_PREFIX", c.StorageS3Prefix, 1024); err != nil {
 			return err
