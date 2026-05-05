@@ -1092,6 +1092,9 @@ Implementation order:
      `maildb` repository inserts message metadata, quota ledger increments,
      `mail.stored` outbox work, mailbox-local UID assignment, and UIDVALIDITY in
      one transaction.
+788. IMAP `APPEND` now maps missing destination mailboxes to an RFC-shaped
+     `NO [TRYCREATE]` response code, improving compatibility with clients that
+     can create the target mailbox and retry the append.
 
 ## Deferred until backend contracts stabilize
 

@@ -1753,6 +1753,10 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 			_, writeErr := writer.WriteString(tag + " NO APPEND is not supported\r\n")
 			return false, writeErr
 		}
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] APPEND mailbox does not exist\r\n")
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO APPEND failed\r\n")
 		return false, writeErr
 	}
