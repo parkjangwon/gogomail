@@ -44,6 +44,13 @@ func TestCleanupDeletedObjectsReportsProgressOnDeleteFailure(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("CleanupDeletedObjects err = %v, want delete failure", err)
 	}
+	var cleanupErr ObjectCleanupError
+	if !errors.As(err, &cleanupErr) {
+		t.Fatalf("CleanupDeletedObjects err = %T, want ObjectCleanupError", err)
+	}
+	if cleanupErr.StorageBackend != "s3" || cleanupErr.StoragePath != "drive/user-1/a.txt" || cleanupErr.Deleted != 0 {
+		t.Fatalf("cleanup error = %+v, want failed object context", cleanupErr)
+	}
 	if result.Deleted != 0 {
 		t.Fatalf("Deleted = %d, want 0 after first-object failure", result.Deleted)
 	}

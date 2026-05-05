@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Drive object path layout)
+Last updated: 2026-05-06 (updated after Drive cleanup failure records)
 
 ## Current phase
 
@@ -268,6 +268,11 @@ guidance.
   node objects, and user prefixes under `drive/users/{user_id}/...`, with
   path-segment-safe ID validation so future cleanup and prefix operations stay
   tenant/user scoped.
+- Drive permanent-delete cleanup failures now have a PostgreSQL retry record
+  boundary. Structured cleanup errors can be recorded with user/node/object
+  context, pending failures are de-duplicated per backend/path, attempts are
+  incremented on repeat failures, and error text is one-line/UTF-8 bounded for
+  future operator and worker surfaces.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
