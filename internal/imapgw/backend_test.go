@@ -82,7 +82,7 @@ func (fakeComposedBackend) CopyMessages(context.Context, CopyMessagesRequest) ([
 }
 
 func (fakeComposedBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MoveMessageResult, error) {
-	return []MoveMessageResult{{Source: MessageSummary{ID: "message-1", UID: 1, SequenceNumber: 1}, Destination: MessageSummary{ID: "message-1", MailboxID: "archive", UID: 2, SequenceNumber: 1}}}, nil
+	return []MoveMessageResult{{Source: MessageSummary{ID: "message-1", UID: 1, SequenceNumber: 1}, Destination: MessageSummary{ID: "message-1", MailboxID: "archive", UID: 2, SequenceNumber: 1}, SourceHighestModSeq: 3}}, nil
 }
 
 func (fakeComposedBackend) Expunge(context.Context, ExpungeRequest) ([]MessageSummary, error) {

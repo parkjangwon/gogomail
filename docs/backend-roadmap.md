@@ -1166,6 +1166,10 @@ Implementation order:
      destination mailbox UIDs inside the move transaction and return UIDPLUS
      `[COPYUID ...]` mappings before source `EXPUNGE` responses, aligning the
      MOVE path with RFC 6851/UIDPLUS-compatible client expectations.
+810. IMAP `MOVE` and `UID MOVE` now advance the selected source mailbox
+     highest mod-sequence and emit `[HIGHESTMODSEQ ...]` metadata alongside
+     the move response path, keeping the advertised CONDSTORE surface aligned
+     with RFC 6851 mod-sequence expectations.
 
 ## Deferred until backend contracts stabilize
 

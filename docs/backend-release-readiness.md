@@ -505,9 +505,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   selected mailbox, validate a different destination mailbox, move active
   messages transactionally, reassign mailbox UID rows to fresh destination
   UIDs, return UIDPLUS `[COPYUID ...]` mappings when destination UIDs are
-  available, emit RFC-shaped source `EXPUNGE` responses, return `[TRYCREATE]`
-  when the destination mailbox is missing, and publish best-effort source
-  expunge events.
+  available, advance and return source mailbox `[HIGHESTMODSEQ ...]` metadata
+  for CONDSTORE-aware clients, emit RFC-shaped source `EXPUNGE` responses,
+  return `[TRYCREATE]` when the destination mailbox is missing, and publish
+  best-effort source expunge events.
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
   optional flag-list, optional internal date-time, literal body, and size after
   bounded literal framing. The boundary now returns UIDPLUS-ready append

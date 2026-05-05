@@ -24,7 +24,7 @@ func TestIMAPStoreAdapterDelegatesToService(t *testing.T) {
 		imapFlagSummaries:    []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12}},
 		imapAppendTarget:     maildb.IMAPAppendTarget{UserID: "user-1", MailboxID: "inbox", CompanyID: "company-1", DomainID: "domain-1", Address: "user@example.com", UIDValidity: 1},
 		imapAppendResult:     imapgw.AppendMessageResult{Summary: imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 13}, UIDValidity: 1},
-		imapMoveResults:      []imapgw.MoveMessageResult{{Source: imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}, Destination: imapgw.MessageSummary{ID: "msg-1", MailboxID: "archive", UID: 33, SequenceNumber: 1}}},
+		imapMoveResults:      []imapgw.MoveMessageResult{{Source: imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}, Destination: imapgw.MessageSummary{ID: "msg-1", MailboxID: "archive", UID: 33, SequenceNumber: 1}, SourceHighestModSeq: 44}},
 		imapMessage:          maildb.IMAPStoredMessage{Summary: imapgw.MessageSummary{ID: "msg-1", MailboxID: "inbox", UID: 12}, StoragePath: "messages/msg-1.eml"},
 		imapExpungeSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 1}},
 		backfilledIMAPUIDs:   []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: "inbox", UID: 12, ModSeq: 2}},

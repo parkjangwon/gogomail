@@ -977,6 +977,9 @@ WHERE user_id = $1::uuid
 	if moved[0].Destination.ID != imapgw.MessageID(secondID) || moved[0].Destination.MailboxID != imapgw.MailboxID(seed.sentID) || moved[0].Destination.UID != 1 || moved[0].Destination.SequenceNumber != 1 {
 		t.Fatalf("destination move result = %#v, want sent UID 1 with sequence 1", moved[0].Destination)
 	}
+	if moved[0].SourceHighestModSeq != secondUID.ModSeq+1 {
+		t.Fatalf("source highest modseq = %d, want %d", moved[0].SourceHighestModSeq, secondUID.ModSeq+1)
+	}
 	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, secondUID.UID); err == nil {
 		t.Fatal("GetIMAPMessage found moved message in source mailbox")
 	}
@@ -993,6 +996,13 @@ WHERE user_id = $1::uuid
 	}
 	if freshUID.UID != 1 || freshUID.MailboxID != imapgw.MailboxID(seed.sentID) {
 		t.Fatalf("destination UID = %#v, want moved sent UID 1", freshUID)
+	}
+	sourceState, err := repo.EnsureIMAPMailboxState(ctx, seed.userID, seed.inboxID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMailboxState source returned error: %v", err)
+	}
+	if sourceState.HighestModSeq != moved[0].SourceHighestModSeq {
+		t.Fatalf("source mailbox highest modseq = %d, want %d", sourceState.HighestModSeq, moved[0].SourceHighestModSeq)
 	}
 	var folderID string
 	if err := db.QueryRowContext(ctx, `SELECT folder_id::text FROM messages WHERE id = $1::uuid`, secondID).Scan(&folderID); err != nil {
