@@ -31,6 +31,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   OpenSearch index names are also validated during startup config validation
   using the same unsafe-character and reserved-prefix guardrails as the
   adapter, so invalid index configuration fails before worker/search setup.
+  OpenSearch writer/searcher construction trims usernames while preserving
+  password bytes, and rejects CR/LF-bearing or oversized endpoint credentials
+  before BasicAuth request headers can be generated.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.

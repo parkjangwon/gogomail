@@ -256,3 +256,46 @@ func TestOpenSearchIndexerRequiresOptions(t *testing.T) {
 		t.Fatal("NewOpenSearchIndexer accepted unsafe index")
 	}
 }
+
+func TestOpenSearchIndexerRejectsUnsafeCredentials(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		opts OpenSearchOptions
+	}{
+		{name: "username newline", opts: OpenSearchOptions{Username: "admin\nbad"}},
+		{name: "username too long", opts: OpenSearchOptions{Username: strings.Repeat("u", maxOpenSearchCredentialBytes+1)}},
+		{name: "password newline", opts: OpenSearchOptions{Password: "secret\nbad"}},
+		{name: "password too long", opts: OpenSearchOptions{Password: strings.Repeat("p", maxOpenSearchCredentialBytes+1)}},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.opts.Endpoint = "http://localhost:9200"
+			tt.opts.Index = "gogomail-messages"
+			if _, err := NewOpenSearchIndexer(tt.opts); err == nil {
+				t.Fatal("NewOpenSearchIndexer accepted unsafe credentials")
+			}
+		})
+	}
+}
+
+func TestOpenSearchIndexerTrimsUsername(t *testing.T) {
+	t.Parallel()
+
+	indexer, err := NewOpenSearchIndexer(OpenSearchOptions{
+		Endpoint: "http://localhost:9200",
+		Index:    "gogomail-messages",
+		Username: " admin ",
+		Password: " secret ",
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchIndexer returned error: %v", err)
+	}
+	if indexer.username != "admin" || indexer.password != " secret " {
+		t.Fatalf("credentials = %q/%q", indexer.username, indexer.password)
+	}
+}
