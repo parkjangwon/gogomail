@@ -74,6 +74,21 @@ func (s *Service) CreateFolder(ctx context.Context, req CreateFolderRequest) (No
 	return s.repo.CreateFolder(ctx, req)
 }
 
+func (s *Service) CreateFileFromObject(ctx context.Context, req CreateFileFromObjectRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	storageBackend, err := validateStorageBackend(req.StorageBackend)
+	if err != nil {
+		return Node{}, err
+	}
+	store := s.stores[storageBackend]
+	if store == nil {
+		return Node{}, fmt.Errorf("storage store %q is required", storageBackend)
+	}
+	return s.repo.CreateFileFromObject(ctx, store, req)
+}
+
 func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
 	if s == nil || s.repo == nil {
 		return nil, fmt.Errorf("drive repository is required")

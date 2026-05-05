@@ -1812,6 +1812,10 @@ Implementation order:
      folder creation, trash, restore, and permanent delete. The routes reuse
      the existing user auth/fallback path, call the Drive repository/service
      boundaries, and are documented in OpenAPI with stable response envelopes.
+983. Mail API now exposes `POST /api/v1/drive/files/finalize`, allowing a
+     previously staged object to become quota-accounted Drive file metadata via
+     the shared storage `Stat` contract and Drive file-finalize repository
+     boundary.
 
 ## Deferred until backend contracts stabilize
 

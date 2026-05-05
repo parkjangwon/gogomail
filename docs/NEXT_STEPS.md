@@ -363,12 +363,15 @@ Current state:
 - Mail API now exposes first Drive HTTP routes for bounded node listing, folder
   creation, trash, restore, and permanent delete, with OpenAPI response
   envelopes and the existing user auth/fallback path.
+- Mail API now exposes `POST /api/v1/drive/files/finalize` for converting a
+  staged object into quota-accounted Drive file metadata through the shared
+  storage `Stat` contract.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload/finalize HTTP contracts on top of the staged object path
-  layout and quota-checked file-finalize repository boundary.
+- Add Drive direct upload/session HTTP contracts on top of the staged object
+  path layout so clients can create the object that finalize consumes.
 
 ### 2. Message threading and search
 

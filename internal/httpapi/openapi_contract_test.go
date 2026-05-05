@@ -90,6 +90,7 @@ func TestOpenAPIDraftDocumentsRequestBodies(t *testing.T) {
 	for _, route := range []string{
 		"POST /folders",
 		"POST /drive/folders",
+		"POST /drive/files/finalize",
 		"PATCH /folders/{id}",
 		"PATCH /messages/{id}/flags",
 		"PATCH /messages/{id}/folder",
@@ -270,6 +271,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /folders/{id}":                                       "#/components/responses/Status",
 		"GET /drive/nodes":                                           "#/components/responses/DriveNodeList",
 		"POST /drive/folders":                                        "#/components/responses/DriveNode",
+		"POST /drive/files/finalize":                                 "#/components/responses/DriveNode",
 		"DELETE /drive/nodes/{id}":                                   "#/components/responses/DriveDelete",
 		"POST /drive/nodes/{id}/trash":                               "#/components/responses/DriveNodeUpdate",
 		"POST /drive/nodes/{id}/restore":                             "#/components/responses/DriveNodeUpdate",

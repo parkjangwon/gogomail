@@ -141,6 +141,19 @@ paths:
           $ref: "#/components/responses/DriveNode"
         default:
           $ref: "#/components/responses/Error"
+  /drive/files/finalize:
+    post:
+      operationId: finalizeDriveFileFromObject
+      summary: Finalize a staged Drive object into file metadata
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/DriveFileFinalize"
+      responses:
+        "201":
+          $ref: "#/components/responses/DriveNode"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/nodes/{id}:
     delete:
       operationId: permanentlyDeleteDriveNode
@@ -3230,6 +3243,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveFolderCreateRequest"
+    DriveFileFinalize:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveFileFinalizeRequest"
     MessageFlagUpdate:
       required: true
       content:
@@ -3650,6 +3669,30 @@ components:
           type: string
           minLength: 1
           maxLength: 255
+    DriveFileFinalizeRequest:
+      type: object
+      required: [name, storage_backend, storage_path]
+      properties:
+        parent_id:
+          type: string
+          maxLength: 200
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        storage_backend:
+          type: string
+          maxLength: 64
+          description: Storage backend for the staged object, such as local, minio, or s3.
+        storage_path:
+          type: string
+          maxLength: 1024
+        mime_type:
+          type: string
+          maxLength: 255
+        checksum_sha256:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
     MailboxOverview:
       type: object
       required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]
