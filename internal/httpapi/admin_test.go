@@ -14,6 +14,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/dnscheck"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
@@ -75,7 +76,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if got.ContractVersion != BackendContractVersion {
 		t.Fatalf("contract version = %q, want %q", got.ContractVersion, BackendContractVersion)
 	}
-	if got.Modules["admin"] != "available" || got.Modules["mail"] != "available" || got.Modules["drive"] != "planned" {
+	if got.Modules["admin"] != "available" || got.Modules["mail"] != "available" || got.Modules["drive"] != "available" {
 		t.Fatalf("modules = %#v", got.Modules)
 	}
 	if got.Limits.MaxListLimit != maildb.MessageListMaxLimit ||
@@ -86,7 +87,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill {
+	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -715,6 +716,76 @@ func TestAdminAttachmentUploadSessionsHandler(t *testing.T) {
 		service.lastAttachmentUploadSessionList.DraftID != "draft-1" ||
 		service.lastAttachmentUploadSessionList.Status != "uploading" {
 		t.Fatalf("lastAttachmentUploadSessionList = %+v", service.lastAttachmentUploadSessionList)
+	}
+}
+
+func TestAdminDriveUploadSessionsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		driveUploadSessions: []drive.UploadSession{{
+			ID:             "session-1",
+			UserID:         "user-1",
+			UploadID:       "upload-1",
+			Name:           "Report.pdf",
+			Status:         drive.UploadSessionStatusUploading,
+			StorageBackend: "s3",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/drive-upload-sessions?limit=5&user_id=%20user-1%20&status=uploading", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Sessions []drive.UploadSession `json:"drive_upload_sessions"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(body.Sessions) != 1 || body.Sessions[0].ID != "session-1" {
+		t.Fatalf("sessions = %+v", body.Sessions)
+	}
+	if service.lastDriveUploadSessionList.Limit != 5 ||
+		service.lastDriveUploadSessionList.UserID != "user-1" ||
+		service.lastDriveUploadSessionList.Status != drive.UploadSessionStatusUploading {
+		t.Fatalf("lastDriveUploadSessionList = %+v", service.lastDriveUploadSessionList)
+	}
+}
+
+func TestAdminDriveUploadSessionsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/drive-upload-sessions?user_id=user%0Abad",
+		"/admin/v1/drive-upload-sessions?status=ready&user_id=user-1",
+		"/admin/v1/drive-upload-sessions?cursor=opaque&user_id=user-1",
+		"/admin/v1/drive-upload-sessions",
+	}
+	for _, path := range tests {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDriveUploadSessionList.UserID != "" {
+				t.Fatalf("list was called: %+v", service.lastDriveUploadSessionList)
+			}
+		})
 	}
 }
 
@@ -6059,6 +6130,7 @@ type fakeAdminService struct {
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
+	driveUploadSessions                         []drive.UploadSession
 	apiUsageExportHandoff                       maildb.APIUsageExportHandoffView
 	apiUsageExportArtifact                      maildb.APIUsageExportArtifactView
 	apiUsageExportArtifacts                     []maildb.APIUsageExportArtifactView
@@ -6129,6 +6201,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListBefore      time.Time
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
+	lastDriveUploadSessionList                  drive.ListUploadSessionsRequest
 	lastAPIUsageDailyList                       maildb.APIUsageAggregateListRequest
 	lastAPIUsageMonthlyList                     maildb.APIUsageAggregateListRequest
 	lastAPIUsageLedgerList                      maildb.APIUsageLedgerListRequest
@@ -6384,6 +6457,12 @@ func (f *fakeAdminService) ListAttachmentUploadSessions(_ context.Context, req m
 	f.lastAttachmentUploadSessionList = req
 	f.lastLimit = req.Limit
 	return f.attachmentUploadSessions, nil
+}
+
+func (f *fakeAdminService) ListDriveUploadSessions(_ context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error) {
+	f.lastDriveUploadSessionList = req
+	f.lastLimit = req.Limit
+	return f.driveUploadSessions, nil
 }
 
 func (f *fakeAdminService) ListAPIUsageDaily(_ context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error) {

@@ -1876,6 +1876,10 @@ Implementation order:
       status and limit filters, plus webmail capability discovery for the list
       surface, so production Drive upload managers can recover in-progress
       session state.
+1001. Admin API now exposes `GET /admin/v1/drive-upload-sessions` with
+      required user scope plus bounded status/limit filters, and admin
+      capabilities mark Drive upload-session inspection available for operator
+      consoles.
 
 ## Deferred until backend contracts stabilize
 

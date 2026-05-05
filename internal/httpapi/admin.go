@@ -13,6 +13,7 @@ import (
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/dnscheck"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -103,6 +104,7 @@ type AdminService interface {
 	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
+	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListAPIUsageDaily(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error)
 	ListAPIUsageMonthly(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error)
 	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
@@ -206,6 +208,7 @@ type adminConsoleOperationCapabilities struct {
 	Backpressure            bool `json:"backpressure"`
 	AttachmentCleanup       bool `json:"attachment_cleanup"`
 	AttachmentUploadSession bool `json:"attachment_upload_sessions"`
+	DriveUploadSessions     bool `json:"drive_upload_sessions"`
 	QuotaReconciliation     bool `json:"quota_reconciliation"`
 	DeliveryAttempts        bool `json:"delivery_attempts"`
 	DeliveryRoutes          bool `json:"delivery_routes"`
@@ -230,7 +233,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 		Modules: map[string]string{
 			"mail":  "available",
 			"admin": "available",
-			"drive": "planned",
+			"drive": "available",
 		},
 		Limits: adminConsoleLimits{
 			MaxListLimit:                 maildb.MessageListMaxLimit,
@@ -254,6 +257,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			Backpressure:            true,
 			AttachmentCleanup:       true,
 			AttachmentUploadSession: true,
+			DriveUploadSessions:     true,
 			QuotaReconciliation:     true,
 			DeliveryAttempts:        true,
 			DeliveryRoutes:          true,
@@ -1079,6 +1083,44 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_sessions": sessions})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/drive-upload-sessions", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "status") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
+		if strings.TrimSpace(userID) == "" {
+			writeError(w, http.StatusBadRequest, "user_id is required")
+			return
+		}
+		status, ok := parseBoundedAdminQuery(w, r, "status")
+		if !ok {
+			return
+		}
+		req := drive.ListUploadSessionsRequest{
+			UserID: userID,
+			Status: status,
+			Limit:  limit,
+		}
+		req, err := drive.ValidateListUploadSessionsRequest(req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		sessions, err := service.ListDriveUploadSessions(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

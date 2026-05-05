@@ -47,7 +47,7 @@ guidance.
   stats, DKIM DNS verification, delivery route runtime counters, and exhausted
   delivery attempts with recipient-domain and recent-window filters.
 - Admin API exposes `GET /admin/v1/console/capabilities` so a production
-  operator console can discover backend contract version, available/planned
+  operator console can discover backend contract version, available
   modules, list/cleanup/retention limits, tenancy controls, operational triage
   surfaces, and auth/no-store behavior before rendering console navigation.
 - Delivery-attempt list, stats, and exhausted-attempt reads can filter by
@@ -351,6 +351,9 @@ guidance.
 - Mail API now exposes `GET /api/v1/drive/upload-sessions` with status and
   limit filters, and webmail capabilities advertise the list surface for
   production upload manager recovery.
+- Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
+  user scope plus status/limit filters, and admin capabilities mark Drive
+  upload-session inspection available for operator consoles.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
