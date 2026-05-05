@@ -34,6 +34,11 @@ type ThreadListCursor struct {
 	ID string    `json:"id"`
 }
 
+type ThreadListFilter struct {
+	Read    *bool
+	Starred *bool
+}
+
 type ThreadListPage struct {
 	Threads    []ThreadSummary `json:"threads"`
 	Limit      int             `json:"limit"`

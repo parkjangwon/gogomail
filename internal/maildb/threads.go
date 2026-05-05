@@ -20,10 +20,10 @@ type ThreadSummary struct {
 }
 
 func (r *Repository) ListThreads(ctx context.Context, userID string, limit int) ([]ThreadSummary, error) {
-	return r.ListThreadsPage(ctx, userID, limit, ThreadListCursor{})
+	return r.ListThreadsPage(ctx, userID, limit, ThreadListCursor{}, ThreadListFilter{})
 }
 
-func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit int, cursor ThreadListCursor) ([]ThreadSummary, error) {
+func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit int, cursor ThreadListCursor, filter ThreadListFilter) ([]ThreadSummary, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -68,10 +68,16 @@ WHERE (
   $4 = ''
   OR (latest_at, thread_key) < ($3::timestamptz, $4)
 )
+AND (
+  $5::boolean IS NULL
+  OR ($5::boolean = false AND unread_count > 0)
+  OR ($5::boolean = true AND unread_count = 0)
+)
+AND ($6::boolean IS NULL OR starred = $6::boolean)
 ORDER BY latest_at DESC, thread_key DESC
 LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID))
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred)
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}

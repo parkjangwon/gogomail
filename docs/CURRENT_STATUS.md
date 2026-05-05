@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after message list read/starred filters)
+Last updated: 2026-05-05 (updated after thread list read/starred filters)
 
 ## Current phase
 
@@ -90,6 +90,9 @@ guidance.
   `starred=true|false` filters alongside folder and cursor controls, enabling
   production webmail quick views such as unread, read, starred, and unstarred
   without switching to full-text search.
+- Mail API thread lists now support optional `read=true|false` and
+  `starred=true|false` filters, where `read=false` means conversations with at
+  least one unread message and `read=true` means fully-read conversations.
 - Inbound parsing now extracts RFC `In-Reply-To`/`References`; inbound and
   reply/forward outbound persistence inherit local thread IDs when matching
   source messages exist.

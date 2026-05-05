@@ -15,6 +15,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API message lists support optional `read=true|false` and
   `starred=true|false` filters for fast unread/read/starred webmail views while
   retaining opaque cursor pagination and folder scoping.
+- Mail API thread lists support optional `read=true|false` and
+  `starred=true|false` filters for conversation-level unread/read/starred quick
+  views while retaining opaque cursor pagination.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

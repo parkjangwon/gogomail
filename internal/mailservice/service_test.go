@@ -2085,6 +2085,7 @@ type fakeRepository struct {
 	lastListThreadsUserID          string
 	lastListThreadsLimit           int
 	lastListThreadsCursor          maildb.ThreadListCursor
+	lastListThreadsFilter          maildb.ThreadListFilter
 	lastThreadMessagesUserID       string
 	lastThreadID                   string
 	lastThreadMessagesLimit        int
@@ -2207,10 +2208,11 @@ func (f *fakeRepository) ListThreads(_ context.Context, userID string, limit int
 	return nil, nil
 }
 
-func (f *fakeRepository) ListThreadsPage(_ context.Context, userID string, limit int, cursor maildb.ThreadListCursor) ([]maildb.ThreadSummary, error) {
+func (f *fakeRepository) ListThreadsPage(_ context.Context, userID string, limit int, cursor maildb.ThreadListCursor, filter maildb.ThreadListFilter) ([]maildb.ThreadSummary, error) {
 	f.lastListThreadsUserID = userID
 	f.lastListThreadsLimit = limit
 	f.lastListThreadsCursor = cursor
+	f.lastListThreadsFilter = filter
 	return nil, nil
 }
 
@@ -3120,11 +3122,16 @@ func TestThreadPageMethodsDelegateCursors(t *testing.T) {
 	repo := &fakeRepository{}
 	service := New(repo, nil)
 	threadCursor := maildb.ThreadListCursor{ID: "11111111-1111-1111-1111-111111111111"}
-	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor); err != nil {
+	read := false
+	starred := true
+	if _, err := service.ListThreadsPage(context.Background(), "user-1", 10, threadCursor, maildb.ThreadListFilter{Read: &read, Starred: &starred}); err != nil {
 		t.Fatalf("ListThreadsPage returned error: %v", err)
 	}
 	if repo.lastListThreadsCursor.ID != threadCursor.ID {
 		t.Fatalf("thread cursor = %+v, want %+v", repo.lastListThreadsCursor, threadCursor)
+	}
+	if repo.lastListThreadsFilter.Read == nil || *repo.lastListThreadsFilter.Read || repo.lastListThreadsFilter.Starred == nil || !*repo.lastListThreadsFilter.Starred {
+		t.Fatalf("thread filter = %#v", repo.lastListThreadsFilter)
 	}
 	messageCursor := maildb.MessageListCursor{ID: "22222222-2222-2222-2222-222222222222"}
 	if _, err := service.ListThreadMessagesPage(context.Background(), "user-1", "thread-1", 10, messageCursor); err != nil {
