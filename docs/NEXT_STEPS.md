@@ -1590,9 +1590,10 @@ Next:
   friendlier MKCALENDAR clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
 - Before public shared/delegated calendar or resource-booking features,
-  extend the initial `internal/directory` user/organization principal resolver
-  into the platform boundaries CalDAV depends on: Directory/Identity for teams,
-  groups, resources, aliases, memberships, delegation, and principal
+  extend the initial `internal/directory` user/organization/group/resource
+  principal resolver and group/alias/resource schema into the platform
+  boundaries CalDAV depends on: Directory/Identity for delegated relationships,
+  effective membership checks, resource booking policy, and principal
   resolution; Contacts/CardDAV for personal/external people and address books;
   Notification & Sync for reminders, devices, quiet hours, and delta fan-out;
   Search for unified event/person/resource lookup; and Policy/Audit for

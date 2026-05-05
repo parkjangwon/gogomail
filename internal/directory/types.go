@@ -12,6 +12,11 @@ const (
 	PrincipalKindGroup        = "group"
 	PrincipalKindResource     = "resource"
 
+	ResourceTypeRoom      = "room"
+	ResourceTypeEquipment = "equipment"
+	ResourceTypeVehicle   = "vehicle"
+	ResourceTypeOther     = "other"
+
 	MaxPrincipalIDBytes = 200
 )
 
@@ -24,6 +29,7 @@ type Principal struct {
 	DisplayName    string
 	PrimaryEmail   string
 	Status         string
+	ResourceType   string
 }
 
 type ResolvePrincipalRequest struct {

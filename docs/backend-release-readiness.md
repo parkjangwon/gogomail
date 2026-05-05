@@ -342,10 +342,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - The first Directory/Identity boundary is intentionally narrow:
   `internal/directory` resolves active user principals through shared
   user/domain/company state and organization principals through
-  organization/domain/company state, while CalDAV discovery delegates active
-  user lookup to it. This does not make shared calendars, resource booking,
-  group principals, aliases, memberships, or delegated access public-release
-  ready yet.
+  organization/domain/company state. Directory storage now also defines groups,
+  resources, aliases, and group memberships, and the resolver can load
+  group/resource principals. CalDAV discovery delegates active user lookup to
+  this boundary. This does not make shared calendars, resource booking, aliases,
+  effective membership checks, or delegated access public-release ready yet.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after organization principal resolution)
+Last updated: 2026-05-06 (updated after Directory group/resource foundation)
 
 ## Current phase
 
@@ -46,10 +46,12 @@ people and user-specific metadata.
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
 resolution over user/domain/company state, and organization principal
-resolution over organization/domain/company state. CalDAV discovery uses this
-shared resolver instead of embedding its own active-user join, but group,
-resource, alias, membership, and delegated principal semantics remain future
-release gates.
+resolution over organization/domain/company state. Directory schema groundwork
+also covers groups, resources, aliases, and group memberships, with resolver
+support for group and resource principals. CalDAV discovery uses this shared
+resolver instead of embedding its own active-user join, but delegated access,
+shared calendar ownership, attendee resolution, and resource booking semantics
+remain future release gates.
 
 ## Completed or materially advanced
 
@@ -2284,6 +2286,10 @@ The platform hardening sprint completed the following:
 - Directory/Identity principal resolution now also supports organization
   principals from the existing organization/domain/company model, preparing
   organization calendars and policy scopes without exposing them publicly yet.
+- Directory/Identity storage now has first-class group, resource, alias, and
+  group-membership tables plus group/resource principal resolution hooks,
+  preparing shared inboxes, resource calendars, delegated access, and admin
+  directory workflows without hard-coding those semantics into CalDAV.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2305,6 +2311,7 @@ Next focus areas:
    direct cloud KMS adapter, before using API usage batches for invoices or hard
    limits.
 6. Frontend planning and API contract review before webmail implementation.
-7. Extend Directory/Identity from active users and organizations to groups,
-   resources, aliases, memberships, and delegated principal relationships
-   before public shared-calendar or resource-booking CalDAV features.
+7. Extend Directory/Identity from stored users, organizations, groups,
+   resources, aliases, and group memberships into explicit delegated principal
+   relationships before public shared-calendar or resource-booking CalDAV
+   features.

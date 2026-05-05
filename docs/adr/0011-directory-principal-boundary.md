@@ -23,7 +23,9 @@ principals. The first implementation slices resolve active user principals from
 the existing `users`, `domains`, and `companies` tables and organization
 principals from the existing `organizations`, `domains`, and `companies`
 tables, with bounded principal identifier validation and explicit principal
-kinds.
+kinds. Directory-owned tables hold groups, resources, aliases, and group
+memberships so product modules do not invent their own incompatible principal
+stores.
 
 CalDAV discovery must use this shared resolver for active principal lookup
 instead of owning a private user/domain/company query. CalDAV remains
@@ -32,11 +34,11 @@ standards-shaped method semantics.
 
 ## Consequences
 
-- Active user and organization principal lookup is now shared and testable
-  outside CalDAV.
-- Future group, resource, alias, membership, and delegation models can grow in
-  Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
-  invent parallel principal semantics.
+- Active user, organization, group, and resource principal lookup is now shared
+  and testable outside CalDAV.
+- Future alias resolution, effective membership checks, resource-booking policy,
+  and delegation models can grow in Directory/Identity without forcing CalDAV,
+  CardDAV, Drive, and webmail to invent parallel principal semantics.
 - Shared calendars, delegated access, resource booking, attendee resolution,
   and auto-complete remain gated until Directory/Identity and Contacts/CardDAV
   semantics are implemented beyond active user lookup.

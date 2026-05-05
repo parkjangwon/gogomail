@@ -33,12 +33,24 @@ func TestNormalizePrincipalKindRejectsUnsupportedKinds(t *testing.T) {
 func TestNormalizePrincipalKindAcceptsOrganizationPrincipals(t *testing.T) {
 	t.Parallel()
 
-	got, err := NormalizePrincipalKind(" Organization ")
-	if err != nil {
-		t.Fatalf("NormalizePrincipalKind returned error: %v", err)
+	tests := map[string]string{
+		" Organization ": PrincipalKindOrganization,
+		" GROUP ":        PrincipalKindGroup,
+		" Resource ":     PrincipalKindResource,
 	}
-	if got != PrincipalKindOrganization {
-		t.Fatalf("kind = %q", got)
+	for value, want := range tests {
+		value, want := value, want
+		t.Run(want, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := NormalizePrincipalKind(value)
+			if err != nil {
+				t.Fatalf("NormalizePrincipalKind returned error: %v", err)
+			}
+			if got != want {
+				t.Fatalf("kind = %q, want %q", got, want)
+			}
+		})
 	}
 }
 

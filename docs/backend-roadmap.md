@@ -2262,6 +2262,10 @@ Implementation order:
       principals over the existing organization/domain/company model, preparing
       organization calendar and policy scopes without exposing shared-calendar
       or resource-booking semantics publicly.
+1094. Directory/Identity storage now defines protocol-neutral group, resource,
+      alias, and group-membership tables, and the shared principal resolver can
+      load group and resource principals for future shared inbox, resource
+      calendar, admin directory, and delegated access workflows.
 
 ## Deferred until backend contracts stabilize
 
@@ -2272,9 +2276,9 @@ Implementation order:
 - Vault
 - IMAP
 - CalDAV public/client-ready compatibility
-- Directory/Identity expansion for resource/group principals, aliases,
-  memberships, delegation, and principal resolution beyond the initial
-  active-user and organization resolver
+- Directory/Identity expansion for delegated relationships, effective
+  membership checks, alias resolution, and resource booking policy beyond the
+  initial principal tables and resolver
 - Contacts/CardDAV boundary for personal contacts, external people, and
   address-book metadata
 - Notification & Sync boundary for domain events, reminders, devices, quiet

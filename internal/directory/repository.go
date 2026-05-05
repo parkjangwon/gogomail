@@ -28,6 +28,10 @@ func (r *Repository) ResolvePrincipal(ctx context.Context, req ResolvePrincipalR
 		return r.resolveUserPrincipal(ctx, req)
 	case PrincipalKindOrganization:
 		return r.resolveOrganizationPrincipal(ctx, req)
+	case PrincipalKindGroup:
+		return r.resolveGroupPrincipal(ctx, req)
+	case PrincipalKindResource:
+		return r.resolveResourcePrincipal(ctx, req)
 	default:
 		return Principal{}, fmt.Errorf("principal kind %q is not implemented", req.Kind)
 	}
@@ -97,6 +101,74 @@ WHERE o.id = $1::uuid
 		&principal.DisplayName,
 		&principal.PrimaryEmail,
 		&principal.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Principal{}, fmt.Errorf("directory principal not found")
+		}
+		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
+	}
+	return principal, nil
+}
+
+func (r *Repository) resolveGroupPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	const query = `
+SELECT g.id::text,
+       g.company_id::text,
+       g.domain_id::text,
+       COALESCE(g.org_id::text, ''),
+       g.name,
+       '',
+       g.status
+FROM directory_groups g
+JOIN domains d ON d.id = g.domain_id
+JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
+WHERE g.id = $1::uuid
+  AND ($2::boolean = false OR (g.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+	var principal Principal
+	principal.Kind = PrincipalKindGroup
+	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
+		&principal.ID,
+		&principal.CompanyID,
+		&principal.DomainID,
+		&principal.OrganizationID,
+		&principal.DisplayName,
+		&principal.PrimaryEmail,
+		&principal.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Principal{}, fmt.Errorf("directory principal not found")
+		}
+		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
+	}
+	return principal, nil
+}
+
+func (r *Repository) resolveResourcePrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	const query = `
+SELECT rsrc.id::text,
+       rsrc.company_id::text,
+       rsrc.domain_id::text,
+       COALESCE(rsrc.org_id::text, ''),
+       rsrc.name,
+       '',
+       rsrc.status,
+       rsrc.resource_type
+FROM directory_resources rsrc
+JOIN domains d ON d.id = rsrc.domain_id
+JOIN companies c ON c.id = rsrc.company_id AND c.id = d.company_id
+WHERE rsrc.id = $1::uuid
+  AND ($2::boolean = false OR (rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+	var principal Principal
+	principal.Kind = PrincipalKindResource
+	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
+		&principal.ID,
+		&principal.CompanyID,
+		&principal.DomainID,
+		&principal.OrganizationID,
+		&principal.DisplayName,
+		&principal.PrimaryEmail,
+		&principal.Status,
+		&principal.ResourceType,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Principal{}, fmt.Errorf("directory principal not found")
