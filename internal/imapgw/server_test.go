@@ -5791,7 +5791,7 @@ func TestServerHandlesMessageRFC822BodyStructure(t *testing.T) {
 	messagePartSize := len("Subject: Nested\r\nFrom: nested@example.net\r\n\r\nnested body")
 	nestedBodySize := len("nested body")
 	want := []string{
-		fmt.Sprintf("* 7 FETCH (UID 13 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE (\"MESSAGE\" \"RFC822\" NIL NIL NIL \"7BIT\" %d (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL) (\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" %d 1 NIL NIL NIL NIL) 4 NIL NIL NIL NIL))\r\n", bodySize, messagePartSize, nestedBodySize),
+		fmt.Sprintf("* 7 FETCH (UID 13 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE (\"MESSAGE\" \"RFC822\" NIL NIL NIL \"7BIT\" %d (NIL \"Nested\" ((NIL NIL \"nested\" \"example.net\")) ((NIL NIL \"nested\" \"example.net\")) ((NIL NIL \"nested\" \"example.net\")) NIL NIL NIL NIL NIL) (\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" %d 1 NIL NIL NIL NIL) 4 NIL NIL NIL NIL))\r\n", bodySize, messagePartSize, nestedBodySize),
 		"a3 OK UID FETCH completed\r\n",
 	}
 	for _, expected := range want {

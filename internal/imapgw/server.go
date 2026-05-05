@@ -4407,16 +4407,24 @@ func imapEnvelope(summary MessageSummary) string {
 	if date.IsZero() {
 		date = summary.InternalDate
 	}
+	sender := envelope.Sender
+	if len(sender) == 0 {
+		sender = envelope.From
+	}
+	replyTo := envelope.ReplyTo
+	if len(replyTo) == 0 {
+		replyTo = envelope.From
+	}
 	return "(" + strings.Join([]string{
 		imapNString(imapEnvelopeDate(date)),
 		imapNString(envelope.Subject),
 		imapAddressList(envelope.From),
-		imapAddressList(envelope.From),
-		imapAddressList(envelope.From),
+		imapAddressList(sender),
+		imapAddressList(replyTo),
 		imapAddressList(envelope.To),
 		imapAddressList(envelope.Cc),
 		imapAddressList(envelope.Bcc),
-		"NIL",
+		imapNString(envelope.InReplyTo),
 		imapNString(envelope.MessageID),
 	}, " ") + ")"
 }
@@ -4516,7 +4524,7 @@ func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, exte
 		fmt.Sprintf("%d", maxInt64(size, 0)),
 	}
 	if mediaType == "MESSAGE" && mediaSubtype == "RFC822" {
-		fields = append(fields, imapEnvelope(MessageSummary{}), imapMIMEMessageBody(part, extended), fmt.Sprintf("%d", maxInt64(part.Lines, 0)))
+		fields = append(fields, imapMIMEEnvelope(part.Envelope), imapMIMEMessageBody(part, extended), fmt.Sprintf("%d", maxInt64(part.Lines, 0)))
 	} else if mediaType == "TEXT" {
 		lines := part.Lines
 		if lines == 0 && size > 0 {
@@ -4528,6 +4536,40 @@ func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, exte
 		fields = append(fields, "NIL", imapMIMEBodyDisposition(part), "NIL", "NIL")
 	}
 	return "(" + strings.Join(fields, " ") + ")"
+}
+
+func imapMIMEEnvelope(envelope messageparse.MIMEEnvelope) string {
+	return imapEnvelope(MessageSummary{
+		InternalDate: envelope.Date,
+		Envelope: Envelope{
+			Date:      envelope.Date,
+			Subject:   envelope.Subject,
+			From:      imapMIMEEnvelopeAddresses(envelope.From),
+			Sender:    imapMIMEEnvelopeAddresses(envelope.Sender),
+			ReplyTo:   imapMIMEEnvelopeAddresses(envelope.ReplyTo),
+			To:        imapMIMEEnvelopeAddresses(envelope.To),
+			Cc:        imapMIMEEnvelopeAddresses(envelope.Cc),
+			Bcc:       imapMIMEEnvelopeAddresses(envelope.Bcc),
+			InReplyTo: envelope.InReplyTo,
+			MessageID: envelope.MessageID,
+		},
+	})
+}
+
+func imapMIMEEnvelopeAddresses(addresses []messageparse.Address) []Address {
+	if len(addresses) == 0 {
+		return nil
+	}
+	out := make([]Address, 0, len(addresses))
+	for _, address := range addresses {
+		mailbox, host, ok := strings.Cut(address.Address, "@")
+		if !ok {
+			mailbox = address.Address
+			host = ""
+		}
+		out = append(out, Address{Name: address.Name, Mailbox: mailbox, Host: host})
+	}
+	return out
 }
 
 func imapMIMEMessageBody(part messageparse.MIMEPart, extended bool) string {

@@ -48,8 +48,11 @@ type Message struct {
 
 type Envelope struct {
 	MessageID string
+	InReplyTo string
 	Subject   string
 	From      []Address
+	Sender    []Address
+	ReplyTo   []Address
 	To        []Address
 	Cc        []Address
 	Bcc       []Address
