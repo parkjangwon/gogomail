@@ -472,6 +472,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Remote Ed25519 manifest signer status-error diagnostics collapse signer
   response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
   external signer errors from leaking into export/billing diagnostics.
+- Push-notification and attachment-scan webhooks now reject CR/LF-bearing
+  configured tokens/endpoints and collapse non-2xx HTTP response bodies into
+  bounded one-line UTF-8 previews before surfacing delivery failures.
 - Admin API domain query identifiers for user listing, DKIM key listing, and
   delivery-route resolution are trimmed before service dispatch; DKIM key
   listing can filter active and inactive key lifecycle states.

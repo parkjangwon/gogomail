@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/gogomail/gogomail/internal/webhook"
 )
 
 const (
@@ -18,6 +20,7 @@ const (
 	maxWebhookRemoteAddrBytes     = 200
 	maxWebhookMessageIDBytes      = 500
 	maxWebhookSubjectBytes        = 500
+	maxWebhookTokenBytes          = 4096
 	maxWebhookAttachmentNameBytes = 255
 	maxWebhookRecipients          = 500
 	maxWebhookAttachments         = 200
@@ -37,6 +40,9 @@ type WebhookScanner struct {
 
 func NewWebhookScanner(opts WebhookOptions) (*WebhookScanner, error) {
 	endpoint := strings.TrimSpace(opts.Endpoint)
+	if strings.ContainsAny(endpoint, "\r\n") {
+		return nil, fmt.Errorf("attachment scanner webhook endpoint cannot contain line breaks")
+	}
 	parsed, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("attachment scanner webhook endpoint must be a valid URL: %w", err)
@@ -48,7 +54,11 @@ func NewWebhookScanner(opts WebhookOptions) (*WebhookScanner, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &WebhookScanner{endpoint: endpoint, token: strings.TrimSpace(opts.Token), client: client}, nil
+	token, err := webhook.NormalizeWebhookToken(opts.Token, maxWebhookTokenBytes)
+	if err != nil {
+		return nil, fmt.Errorf("attachment scanner webhook token: %w", err)
+	}
+	return &WebhookScanner{endpoint: endpoint, token: token, client: client}, nil
 }
 
 func (s *WebhookScanner) ScanAttachments(ctx context.Context, req Request) (Result, error) {
@@ -75,6 +85,9 @@ func (s *WebhookScanner) ScanAttachments(ctx context.Context, req Request) (Resu
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if preview := webhook.ErrorBodyPreview(resp.Body, 512); preview != "" {
+			return Result{}, fmt.Errorf("attachment scanner webhook returned HTTP %d: %s", resp.StatusCode, preview)
+		}
 		return Result{}, fmt.Errorf("attachment scanner webhook returned HTTP %d", resp.StatusCode)
 	}
 	result, err := decodeWebhookResponse(resp.Body)
