@@ -130,6 +130,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
         - name: sort
           in: query
           schema:
@@ -366,6 +371,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
       responses:
         "200":
           $ref: "#/components/responses/DraftList"
@@ -3371,12 +3381,21 @@ components:
           $ref: "#/components/schemas/MessageDetail"
     DraftListEnvelope:
       type: object
-      required: [drafts]
+      required: [drafts, limit, has_more, next_cursor]
       properties:
         drafts:
           type: array
           items:
             $ref: "#/components/schemas/MessageDetail"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+        has_more:
+          type: boolean
+        next_cursor:
+          type: string
+          description: Opaque cursor. Clients must not parse or manufacture this value.
     SendQueued:
       type: object
       required: [id, message_id, farm, send_status, delivery_status, bounce_status]

@@ -608,7 +608,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "q", "from", "subject") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "q", "from", "subject") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -617,6 +617,15 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
+			return
+		}
+		cursorRaw, ok := singleQueryValue(w, r, "cursor")
+		if !ok {
+			return
+		}
+		cursor, err := maildb.DecodeMessageListCursor(cursorRaw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		hasAttachment, ok := parseOptionalBoolQuery(w, r, "has_attachment")
@@ -642,12 +651,23 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			Subject:       subject,
 			HasAttachment: hasAttachment,
 			Limit:         limit,
+			Cursor:        cursor,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"drafts": drafts})
+		page, err := maildb.NewDraftListPage(drafts, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"drafts":      page.Drafts,
+			"limit":       page.Limit,
+			"has_more":    page.HasMore,
+			"next_cursor": page.NextCursor,
+		})
 	})
 
 	mux.HandleFunc("PATCH /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) {

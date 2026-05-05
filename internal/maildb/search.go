@@ -32,6 +32,7 @@ type DraftSearchQuery struct {
 	Subject       string
 	HasAttachment *bool
 	Limit         int
+	Cursor        MessageListCursor
 }
 
 func (q MessageSearchQuery) normalizedLimit() int {
@@ -61,7 +62,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	limit := query.normalizedLimit()
+	limit := query.normalizedLimit() + 1
 	sortMode := query.normalizedSort()
 	if sortMode == "" {
 		return nil, fmt.Errorf("unsupported search sort %q", query.Sort)
@@ -154,6 +155,8 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 		strings.TrimSpace(query.From),
 		strings.TrimSpace(query.Subject),
 		hasAttachment,
+		query.Cursor.At,
+		strings.TrimSpace(query.Cursor.ID),
 		limit,
 	)
 	if err != nil {
@@ -305,8 +308,13 @@ WHERE user_id = $1
   ))
   AND ($4 = '' OR subject ILIKE '%' || $4 || '%')
   AND ($5 = '' OR has_attachment = $5::boolean)
+  AND (
+    $7 = ''
+    OR (COALESCE(draft_updated_at, updated_at, created_at), id)
+       < ($6::timestamptz, $7::uuid)
+  )
 ORDER BY draft_at DESC, id DESC
-LIMIT $6`
+LIMIT $8`
 }
 
 func searchHighlightsFromSQL(subject sql.NullString, from sql.NullString, body sql.NullString) *MessageSearchHighlights {

@@ -1217,7 +1217,9 @@ func TestSearchDraftsHandler(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	var body struct {
-		Drafts []maildb.MessageDetail `json:"drafts"`
+		Drafts  []maildb.MessageDetail `json:"drafts"`
+		Limit   int                    `json:"limit"`
+		HasMore bool                   `json:"has_more"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal returned error: %v", err)
@@ -1225,11 +1227,33 @@ func TestSearchDraftsHandler(t *testing.T) {
 	if len(body.Drafts) != 1 || body.Drafts[0].ID != "draft-1" {
 		t.Fatalf("drafts = %+v", body.Drafts)
 	}
+	if body.Limit != 10 || body.HasMore {
+		t.Fatalf("draft page metadata = limit:%d has_more:%v", body.Limit, body.HasMore)
+	}
 	if service.lastDraftSearch.UserID != "user-1" || service.lastDraftSearch.Query != "hello" || service.lastDraftSearch.From != "sender" || service.lastDraftSearch.Subject != "draft" {
 		t.Fatalf("lastDraftSearch = %+v", service.lastDraftSearch)
 	}
 	if service.lastDraftSearch.HasAttachment == nil || *service.lastDraftSearch.HasAttachment {
 		t.Fatalf("HasAttachment = %+v", service.lastDraftSearch.HasAttachment)
+	}
+}
+
+func TestSearchDraftsHandlerRejectsInvalidCursor(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drafts/search?user_id=user-1&cursor=bad", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDraftSearch.UserID != "" {
+		t.Fatalf("lastDraftSearch = %+v", service.lastDraftSearch)
 	}
 }
 
