@@ -835,6 +835,9 @@ The platform hardening sprint completed the following:
 - IMAP `FETCH`/`UID FETCH` can include RFC 4551-shaped `MODSEQ (n)` attributes
   when requested, using durable per-message mod-sequences without advertising
   broader CONDSTORE semantics yet.
+- IMAP `SEARCH`/`UID SEARCH` can match RFC 4551-shaped `MODSEQ` criteria,
+  including optional metadata entry/type arguments, and append the highest
+  matched mod-sequence to non-empty SEARCH responses.
 - IMAP `FETCH`/`UID FETCH` can return a conservative single-part
   `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
