@@ -1154,10 +1154,6 @@ func decodeSASLPlain(value string) (string, string, bool) {
 }
 
 func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) < 3 {
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
@@ -1173,6 +1169,10 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	}
 	if handled, done, err := s.validateUIDSubcommandSyntax(writer, tag, fields, subcommand); handled {
 		return done, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
 	}
 	if state.selectedMailbox == "" {
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")

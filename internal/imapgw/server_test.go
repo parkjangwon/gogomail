@@ -385,6 +385,55 @@ func TestServerValidatesUIDSubcommandBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID EXPUNGE\r\na7 UID COPY 7 &Jjo!\r\na8 UID MOVE 7 &Jjo!\r\na9 UID FETCH 7 (FLAGS)\r\na10 UID SEARCH ALL\r\na11 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write uid auth commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD UID command not implemented\r\n",
+		"a2 BAD malformed command\r\n",
+		"a3 BAD UID command not implemented\r\n",
+		"a4 BAD UID FETCH requires UID set and data items\r\n",
+		"a5 BAD UID STORE requires UID, mode, and flags\r\n",
+		"a6 BAD UID EXPUNGE requires UID set\r\n",
+		"a7 BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n",
+		"a8 BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n",
+		"a9 NO authentication required\r\n",
+		"a10 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a11 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid auth response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid auth response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	t.Parallel()
 

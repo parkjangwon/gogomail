@@ -1385,6 +1385,10 @@ Implementation order:
      argument lists, and thread argument lists before authentication failures
      too, preserving precise tagged `BAD` diagnostics while valid
      unauthenticated commands still return `NO authentication required`.
+869. IMAP `UID` dispatch now validates missing, malformed, unknown, or
+     state-independent malformed subcommands before authentication failures too,
+     preserving precise tagged `BAD` diagnostics while valid unauthenticated UID
+     commands still return `NO authentication required`.
 
 ## Deferred until backend contracts stabilize
 

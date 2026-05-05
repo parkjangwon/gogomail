@@ -33,10 +33,9 @@ Current state:
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.
-- Authenticated `UID` dispatch validates missing or malformed subcommands
-  and unknown UID subcommands before selected-mailbox state, while preserving
-  `NO mailbox must be selected` for supported UID commands issued outside
-  selected state.
+- `UID` dispatch validates missing, malformed, unknown, or state-independent
+  malformed subcommands before authentication or selected-mailbox state, while
+  valid unauthenticated UID commands still return `NO authentication required`.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
@@ -53,8 +52,8 @@ Current state:
   or selected-mailbox state errors.
 - `STARTTLS` validates its no-argument syntax before TLS availability and
   authentication-state checks.
-- Authenticated `UID` dispatch validates subcommand arity and destination
-  mailbox-name syntax before selected-mailbox state for `FETCH`, `STORE`,
+- `UID` dispatch validates subcommand arity and destination mailbox-name syntax
+  before authentication or selected-mailbox state for `FETCH`, `STORE`,
   `EXPUNGE`, `COPY`, and `MOVE`.
 - `LOGIN` and `AUTHENTICATE` validate malformed argument shape or unsupported
   mechanisms before plaintext `[PRIVACYREQUIRED]` responses on TLS-required
