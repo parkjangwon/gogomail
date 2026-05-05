@@ -3176,11 +3176,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	if copyUID := imapMoveCopyUIDResponse(destMailbox.UIDValidity, uids, summaries); copyUID != "" {
-		if _, err := writer.WriteString("* OK [" + copyUID + "] " + completionCommand + " UID mapping\r\n"); err != nil {
-			return false, err
-		}
-	}
+	copyUID := imapMoveCopyUIDResponse(destMailbox.UIDValidity, uids, summaries)
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
 		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, imapMoveDestinationSummaries(summaries))
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
@@ -3192,7 +3188,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 			return false, err
 		}
 	}
-	return s.writeMovedExpungeResponses(writer, tag, state, imapMoveSourceSummaries(summaries), completionCommand)
+	return s.writeMovedExpungeResponses(writer, tag, state, imapMoveSourceSummaries(summaries), completionCommand, copyUID)
 }
 
 func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
@@ -3209,10 +3205,10 @@ func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	return s.writeMovedExpungeResponses(writer, tag, state, summaries, completionCommand)
+	return s.writeMovedExpungeResponses(writer, tag, state, summaries, completionCommand, "")
 }
 
-func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, summaries []MessageSummary, completionCommand string) (bool, error) {
+func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, summaries []MessageSummary, completionCommand string, responseCode string) (bool, error) {
 	sort.Slice(summaries, func(i, j int) bool {
 		return summaries[i].SequenceNumber < summaries[j].SequenceNumber
 	})
@@ -3235,6 +3231,10 @@ func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, st
 		state.selectedMessages = 0
 	} else {
 		state.selectedMessages -= uint32(len(summaries))
+	}
+	if responseCode != "" {
+		_, err := writer.WriteString(tag + " OK [" + responseCode + "] " + completionCommand + " completed\r\n")
+		return false, err
 	}
 	_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 	return false, err

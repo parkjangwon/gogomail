@@ -1608,6 +1608,10 @@ Implementation order:
 931. Remote Ed25519 API-usage export manifest signer calls now use the shared
      bounded response drain-and-close helper, improving keep-alive reuse for
      external KMS-backed signer services without unbounded cleanup reads.
+932. IMAP `MOVE` and `UID MOVE` now place UIDPLUS `[COPYUID ...]` mappings in
+     the final tagged OK response instead of an untagged OK, preserving source
+     `EXPUNGE` updates while matching RFC 6851 client expectations for move
+     completion metadata.
 
 ## Deferred until backend contracts stabilize
 

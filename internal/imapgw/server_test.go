@@ -2437,14 +2437,12 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 		t.Fatalf("write unsupported mutation commands: %v", err)
 	}
 	want := []string{
-		"* OK [COPYUID 2 7 9] MOVE UID mapping\r\n",
 		"* OK [HIGHESTMODSEQ 19] MOVE source mod-sequence\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a3 OK MOVE completed\r\n",
-		"* OK [COPYUID 2 7 9] UID MOVE UID mapping\r\n",
+		"a3 OK [COPYUID 2 7 9] MOVE completed\r\n",
 		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a4 OK UID MOVE completed\r\n",
+		"a4 OK [COPYUID 2 7 9] UID MOVE completed\r\n",
 		"a5 BAD APPEND requires mailbox and literal\r\n",
 	}
 	for _, expected := range want {
@@ -2499,11 +2497,10 @@ func TestServerAllowsMoveToSelectedMailbox(t *testing.T) {
 		t.Fatalf("write same-mailbox move: %v", err)
 	}
 	want := []string{
-		"* OK [COPYUID 1 7 9] UID MOVE UID mapping\r\n",
 		"* 3 EXISTS\r\n",
 		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a3 OK UID MOVE completed\r\n",
+		"a3 OK [COPYUID 1 7 9] UID MOVE completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -4200,10 +4197,9 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 	}
 	want := []string{
 		"a5 OK [COPYUID 20 7 50] COPY completed\r\n",
-		"* OK [COPYUID 20 7 51] UID MOVE UID mapping\r\n",
 		"* OK [HIGHESTMODSEQ 30] UID MOVE source mod-sequence\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a6 OK UID MOVE completed\r\n",
+		"a6 OK [COPYUID 20 7 51] UID MOVE completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
