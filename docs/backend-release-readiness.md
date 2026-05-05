@@ -360,6 +360,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   criteria and return ordered-subject thread trees, while the `REFERENCES`
   algorithm remains unadvertised until its Message-ID normalization and
   ancestry-linking rules are implemented.
+- IMAP RFC 5256 base-subject extraction now decodes RFC 2047 encoded-word
+  subjects before stripping reply/forward artifacts, so internationalized
+  subject sorting and ordered-subject threading match standard-client
+  expectations more closely.
 - IMAP `SELECT`/`EXAMINE` now emit `[PERMANENTFLAGS]` response codes for
   writable versus read-only selected-mailbox state.
 - IMAP `SELECT`/`EXAMINE` now emit RFC-shaped untagged `RECENT` counts

@@ -1621,6 +1621,7 @@ func imapCompareInt64(left int64, right int64) int {
 }
 
 func imapBaseSubject(subject string) string {
+	subject = imapDecodeSubjectHeader(subject)
 	subject = strings.TrimSpace(strings.Join(strings.Fields(subject), " "))
 	for {
 		previous := subject
@@ -1641,6 +1642,14 @@ func imapBaseSubject(subject string) string {
 			return subject
 		}
 	}
+}
+
+func imapDecodeSubjectHeader(subject string) string {
+	decoded, err := new(mime.WordDecoder).DecodeHeader(subject)
+	if err != nil {
+		return subject
+	}
+	return decoded
 }
 
 func imapStripSubjectTrailers(subject string) string {

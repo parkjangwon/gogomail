@@ -1216,6 +1216,9 @@ Implementation order:
      selected-mailbox search evaluation and return ordered-subject thread trees
      without advertising the more complex `REFERENCES` algorithm before its
      Message-ID normalization and ancestry rules are implemented.
+823. IMAP RFC 5256 base-subject extraction now decodes RFC 2047 encoded-word
+     subjects before reply/forward artifact removal, improving
+     internationalized `SORT SUBJECT` and `THREAD ORDEREDSUBJECT` compatibility.
 
 ## Deferred until backend contracts stabilize
 
