@@ -423,6 +423,9 @@ Current state:
 - Admin API now exposes `GET /admin/v1/drive-usage` with required user scope
   for quota, node-count, byte-count, and pending upload-session dashboard
   summaries.
+- Mail API now exposes `GET /api/v1/drive/usage`, and webmail capabilities
+  advertise `usage_summary`, so production Drive panels can show per-user quota
+  and storage summaries without admin routes.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` for
   stale Drive upload-session cleanup counts and bounded candidate previews.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/runs` for

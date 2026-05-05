@@ -305,6 +305,17 @@ paths:
           $ref: "#/components/responses/DriveDelete"
         default:
           $ref: "#/components/responses/Error"
+  /drive/usage:
+    get:
+      operationId: getDriveUsageSummary
+      summary: Get current user's Drive usage summary
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveUsageSummary"
+        default:
+          $ref: "#/components/responses/Error"
   /drive/nodes/{id}/trash:
     post:
       operationId: trashDriveNode
@@ -5047,13 +5058,15 @@ components:
           $ref: "#/components/schemas/AttachmentUploadCapabilities"
         drive:
           type: object
-          required: [nodes, node_name_search, node_detail, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
+          required: [nodes, node_name_search, node_detail, usage_summary, create_folders, rename_nodes, move_nodes, trash_restore, permanent_delete, upload_sessions, list_upload_sessions, upload_session_body, upload_session_checksum, finalize_upload_sessions, cancel_upload_sessions, resumable_chunked_uploads, max_upload_session_bytes, max_session_ttl_seconds, default_session_ttl_seconds]
           properties:
             nodes:
               type: boolean
             node_name_search:
               type: boolean
             node_detail:
+              type: boolean
+            usage_summary:
               type: boolean
             create_folders:
               type: boolean
