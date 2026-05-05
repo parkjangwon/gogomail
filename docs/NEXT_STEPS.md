@@ -139,6 +139,9 @@ Current state:
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
   silently normalized.
+- IMAP `LIST` and `LSUB` reference/pattern atoms reject malformed values that
+  still contain quote characters after command parsing, preventing broken
+  mailbox patterns such as `INBOX"` from being silently normalized.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

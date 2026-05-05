@@ -187,6 +187,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
   silently normalized.
+- IMAP `LIST` and `LSUB` reference/pattern atoms reject malformed values that
+  still contain quote characters after command parsing, preventing broken
+  mailbox patterns such as `INBOX"` from being silently normalized.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

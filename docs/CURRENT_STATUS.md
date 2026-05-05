@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP search keyword quote hardening)
+Last updated: 2026-05-05 (updated after IMAP LIST pattern quote hardening)
 
 ## Current phase
 
@@ -259,6 +259,9 @@ guidance.
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
   silently normalized.
+- IMAP `LIST` and `LSUB` reference/pattern atoms now reject malformed values
+  that still contain quote characters after command parsing, preventing broken
+  mailbox patterns such as `INBOX"` from being silently normalized.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
