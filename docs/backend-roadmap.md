@@ -888,6 +888,9 @@ Implementation order:
 721. IMAP `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
      `BODY.PEEK[HEADER.FIELDS.NOT (...)]`, returning bounded header literals
      with requested fields excluded.
+722. IMAP `SEARCH` and `UID SEARCH` now support `SINCE` and `BEFORE` date
+     criteria over message `INTERNALDATE`, using RFC-style `DD-Mon-YYYY`
+     criteria parsing.
 
 ## Deferred until backend contracts stabilize
 
