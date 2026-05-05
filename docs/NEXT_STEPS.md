@@ -1376,6 +1376,8 @@ Current state:
   queue when a copied object cannot be deleted after metadata creation fails.
 - Copied Drive files keep the destination object path ID and `drive_nodes.id`
   synchronized by passing a preallocated node UUID into the metadata insert.
+- Drive file write APIs now return HTTP 507 `insufficient_storage` for quota
+  exhaustion on finalize/copy paths.
 
 Next:
 

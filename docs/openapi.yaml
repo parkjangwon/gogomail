@@ -231,6 +231,8 @@ paths:
       responses:
         "201":
           $ref: "#/components/responses/DriveNode"
+        "507":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /drive/files/finalize:
@@ -244,6 +246,8 @@ paths:
       responses:
         "201":
           $ref: "#/components/responses/DriveNode"
+        "507":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /drive/files/staged/{upload_id}/body:
@@ -515,6 +519,8 @@ paths:
       responses:
         "201":
           $ref: "#/components/responses/DriveNode"
+        "507":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /mailbox/overview:

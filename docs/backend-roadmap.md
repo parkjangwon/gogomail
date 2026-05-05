@@ -1958,6 +1958,10 @@ Implementation order:
       for both the committed object path and inserted `drive_nodes.id`, keeping
       copied-object keys aligned with metadata identifiers while ordinary
       upload/finalize paths may continue using database-generated IDs.
+1023. Drive file write endpoints now map quota exhaustion to HTTP 507
+      `insufficient_storage` for upload-session finalization, staged-object
+      finalization, and file copy, giving webmail clients a distinct storage
+      pressure signal instead of a generic bad request.
 
 ## Deferred until backend contracts stabilize
 

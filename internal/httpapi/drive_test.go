@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -758,6 +760,44 @@ func TestDriveCopyNodeHandler(t *testing.T) {
 	}
 	if body.Node.ID != "copy-1" || body.Node.Name != "Report Copy.pdf" {
 		t.Fatalf("node = %+v", body.Node)
+	}
+}
+
+func TestDriveWriteHandlersMapQuotaFull(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "finalize upload session", method: http.MethodPost, path: "/api/v1/drive/upload-sessions/session-1/finalize?user_id=user-1"},
+		{name: "finalize staged file", method: http.MethodPost, path: "/api/v1/drive/files/finalize?user_id=user-1", body: `{"name":"report.pdf","storage_backend":"s3","storage_path":"drive/users/user-1/staging/upload-1"}`},
+		{name: "copy file", method: http.MethodPost, path: "/api/v1/drive/nodes/node-1/copy?user_id=user-1", body: `{"name":"report copy.pdf"}`},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeDriveService{err: fmt.Errorf("%w: user used 900, limit 1000, write 200 bytes", mail.ErrMailboxFull)}
+			mux := http.NewServeMux()
+			RegisterDriveRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			if tc.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusInsufficientStorage {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), `"code":"insufficient_storage"`) {
+				t.Fatalf("body = %s", rec.Body.String())
+			}
+		})
 	}
 }
 

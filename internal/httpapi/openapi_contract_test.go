@@ -497,6 +497,28 @@ func TestOpenAPIDraftDocumentsAttachmentUploadSizeErrors(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsDriveQuotaErrors(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range []string{
+		"POST /drive/upload-sessions/{id}/finalize",
+		"POST /drive/files/finalize",
+		"POST /drive/nodes/{id}/copy",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if !strings.Contains(block, `"507":`) {
+			t.Fatalf("OpenAPI operation %s must document HTTP 507 for quota exhaustion", route)
+		}
+		if !strings.Contains(block, `$ref: "#/components/responses/Error"`) {
+			t.Fatalf("OpenAPI operation %s must map HTTP 507 to the reusable Error response", route)
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsUploadSessionChecksumHeader(t *testing.T) {
 	t.Parallel()
 
