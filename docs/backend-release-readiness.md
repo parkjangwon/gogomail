@@ -193,7 +193,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   storage. `GOGOMAIL_STORAGE_BACKEND=s3` can target AWS S3, while
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
-  region, bucket, prefix, credential, and session-token settings.
+  region, bucket, prefix, credential, and session-token settings. S3 request
+  paths preserve literal `+` characters as `%2B` so object identity and SigV4
+  canonical paths do not drift for plus-bearing mail object keys.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

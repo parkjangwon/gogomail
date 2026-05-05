@@ -60,6 +60,9 @@ so SigV4 signing and object addressing stay unambiguous. Set
 does not support virtual-hosted bucket names. HTTPS endpoints automatically use
 path-style requests for bucket names that contain periods, matching AWS's
 certificate compatibility guidance for dotted bucket names.
+Object keys are path-escaped segment by segment so literal `+` characters stay
+encoded as `%2B`, preserving object identity and SigV4 canonical paths across
+AWS S3, MinIO, and strict compatible providers.
 
 ## Integration verification
 

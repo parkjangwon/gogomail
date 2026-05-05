@@ -402,7 +402,7 @@ func escapeS3Key(key string) string {
 }
 
 func escapeS3Segment(segment string) string {
-	return strings.ReplaceAll(url.PathEscape(segment), "+", "%20")
+	return strings.ReplaceAll(url.PathEscape(segment), "+", "%2B")
 }
 
 func s3SigningKey(secret string, date string, region string) []byte {
