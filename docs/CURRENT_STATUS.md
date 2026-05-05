@@ -823,6 +823,8 @@ The platform hardening sprint completed the following:
 - IMAP `FETCH`/`UID FETCH` can stream text-only literals for `BODY[TEXT]`,
   `BODY.PEEK[TEXT]`, and `RFC822.TEXT`.
 - IMAP `UID STORE` accepts bounded UID sets/ranges for batched flag mutation.
+- IMAP `NOOP` drains queued selected-mailbox events into untagged `EXISTS` and
+  flag `FETCH` updates.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported
   literal tokens are rejected instead of being treated as ordinary atoms.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,

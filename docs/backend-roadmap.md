@@ -869,6 +869,9 @@ Implementation order:
 714. IMAP `UID STORE` now accepts bounded UID sets and ranges, applying flag
      mutations across multiple UIDs in one command and returning per-message
      untagged flag updates when not using `.SILENT`.
+715. IMAP `NOOP` now drains queued selected-mailbox events from the mailbox
+     event broker, emitting untagged `EXISTS` and flag `FETCH` updates as a
+     polling-friendly synchronization path before full IDLE support.
 
 ## Deferred until backend contracts stabilize
 

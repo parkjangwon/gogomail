@@ -143,6 +143,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		return err
 	}
 	state := imapConnState{}
+	defer state.closeSubscription()
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -173,6 +174,8 @@ type imapConnState struct {
 	selectedMessages uint32
 	readOnly         bool
 	pendingAuthTag   string
+	events           <-chan MailboxEvent
+	cancelEvents     func()
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
@@ -198,6 +201,9 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		_, err := writer.WriteString(tag + " OK CAPABILITY completed\r\n")
 		return false, err
 	case "NOOP":
+		if err := s.drainMailboxEvents(writer, state); err != nil {
+			return false, err
+		}
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
 		return false, err
 	case "LOGIN":
@@ -258,9 +264,17 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
 			return false, err
 		}
+		state.closeSubscription()
 		state.selectedMailbox = MailboxID(fields[2])
 		state.selectedMessages = mailboxState.Messages
 		state.readOnly = command == "EXAMINE"
+		events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, state.selectedMailbox)
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO SELECT failed\r\n")
+			return false, writeErr
+		}
+		state.events = events
+		state.cancelEvents = cancel
 		if state.readOnly {
 			if _, err := writer.WriteString("* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n"); err != nil {
 				return false, err
@@ -350,6 +364,7 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
 		state.readOnly = false
+		state.closeSubscription()
 		_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
 		return false, err
 	case "LOGOUT":
@@ -362,6 +377,72 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func (s *Server) drainMailboxEvents(writer *bufio.Writer, state *imapConnState) error {
+	if state == nil || state.events == nil || state.session == nil || state.selectedMailbox == "" {
+		return nil
+	}
+	for {
+		select {
+		case event, ok := <-state.events:
+			if !ok {
+				state.events = nil
+				state.cancelEvents = nil
+				return nil
+			}
+			if event.UserID != state.session.UserID || event.MailboxID != state.selectedMailbox {
+				continue
+			}
+			if err := s.writeMailboxEvent(writer, state, event); err != nil {
+				return err
+			}
+		default:
+			return nil
+		}
+	}
+}
+
+func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, event MailboxEvent) error {
+	switch event.Type {
+	case MailboxEventExists:
+		if event.Messages > 0 {
+			state.selectedMessages = event.Messages
+		} else {
+			state.selectedMessages++
+		}
+		_, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages))
+		return err
+	case MailboxEventFlags:
+		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
+			UserID:    state.session.UserID,
+			MailboxID: state.selectedMailbox,
+			UID:       event.UID,
+		})
+		if err != nil {
+			return err
+		}
+		if message.Body != nil {
+			_ = message.Body.Close()
+		}
+		sequenceNumber, ok := imapSequenceNumber(message.Summary)
+		if !ok {
+			return fmt.Errorf("imap event sequence number is unavailable")
+		}
+		_, err = writer.WriteString(fmt.Sprintf("* %d FETCH (UID %d FLAGS %s)\r\n", sequenceNumber, message.Summary.UID, imapFlagList(message.Summary.Flags.IMAPFlags())))
+		return err
+	default:
+		return nil
+	}
+}
+
+func (state *imapConnState) closeSubscription() {
+	if state == nil || state.cancelEvents == nil {
+		return
+	}
+	state.cancelEvents()
+	state.cancelEvents = nil
+	state.events = nil
 }
 
 func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
