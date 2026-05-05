@@ -10,8 +10,8 @@ import (
 func TestBackendInterfaceComposesIMAPGatewayBoundaries(t *testing.T) {
 	t.Parallel()
 
-	var _ Backend = fakeBackend{}
-	backend := fakeBackend{}
+	var _ Backend = fakeComposedBackend{}
+	backend := fakeComposedBackend{}
 	session, err := backend.Authenticate(context.Background(), "user@example.com", "secret")
 	if err != nil {
 		t.Fatalf("Authenticate returned error: %v", err)
@@ -28,48 +28,48 @@ func TestBackendInterfaceComposesIMAPGatewayBoundaries(t *testing.T) {
 	}
 }
 
-type fakeBackend struct{}
+type fakeComposedBackend struct{}
 
-func (fakeBackend) Authenticate(context.Context, string, string) (Session, error) {
+func (fakeComposedBackend) Authenticate(context.Context, string, string) (Session, error) {
 	return Session{UserID: "user-1", Username: "user@example.com"}, nil
 }
 
-func (fakeBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
+func (fakeComposedBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {
 	return []Mailbox{{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}}, nil
 }
 
-func (fakeBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
+func (fakeComposedBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2}, nil
 }
 
-func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
+func (fakeComposedBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{{ID: "message-1", UID: 1}}, nil
 }
 
-func (fakeBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
+func (fakeComposedBackend) FetchMessage(context.Context, FetchMessageRequest) (Message, error) {
 	return Message{Summary: MessageSummary{ID: "message-1", UID: 1}, Body: io.NopCloser(strings.NewReader(""))}, nil
 }
 
-func (fakeBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]MessageSummary, error) {
+func (fakeComposedBackend) StoreFlags(context.Context, StoreFlagsRequest) ([]MessageSummary, error) {
 	return []MessageSummary{{ID: "message-1", UID: 1, Flags: MessageFlags{Read: true}}}, nil
 }
 
-func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+func (fakeComposedBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
 	return MailboxState{
 		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 2},
 		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered},
 	}, nil
 }
 
-func (fakeBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {
+func (fakeComposedBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{{ID: "message-1", UID: 1}}, nil
 }
 
-func (fakeBackend) Expunge(context.Context, ExpungeRequest) ([]UID, error) {
+func (fakeComposedBackend) Expunge(context.Context, ExpungeRequest) ([]UID, error) {
 	return nil, nil
 }
 
-func (fakeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
+func (fakeComposedBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
 	events := make(chan MailboxEvent)
 	cancel := func() { close(events) }
 	return events, cancel, nil

@@ -789,6 +789,10 @@ Implementation order:
 688. IMAP runtime now builds listener-ready server options containing address,
      backend, TLS config, and insecure-auth policy while still deferring the
      actual TCP protocol server.
+689. `internal/imapgw.NewServer` now provides a protocol-server lifecycle shell
+     with listener option validation, backend requirement checks, and
+     TLS/insecure-auth policy enforcement before the IMAP command parser is
+     wired.
 
 ## Deferred until backend contracts stabilize
 

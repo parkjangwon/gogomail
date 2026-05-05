@@ -275,6 +275,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP runtime now builds listener-ready server options containing address,
   backend, TLS config, and insecure-auth policy while still deferring the actual
   TCP protocol server.
+- `internal/imapgw.NewServer` now provides a protocol-server lifecycle shell
+  with listener option validation, backend requirement checks, and TLS/insecure
+  auth policy enforcement before the IMAP command parser is wired.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event
