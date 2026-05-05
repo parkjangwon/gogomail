@@ -409,6 +409,9 @@ rows.
 `{"drive_cleanup_failures":[...]}` with bounded `user_id`, lifecycle `status`,
 and `limit` filters so operators can inspect pending or resolved backend object
 cleanup drift.
+`POST /admin/v1/drive-cleanup-failures/{id}/resolve` marks a pending cleanup
+failure resolved after an operator has verified or performed external object
+cleanup and returns `{"drive_cleanup_failure":{...}}`.
 
 Direct multipart attachment uploads are capped at the HTTP request boundary in
 addition to service-level declared-size and domain-policy checks. Multipart

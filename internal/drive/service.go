@@ -370,6 +370,13 @@ func (s *Service) ListObjectCleanupFailures(ctx context.Context, req ListObjectC
 	return s.cleanupFailureStore.ListObjectCleanupFailures(ctx, req)
 }
 
+func (s *Service) ResolveObjectCleanupFailure(ctx context.Context, req ResolveObjectCleanupFailureRequest) (ObjectCleanupFailure, error) {
+	if s == nil || s.cleanupFailureStore == nil {
+		return ObjectCleanupFailure{}, fmt.Errorf("drive cleanup failure store is required")
+	}
+	return s.cleanupFailureStore.ResolveObjectCleanupFailure(ctx, req)
+}
+
 func (s *Service) recordObjectCleanupFailure(ctx context.Context, deleted PermanentDeleteResult, cleanupErr error) error {
 	if s == nil || s.cleanupFailureRecorder == nil {
 		return nil

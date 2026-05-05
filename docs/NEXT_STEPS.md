@@ -418,12 +418,14 @@ Current state:
   explicit one-shot stale Drive upload-session expiry outside the worker loop.
 - Admin API now exposes `GET /admin/v1/drive-cleanup-failures` with user,
   status, and limit filters for operator cleanup-drift inspection.
+- Admin API now exposes `POST /admin/v1/drive-cleanup-failures/{id}/resolve`
+  for audited operator closure after external cleanup verification.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive cleanup-failure resolve/retry actions and broader node inventory
-  once the Drive admin module expands.
+- Add Drive cleanup-failure retry actions and broader node inventory once the
+  Drive admin module expands.
 
 ### 2. Message threading and search
 
