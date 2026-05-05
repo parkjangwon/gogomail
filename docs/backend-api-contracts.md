@@ -170,6 +170,10 @@ or development `user_id` fallback path as webmail mail routes:
 - `GET /api/v1/drive/upload-sessions/{id}` returns
   `{"drive_upload_session":{...}}` for status refresh, retry, and future
   resumable-upload UI state.
+- `GET /api/v1/drive/upload-sessions` returns
+  `{"drive_upload_sessions":[...]}` and accepts bounded `status` and `limit`
+  filters so clients can rebuild upload managers after reconnects or tab
+  reloads.
 - `DELETE /api/v1/drive/upload-sessions/{id}` cancels a pending, uploading,
   or failed session and returns `{"drive_upload_session":{...}}` with
   `status=canceled`.

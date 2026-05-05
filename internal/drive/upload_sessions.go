@@ -63,6 +63,12 @@ type GetUploadSessionRequest struct {
 	SessionID string
 }
 
+type ListUploadSessionsRequest struct {
+	UserID string
+	Status string
+	Limit  int
+}
+
 type CancelUploadSessionRequest struct {
 	UserID    string
 	SessionID string
@@ -163,6 +169,28 @@ func ValidateGetUploadSessionRequest(req GetUploadSessionRequest) (GetUploadSess
 		return GetUploadSessionRequest{}, err
 	}
 	return GetUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
+}
+
+func ValidateListUploadSessionsRequest(req ListUploadSessionsRequest) (ListUploadSessionsRequest, error) {
+	userID, err := validateDriveID("user_id", req.UserID, true)
+	if err != nil {
+		return ListUploadSessionsRequest{}, err
+	}
+	status := strings.TrimSpace(req.Status)
+	if status != "" {
+		status, err = ValidateUploadSessionStatus(status)
+		if err != nil {
+			return ListUploadSessionsRequest{}, err
+		}
+	}
+	if req.Limit < 0 {
+		return ListUploadSessionsRequest{}, fmt.Errorf("limit must not be negative")
+	}
+	return ListUploadSessionsRequest{
+		UserID: userID,
+		Status: status,
+		Limit:  NormalizeUploadSessionCleanupLimit(req.Limit),
+	}, nil
 }
 
 func ValidateCancelUploadSessionRequest(req CancelUploadSessionRequest) (CancelUploadSessionRequest, error) {

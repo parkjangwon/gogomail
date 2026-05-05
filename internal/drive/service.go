@@ -116,6 +116,13 @@ func (s *Service) GetUploadSession(ctx context.Context, req GetUploadSessionRequ
 	return s.repo.GetUploadSession(ctx, req)
 }
 
+func (s *Service) ListUploadSessions(ctx context.Context, req ListUploadSessionsRequest) ([]UploadSession, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.ListUploadSessions(ctx, req)
+}
+
 func (s *Service) CancelUploadSession(ctx context.Context, req CancelUploadSessionRequest) (UploadSession, error) {
 	if s == nil || s.repo == nil {
 		return UploadSession{}, fmt.Errorf("drive repository is required")

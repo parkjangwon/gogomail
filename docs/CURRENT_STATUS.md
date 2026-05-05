@@ -348,6 +348,9 @@ guidance.
 - `drive-cleanup-worker` now expires stale Drive upload sessions on each run
   before retrying permanent-delete object cleanup failures, keeping abandoned
   upload-session objects out of request paths.
+- Mail API now exposes `GET /api/v1/drive/upload-sessions` with status and
+  limit filters, and webmail capabilities advertise the list surface for
+  production upload manager recovery.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
