@@ -1465,7 +1465,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\n")); err != nil {
 		t.Fatalf("write flag search: %v", err)
 	}
 	want := []string{
@@ -1473,6 +1473,10 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 		"a3 OK SEARCH completed\r\n",
 		"* SEARCH 7\r\n",
 		"a4 OK UID SEARCH completed\r\n",
+		"* SEARCH 2\r\n",
+		"a5 OK SEARCH completed\r\n",
+		"* SEARCH 7\r\n",
+		"a6 OK UID SEARCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -1483,7 +1487,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("flag search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -2415,7 +2419,7 @@ func (fakeBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, erro
 func (fakeBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
 	return []MessageSummary{
 		{ID: "message-1", UID: 7, SequenceNumber: 1, InternalDate: time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Hello IMAP", From: []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}, To: []Address{{Name: "Target User", Mailbox: "target", Host: "example.com"}}, Date: time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Read: true, Starred: true}, Size: 11},
-		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Archive", From: []Address{{Name: "Archive Bot", Mailbox: "archive", Host: "example.net"}}, Cc: []Address{{Name: "Review Desk", Mailbox: "review", Host: "example.com"}}, Bcc: []Address{{Name: "Hidden Desk", Mailbox: "hidden", Host: "example.com"}}, Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)}, Size: 42},
+		{ID: "message-2", UID: 8, SequenceNumber: 2, InternalDate: time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC), Envelope: Envelope{Subject: "Archive", From: []Address{{Name: "Archive Bot", Mailbox: "archive", Host: "example.net"}}, Cc: []Address{{Name: "Review Desk", Mailbox: "review", Host: "example.com"}}, Bcc: []Address{{Name: "Hidden Desk", Mailbox: "hidden", Host: "example.com"}}, Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)}, Flags: MessageFlags{Draft: true}, Size: 42},
 	}, nil
 }
 

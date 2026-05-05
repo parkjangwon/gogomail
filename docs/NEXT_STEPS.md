@@ -280,8 +280,8 @@ Current state:
   selected mailbox message list.
 - `FETCH`/`UID FETCH` now supports partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
-- `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN` and
-  `FLAGGED` for standard client unread/starred views.
+- `SEARCH`/`UID SEARCH` now support common flag criteria such as `UNSEEN`,
+  `FLAGGED`, `ANSWERED`, and `DRAFT` for standard client views.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
