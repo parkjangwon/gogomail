@@ -289,6 +289,20 @@ func TestValidateRecordUploadSessionBodyRequest(t *testing.T) {
 	}
 }
 
+func TestValidateRecordUploadSessionBodyRequestRejectsWrongUserPath(t *testing.T) {
+	t.Parallel()
+
+	_, err := ValidateRecordUploadSessionBodyRequest(RecordUploadSessionBodyRequest{
+		UserID:         "user-1",
+		SessionID:      "session-1",
+		StoragePath:    "drive/users/user-2/upload-sessions/session-1/bodies/body-1",
+		ChecksumSHA256: strings.Repeat("a", 64),
+	})
+	if err == nil {
+		t.Fatal("ValidateRecordUploadSessionBodyRequest accepted another user's storage path")
+	}
+}
+
 func TestValidateUploadSessionStatus(t *testing.T) {
 	t.Parallel()
 

@@ -151,7 +151,8 @@ func (s *Service) ExpireUploadSessions(ctx context.Context, req ExpireUploadSess
 		if storagePath == "" {
 			continue
 		}
-		if _, err := storage.ValidateObjectPath(storagePath); err != nil {
+		storagePath, err := validateUserObjectPath(session.UserID, storagePath)
+		if err != nil {
 			return expired, fmt.Errorf("expired drive upload session storage path is invalid: %w", err)
 		}
 		store := s.stores[session.StorageBackend]
@@ -200,6 +201,13 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 	if !session.ExpiresAt.After(time.Now().UTC()) {
 		return UploadSession{}, fmt.Errorf("drive upload session is expired")
 	}
+	oldStoragePath := ""
+	if strings.TrimSpace(session.StoragePath) != "" {
+		oldStoragePath, err = validateUserObjectPath(session.UserID, session.StoragePath)
+		if err != nil {
+			return UploadSession{}, fmt.Errorf("existing drive upload session storage path is invalid: %w", err)
+		}
+	}
 	store := s.stores[session.StorageBackend]
 	if store == nil {
 		return UploadSession{}, fmt.Errorf("storage store %q is required", session.StorageBackend)
@@ -239,8 +247,8 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 		_ = store.Delete(ctx, storagePath)
 		return UploadSession{}, err
 	}
-	if session.StoragePath != "" && session.StoragePath != storagePath {
-		_ = store.Delete(ctx, session.StoragePath)
+	if oldStoragePath != "" && oldStoragePath != storagePath {
+		_ = store.Delete(ctx, oldStoragePath)
 	}
 	return updated, nil
 }

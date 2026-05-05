@@ -203,7 +203,9 @@ or development `user_id` fallback path as webmail mail routes:
 - `POST /api/v1/drive/upload-sessions/{id}/finalize` verifies the stored body
   through shared storage, creates quota-accounted Drive file metadata, marks
   the session finalized, and returns `{"drive_node":{...}}`; quota exhaustion
-  maps to HTTP 507 `insufficient_storage`.
+  maps to HTTP 507 `insufficient_storage`. Stored upload-session bodies must
+  stay under the authenticated user's `drive/users/{user_id}/...` object prefix
+  before storage adapter reads or cleanup deletes.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",
