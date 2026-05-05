@@ -1415,6 +1415,10 @@ Current state:
   create/list/get and calendar-object upsert/list/get/soft-delete, including
   `.ics` object-name validation, UID/component/ETag checks, optional observed
   ETag guards, and transactional calendar sync-token bumps.
+- CalDAV `.ics` validation now wraps `github.com/emersion/go-ical` so object
+  writes decode RFC 5545 iCalendar bodies, derive or verify UID/component
+  metadata, and reject multiple supported top-level components, missing/duplicate
+  UIDs, and excessive component/property counts.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1424,9 +1428,9 @@ Current state:
 
 Next:
 
-- Continue CalDAV with iCalendar parser/serializer selection, stricter REPORT
-  filter/href/time-range validation, and `OPTIONS`/`PROPFIND` discovery
-  handlers before advertising client-ready compatibility.
+- Continue CalDAV with stricter REPORT filter/href/time-range validation,
+  iCalendar serialization/normalization choices, and `OPTIONS`/`PROPFIND`
+  discovery handlers before advertising client-ready compatibility.
 - Add public Drive share-link resolution/download routes with strict token hash
   lookup, expiry/revocation checks, no-store headers, and range-download reuse
   before generated compose links are sent outside authenticated webmail.

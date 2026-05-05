@@ -71,6 +71,11 @@ calendar and update its sync token transactionally so future REPORT
 `sync-collection` handlers can observe object changes through one collection
 state value.
 
+iCalendar parsing is delegated to `github.com/emersion/go-ical` rather than an
+ad-hoc line parser. The gateway still applies gogomail-specific storage
+constraints around body size, supported top-level components, UID cardinality,
+and component/property counts before accepting a calendar object.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

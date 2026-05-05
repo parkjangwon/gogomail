@@ -2027,6 +2027,11 @@ Implementation order:
       `.ics` resource-name validation, UID/component checks, strong ETag
       generation, optional observed-ETag guards, object-size limits, and
       transactional calendar sync-token bumps for future WebDAV sync handlers.
+1041. CalDAV object validation now wraps `github.com/emersion/go-ical` for RFC
+      5545 iCalendar decoding, deriving or verifying UID/component metadata
+      from `.ics` bodies while rejecting missing/duplicate UIDs, multiple
+      supported top-level calendar components, and excessive
+      component/property counts before storage.
 
 ## Deferred until backend contracts stabilize
 
