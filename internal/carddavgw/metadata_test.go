@@ -88,6 +88,55 @@ func TestContactObjectETagRejectsOversizedBody(t *testing.T) {
 	}
 }
 
+func TestValidateVCardObject(t *testing.T) {
+	t.Parallel()
+
+	meta, err := ValidateVCardObject([]byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"))
+	if err != nil {
+		t.Fatalf("ValidateVCardObject returned error: %v", err)
+	}
+	if meta.UID != "contact-1" || meta.Version != "4.0" || meta.FN != "Contact One" {
+		t.Fatalf("metadata = %+v", meta)
+	}
+}
+
+func TestValidateVCardObjectAcceptsFoldedFN(t *testing.T) {
+	t.Parallel()
+
+	meta, err := ValidateVCardObject([]byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\n  One\r\nEND:VCARD\r\n"))
+	if err != nil {
+		t.Fatalf("ValidateVCardObject returned error: %v", err)
+	}
+	if meta.FN != "Contact One" {
+		t.Fatalf("FN = %q", meta.FN)
+	}
+}
+
+func TestValidateVCardObjectRejectsMalformedCards(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"",
+		"VERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:3.0\r\nUID:contact-1\r\nFN:Contact\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Contact\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:bad\nuid\r\nFN:Contact\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\nBEGIN:VCARD\r\nEND:VCARD\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\nNOTE\rbad\r\nEND:VCARD\r\n",
+	}
+	for _, body := range tests {
+		body := body
+		t.Run(strings.ReplaceAll(body, "\r\n", "|"), func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateVCardObject([]byte(body)); err == nil {
+				t.Fatalf("ValidateVCardObject(%q) error = nil, want rejection", body)
+			}
+		})
+	}
+}
+
 func TestAddressBookSyncToken(t *testing.T) {
 	t.Parallel()
 

@@ -22,14 +22,17 @@ Create `internal/carddavgw` as the CardDAV/WebDAV protocol boundary. The first
 slices own RFC names, DAV capability tokens, principal paths, address-book home
 paths, address-book collection paths, `.vcf` contact-object resource paths,
 safe relative/absolute href parsing, address-book metadata validation, contact
-object name/UID/ETag/size validation, and sync-token derivation.
+object name/UID/ETag/size validation, sync-token derivation, and bounded
+vCard 4.0 semantic validation.
 
 PostgreSQL storage tables hold address books, contact objects, and
 address-book change logs. The first repository methods create/list/get
 address-book collections through active user/domain/company scope and record
-creation changes transactionally. vCard semantic parsing, contact-object
-repository methods, REPORT handling, sync handlers, auth, and HTTP listener
-wiring will be added only when their semantics are implemented and tested.
+creation changes transactionally. The first vCard validator checks BEGIN/END
+structure, VERSION, UID, FN, folded lines, content-line caps, body caps, and
+nested VCARD rejection. Contact-object repository methods, REPORT handling,
+sync handlers, auth, broader vCard compatibility, and HTTP listener wiring will
+be added only when their semantics are implemented and tested.
 
 ## Consequences
 
