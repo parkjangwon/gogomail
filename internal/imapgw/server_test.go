@@ -1349,7 +1349,7 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	}
 	want := []string{
 		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
-		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
 		"a3 OK UID FETCH completed\r\n",
 	}
 	for _, expected := range want {
@@ -1405,7 +1405,7 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 	}
 	want := []string{
 		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
-		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
 		"a3 OK FETCH completed\r\n",
 	}
 	for _, expected := range want {
@@ -1731,6 +1731,65 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 		}
 	}
 	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 6; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH BODY archived\r\na4 UID SEARCH TEXT Archive\r\na5 SEARCH BODY Subject\r\n")); err != nil {
+		t.Fatalf("write body search: %v", err)
+	}
+	want := []string{
+		"* SEARCH 2\r\n",
+		"a3 OK SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a4 OK UID SEARCH completed\r\n",
+		"* SEARCH\r\n",
+		"a5 OK SEARCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read body search response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("body search response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -2542,6 +2601,10 @@ func (fakeBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Mes
 	internalDate := time.Date(2026, 5, 5, 12, 34, 56, 0, time.FixedZone("KST", 9*60*60))
 	body := "hello world"
 	size := int64(len(body))
+	if req.UID == 8 {
+		body = "Subject: Archive\r\n\r\narchived body content"
+		size = int64(len(body))
+	}
 	if req.UID == 9 {
 		body = "Subject: Hello\r\nFrom: sender@test\r\n\r\nhello header body"
 		size = int64(len(body))

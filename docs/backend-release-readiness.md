@@ -366,6 +366,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   envelope dates.
 - IMAP `SEARCH`/`UID SEARCH` now supports basic `FROM`, `TO`, `CC`, `BCC`,
   and `SUBJECT` substring criteria over selected-mailbox summaries.
+- IMAP `SEARCH`/`UID SEARCH` now supports bounded `BODY` and `TEXT`
+  raw-message criteria scans, with `BODY` excluding the RFC 5322 header block.
 - IMAP `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
 - IMAP now supports authenticated `NAMESPACE`, exposing the personal namespace

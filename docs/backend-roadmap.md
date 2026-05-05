@@ -935,6 +935,9 @@ Implementation order:
 739. IMAP plaintext sessions now advertise `LOGINDISABLED` and reject
      `LOGIN`/`AUTHENTICATE` with `[PRIVACYREQUIRED]` when insecure auth is
      disabled before STARTTLS.
+740. IMAP `SEARCH` and `UID SEARCH` now support bounded `BODY` and `TEXT`
+     raw-message criteria scans, with `BODY` excluding the RFC 5322 header
+     block.
 
 ## Deferred until backend contracts stabilize
 
