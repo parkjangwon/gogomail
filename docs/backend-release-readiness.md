@@ -385,12 +385,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   selection, service-backed COPY/MOVE/EXPUNGE, and event subscription.
 - Admin API exposes bounded IMAP UID backfill by user/mailbox for future
   operator/bootstrap runs without enabling an IMAP protocol listener.
-- IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
-  mailbox event broker for future session fan-out. The broker is scoped by
-  user+mailbox, and service-side flag/move/delete mutations publish best-effort
-  `flags`/`expunge` events for UID-visible messages. Mail API detail reads
-  that auto-mark unread messages as read also publish `flags` events after a
-  successful read-flag write.
+- IMAP IDLE is now advertised and accepted. `internal/imapgw` uses the
+  in-memory mailbox event broker for live selected-mailbox session fan-out; the
+  broker is scoped by user+mailbox, and service-side flag/move/delete mutations
+  publish best-effort `flags`/`expunge` events for UID-visible messages. Mail
+  API detail reads that auto-mark unread messages as read also publish `flags`
+  events after a successful read-flag write.
 - `gogomail --mode=imap` now starts an IMAP gateway that wires the
   service-backed IMAP store adapter, process-local mailbox event broker, and
   configured TCP IMAP listener.
