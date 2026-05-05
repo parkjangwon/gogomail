@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP LITERAL+ APPEND support)
+Last updated: 2026-05-05 (updated after IMAP empty flag-list handling)
 
 ## Current phase
 
@@ -1081,6 +1081,9 @@ The platform hardening sprint completed the following:
   are rejected as syntax `BAD` responses instead of being reported as
   unsupported. Successful append results include the appended message sequence
   number, which is used as the precise `EXISTS` event count when available.
+- IMAP empty flag-lists are accepted where RFC-shaped clients can send them:
+  `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
+  flags, and empty `+FLAGS ()`/`-FLAGS ()` are treated as successful no-ops.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

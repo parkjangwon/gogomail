@@ -529,6 +529,9 @@ Current state:
   now syntax `BAD` responses rather than unsupported-command responses.
   Successful append results include the new message sequence number for precise
   selected-mailbox `EXISTS` event counts.
+- Empty IMAP flag-lists are accepted where RFC-shaped clients can send them:
+  `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
+  flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder
