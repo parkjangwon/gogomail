@@ -1361,6 +1361,11 @@ Implementation order:
 863. IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
      unsupported mechanisms before plaintext `[PRIVACYREQUIRED]` responses on
      TLS-required listeners, preserving precise auth handshake diagnostics.
+864. IMAP mailbox management and subscription commands now validate malformed
+     `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
+     `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before
+     authentication failures, preserving precise tagged `BAD` diagnostics while
+     valid unauthenticated commands still return `NO authentication required`.
 
 ## Deferred until backend contracts stabilize
 

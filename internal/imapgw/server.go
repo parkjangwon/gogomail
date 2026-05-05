@@ -662,26 +662,30 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 }
 
 func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, state *imapConnState, subscribed bool) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	command := "LIST"
 	if subscribed {
 		command = "LSUB"
 	}
-	listOptions, ok := imapListCommandOptions(fields[2:], subscribed)
+	var listFields []string
+	if len(fields) > 2 {
+		listFields = fields[2:]
+	}
+	listOptions, ok := imapListCommandOptions(listFields, subscribed)
 	if !ok || len(listOptions.fields) != 2 {
 		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
 		return false, err
-	}
-	if imapStatusRequestsItem(listOptions.statusItems, "HIGHESTMODSEQ") {
-		state.condstoreAware = true
 	}
 	pattern, patternOK := imapListPattern(listOptions.fields[0], listOptions.fields[1])
 	if !patternOK {
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is not valid modified UTF-7\r\n")
 		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if imapStatusRequestsItem(listOptions.statusItems, "HIGHESTMODSEQ") {
+		state.condstoreAware = true
 	}
 	if pattern == "" {
 		if listOptions.specialUseOnly {
@@ -792,10 +796,6 @@ func imapLSubParentName(name string, pattern string) string {
 }
 
 func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) != 3 {
 		_, err := writer.WriteString(tag + " BAD CREATE requires mailbox name\r\n")
 		return false, err
@@ -803,6 +803,10 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 	mailboxName, ok := imapDecodeMailboxName(fields[2])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD CREATE mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if imapMailboxNameIsINBOX(mailboxName) {
@@ -818,10 +822,6 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 }
 
 func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) != 3 {
 		_, err := writer.WriteString(tag + " BAD DELETE requires mailbox name\r\n")
 		return false, err
@@ -829,6 +829,10 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 	mailboxName, ok := imapDecodeMailboxName(fields[2])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD DELETE mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if imapMailboxNameIsINBOX(mailboxName) {
@@ -863,10 +867,6 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 }
 
 func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) != 4 {
 		_, err := writer.WriteString(tag + " BAD RENAME requires source and destination mailbox names\r\n")
 		return false, err
@@ -875,6 +875,10 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 	destName, destOK := imapDecodeMailboxName(fields[3])
 	if !sourceOK || !destOK {
 		_, err := writer.WriteString(tag + " BAD RENAME mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if imapMailboxNameIsINBOX(sourceName) {
@@ -906,10 +910,6 @@ func imapMailboxNotFoundResponse(tag string, command string) string {
 }
 
 func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fields []string, state *imapConnState, command string) (bool, error) {
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if len(fields) != 3 {
 		_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom\r\n")
 		return false, err
@@ -918,6 +918,10 @@ func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fie
 	mailboxName, ok := imapDecodeMailboxName(fields[2])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if command == "SUBSCRIBE" {
