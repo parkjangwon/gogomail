@@ -2070,6 +2070,11 @@ The platform hardening sprint completed the following:
   iCalendar decoding, requiring one `VCALENDAR` with exactly one supported
   top-level calendar component, exactly one bounded UID, and explicit
   component/property count caps before `.ics` bodies reach storage.
+- CalDAV now has a WebDAV `multistatus` response builder for future PROPFIND
+  and REPORT handlers. It renders per-property `propstat` statuses, principal
+  discovery properties, calendar-home hints, calendar collection metadata
+  (`supported-calendar-component-set`, `supported-calendar-data`,
+  `max-resource-size`, sync token), and calendar-object ETag/content metadata.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
