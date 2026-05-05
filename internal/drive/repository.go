@@ -81,6 +81,7 @@ type ListNodesRequest struct {
 	ParentID string
 	Status   string
 	Query    string
+	Sort     string
 	Limit    int
 }
 
@@ -256,12 +257,17 @@ func ValidateListNodesRequest(req ListNodesRequest) (ListNodesRequest, error) {
 	if err != nil {
 		return ListNodesRequest{}, err
 	}
+	sortMode, err := ValidateNodeSort(req.Sort)
+	if err != nil {
+		return ListNodesRequest{}, err
+	}
 	limit := normalizeDriveListLimit(req.Limit)
 	return ListNodesRequest{
 		UserID:   userID,
 		ParentID: parentID,
 		Status:   status,
 		Query:    query,
+		Sort:     sortMode,
 		Limit:    limit,
 	}, nil
 }
@@ -496,7 +502,7 @@ func (r *Repository) ListNodes(ctx context.Context, req ListNodesRequest) ([]Nod
 	if err != nil {
 		return nil, err
 	}
-	const query = `
+	query := `
 SELECT
   id::text,
   company_id::text,
@@ -522,10 +528,7 @@ WHERE user_id = $1::uuid
     (NULLIF($2, '') IS NULL AND parent_id IS NULL)
     OR parent_id = NULLIF($2, '')::uuid
   )
-ORDER BY
-  CASE WHEN node_type = 'folder' THEN 0 ELSE 1 END,
-  normalized_name ASC,
-  id ASC
+ORDER BY ` + driveNodeListOrderBy(req.Sort) + `
 LIMIT $4`
 	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query))
 	if err != nil {
@@ -562,6 +565,20 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate drive nodes: %w", err)
 	}
 	return nodes, nil
+}
+
+func driveNodeListOrderBy(sortMode string) string {
+	typeFirst := "CASE WHEN node_type = 'folder' THEN 0 ELSE 1 END"
+	switch sortMode {
+	case NodeSortUpdated:
+		return typeFirst + ", updated_at DESC, normalized_name ASC, id ASC"
+	case NodeSortCreated:
+		return typeFirst + ", created_at DESC, normalized_name ASC, id ASC"
+	case NodeSortSize:
+		return typeFirst + ", size DESC, normalized_name ASC, id ASC"
+	default:
+		return typeFirst + ", normalized_name ASC, id ASC"
+	}
 }
 
 func (r *Repository) GetUsageSummary(ctx context.Context, req GetUsageSummaryRequest) (UsageSummary, error) {

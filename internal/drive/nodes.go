@@ -16,6 +16,11 @@ const (
 	NodeStatusTrashed = "trashed"
 	NodeStatusDeleted = "deleted"
 
+	NodeSortName    = "name"
+	NodeSortUpdated = "updated"
+	NodeSortCreated = "created"
+	NodeSortSize    = "size"
+
 	MaxNodeNameBytes = 255
 )
 
@@ -80,6 +85,19 @@ func ValidateNodeStatus(status string) (string, error) {
 		return status, nil
 	default:
 		return "", fmt.Errorf("unsupported drive node status %q", status)
+	}
+}
+
+func ValidateNodeSort(sort string) (string, error) {
+	sort = strings.TrimSpace(strings.ToLower(sort))
+	if sort == "" {
+		return NodeSortName, nil
+	}
+	switch sort {
+	case NodeSortName, NodeSortUpdated, NodeSortCreated, NodeSortSize:
+		return sort, nil
+	default:
+		return "", fmt.Errorf("unsupported drive node sort %q", sort)
 	}
 }
 

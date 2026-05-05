@@ -1986,6 +1986,9 @@ Implementation order:
 1030. Drive cleanup-failure recording now rejects object paths outside the
       owning user's `drive/users/{user_id}/...` prefix, keeping retry queues
       tenant-scoped at ingestion instead of only at retry time.
+1031. Drive node list APIs now accept `sort=name|updated|created|size` for
+      webmail and admin surfaces while preserving folder-first ordering,
+      enabling production browser controls without frontend-specific coupling.
 
 ## Deferred until backend contracts stabilize
 

@@ -60,6 +60,36 @@ func TestValidateNodeTypeAndStatus(t *testing.T) {
 	}
 }
 
+func TestValidateNodeSort(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "default", want: NodeSortName},
+		{name: "name", in: " NAME ", want: NodeSortName},
+		{name: "updated", in: "Updated", want: NodeSortUpdated},
+		{name: "created", in: "created", want: NodeSortCreated},
+		{name: "size", in: "size", want: NodeSortSize},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ValidateNodeSort(tt.in)
+			if err != nil || got != tt.want {
+				t.Fatalf("ValidateNodeSort(%q) = %q, %v; want %q, nil", tt.in, got, err, tt.want)
+			}
+		})
+	}
+	if _, err := ValidateNodeSort("owner"); err == nil {
+		t.Fatal("ValidateNodeSort accepted unsupported sort")
+	}
+}
+
 func TestNewNodeIDReturnsUUIDv4(t *testing.T) {
 	t.Parallel()
 
