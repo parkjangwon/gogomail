@@ -1187,6 +1187,10 @@ Implementation order:
      parameter lists, rejecting duplicate fields, oversized field names or
      values, and malformed argument shapes before returning gogomail server
      identity.
+816. IMAP `MOVE` and `UID MOVE` now allow the selected mailbox as the
+     destination when COPY to that mailbox is allowed, creating a fresh
+     same-mailbox message UID before expunging the source UID as required by
+     RFC 6851.
 
 ## Deferred until backend contracts stabilize
 

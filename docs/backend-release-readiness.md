@@ -505,11 +505,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   UIDs are available, return `[TRYCREATE]` when the destination mailbox is
   missing, and publish best-effort destination `EXISTS` events.
 - IMAP `MOVE` and `UID MOVE` now resolve source sequence/UID sets through the
-  selected mailbox, validate a different destination mailbox, move active
-  messages transactionally, reassign mailbox UID rows to fresh destination
-  UIDs, return UIDPLUS `[COPYUID ...]` mappings when destination UIDs are
-  available, advance and return source mailbox `[HIGHESTMODSEQ ...]` metadata
-  for CONDSTORE-aware clients, emit RFC-shaped source `EXPUNGE` responses,
+  selected mailbox, validate the destination mailbox, move active messages
+  transactionally, assign fresh destination UIDs, and allow moves back into the
+  selected mailbox by creating a fresh same-mailbox message before expunging
+  the source UID. Responses return UIDPLUS `[COPYUID ...]` mappings when
+  destination UIDs are available, advance and return source mailbox
+  `[HIGHESTMODSEQ ...]` metadata for CONDSTORE-aware clients, emit RFC-shaped
+  source `EXPUNGE` responses,
   return `[TRYCREATE]` when the destination mailbox is missing, and publish
   best-effort source expunge events.
 - IMAP `APPEND` now has a protocol-to-backend request boundary for mailbox,
