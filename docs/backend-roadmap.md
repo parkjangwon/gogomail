@@ -1583,6 +1583,10 @@ Implementation order:
      `GOGOMAIL_MAILSTORE_ROOT` without line breaks when
      `GOGOMAIL_STORAGE_BACKEND=local`, surfacing broken filesystem roots during
      config validation before runtime storage probes.
+925. `GOGOMAIL_STORAGE_ROOT` is now accepted as a storage-focused compatibility
+     alias for `GOGOMAIL_MAILSTORE_ROOT`, with the legacy mailstore variable
+     taking precedence when both are set, keeping documented local/NFS setup
+     snippets aligned with runtime config loading.
 
 ## Deferred until backend contracts stabilize
 

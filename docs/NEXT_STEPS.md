@@ -233,8 +233,10 @@ Current state:
   config validation and adapter construction, preventing copied credential
   mistakes from being silently trimmed before SigV4 signing.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
-  configuration, and the development compose stack includes `minio-init` to
-  create the default `gogomail` bucket for local S3-compatible runs.
+  configuration, including the `GOGOMAIL_STORAGE_ROOT` compatibility alias for
+  `GOGOMAIL_MAILSTORE_ROOT`, and the development compose stack includes
+  `minio-init` to create the default `gogomail` bucket for local
+  S3-compatible runs.
 
 Next:
 

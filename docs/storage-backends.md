@@ -16,6 +16,10 @@ GOGOMAIL_STORAGE_ROOT=./data/storage
 
 Use local storage for development, single-node installs, or deployments where
 the mount itself provides durability and availability.
+`GOGOMAIL_STORAGE_ROOT` is the storage-focused alias for
+`GOGOMAIL_MAILSTORE_ROOT`; if both are set, `GOGOMAIL_MAILSTORE_ROOT` wins for
+backward compatibility. The effective root must be non-empty, bounded, and free
+of line breaks when the local backend is active.
 Writes are staged through unique temporary files in the destination directory
 and committed with `rename`, avoiding fixed `.tmp` collisions on local or
 NFS-style mounts while preserving atomic object replacement semantics.
@@ -80,6 +84,11 @@ compatibility while preserving streaming-first storage paths.
 Deletes are idempotent for missing objects, including `404 Not Found` responses
 from compatible providers, so lifecycle cleanup behaves consistently across
 AWS S3, MinIO-style endpoints, and local/NFS storage.
+S3 `PUT`, failed `GET`, and `DELETE` responses drain a small bounded body
+window before close so normal S3/MinIO responses can reuse HTTP connections
+without letting oversized responses stall cleanup. Local/NFS and S3 readiness
+probes read only the expected probe body size plus one byte before comparing
+the response.
 
 ## Integration verification
 
