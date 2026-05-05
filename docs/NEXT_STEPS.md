@@ -1507,6 +1507,9 @@ Current state:
   overwrite requests.
 - CalDAV object `PUT` now rejects stale specific `If-Match` values and matching
   specific `If-None-Match` values before reading/parsing the request body.
+- CalDAV object `GET`/`HEAD` now reject stale `If-Match` preconditions before
+  cache revalidation, and object `DELETE` now accepts comma-listed strong
+  `If-Match` ETags for better WebDAV client compatibility.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

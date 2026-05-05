@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV PUT ETag precondition checks)
+Last updated: 2026-05-06 (updated after CalDAV object read/delete precondition checks)
 
 ## Current phase
 
@@ -2206,6 +2206,9 @@ The platform hardening sprint completed the following:
 - CalDAV calendar object `PUT` now evaluates specific `If-Match` and
   `If-None-Match` ETag preconditions before body reads or storage mutation,
   returning HTTP 412 for stale overwrite or no-overwrite requests.
+- CalDAV calendar object `GET` and `HEAD` now reject stale `If-Match`
+  preconditions before `If-None-Match` revalidation, and `DELETE` accepts
+  comma-listed strong ETags through the same comparison helper used by writes.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

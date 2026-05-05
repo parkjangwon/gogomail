@@ -283,6 +283,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   returns HTTP 412 when no current resource exists.
 - CalDAV calendar object `PUT` now preflights specific ETag `If-Match` and
   `If-None-Match` conditions before body parsing or repository mutation.
+- CalDAV calendar object `GET` and `HEAD` now fail stale `If-Match`
+  preconditions before `If-None-Match` cache revalidation, and object `DELETE`
+  now uses shared strong ETag list matching for conditional deletes.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

@@ -2159,6 +2159,10 @@ Implementation order:
       before body reads: stale `If-Match` values and matching
       `If-None-Match` values fail with HTTP 412 before iCalendar parsing or
       repository mutation.
+1068. CalDAV calendar object `GET` and `HEAD` now evaluate stale `If-Match`
+      before `If-None-Match` cache revalidation, and object `DELETE` now uses
+      shared strong ETag list matching so comma-listed conditional-delete
+      headers interoperate with WebDAV clients.
 
 ## Deferred until backend contracts stabilize
 
