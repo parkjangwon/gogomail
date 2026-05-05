@@ -1831,6 +1831,47 @@ func TestBulkDeleteMessagesPublishesIMAPExpungeEvents(t *testing.T) {
 	}
 }
 
+func TestBulkDeleteThreadsPublishesIMAPExpungeEvents(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		threadMessageIDs: []string{"msg-1", "msg-2"},
+		bulkThreadDeleteResult: maildb.BulkThreadDeleteResult{
+			Updated:    2,
+			MessageIDs: []string{"msg-1", "msg-2"},
+		},
+		imapUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 12, SequenceNumber: 3, ModSeq: 2},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 13, SequenceNumber: 4, ModSeq: 3},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	updated, err := service.BulkDeleteThreads(context.Background(), maildb.BulkThreadDeleteRequest{
+		UserID:    " user-1 ",
+		ThreadIDs: []string{" thread-1 ", " thread-2 "},
+	})
+	if err != nil {
+		t.Fatalf("BulkDeleteThreads returned error: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if repo.lastListThreadMessageUserID != "user-1" || len(repo.lastListThreadMessageThreadIDs) != 2 || repo.lastListThreadMessageThreadIDs[0] != "thread-1" || repo.lastListThreadMessageThreadIDs[1] != "thread-2" {
+		t.Fatalf("thread message id lookup = %q/%#v", repo.lastListThreadMessageUserID, repo.lastListThreadMessageThreadIDs)
+	}
+	if repo.lastBulkThreadDelete.UserID != "user-1" || len(repo.lastBulkThreadDelete.ThreadIDs) != 2 || repo.lastBulkThreadDelete.ThreadIDs[0] != "thread-1" || repo.lastBulkThreadDelete.ThreadIDs[1] != "thread-2" {
+		t.Fatalf("bulk thread delete request = %#v", repo.lastBulkThreadDelete)
+	}
+	if repo.lastIMAPUIDLookupUserID != "user-1" || len(repo.lastIMAPUIDLookupMessageIDs) != 2 || repo.lastIMAPUIDLookupMessageIDs[0] != "msg-1" || repo.lastIMAPUIDLookupMessageIDs[1] != "msg-2" {
+		t.Fatalf("imap uid lookup = %q/%#v", repo.lastIMAPUIDLookupUserID, repo.lastIMAPUIDLookupMessageIDs)
+	}
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExpunge || events.events[0].UID != 12 || events.events[0].SequenceNumber != 3 || events.events[1].UID != 13 || events.events[1].SequenceNumber != 4 {
+		t.Fatalf("events = %#v, want two expunge events", events.events)
+	}
+}
+
 func TestSearchMessagesUsesExternalRelevanceSearchAndHydrates(t *testing.T) {
 	t.Parallel()
 
@@ -2143,6 +2184,7 @@ type fakeRepository struct {
 	draftSearchResults             []maildb.MessageDetail
 	bulkThreadFlagResult           maildb.BulkThreadFlagResult
 	bulkThreadMoveResult           maildb.BulkThreadMoveResult
+	bulkThreadDeleteResult         maildb.BulkThreadDeleteResult
 	threadMessageIDs               []string
 	messagesByID                   []maildb.MessageSummary
 	suppressed                     []string
@@ -2213,6 +2255,7 @@ type fakeRepository struct {
 	lastBulkMove                   maildb.BulkMessageMoveRequest
 	lastBulkThreadMove             maildb.BulkThreadMoveRequest
 	lastBulkDelete                 maildb.BulkMessageDeleteRequest
+	lastBulkThreadDelete           maildb.BulkThreadDeleteRequest
 	lastListThreadMessageUserID    string
 	lastListThreadMessageThreadIDs []string
 	lastMutationUserID             string
@@ -2538,6 +2581,14 @@ func (f *fakeRepository) DeleteMessage(_ context.Context, userID string, message
 func (f *fakeRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
 	f.lastBulkDelete = req
 	return int64(len(req.MessageIDs)), nil
+}
+
+func (f *fakeRepository) BulkDeleteThreads(_ context.Context, req maildb.BulkThreadDeleteRequest) (maildb.BulkThreadDeleteResult, error) {
+	f.lastBulkThreadDelete = req
+	if f.bulkThreadDeleteResult.Updated != 0 || len(f.bulkThreadDeleteResult.MessageIDs) > 0 {
+		return f.bulkThreadDeleteResult, nil
+	}
+	return maildb.BulkThreadDeleteResult{Updated: int64(len(req.ThreadIDs)), MessageIDs: []string{"msg-thread"}}, nil
 }
 
 func (f *fakeRepository) ListPushDevices(_ context.Context, userID string, limit int) ([]maildb.PushDevice, error) {

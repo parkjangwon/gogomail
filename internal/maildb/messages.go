@@ -97,6 +97,16 @@ type BulkThreadMoveResult struct {
 	MessageIDs []string
 }
 
+type BulkThreadDeleteRequest struct {
+	UserID    string   `json:"user_id,omitempty"`
+	ThreadIDs []string `json:"thread_ids"`
+}
+
+type BulkThreadDeleteResult struct {
+	Updated    int64
+	MessageIDs []string
+}
+
 type BulkMessageMoveRequest struct {
 	UserID     string   `json:"user_id,omitempty"`
 	MessageIDs []string `json:"message_ids"`
@@ -199,6 +209,19 @@ func ValidateBulkMessageDeleteRequest(req BulkMessageDeleteRequest) error {
 		return fmt.Errorf("too many message_ids")
 	}
 	return validateBulkMessageIDs(req.MessageIDs)
+}
+
+func ValidateBulkThreadDeleteRequest(req BulkThreadDeleteRequest) error {
+	if strings.TrimSpace(req.UserID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if len(req.ThreadIDs) == 0 {
+		return fmt.Errorf("thread_ids is required")
+	}
+	if len(req.ThreadIDs) > BulkMessageMaxIDs {
+		return fmt.Errorf("too many thread_ids")
+	}
+	return validateBulkThreadIDs(req.ThreadIDs)
 }
 
 func validateBulkMessageIDs(messageIDs []string) error {
@@ -1155,6 +1178,71 @@ WHERE user_id = $1
 	}
 	return affected, nil
 }
+
+func (r *Repository) BulkDeleteThreads(ctx context.Context, req BulkThreadDeleteRequest) (BulkThreadDeleteResult, error) {
+	if r.db == nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkThreadDeleteRequest(req); err != nil {
+		return BulkThreadDeleteResult{}, err
+	}
+	userID := strings.TrimSpace(req.UserID)
+	rawIDs, err := json.Marshal(req.ThreadIDs)
+	if err != nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("encode thread ids: %w", err)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("begin bulk thread delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx, bulkDeleteThreadsSQL, userID, string(rawIDs))
+	if err != nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("bulk delete threads: %w", err)
+	}
+	var deletedIDs []string
+	var totalSize int64
+	for rows.Next() {
+		var deletedID string
+		var size int64
+		if err := rows.Scan(&deletedID, &size); err != nil {
+			rows.Close()
+			return BulkThreadDeleteResult{}, fmt.Errorf("scan bulk deleted thread message: %w", err)
+		}
+		deletedIDs = append(deletedIDs, deletedID)
+		totalSize += size
+	}
+	if err := rows.Close(); err != nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("close bulk deleted thread rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("iterate bulk deleted thread messages: %w", err)
+	}
+	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, deletedIDs); err != nil {
+		return BulkThreadDeleteResult{}, err
+	}
+	if err := decrementUserQuota(ctx, tx, userID, totalSize); err != nil {
+		return BulkThreadDeleteResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return BulkThreadDeleteResult{}, fmt.Errorf("commit bulk thread delete transaction: %w", err)
+	}
+	return BulkThreadDeleteResult{Updated: int64(len(deletedIDs)), MessageIDs: deletedIDs}, nil
+}
+
+const bulkDeleteThreadsSQL = `
+UPDATE messages
+SET status = 'deleted',
+    deleted_at = now(),
+    updated_at = now()
+WHERE user_id = $1
+  AND COALESCE(thread_id, id)::text IN (
+    SELECT value FROM jsonb_array_elements_text($2::jsonb)
+  )
+  AND status = 'active'
+RETURNING id::text, COALESCE(size, 0)`
 
 func allowedMessageFlag(flag string) bool {
 	switch flag {

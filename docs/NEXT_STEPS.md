@@ -1183,6 +1183,11 @@ Current state:
 - Admin API exposes API usage export capabilities, including signer backend,
   signer key ID, verifier availability, production signature readiness, and
   billing/verified-billing support flags.
+- Mail API now supports bounded `POST /api/v1/threads/bulk/delete` for
+  conversation-list delete workflows, soft-deleting every active message in
+  selected threads while invalidating IMAP UID rows, decrementing quota
+  transactionally, and publishing best-effort expunge events from the
+  pre-delete UID snapshot.
 
 Next:
 

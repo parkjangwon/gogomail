@@ -1711,6 +1711,10 @@ Implementation order:
      conversation-list archive/move workflows while validating destination
      folders, invalidating affected IMAP UID rows transactionally, and
      publishing best-effort expunge events from the pre-move UID snapshot.
+959. Mail API now exposes bounded thread-level soft deletes, enabling
+     conversation-list delete workflows while invalidating affected IMAP UID
+     rows, decrementing stored-byte quota transactionally, and publishing
+     best-effort expunge events from the pre-delete UID snapshot.
 
 ## Deferred until backend contracts stabilize
 
