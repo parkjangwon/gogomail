@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV runtime wiring)
+Last updated: 2026-05-06 (updated after CardDAV query filter refinement)
 
 ## Current phase
 
@@ -59,9 +59,12 @@ sync-token updates, and durable change rows. Public CardDAV compatibility now
 has bounded WebDAV `PROPFIND` parsing, an internal `OPTIONS`/`PROPFIND`
 discovery handler, bounded REPORT request parsing, and internal REPORT
 execution for `addressbook-query`, `addressbook-multiget`, and
-`sync-collection`. It remains gated on mutation handlers, auth/listener
-wiring, richer vCard/filter compatibility, and native-client tests. The handler
-is deliberately experimental and does not yet make CardDAV public/client-ready.
+`sync-collection`. `addressbook-query` now preserves the first
+`prop-filter` property name and applies `text-match` to parsed unfolded vCard
+property values instead of only scanning the whole object body. It remains
+gated on broader vCard/filter-tree/collation compatibility and native-client
+tests. The handler is deliberately experimental and does not yet make CardDAV
+public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,
@@ -2353,8 +2356,9 @@ The platform hardening sprint completed the following:
 - CardDAV REPORT parsing now recognizes bounded `addressbook-query`,
   `addressbook-multiget`, and WebDAV `sync-collection` request bodies,
   collecting requested properties, hrefs, sync token/level, limits, and first
-  text-match filter while rejecting malformed, oversized, deeply nested, or
-  unsupported sync-level shapes before handlers are exposed.
+  text-match filter plus its enclosing `prop-filter` name while rejecting
+  malformed, oversized, deeply nested, invalid prop-filter, or unsupported
+  sync-level shapes before handlers are exposed.
 - CardDAV now has a WebDAV `multistatus` response builder for future PROPFIND,
   REPORT, and sync handlers. It renders principal discovery, address-book
   collection metadata, contact-object metadata, requested `address-data`,
@@ -2374,11 +2378,15 @@ The platform hardening sprint completed the following:
   `address-data` with per-href 404 propstats, `addressbook-query` scans active
   address-book objects with the current bounded first text-match filter, and
   `sync-collection` returns full snapshots or bounded change rows with root
-  sync-token emission and deleted contact 404 responses. The repository can
+  sync-token emission and deleted contact 404 responses. Query filtering now
+  applies the first `text-match` to the parsed unfolded vCard property named by
+  the enclosing `prop-filter`, falling back to whole-body matching only when no
+  property is present. The repository can
   list address-book changes since a stored sync token and rejects missing or
   unsafe sync tokens before SQL work. This still does not advertise public
-  native-client compatibility because auth/listener wiring, object HTTP I/O,
-  richer CardDAV filters, and client compatibility tests are still pending.
+  native-client compatibility because broader CardDAV filter trees,
+  collation/match semantics, broader vCard compatibility, and client
+  compatibility tests are still pending.
 - CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
   content length, no-store headers, and `Last-Modified`, while honoring
@@ -2394,7 +2402,8 @@ The platform hardening sprint completed the following:
   rejects insecure Basic auth in production through
   `GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH=false`. This enables deployment smoke
   testing of the CardDAV gateway while keeping public/client-ready status gated
-  on richer filters, vCard compatibility, and native-client verification.
+  on broader filter trees/collations, vCard compatibility, and native-client
+  verification.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -2421,6 +2430,6 @@ Next focus areas:
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
 8. Extend CardDAV from internal discovery into authenticated client workflows:
-   add richer CardDAV filter semantics, broader vCard compatibility, and
+   add broader CardDAV filter-tree/collation semantics, vCard compatibility, and
    native-client tests before webmail contacts, attendee auto-complete, or
    public native CardDAV compatibility are exposed.
