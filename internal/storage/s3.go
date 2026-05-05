@@ -49,9 +49,9 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 	if err := ValidateS3BucketName(bucket); err != nil {
 		return nil, err
 	}
-	accessKeyID := strings.TrimSpace(opts.AccessKeyID)
-	if accessKeyID == "" || strings.ContainsAny(accessKeyID, "\r\n") {
-		return nil, fmt.Errorf("s3 access key id is required and must not contain line breaks")
+	accessKeyID := opts.AccessKeyID
+	if accessKeyID == "" || s3CredentialContainsWhitespace(accessKeyID) {
+		return nil, fmt.Errorf("s3 access key id is required and must not contain whitespace")
 	}
 	if opts.SecretAccessKey == "" || s3CredentialContainsWhitespace(opts.SecretAccessKey) {
 		return nil, fmt.Errorf("s3 secret access key is required and must not contain whitespace")

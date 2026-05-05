@@ -1538,6 +1538,9 @@ Implementation order:
 912. IMAP `FETCH`/`UID FETCH` data items now reject over-parenthesized tokens
      before item normalization, preventing malformed requests such as `FETCH 1
      ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
+913. S3-compatible access key IDs now reject spaces, tabs, and line breaks
+     during config validation and adapter construction, preventing copied
+     credential mistakes from being silently trimmed before SigV4 signing.
 
 ## Deferred until backend contracts stabilize
 

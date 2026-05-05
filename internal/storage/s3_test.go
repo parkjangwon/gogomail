@@ -414,6 +414,32 @@ func TestNewS3StoreRejectsSecretAccessKeyWhitespace(t *testing.T) {
 	}
 }
 
+func TestNewS3StoreRejectsAccessKeyIDWhitespace(t *testing.T) {
+	t.Parallel()
+
+	for _, accessKeyID := range []string{" access", "access ", "access\tkey", "access\nkey"} {
+		accessKeyID := accessKeyID
+		t.Run(accessKeyID, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     accessKeyID,
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+			})
+			if err == nil {
+				t.Fatalf("NewS3Store accepted access key id %q", accessKeyID)
+			}
+			if !strings.Contains(err.Error(), "s3 access key id") || !strings.Contains(err.Error(), "whitespace") {
+				t.Fatalf("error = %q, want access key id whitespace rejection", err)
+			}
+		})
+	}
+}
+
 func TestNewS3StoreRejectsSessionTokenWhitespace(t *testing.T) {
 	t.Parallel()
 

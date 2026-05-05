@@ -137,7 +137,7 @@ func (c Config) Validate() error {
 				return fmt.Errorf("GOGOMAIL_STORAGE_S3_PREFIX: %w", err)
 			}
 		}
-		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", c.StorageS3AccessKeyID, 4096); err != nil {
+		if err := validateS3CredentialNoWhitespace("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", c.StorageS3AccessKeyID, 4096, true); err != nil {
 			return err
 		}
 		if err := validateS3CredentialNoWhitespace("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY", c.StorageS3SecretAccessKey, 4096, true); err != nil {
