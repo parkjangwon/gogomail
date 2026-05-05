@@ -15,6 +15,16 @@ func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsProductionInsecureIMAPAuth(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = true
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want production insecure IMAP auth rejection")
+	}
+}
+
 func TestValidateRejectsUnknownEnvironment(t *testing.T) {
 	for _, env := range []string{"prod", "staging", ""} {
 		env := env
@@ -60,7 +70,7 @@ func TestValidateRejectsUnknownPushNotifyBackend(t *testing.T) {
 
 func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 	cfg := Load()
-	cfg.StorageBackend = "minio"
+	cfg.StorageBackend = "swift"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want unknown storage backend rejection")
 	}
@@ -178,6 +188,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "inbound nonnumeric port", mutate: func(cfg *Config) { cfg.InboundSMTPAddr = "127.0.0.1:notaport" }},
 		{name: "imap empty", mutate: func(cfg *Config) { cfg.IMAPAddr = "" }},
 		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
+		{name: "imap tls cert newline", mutate: func(cfg *Config) { cfg.IMAPTLSCertFile = "cert.pem\nbad" }},
 		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
 		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
 		{name: "newline", mutate: func(cfg *Config) { cfg.HTTPAddr = ":8080\nbad" }},
@@ -200,6 +211,8 @@ func TestValidateAcceptsListenerAddressForms(t *testing.T) {
 	cfg.SMTPAddr = ":2525"
 	cfg.InboundSMTPAddr = "127.0.0.1:2526"
 	cfg.IMAPAddr = "localhost:1143"
+	cfg.IMAPTLSCertFile = "imap-cert.pem"
+	cfg.IMAPTLSKeyFile = "imap-key.pem"
 	cfg.SubmissionAddr = "localhost:2587"
 	cfg.SubmissionSMTPSAddr = ""
 	if err := cfg.Validate(); err != nil {
