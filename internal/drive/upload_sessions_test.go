@@ -170,6 +170,39 @@ func TestValidateStoreUploadSessionBodyRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateFinalizeUploadSessionRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateFinalizeUploadSessionRequest(FinalizeUploadSessionRequest{UserID: " user-1 ", SessionID: " session-1 "})
+	if err != nil {
+		t.Fatalf("ValidateFinalizeUploadSessionRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.SessionID != "session-1" {
+		t.Fatalf("request = %+v, want trimmed fields", req)
+	}
+}
+
+func TestValidateFinalizeUploadSessionRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []FinalizeUploadSessionRequest{
+		{SessionID: "session-1"},
+		{UserID: "user-1"},
+		{UserID: "user\n1", SessionID: "session-1"},
+		{UserID: "user-1", SessionID: "session\n1"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.UserID+"-"+tc.SessionID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidateFinalizeUploadSessionRequest(tc); err == nil {
+				t.Fatalf("ValidateFinalizeUploadSessionRequest(%+v) error = nil, want rejection", tc)
+			}
+		})
+	}
+}
+
 func TestValidateRecordUploadSessionBodyRequest(t *testing.T) {
 	t.Parallel()
 

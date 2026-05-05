@@ -391,12 +391,15 @@ Current state:
   records storage metadata, and cleans failed/superseded objects best-effort.
 - Mail API now exposes `PUT /api/v1/drive/upload-sessions/{id}/body` for
   retry-safe full-body upload-session storage with optional SHA-256 checking.
+- `internal/drive.Repository.FinalizeUploadSession` now commits uploaded
+  session bodies into quota-accounted Drive file metadata and marks the session
+  finalized in one transaction.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add Drive upload-session finalize service/API methods so clients can commit
-  uploaded session bodies into quota-accounted Drive file metadata.
+- Expose Drive upload-session finalization through the Mail API so clients can
+  commit uploaded session bodies into quota-accounted Drive file metadata.
 
 ### 2. Message threading and search
 

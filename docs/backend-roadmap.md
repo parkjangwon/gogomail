@@ -1854,6 +1854,10 @@ Implementation order:
      wiring retry-safe Drive upload-session body storage to clients with
      optional `X-Content-SHA256` verification and explicit `Content-Range`
      rejection until chunked upload semantics are specified.
+995. Drive upload-session finalization now has an atomic repository/service
+     boundary that locks a writable session, verifies stored object size
+     through shared storage, increments quota, inserts Drive file metadata, and
+     marks the session finalized in one transaction.
 
 ## Deferred until backend contracts stabilize
 

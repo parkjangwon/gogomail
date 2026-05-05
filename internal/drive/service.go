@@ -188,6 +188,29 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 	return updated, nil
 }
 
+func (s *Service) FinalizeUploadSession(ctx context.Context, req FinalizeUploadSessionRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	req, err := ValidateFinalizeUploadSessionRequest(req)
+	if err != nil {
+		return Node{}, err
+	}
+	session, err := s.repo.GetUploadSession(ctx, GetUploadSessionRequest{UserID: req.UserID, SessionID: req.SessionID})
+	if err != nil {
+		return Node{}, err
+	}
+	storageBackend, err := validateStorageBackend(session.StorageBackend)
+	if err != nil {
+		return Node{}, err
+	}
+	store := s.stores[storageBackend]
+	if store == nil {
+		return Node{}, fmt.Errorf("storage store %q is required", storageBackend)
+	}
+	return s.repo.FinalizeUploadSession(ctx, store, req)
+}
+
 func (s *Service) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
 	if s == nil || s.repo == nil {
 		return nil, fmt.Errorf("drive repository is required")

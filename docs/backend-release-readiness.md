@@ -97,6 +97,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive upload-session body storage is now exposed through a Mail API route
   with optional SHA-256 verification and explicit `Content-Range` rejection
   until chunked/resumable upload semantics are finalized.
+- Drive upload-session finalization now has an atomic repository/service path
+  that verifies stored body size, increments quota, creates file metadata, and
+  marks the upload session finalized in the same transaction.
 - Drive folder contents can now be read through an internal bounded
   parent/status list model with stable folder-first ordering, preparing the
   backend shape that future Drive UI and API contracts will need.

@@ -72,6 +72,11 @@ type StoreUploadSessionBodyRequest struct {
 	Body                   io.Reader
 }
 
+type FinalizeUploadSessionRequest struct {
+	UserID    string
+	SessionID string
+}
+
 type RecordUploadSessionBodyRequest struct {
 	UserID         string
 	SessionID      string
@@ -176,6 +181,14 @@ func ValidateStoreUploadSessionBodyRequest(req StoreUploadSessionBodyRequest) (S
 		return StoreUploadSessionBodyRequest{}, fmt.Errorf("drive upload session body is required")
 	}
 	return StoreUploadSessionBodyRequest{UserID: userID, SessionID: sessionID, ExpectedChecksumSHA256: expectedChecksum, Body: req.Body}, nil
+}
+
+func ValidateFinalizeUploadSessionRequest(req FinalizeUploadSessionRequest) (FinalizeUploadSessionRequest, error) {
+	userID, sessionID, err := validateUploadSessionIdentity(req.UserID, req.SessionID)
+	if err != nil {
+		return FinalizeUploadSessionRequest{}, err
+	}
+	return FinalizeUploadSessionRequest{UserID: userID, SessionID: sessionID}, nil
 }
 
 func ValidateRecordUploadSessionBodyRequest(req RecordUploadSessionBodyRequest) (RecordUploadSessionBodyRequest, error) {
