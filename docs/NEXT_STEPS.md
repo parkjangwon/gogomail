@@ -1524,6 +1524,8 @@ Current state:
   revalidation, returning HTTP 412 for stale timestamp read preconditions.
 - S3-compatible `GetRange` now validates that `Content-Range` matches the
   requested byte window before returning the bounded response reader.
+- S3-compatible `GetRange` now reports `io.ErrUnexpectedEOF` when a matching
+  partial response body ends before the requested byte count.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

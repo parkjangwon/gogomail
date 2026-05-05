@@ -319,6 +319,39 @@ func TestS3StoreGetRangeRequiresMatchingContentRange(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRangeReportsTruncatedBody(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Header:     http.Header{"Content-Range": []string{"bytes 1-3/5"}},
+				Body:       io.NopCloser(strings.NewReader("el")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	ranged, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	if _, err := io.ReadAll(ranged); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("range read err = %v, want io.ErrUnexpectedEOF", err)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close range body: %v", err)
+	}
+}
+
 func TestS3StoreCheckBoundsReadinessBody(t *testing.T) {
 	t.Parallel()
 

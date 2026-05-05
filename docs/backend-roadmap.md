@@ -2186,6 +2186,10 @@ Implementation order:
       header against the requested byte window before returning the bounded
       response reader, closing mismatched partial responses early so Drive,
       attachment, and IMAP range callers do not consume the wrong bytes.
+1075. S3-compatible `GetRange` now enforces exact partial-response body length:
+      matching `Content-Range` headers with truncated bodies surface
+      `io.ErrUnexpectedEOF` to callers instead of silently returning a short
+      Drive, attachment, or IMAP range read.
 
 ## Deferred until backend contracts stabilize
 
