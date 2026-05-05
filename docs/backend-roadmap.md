@@ -2310,6 +2310,11 @@ Implementation order:
       and the first text-match filter while rejecting malformed, oversized,
       deeply nested, or unsupported sync-level shapes before handlers are
       exposed.
+1104. CardDAV now has a WebDAV `multistatus` response builder for future
+      PROPFIND, REPORT, and sync handlers, rendering principal discovery,
+      address-book collection metadata, contact-object metadata, requested
+      `address-data`, supported reports, supported vCard data types, sync
+      tokens, and per-property 404 propstats.
 
 ## Deferred until backend contracts stabilize
 
@@ -2323,9 +2328,10 @@ Implementation order:
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
   tables, resolver, alias lookup, and bounded membership expansion
-- Contacts/CardDAV REPORT/sync handlers, auth, broader vCard compatibility, and
-  native-client compatibility beyond the initial path/href, storage metadata,
-  repository, bounded vCard 4.0 validation, and REPORT parsing boundary
+- Contacts/CardDAV discovery/REPORT/sync handlers, auth, broader vCard
+  compatibility, and native-client compatibility beyond the initial path/href,
+  storage metadata, repository, bounded vCard 4.0 validation, REPORT parsing,
+  and multistatus response boundary
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
