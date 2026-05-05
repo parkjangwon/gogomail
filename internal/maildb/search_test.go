@@ -53,6 +53,20 @@ func TestMessageSearchSQLWeightsMetadataAboveBody(t *testing.T) {
 	}
 }
 
+func TestMessageSearchSQLProjectsBoundedPreview(t *testing.T) {
+	t.Parallel()
+
+	query := messageSearchSQL(MessageSearchSortDate)
+	for _, want := range []string{
+		"left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview",
+		"preview,",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("query does not include preview projection %q:\n%s", want, query)
+		}
+	}
+}
+
 func TestMessageSearchSQLExcludesDraftRows(t *testing.T) {
 	t.Parallel()
 

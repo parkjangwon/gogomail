@@ -10,6 +10,7 @@ import (
 type ThreadSummary struct {
 	ID              string    `json:"id"`
 	Subject         string    `json:"subject"`
+	Preview         string    `json:"preview"`
 	MessageCount    int64     `json:"message_count"`
 	UnreadCount     int64     `json:"unread_count"`
 	LatestMessageID string    `json:"latest_message_id"`
@@ -54,6 +55,7 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 		if err := rows.Scan(
 			&thread.ID,
 			&thread.Subject,
+			&thread.Preview,
 			&thread.MessageCount,
 			&thread.UnreadCount,
 			&thread.LatestMessageID,
@@ -75,23 +77,28 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 const threadListPageNewestSQL = `
 WITH active_messages AS (
   SELECT
-    COALESCE(thread_id, id)::text AS thread_key,
-    id::text AS id,
-    subject,
-    from_addr,
-    COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
-    has_attachment,
-    COALESCE((flags->>'read')::boolean, false) AS read,
-    COALESCE((flags->>'starred')::boolean, false) AS starred
+    COALESCE(messages.thread_id, messages.id)::text AS thread_key,
+    messages.id::text AS id,
+    messages.subject,
+    left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+    messages.from_addr,
+    COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+    messages.has_attachment,
+    COALESCE((messages.flags->>'read')::boolean, false) AS read,
+    COALESCE((messages.flags->>'starred')::boolean, false) AS starred
   FROM messages
-  WHERE user_id = $1
-    AND status = 'active'
-    AND ($8 = '' OR folder_id::text = $8)
+  LEFT JOIN message_search_documents msd
+    ON msd.message_id = messages.id
+   AND msd.user_id = messages.user_id
+  WHERE messages.user_id = $1
+    AND messages.status = 'active'
+    AND ($8 = '' OR messages.folder_id::text = $8)
 ),
 thread_summaries AS (
 SELECT
   thread_key,
   (array_agg(subject ORDER BY message_at DESC, id DESC))[1] AS subject,
+  (array_agg(preview ORDER BY message_at DESC, id DESC))[1] AS preview,
   count(*) AS message_count,
   count(*) FILTER (WHERE read = false) AS unread_count,
   (array_agg(id ORDER BY message_at DESC, id DESC))[1] AS latest_message_id,
@@ -121,23 +128,28 @@ LIMIT $2`
 const threadListPageOldestSQL = `
 WITH active_messages AS (
   SELECT
-    COALESCE(thread_id, id)::text AS thread_key,
-    id::text AS id,
-    subject,
-    from_addr,
-    COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
-    has_attachment,
-    COALESCE((flags->>'read')::boolean, false) AS read,
-    COALESCE((flags->>'starred')::boolean, false) AS starred
+    COALESCE(messages.thread_id, messages.id)::text AS thread_key,
+    messages.id::text AS id,
+    messages.subject,
+    left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+    messages.from_addr,
+    COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+    messages.has_attachment,
+    COALESCE((messages.flags->>'read')::boolean, false) AS read,
+    COALESCE((messages.flags->>'starred')::boolean, false) AS starred
   FROM messages
-  WHERE user_id = $1
-    AND status = 'active'
-    AND ($8 = '' OR folder_id::text = $8)
+  LEFT JOIN message_search_documents msd
+    ON msd.message_id = messages.id
+   AND msd.user_id = messages.user_id
+  WHERE messages.user_id = $1
+    AND messages.status = 'active'
+    AND ($8 = '' OR messages.folder_id::text = $8)
 ),
 thread_summaries AS (
 SELECT
   thread_key,
   (array_agg(subject ORDER BY message_at DESC, id DESC))[1] AS subject,
+  (array_agg(preview ORDER BY message_at DESC, id DESC))[1] AS preview,
   count(*) AS message_count,
   count(*) FILTER (WHERE read = false) AS unread_count,
   (array_agg(id ORDER BY message_at DESC, id DESC))[1] AS latest_message_id,
@@ -184,22 +196,26 @@ func (r *Repository) ListThreadMessagesPage(ctx context.Context, userID string, 
 
 	const query = `
 SELECT
-  id::text,
-  subject,
-  from_addr,
-  from_name,
-  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
-  size,
-  has_attachment,
-  COALESCE((flags->>'read')::boolean, false) AS read,
-  COALESCE((flags->>'starred')::boolean, false) AS starred
+  messages.id::text,
+  messages.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  messages.from_addr,
+  messages.from_name,
+  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+  messages.size,
+  messages.has_attachment,
+  COALESCE((messages.flags->>'read')::boolean, false) AS read,
+  COALESCE((messages.flags->>'starred')::boolean, false) AS starred
 FROM messages
-WHERE user_id = $1
-  AND status = 'active'
-  AND COALESCE(thread_id, id)::text = $2
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = messages.id
+ AND msd.user_id = messages.user_id
+WHERE messages.user_id = $1
+  AND messages.status = 'active'
+  AND COALESCE(messages.thread_id, messages.id)::text = $2
   AND (
     $5 = ''
-    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
        > ($4::timestamptz, $5::uuid)
   )
 ORDER BY message_at ASC, id ASC
@@ -217,6 +233,7 @@ LIMIT $3`
 		if err := rows.Scan(
 			&msg.ID,
 			&msg.Subject,
+			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
 			&msg.ReceivedAt,

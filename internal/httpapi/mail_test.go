@@ -30,6 +30,7 @@ func TestListMessagesHandler(t *testing.T) {
 			{
 				ID:            "msg-1",
 				Subject:       "hello",
+				Preview:       "short body preview",
 				FromAddr:      "sender@example.net",
 				FromName:      "Sender",
 				ReceivedAt:    time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC),
@@ -62,6 +63,9 @@ func TestListMessagesHandler(t *testing.T) {
 	}
 	if len(body.Messages) != 1 || body.Messages[0].Subject != "hello" {
 		t.Fatalf("messages = %+v", body.Messages)
+	}
+	if body.Messages[0].Preview != "short body preview" {
+		t.Fatalf("preview = %q", body.Messages[0].Preview)
 	}
 	if body.Limit != 10 || body.HasMore {
 		t.Fatalf("page metadata = limit:%d has_more:%v", body.Limit, body.HasMore)
@@ -764,6 +768,7 @@ func TestListThreadsHandler(t *testing.T) {
 		threads: []maildb.ThreadSummary{{
 			ID:              "thread-1",
 			Subject:         "hello",
+			Preview:         "latest body preview",
 			MessageCount:    2,
 			UnreadCount:     1,
 			LatestMessageID: "msg-2",
@@ -790,6 +795,9 @@ func TestListThreadsHandler(t *testing.T) {
 	}
 	if len(body.Threads) != 1 || body.Threads[0].ID != "thread-1" {
 		t.Fatalf("threads = %+v", body.Threads)
+	}
+	if body.Threads[0].Preview != "latest body preview" {
+		t.Fatalf("thread preview = %q", body.Threads[0].Preview)
 	}
 	if body.Limit != 10 || body.HasMore {
 		t.Fatalf("thread page metadata = limit:%d has_more:%v", body.Limit, body.HasMore)

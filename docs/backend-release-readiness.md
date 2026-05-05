@@ -25,6 +25,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API message and thread lists support `sort=newest|oldest` so production
   webmail clients can offer newest-first and oldest-first list views with
   bounded validation and cursor-compatible ordering.
+- Mail API message and thread summaries expose a required bounded `preview`
+  string from the asynchronous search-document read model, keeping production
+  webmail list rendering informative without parsing stored EML bodies on the
+  list hot path.
 - Admin API exposes `GET /admin/v1/console/capabilities` so production
   operator consoles can discover backend contract version, available/planned
   modules, tenant/domain/user surfaces, operational triage areas, and

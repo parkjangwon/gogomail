@@ -622,6 +622,27 @@ func TestOpenAPIDraftDocumentsMessageListSortEnum(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsMailboxPreviewFields(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	for schema, wants := range map[string][]string{
+		"MessageSummary": {"preview", "maxLength: 280", "Whitespace-normalized body preview"},
+		"ThreadSummary":  {"preview", "maxLength: 280", "Preview for the latest message"},
+	} {
+		block := extractOpenAPIComponentBlock(t, draft, "schemas", schema)
+		for _, want := range wants {
+			if !strings.Contains(block, want) {
+				t.Fatalf("OpenAPI %s must document %q, got:\n%s", schema, want, block)
+			}
+		}
+	}
+}
+
 func TestOpenAPIDraftDocumentsPathParameters(t *testing.T) {
 	t.Parallel()
 

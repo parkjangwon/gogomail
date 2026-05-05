@@ -3366,12 +3366,16 @@ components:
           $ref: "#/components/schemas/MailboxOverview"
     MessageSummary:
       type: object
-      required: [id, subject, from_addr, from_name, received_at, size, has_attachment, read, starred]
+      required: [id, subject, preview, from_addr, from_name, received_at, size, has_attachment, read, starred]
       properties:
         id:
           type: string
         subject:
           type: string
+        preview:
+          type: string
+          maxLength: 280
+          description: Whitespace-normalized body preview from the asynchronous search document, or an empty string when unavailable.
         from_addr:
           type: string
           format: email
@@ -3438,13 +3442,17 @@ components:
             $ref: "#/components/schemas/MessageSummary"
     ThreadSummary:
       type: object
-      required: [id, subject, message_count, unread_count, latest_message_id, latest_from_addr, latest_at, has_attachment, starred]
+      required: [id, subject, preview, message_count, unread_count, latest_message_id, latest_from_addr, latest_at, has_attachment, starred]
       properties:
         id:
           type: string
           description: Thread UUID when present, otherwise the root message id for unthreaded messages.
         subject:
           type: string
+        preview:
+          type: string
+          maxLength: 280
+          description: Preview for the latest message in the thread, or an empty string when unavailable.
         message_count:
           type: integer
           format: int64

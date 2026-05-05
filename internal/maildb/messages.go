@@ -12,6 +12,7 @@ import (
 type MessageSummary struct {
 	ID               string                   `json:"id"`
 	Subject          string                   `json:"subject"`
+	Preview          string                   `json:"preview"`
 	FromAddr         string                   `json:"from_addr"`
 	FromName         string                   `json:"from_name"`
 	ReceivedAt       time.Time                `json:"received_at"`
@@ -355,19 +356,23 @@ func (r *Repository) ListMessages(ctx context.Context, userID string, limit int)
 
 	const query = `
 SELECT
-  id::text,
-  subject,
-  from_addr,
-  from_name,
-  COALESCE(received_at, created_at),
-  size,
-  has_attachment,
-  COALESCE((flags->>'read')::boolean, false) AS read,
-  COALESCE((flags->>'starred')::boolean, false) AS starred
-FROM messages
-WHERE user_id = $1
-  AND status = 'active'
-ORDER BY COALESCE(received_at, created_at) DESC
+  m.id::text,
+  m.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.created_at),
+  m.size,
+  m.has_attachment,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred
+FROM messages m
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = m.id
+ AND msd.user_id = m.user_id
+WHERE m.user_id = $1
+  AND m.status = 'active'
+ORDER BY COALESCE(m.received_at, m.created_at) DESC
 LIMIT $2`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit)
@@ -382,6 +387,7 @@ LIMIT $2`
 		if err := rows.Scan(
 			&msg.ID,
 			&msg.Subject,
+			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
 			&msg.ReceivedAt,
@@ -411,20 +417,24 @@ func (r *Repository) ListMessagesInFolder(ctx context.Context, userID string, fo
 
 	const query = `
 SELECT
-  id::text,
-  subject,
-  from_addr,
-  from_name,
-  COALESCE(received_at, created_at),
-  size,
-  has_attachment,
-  COALESCE((flags->>'read')::boolean, false) AS read,
-  COALESCE((flags->>'starred')::boolean, false) AS starred
-FROM messages
-WHERE user_id = $1
-  AND folder_id = $2
-  AND status = 'active'
-ORDER BY COALESCE(received_at, created_at) DESC
+  m.id::text,
+  m.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.created_at),
+  m.size,
+  m.has_attachment,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred
+FROM messages m
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = m.id
+ AND msd.user_id = m.user_id
+WHERE m.user_id = $1
+  AND m.folder_id = $2
+  AND m.status = 'active'
+ORDER BY COALESCE(m.received_at, m.created_at) DESC
 LIMIT $3`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, folderID, limit)
@@ -439,6 +449,7 @@ LIMIT $3`
 		if err := rows.Scan(
 			&msg.ID,
 			&msg.Subject,
+			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
 			&msg.ReceivedAt,
@@ -495,6 +506,7 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		if err := rows.Scan(
 			&msg.ID,
 			&msg.Subject,
+			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
 			&msg.ReceivedAt,
@@ -515,25 +527,29 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 
 const messageListPageNewestSQL = `
 SELECT
-  id::text,
-  subject,
-  from_addr,
-  from_name,
-  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
-  size,
-  has_attachment,
-  COALESCE((flags->>'read')::boolean, false) AS read,
-  COALESCE((flags->>'starred')::boolean, false) AS starred
+  messages.id::text,
+  messages.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  messages.from_addr,
+  messages.from_name,
+  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+  messages.size,
+  messages.has_attachment,
+  COALESCE((messages.flags->>'read')::boolean, false) AS read,
+  COALESCE((messages.flags->>'starred')::boolean, false) AS starred
 FROM messages
-WHERE user_id = $1
-  AND status = 'active'
-  AND ($2 = '' OR folder_id::text = $2)
-  AND ($6::boolean IS NULL OR COALESCE((flags->>'read')::boolean, false) = $6::boolean)
-  AND ($7::boolean IS NULL OR COALESCE((flags->>'starred')::boolean, false) = $7::boolean)
-  AND ($8::boolean IS NULL OR has_attachment = $8::boolean)
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = messages.id
+ AND msd.user_id = messages.user_id
+WHERE messages.user_id = $1
+  AND messages.status = 'active'
+  AND ($2 = '' OR messages.folder_id::text = $2)
+  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)
+  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)
+  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)
   AND (
     $4 = ''
-    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
        < ($3::timestamptz, $4::uuid)
   )
 ORDER BY message_at DESC, id DESC
@@ -541,25 +557,29 @@ LIMIT $5`
 
 const messageListPageOldestSQL = `
 SELECT
-  id::text,
-  subject,
-  from_addr,
-  from_name,
-  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
-  size,
-  has_attachment,
-  COALESCE((flags->>'read')::boolean, false) AS read,
-  COALESCE((flags->>'starred')::boolean, false) AS starred
+  messages.id::text,
+  messages.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  messages.from_addr,
+  messages.from_name,
+  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+  messages.size,
+  messages.has_attachment,
+  COALESCE((messages.flags->>'read')::boolean, false) AS read,
+  COALESCE((messages.flags->>'starred')::boolean, false) AS starred
 FROM messages
-WHERE user_id = $1
-  AND status = 'active'
-  AND ($2 = '' OR folder_id::text = $2)
-  AND ($6::boolean IS NULL OR COALESCE((flags->>'read')::boolean, false) = $6::boolean)
-  AND ($7::boolean IS NULL OR COALESCE((flags->>'starred')::boolean, false) = $7::boolean)
-  AND ($8::boolean IS NULL OR has_attachment = $8::boolean)
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = messages.id
+ AND msd.user_id = messages.user_id
+WHERE messages.user_id = $1
+  AND messages.status = 'active'
+  AND ($2 = '' OR messages.folder_id::text = $2)
+  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)
+  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)
+  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)
   AND (
     $4 = ''
-    OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id)
+    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
        > ($3::timestamptz, $4::uuid)
   )
 ORDER BY message_at ASC, id ASC

@@ -1700,6 +1700,10 @@ Implementation order:
      `sort=newest|oldest`, enabling explicit newest-first and oldest-first
      production webmail list controls while preserving bounded validation and
      opaque cursor pagination.
+956. Mail API message and thread summaries now expose a required bounded
+     `preview` string from the asynchronous search-document read model,
+     enabling production webmail list body context without opening stored EML
+     objects on the list hot path.
 
 ## Deferred until backend contracts stabilize
 

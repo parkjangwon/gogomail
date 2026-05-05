@@ -35,6 +35,7 @@ WITH requested AS (
 SELECT
   m.id::text,
   m.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
   m.from_name,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS message_at,
@@ -44,6 +45,9 @@ SELECT
   COALESCE((m.flags->>'starred')::boolean, false) AS starred
 FROM requested
 JOIN messages m ON m.id = requested.id
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = m.id
+ AND msd.user_id = m.user_id
 WHERE m.user_id = $1::uuid
   AND m.status = 'active'
 ORDER BY requested.ordinality`
@@ -60,6 +64,7 @@ ORDER BY requested.ordinality`
 		if err := rows.Scan(
 			&msg.ID,
 			&msg.Subject,
+			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
 			&msg.ReceivedAt,
