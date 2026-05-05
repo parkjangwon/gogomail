@@ -34,6 +34,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   OpenSearch writer/searcher construction trims usernames while preserving
   password bytes, and rejects CR/LF-bearing or oversized endpoint credentials
   before BasicAuth request headers can be generated.
+  OpenSearch username/password configuration is also CR/LF-rejected and
+  size-bounded during startup config validation when the OpenSearch backend is
+  selected, surfacing credential formatting mistakes before worker/search setup.
 - Search results can now opt into relevance ordering, rank scores, and bounded headline snippets without changing default newest-first behavior.
 - Mail API exposes bounded bulk flag, move, and soft-delete actions for efficient webmail list operations.
 - Attachment uploads now support both metadata reservation and direct multipart storage writes.

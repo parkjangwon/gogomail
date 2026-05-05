@@ -14,6 +14,7 @@ import (
 const (
 	maxExportManifestSignerKeyIDBytes      = 200
 	maxExportManifestSignerCredentialBytes = 4096
+	maxOpenSearchCredentialBytes           = 4096
 	maxWebhookTokenBytes                   = 4096
 	maxAttachmentCleanupBatchSize          = 1000
 	minHTTPMaxHeaderBytes                  = 4 << 10
@@ -306,6 +307,12 @@ func (c Config) Validate() error {
 			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX is required when GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch")
 		}
 		if err := validateOpenSearchIndexName("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX", c.SearchIndexOpenSearchIndex); err != nil {
+			return err
+		}
+		if err := validateBoundedNoCRLF("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_USERNAME", c.SearchIndexOpenSearchUsername, maxOpenSearchCredentialBytes); err != nil {
+			return err
+		}
+		if err := validateBoundedNoCRLF("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_PASSWORD", c.SearchIndexOpenSearchPassword, maxOpenSearchCredentialBytes); err != nil {
 			return err
 		}
 	}
