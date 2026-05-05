@@ -1426,7 +1426,7 @@ The platform hardening sprint completed the following:
   treating active messages as old.
 - IMAP `SEARCH`/`UID SEARCH` supports `KEYWORD` and `UNKEYWORD` criteria with
   validated keyword atoms, and the webmail `forwarded` state is exposed as an
-  IMAP `Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and
+  IMAP `$Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and
   permitted `STORE` mutations.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.

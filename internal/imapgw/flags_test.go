@@ -84,10 +84,11 @@ func TestApplyIMAPFlagMapsDeletedSeparatelyFromSoftDelete(t *testing.T) {
 
 func TestMailFlagForIMAPFlagExposesOnlyPersistedMailboxFlags(t *testing.T) {
 	tests := map[string]string{
-		`\Seen`:     "read",
-		`\Flagged`:  "starred",
-		`\Answered`: "answered",
-		`Forwarded`: "forwarded",
+		`\Seen`:      "read",
+		`\Flagged`:   "starred",
+		`\Answered`:  "answered",
+		`Forwarded`:  "forwarded",
+		`$Forwarded`: "forwarded",
 	}
 	for imapFlag, want := range tests {
 		got, ok := MailFlagForIMAPFlag(imapFlag)
