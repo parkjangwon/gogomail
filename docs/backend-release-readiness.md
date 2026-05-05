@@ -86,6 +86,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `GetRange` storage primitive implemented for local/NFS and S3-compatible
   stores, preparing resumable downloads, media previews, and large-file
   frontend ergonomics without provider-specific object access.
+- IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and
+  session mutation, including malformed capability atoms.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

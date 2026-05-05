@@ -1931,6 +1931,10 @@ Implementation order:
       `206 Partial Content` plus `Content-Range` for resumable download and
       media-preview clients. Webmail capabilities advertise
       `node_range_download`.
+1017. IMAP `ENABLE` now validates malformed capability atoms before
+      authentication and before mutating session extension state, so RFC
+      5161-shaped syntax errors remain distinct from well-formed unsupported
+      capabilities or unauthenticated enable attempts.
 
 ## Deferred until backend contracts stabilize
 

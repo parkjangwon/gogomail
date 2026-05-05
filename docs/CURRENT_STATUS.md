@@ -380,6 +380,9 @@ guidance.
   shared local/NFS and S3-compatible `GetRange` storage contract, giving
   production webmail clients resumable download and media-preview building
   blocks without backend-specific object access.
+- IMAP `ENABLE` now rejects malformed capability atoms before authentication
+  or session mutation, keeping RFC 5161 syntax failures distinct from valid
+  unauthenticated enable attempts.
 - Admin API now exposes `POST /admin/v1/drive-upload-cleanup/candidates` so
   operators can preview stale Drive upload-session cleanup counts and bounded
   candidate rows before worker cleanup handles them.

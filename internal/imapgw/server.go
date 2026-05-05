@@ -5304,6 +5304,12 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD ENABLE requires at least one capability\r\n")
 		return false, err
 	}
+	for _, field := range fields[2:] {
+		if !imapAtomValid(field) {
+			_, err := writer.WriteString(tag + " BAD ENABLE capability is malformed\r\n")
+			return false, err
+		}
+	}
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
