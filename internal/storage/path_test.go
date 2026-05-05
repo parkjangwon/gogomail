@@ -83,3 +83,43 @@ func TestValidateObjectPathAcceptsLongRelativeKey(t *testing.T) {
 		t.Fatalf("ValidateObjectPath = %q, %v", got, err)
 	}
 }
+
+func TestValidateObjectPrefixAllowsEmptyAndTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	if got, err := ValidateObjectPrefix(" "); err != nil || got != "" {
+		t.Fatalf("empty prefix = %q, %v", got, err)
+	}
+	if got, err := ValidateObjectPrefix(" drive/user-1/ "); err != nil || got != "drive/user-1" {
+		t.Fatalf("prefix = %q, %v", got, err)
+	}
+}
+
+func TestValidateObjectPrefixRejectsUnsafePrefixes(t *testing.T) {
+	t.Parallel()
+
+	for _, prefix := range []string{
+		"../escape",
+		"/drive/user-1",
+		`drive\user-1`,
+		"drive/user\n1",
+		"drive/../user-1",
+		"drive//user-1",
+		"drive/   /user-1",
+	} {
+		if _, err := ValidateObjectPrefix(prefix); err == nil {
+			t.Fatalf("ValidateObjectPrefix accepted unsafe prefix %q", prefix)
+		}
+	}
+}
+
+func TestValidateListCursorRejectsUnsafeCursor(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ValidateListCursor("cursor\n2"); err == nil {
+		t.Fatal("ValidateListCursor accepted newline-bearing cursor")
+	}
+	if _, err := ValidateListCursor(strings.Repeat("x", MaxListCursorBytes+1)); err == nil {
+		t.Fatal("ValidateListCursor accepted oversized cursor")
+	}
+}

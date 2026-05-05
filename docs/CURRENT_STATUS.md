@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after restore-to-IMAP live events)
+Last updated: 2026-05-06 (updated after portable storage object listing)
 
 ## Current phase
 
@@ -217,6 +217,10 @@ guidance.
   contract. Local/NFS copies stream through the same atomic temporary-file
   commit path as normal writes, while S3-compatible copies use signed
   server-side copy requests with escaped `x-amz-copy-source` values.
+- Local/NFS and S3-compatible storage now expose a shared bounded object
+  `List` contract for validated prefixes, giving future Drive, lifecycle, and
+  reconciliation workflows a cursor-paginated way to browse object metadata
+  without binding callers to filesystem walks or S3 `ListObjectsV2` directly.
 - S3-compatible storage requests now reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.

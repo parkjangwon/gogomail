@@ -206,8 +206,9 @@ Current state:
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.
-- The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
-  paths share strict canonical key validation before adapter use.
+- The storage interface is backend-neutral (`Put`, `Get`, `Stat`, `Copy`,
+  `List`, `Delete`) and object paths share strict canonical key validation
+  before adapter use.
 - `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
@@ -1194,6 +1195,9 @@ Current state:
 - Shared storage now supports `Copy` across local/NFS and S3-compatible
   backends, giving future Drive and lifecycle workflows a portable object
   duplication primitive without forcing caller-side read/write loops.
+- Shared storage now supports bounded prefix `List` across local/NFS and
+  S3-compatible backends, giving future Drive, lifecycle, and reconciliation
+  workflows a portable cursor-paginated object metadata scan.
 - Mail API now supports single-message and bounded bulk message restore for
   soft-deleted messages, preserving hierarchical quota checks before restored
   messages become active again.

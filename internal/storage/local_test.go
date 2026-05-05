@@ -68,6 +68,45 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	}
 }
 
+func TestLocalStoreListObjectsByPrefix(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := NewLocalStore(t.TempDir())
+	for path, body := range map[string]string{
+		"drive/user-1/docs/a.txt":  "a",
+		"drive/user-1/docs/b.txt":  "bb",
+		"drive/user-1/media/c.txt": "ccc",
+		"mailstore/user-1/msg.eml": "mail",
+	} {
+		if err := store.Put(ctx, path, strings.NewReader(body)); err != nil {
+			t.Fatalf("Put(%q) returned error: %v", path, err)
+		}
+	}
+
+	page, err := store.List(ctx, ListOptions{Prefix: "drive/user-1", Limit: 2})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if !page.HasMore || page.NextCursor == "" || len(page.Objects) != 2 {
+		t.Fatalf("first page = %+v, want two objects and next cursor", page)
+	}
+	if page.Objects[0].Path != "drive/user-1/docs/a.txt" || page.Objects[0].Size != 1 {
+		t.Fatalf("first object = %+v", page.Objects[0])
+	}
+	if page.Objects[1].Path != "drive/user-1/docs/b.txt" || page.Objects[1].Size != 2 {
+		t.Fatalf("second object = %+v", page.Objects[1])
+	}
+
+	next, err := store.List(ctx, ListOptions{Prefix: "drive/user-1", Limit: 2, Cursor: page.NextCursor})
+	if err != nil {
+		t.Fatalf("List next page returned error: %v", err)
+	}
+	if next.HasMore || next.NextCursor != "" || len(next.Objects) != 1 || next.Objects[0].Path != "drive/user-1/media/c.txt" {
+		t.Fatalf("next page = %+v, want final media object", next)
+	}
+}
+
 func TestLocalStoreRejectsNilPutBody(t *testing.T) {
 	t.Parallel()
 
@@ -252,6 +291,9 @@ func TestLocalStoreRejectsAmbiguousObjectKeys(t *testing.T) {
 		}
 		if err := store.Copy(context.Background(), "mailstore/source.eml", objectPath); err == nil {
 			t.Fatalf("Copy accepted ambiguous destination object key %q", objectPath)
+		}
+		if _, err := store.List(context.Background(), ListOptions{Prefix: objectPath}); err == nil {
+			t.Fatalf("List accepted ambiguous object prefix %q", objectPath)
 		}
 		if err := store.Delete(context.Background(), objectPath); err == nil {
 			t.Fatalf("Delete accepted ambiguous object key %q", objectPath)

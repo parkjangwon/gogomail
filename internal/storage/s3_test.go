@@ -56,6 +56,29 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusOK)
 		case http.MethodGet:
+			if r.URL.Query().Get("list-type") == "2" {
+				if r.URL.Query().Get("prefix") != "mail/messages" || r.URL.Query().Get("max-keys") != "10" || r.URL.Query().Get("continuation-token") != "cursor-1" {
+					t.Errorf("list query = %s", r.URL.RawQuery)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.Header().Set("Content-Type", "application/xml")
+				_, _ = w.Write([]byte(`<ListBucketResult>
+  <IsTruncated>true</IsTruncated>
+  <NextContinuationToken>cursor-2</NextContinuationToken>
+  <Contents>
+    <Key>mail/messages/msg-1.eml</Key>
+    <LastModified>2026-05-05T12:00:00Z</LastModified>
+    <ETag>"etag-list-1"</ETag>
+    <Size>5</Size>
+  </Contents>
+  <Contents>
+    <Key>other-prefix/ignored.eml</Key>
+    <Size>99</Size>
+  </Contents>
+</ListBucketResult>`))
+				return
+			}
 			_, _ = w.Write([]byte("hello"))
 		case http.MethodHead:
 			w.Header().Set("Content-Length", "5")
@@ -111,6 +134,16 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	if info.Path != "messages/msg-1.eml" || info.Size != 5 || info.ContentType != "message/rfc822" || info.ETag != "etag-1" || info.LastModified.IsZero() {
 		t.Fatalf("object info = %+v", info)
 	}
+	list, err := store.List(context.Background(), ListOptions{Prefix: "messages", Limit: 10, Cursor: "cursor-1"})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if !list.HasMore || list.NextCursor != "cursor-2" || len(list.Objects) != 1 {
+		t.Fatalf("list page = %+v", list)
+	}
+	if list.Objects[0].Path != "messages/msg-1.eml" || list.Objects[0].Size != 5 || list.Objects[0].ETag != "etag-list-1" || list.Objects[0].LastModified.IsZero() {
+		t.Fatalf("listed object = %+v", list.Objects[0])
+	}
 	if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-1-copy.eml"); err != nil {
 		t.Fatalf("Copy returned error: %v", err)
 	}
@@ -122,6 +155,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 		"PUT /gogomail/mail/messages/msg-1.eml",
 		"GET /gogomail/mail/messages/msg-1.eml",
 		"HEAD /gogomail/mail/messages/msg-1.eml",
+		"GET /gogomail",
 		"PUT /gogomail/mail/messages/msg-1-copy.eml",
 		"DELETE /gogomail/mail/messages/msg-1.eml",
 	}
@@ -182,6 +216,9 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 	if err := store.Copy(ctx, "messages/msg-1.eml", "messages/msg-2.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Copy err = %v, want context.Canceled", err)
+	}
+	if _, err := store.List(ctx, ListOptions{Prefix: "messages"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("List err = %v, want context.Canceled", err)
 	}
 	if err := store.Delete(ctx, "messages/msg-1.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Delete err = %v, want context.Canceled", err)
@@ -530,6 +567,9 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	}
 	if err := store.Copy(context.Background(), "messages/good.eml", "../bad"); err == nil {
 		t.Fatal("Copy accepted unsafe destination object path")
+	}
+	if _, err := store.List(context.Background(), ListOptions{Prefix: "../bad"}); err == nil {
+		t.Fatal("List accepted unsafe object prefix")
 	}
 }
 
@@ -882,6 +922,20 @@ func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	}
 	if info.Path != objectPath || info.Size != int64(len(body)) {
 		t.Fatalf("object info = %+v", info)
+	}
+	list, err := store.List(ctx, ListOptions{Prefix: "integration", Limit: 100})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	found := false
+	for _, object := range list.Objects {
+		if object.Path == objectPath {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("List did not include %q: %+v", objectPath, list)
 	}
 	copyPath := objectPath + ".copy"
 	if err := store.Copy(ctx, objectPath, copyPath); err != nil {

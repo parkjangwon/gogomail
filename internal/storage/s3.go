@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net"
@@ -217,6 +218,62 @@ func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) 
 	return nil
 }
 
+func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, error) {
+	prefix, err := ValidateObjectPrefix(opts.Prefix)
+	if err != nil {
+		return ObjectListPage{}, fmt.Errorf("unsafe storage prefix %q: %w", opts.Prefix, err)
+	}
+	cursor, err := ValidateListCursor(opts.Cursor)
+	if err != nil {
+		return ObjectListPage{}, err
+	}
+	limit := NormalizeListLimit(opts.Limit)
+	req, err := s.newListRequest(ctx, prefix, limit, cursor)
+	if err != nil {
+		return ObjectListPage{}, err
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return ObjectListPage{}, fmt.Errorf("list s3 objects: %w", err)
+	}
+	defer drainAndCloseS3Body(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return ObjectListPage{}, s3StatusError("list", resp)
+	}
+	result, err := decodeS3ListObjects(resp.Body)
+	if err != nil {
+		return ObjectListPage{}, err
+	}
+	nextCursor, err := ValidateListCursor(result.NextContinuationToken)
+	if err != nil {
+		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid continuation token: %w", err)
+	}
+	page := ObjectListPage{
+		Objects:    make([]ObjectInfo, 0, len(result.Contents)),
+		NextCursor: nextCursor,
+		HasMore:    result.IsTruncated,
+	}
+	for _, item := range result.Contents {
+		if item.Size < 0 {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object size")
+		}
+		objectPath, ok := s.objectPathFromKey(strings.TrimSpace(item.Key))
+		if !ok {
+			continue
+		}
+		page.Objects = append(page.Objects, ObjectInfo{
+			Path:         objectPath,
+			Size:         item.Size,
+			ETag:         strings.Trim(strings.TrimSpace(item.ETag), `"`),
+			LastModified: parseS3ListTime(item.LastModified),
+		})
+	}
+	if !page.HasMore {
+		page.NextCursor = ""
+	}
+	return page, nil
+}
+
 func (s *S3Store) Check(ctx context.Context) error {
 	objectPath := "health/readiness-" + fmt.Sprintf("%d", s.now().UnixNano()) + ".txt"
 	const body = "gogomail storage readiness\n"
@@ -250,6 +307,40 @@ func (s *S3Store) Check(ctx context.Context) error {
 
 func (s *S3Store) newRequest(ctx context.Context, method string, objectPath string, body io.Reader) (*http.Request, error) {
 	return s.newRequestWithHeaders(ctx, method, objectPath, body, nil)
+}
+
+func (s *S3Store) newListRequest(ctx context.Context, prefix string, limit int, cursor string) (*http.Request, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	target := s.bucketURL()
+	query := target.Query()
+	query.Set("list-type", "2")
+	query.Set("max-keys", strconv.Itoa(limit))
+	listPrefix := ""
+	if prefix != "" {
+		listPrefix = s.key(prefix)
+	} else if s.prefix != "" {
+		listPrefix = s.prefix + "/"
+	}
+	if listPrefix != "" {
+		query.Set("prefix", listPrefix)
+	}
+	if cursor != "" {
+		query.Set("continuation-token", cursor)
+	}
+	target.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create s3 list request: %w", err)
+	}
+	req.Header.Set("x-amz-content-sha256", "UNSIGNED-PAYLOAD")
+	req.Header.Set("x-amz-date", s.now().UTC().Format("20060102T150405Z"))
+	if s.sessionToken != "" {
+		req.Header.Set("x-amz-security-token", s.sessionToken)
+	}
+	s.sign(req)
+	return req, nil
 }
 
 func (s *S3Store) newRequestWithHeaders(ctx context.Context, method string, objectPath string, body io.Reader, headers map[string]string) (*http.Request, error) {
@@ -295,6 +386,21 @@ func (s *S3Store) objectURL(objectPath string) url.URL {
 	target.Host = s.bucket + "." + target.Host
 	target.Path = basePath + "/" + key
 	target.RawPath = escapedBasePath + "/" + escapedKey
+	return target
+}
+
+func (s *S3Store) bucketURL() url.URL {
+	target := *s.endpoint
+	basePath := strings.TrimRight(target.Path, "/")
+	escapedBasePath := escapeS3BasePath(basePath)
+	if s.forcePathStyle {
+		target.Path = basePath + "/" + s.bucket
+		target.RawPath = escapedBasePath + "/" + escapeS3Segment(s.bucket)
+		return target
+	}
+	target.Host = s.bucket + "." + target.Host
+	target.Path = basePath
+	target.RawPath = escapedBasePath
 	return target
 }
 
@@ -344,11 +450,37 @@ func parseHTTPTime(value string) time.Time {
 	return parsed
 }
 
+func parseS3ListTime(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return parsed
+	}
+	return parseHTTPTime(value)
+}
+
 func (s *S3Store) key(objectPath string) string {
 	if s.prefix == "" {
 		return objectPath
 	}
 	return s.prefix + "/" + objectPath
+}
+
+func (s *S3Store) objectPathFromKey(key string) (string, bool) {
+	if s.prefix != "" {
+		prefix := s.prefix + "/"
+		if !strings.HasPrefix(key, prefix) {
+			return "", false
+		}
+		key = strings.TrimPrefix(key, prefix)
+	}
+	objectPath, err := ValidateObjectPath(key)
+	if err != nil {
+		return "", false
+	}
+	return objectPath, true
 }
 
 func (s *S3Store) copySource(objectPath string) string {
@@ -637,6 +769,39 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 		return r
 	}, text)
 	return strings.Join(strings.Fields(text), " ")
+}
+
+type s3ListObjectsResult struct {
+	IsTruncated           bool                  `xml:"IsTruncated"`
+	NextContinuationToken string                `xml:"NextContinuationToken"`
+	Contents              []s3ListObjectContent `xml:"Contents"`
+}
+
+type s3ListObjectContent struct {
+	Key          string `xml:"Key"`
+	Size         int64  `xml:"Size"`
+	ETag         string `xml:"ETag"`
+	LastModified string `xml:"LastModified"`
+}
+
+const maxS3ListResponseBytes = 4 << 20
+
+func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
+	if body == nil {
+		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: response body is required")
+	}
+	data, err := io.ReadAll(io.LimitReader(body, maxS3ListResponseBytes+1))
+	if err != nil {
+		return s3ListObjectsResult{}, fmt.Errorf("read s3 list response: %w", err)
+	}
+	if len(data) > maxS3ListResponseBytes {
+		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: response body is too large")
+	}
+	var result s3ListObjectsResult
+	if err := xml.Unmarshal(data, &result); err != nil {
+		return s3ListObjectsResult{}, fmt.Errorf("decode s3 list response: %w", err)
+	}
+	return result, nil
 }
 
 const maxS3ResponseDrainBytes = 4096
