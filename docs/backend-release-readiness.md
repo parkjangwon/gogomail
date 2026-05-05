@@ -281,6 +281,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `text/calendar` parameters and omitted content types for compatibility.
 - CalDAV calendar object `PUT` now treats `If-Match: *` as overwrite-only and
   returns HTTP 412 when no current resource exists.
+- CalDAV calendar object `PUT` now preflights specific ETag `If-Match` and
+  `If-None-Match` conditions before body parsing or repository mutation.
 - CalDAV remains experimental/backend-only for this release slice. Public
   client-ready status is gated on recurrence, scheduling, retention-aware sync,
   collection-deletion deltas, broad native-client compatibility tests, and the

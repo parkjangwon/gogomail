@@ -735,6 +735,36 @@ func TestHandlerPutRejectsIfMatchStarForMissingObject(t *testing.T) {
 	}
 }
 
+func TestHandlerPutRejectsFailedETagPreconditions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		header string
+		value  string
+	}{
+		{name: "if match mismatch", header: "If-Match", value: `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`},
+		{name: "if none match current", header: "If-None-Match", value: `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+			body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+			req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
+			req.Header.Set("Content-Type", "text/calendar")
+			req.Header.Set(tc.header, tc.value)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusPreconditionFailed {
+				t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	t.Parallel()
 

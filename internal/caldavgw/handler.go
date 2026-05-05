@@ -262,10 +262,12 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	}
 	ifNoneMatch := strings.TrimSpace(r.Header.Get("If-None-Match"))
 	existed := false
-	if _, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName); err == nil {
+	var existing CalendarObject
+	if object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName); err == nil {
 		existed = true
+		existing = object
 	}
-	if ifNoneMatch == "*" && existed {
+	if existed && ifNoneMatchMatches(ifNoneMatch, existing.ETag) {
 		http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
 		return
 	}
@@ -278,6 +280,9 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		observedETag = ""
 	} else if observedETag != "" && !existed {
 		http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+		return
+	} else if observedETag != "" && !ifMatchMatches(observedETag, existing.ETag) {
+		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 		return
 	}
 	body, err := readBoundedCalendarBody(r.Body)
@@ -422,6 +427,22 @@ func ifNoneMatchMatches(header string, etag string) bool {
 			candidate = strings.TrimSpace(strings.TrimPrefix(candidate, "W/"))
 		}
 		if candidate == etag {
+			return true
+		}
+	}
+	return false
+}
+
+func ifMatchMatches(header string, etag string) bool {
+	header = strings.TrimSpace(header)
+	if header == "" || strings.ContainsAny(header, "\r\n") {
+		return false
+	}
+	if header == "*" {
+		return true
+	}
+	for _, candidate := range strings.Split(header, ",") {
+		if strings.TrimSpace(candidate) == etag {
 			return true
 		}
 	}
