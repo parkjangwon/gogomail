@@ -320,6 +320,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `EXAMINE` now passes read-only selection intent through the backend
   `SelectMailboxRequest`, letting service adapters distinguish read-only
   sessions from writable `SELECT`.
+- IMAP `SELECT`/`EXAMINE` now establish mailbox event subscriptions before
+  emitting selected-mailbox response data, avoiding ambiguous partial selection
+  state when subscription setup fails.
 - IMAP `CHECK` and `CLOSE` now provide safe selected-mailbox lifecycle handling,
   with `CLOSE` clearing selected state while EXPUNGE/`\Deleted` remain deferred.
 - IMAP `STATUS` now validates requested status data items and emits only those

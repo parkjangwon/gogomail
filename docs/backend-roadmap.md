@@ -1028,6 +1028,9 @@ Implementation order:
 772. IMAP `EXAMINE` now passes read-only selection intent through the backend
      `SelectMailboxRequest`, letting service adapters distinguish read-only
      sessions from writable `SELECT`.
+773. IMAP `SELECT` and `EXAMINE` now establish mailbox event subscriptions
+     before emitting selected-mailbox response data, avoiding ambiguous partial
+     selection state when subscription setup fails.
 
 ## Deferred until backend contracts stabilize
 

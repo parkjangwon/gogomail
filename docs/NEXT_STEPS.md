@@ -255,6 +255,9 @@ Current state:
 - `EXAMINE` now passes read-only selection intent through the backend
   `SelectMailboxRequest`, so service adapters can distinguish read-only
   sessions from writable `SELECT`.
+- `SELECT`/`EXAMINE` now establish mailbox event subscriptions before emitting
+  selected-mailbox response data, avoiding ambiguous partial selection state
+  when subscription setup fails.
 - `CHECK` and `CLOSE` now cover selected-mailbox lifecycle calls; `CLOSE`
   clears selected state while leaving EXPUNGE/`\Deleted` semantics deferred.
 - `STATUS` now validates requested status data items and returns only the
