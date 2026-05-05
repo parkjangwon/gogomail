@@ -6316,13 +6316,13 @@ func imapIDListTokens(value string) ([]string, bool) {
 		}
 		start := i
 		for i < len(value) && value[i] != ' ' && value[i] != '\t' {
-			if value[i] == '(' || value[i] == ')' || value[i] == '"' || value[i] == '\\' || value[i] < 0x20 || value[i] == 0x7f {
+			if value[i] == '(' || value[i] == ')' || value[i] < 0x20 || value[i] == 0x7f {
 				return nil, false
 			}
 			i++
 		}
 		token := value[start:i]
-		if token == "" || imapLooksLikeLiteralPrefix(token) {
+		if !imapAtomValid(token) {
 			return nil, false
 		}
 		tokens = append(tokens, token)

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV absolute href authority validation)
+Last updated: 2026-05-06 (updated after IMAP ID atom validation reuse)
 
 ## Current phase
 
@@ -549,6 +549,9 @@ people and user-specific metadata.
 - IMAP RFC 2971 `ID` parameter-list parsing now also rejects quote and
   backslash atom-special characters inside unquoted ID tokens, keeping raw ID
   argument parsing aligned with the broader RFC 3501 atom/quoted-string split.
+- IMAP RFC 2971 `ID` unquoted field/value tokens now reuse the same atom
+  validator as command tags and atoms, rejecting literal markers, response
+  specials, wildcard specials, quoted specials, and controls consistently.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
   instead of silently treating them as valid sizes.
