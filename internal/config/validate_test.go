@@ -455,6 +455,28 @@ func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidDeliveryRetryDelays(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "empty delays", mutate: func(cfg *Config) { cfg.DeliveryRetryDelays = nil }},
+		{name: "zero delay", mutate: func(cfg *Config) { cfg.DeliveryRetryDelays = []time.Duration{time.Minute, 0} }},
+		{name: "negative delay", mutate: func(cfg *Config) { cfg.DeliveryRetryDelays = []time.Duration{-time.Second} }},
+		{name: "nonpositive max delay", mutate: func(cfg *Config) { cfg.DeliveryRetryMaxDelay = 0 }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid delivery retry delay rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsSMTPSWithoutTLSFiles(t *testing.T) {
 	cfg := Load()
 	cfg.SubmissionSMTPSAddr = ":2465"

@@ -334,6 +334,17 @@ func (c Config) Validate() error {
 	if c.DeliveryRetryJitterRatio < 0 || c.DeliveryRetryJitterRatio > 1 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO must be between 0 and 1")
 	}
+	if len(c.DeliveryRetryDelays) == 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_RETRY_DELAYS must contain at least one delay")
+	}
+	for _, delay := range c.DeliveryRetryDelays {
+		if delay <= 0 {
+			return fmt.Errorf("GOGOMAIL_DELIVERY_RETRY_DELAYS must contain only positive durations")
+		}
+	}
+	if c.DeliveryRetryMaxDelay <= 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY must be positive")
+	}
 	if c.DeliveryThrottleEnabled && c.DeliveryDefaultConcurrency == 0 && len(c.DeliveryFarmConcurrency) == 0 && len(c.DeliveryDomainConcurrency) == 0 {
 		return fmt.Errorf("delivery throttling requires at least one default, farm, or domain concurrency limit")
 	}
