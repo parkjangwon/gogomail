@@ -108,7 +108,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Draft-to-send uses the normal outbound send path, then closes the source draft and links it to the sent message.
 - Draft attachment uploads move to the sent message during draft-to-send, keeping sent folder detail and attachment list views consistent.
 - Mail API send responses explicitly expose queued send, pending delivery, and no-bounce status fields so generated clients can model send lifecycle state without guessing from queue internals.
-- Detail reads mark unread messages as read while avoiding redundant writes for already-read messages.
+- Detail reads mark unread messages as read while avoiding redundant writes for already-read messages, and successful auto-read mutations publish best-effort IMAP `flags` events for UID-visible messages.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
@@ -227,7 +227,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
   mailbox event broker for future session fan-out. The broker is scoped by
   user+mailbox, and service-side flag/move/delete mutations publish best-effort
-  `flags`/`expunge` events for UID-visible messages.
+  `flags`/`expunge` events for UID-visible messages. Mail API detail reads
+  that auto-mark unread messages as read also publish `flags` events after a
+  successful read-flag write.
 - `gogomail --mode=imap` now starts an IMAP gateway scaffold that wires the
   service-backed IMAP store adapter and process-local mailbox event broker
   without advertising or enabling a TCP IMAP listener.

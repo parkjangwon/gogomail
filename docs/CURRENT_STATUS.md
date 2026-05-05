@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after Submission domain recipient cap RCPT enforcement)
+Last updated: 2026-05-05 (updated after Mail API read flag IMAP event fan-out)
 
 ## Current phase
 
@@ -738,6 +738,9 @@ The platform hardening sprint completed the following:
 - Mail API single and bulk flag mutations can look up existing IMAP UID rows and
   publish mailbox `flags` events for UID-visible messages after the database
   update succeeds.
+- Mail API detail reads that auto-mark unread messages as read now also publish
+  mailbox `flags` events for UID-visible messages after the read-flag write
+  succeeds.
 - Mail API single and bulk move mutations can publish mailbox `expunge` events
   for previously UID-visible source messages after the database move succeeds.
 - Mail API single and bulk delete mutations can publish mailbox `expunge`
