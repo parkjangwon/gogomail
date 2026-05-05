@@ -1191,6 +1191,10 @@ Implementation order:
      destination when COPY to that mailbox is allowed, creating a fresh
      same-mailbox message UID before expunging the source UID as required by
      RFC 6851.
+817. IMAP `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`, and extended
+     `LIST ... RETURN (STATUS (...))` emits requested `STATUS` data after each
+     matching selectable mailbox, reducing standards-aware client folder-list
+     round trips.
 
 ## Deferred until backend contracts stabilize
 
