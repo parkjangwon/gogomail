@@ -335,6 +335,8 @@ Current state:
   deferred.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
+- `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
+  code for the post-TLS command surface.
 - Plaintext IMAP sessions advertise `LOGINDISABLED` and reject
   `LOGIN`/`AUTHENTICATE` with `[PRIVACYREQUIRED]` when insecure auth is
   disabled before STARTTLS.

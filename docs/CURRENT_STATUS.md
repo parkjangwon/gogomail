@@ -886,6 +886,8 @@ The platform hardening sprint completed the following:
   deferred.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
+- IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response
+  code for the post-TLS command surface.
 - IMAP advertises `LOGINDISABLED` and rejects plaintext `LOGIN`/`AUTHENTICATE`
   with `[PRIVACYREQUIRED]` when insecure auth is disabled before STARTTLS.
 - IMAP `CAPABILITY` drops `AUTH=PLAIN` after authentication, and unsupported

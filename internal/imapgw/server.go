@@ -256,7 +256,10 @@ func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnSt
 			return false, err
 		}
 		state.startTLS = true
-		_, err := writer.WriteString(tag + " OK Begin TLS negotiation now\r\n")
+		tlsState := *state
+		tlsState.startTLS = false
+		tlsState.tlsActive = true
+		_, err := writer.WriteString(tag + " OK [CAPABILITY " + strings.Join(s.imapCapabilities(&tlsState), " ") + "] Begin TLS negotiation now\r\n")
 		return false, err
 	case "NAMESPACE":
 		if state.session == nil {
