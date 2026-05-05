@@ -557,6 +557,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-mailbox `APPEND` prefers the backend-returned appended message
   sequence number for the untagged `EXISTS` count, preserving precise selected
   mailbox counts when repository metadata is available.
+- IMAP selected-mailbox `COPY` and same-mailbox `MOVE` likewise prefer
+  backend-returned destination message sequence numbers for untagged `EXISTS`
+  counts, preserving precise selected mailbox counts across mutation commands.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

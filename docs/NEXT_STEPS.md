@@ -535,6 +535,10 @@ Current state:
 - Selected-mailbox `APPEND` now prefers the backend-returned appended message
   sequence number for the untagged `EXISTS` count, falling back to a local
   increment only when precise sequence metadata is unavailable.
+- Selected-mailbox `COPY` and same-mailbox `MOVE` now also prefer
+  backend-returned destination message sequence numbers for untagged `EXISTS`
+  counts, falling back to local increments only when precise metadata is
+  unavailable.
 - `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder boundary
   for authenticated flat user-mailbox management, resolving wire names before
   destructive or rename operations and preserving the existing folder

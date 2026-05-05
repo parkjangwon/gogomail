@@ -2878,7 +2878,7 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		return false, writeErr
 	}
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
-		state.selectedMessages += uint32(len(summaries))
+		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, summaries)
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
@@ -2925,7 +2925,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		}
 	}
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
-		state.selectedMessages += uint32(len(summaries))
+		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, imapMoveDestinationSummaries(summaries))
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
@@ -3078,6 +3078,27 @@ func imapMoveSourceSummaries(results []MoveMessageResult) []MessageSummary {
 		summaries = append(summaries, result.Source)
 	}
 	return summaries
+}
+
+func imapMoveDestinationSummaries(results []MoveMessageResult) []MessageSummary {
+	summaries := make([]MessageSummary, 0, len(results))
+	for _, result := range results {
+		summaries = append(summaries, result.Destination)
+	}
+	return summaries
+}
+
+func imapSummariesExistsCount(current uint32, summaries []MessageSummary) uint32 {
+	maxSequence := current
+	for _, summary := range summaries {
+		if summary.SequenceNumber > maxSequence {
+			maxSequence = summary.SequenceNumber
+		}
+	}
+	if maxSequence > current {
+		return maxSequence
+	}
+	return current + uint32(len(summaries))
 }
 
 func imapMoveHighestModSeq(results []MoveMessageResult) uint64 {

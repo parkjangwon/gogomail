@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP APPEND EXISTS count handling)
+Last updated: 2026-05-05 (updated after IMAP COPY/MOVE EXISTS count handling)
 
 ## Current phase
 
@@ -1087,6 +1087,10 @@ The platform hardening sprint completed the following:
 - IMAP selected-mailbox `APPEND` now prefers the backend-returned appended
   message sequence number for the untagged `EXISTS` count, falling back to a
   local increment only when precise sequence metadata is unavailable.
+- IMAP selected-mailbox `COPY` and same-mailbox `MOVE` now also prefer
+  backend-returned destination message sequence numbers for untagged `EXISTS`
+  counts, falling back to local increments only when precise metadata is
+  unavailable.
 - IMAP `CREATE`, `DELETE`, and `RENAME` delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

@@ -1281,6 +1281,10 @@ Implementation order:
 840. IMAP selected-mailbox `APPEND` now prefers the backend-returned appended
      message sequence number for the untagged `EXISTS` count, falling back to a
      local increment only when precise sequence metadata is unavailable.
+841. IMAP selected-mailbox `COPY` and same-mailbox `MOVE` now prefer
+     backend-returned destination message sequence numbers for untagged
+     `EXISTS` counts, falling back to local increments only when precise
+     metadata is unavailable.
 
 ## Deferred until backend contracts stabilize
 
