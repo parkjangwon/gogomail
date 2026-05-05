@@ -1021,6 +1021,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible bucket names are validated with shared adapter/config guardrails
   before runtime wiring, surfacing uppercase, undersized, slash-bearing, or
   punctuation-adjacent deployment mistakes before storage calls.
+- S3-compatible bucket validation also rejects IP-address-shaped names plus
+  AWS-reserved prefixes and suffixes, aligning config-time failures with current
+  AWS general purpose bucket naming restrictions.
 - S3-compatible regions are validated with shared adapter/config guardrails
   before SigV4 signing, rejecting blank, whitespace-bearing, slash-bearing, or
   uppercase region values before object-storage requests are created.

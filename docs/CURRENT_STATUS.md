@@ -159,6 +159,9 @@ guidance.
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
   path-style requests for local MinIO-style deployments. Both paths use endpoint,
   region, bucket, prefix, credential, and session-token settings.
+- S3-compatible bucket validation now rejects IP-address-shaped names plus
+  AWS-reserved bucket prefixes and suffixes during config validation, so S3
+  deployment mistakes fail before adapter construction or readiness probes.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

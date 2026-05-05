@@ -163,7 +163,25 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
 	t.Parallel()
 
-	for _, bucket := range []string{"GoGoMail", "ab", "-gogomail", "gogomail-", "gogo..mail", "gogo.-mail", "gogo_mail", "gogo/mail"} {
+	for _, bucket := range []string{
+		"GoGoMail",
+		"ab",
+		"-gogomail",
+		"gogomail-",
+		"gogo..mail",
+		"gogo.-mail",
+		"gogo_mail",
+		"gogo/mail",
+		"192.168.5.4",
+		"xn--gogomail",
+		"sthree-gogomail",
+		"amzn-s3-demo-gogomail",
+		"gogomail-s3alias",
+		"gogomail--ol-s3",
+		"gogomail.mrap",
+		"gogomail--x-s3",
+		"gogomail--table-s3",
+	} {
 		bucket := bucket
 		t.Run(bucket, func(t *testing.T) {
 			t.Parallel()

@@ -39,6 +39,9 @@ not need wildcard DNS.
 ## AWS S3 or compatible object storage
 
 Use the `s3` backend for AWS S3 or S3-compatible services that accept SigV4.
+Bucket names follow AWS general purpose bucket naming rules: gogomail rejects
+IP-address-shaped names plus reserved AWS prefixes and suffixes during config
+validation, before adapter construction.
 
 ```sh
 GOGOMAIL_STORAGE_BACKEND=s3

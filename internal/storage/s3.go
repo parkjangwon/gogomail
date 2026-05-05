@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -316,6 +317,19 @@ func ValidateS3BucketName(bucket string) error {
 	}
 	if strings.Contains(bucket, ".-") || strings.Contains(bucket, "-.") {
 		return fmt.Errorf("s3 bucket name must not contain dots next to hyphens")
+	}
+	if net.ParseIP(bucket) != nil && strings.Count(bucket, ".") == 3 {
+		return fmt.Errorf("s3 bucket name must not be formatted as an IP address")
+	}
+	for _, prefix := range []string{"xn--", "sthree-", "amzn-s3-demo-"} {
+		if strings.HasPrefix(bucket, prefix) {
+			return fmt.Errorf("s3 bucket name must not use reserved prefix %q", prefix)
+		}
+	}
+	for _, suffix := range []string{"-s3alias", "--ol-s3", ".mrap", "--x-s3", "--table-s3"} {
+		if strings.HasSuffix(bucket, suffix) {
+			return fmt.Errorf("s3 bucket name must not use reserved suffix %q", suffix)
+		}
 	}
 	return nil
 }
