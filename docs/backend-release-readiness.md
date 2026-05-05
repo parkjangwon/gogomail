@@ -210,6 +210,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV runtime configuration now exposes a dedicated listener address and
   insecure-auth development toggle, with production validation rejecting
   insecure Basic-auth operation.
+- CalDAV mode now starts a dedicated discovery-only HTTP listener backed by the
+  CalDAV repository and Basic-auth resolver. It is not yet advertised as
+  client-ready because REPORT and object mutation/read handlers are still
+  incomplete.
 - Admin Drive node inspection can now opt into `all_parents=true` whole-user
   inventory search while rejecting ambiguous parent-scoped combinations.
 - Drive cleanup-failure records can now be listed and resolved through bounded

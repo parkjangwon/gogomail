@@ -102,6 +102,11 @@ listener. `GOGOMAIL_CALDAV_ADDR` gives operators a dedicated protocol endpoint,
 and production rejects `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH=true` so Basic
 credentials are not accidentally accepted over cleartext transport.
 
+The first runtime wiring starts a discovery-only CalDAV HTTP listener for
+`OPTIONS` and `PROPFIND`. It intentionally does not claim full client-ready
+compatibility until REPORT handling, object GET/PUT/DELETE, scheduling
+semantics, and compatibility tests are completed.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

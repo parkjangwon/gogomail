@@ -2052,6 +2052,10 @@ Implementation order:
 1046. CalDAV runtime configuration now has `GOGOMAIL_CALDAV_ADDR` and
       `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation
       rejecting insecure Basic-auth operation before listener wiring is enabled.
+1047. `gogomail --mode=caldav` now starts a dedicated discovery-only HTTP
+      listener backed by the CalDAV PostgreSQL repository and Basic-auth
+      resolver, while full client-ready compatibility remains gated on REPORT,
+      GET/PUT/DELETE object semantics, and broader compatibility tests.
 
 ## Deferred until backend contracts stabilize
 

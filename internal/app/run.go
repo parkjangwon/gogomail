@@ -24,6 +24,7 @@ import (
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/caldavgw"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
@@ -86,7 +87,7 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 	case ModeIMAP:
 		return runIMAPGateway(ctx, cfg, logger)
 	case ModeCalDAV:
-		return waitForShutdown(ctx, logger, mode)
+		return runCalDAVGateway(ctx, cfg, logger)
 	case ModeSearchIndexWorker:
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:
@@ -305,6 +306,53 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			return err
 		}
 		return nil
+	}
+}
+
+func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	calendarRepository := caldavgw.NewRepository(db)
+	accountRepository := maildb.NewRepository(db)
+	resolver := caldavgw.NewBasicAuthResolver(accountRepository, cfg.CalDAVAllowInsecureAuth)
+	handler := caldavgw.NewHandler(calendarRepository, resolver.Resolve)
+	server := newCalDAVHTTPServer(cfg, handler)
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("caldav gateway listening", "addr", server.Addr)
+		errCh <- server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		return ctx.Err()
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
+}
+
+func newCalDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              strings.TrimSpace(cfg.CalDAVAddr),
+		Handler:           handler,
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
+		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
+		MaxHeaderBytes:    cfg.HTTPMaxHeaderBytes,
 	}
 }
 

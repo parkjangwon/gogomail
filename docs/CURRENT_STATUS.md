@@ -2090,6 +2090,11 @@ The platform hardening sprint completed the following:
 - Configuration now includes `GOGOMAIL_CALDAV_ADDR` and
   `GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH`, with production validation rejecting
   insecure CalDAV Basic-auth credentials before runtime wiring is enabled.
+- `gogomail --mode=caldav` now starts a dedicated HTTP listener using
+  `GOGOMAIL_CALDAV_ADDR`, the CalDAV PostgreSQL discovery repository, and the
+  Basic-auth resolver. The runtime is discovery-only at this stage; full
+  CalDAV client-ready compatibility still depends on REPORT/PUT/DELETE and
+  broader compatibility coverage.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   inventory search while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
