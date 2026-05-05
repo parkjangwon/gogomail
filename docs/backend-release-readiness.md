@@ -816,6 +816,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   such as `" 5-May-2026 ..."`. The service boundary rejects CR/LF-bearing or
   oversized APPEND user and mailbox identifiers before repository lookup,
   spooling, parsing, storage, or quota work.
+- IMAP service-backed `STORE`, `COPY`, `MOVE`, and `EXPUNGE` mutations reject
+  CR/LF-bearing or oversized user and mailbox identifiers before repository
+  mutation dispatch or mailbox event publication.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
