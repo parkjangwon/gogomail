@@ -860,6 +860,9 @@ Implementation order:
 711. IMAP `FETCH`/`UID FETCH` can now return a conservative single-part
      `BODYSTRUCTURE` response, unblocking clients that request body structure
      metadata before richer MIME tree serialization is wired.
+712. IMAP `FETCH`/`UID FETCH` can now stream bounded header-only literals for
+     `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`, stopping at the
+     RFC message header/body separator instead of returning the full message.
 
 ## Deferred until backend contracts stabilize
 

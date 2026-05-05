@@ -266,6 +266,8 @@ Current state:
   attributes when requested, using the service-backed message summary fields.
 - `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
   response while richer MIME tree serialization remains future work.
+- `FETCH`/`UID FETCH` now support bounded header-only literals for
+  `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.
@@ -278,8 +280,8 @@ Next:
 
 - Plan IMAP IDLE support over the mailbox event broker for push-on-connect
   clients.
-- Add header-part fetch and richer MIME-tree `BODYSTRUCTURE` support for
-  higher-fidelity client previews.
+- Add header field subset fetch and richer MIME-tree `BODYSTRUCTURE` support
+  for higher-fidelity client previews.
 
 Frontend note:
 

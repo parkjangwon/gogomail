@@ -2,6 +2,7 @@ package imapgw
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -496,6 +497,7 @@ func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnStat
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
 	requestsBody := imapFetchRequestsBody(items)
+	requestsHeader := imapFetchRequestsHeader(items)
 	requestsEnvelope := imapFetchRequestsEnvelope(items)
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	requestsBodyStructure := imapFetchRequestsBodyStructure(items)
@@ -518,7 +520,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			_, err := writer.WriteString(tag + " NO UID FETCH sequence number is unavailable\r\n")
 			return false, err
 		}
-		if requestsBody {
+		if requestsBody || requestsHeader {
 			if message.Body == nil {
 				_, err := writer.WriteString(tag + " NO UID FETCH body is unavailable\r\n")
 				return false, err
@@ -528,6 +530,27 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_ = body.Close()
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
+			}
+			if requestsHeader {
+				header, err := readIMAPHeaderLiteral(body)
+				if err != nil {
+					_ = body.Close()
+					return false, err
+				}
+				if err := body.Close(); err != nil {
+					return false, err
+				}
+				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyStructure)
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[HEADER] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), len(header))); err != nil {
+					return false, err
+				}
+				if _, err := writer.Write(header); err != nil {
+					return false, err
+				}
+				if _, err := writer.WriteString(")\r\n"); err != nil {
+					return false, err
+				}
+				continue
 			}
 			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsBodyStructure)
 			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), summary.Size)); err != nil {
@@ -687,6 +710,51 @@ func imapFetchRequestsBody(items []string) bool {
 		}
 	}
 	return false
+}
+
+func imapFetchRequestsHeader(items []string) bool {
+	for _, item := range items {
+		token := strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
+		if token == "BODY[HEADER]" || token == "BODY.PEEK[HEADER]" || token == "RFC822.HEADER" {
+			return true
+		}
+	}
+	return false
+}
+
+func readIMAPHeaderLiteral(reader io.Reader) ([]byte, error) {
+	const maxHeaderBytes = 1 << 20
+
+	var header []byte
+	buffer := make([]byte, 4096)
+	for {
+		n, err := reader.Read(buffer)
+		if n > 0 {
+			header = append(header, buffer[:n]...)
+			if len(header) > maxHeaderBytes {
+				return nil, fmt.Errorf("imap header literal exceeds limit")
+			}
+			if end := imapHeaderEnd(header); end >= 0 {
+				return header[:end], nil
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return header, nil
+			}
+			return nil, err
+		}
+	}
+}
+
+func imapHeaderEnd(value []byte) int {
+	if idx := bytes.Index(value, []byte("\r\n\r\n")); idx >= 0 {
+		return idx + 4
+	}
+	if idx := bytes.Index(value, []byte("\n\n")); idx >= 0 {
+		return idx + 2
+	}
+	return -1
 }
 
 func imapFetchRequestsEnvelope(items []string) bool {
