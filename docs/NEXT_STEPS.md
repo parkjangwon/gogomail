@@ -749,7 +749,8 @@ Current state:
   produces `[OVERQUOTA]`. APPEND commands without a synchronizing literal are
   now syntax `BAD` responses rather than unsupported-command responses.
   Successful append results include the new message sequence number for precise
-  selected-mailbox `EXISTS` event counts.
+  selected-mailbox `EXISTS` event counts. APPEND internaldate parsing accepts
+  RFC 3501 space-padded one-digit date-days such as `" 5-May-2026 ..."`.
 - Empty IMAP flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.

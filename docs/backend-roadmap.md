@@ -1616,6 +1616,9 @@ Implementation order:
      now reject CR/LF-bearing or oversized user identifiers before quota,
      storage, or repository work, aligning user-id guardrails with draft,
      attachment, and session identifiers.
+934. IMAP `APPEND` internaldate parsing now accepts RFC 3501 space-padded
+     one-digit date-days such as `" 5-May-2026 ..."`, improving compatibility
+     with clients that emit the formal `date-day-fixed` grammar.
 
 ## Deferred until backend contracts stabilize
 

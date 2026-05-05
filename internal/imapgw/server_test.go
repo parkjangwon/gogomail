@@ -7311,6 +7311,13 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	if !internalDate.Equal(wantDate) {
 		t.Fatalf("internal date = %s, want %s", internalDate, wantDate)
 	}
+	_, paddedInternalDate, ok := imapAppendOptions([]string{" 5-May-2026 12:34:56 +0900"})
+	if !ok {
+		t.Fatal("imapAppendOptions rejected RFC space-padded date-day")
+	}
+	if !paddedInternalDate.Equal(wantDate) {
+		t.Fatalf("space-padded internal date = %s, want %s", paddedInternalDate, wantDate)
+	}
 	if _, _, ok := imapAppendOptions([]string{`(\Bad)`}); ok {
 		t.Fatal("imapAppendOptions accepted unsupported flag")
 	}
