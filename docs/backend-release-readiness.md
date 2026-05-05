@@ -343,6 +343,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   selected-mailbox sequence numbers or UIDs for basic client indexing flows.
 - IMAP `FETCH`/`UID FETCH` now streams bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
+- IMAP `SEARCH`/`UID SEARCH` now support common flag criteria including
+  `SEEN`, `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, and `UNANSWERED`.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

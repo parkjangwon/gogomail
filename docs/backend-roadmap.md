@@ -880,6 +880,8 @@ Implementation order:
 718. IMAP `FETCH`/`UID FETCH` now supports bounded partial full-body literals
      for `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`, streaming only
      the requested byte window.
+719. IMAP `SEARCH` and `UID SEARCH` now support common flag criteria: `SEEN`,
+     `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, and `UNANSWERED`.
 
 ## Deferred until backend contracts stabilize
 
