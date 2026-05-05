@@ -353,13 +353,16 @@ Current state:
 - Drive cleanup-failure records now have bounded repository list and resolve
   methods with status/user filters, oldest-first pending ordering, limit caps,
   and pending-only resolution for worker/admin use.
+- `internal/drive.Service.RetryObjectCleanupFailures` can process bounded
+  pending cleanup records, delete referenced objects through configured stores,
+  resolve successful records, and re-record failed attempts with fresh bounded
+  diagnostics.
 
 Next:
 
 - Extend the same ledger service to large-attachment share-link objects.
-- Add a Drive cleanup retry service method that lists pending failure records,
-  deletes their objects through configured storage stores, and resolves
-  successful records.
+- Add a Drive cleanup worker/app wiring path so the retry service can run
+  periodically outside request/handler flows.
 - Add Drive HTTP contracts only after repository/service
   create/list/delete/restore flows are stable enough to document in OpenAPI.
 
