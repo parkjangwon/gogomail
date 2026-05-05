@@ -8,6 +8,7 @@ import (
 var ErrUnsupportedMailboxMutation = errors.New("imap mailbox mutation is not supported")
 var ErrUnsupportedAppend = errors.New("imap append is not supported")
 var ErrMailboxNotFound = errors.New("imap mailbox not found")
+var ErrOverQuota = errors.New("imap append is over quota")
 
 type Session struct {
 	UserID      UserID

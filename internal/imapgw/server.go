@@ -1757,6 +1757,10 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] APPEND mailbox does not exist\r\n")
 			return false, writeErr
 		}
+		if errors.Is(err, ErrOverQuota) {
+			_, writeErr := writer.WriteString(tag + " NO [OVERQUOTA] APPEND would exceed quota\r\n")
+			return false, writeErr
+		}
 		_, writeErr := writer.WriteString(tag + " NO APPEND failed\r\n")
 		return false, writeErr
 	}

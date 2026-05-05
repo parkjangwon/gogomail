@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/imapgw"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -644,6 +645,9 @@ func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessag
 	})
 	if err != nil {
 		_ = s.store.Delete(context.Background(), path)
+		if errors.Is(err, mail.ErrMailboxFull) {
+			return imapgw.AppendMessageResult{}, imapgw.ErrOverQuota
+		}
 		return imapgw.AppendMessageResult{}, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, string(req.UserID), []imapgw.MessageSummary{result.Summary})

@@ -479,7 +479,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   message, writes the raw `.eml` through the configured storage backend, asks
   `maildb` to insert metadata, quota, outbox, and mailbox UID state in one
   transaction, publishes best-effort destination `EXISTS` events, and returns
-  `[TRYCREATE]` when the destination mailbox is missing.
+  `[TRYCREATE]` when the destination mailbox is missing or `[OVERQUOTA]` when
+  the quota ledger rejects the append.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder
