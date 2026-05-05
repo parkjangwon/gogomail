@@ -835,6 +835,22 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		}
 		_, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages))
 		return err
+	case MailboxEventExpunge:
+		sequenceNumber := event.SequenceNumber
+		if sequenceNumber == 0 {
+			return nil
+		}
+		if state.selectedMessages > 0 && sequenceNumber > state.selectedMessages {
+			sequenceNumber = state.selectedMessages
+		}
+		if sequenceNumber == 0 {
+			return nil
+		}
+		if state.selectedMessages > 0 {
+			state.selectedMessages--
+		}
+		_, err := writer.WriteString(fmt.Sprintf("* %d EXPUNGE\r\n", sequenceNumber))
+		return err
 	case MailboxEventFlags:
 		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
 			UserID:    state.session.UserID,

@@ -1155,6 +1155,9 @@ Implementation order:
 806. S3-compatible storage URL generation now has regression coverage for
      virtual-hosted-style requests with URL-sensitive object keys, preventing
      double-escaped paths before SigV4 canonical request signing.
+807. IMAP selected-mailbox event draining now renders sequence-bearing
+     `MailboxEventExpunge` notifications as untagged `EXPUNGE` responses for
+     `NOOP`/`IDLE` clients, keeping live deletion state aligned.
 
 ## Deferred until backend contracts stabilize
 
