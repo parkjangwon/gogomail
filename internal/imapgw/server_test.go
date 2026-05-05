@@ -5805,6 +5805,58 @@ func TestServerHandlesMessageRFC822BodyStructure(t *testing.T) {
 	}
 }
 
+func TestServerHandlesMultipartMessageRFC822NestedMultipartBodyStructure(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 UID FETCH 17 BODYSTRUCTURE\r\n")); err != nil {
+		t.Fatalf("write uid fetch forwarded multipart bodystructure: %v", err)
+	}
+	bodySize := len(testMultipartMessageRFC822NestedMultipartBody())
+	attachedMessage := testAttachedNestedMultipartMessage()
+	textSize := len("see forwarded multipart")
+	plainSize := len("plain attached")
+	htmlSize := len("<strong>html</strong>")
+	want := []string{
+		fmt.Sprintf("* 11 FETCH (UID 17 FLAGS (\\Seen \\Flagged) RFC822.SIZE %d BODYSTRUCTURE ((\"TEXT\" \"PLAIN\" (\"CHARSET\" \"utf-8\") NIL NIL \"7BIT\" %d 1 NIL NIL NIL NIL) (\"MESSAGE\" \"RFC822\" NIL NIL NIL \"7BIT\" %d (NIL \"Attached Multipart\" NIL NIL NIL NIL NIL NIL NIL NIL) ((\"TEXT\" \"PLAIN\" (\"CHARSET\" \"utf-8\") NIL NIL \"7BIT\" %d 1 NIL NIL NIL NIL) (\"TEXT\" \"HTML\" (\"CHARSET\" \"utf-8\") NIL NIL \"7BIT\" %d 1 NIL NIL NIL NIL) \"ALTERNATIVE\" (\"BOUNDARY\" \"attached-alt\") NIL NIL NIL) %d NIL NIL NIL NIL) \"MIXED\" (\"BOUNDARY\" \"wrap\") NIL NIL NIL))\r\n", bodySize, textSize, len(attachedMessage), plainSize, htmlSize, imapTestLineCount(attachedMessage)),
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read forwarded multipart bodystructure response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("forwarded multipart bodystructure response = %q, want %q", line, expected)
+		}
+	}
+}
+
 func TestServerHandlesMessageRFC822SectionFetch(t *testing.T) {
 	t.Parallel()
 
@@ -6905,6 +6957,14 @@ func testMultipartMessageRFC822NestedMultipartBody() string {
 		"--wrap",
 		"Content-Type: message/rfc822",
 		"",
+		testAttachedNestedMultipartMessage(),
+		"--wrap--",
+		"",
+	}, "\r\n")
+}
+
+func testAttachedNestedMultipartMessage() string {
+	return strings.Join([]string{
 		"Subject: Attached Multipart",
 		"Content-Type: multipart/alternative; boundary=attached-alt",
 		"",
@@ -6917,9 +6977,18 @@ func testMultipartMessageRFC822NestedMultipartBody() string {
 		"",
 		"<strong>html</strong>",
 		"--attached-alt--",
-		"--wrap--",
-		"",
 	}, "\r\n")
+}
+
+func imapTestLineCount(value string) int {
+	if value == "" {
+		return 0
+	}
+	lines := strings.Count(value, "\n")
+	if !strings.HasSuffix(value, "\n") {
+		lines++
+	}
+	return lines
 }
 
 func testMalformedMessageRFC822Body() string {
