@@ -1131,8 +1131,8 @@ func TestPostgresIMAPAppendStoresMessageAndUID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AppendStoredIMAPMessage returned error: %v", err)
 	}
-	if result.UIDValidity != target.UIDValidity || result.Summary.UID != 1 || result.Summary.MailboxID != imapgw.MailboxID(seed.inboxID) {
-		t.Fatalf("append result uidvalidity/mailbox/uid = %d/%q/%d, want %d/%q/1", result.UIDValidity, result.Summary.MailboxID, result.Summary.UID, target.UIDValidity, seed.inboxID)
+	if result.UIDValidity != target.UIDValidity || result.Summary.UID != 1 || result.Summary.MailboxID != imapgw.MailboxID(seed.inboxID) || result.Summary.SequenceNumber != 1 {
+		t.Fatalf("append result uidvalidity/mailbox/uid/seq = %d/%q/%d/%d, want %d/%q/1/1", result.UIDValidity, result.Summary.MailboxID, result.Summary.UID, result.Summary.SequenceNumber, target.UIDValidity, seed.inboxID)
 	}
 	if result.Summary.Envelope.Subject != "IMAP append integration" || !result.Summary.Flags.Read || !result.Summary.Flags.Starred {
 		t.Fatalf("append summary = %#v, want subject and initial flags", result.Summary)

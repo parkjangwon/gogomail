@@ -313,6 +313,10 @@ FROM inserted_message, inserted_uid, bumped_state`
 	if err := imapgw.ValidateMessageUID(uid); err != nil {
 		return imapgw.AppendMessageResult{}, err
 	}
+	sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, req.Target.UserID, req.Target.MailboxID, uid.UID)
+	if err != nil {
+		return imapgw.AppendMessageResult{}, err
+	}
 
 	if err := r.insertStoredOutbox(ctx, tx, row.ID, row.MailboxID, smtpd.ReceivedMessage{
 		EnvelopeFrom: strings.TrimSpace(req.Parsed.From.Address),
@@ -333,8 +337,10 @@ FROM inserted_message, inserted_uid, bumped_state`
 	if err := tx.Commit(); err != nil {
 		return imapgw.AppendMessageResult{}, fmt.Errorf("commit imap append transaction: %w", err)
 	}
+	summary := imapMessageFromRow(row, uid)
+	summary.SequenceNumber = sequenceNumber
 	return imapgw.AppendMessageResult{
-		Summary:     imapMessageFromRow(row, uid),
+		Summary:     summary,
 		UIDValidity: uidValidity,
 	}, nil
 }

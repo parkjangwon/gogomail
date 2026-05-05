@@ -849,7 +849,7 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 			UIDValidity: 12,
 		},
 		imapAppendResult: imapgw.AppendMessageResult{
-			Summary:     imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 44},
+			Summary:     imapgw.MessageSummary{ID: "msg-append-1", MailboxID: "inbox", UID: 44, SequenceNumber: 7},
 			UIDValidity: 12,
 		},
 	}
@@ -880,7 +880,7 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 	if !strings.HasPrefix(repo.lastIMAPAppendStored.StoragePath, "mailstore/company-1/domain-1/user-1/imap-append/") {
 		t.Fatalf("append storage path = %q", repo.lastIMAPAppendStored.StoragePath)
 	}
-	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 {
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 || events.events[0].Messages != 7 {
 		t.Fatalf("events = %#v, want exists event", events.events)
 	}
 }
