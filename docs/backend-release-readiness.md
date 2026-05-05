@@ -37,6 +37,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   OpenSearch username/password configuration is also CR/LF-rejected and
   size-bounded during startup config validation when the OpenSearch backend is
   selected, surfacing credential formatting mistakes before worker/search setup.
+  OpenSearch writer construction rejects CR/LF-bearing direct endpoint values
+  before URL parsing, keeping adapter calls aligned with startup config endpoint
+  validation.
   OpenSearch index/bootstrap/search status-error diagnostics collapse backend
   response bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing
   backend errors from leaking into logs or API diagnostics.
@@ -181,12 +184,16 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   runtime-injected database/Redis probes for HTTP modes that depend on those
   services, returning a degraded 503 response when a required dependency probe
   fails.
-- Mail/Admin HTTP readiness now includes a real local storage write/read/delete
-  probe, and unsupported HTTP storage backends fail fast instead of silently
-  falling back to local storage wiring.
+- Mail/Admin HTTP readiness now includes a real configured-storage
+  write/read/delete probe, and unsupported HTTP storage backends fail fast
+  instead of silently falling back to local storage wiring.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
-  cleanup, and HTTP runtimes now share storage backend validation, preventing
-  unsupported object-storage settings from silently using the local adapter.
+  cleanup, and HTTP runtimes now share storage backend validation and factory
+  wiring for local filesystem/NFS-style storage plus S3-compatible object
+  storage. `GOGOMAIL_STORAGE_BACKEND=s3` can target AWS S3, while
+  `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
+  path-style requests for local MinIO-style deployments. Both paths use endpoint,
+  region, bucket, prefix, credential, and session-token settings.
 - The shared HTTP server now has configurable and validated read, write, idle,
   read-header, and maximum-header guardrails for Mail/Admin/API-metered modes.
 - Admin API supports domain/user list, detail, create, and status updates plus queue, outbox-event metadata, delivery-attempt, suppression, DKIM, retry, and delete operations. Company lists support lifecycle status filters for tenant triage. Domain lists support company, status, and latest DNS-status filters for onboarding triage, and DNS-check history supports summary-status plus recent-window filters. Delivery-route lists support status, farm, and domain-pattern filters for route audits. Trusted-relay lists support CIDR and description filters for inbound relay-policy audits. Delivery-attempt lists and stats support status, recipient-domain, message-id, farm, sender, and recent-window filters for bounded retry/bounce triage; exhausted-attempt lists support the same incident filters for terminal retry triage. Suppression-list reads support domain, email, and reason filters for bounce triage. Attempt rows retain sender, enhanced-status, and RFC 3461 DSN metadata for operator diagnostics. Attempt list ordering uses a stable ID tie-breaker after timestamp ordering.
@@ -231,6 +238,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   UID backfill, and mailbox-event subscription through service methods plus an
   `IMAPStoreAdapter` satisfying `imapgw.Store`, keeping future protocol wiring
   off direct `maildb` internals.
+- `IMAPStoreAdapter` now satisfies `imapgw.MailboxSessionStore` for mailbox
+  selection and event subscription, while MOVE and EXPUNGE return an explicit
+  unsupported mutation error until IMAP-safe semantics are reviewed.
 - Admin API exposes bounded IMAP UID backfill by user/mailbox for future
   operator/bootstrap runs without enabling an IMAP protocol listener.
 - IMAP IDLE remains out of scope, but `internal/imapgw` now has an in-memory
@@ -242,6 +252,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - `gogomail --mode=imap` now starts an IMAP gateway scaffold that wires the
   service-backed IMAP store adapter and process-local mailbox event broker
   without advertising or enabling a TCP IMAP listener.
+- Runtime config now loads and validates `GOGOMAIL_IMAP_ADDR` as required TCP
+  listener metadata for the scaffold, preparing the future protocol listener
+  without opening the port yet.
 - The shared event worker now ensures IMAP UID rows for committed `mail.stored`
   receive events, moving received messages toward UID-visible state without
   coupling SMTP receive to future IMAP listener work; IMAP UID assignment event
@@ -555,6 +568,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Local storage enforces the same strict object-key contract at the adapter
   boundary, rejecting absolute, traversal, newline, backslash-bearing,
   duplicate-separator, dot-segment, and otherwise non-canonical keys before
+  filesystem access.
+- S3-compatible storage reuses the same strict object-key contract at the
+  adapter boundary and signs streaming `PUT`, `GET`, and `DELETE` requests with
+  AWS SigV4, keeping AWS S3 and MinIO-style deployments behind the existing
+  storage interface.
   reads, writes, or deletes.
 - Mail search service queries normalize user, text, folder, sender, subject,
   and sort inputs before Postgres or OpenSearch dispatch.

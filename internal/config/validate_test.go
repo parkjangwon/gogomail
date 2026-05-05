@@ -66,6 +66,55 @@ func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsS3StorageBackend(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = "http://localhost:9000"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "minioadmin"
+	cfg.StorageS3SecretAccessKey = "minioadmin"
+	cfg.StorageS3ForcePathStyle = true
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateAcceptsMinIOStorageBackend(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "minio"
+	cfg.StorageS3Endpoint = "http://localhost:9000"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "minioadmin"
+	cfg.StorageS3SecretAccessKey = "minioadmin"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsIncompleteS3StorageBackend(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = ""
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want incomplete S3 config rejection")
+	}
+}
+
+func TestValidateRejectsMinIOWithoutEndpoint(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "minio"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want MinIO endpoint rejection")
+	}
+}
+
 func TestValidateRejectsUnknownRedisFeatureBackends(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -127,6 +176,8 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "http empty", mutate: func(cfg *Config) { cfg.HTTPAddr = "" }},
 		{name: "smtp missing port", mutate: func(cfg *Config) { cfg.SMTPAddr = "localhost" }},
 		{name: "inbound nonnumeric port", mutate: func(cfg *Config) { cfg.InboundSMTPAddr = "127.0.0.1:notaport" }},
+		{name: "imap empty", mutate: func(cfg *Config) { cfg.IMAPAddr = "" }},
+		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
 		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
 		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
 		{name: "newline", mutate: func(cfg *Config) { cfg.HTTPAddr = ":8080\nbad" }},
@@ -148,6 +199,7 @@ func TestValidateAcceptsListenerAddressForms(t *testing.T) {
 	cfg.HTTPAddr = "[::1]:8080"
 	cfg.SMTPAddr = ":2525"
 	cfg.InboundSMTPAddr = "127.0.0.1:2526"
+	cfg.IMAPAddr = "localhost:1143"
 	cfg.SubmissionAddr = "localhost:2587"
 	cfg.SubmissionSMTPSAddr = ""
 	if err := cfg.Validate(); err != nil {

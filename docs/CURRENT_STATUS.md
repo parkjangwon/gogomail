@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after webhook token and status diagnostics hardening)
+Last updated: 2026-05-05 (updated after S3-compatible object storage groundwork)
 
 ## Current phase
 
@@ -17,7 +17,9 @@ RFC-sensitive core, but current work should balance:
 - quota and policy enforcement
 - OpenAPI drift prevention
 
-Actual Next.js frontend implementation has not started. Before creating or
+Actual Next.js frontend implementation has not started. When frontend work
+starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
+required guidance, aiming for a Notion Mail-like UI/UX. Before creating or
 substantially implementing frontend apps, ask the user for frontend-specific
 guidance.
 
@@ -112,6 +114,9 @@ guidance.
 - OpenSearch username/password configuration is also CR/LF-rejected and
   size-bounded during startup config validation when the OpenSearch backend is
   selected, surfacing credential formatting mistakes before worker/search setup.
+- OpenSearch writer construction now rejects CR/LF-bearing direct endpoint
+  values before URL parsing, keeping adapter calls aligned with startup config
+  endpoint validation.
 - OpenSearch relevance response decoding is capped before JSON parsing so
   oversized search backend responses cannot allocate unbounded highlight or hit
   payloads in the Mail API path, and trailing JSON tokens are rejected before
@@ -144,12 +149,16 @@ guidance.
 - Database readiness now also compares the applied `goose_db_version` against
   the latest local SQL migration, so stale schemas degrade `/health/ready`
   instead of passing on connectivity alone.
-- Mail/Admin HTTP readiness now probes local storage with a write/read/delete
+- Mail/Admin HTTP readiness now probes configured storage with a write/read/delete
   cycle, and unsupported HTTP storage backends fail fast instead of silently
   using local storage wiring.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
-  cleanup, and HTTP runtimes now share the same storage backend validation, so
-  unsupported object-storage settings cannot silently run against local storage.
+  cleanup, and HTTP runtimes now share storage backend validation and factory
+  wiring for local filesystem/NFS-style storage plus S3-compatible object
+  storage. `GOGOMAIL_STORAGE_BACKEND=s3` can target AWS S3, while
+  `GOGOMAIL_STORAGE_BACKEND=minio` uses the same S3-compatible adapter with
+  path-style requests for local MinIO-style deployments. Both paths use endpoint,
+  region, bucket, prefix, credential, and session-token settings.
 - HTTP server runtime guardrails are configurable and validated: read, write,
   idle, read-header timeout, and maximum header bytes are wired into the shared
   Mail/Admin/API-metered HTTP server.
@@ -785,9 +794,15 @@ The platform hardening sprint completed the following:
 - `mailservice` has an `IMAPStoreAdapter` that satisfies `imapgw.Store`, so a
   future protocol listener can depend on the gateway interface while still
   routing through service methods.
+- `IMAPStoreAdapter` now also satisfies `imapgw.MailboxSessionStore` for
+  mailbox selection and event subscription, while MOVE and EXPUNGE return an
+  explicit unsupported mutation error until IMAP-safe semantics are reviewed.
 - `gogomail --mode=imap` initializes the service-backed IMAP store adapter and
   a process-local mailbox event broker for future IDLE/session fan-out without
   enabling a TCP protocol listener yet.
+- Runtime config now includes validated `GOGOMAIL_IMAP_ADDR` listener metadata
+  for the IMAP scaffold, preparing TCP listener wiring without enabling the
+  protocol server yet.
 - EML parser guardrails include a truncation-probe test and benchmark for the
   bounded text-body reader on large bodies, plus a `MaxParts` cap that reports
   `PartsTruncated` for pathological MIME part counts, plus address/reference

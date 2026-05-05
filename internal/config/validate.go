@@ -57,14 +57,46 @@ func (c Config) Validate() error {
 	if err := validateTCPAddr("GOGOMAIL_INBOUND_SMTP_ADDR", c.InboundSMTPAddr, true); err != nil {
 		return err
 	}
+	if err := validateTCPAddr("GOGOMAIL_IMAP_ADDR", c.IMAPAddr, true); err != nil {
+		return err
+	}
 	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_ADDR", c.SubmissionAddr, true); err != nil {
 		return err
 	}
 	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_SMTPS_ADDR", c.SubmissionSMTPSAddr, false); err != nil {
 		return err
 	}
-	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local"); err != nil {
+	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local", "s3", "minio"); err != nil {
 		return err
+	}
+	storageBackend := strings.ToLower(strings.TrimSpace(c.StorageBackend))
+	if storageBackend == "s3" || storageBackend == "minio" {
+		if storageBackend == "minio" && strings.TrimSpace(c.StorageS3Endpoint) == "" {
+			return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT is required when GOGOMAIL_STORAGE_BACKEND=minio")
+		}
+		if strings.TrimSpace(c.StorageS3Endpoint) != "" {
+			if err := validateHTTPURL("GOGOMAIL_STORAGE_S3_ENDPOINT", c.StorageS3Endpoint); err != nil {
+				return err
+			}
+		}
+		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_REGION", c.StorageS3Region, 128); err != nil {
+			return err
+		}
+		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_BUCKET", c.StorageS3Bucket, 255); err != nil {
+			return err
+		}
+		if err := validateBoundedNoCRLF("GOGOMAIL_STORAGE_S3_PREFIX", c.StorageS3Prefix, 1024); err != nil {
+			return err
+		}
+		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID", c.StorageS3AccessKeyID, 4096); err != nil {
+			return err
+		}
+		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY", c.StorageS3SecretAccessKey, 4096); err != nil {
+			return err
+		}
+		if err := validateBoundedNoCRLF("GOGOMAIL_STORAGE_S3_SESSION_TOKEN", c.StorageS3SessionToken, 8192); err != nil {
+			return err
+		}
 	}
 	if err := validateEnum("GOGOMAIL_DEDUP_BACKEND", c.DedupBackend, "none", "redis"); err != nil {
 		return err

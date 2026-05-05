@@ -36,7 +36,11 @@ const (
 )
 
 func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
-	endpoint, err := url.Parse(strings.TrimSpace(opts.Endpoint))
+	rawEndpoint := strings.TrimSpace(opts.Endpoint)
+	if strings.ContainsAny(rawEndpoint, "\r\n") {
+		return OpenSearchIndexer{}, fmt.Errorf("opensearch endpoint cannot contain line breaks")
+	}
+	endpoint, err := url.Parse(rawEndpoint)
 	if err != nil {
 		return OpenSearchIndexer{}, fmt.Errorf("parse opensearch endpoint: %w", err)
 	}

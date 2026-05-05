@@ -1,6 +1,11 @@
 package imapgw
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrUnsupportedMailboxMutation = errors.New("imap mailbox mutation is not supported")
 
 type Session struct {
 	UserID      UserID

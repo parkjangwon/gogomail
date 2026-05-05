@@ -11,10 +11,29 @@ Before changing code, read:
 3. `docs/backend-roadmap.md`
 4. `docs/backend-api-contracts.md`
 5. `docs/backend-release-readiness.md`
-6. `docs/openapi.yaml`
-7. recent `git log --oneline`
+6. `DESIGN.md`
+7. `docs/openapi.yaml`
+8. recent `git log --oneline`
 
 ## Immediate backend priorities
+
+### 0. Storage portability
+
+Current state:
+
+- Local filesystem storage remains the default and can be backed by local disk
+  or NFS-style mounted storage.
+- The storage interface is backend-neutral (`Put`, `Get`, `Delete`) and object
+  paths share strict canonical key validation before adapter use.
+- `GOGOMAIL_STORAGE_BACKEND=s3` can wire AWS S3-compatible object storage, and
+  `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
+  requests for local MinIO-style deployments. Both use endpoint, region, bucket,
+  prefix, credential, and session-token settings.
+
+Next:
+
+- Add optional integration coverage against MinIO or another S3-compatible test
+  endpoint before relying on S3 storage for production release gates.
 
 ### 1. Hierarchical quota ledger
 
@@ -166,10 +185,16 @@ Current state:
   future IDLE fan-out cannot make committed mail writes appear failed.
 - `mailservice.IMAPStoreAdapter` satisfies `imapgw.Store` for future protocol
   listener wiring through the service boundary.
+- `mailservice.IMAPStoreAdapter` also satisfies `imapgw.MailboxSessionStore`
+  for SELECT-style mailbox state and mailbox-event subscription. MOVE and
+  EXPUNGE intentionally return an explicit unsupported mutation error until
+  IMAP-safe mutation semantics are reviewed.
 - `gogomail --mode=imap` is now a separate gateway scaffold that opens the
   service-backed IMAP store adapter and wires a process-local mailbox event
   broker for future IDLE sessions, while still deferring the TCP protocol
   listener.
+- `GOGOMAIL_IMAP_ADDR` is loaded and validated as required TCP listener
+  metadata for the scaffold, giving the future listener a stable config key.
 
 Next:
 
@@ -177,6 +202,11 @@ Next:
   clients.
 - Add the TCP IMAP listener only after authentication/session semantics are
   explicitly reviewed against RFC 3501 and successors.
+
+Frontend note:
+
+- When frontend implementation starts, use Next.js with TypeScript and shadcn/ui,
+  follow `DESIGN.md`, and aim for a Notion Mail-like UI/UX.
 
 ### 4. Pipeline extension hooks
 
