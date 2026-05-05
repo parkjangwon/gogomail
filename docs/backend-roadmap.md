@@ -1074,6 +1074,9 @@ Implementation order:
      destination mailbox, literal body reader, and size, with the service adapter
      returning an explicit unsupported error until repository/storage append
      semantics are implemented.
+784. IMAP `APPEND` request parsing now accepts RFC-shaped optional flag lists and
+     internal date-time values before the literal, preserving client-supplied
+     initial flags and INTERNALDATE metadata in the backend request boundary.
 
 ## Deferred until backend contracts stabilize
 

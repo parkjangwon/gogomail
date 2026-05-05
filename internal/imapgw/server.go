@@ -1734,12 +1734,19 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD APPEND requires mailbox and literal\r\n")
 		return false, err
 	}
+	flags, internalDate, ok := imapAppendOptions(fields[3 : len(fields)-1])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD APPEND options are unsupported\r\n")
+		return false, err
+	}
 	body := *literal
 	summary, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
-		UserID:    state.session.UserID,
-		MailboxID: MailboxID(fields[2]),
-		Size:      int64(len(body)),
-		Body:      strings.NewReader(body),
+		UserID:       state.session.UserID,
+		MailboxID:    MailboxID(fields[2]),
+		Flags:        flags,
+		InternalDate: internalDate,
+		Size:         int64(len(body)),
+		Body:         strings.NewReader(body),
 	})
 	if err != nil {
 		if errors.Is(err, ErrUnsupportedAppend) {
@@ -1757,6 +1764,59 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	}
 	_, err = writer.WriteString(tag + " OK APPEND completed\r\n")
 	return false, err
+}
+
+func imapAppendOptions(fields []string) (MessageFlags, time.Time, bool) {
+	var flags MessageFlags
+	var internalDate time.Time
+	if len(fields) == 0 {
+		return flags, internalDate, true
+	}
+	i := 0
+	if strings.HasPrefix(fields[i], "(") {
+		var flagParts []string
+		for i < len(fields) {
+			flagParts = append(flagParts, fields[i])
+			done := strings.HasSuffix(fields[i], ")")
+			i++
+			if done {
+				break
+			}
+		}
+		if len(flagParts) == 0 || !strings.HasSuffix(flagParts[len(flagParts)-1], ")") {
+			return MessageFlags{}, time.Time{}, false
+		}
+		parsed, ok := imapStoreFlags(strings.Join(flagParts, " "))
+		if !ok {
+			return MessageFlags{}, time.Time{}, false
+		}
+		flags = parsed
+	}
+	if i < len(fields) {
+		parsed, ok := parseIMAPAppendDate(fields[i])
+		if !ok {
+			return MessageFlags{}, time.Time{}, false
+		}
+		internalDate = parsed
+		i++
+	}
+	if i != len(fields) {
+		return MessageFlags{}, time.Time{}, false
+	}
+	return flags, internalDate, true
+}
+
+func parseIMAPAppendDate(value string) (time.Time, bool) {
+	for _, layout := range []string{
+		"02-Jan-2006 15:04:05 -0700",
+		"2-Jan-2006 15:04:05 -0700",
+	} {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
 }
 
 func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnState) (bool, error) {
