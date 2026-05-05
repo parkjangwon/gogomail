@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP FETCH macro validation)
+Last updated: 2026-05-05 (updated after IMAP UNCHANGEDSINCE validation)
 
 ## Current phase
 
@@ -276,6 +276,9 @@ guidance.
 - IMAP `FETCH`/`UID FETCH` macros now remain valid only as standalone macro
   arguments, rejecting malformed list usage such as `FETCH 1 (FAST)` or
   `UID FETCH 7 (FLAGS FAST)`.
+- IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` now requires the RFC-shaped
+  parenthesized modifier form and rejects malformed over-closed values such as
+  `(UNCHANGEDSINCE 27))`.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.

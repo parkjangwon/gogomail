@@ -156,6 +156,9 @@ Current state:
 - IMAP `FETCH`/`UID FETCH` macros remain valid only as standalone macro
   arguments, rejecting malformed list usage such as `FETCH 1 (FAST)` or
   `UID FETCH 7 (FLAGS FAST)`.
+- IMAP `STORE`/`UID STORE` `UNCHANGEDSINCE` requires the RFC-shaped
+  parenthesized modifier form and rejects malformed over-closed values such as
+  `(UNCHANGEDSINCE 27))`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

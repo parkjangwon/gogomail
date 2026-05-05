@@ -6869,7 +6869,7 @@ func TestServerUIDStoreUnchangedSinceReturnsModified(t *testing.T) {
 			t.Fatalf("read login/select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 UID STORE 7 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\na4 UID STORE 7:8 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\na5 UID STORE 7 (UNCHANGEDSINCE nope) +FLAGS (\\Seen)\r\na6 UID STORE 7 (UNCHANGEDSINCE +27) +FLAGS (\\Seen)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 UID STORE 7 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\na4 UID STORE 7:8 (UNCHANGEDSINCE 27) +FLAGS (\\Seen)\r\na5 UID STORE 7 (UNCHANGEDSINCE nope) +FLAGS (\\Seen)\r\na6 UID STORE 7 (UNCHANGEDSINCE +27) +FLAGS (\\Seen)\r\na7 UID STORE 7 UNCHANGEDSINCE 27 +FLAGS (\\Seen)\r\na8 UID STORE 7 (UNCHANGEDSINCE 27)) +FLAGS (\\Seen)\r\n")); err != nil {
 		t.Fatalf("write uid store unchanged since: %v", err)
 	}
 	want := []string{
@@ -6879,6 +6879,8 @@ func TestServerUIDStoreUnchangedSinceReturnsModified(t *testing.T) {
 		"a4 OK [MODIFIED 8] UID STORE conditional store completed\r\n",
 		"a5 BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n",
 		"a6 BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n",
+		"a7 BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n",
+		"a8 BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6977,7 +6979,7 @@ func TestServerStoreUnchangedSinceReturnsSequenceModified(t *testing.T) {
 			t.Fatalf("read login/select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 STORE 1 (UNCHANGEDSINCE 27) +FLAGS.SILENT (\\Seen)\r\na4 STORE 1:2 (UNCHANGEDSINCE 27) +FLAGS.SILENT (\\Seen)\r\na5 STORE 1 (UNCHANGEDSINCE +27) +FLAGS.SILENT (\\Seen)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 STORE 1 (UNCHANGEDSINCE 27) +FLAGS.SILENT (\\Seen)\r\na4 STORE 1:2 (UNCHANGEDSINCE 27) +FLAGS.SILENT (\\Seen)\r\na5 STORE 1 (UNCHANGEDSINCE +27) +FLAGS.SILENT (\\Seen)\r\na6 STORE 1 (UNCHANGEDSINCE 27)) +FLAGS.SILENT (\\Seen)\r\n")); err != nil {
 		t.Fatalf("write store unchanged since: %v", err)
 	}
 	want := []string{
@@ -6986,6 +6988,7 @@ func TestServerStoreUnchangedSinceReturnsSequenceModified(t *testing.T) {
 		"* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (27))\r\n",
 		"a4 OK [MODIFIED 2] STORE conditional store completed\r\n",
 		"a5 BAD STORE UNCHANGEDSINCE modifier is invalid\r\n",
+		"a6 BAD STORE UNCHANGEDSINCE modifier is invalid\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
