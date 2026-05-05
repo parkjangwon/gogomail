@@ -264,6 +264,11 @@ manifest-digest, and manifest-signature routes also reject query parameter
 names outside their documented allowlists. Detail, download, verification, and
 mutation routes that do not define query controls reject unexpected query
 strings instead of silently ignoring them.
+Admin bodyless command/delete routes reject unknown query parameter names as
+well, including IMAP UID backfill, DKIM DNS verify, outbox retry, DKIM
+deactivation, suppression deletion, trusted-relay deletion, and delivery-route
+deletion. Clients must not rely on ignored `dry_run`, `force`, or similar
+operator flags.
 Admin queue, outbox, audit, backpressure, quota, attachment-session,
 delivery-attempt, push-notification, suppression-list, trusted-relay,
 delivery-route, and DKIM read routes likewise reject query parameter names

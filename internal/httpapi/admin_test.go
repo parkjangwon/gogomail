@@ -4234,6 +4234,95 @@ func TestAdminBodylessHandlersRejectPayloadMetadata(t *testing.T) {
 	}
 }
 
+func TestAdminBodylessCommandHandlersRejectUnknownQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		dispatched func(*fakeAdminService) bool
+	}{
+		{
+			name:   "imap backfill",
+			method: http.MethodPost,
+			path:   "/admin/v1/imap/mailboxes/inbox/uid-backfill?user_id=user-1&limit=10&dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastIMAPBackfillUserID != ""
+			},
+		},
+		{
+			name:   "delete dkim",
+			method: http.MethodDelete,
+			path:   "/admin/v1/dkim-keys/dkim-1?force=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeactivateDKIMKeyID != ""
+			},
+		},
+		{
+			name:   "verify dkim dns",
+			method: http.MethodPost,
+			path:   "/admin/v1/dkim-keys/dkim-1/verify-dns?refresh=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastVerifyDKIMKeyID != ""
+			},
+		},
+		{
+			name:   "retry outbox",
+			method: http.MethodPost,
+			path:   "/admin/v1/outbox/outbox-1/retry?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastRetryOutboxID != ""
+			},
+		},
+		{
+			name:   "delete suppression",
+			method: http.MethodDelete,
+			path:   "/admin/v1/suppression-list/suppression-1?reason=manual",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeleteSuppressionID != ""
+			},
+		},
+		{
+			name:   "delete trusted relay",
+			method: http.MethodDelete,
+			path:   "/admin/v1/trusted-relays/relay-1?cascade=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeleteTrustedRelayID != ""
+			},
+		},
+		{
+			name:   "delete delivery route",
+			method: http.MethodDelete,
+			path:   "/admin/v1/delivery-routes/route-1?force=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return service.lastDeleteDeliveryRouteID != ""
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if tt.dispatched(service) {
+				t.Fatalf("handler dispatched for unknown query parameter: %+v", service)
+			}
+		})
+	}
+}
+
 func TestAdminGetUserHandler(t *testing.T) {
 	t.Parallel()
 

@@ -627,6 +627,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+			return
+		}
 		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
 		if !ok {
 			return
@@ -2062,6 +2065,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/dkim-keys/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -2075,6 +2081,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
@@ -2093,6 +2102,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -2105,6 +2117,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/suppression-list/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -2117,6 +2132,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/trusted-relays/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return
@@ -2129,6 +2147,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/delivery-routes/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
 			return

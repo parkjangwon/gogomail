@@ -704,6 +704,7 @@ Implementation order:
 644. OpenAPI now wires the development-only `user_id` fallback parameter into every user-scoped Mail operation that can use it when JWT auth is disabled, keeping generated local/all-in-one clients aligned with runtime request scoping.
 645. Retry-exhausted delivery events now carry recipient-level RFC 3461 DSN metadata and safe original-message storage paths into the event worker, letting exhausted temporary failures generate sender-facing RFC 3464 failure DSNs with deterministic dedupe while user delivery status classifies terminal `exhausted` attempts as failed.
 646. Mail API mutation routes now reject unknown query parameter names before dispatch, and JSON-backed compose, draft, attachment-reservation, and send mutations honor the documented development-only `user_id` query fallback when JWT auth is disabled.
+647. Admin bodyless command/delete routes now reject unknown query parameter names before dispatch for IMAP UID backfill, DKIM DNS verification, outbox retry, DKIM deactivation, suppression deletion, trusted-relay deletion, and delivery-route deletion, preventing ignored operator intent flags on sensitive actions.
 
 ## Deferred until backend contracts stabilize
 
