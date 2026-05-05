@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after folder service input validation hardening)
+Last updated: 2026-05-05 (updated after IMAP service UID validation hardening)
 
 ## Current phase
 
@@ -1280,6 +1280,9 @@ The platform hardening sprint completed the following:
 - IMAP service-backed read/list/subscription/backfill operations reject
   CR/LF-bearing or oversized user and mailbox identifiers before repository
   reads, storage opens, event subscriptions, or UID backfill work.
+- IMAP service-backed `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
+  reject zero UIDs before repository or storage work, keeping direct service
+  callers aligned with RFC 3501's positive UID model.
 - IMAP selected-mailbox `APPEND` now prefers the backend-returned appended
   message sequence number for the untagged `EXISTS` count, falling back to a
   local increment only when precise sequence metadata is unavailable.

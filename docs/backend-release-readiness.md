@@ -825,6 +825,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP service-backed read/list/subscription/backfill operations reject
   CR/LF-bearing or oversized user and mailbox identifiers before repository
   reads, storage opens, event subscriptions, or UID backfill work.
+- IMAP service-backed `FETCH`, `STORE`, `COPY`, `MOVE`, and `EXPUNGE` calls
+  reject zero UIDs before repository or storage work, keeping direct callers
+  aligned with RFC 3501's positive UID model.
 - IMAP `CREATE`, `DELETE`, and `RENAME` now delegate to the service folder
   boundary for authenticated flat user-mailbox management, resolving wire names
   before destructive or rename operations and preserving the existing folder

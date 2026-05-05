@@ -476,6 +476,9 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
 		return imapgw.Message{}, err
 	}
+	if req.UID == 0 {
+		return imapgw.Message{}, fmt.Errorf("uid must be positive")
+	}
 	stored, err := repo.GetIMAPMessage(ctx, userID, mailboxID, req.UID)
 	if err != nil {
 		return imapgw.Message{}, err
@@ -681,6 +684,9 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
 		return nil, err
 	}
+	if err := validateIMAPUIDs(req.UIDs); err != nil {
+		return nil, err
+	}
 	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince)
 	if err != nil {
 		var modified *imapgw.StoreModifiedError
@@ -867,6 +873,9 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 	if err := validateServiceResourceID("dest_mailbox_id", destMailboxID); err != nil {
 		return nil, err
 	}
+	if err := validateIMAPUIDs(req.UIDs); err != nil {
+		return nil, err
+	}
 	summaries, err := repo.CopyIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
@@ -894,6 +903,9 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 	if err := validateServiceResourceID("dest_mailbox_id", destMailboxID); err != nil {
 		return nil, err
 	}
+	if err := validateIMAPUIDs(req.UIDs); err != nil {
+		return nil, err
+	}
 	results, err := repo.MoveIMAPMessages(ctx, userID, sourceMailboxID, destMailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
@@ -917,12 +929,24 @@ func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeReq
 	if err := validateServiceResourceID("mailbox_id", mailboxID); err != nil {
 		return nil, err
 	}
+	if err := validateIMAPUIDs(req.UIDs); err != nil {
+		return nil, err
+	}
 	summaries, err := repo.ExpungeIMAPMessages(ctx, userID, mailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, summaries)
 	return summaries, nil
+}
+
+func validateIMAPUIDs(uids []imapgw.UID) error {
+	for _, uid := range uids {
+		if uid == 0 {
+			return fmt.Errorf("uids must contain only positive UIDs")
+		}
+	}
+	return nil
 }
 
 func imapMoveSourceSummaries(results []imapgw.MoveMessageResult) []imapgw.MessageSummary {
