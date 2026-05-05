@@ -147,6 +147,9 @@ Current state:
   unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
   `LIST "" INBOX"` from reaching command-specific normalization while
   preserving valid escaped quotes inside proper quoted strings.
+- IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
+  validate RFC-shaped header field names instead of trimming stray brackets,
+  rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
 - Local filesystem storage remains the default and can be backed by local disk
   or NFS-style mounted storage.
 - Local/NFS-style storage writes stage data through unique temporary files in

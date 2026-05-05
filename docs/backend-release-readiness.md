@@ -195,6 +195,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
   `LIST "" INBOX"` from reaching command-specific normalization while
   preserving valid escaped quotes inside proper quoted strings.
+- IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
+  validate RFC-shaped header field names instead of trimming stray brackets,
+  rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
 - Compose and draft validation guard user id, intent/source rules, recipient presence, recipient email syntax, recipient count, subject size, text body size, attachment IDs, filename safety, MIME type, upload size, and outbound RFC 5322 header injection values.
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads

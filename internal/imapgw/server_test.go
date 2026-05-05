@@ -6064,7 +6064,13 @@ func TestServerHandlesUIDFetchPartialBodyAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("partial completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 UID FETCH 9 BODY.PEEK[HEADER.FIELDS ([Subject])]\r\n")); err != nil {
+		t.Fatalf("write malformed uid fetch header fields: %v", err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 BAD FETCH header field list is invalid\r\n" {
+		t.Fatalf("malformed header fields response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

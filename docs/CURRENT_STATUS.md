@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-05 (updated after IMAP dangling atom quote hardening)
+Last updated: 2026-05-05 (updated after IMAP FETCH header field validation)
 
 ## Current phase
 
@@ -267,6 +267,9 @@ guidance.
   unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
   `LIST "" INBOX"` from reaching command-specific normalization while
   preserving valid escaped quotes inside proper quoted strings.
+- IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists now
+  validate RFC-shaped header field names instead of trimming stray brackets,
+  rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
 - `docs/storage-backends.md` documents local/NFS, MinIO, and AWS S3-style
   configuration, and the development compose stack includes `minio-init` to
   create the default local `gogomail` bucket.
