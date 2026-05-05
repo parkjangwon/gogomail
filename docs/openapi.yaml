@@ -143,6 +143,11 @@ paths:
           schema:
             type: boolean
           description: Optional starred-state filter.
+        - name: has_attachment
+          in: query
+          schema:
+            type: boolean
+          description: Optional attachment-presence filter.
       responses:
         "200":
           $ref: "#/components/responses/MessageListPage"
@@ -258,6 +263,11 @@ paths:
           schema:
             type: boolean
           description: Optional conversation starred-state filter.
+        - name: has_attachment
+          in: query
+          schema:
+            type: boolean
+          description: Optional conversation attachment-presence filter.
       responses:
         "200":
           $ref: "#/components/responses/ThreadList"

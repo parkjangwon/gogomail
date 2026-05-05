@@ -81,7 +81,7 @@ func TestListMessagesHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&read=false&starred=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1&read=false&starred=true&has_attachment=true", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -94,6 +94,9 @@ func TestListMessagesHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	if service.lastListFilter.Starred == nil || !*service.lastListFilter.Starred {
 		t.Fatalf("starred filter = %#v", service.lastListFilter.Starred)
 	}
+	if service.lastListFilter.HasAttachment == nil || !*service.lastListFilter.HasAttachment {
+		t.Fatalf("has_attachment filter = %#v", service.lastListFilter.HasAttachment)
+	}
 }
 
 func TestListMessagesHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
@@ -102,6 +105,7 @@ func TestListMessagesHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
 	tests := []string{
 		"/api/v1/messages?user_id=user-1&read=maybe",
 		"/api/v1/messages?user_id=user-1&starred=maybe",
+		"/api/v1/messages?user_id=user-1&has_attachment=maybe",
 		"/api/v1/messages?user_id=user-1&read=true&read=false",
 	}
 	for _, path := range tests {
@@ -797,7 +801,7 @@ func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&read=false&starred=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1&read=false&starred=true&has_attachment=true", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -810,6 +814,9 @@ func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	if service.lastThreadFilter.Starred == nil || !*service.lastThreadFilter.Starred {
 		t.Fatalf("starred filter = %#v", service.lastThreadFilter.Starred)
 	}
+	if service.lastThreadFilter.HasAttachment == nil || !*service.lastThreadFilter.HasAttachment {
+		t.Fatalf("has_attachment filter = %#v", service.lastThreadFilter.HasAttachment)
+	}
 }
 
 func TestListThreadsHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
@@ -818,6 +825,7 @@ func TestListThreadsHandlerRejectsInvalidReadAndStarredFilters(t *testing.T) {
 	tests := []string{
 		"/api/v1/threads?user_id=user-1&read=maybe",
 		"/api/v1/threads?user_id=user-1&starred=maybe",
+		"/api/v1/threads?user_id=user-1&has_attachment=maybe",
 		"/api/v1/threads?user_id=user-1&starred=true&starred=false",
 	}
 	for _, path := range tests {

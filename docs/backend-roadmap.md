@@ -1689,6 +1689,10 @@ Implementation order:
      and `starred=true|false` filters, enabling conversation-level unread,
      fully-read, starred, and unstarred quick views while preserving opaque
      cursor pagination and bounded boolean query validation.
+953. Mail API message and thread list pagination now also accepts optional
+     `has_attachment=true|false`, enabling attachment-presence quick views for
+     both flat mailbox lists and conversation lists while preserving existing
+     opaque cursor and boolean validation behavior.
 
 ## Deferred until backend contracts stabilize
 

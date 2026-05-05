@@ -74,10 +74,11 @@ AND (
   OR ($5::boolean = true AND unread_count = 0)
 )
 AND ($6::boolean IS NULL OR starred = $6::boolean)
+AND ($7::boolean IS NULL OR has_attachment = $7::boolean)
 ORDER BY latest_at DESC, thread_key DESC
 LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment)
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}

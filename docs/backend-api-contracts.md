@@ -169,11 +169,12 @@ The documented client contract is `1 <= limit <= 200`, defaulting to `50`.
 Message listing returns opaque `next_cursor`; clients must not parse or
 manufacture cursors. Incoming cursor strings are bounded before decode so
 malformed or oversized tokens fail before allocating decoded payloads.
-`GET /api/v1/messages` accepts optional `read=true|false` and
-`starred=true|false` filters in addition to `folder_id`, `limit`, and `cursor`.
+`GET /api/v1/messages` accepts optional `read=true|false`,
+`starred=true|false`, and `has_attachment=true|false` filters in addition to
+`folder_id`, `limit`, and `cursor`.
 Boolean filters reject malformed or repeated scalar values before service
-dispatch, allowing webmail clients to render unread/read and starred/unstarred
-quick views without invoking full-text search.
+dispatch, allowing webmail clients to render unread/read, starred/unstarred,
+and attachment-presence quick views without invoking full-text search.
 
 Search query, folder, sender, and subject filters are whitespace-normalized and
 reject CR/LF-bearing or oversized values before either Postgres or OpenSearch
@@ -690,10 +691,11 @@ authenticated/fallback user id and returned in chronological order for webmail
 conversation rendering. Both thread reads support `limit` plus opaque `cursor`
 pagination and return `has_more`/`next_cursor` alongside the existing
 `threads` or `messages` arrays.
-Thread list reads also accept optional `read=true|false` and
-`starred=true|false` filters. For conversations, `read=false` means at least
-one message in the thread is unread, while `read=true` means the thread has no
-unread messages; `starred` matches conversations where any message is starred.
+Thread list reads also accept optional `read=true|false`,
+`starred=true|false`, and `has_attachment=true|false` filters. For
+conversations, `read=false` means at least one message in the thread is unread,
+while `read=true` means the thread has no unread messages; `starred` and
+`has_attachment` match conversations where any message has the matching state.
 Newly stored inbound mail parses RFC `In-Reply-To` and `References` headers and
 attempts to inherit the matching local thread by `rfc_message_id`. Reply/forward
 outbound messages inherit the source message thread when `source_message_id` is
