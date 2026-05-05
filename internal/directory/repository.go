@@ -37,6 +37,56 @@ func (r *Repository) ResolvePrincipal(ctx context.Context, req ResolvePrincipalR
 	}
 }
 
+func (r *Repository) ResolveAlias(ctx context.Context, req ResolveAliasRequest) (Alias, error) {
+	if r == nil || r.db == nil {
+		return Alias{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeResolveAliasRequest(req)
+	if err != nil {
+		return Alias{}, err
+	}
+	const query = `
+SELECT a.id::text,
+       a.company_id::text,
+       a.domain_id::text,
+       a.alias_address,
+       a.alias_address_ace,
+       a.target_kind,
+       a.target_id::text,
+       a.status
+FROM directory_aliases a
+JOIN domains d ON d.id = a.domain_id
+JOIN companies c ON c.id = a.company_id AND c.id = d.company_id
+WHERE lower(a.alias_address_ace) = $1
+  AND ($2::boolean = false OR (a.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+	var alias Alias
+	if err := r.db.QueryRowContext(ctx, query, req.Address, req.ActiveOnly).Scan(
+		&alias.ID,
+		&alias.CompanyID,
+		&alias.DomainID,
+		&alias.Address,
+		&alias.AddressACE,
+		&alias.TargetKind,
+		&alias.TargetID,
+		&alias.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Alias{}, fmt.Errorf("directory alias not found")
+		}
+		return Alias{}, fmt.Errorf("resolve directory alias: %w", err)
+	}
+	target, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         alias.TargetID,
+		Kind:       alias.TargetKind,
+		ActiveOnly: req.ActiveOnly,
+	})
+	if err != nil {
+		return Alias{}, fmt.Errorf("resolve directory alias target: %w", err)
+	}
+	alias.TargetPrincipal = target
+	return alias, nil
+}
+
 func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
 	const query = `
 SELECT u.id::text,
