@@ -1156,6 +1156,54 @@ func TestServerExamineFailureUsesExamineCommandName(t *testing.T) {
 	}
 }
 
+func TestServerReturnsNonexistentForMissingMailboxCommands(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: missingMailboxBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT missing\r\na3 EXAMINE missing\r\na4 STATUS missing (MESSAGES)\r\na5 DELETE missing\r\na6 RENAME missing archive\r\n")); err != nil {
+		t.Fatalf("write missing mailbox commands: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"a2 NO [NONEXISTENT] SELECT mailbox does not exist\r\n",
+		"a3 NO [NONEXISTENT] EXAMINE mailbox does not exist\r\n",
+		"a4 NO [NONEXISTENT] STATUS mailbox does not exist\r\n",
+		"a5 NO [NONEXISTENT] DELETE mailbox does not exist\r\n",
+		"a6 NO [NONEXISTENT] RENAME mailbox does not exist\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read missing mailbox response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("missing mailbox response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	t.Parallel()
 
@@ -7717,4 +7765,24 @@ type failingSubscribeBackend struct {
 
 func (failingSubscribeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
 	return nil, nil, errors.New("subscription unavailable")
+}
+
+type missingMailboxBackend struct {
+	fakeBackend
+}
+
+func (missingMailboxBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{}, ErrMailboxNotFound
+}
+
+func (missingMailboxBackend) GetMailbox(context.Context, UserID, MailboxID) (Mailbox, error) {
+	return Mailbox{}, ErrMailboxNotFound
+}
+
+func (missingMailboxBackend) DeleteMailbox(context.Context, UserID, MailboxID) error {
+	return ErrMailboxNotFound
+}
+
+func (missingMailboxBackend) RenameMailbox(context.Context, UserID, MailboxID, MailboxID) (Mailbox, error) {
+	return Mailbox{}, ErrMailboxNotFound
 }
