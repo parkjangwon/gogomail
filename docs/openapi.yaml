@@ -249,6 +249,18 @@ paths:
           $ref: "#/components/responses/MessageDeliveryStatus"
         default:
           $ref: "#/components/responses/Error"
+  /messages/{id}/restore:
+    post:
+      operationId: restoreMessage
+      summary: Restore one soft-deleted message
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /threads:
     get:
       operationId: listThreads
@@ -374,6 +386,19 @@ paths:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageDelete"
+      responses:
+        "200":
+          $ref: "#/components/responses/BulkUpdate"
+        default:
+          $ref: "#/components/responses/Error"
+  /messages/bulk/restore:
+    post:
+      operationId: bulkRestoreMessages
+      summary: Bounded bulk message restore
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        $ref: "#/components/requestBodies/BulkMessageRestore"
       responses:
         "200":
           $ref: "#/components/responses/BulkUpdate"
@@ -3138,6 +3163,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/BulkMessageDeleteRequest"
+    BulkMessageRestore:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BulkMessageRestoreRequest"
     BulkThreadDelete:
       required: true
       content:
@@ -3878,7 +3909,7 @@ components:
             enum: [read, starred, answered, forwarded]
         bulk_actions:
           type: object
-          required: [max_message_ids, flags, thread_flags, move, thread_move, delete, thread_delete]
+          required: [max_message_ids, flags, thread_flags, move, thread_move, delete, thread_delete, restore]
           properties:
             max_message_ids:
               type: integer
@@ -3895,6 +3926,8 @@ components:
             delete:
               type: boolean
             thread_delete:
+              type: boolean
+            restore:
               type: boolean
         mailbox_actions:
           type: object
@@ -6417,6 +6450,16 @@ components:
           type: string
           maxLength: 200
     BulkMessageDeleteRequest:
+      type: object
+      required: [message_ids]
+      properties:
+        message_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            maxLength: 200
+    BulkMessageRestoreRequest:
       type: object
       required: [message_ids]
       properties:

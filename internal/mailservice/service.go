@@ -41,6 +41,8 @@ type Repository interface {
 	DeleteMessage(ctx context.Context, userID string, messageID string) error
 	BulkDeleteMessages(ctx context.Context, req maildb.BulkMessageDeleteRequest) (int64, error)
 	BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDeleteRequest) (maildb.BulkThreadDeleteResult, error)
+	RestoreMessage(ctx context.Context, userID string, messageID string) error
+	BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (int64, error)
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
 	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
 	DeletePushDevice(ctx context.Context, userID string, id string) error
@@ -1268,6 +1270,23 @@ func (s *Service) BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDe
 	return result.Updated, nil
 }
 
+func (s *Service) RestoreMessage(ctx context.Context, userID string, messageID string) error {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return err
+	}
+	return s.repository.RestoreMessage(ctx, userID, messageID)
+}
+
+func (s *Service) BulkRestoreMessages(ctx context.Context, req maildb.BulkMessageRestoreRequest) (int64, error) {
+	req = normalizeBulkMessageRestoreRequest(req)
+	if err := maildb.ValidateBulkMessageRestoreRequest(req); err != nil {
+		return 0, err
+	}
+	return s.repository.BulkRestoreMessages(ctx, req)
+}
+
 func (s *Service) ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error) {
 	repo, ok := s.repository.(interface {
 		ListPushDevices(context.Context, string, int) ([]maildb.PushDevice, error)
@@ -2217,6 +2236,12 @@ func normalizeBulkThreadMoveRequest(req maildb.BulkThreadMoveRequest) maildb.Bul
 }
 
 func normalizeBulkMessageDeleteRequest(req maildb.BulkMessageDeleteRequest) maildb.BulkMessageDeleteRequest {
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.MessageIDs = normalizeStringList(req.MessageIDs)
+	return req
+}
+
+func normalizeBulkMessageRestoreRequest(req maildb.BulkMessageRestoreRequest) maildb.BulkMessageRestoreRequest {
 	req.UserID = strings.TrimSpace(req.UserID)
 	req.MessageIDs = normalizeStringList(req.MessageIDs)
 	return req

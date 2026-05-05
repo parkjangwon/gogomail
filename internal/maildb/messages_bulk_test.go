@@ -195,3 +195,23 @@ func TestValidateBulkMessageDeleteRequestRequiresIDs(t *testing.T) {
 		t.Fatal("ValidateBulkMessageDeleteRequest accepted missing message IDs")
 	}
 }
+
+func TestValidateBulkMessageRestoreRequestRejectsUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []BulkMessageRestoreRequest{
+		{UserID: "user-1", MessageIDs: []string{"msg-1", "msg-1"}},
+		{UserID: "user-1", MessageIDs: []string{"msg-1\r\nmsg-2"}},
+		{UserID: "user-1", MessageIDs: []string{strings.Repeat("x", maxMailboxResourceIDBytes+1)}},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(strings.Join(req.MessageIDs, ","), func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateBulkMessageRestoreRequest(req); err == nil {
+				t.Fatalf("ValidateBulkMessageRestoreRequest accepted unsafe request %+v", req)
+			}
+		})
+	}
+}
