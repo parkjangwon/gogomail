@@ -382,6 +382,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   grouped operands inside `OR`.
 - IMAP `FETCH`/`UID FETCH` now streams bounded partial full-body literals for
   `BODY[]<offset.count>` and `BODY.PEEK[]<offset.count>`.
+- IMAP `FETCH`/`UID FETCH` now streams bounded partial section literals for
+  common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]` requests.
 - IMAP `SEARCH`/`UID SEARCH` now support common flag criteria including
   `SEEN`, `UNSEEN`, `FLAGGED`, `UNFLAGGED`, `ANSWERED`, `UNANSWERED`,
   `DRAFT`, and `UNDRAFT`.

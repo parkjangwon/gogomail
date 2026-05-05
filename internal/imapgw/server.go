@@ -1535,6 +1535,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	items = imapExpandFetchItems(items)
 	requestsBody := imapFetchRequestsBody(items)
 	partial, requestsPartialBody := imapFetchPartialBody(items)
+	partialSection, requestsPartialSection := imapFetchPartialSection(items)
 	requestsHeader := imapFetchRequestsHeader(items)
 	requestsText := imapFetchRequestsText(items)
 	requestsPartText := imapFetchRequestsPartText(items)
@@ -1560,7 +1561,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if summary.UID == 0 {
 			summary.UID = uid
 		}
-		requestsLiteral := requestsBody || requestsPartialBody || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
+		requestsLiteral := requestsBody || requestsPartialBody || requestsPartialSection || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME
 		bodyAttribute := ""
 		bodyStructure := ""
 		if requestsBodyAttribute || requestsBodyStructure {
@@ -1621,13 +1622,14 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				_, err := writer.WriteString(tag + " NO UID FETCH body size is unavailable\r\n")
 				return false, err
 			}
-			if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME {
-				literal, err := readIMAPSectionLiteral(body, requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot)
+			if requestsPartialSection || requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || requestsText || requestsPartText || requestsPartMIME {
+				wantHeader := requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot || partialSection.headerLike()
+				literal, err := readIMAPSectionLiteral(body, wantHeader)
 				if err != nil {
 					_ = body.Close()
 					return false, err
 				}
-				if requestsPartMIME {
+				if requestsPartMIME || partialSection.section == "1.MIME" {
 					literal = []byte("\r\n")
 				}
 				if requestsHeaderFields {
@@ -1647,10 +1649,18 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				if requestsPartMIME {
 					section = "1.MIME"
 				}
+				if requestsPartialSection {
+					section = partialSection.section
+					literal = imapPartialLiteral(literal, partialSection.partial)
+				}
 				if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot {
 					section = "HEADER"
 				}
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s] {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), section, len(literal))); err != nil {
+				partialSuffix := ""
+				if requestsPartialSection {
+					partialSuffix = fmt.Sprintf("<%d>", partialSection.partial.offset)
+				}
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s]%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), section, partialSuffix, len(literal))); err != nil {
 					return false, err
 				}
 				if _, err := writer.Write(literal); err != nil {
@@ -1873,33 +1883,86 @@ type imapPartialBodyRequest struct {
 	count  uint64
 }
 
+type imapPartialSectionRequest struct {
+	section string
+	partial imapPartialBodyRequest
+}
+
+func (r imapPartialSectionRequest) headerLike() bool {
+	return r.section == "HEADER" || r.section == "1.MIME"
+}
+
 func imapFetchPartialBody(items []string) (imapPartialBodyRequest, bool) {
 	for _, item := range items {
 		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
 			if !strings.HasPrefix(token, "BODY[]<") && !strings.HasPrefix(token, "BODY.PEEK[]<") {
 				continue
 			}
-			start := strings.Index(token, "<")
-			end := strings.LastIndex(token, ">")
-			if start < 0 || end <= start {
-				return imapPartialBodyRequest{}, false
-			}
-			offsetText, countText, ok := strings.Cut(token[start+1:end], ".")
-			if !ok {
-				return imapPartialBodyRequest{}, false
-			}
-			offset, err := strconv.ParseUint(offsetText, 10, 63)
-			if err != nil {
-				return imapPartialBodyRequest{}, false
-			}
-			count, err := strconv.ParseUint(countText, 10, 31)
-			if err != nil {
-				return imapPartialBodyRequest{}, false
-			}
-			return imapPartialBodyRequest{offset: offset, count: count}, true
+			return imapParsePartialBodyToken(token)
 		}
 	}
 	return imapPartialBodyRequest{}, false
+}
+
+func imapFetchPartialSection(items []string) (imapPartialSectionRequest, bool) {
+	sections := []struct {
+		prefixes []string
+		section  string
+	}{
+		{[]string{"BODY[HEADER]<", "BODY.PEEK[HEADER]<", "RFC822.HEADER<"}, "HEADER"},
+		{[]string{"BODY[TEXT]<", "BODY.PEEK[TEXT]<", "RFC822.TEXT<"}, "TEXT"},
+		{[]string{"BODY[1]<", "BODY.PEEK[1]<"}, "1"},
+		{[]string{"BODY[1.MIME]<", "BODY.PEEK[1.MIME]<"}, "1.MIME"},
+	}
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			for _, candidate := range sections {
+				for _, prefix := range candidate.prefixes {
+					if !strings.HasPrefix(token, prefix) {
+						continue
+					}
+					partial, ok := imapParsePartialBodyToken(token)
+					if !ok {
+						return imapPartialSectionRequest{}, false
+					}
+					return imapPartialSectionRequest{section: candidate.section, partial: partial}, true
+				}
+			}
+		}
+	}
+	return imapPartialSectionRequest{}, false
+}
+
+func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
+	start := strings.Index(token, "<")
+	end := strings.LastIndex(token, ">")
+	if start < 0 || end <= start {
+		return imapPartialBodyRequest{}, false
+	}
+	offsetText, countText, ok := strings.Cut(token[start+1:end], ".")
+	if !ok {
+		return imapPartialBodyRequest{}, false
+	}
+	offset, err := strconv.ParseUint(offsetText, 10, 63)
+	if err != nil {
+		return imapPartialBodyRequest{}, false
+	}
+	count, err := strconv.ParseUint(countText, 10, 31)
+	if err != nil {
+		return imapPartialBodyRequest{}, false
+	}
+	return imapPartialBodyRequest{offset: offset, count: count}, true
+}
+
+func imapPartialLiteral(literal []byte, partial imapPartialBodyRequest) []byte {
+	if partial.offset >= uint64(len(literal)) {
+		return nil
+	}
+	end := partial.offset + partial.count
+	if end > uint64(len(literal)) {
+		end = uint64(len(literal))
+	}
+	return literal[partial.offset:end]
 }
 
 func imapFetchRequestsHeader(items []string) bool {

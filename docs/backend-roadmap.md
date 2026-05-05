@@ -1004,6 +1004,9 @@ Implementation order:
 764. IMAP `SEARCH` and `UID SEARCH` now accept parenthesized search-key groups,
      combining grouped predicates with RFC default AND semantics and allowing
      grouped operands inside `OR`.
+765. IMAP `FETCH` and `UID FETCH` now support bounded partial section literals
+     for common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]`
+     requests.
 
 ## Deferred until backend contracts stabilize
 
