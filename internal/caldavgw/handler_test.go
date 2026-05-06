@@ -149,6 +149,31 @@ func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindPrincipalDiscoveryIncludesAliasAddresses(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.principal.CalendarUserAddresses = []string{"mailto:user.one@example.com", "mailto:team@example.com"}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/principals/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><C:calendar-user-address-set/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>mailto:user.one@example.com</D:href>",
+		"<D:href>mailto:team@example.com</D:href>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("principal discovery missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
 	t.Parallel()
 

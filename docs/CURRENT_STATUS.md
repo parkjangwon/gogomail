@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV repeated date conditional validation)
+Last updated: 2026-05-06 (updated after CalDAV Directory alias address discovery)
 
 ## Current phase
 
@@ -161,12 +161,13 @@ Policy/Audit boundaries. Directory is the platform/org layer for users, teams,
 groups, aliases, resources, memberships, delegation, and principal resolution;
 Contacts/CardDAV is the user-owned address-book layer for personal/external
 people and user-specific metadata.
-CalDAV principal discovery now maps the Directory primary email into the RFC
-4791 `calendar-user-address-set` property as a normalized `mailto:` href when
-one is available. This is intentionally a principal identity/scheduling
-foundation, not public scheduling support: organizer/attendee workflows,
-resource booking, and shared calendar access remain gated on Directory policy,
-Contacts/CardDAV linkage, and audit semantics.
+CalDAV principal discovery now maps the Directory primary email plus active
+user-targeted Directory aliases into the RFC 4791 `calendar-user-address-set`
+property as normalized deduplicated `mailto:` hrefs when available. This is
+intentionally a principal identity/scheduling foundation, not public scheduling
+support: organizer/attendee workflows, resource booking, and shared calendar
+access remain gated on Directory policy, Contacts/CardDAV linkage, and audit
+semantics.
 CalDAV now has its first explicit delegated-access integration point: handler
 authorization can distinguish authenticated actor and resource owner user IDs,
 resolve read requests against the owner calendar store, and call a pluggable

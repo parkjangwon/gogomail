@@ -3287,6 +3287,11 @@ Implementation order:
       `DeleteObjectRequest` and revalidates them inside the repository
       transaction before soft deletion, aligning delete concurrency semantics
       with the observed-ETag guard already used by `PUT`.
+1274. CalDAV principal discovery now enriches RFC 4791
+      `calendar-user-address-set` with active user-targeted Directory aliases
+      in addition to the Directory primary email, normalizing and deduplicating
+      `mailto:` hrefs while filtering non-user/resource/group aliases until
+      scheduling and resource-booking policy is explicitly implemented.
 
 ## Deferred until backend contracts stabilize
 

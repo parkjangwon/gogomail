@@ -27,14 +27,25 @@ func (r *Repository) LookupPrincipal(ctx context.Context, userID string) (Princi
 	if err != nil {
 		return Principal{}, fmt.Errorf("lookup CalDAV principal: %w", err)
 	}
-	principal, err := calDAVPrincipalFromDirectory(resolved)
+	directoryRepo := directory.NewRepository(r.db)
+	aliases, err := directoryRepo.ListAliases(ctx, directory.ListAliasesRequest{
+		CompanyID:  resolved.CompanyID,
+		TargetKind: directory.PrincipalKindUser,
+		TargetID:   resolved.ID,
+		ActiveOnly: true,
+		Limit:      directory.MaxAliasListLimit,
+	})
+	if err != nil {
+		return Principal{}, fmt.Errorf("lookup CalDAV principal aliases: %w", err)
+	}
+	principal, err := calDAVPrincipalFromDirectory(resolved, aliases)
 	if err != nil {
 		return Principal{}, err
 	}
 	return principal, nil
 }
 
-func calDAVPrincipalFromDirectory(resolved directory.Principal) (Principal, error) {
+func calDAVPrincipalFromDirectory(resolved directory.Principal, aliases ...[]directory.Alias) (Principal, error) {
 	if resolved.Kind != directory.PrincipalKindUser {
 		return Principal{}, fmt.Errorf("caldav principal kind %q is not supported", resolved.Kind)
 	}
@@ -49,14 +60,51 @@ func calDAVPrincipalFromDirectory(resolved directory.Principal) (Principal, erro
 	}
 	principal.PrincipalPath = principalPath
 	principal.CalendarHomePath = homePath
-	if strings.TrimSpace(resolved.PrimaryEmail) != "" {
-		address, err := mail.NormalizeAddress(resolved.PrimaryEmail)
-		if err != nil {
-			return Principal{}, fmt.Errorf("caldav principal primary email: %w", err)
-		}
-		principal.CalendarUserAddresses = []string{"mailto:" + address}
+	var aliasList []directory.Alias
+	if len(aliases) > 0 {
+		aliasList = aliases[0]
 	}
+	addresses, err := calDAVCalendarUserAddresses(resolved, aliasList)
+	if err != nil {
+		return Principal{}, err
+	}
+	principal.CalendarUserAddresses = addresses
 	return principal, nil
+}
+
+func calDAVCalendarUserAddresses(resolved directory.Principal, aliases []directory.Alias) ([]string, error) {
+	seen := make(map[string]struct{}, len(aliases)+1)
+	addresses := make([]string, 0, len(aliases)+1)
+	addAddress := func(label string, value string) error {
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+		address, err := mail.NormalizeAddress(value)
+		if err != nil {
+			return fmt.Errorf("caldav principal %s: %w", label, err)
+		}
+		href := "mailto:" + address
+		if _, ok := seen[href]; ok {
+			return nil
+		}
+		seen[href] = struct{}{}
+		addresses = append(addresses, href)
+		return nil
+	}
+	if strings.TrimSpace(resolved.PrimaryEmail) != "" {
+		if err := addAddress("primary email", resolved.PrimaryEmail); err != nil {
+			return nil, err
+		}
+	}
+	for _, alias := range aliases {
+		if alias.TargetKind != directory.PrincipalKindUser || alias.TargetID != resolved.ID {
+			continue
+		}
+		if err := addAddress("alias address", alias.Address); err != nil {
+			return nil, err
+		}
+	}
+	return addresses, nil
 }
 
 func (r *Repository) ListCalendarCollections(ctx context.Context, userID string) ([]Calendar, error) {

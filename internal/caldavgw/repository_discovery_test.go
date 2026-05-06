@@ -70,6 +70,34 @@ func TestCalDAVPrincipalFromDirectoryAcceptsUserPrincipal(t *testing.T) {
 	}
 }
 
+func TestCalDAVPrincipalFromDirectoryAddsUserAliases(t *testing.T) {
+	t.Parallel()
+
+	principal, err := calDAVPrincipalFromDirectory(directory.Principal{
+		ID:           "user-1",
+		Kind:         directory.PrincipalKindUser,
+		DisplayName:  "User One",
+		PrimaryEmail: "user.one@example.com",
+	}, []directory.Alias{
+		{Address: "team@example.com", TargetKind: directory.PrincipalKindUser, TargetID: "user-1"},
+		{Address: "USER.ONE@example.com", TargetKind: directory.PrincipalKindUser, TargetID: "user-1"},
+		{Address: "room@example.com", TargetKind: directory.PrincipalKindResource, TargetID: "user-1"},
+		{Address: "other@example.com", TargetKind: directory.PrincipalKindUser, TargetID: "user-2"},
+	})
+	if err != nil {
+		t.Fatalf("calDAVPrincipalFromDirectory returned error: %v", err)
+	}
+	want := []string{"mailto:user.one@example.com", "mailto:team@example.com"}
+	if len(principal.CalendarUserAddresses) != len(want) {
+		t.Fatalf("CalendarUserAddresses = %+v, want %+v", principal.CalendarUserAddresses, want)
+	}
+	for i := range want {
+		if principal.CalendarUserAddresses[i] != want[i] {
+			t.Fatalf("CalendarUserAddresses = %+v, want %+v", principal.CalendarUserAddresses, want)
+		}
+	}
+}
+
 func TestCalDAVPrincipalFromDirectoryRejectsMalformedPrimaryEmail(t *testing.T) {
 	t.Parallel()
 
