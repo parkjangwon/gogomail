@@ -1356,6 +1356,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
 			return true, false, err
 		}
+		if !imapUIDSetSyntaxValid(fields[3]) {
+			_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
+			return true, false, err
+		}
 		if message, ok := imapFetchDataItemsSyntaxError(fields[4:]); ok {
 			_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
 			return true, false, err
@@ -1411,6 +1415,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
 			return true, false, err
 		}
+		if !imapUIDSetSyntaxValid(fields[3]) {
+			_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
+			return true, false, err
+		}
 		if message, ok := imapStoreArgumentsSyntaxError("UID STORE", fields[4:]); ok {
 			_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
 			return true, false, err
@@ -1420,9 +1428,17 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
 			return true, false, err
 		}
+		if !imapUIDSetSyntaxValid(fields[3]) {
+			_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires a positive UID set\r\n")
+			return true, false, err
+		}
 	case "COPY":
 		if len(fields) != 5 {
 			_, err := writer.WriteString(tag + " BAD UID COPY requires UID set and destination mailbox\r\n")
+			return true, false, err
+		}
+		if !imapUIDSetSyntaxValid(fields[3]) {
+			_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
 			return true, false, err
 		}
 		if _, ok := imapDecodeMailboxName(fields[4]); !ok {
@@ -1432,6 +1448,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 	case "MOVE":
 		if len(fields) != 5 {
 			_, err := writer.WriteString(tag + " BAD UID MOVE requires UID set and destination mailbox\r\n")
+			return true, false, err
+		}
+		if !imapUIDSetSyntaxValid(fields[3]) {
+			_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 			return true, false, err
 		}
 		if _, ok := imapDecodeMailboxName(fields[4]); !ok {
@@ -3117,6 +3137,10 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD FETCH requires sequence set and data items\r\n")
 		return false, err
 	}
+	if !imapSequenceSetSyntaxValid(fields[2]) {
+		_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
+		return false, err
+	}
 	if message, ok := imapFetchDataItemsSyntaxError(fields[3:]); ok {
 		_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
 		return false, err
@@ -3145,6 +3169,10 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if len(fields) != 4 {
 		_, err := writer.WriteString(tag + " BAD COPY requires sequence set and destination mailbox\r\n")
+		return false, err
+	}
+	if !imapSequenceSetSyntaxValid(fields[2]) {
+		_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
 		return false, err
 	}
 	destMailbox, destOK := imapDecodeMailboxName(fields[3])
@@ -3176,6 +3204,10 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if len(fields) != 4 {
 		_, err := writer.WriteString(tag + " BAD MOVE requires sequence set and destination mailbox\r\n")
+		return false, err
+	}
+	if !imapSequenceSetSyntaxValid(fields[2]) {
+		_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
 		return false, err
 	}
 	destMailbox, destOK := imapDecodeMailboxName(fields[3])
@@ -4116,6 +4148,46 @@ func parseIMAPUIDSetNumber(value string) (UID, bool) {
 		return 0, false
 	}
 	return UID(uid64), true
+}
+
+func imapUIDSetSyntaxValid(value string) bool {
+	return imapSetSyntaxValid(value, true, true)
+}
+
+func imapSequenceSetSyntaxValid(value string) bool {
+	return imapSetSyntaxValid(value, true, true)
+}
+
+func imapSetSyntaxValid(value string, allowStar bool, allowDollar bool) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if value == "$" {
+		return allowDollar
+	}
+	for _, rawPart := range strings.Split(value, ",") {
+		part := strings.TrimSpace(rawPart)
+		if part == "" || part != rawPart {
+			return false
+		}
+		startText, endText, hasRange := strings.Cut(part, ":")
+		if !imapSetSyntaxNumberValid(startText, allowStar) {
+			return false
+		}
+		if hasRange && !imapSetSyntaxNumberValid(endText, allowStar) {
+			return false
+		}
+	}
+	return true
+}
+
+func imapSetSyntaxNumberValid(value string, allowStar bool) bool {
+	if value == "*" {
+		return allowStar
+	}
+	_, ok := parseIMAPUIDSetNumber(value)
+	return ok
 }
 
 func parseIMAPSequenceSet(value string, maxSequence uint32) ([]uint32, bool) {
@@ -5652,6 +5724,10 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if len(fields) < 5 {
 		_, err := writer.WriteString(tag + " BAD STORE requires sequence set, mode, and flags\r\n")
+		return false, err
+	}
+	if !imapSequenceSetSyntaxValid(fields[2]) {
+		_, err := writer.WriteString(tag + " BAD STORE requires a valid message sequence set\r\n")
 		return false, err
 	}
 	if message, ok := imapStoreArgumentsSyntaxError("STORE", fields[3:]); ok {

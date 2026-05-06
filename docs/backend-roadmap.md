@@ -3013,6 +3013,10 @@ Implementation order:
       store mode, and flag-list syntax before authentication or selected-state
       checks, keeping RFC 3501 and CONDSTORE mutation grammar failures
       distinct from mailbox state failures.
+1223. IMAP selected-state commands now validate malformed message sequence-set
+      and UID set syntax, including signed values such as `+1` and `+7`,
+      before authentication or selected-state checks while preserving
+      selected-mailbox bounds validation for execution time.
 
 ## Deferred until backend contracts stabilize
 
