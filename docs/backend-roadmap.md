@@ -3970,6 +3970,11 @@ Implementation order:
       request-id context, keeping AWS/MinIO-compatible failures
       operator-friendly while preserving the existing sanitized plain-text
       fallback for non-XML provider errors.
+1429. S3-compatible `ListObjectsV2` `200 OK` bodies now reject top-level
+      standard S3 `<Error>` documents as embedded provider errors with the
+      same bounded `Code: Message` and request-id diagnostics, preventing
+      throttling or auth failures from degrading into generic invalid list
+      control errors.
 
 ## Deferred until backend contracts stabilize
 

@@ -134,6 +134,10 @@ S3-compatible status-error diagnostics now recognize standard S3 `<Error>`
 XML bodies and render bounded one-line `Code: Message` previews with
 request-id context instead of raw XML tags, while preserving the existing
 sanitized plain-text fallback for non-XML provider errors.
+S3-compatible `ListObjectsV2` success responses now also reject top-level
+standard S3 `<Error>` XML bodies as embedded provider errors, preserving the
+same bounded `Code: Message` and request-id diagnostics instead of falling
+through to generic list-shape failures.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.

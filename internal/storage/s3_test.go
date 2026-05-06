@@ -863,6 +863,60 @@ func TestS3StoreListRejectsTruncatedPageWithoutCursor(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsEmbeddedErrorInOKResponse(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "formatted",
+			body: `<Error>
+  <Code>SlowDown</Code>
+  <Message>list throttled
+try later</Message>
+  <RequestId>req-1</RequestId>
+</Error>`,
+			want: "SlowDown: list throttled try later: request-id=req-1",
+		},
+		{
+			name: "empty",
+			body: `<Error/>`,
+			want: "embedded error",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "embedded error") || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n") {
+				t.Fatalf("List err = %q, want sanitized embedded error rejection", err)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRequiresCanonicalIsTruncated(t *testing.T) {
 	t.Parallel()
 
