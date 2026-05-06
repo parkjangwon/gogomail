@@ -133,6 +133,7 @@ Recent release-readiness work also includes:
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   STORE control-atom checks, raw parenthesized flag/status/select-param list
   controls, raw LIST selection/return option-list controls,
+  raw SEARCH/SORT/THREAD return-option controls,
   numeric grammar checks including rejection of quoted/literal-framed set
   values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands and
   SEARCH/SORT/THREAD set operands,

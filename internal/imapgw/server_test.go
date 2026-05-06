@@ -8741,6 +8741,56 @@ func TestServerRejectsPaddedFetchDataItemsBeforeAuthentication(t *testing.T) {
 	}
 }
 
+func TestServerRejectsStringSearchReturnControlsBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SEARCH \"RETURN\" (COUNT) ALL\r\na2 SEARCH {6+}\r\nRETURN (COUNT) ALL\r\na3 SEARCH RETURN \"(COUNT)\" ALL\r\na4 SEARCH RETURN {7+}\r\n(COUNT) ALL\r\na5 UID SEARCH \"RETURN\" (COUNT) ALL\r\na6 UID SEARCH RETURN \"(COUNT)\" ALL\r\na7 SORT \"RETURN\" (SAVE) (DATE) UTF-8 ALL\r\na8 SORT RETURN \"(SAVE)\" (DATE) UTF-8 ALL\r\na9 UID THREAD {6+}\r\nRETURN (SAVE) ORDEREDSUBJECT UTF-8 ALL\r\na10 UID THREAD RETURN {6+}\r\n(SAVE) ORDEREDSUBJECT UTF-8 ALL\r\na11 SEARCH RETURN (COUNT) ALL\r\na12 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write string search return controls: %v", err)
+	}
+	want := []string{
+		"a1 BAD SEARCH requires return options atom\r\n",
+		"a2 BAD SEARCH requires return options atom\r\n",
+		"a3 BAD SEARCH requires parenthesized return options\r\n",
+		"a4 BAD SEARCH requires parenthesized return options\r\n",
+		"a5 BAD SEARCH requires return options atom\r\n",
+		"a6 BAD SEARCH requires parenthesized return options\r\n",
+		"a7 BAD SORT requires return options atom\r\n",
+		"a8 BAD SORT requires parenthesized return options\r\n",
+		"a9 BAD THREAD requires return options atom\r\n",
+		"a10 BAD THREAD requires parenthesized return options\r\n",
+		"a11 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a12 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read string search return control response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("string search return control response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 
