@@ -906,7 +906,7 @@ func TestServerRejectsQuotedSequenceSetArgumentsBeforeState(t *testing.T) {
 	}
 }
 
-func TestServerRejectsQuotedCommandAtoms(t *testing.T) {
+func TestServerRejectsStringCommandAtoms(t *testing.T) {
 	t.Parallel()
 
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
@@ -924,23 +924,38 @@ func TestServerRejectsQuotedCommandAtoms(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 \"NOOP\"\r\na2 LOGIN user@example.com secret\r\na3 UID \"COPY\" 7 Archive\r\na4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 \"NOOP\"\r\na2 {4}\r\n")); err != nil {
 		t.Fatalf("write quoted command atoms: %v", err)
 	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD malformed command\r\n" {
+		t.Fatalf("quoted command response = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("literal command continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("NOOP\r\n")); err != nil {
+		t.Fatalf("write literal command atom: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD malformed command\r\n" {
+		t.Fatalf("literal command response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGIN user@example.com secret\r\na4 UID \"COPY\" 7 Archive\r\na5 UID {4+}\r\nCOPY 7 Archive\r\na6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write uid string command atoms: %v", err)
+	}
 	want := []string{
-		"a1 BAD malformed command\r\n",
-		"a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
-		"a3 BAD malformed command\r\n",
+		"a3 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a4 BAD malformed command\r\n",
+		"a5 BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a4 OK LOGOUT completed\r\n",
+		"a6 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			t.Fatalf("read quoted command atom response: %v", err)
+			t.Fatalf("read string command atom response: %v", err)
 		}
 		if line != expected {
-			t.Fatalf("quoted command atom response = %q, want %q", line, expected)
+			t.Fatalf("string command atom response = %q, want %q", line, expected)
 		}
 	}
 	if err := <-errCh; err != nil {

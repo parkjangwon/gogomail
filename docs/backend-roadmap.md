@@ -4134,10 +4134,10 @@ Implementation order:
       or command-literal set values for FETCH/STORE/COPY/MOVE/UID mutation
       commands before state checks, keeping RFC set atoms distinct from IMAP
       string values while still allowing strings for mailbox names.
-1468. IMAP command names and UID subcommand names now reject quoted-string
-      command words before dispatch, preserving RFC atom boundaries for
-      executable verbs while keeping quoted/literal strings available where
-      the grammar actually allows strings.
+1468. IMAP command names and UID subcommand names now reject quoted-string or
+      command-literal command words before dispatch, preserving RFC atom
+      boundaries for executable verbs while keeping quoted/literal strings
+      available where the grammar actually allows strings.
 
 ## Deferred until backend contracts stabilize
 
