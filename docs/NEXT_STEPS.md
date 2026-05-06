@@ -41,6 +41,10 @@ Current state:
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
+- IMAP `SELECT` and `EXAMINE` now require optional `CONDSTORE` select
+  parameters to use the RFC-shaped parenthesized select-param list, rejecting
+  bare `CONDSTORE` and over-parenthesized `((CONDSTORE))` before authentication
+  or backend mailbox lookup.
 - Selected-state action commands also validate malformed `FETCH`, `STORE`,
   `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
   authentication failures, while well-formed unauthenticated commands still

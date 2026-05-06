@@ -4624,7 +4624,7 @@ func TestServerValidatesSelectedMailboxSyntaxBeforeAuthentication(t *testing.T) 
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 NAMESPACE extra\r\na2 SELECT\r\na3 SELECT &Jjo!\r\na4 EXAMINE inbox (QRESYNC)\r\na5 STATUS\r\na6 STATUS inbox MESSAGES\r\na7 STATUS inbox (BADITEM)\r\na8 STATUS &Jjo! (MESSAGES)\r\na9 SELECT inbox\r\na10 STATUS inbox (MESSAGES)\r\na11 NAMESPACE\r\na12 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 NAMESPACE extra\r\na2 SELECT\r\na3 SELECT &Jjo!\r\na4 EXAMINE inbox (QRESYNC)\r\na5 STATUS\r\na6 STATUS inbox MESSAGES\r\na7 STATUS inbox (BADITEM)\r\na8 STATUS &Jjo! (MESSAGES)\r\na9 SELECT inbox CONDSTORE\r\na10 EXAMINE inbox ((CONDSTORE))\r\na11 SELECT inbox\r\na12 STATUS inbox (MESSAGES)\r\na13 NAMESPACE\r\na14 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write selected mailbox syntax commands: %v", err)
 	}
 	want := []string{
@@ -4636,11 +4636,13 @@ func TestServerValidatesSelectedMailboxSyntaxBeforeAuthentication(t *testing.T) 
 		"a6 BAD STATUS requires parenthesized item list\r\n",
 		"a7 BAD STATUS item is unsupported\r\n",
 		"a8 BAD STATUS mailbox name is not valid modified UTF-7\r\n",
-		"a9 NO authentication required\r\n",
-		"a10 NO authentication required\r\n",
+		"a9 BAD SELECT requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a10 BAD EXAMINE requires a mailbox atom and optional CONDSTORE parameter\r\n",
 		"a11 NO authentication required\r\n",
+		"a12 NO authentication required\r\n",
+		"a13 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a12 OK LOGOUT completed\r\n",
+		"a14 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
