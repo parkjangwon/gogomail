@@ -333,7 +333,9 @@ select-param lists such as `" (CONDSTORE) "` instead of trimming them into
 valid RFC 4551 select parameters. `SEARCH RETURN (...)` and `SORT`/`THREAD`
 `RETURN (SAVE)` option lists now reject whitespace-padded quoted or literal
 values such as `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming
-them into valid ESEARCH/SEARCHRES controls.
+them into valid ESEARCH/SEARCHRES controls. `FETCH` and `UID FETCH` data items
+now reject whitespace-padded quoted or literal values such as `" (FLAGS) "` or
+`" FLAGS "` instead of trimming them into valid fetch attributes.
 `THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported
@@ -1696,6 +1698,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH`/`UID FETCH` now rejects whitespace-only, padded, or collapsed
   `HEADER.FIELDS` and `HEADER.FIELDS.NOT` field-list forms such as
   `HEADER.FIELDS ( )`, while preserving exact empty-list `()` compatibility.
+- IMAP `FETCH`/`UID FETCH` data items now reject whitespace-padded quoted or
+  literal values such as `" (FLAGS) "` or `" FLAGS "` instead of trimming them
+  into valid fetch attributes.
 - IMAP `FETCH`/`UID FETCH` has regression coverage for partial-window empty
   top-level header-field-list requests, including `HEADER.FIELDS ()<0.1>` and
   `HEADER.FIELDS.NOT ()<0.10>` preview forms.

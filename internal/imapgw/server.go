@@ -5809,6 +5809,9 @@ func imapFetchDataItemsSyntaxError(items []string) (string, bool) {
 	if _, _, ok := imapFetchChangedSince(items); !ok {
 		return "FETCH CHANGEDSINCE modifier is invalid", true
 	}
+	if !imapFetchDataItemOuterWhitespaceValid(items) {
+		return "FETCH data item list is invalid", true
+	}
 	if !imapFetchDataItemParenthesesValid(items) {
 		return "FETCH data item list is invalid", true
 	}
@@ -5822,6 +5825,15 @@ func imapFetchDataItemsSyntaxError(items []string) (string, bool) {
 		return "FETCH data item is unsupported", true
 	}
 	return "", false
+}
+
+func imapFetchDataItemOuterWhitespaceValid(items []string) bool {
+	for _, item := range items {
+		if strings.TrimSpace(item) != item {
+			return false
+		}
+	}
+	return true
 }
 
 func imapFetchNormalizedTokens(items []string) []string {

@@ -86,8 +86,8 @@ Recent release-readiness work also includes:
   syntax-before-state validation,
   exact SASL continuation cancellation, SASL-IR syntax-before-policy
   diagnostics, strict SEARCH/SORT/THREAD charset and thread-algorithm atoms,
-  strict SORT criterion-list framing, SEARCH/SORT/THREAD diagnostics,
-  RFC-shaped sequence-set and
+  strict SORT criterion-list framing, strict FETCH data-item framing,
+  SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   numeric grammar checks, partial windows, SEARCH size criteria,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, rejection of whitespace-padded numeric and date search criteria,
