@@ -174,7 +174,8 @@ Recent release-readiness work also includes:
   and cleanup readiness without starting frontend implementation
 - OpenAPI drift prevention for generated clients, including root-vs-API server
   pins for health/service metadata, `/admin/v1` pins for operator bootstrap
-  routes, readiness checks, API usage ledger/aggregate/export surfaces,
+  routes, `/api/v1` pins for registered Mail/Drive routes, readiness checks,
+  API usage ledger/aggregate/export surfaces,
   sensitive export artifact and manifest proof routes, core operator
   diagnostics/repair calls, public share-link unauthenticated route contracts,
   and documented admin auth alternatives for generated clients

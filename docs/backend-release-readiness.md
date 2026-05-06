@@ -16,6 +16,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Health probes are pinned to the service-root OpenAPI server and service info
   is pinned to `/api/v1`, with runtime coverage for wrong-base URLs so
   operators and generated clients do not probe undocumented routes.
+- Registered Mail and Drive API operations are now pinned to `/api/v1` at the
+  OpenAPI operation level, with drift coverage derived from `mail.go` and
+  `drive.go`, so generated webmail/Drive clients cannot inherit the global
+  `/admin/v1` server option.
 - CalDAV and CardDAV discovery now advertise `DAV: sync-collection` and
   collection `supported-report-set` sync reports only when the runtime store
   implements the corresponding sync change-log interface, avoiding false

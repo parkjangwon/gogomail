@@ -50,6 +50,9 @@ paths:
     get:
       operationId: getWebmailCapabilities
       summary: Discover webmail frontend capabilities and limits
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       responses:
@@ -76,6 +79,9 @@ paths:
     get:
       operationId: listFolders
       summary: List folders
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       responses:
@@ -86,6 +92,9 @@ paths:
     post:
       operationId: createFolder
       summary: Create a user folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -99,6 +108,9 @@ paths:
     patch:
       operationId: renameFolder
       summary: Rename a folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -112,6 +124,9 @@ paths:
     delete:
       operationId: deleteFolder
       summary: Delete a folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -124,6 +139,9 @@ paths:
     get:
       operationId: listDriveNodes
       summary: List Drive nodes under a parent
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -172,6 +190,9 @@ paths:
     post:
       operationId: createDriveFolder
       summary: Create a Drive folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -185,6 +206,9 @@ paths:
     get:
       operationId: listDriveUploadSessions
       summary: List Drive upload sessions
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -201,6 +225,9 @@ paths:
     post:
       operationId: createDriveUploadSession
       summary: Create a Drive upload session
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -214,6 +241,9 @@ paths:
     get:
       operationId: getDriveUploadSession
       summary: Get a Drive upload session
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -225,6 +255,9 @@ paths:
     delete:
       operationId: cancelDriveUploadSession
       summary: Cancel a Drive upload session
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -237,6 +270,9 @@ paths:
     put:
       operationId: storeDriveUploadSessionBody
       summary: Store a Drive upload session body
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -259,6 +295,9 @@ paths:
     post:
       operationId: finalizeDriveUploadSession
       summary: Finalize a Drive upload session into file metadata
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -273,6 +312,9 @@ paths:
     post:
       operationId: finalizeDriveFileFromObject
       summary: Finalize a staged Drive object into file metadata
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -288,6 +330,9 @@ paths:
     put:
       operationId: storeDriveStagedObjectBody
       summary: Store a staged Drive object body
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - name: upload_id
           in: path
@@ -318,6 +363,9 @@ paths:
     get:
       operationId: getDriveNode
       summary: Get a Drive node
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -335,6 +383,9 @@ paths:
     delete:
       operationId: permanentlyDeleteDriveNode
       summary: Permanently delete a trashed Drive node
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -347,6 +398,9 @@ paths:
     head:
       operationId: headDriveNodeDownload
       summary: Inspect active Drive file download headers
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -388,6 +442,9 @@ paths:
     get:
       operationId: downloadDriveNode
       summary: Download an active Drive file
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -482,6 +539,9 @@ paths:
     get:
       operationId: getDriveUsageSummary
       summary: Get current user's Drive usage summary
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       responses:
@@ -493,6 +553,9 @@ paths:
     post:
       operationId: trashDriveNode
       summary: Move a Drive node tree to trash
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -505,6 +568,9 @@ paths:
     post:
       operationId: restoreDriveNode
       summary: Restore a trashed Drive node tree
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -517,6 +583,9 @@ paths:
     patch:
       operationId: renameDriveNode
       summary: Rename an active Drive node
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -531,6 +600,9 @@ paths:
     patch:
       operationId: moveDriveNode
       summary: Move an active Drive node to another folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -545,6 +617,9 @@ paths:
     post:
       operationId: copyDriveNode
       summary: Copy an active Drive file to another folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -561,6 +636,9 @@ paths:
     post:
       operationId: createDriveShareLink
       summary: Create a Drive share link for an active file
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -575,6 +653,9 @@ paths:
     get:
       operationId: listDriveShareLinks
       summary: List Drive share links for the authenticated user
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -598,6 +679,9 @@ paths:
     get:
       operationId: resolveDriveShareLink
       summary: Resolve an active public Drive share link
+      servers:
+        - url: /api/v1
+          description: Mail API
       security: []
       parameters:
         - name: id
@@ -619,6 +703,9 @@ paths:
     delete:
       operationId: revokeDriveShareLink
       summary: Revoke an active Drive share link
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -631,6 +718,9 @@ paths:
     head:
       operationId: headDriveSharedFileDownload
       summary: Return public Drive shared-file download headers
+      servers:
+        - url: /api/v1
+          description: Mail API
       security: []
       parameters:
         - name: id
@@ -684,6 +774,9 @@ paths:
     get:
       operationId: downloadDriveSharedFile
       summary: Download a public Drive shared file
+      servers:
+        - url: /api/v1
+          description: Mail API
       security: []
       parameters:
         - name: id
@@ -798,6 +891,9 @@ paths:
     get:
       operationId: getMailboxOverview
       summary: Summarize mailbox counts for webmail chrome
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       responses:
@@ -809,6 +905,9 @@ paths:
     get:
       operationId: listMessages
       summary: List messages with opaque cursor pagination
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -854,6 +953,9 @@ paths:
     get:
       operationId: searchMessages
       summary: Search messages using the current backend search implementation
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -907,6 +1009,9 @@ paths:
     get:
       operationId: getMessage
       summary: Get message detail
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -918,6 +1023,9 @@ paths:
     delete:
       operationId: deleteMessage
       summary: Soft-delete a message
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -930,6 +1038,9 @@ paths:
     get:
       operationId: getMessageDeliveryStatus
       summary: Get user-scoped delivery and bounce status for a sent message
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -942,6 +1053,9 @@ paths:
     post:
       operationId: restoreMessage
       summary: Restore one soft-deleted message
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -954,6 +1068,9 @@ paths:
     get:
       operationId: listThreads
       summary: List message threads for the current mailbox
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -999,6 +1116,9 @@ paths:
     get:
       operationId: listThreadMessages
       summary: List messages inside a thread in chronological order
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1017,6 +1137,9 @@ paths:
     patch:
       operationId: updateMessageFlags
       summary: Update one message flag
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1031,6 +1154,9 @@ paths:
     patch:
       operationId: moveMessage
       summary: Move one message to a folder
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1045,6 +1171,9 @@ paths:
     patch:
       operationId: bulkUpdateMessageFlags
       summary: Bounded bulk flag update
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1058,6 +1187,9 @@ paths:
     patch:
       operationId: bulkMoveMessages
       summary: Bounded bulk folder move
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1071,6 +1203,9 @@ paths:
     post:
       operationId: bulkDeleteMessages
       summary: Bounded bulk soft delete
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1084,6 +1219,9 @@ paths:
     post:
       operationId: bulkRestoreMessages
       summary: Bounded bulk message restore
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1097,6 +1235,9 @@ paths:
     patch:
       operationId: bulkUpdateThreadFlags
       summary: Bounded bulk conversation flag update
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1110,6 +1251,9 @@ paths:
     patch:
       operationId: bulkMoveThreads
       summary: Bounded bulk conversation folder move
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1123,6 +1267,9 @@ paths:
     post:
       operationId: bulkDeleteThreads
       summary: Bounded bulk conversation soft delete
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1136,6 +1283,9 @@ paths:
     post:
       operationId: bulkRestoreThreads
       summary: Bounded bulk conversation restore
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1149,6 +1299,9 @@ paths:
     get:
       operationId: listMessageAttachments
       summary: List message attachments
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1161,6 +1314,9 @@ paths:
     head:
       operationId: headMessageAttachmentDownload
       summary: Inspect attachment download headers
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/AttachmentID"
@@ -1193,6 +1349,9 @@ paths:
     get:
       operationId: downloadMessageAttachment
       summary: Download an attachment
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/AttachmentID"
@@ -1231,6 +1390,9 @@ paths:
     post:
       operationId: sendMessage
       summary: Compose and queue a new/reply/forward message
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1244,6 +1406,9 @@ paths:
     post:
       operationId: saveDraft
       summary: Save or update a draft
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1257,6 +1422,9 @@ paths:
     get:
       operationId: searchDrafts
       summary: Search active drafts using the compose-focused draft store
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -1293,6 +1461,9 @@ paths:
     patch:
       operationId: updateDraft
       summary: Update an existing draft
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1306,6 +1477,9 @@ paths:
     delete:
       operationId: deleteDraft
       summary: Delete a draft
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1318,6 +1492,9 @@ paths:
     post:
       operationId: sendDraft
       summary: Send an existing draft
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1330,6 +1507,9 @@ paths:
     post:
       operationId: reserveAttachment
       summary: Reserve attachment upload metadata
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1345,6 +1525,9 @@ paths:
     post:
       operationId: uploadAttachment
       summary: Direct multipart attachment upload
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1360,6 +1543,9 @@ paths:
     post:
       operationId: createAttachmentUploadSession
       summary: Create a resumable attachment upload session
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1375,6 +1561,9 @@ paths:
     get:
       operationId: getAttachmentUploadCapabilities
       summary: Get attachment upload limits and supported modes
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       responses:
@@ -1386,6 +1575,9 @@ paths:
     delete:
       operationId: cancelAttachmentUpload
       summary: Cancel a pending attachment upload and release reserved quota
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1398,6 +1590,9 @@ paths:
     get:
       operationId: getAttachmentUploadSession
       summary: Get a resumable attachment upload session
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1409,6 +1604,9 @@ paths:
     delete:
       operationId: cancelAttachmentUploadSession
       summary: Cancel a pending resumable attachment upload session
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1421,6 +1619,9 @@ paths:
     put:
       operationId: storeAttachmentUploadSessionBody
       summary: Store a complete resumable attachment upload session body
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1444,6 +1645,9 @@ paths:
     post:
       operationId: finalizeAttachmentUploadSession
       summary: Finalize a stored attachment upload session body
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
@@ -1456,6 +1660,9 @@ paths:
     get:
       operationId: listPushDevices
       summary: List user push notification devices
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
@@ -1467,6 +1674,9 @@ paths:
     post:
       operationId: upsertPushDevice
       summary: Register or refresh a user push notification device
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
       requestBody:
@@ -1480,6 +1690,9 @@ paths:
     delete:
       operationId: deletePushDevice
       summary: Delete a user push notification device
+      servers:
+        - url: /api/v1
+          description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"

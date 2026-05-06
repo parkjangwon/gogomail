@@ -204,6 +204,23 @@ func TestOpenAPIDraftPinsAllRegisteredAdminOperationsToAdminBase(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftPinsAllRegisteredMailOperationsToMailBase(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range extractRegisteredMailRoutes(t, "mail.go", "drive.go") {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		for _, want := range []string{"servers:", "url: /api/v1", "description: Mail API"} {
+			if !strings.Contains(block, want) {
+				t.Fatalf("OpenAPI operation %s must pin the Mail API server with %q:\n%s", route, want, block)
+			}
+		}
+	}
+}
+
 func TestOpenAPIDraftPinsHealthAndInfoServers(t *testing.T) {
 	t.Parallel()
 
@@ -1692,6 +1709,24 @@ func extractRegisteredAdminRoutes(t *testing.T, filenames ...string) []string {
 		raw, err := os.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("read registered admin route source %s: %v", filename, err)
+		}
+		for _, match := range pattern.FindAllStringSubmatch(string(raw), -1) {
+			routes = append(routes, match[1]+" "+normalizeOpenAPIPath(match[2]))
+		}
+	}
+	sort.Strings(routes)
+	return routes
+}
+
+func extractRegisteredMailRoutes(t *testing.T, filenames ...string) []string {
+	t.Helper()
+
+	pattern := regexp.MustCompile(`mux\.HandleFunc\("([A-Z]+) (/api/v1/[^"]+)"`)
+	var routes []string
+	for _, filename := range filenames {
+		raw, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatalf("read registered mail route source %s: %v", filename, err)
 		}
 		for _, match := range pattern.FindAllStringSubmatch(string(raw), -1) {
 			routes = append(routes, match[1]+" "+normalizeOpenAPIPath(match[2]))

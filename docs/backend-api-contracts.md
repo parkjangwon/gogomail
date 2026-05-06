@@ -23,6 +23,10 @@ For generated-client stability, every documented operation has a stable
 lower-camel `operationId`, protected/mutable operations reuse the default
 `components.responses.Error` response, and non-auth metadata endpoints such as
 `GET /api/v1/info` explicitly opt out of global bearer auth.
+Every registered Mail and Drive API route under `/api/v1` must also carry an
+operation-level OpenAPI server pin for the Mail API. This keeps generated
+clients from combining user-facing paths with the global `/admin/v1` server
+entry.
 
 ## Contract metadata
 
