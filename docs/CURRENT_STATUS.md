@@ -426,12 +426,15 @@ SEARCHRES `$` is now accepted as a bare `SEARCH` sequence-set criterion, so
 clients can reuse saved search results through both `SEARCH $` and
 `UID SEARCH $ ...` forms instead of being limited to `FETCH $` or explicit
 `UID $` criteria. The same saved-result reuse is regression-covered through
-`SORT`, `UID SORT`, `THREAD`, and `UID THREAD` search criteria. IMAP `CLOSE`
-now also clears the selected-session saved SEARCHRES `$` state while tearing
-down selected mailbox state, keeping saved results scoped to the mailbox
-selection lifecycle just like `SELECT`, `EXAMINE`, and `UNSELECT`. Deleting
-the currently selected mailbox now follows the same selected-state teardown
-boundary, including saved SEARCHRES cleanup and event subscription closure.
+`SORT`, `UID SORT`, `THREAD`, and `UID THREAD` search criteria. SEARCHRES
+`$` reuse now requires an exact `$` atom for sequence-set and UID-set helpers,
+so whitespace-padded quoted or literal values are rejected instead of being
+normalized into saved-result references. IMAP `CLOSE` now also clears the
+selected-session saved SEARCHRES `$` state while tearing down selected mailbox
+state, keeping saved results scoped to the mailbox selection lifecycle just
+like `SELECT`, `EXAMINE`, and `UNSELECT`. Deleting the currently selected
+mailbox now follows the same selected-state teardown boundary, including saved
+SEARCHRES cleanup and event subscription closure.
 IMAP `RENAME` now also resolves the source mailbox wire name through mailbox
 lookup before calling the backend rename boundary, matching the canonical-ID
 behavior already used by `DELETE`, `APPEND`, `COPY`, and `MOVE`.

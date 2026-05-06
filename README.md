@@ -76,7 +76,8 @@ Recent release-readiness work also includes:
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
   namespace compatibility, RFC 5258 `SUBSCRIBED` selection and return-option
   support, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
-  workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
+  workflows, exact `$` atom handling, selected-mailbox lifecycle cleanup for
+  saved SEARCHRES state,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
   exact SASL continuation cancellation, SASL-IR syntax-before-policy
   diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and

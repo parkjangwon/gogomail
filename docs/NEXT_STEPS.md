@@ -417,6 +417,9 @@ Current state:
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
   reuse after `SEARCH RETURN (SAVE)`. Saved `$` criteria are also
   regression-covered through `SORT`, `UID SORT`, `THREAD`, and `UID THREAD`.
+- IMAP SEARCHRES `$` reuse now requires an exact `$` atom for sequence-set and
+  UID-set helpers, rejecting whitespace-padded quoted/literal values instead
+  of normalizing them into saved-result references.
 - IMAP `CLOSE` now clears saved SEARCHRES `$` state as part of selected-mailbox
   teardown, keeping saved results scoped to the same selection lifecycle as
   `SELECT`, `EXAMINE`, and `UNSELECT`.
