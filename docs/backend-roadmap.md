@@ -3549,6 +3549,10 @@ Implementation order:
       holding the broker lock, eliminating the race where concurrent
       subscription cancellation could close a snapshotted channel before
       publish sent an `EXISTS`/`EXPUNGE` update.
+1325. Mail API default `limit=50` regression coverage now spans message lists,
+      thread lists, thread-message lists, active search, and draft search,
+      keeping webmail pagination behavior contract-stable across flat,
+      conversation, and compose-focused read models.
 
 ## Deferred until backend contracts stabilize
 

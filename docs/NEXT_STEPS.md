@@ -48,8 +48,10 @@ Current state:
   admin-auth alternatives in OpenAPI for API usage ledger retention readiness,
   DAV sync retention readiness, and API usage export handoff readiness.
 - Mail API list/search handlers now apply the documented default `limit=50`
-  when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
-  alignment for generated webmail and admin clients.
+  when `limit` is omitted or empty, with regression coverage for message lists,
+  thread lists, thread-message lists, active search, and draft search to
+  preserve OpenAPI/runtime pagination alignment for generated webmail and admin
+  clients.
 - IMAP read-only selected-state mutation handling now validates malformed
   `APPEND`, `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE`
   requests before returning read-only `NO` failures for syntactically valid
