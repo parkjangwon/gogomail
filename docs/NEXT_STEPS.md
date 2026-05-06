@@ -37,6 +37,10 @@ Current state:
 - CalDAV and CardDAV `REPORT` parsing now rejects duplicate `DAV:limit`
   controls and duplicate nested `DAV:nresults` controls, keeping bounded
   query/sync pagination semantics deterministic before backend scans begin.
+- CalDAV and CardDAV object `GET`/`HEAD` handling now ignores
+  `If-Modified-Since` whenever `If-None-Match` is present, preserving HTTP
+  conditional precedence for native DAV clients caching `.ics` and `.vcf`
+  bodies.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
   compatibility labels are now extensible safe tokens in the Admin API

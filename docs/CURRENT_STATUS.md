@@ -41,6 +41,10 @@ deltas. CalDAV and CardDAV `REPORT` parsing now also rejects duplicate
 `DAV:limit` controls and duplicate nested `DAV:nresults` controls, avoiding
 ambiguous client pagination semantics before bounded object or change-list
 work begins.
+CalDAV and CardDAV object `GET`/`HEAD` conditional handling now honors ETag
+precedence by ignoring `If-Modified-Since` whenever `If-None-Match` is present,
+so stale client validators cannot accidentally receive `304 Not Modified` for
+changed `.ics` or `.vcf` bodies.
 Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can

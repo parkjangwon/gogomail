@@ -457,6 +457,26 @@ func TestHandlerGetContactObjectRejectsRepeatedDateConditionals(t *testing.T) {
 	}
 }
 
+func TestHandlerGetContactObjectIgnoresIfModifiedSinceWhenIfNoneMatchPresent(t *testing.T) {
+	t.Parallel()
+
+	headers := http.Header{
+		"If-None-Match":     []string{`"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`},
+		"If-Modified-Since": []string{"Wed, 06 May 2026 04:05:06 GMT"},
+	}
+	rec := runCardDAVObjectRequest(t, MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", "", headers)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("ETag"); got != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("ETag = %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "BEGIN:VCARD") {
+		t.Fatalf("GET body = %s", rec.Body.String())
+	}
+}
+
 func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T) {
 	t.Parallel()
 

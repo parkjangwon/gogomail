@@ -1583,6 +1583,30 @@ func TestHandlerGetCalendarObjectHonorsIfModifiedSince(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectIgnoresIfModifiedSinceWhenIfNoneMatchPresent(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.objects[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
+	handler := NewHandler(store, fixedUser("user-1"))
+
+	req := httptest.NewRequest(MethodGet, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-None-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`)
+	req.Header.Set("If-Modified-Since", "Wed, 06 May 2026 04:05:06 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("ETag"); got != store.objects[0].ETag {
+		t.Fatalf("ETag = %q, want %q", got, store.objects[0].ETag)
+	}
+	if !strings.Contains(rec.Body.String(), "BEGIN:VCALENDAR") {
+		t.Fatalf("GET body = %s", rec.Body.String())
+	}
+}
+
 func TestHandlerGetCalendarObjectIgnoresStaleIfModifiedSince(t *testing.T) {
 	t.Parallel()
 
