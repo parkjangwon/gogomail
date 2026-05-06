@@ -1355,7 +1355,7 @@ func TestPostgresIMAPExpungeDeletesOnlyMarkedUIDs(t *testing.T) {
 	seed := seedPostgresMailUser(t, db)
 	repo := NewRepository(db)
 
-	var firstID, secondID string
+	var firstID, secondID, thirdID string
 	if err := db.QueryRowContext(ctx, `
 INSERT INTO messages (
   tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
@@ -1366,7 +1366,10 @@ INSERT INTO messages (
    100, 'mail/expunge-first.eml', '{"imap_deleted":true}'::jsonb),
   ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<expunge-second@example.com>',
    'expunge second', 'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz,
-   100, 'mail/expunge-second.eml', '{"imap_deleted":true}'::jsonb)
+   100, 'mail/expunge-second.eml', '{"imap_deleted":true}'::jsonb),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<expunge-third@example.com>',
+   'expunge third', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+   100, 'mail/expunge-third.eml', '{}'::jsonb)
 RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&firstID); err != nil {
 		t.Fatalf("insert first expunge message: %v", err)
 	}
@@ -1378,6 +1381,14 @@ WHERE user_id = $1::uuid
   AND subject = 'expunge second'`, seed.userID, seed.inboxID).Scan(&secondID); err != nil {
 		t.Fatalf("select second expunge message: %v", err)
 	}
+	if err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM messages
+WHERE user_id = $1::uuid
+  AND folder_id = $2::uuid
+  AND subject = 'expunge third'`, seed.userID, seed.inboxID).Scan(&thirdID); err != nil {
+		t.Fatalf("select third expunge message: %v", err)
+	}
 	firstUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
 	if err != nil {
 		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
@@ -1386,8 +1397,12 @@ WHERE user_id = $1::uuid
 	if err != nil {
 		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
 	}
+	thirdUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, thirdID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID third returned error: %v", err)
+	}
 
-	expunged, err := repo.ExpungeIMAPMessages(ctx, seed.userID, seed.inboxID, []imapgw.UID{secondUID.UID})
+	expunged, err := repo.ExpungeIMAPMessages(ctx, seed.userID, seed.inboxID, []imapgw.UID{secondUID.UID, thirdUID.UID, 999999})
 	if err != nil {
 		t.Fatalf("ExpungeIMAPMessages returned error: %v", err)
 	}
@@ -1403,6 +1418,13 @@ WHERE user_id = $1::uuid
 	}
 	if string(remaining.Summary.ID) != firstID || !remaining.Summary.Flags.Deleted {
 		t.Fatalf("remaining summary = %#v, want first message still marked deleted", remaining.Summary)
+	}
+	unmarked, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, thirdUID.UID)
+	if err != nil {
+		t.Fatalf("GetIMAPMessage unmarked returned error: %v", err)
+	}
+	if string(unmarked.Summary.ID) != thirdID || unmarked.Summary.Flags.Deleted {
+		t.Fatalf("unmarked summary = %#v, want third message active and not deleted", unmarked.Summary)
 	}
 	var status string
 	if err := db.QueryRowContext(ctx, `SELECT status FROM messages WHERE id = $1::uuid`, secondID).Scan(&status); err != nil {

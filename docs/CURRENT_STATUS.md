@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP UIDNOTSTICKY COPYUID suppression)
+Last updated: 2026-05-06 (updated after IMAP UID EXPUNGE sparse coverage)
 
 ## Current phase
 
@@ -98,6 +98,10 @@ IMAP destination mailbox metadata now carries `UIDNotSticky`, and
 `COPY`/`UID COPY`/`MOVE`/`UID MOVE` omit UIDPLUS `COPYUID` response codes when
 the destination mailbox reports non-sticky UIDs, aligning the advertised
 UIDPLUS behavior with RFC 4315's non-persistent UID semantics.
+IMAP `UID EXPUNGE` now has sparse/mixed regression coverage: protocol tests
+exercise missing UID members, and PostgreSQL coverage verifies that only
+existing `\Deleted` messages are expunged while unmarked and missing UIDs are
+ignored.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

@@ -123,6 +123,9 @@ Current state:
 - IMAP `COPY`/`UID COPY`/`MOVE`/`UID MOVE` now omit UIDPLUS `COPYUID` response
   codes when destination mailbox metadata reports `UIDNotSticky`, preserving
   RFC 4315 semantics for non-persistent UID stores.
+- IMAP `UID EXPUNGE` sparse and mixed UID-set behavior is regression-covered:
+  missing UID members are ignored, existing unmarked messages remain active,
+  and only existing `\Deleted` messages produce `EXPUNGE` responses.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

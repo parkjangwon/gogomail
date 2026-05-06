@@ -134,6 +134,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   RFC range syntax, keeping bulk UIDPLUS/ESEARCH/SEARCHRES payloads smaller.
 - IMAP UIDPLUS `COPYUID` response codes are suppressed for destination
   mailboxes marked `UIDNotSticky`, preserving non-persistent UID semantics.
+- IMAP `UID EXPUNGE` sparse/mixed UID-set behavior is covered across protocol
+  and PostgreSQL paths, preserving correct `\Deleted` filtering.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

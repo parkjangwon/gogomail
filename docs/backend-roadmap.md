@@ -3364,6 +3364,10 @@ Implementation order:
       `COPY`/`UID COPY`/`MOVE`/`UID MOVE` suppress UIDPLUS `COPYUID` response
       codes for non-sticky destination UID stores, matching RFC 4315 semantics
       instead of emitting meaningless UID mappings.
+1291. IMAP `UID EXPUNGE` sparse and mixed UID-set behavior is now
+      regression-covered at protocol and PostgreSQL boundaries, ensuring
+      missing UIDs and existing unmarked messages are ignored while only
+      existing `\Deleted` messages are expunged.
 
 ## Deferred until backend contracts stabilize
 
