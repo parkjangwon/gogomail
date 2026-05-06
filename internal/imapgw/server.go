@@ -5749,11 +5749,11 @@ func imapFetchChangedSince(items []string) (uint64, bool, bool) {
 		if found || token != "(CHANGEDSINCE" || i+1 >= len(items) {
 			return 0, false, false
 		}
-		valueToken := strings.TrimSpace(items[i+1])
+		valueToken := items[i+1]
 		if !strings.HasSuffix(valueToken, ")") || strings.HasSuffix(valueToken, "))") {
 			return 0, false, false
 		}
-		value := strings.TrimSpace(strings.TrimSuffix(valueToken, ")"))
+		value := strings.TrimSuffix(valueToken, ")")
 		modseq, ok := parseIMAPModSeqValue(value)
 		if !ok {
 			return 0, false, false
@@ -6614,11 +6614,11 @@ func imapStoreUnchangedSince(fields []string) (uint64, bool, []string, bool) {
 	if first != "(UNCHANGEDSINCE" || len(fields) < 2 {
 		return 0, false, nil, false
 	}
-	valueToken := strings.TrimSpace(fields[1])
+	valueToken := fields[1]
 	if !strings.HasSuffix(valueToken, ")") || strings.HasSuffix(valueToken, "))") {
 		return 0, false, nil, false
 	}
-	value := strings.TrimSpace(strings.TrimSuffix(valueToken, ")"))
+	value := strings.TrimSuffix(valueToken, ")")
 	threshold, ok := parseIMAPModSeqValzer(value)
 	if !ok {
 		return 0, false, nil, false

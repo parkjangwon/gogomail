@@ -3893,6 +3893,9 @@ Implementation order:
       forms such as `HEADER.FIELDS ( )` while preserving exact empty-list
       `()` compatibility for clients that intentionally request an empty
       header projection.
+1408. IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` and `STORE`/`UID STORE`
+      `UNCHANGEDSINCE` modifier parsing now rejects whitespace-padded numeric
+      atoms instead of trimming them into valid CONDSTORE thresholds.
 
 ## Deferred until backend contracts stabilize
 

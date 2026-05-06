@@ -1608,6 +1608,9 @@ owner/resource target without scanning unrelated audit history.
   `mod-sequence-value` contexts now reject zero, while `UNCHANGEDSINCE 0`
   remains zero-allowed and is preserved as a conditional STORE guard rather
   than being treated as no modifier.
+- IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` and `STORE`/`UID STORE`
+  `UNCHANGEDSINCE` modifier values now reject whitespace-padded numeric atoms
+  instead of trimming them into valid CONDSTORE thresholds.
 - IMAP UID and message sequence-set numbers now require digit-only atoms,
   rejecting signed values such as `UID FETCH +7` and `FETCH +1` before command
   execution.
