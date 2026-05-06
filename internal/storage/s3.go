@@ -1318,6 +1318,9 @@ func validateS3CopyResponse(body io.Reader) error {
 	if strings.TrimSpace(string(data)) == "" {
 		return fmt.Errorf("copy s3 object: response body is required")
 	}
+	if err := validateS3CopyResultShape(data); err != nil {
+		return err
+	}
 	var response s3CopyResponse
 	if err := xml.Unmarshal(data, &response); err != nil {
 		return fmt.Errorf("decode s3 copy response: %w", err)
@@ -1336,6 +1339,52 @@ func validateS3CopyResponse(body io.Reader) error {
 		return fmt.Errorf("copy s3 object: embedded error: %s", preview)
 	default:
 		return fmt.Errorf("copy s3 object: unexpected response %q", response.XMLName.Local)
+	}
+}
+
+func validateS3CopyResultShape(data []byte) error {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var rootName xml.Name
+	var rootDepth int
+	var etagSeen bool
+	var lastModifiedSeen bool
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("decode s3 copy response: %w", err)
+		}
+		switch token := token.(type) {
+		case xml.StartElement:
+			rootDepth++
+			if rootDepth == 1 {
+				rootName = token.Name
+				continue
+			}
+			if rootDepth != 2 || rootName.Local != "CopyObjectResult" {
+				continue
+			}
+			switch token.Name.Local {
+			case "ETag":
+				if etagSeen {
+					return fmt.Errorf("copy s3 object: duplicate etag")
+				}
+				etagSeen = true
+			case "LastModified":
+				if lastModifiedSeen {
+					return fmt.Errorf("copy s3 object: duplicate last-modified")
+				}
+				lastModifiedSeen = true
+			case "Error":
+				return fmt.Errorf("copy s3 object: embedded error")
+			}
+		case xml.EndElement:
+			if rootDepth > 0 {
+				rootDepth--
+			}
+		}
 	}
 }
 

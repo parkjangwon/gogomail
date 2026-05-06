@@ -3844,6 +3844,10 @@ Implementation order:
       per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements
       before XML unmarshalling can collapse conflicting provider values into
       one listed object.
+1395. S3-compatible `CopyObjectResult` success XML now rejects duplicate
+      top-level `ETag` or `LastModified` metadata and nested `Error` elements
+      before provider-side copy metadata can be collapsed into a successful
+      copy/move result.
 
 ## Deferred until backend contracts stabilize
 
