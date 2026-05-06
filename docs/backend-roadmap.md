@@ -2573,6 +2573,11 @@ Implementation order:
       traffic, bucketed by normalized remote address plus share token, returning
       HTTP 429 with `Retry-After` on quota exhaustion while failing open on
       transient limiter errors after startup.
+1165. Drive public share metadata and download successes now emit best-effort
+      immutable audit-log rows under `category=drive`, capturing sanitized
+      link/node/request metadata and byte-range intent without raw tokens or
+      storage backend/path values, so Admin audit-log filters can inspect
+      public-link activity before a dedicated activity dashboard exists.
 
 ## Deferred until backend contracts stabilize
 

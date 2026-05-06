@@ -1667,6 +1667,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			}
 		}
 		driveRouteOptions := httpapi.DriveRouteOptions{}
+		driveRouteOptions.PublicShareAudit = drivePublicShareAuditRecorder{audit: audit.NewPostgresRepository(db)}
 		if strings.EqualFold(strings.TrimSpace(cfg.DriveShareRateLimitBackend), "redis") {
 			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {

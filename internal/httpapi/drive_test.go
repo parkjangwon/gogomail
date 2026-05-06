@@ -303,6 +303,45 @@ func TestDrivePublicShareLimiterRejectsOnlyPublicShareRoutes(t *testing.T) {
 	}
 }
 
+func TestDrivePublicShareAuditRecordsSuccessfulAccess(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("a", 40)
+	auditor := &fakeDrivePublicShareAudit{}
+	service := &fakeDriveService{resolvedShareLink: drive.ResolvedShareLink{
+		ShareLink: drive.ShareLink{ID: "link-1", NodeID: "node-1", Permission: drive.ShareLinkPermissionView, TokenSuffix: "suffix-1", ExpiresAt: time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)},
+		Node:      drive.Node{ID: "node-1", CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Name: "Report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutesWithOptions(mux, service, nil, DriveRouteOptions{PublicShareAudit: auditor})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token, nil)
+	req.RemoteAddr = "192.0.2.11:12345"
+	req.Header.Set("User-Agent", "DriveClient/1.0")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %+v, want one event", auditor.events)
+	}
+	event := auditor.events[0]
+	if event.Action != "resolve" || event.Result != "success" || event.Status != http.StatusOK {
+		t.Fatalf("audit event = %+v, want successful resolve", event)
+	}
+	if event.LinkID != "link-1" || event.NodeID != "node-1" || event.CompanyID != "company-1" || event.DomainID != "domain-1" || event.UserID != "user-1" {
+		t.Fatalf("audit identity = %+v, want resolved link/node identity", event)
+	}
+	if event.TokenSuffix != "suffix-1" || event.RemoteAddr != "192.0.2.11" || event.UserAgent != "DriveClient/1.0" {
+		t.Fatalf("audit public metadata = %+v, want suffix/remote/user-agent only", event)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", event), token) {
+		t.Fatalf("audit event leaked raw token: %+v", event)
+	}
+}
+
 func TestDriveDownloadNodeHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1400,6 +1439,15 @@ func (f *fakeDrivePublicShareLimiter) Allow(_ context.Context, key string) (rate
 		return ratelimit.Decision{}, f.err
 	}
 	return f.decision, nil
+}
+
+type fakeDrivePublicShareAudit struct {
+	events []DrivePublicShareAccessEvent
+}
+
+func (f *fakeDrivePublicShareAudit) RecordDrivePublicShareAccess(_ context.Context, event DrivePublicShareAccessEvent) error {
+	f.events = append(f.events, event)
+	return nil
 }
 
 func requestWithHeader(method string, target string, header string, value string) *http.Request {

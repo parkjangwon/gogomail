@@ -178,7 +178,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive public share-link metadata/download routes now support an optional
   Redis fixed-window abuse limiter with normalized remote+token bucketing and
   HTTP 429/`Retry-After` responses, giving production deployments a first
-  anonymous-traffic guard before audit/admin download activity views are added.
+  anonymous-traffic guard.
+- Drive public share-link successful metadata/download accesses now write
+  best-effort immutable audit rows with sanitized link/node/request metadata,
+  letting operators inspect public-link activity through the existing Admin
+  audit-log filters before aggregate activity dashboards are added.
 - CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
   and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical
   principal/calendar/object path parsing before WebDAV handlers are advertised.

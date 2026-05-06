@@ -49,10 +49,31 @@ type DriveService interface {
 
 type DriveRouteOptions struct {
 	PublicShareLimiter DrivePublicShareLimiter
+	PublicShareAudit   DrivePublicShareAccessRecorder
 }
 
 type DrivePublicShareLimiter interface {
 	Allow(ctx context.Context, key string) (ratelimit.Decision, error)
+}
+
+type DrivePublicShareAccessRecorder interface {
+	RecordDrivePublicShareAccess(ctx context.Context, event DrivePublicShareAccessEvent) error
+}
+
+type DrivePublicShareAccessEvent struct {
+	Action      string
+	Result      string
+	LinkID      string
+	CompanyID   string
+	DomainID    string
+	UserID      string
+	NodeID      string
+	Permission  string
+	TokenSuffix string
+	RemoteAddr  string
+	UserAgent   string
+	Range       string
+	Status      int
 }
 
 func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager *auth.TokenManager) {
@@ -722,6 +743,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			writeDriveShareLinkError(w, err)
 			return
 		}
+		recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("resolve", "success", http.StatusOK, resolved, token, ""))
 		writeJSON(w, http.StatusOK, map[string]any{"drive_shared_file": driveSharedFileMetadata(resolved)})
 	})
 
@@ -764,6 +786,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			}
 			defer download.Body.Close()
 			writeDriveFilePartialDownloadHeaders(w, driveNodeWithStatSize(download.Node, metadata.Object.Size), byteRange)
+			recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("download", "success", http.StatusPartialContent, drive.ResolvedShareLink{ShareLink: metadata.ShareLink, Node: metadata.Node}, token, rangeHeader))
 			w.WriteHeader(http.StatusPartialContent)
 			_, _ = io.Copy(w, download.Body)
 			return
@@ -775,6 +798,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		}
 		defer download.Body.Close()
 		writeDriveFileDownloadHeaders(w, download.Node)
+		recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("download", "success", http.StatusOK, drive.ResolvedShareLink{ShareLink: download.ShareLink, Node: download.Node}, token, ""))
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, download.Body)
 	})
@@ -799,6 +823,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			return
 		}
 		writeDriveFileDownloadHeaders(w, driveNodeWithStatSize(metadata.Node, metadata.Object.Size))
+		recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("download_head", "success", http.StatusOK, drive.ResolvedShareLink{ShareLink: metadata.ShareLink, Node: metadata.Node}, token, ""))
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -864,6 +889,45 @@ func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts D
 	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 	writeError(w, http.StatusTooManyRequests, "drive share link rate limit exceeded")
 	return false
+}
+
+func drivePublicShareAccessEvent(action string, result string, status int, resolved drive.ResolvedShareLink, token string, rangeHeader string) DrivePublicShareAccessEvent {
+	event := drivePublicShareAccessEventFromNode(action, result, status, resolved.Node, token, rangeHeader)
+	event.LinkID = resolved.ShareLink.ID
+	event.Permission = resolved.ShareLink.Permission
+	event.TokenSuffix = resolved.ShareLink.TokenSuffix
+	return event
+}
+
+func drivePublicShareAccessEventFromNode(action string, result string, status int, node drive.Node, token string, rangeHeader string) DrivePublicShareAccessEvent {
+	return DrivePublicShareAccessEvent{
+		Action:      action,
+		Result:      result,
+		CompanyID:   node.CompanyID,
+		DomainID:    node.DomainID,
+		UserID:      node.UserID,
+		NodeID:      node.ID,
+		TokenSuffix: drivePublicShareTokenSuffix(token),
+		Range:       rangeHeader,
+		Status:      status,
+	}
+}
+
+func drivePublicShareTokenSuffix(token string) string {
+	token = strings.TrimSpace(token)
+	if len(token) <= 8 {
+		return token
+	}
+	return token[len(token)-8:]
+}
+
+func recordDrivePublicShareAccess(r *http.Request, opts DriveRouteOptions, event DrivePublicShareAccessEvent) {
+	if opts.PublicShareAudit == nil {
+		return
+	}
+	event.RemoteAddr = ratelimit.RemoteBucket(r.RemoteAddr)
+	event.UserAgent = r.UserAgent()
+	_ = opts.PublicShareAudit.RecordDrivePublicShareAccess(r.Context(), event)
 }
 
 type driveSharedFileMetadataResponse struct {
