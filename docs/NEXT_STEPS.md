@@ -188,10 +188,11 @@ Current state:
   non-empty malformed or whitespace-padded timestamp values instead of
   accepting ambiguous successful copy metadata.
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
-  `ETag` or `LastModified` metadata and nested `Error` elements, formatting
-  nested standard S3 error details as bounded one-line diagnostics with
-  request-id and host-id context instead of collapsing provider-side copy
-  failures into a successful copy/move result. Top-level and nested copy
+  `ETag` or `LastModified` metadata, nested `Error` elements, and unknown
+  top-level success children, formatting nested standard S3 error details as
+  bounded one-line diagnostics with request-id and host-id context instead of
+  collapsing provider-side copy failures or ambiguous copy metadata into a
+  successful copy/move result. Top-level and nested copy
   `Error` bodies share the same capped streaming XML field parser as status
   errors.
 - S3-compatible `ListObjectsV2` response XML applies the same namespace
