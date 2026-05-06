@@ -400,7 +400,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   privileges remain unadvertised. Address-book collection PROPFIND also
   exposes CalendarServer-compatible `getctag` from the same durable sync token
   as WebDAV `sync-token`, giving legacy clients change detection without
-  adding a second versioning model.
+  adding a second versioning model. Address-book collection discovery also
+  returns RFC 6352 `addressbook-description` from stored metadata.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

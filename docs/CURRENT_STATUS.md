@@ -94,6 +94,9 @@ Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable sync token used for WebDAV
 `sync-token`, improving legacy native-client change detection without adding a
 second collection-version source of truth.
+It also returns RFC 6352 `addressbook-description` from the stored address-book
+metadata so client-visible collection discovery stays aligned with repository
+state.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
