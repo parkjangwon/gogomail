@@ -1770,9 +1770,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SORT`/`UID SORT` and `THREAD`/`UID THREAD` now accept leading
   `RETURN (SAVE)` and persist successful matched result sets for later `$`
   reuse, aligning SEARCHRES with RFC 5182's SEARCH-based SORT/THREAD surface.
-- IMAP direct `ESEARCH` commands now return an explicit tagged `BAD` unless the
-  future RFC 7377 `MULTISEARCH` capability is implemented, keeping RFC 4731
-  `ESEARCH` capability advertising scoped to `SEARCH RETURN (...)` semantics.
+- IMAP direct `ESEARCH` and `UID ESEARCH` commands now return an explicit
+  tagged `BAD` unless the future RFC 7377 `MULTISEARCH` capability is
+  implemented, keeping RFC 4731 `ESEARCH` capability advertising scoped to
+  `SEARCH RETURN (...)` and `UID SEARCH RETURN (...)` semantics.
 - IMAP `SEARCH RETURN (SAVE)` clears the selected-session `$` result when the
   save-requested search fails with tagged `NO`, while tagged `BAD` searches
   keep the previous result untouched per RFC 5182.

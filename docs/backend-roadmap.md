@@ -3647,6 +3647,11 @@ Implementation order:
       subscribed mailbox store, emitting `\Subscribed` only when requested, and
       preserving `CHILDREN`, `SPECIAL-USE`, and `LIST-STATUS` combinations for
       standards-aware clients.
+1351. IMAP `UID ESEARCH` now returns the same explicit tagged `BAD` diagnostic
+      as direct `ESEARCH` when RFC 7377 `MULTISEARCH` is not advertised,
+      keeping RFC 4731 `ESEARCH` capability support scoped to `SEARCH RETURN`
+      and `UID SEARCH RETURN` semantics instead of falling through as an
+      unknown UID command.
 
 ## Deferred until backend contracts stabilize
 

@@ -1430,6 +1430,10 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		return false, err
 	}
 	subcommand := strings.ToUpper(fields[2])
+	if subcommand == "ESEARCH" {
+		_, err := writer.WriteString(tag + " BAD ESEARCH command requires MULTISEARCH capability\r\n")
+		return false, err
+	}
 	if !imapUIDSubcommandKnown(subcommand) {
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err

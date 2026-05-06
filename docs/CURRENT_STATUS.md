@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP LIST-EXTENDED SUBSCRIBED support)
+Last updated: 2026-05-07 (updated after IMAP UID ESEARCH capability-boundary alignment)
 
 ## Current phase
 
@@ -2243,9 +2243,10 @@ The platform hardening sprint completed the following:
   `RETURN (SAVE)` and save their matched result set for `$` reuse, extending
   RFC 5182 SEARCHRES coverage to SEARCH-based SORT/THREAD workflows without
   changing their normal untagged `SORT`/`THREAD` responses.
-- Direct `ESEARCH` commands now fail with an explicit `BAD` response explaining
-  that RFC 7377 `MULTISEARCH` is required; the server continues advertising RFC
-  4731 `ESEARCH` only for `SEARCH RETURN (...)` and `UID SEARCH RETURN (...)`.
+- Direct `ESEARCH` and `UID ESEARCH` commands now fail with an explicit `BAD`
+  response explaining that RFC 7377 `MULTISEARCH` is required; the server
+  continues advertising RFC 4731 `ESEARCH` only for `SEARCH RETURN (...)` and
+  `UID SEARCH RETURN (...)`.
 - IMAP `SEARCH RETURN (SAVE)` now clears the selected-session `$` result when a
   save-requested search fails with tagged `NO`, matching RFC 5182 failure
   semantics while leaving tagged `BAD` searches non-mutating.
