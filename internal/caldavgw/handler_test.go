@@ -908,7 +908,7 @@ func TestHandlerReportSyncCollectionRejectsNonZeroHTTPDepth(t *testing.T) {
 	}
 }
 
-func TestHandlerReportSyncCollectionRejectsStaleToken(t *testing.T) {
+func TestHandlerReportSyncCollectionRejectsUnknownSyncToken(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))

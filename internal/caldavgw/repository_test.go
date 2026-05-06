@@ -3,6 +3,7 @@ package caldavgw
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -313,6 +314,48 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 	}
 	if _, err := ValidateListChangesSinceRequest(ListChangesSinceRequest{UserID: "user-1", CalendarID: "calendar-1"}); err == nil {
 		t.Fatal("ValidateListChangesSinceRequest accepted missing sync token")
+	}
+}
+
+func TestValidatePruneCalendarSyncChangesRequest(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().Add(-24 * time.Hour).Truncate(time.Second)
+	req, err := ValidatePruneCalendarSyncChangesRequest(PruneCalendarSyncChangesRequest{
+		Cutoff:     cutoff,
+		UserID:     " user-1 ",
+		CalendarID: " calendar-1 ",
+		Limit:      5000,
+		DryRun:     true,
+	})
+	if err != nil {
+		t.Fatalf("ValidatePruneCalendarSyncChangesRequest returned error: %v", err)
+	}
+	if !req.Cutoff.Equal(cutoff.UTC()) || req.UserID != "user-1" || req.CalendarID != "calendar-1" || req.Limit != MaxWebDAVReportLimit+1 || !req.DryRun {
+		t.Fatalf("prune request = %+v", req)
+	}
+}
+
+func TestValidatePruneCalendarSyncChangesRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	past := time.Now().Add(-time.Hour)
+	future := time.Now().Add(time.Hour)
+	tests := []PruneCalendarSyncChangesRequest{
+		{UserID: "user-1"},
+		{Cutoff: future},
+		{Cutoff: past, UserID: "bad\nuser"},
+		{Cutoff: past, CalendarID: "bad\ncalendar"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.UserID+"/"+req.CalendarID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidatePruneCalendarSyncChangesRequest(req); err == nil {
+				t.Fatalf("ValidatePruneCalendarSyncChangesRequest(%+v) error = nil, want rejection", req)
+			}
+		})
 	}
 }
 

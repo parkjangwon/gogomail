@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after audited Directory delegation reassignment)
+Last updated: 2026-05-06 (updated after CalDAV sync-change retention pruning groundwork)
 
 ## Current phase
 
@@ -52,7 +52,7 @@ native CalDAV/iCalendar clients can share a protocol-correct backend.
 CalDAV remains an experimental/backend-only release slice: useful protocol
 building blocks now exist, but the module is not yet advertised as public
 client-ready. The next compatibility gates are broader recurrence edge cases,
-scheduling semantics, retention-aware sync deltas, collection-deletion sync,
+scheduling semantics, retention-worker wiring and retention-age policy,
 broader native-client testing, and the platform boundaries below.
 CalDAV `calendar-query` and `free-busy-query` now expand bounded VEVENT
 recurrence sets from RFC 5545 `RRULE`/`EXDATE`/`RDATE` parsing when evaluating
@@ -2768,9 +2768,9 @@ The platform hardening sprint completed the following:
 - CalDAV now handles a conservative RFC 6578 `REPORT sync-collection` path for
   authenticated calendar collections: empty sync tokens return all active
   objects plus the collection sync token, current tokens return only the
-  top-level sync token, stale tokens return a DAV `valid-sync-token`
-  precondition error, and truncating limits are rejected until continuation or
-  tombstone/change-log semantics exist.
+  top-level sync token, stale-but-known tokens return deltas/tombstones,
+  unknown or expired tokens return a DAV `valid-sync-token` precondition error,
+  and truncating limits are rejected until continuation semantics exist.
 - CalDAV now handles RFC 4791-shaped `REPORT free-busy-query` for authenticated
   calendar collections. `Depth: 1` collects child VEVENT busy periods into a
   `200 OK` `text/calendar` `VFREEBUSY` response while keeping child object
@@ -2801,8 +2801,13 @@ The platform hardening sprint completed the following:
   baseline marker on first object change, stale-but-known sync tokens can return
   changed object properties or response-level `404 Not Found` tombstones, and
   collection-deleted tokens can return a final top-level sync token even after
-  the calendar row is gone. Unknown tokens still fail with DAV
-  `valid-sync-token`, and long-history retention policy remains future work.
+  the calendar row is gone. CalDAV now also has a bounded
+  `PruneCalendarSyncChanges` repository boundary plus a prune-order index that
+  can dry-run or delete old sync-change rows while preserving the newest marker
+  per calendar, so future retention workers can expire history without
+  destroying the token needed for current clients. Unknown or expired tokens
+  still fail with DAV `valid-sync-token`; retention-worker wiring and
+  deployment retention-age policy remain future work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and

@@ -1677,9 +1677,10 @@ Current state:
   skipped, keeping unimplemented predicates from broadening result sets.
 - CalDAV now handles conservative `REPORT sync-collection` requests for
   authenticated calendar collections: initial sync returns active objects plus
-  a top-level sync token, current tokens return no resource changes, stale
-  tokens return a DAV `valid-sync-token` error, and truncating limits are
-  rejected until change-log/continuation semantics are implemented.
+  a top-level sync token, current tokens return no resource changes,
+  stale-but-known tokens return deltas/tombstones, unknown or expired tokens
+  return a DAV `valid-sync-token` error, and truncating limits are rejected
+  until continuation semantics are implemented.
 - CalDAV now handles `REPORT free-busy-query` on authenticated calendar
   collections, returning RFC-shaped `text/calendar` `VFREEBUSY` responses for
   `Depth: 1` child VEVENTs while bounding child object scans with
@@ -1829,6 +1830,11 @@ Current state:
 - CalDAV stale-token `sync-collection` delta reads now fetch one extra
   change-log row behind bounded `limit/nresults`, allowing exact-limit deltas
   to succeed while still rejecting responses that would genuinely truncate.
+- CalDAV sync-change retention now has repository groundwork:
+  `PruneCalendarSyncChanges` can dry-run or delete bounded old change-log rows
+  while preserving the newest marker per calendar, backed by a prune-order
+  migration index. Next, wire an operator/worker path with an explicit
+  retention-age policy before treating token expiry as production-ready.
 - CalDAV initial `sync-collection` snapshots now also fetch one extra calendar
   object through a sync-specific repository list path, so omitted or exact
   `limit/nresults` requests cannot silently return a partial snapshot with the
@@ -1862,9 +1868,9 @@ Current state:
 Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
-  gates are closed: broader recurrence edge cases, sync retention and
-  collection-deletion deltas, slug/path-alias support for friendlier
-  MKCALENDAR clients, scheduling semantics, and broader
+  gates are closed: broader recurrence edge cases, sync retention worker and
+  retention-age policy, slug/path-alias support for friendlier MKCALENDAR
+  clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
 - Keep frontend implementation behind the explicit start gate, but preserve
   the product target in backend/API planning: future Next.js TypeScript +

@@ -2135,9 +2135,10 @@ Implementation order:
 1052. CalDAV now implements a conservative RFC 6578 `REPORT sync-collection`
       handler for authenticated calendar collections: initial empty-token sync
       returns active objects plus a top-level collection sync token, current
-      tokens return only the token, stale tokens return a DAV
+      tokens return only the token, stale-but-known tokens return
+      deltas/tombstones, unknown or expired tokens return a DAV
       `valid-sync-token` precondition error, and truncating limits are rejected
-      until continuation or tombstone/change-log support exists.
+      until continuation support exists.
 1053. CalDAV now implements RFC 4791-shaped `REPORT free-busy-query` for
       authenticated calendar collections, returning `200 OK` `text/calendar`
       `VFREEBUSY` bodies instead of multistatus XML. The first implementation
@@ -3127,6 +3128,12 @@ Implementation order:
       principals when `ActiveOnly` is set, matching effective delegation
       fail-closed semantics so policy callers do not honor active delegation
       rows after either endpoint principal is suspended or deleted.
+1245. CalDAV sync-change retention now has a bounded repository prune boundary
+      and prune-order migration index. `PruneCalendarSyncChanges` can dry-run
+      or delete old RFC 6578 change-log rows without removing the newest marker
+      per calendar, so future retention workers can expire history while
+      preserving current-token continuity; unknown or expired client tokens
+      continue to fail with DAV `valid-sync-token`.
 
 ## Deferred until backend contracts stabilize
 
