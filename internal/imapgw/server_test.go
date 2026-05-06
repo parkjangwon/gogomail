@@ -10457,6 +10457,9 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	if got, want := fields, []string{"a1", "LIST", "", `("Archive 2026" "INBOX")`, "RETURN", "(STATUS", "(MESSAGES))"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("literal pattern-list fields = %#v, want %#v", got, want)
 	}
+	if _, err := parseIMAPFieldsWithLiteral(`a1 LIST "" (Archive{12})`, []string{" 2026"}); err == nil {
+		t.Fatal("parseIMAPFieldsWithLiteral accepted embedded parenthesized literal marker")
+	}
 	if _, _, ok, err := imapCommandLiteralSize("a1 APPEND inbox {12}\r\n"); err != nil || !ok {
 		t.Fatalf("imapCommandLiteralSize synchronizing ok = %v err = %v", ok, err)
 	}

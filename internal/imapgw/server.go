@@ -7666,7 +7666,7 @@ func imapParenthesizedFieldNeedsGrouping(line string, start int) bool {
 			quoted = true
 		case '{':
 			end := strings.IndexByte(line[i:], '}')
-			if end >= 0 && imapLooksLikeLiteral(line[i:i+end+1]) {
+			if end >= 0 && imapParenthesizedLiteralMarkerDelimited(line, start, i) && imapLooksLikeLiteral(line[i:i+end+1]) {
 				hasLiteralMarker = true
 				i += end
 			}
@@ -7721,7 +7721,7 @@ func parseIMAPParenthesizedField(line string, start int, literals []string, lite
 			end := strings.IndexByte(line[i:], '}')
 			if end >= 0 {
 				marker := line[i : i+end+1]
-				if imapLooksLikeLiteral(marker) {
+				if imapParenthesizedLiteralMarkerDelimited(line, start, i) && imapLooksLikeLiteral(marker) {
 					if literalIndex == nil || *literalIndex >= len(literals) {
 						return "", 0, fmt.Errorf("imap literal is not available")
 					}
@@ -7756,6 +7756,14 @@ func parseIMAPParenthesizedField(line string, start int, literals []string, lite
 		return "", 0, fmt.Errorf("unterminated quoted string")
 	}
 	return "", 0, fmt.Errorf("unterminated parenthesized field")
+}
+
+func imapParenthesizedLiteralMarkerDelimited(line string, start int, marker int) bool {
+	if marker <= start || marker > len(line) {
+		return false
+	}
+	prev := line[marker-1]
+	return prev == '(' || prev == ' ' || prev == '\t'
 }
 
 func imapLooksLikeLiteral(field string) bool {
