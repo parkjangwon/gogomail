@@ -2,6 +2,7 @@ package caldavgw
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -542,6 +543,36 @@ func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing
 		if !strings.Contains(body, want) {
 			t.Fatalf("sync-collection missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestHandlerReportSyncCollectionRejectsDefaultSnapshotTruncation(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	base := store.objects[0]
+	store.objects = store.objects[:0]
+	for i := 0; i < MaxWebDAVReportLimit+1; i++ {
+		object := base
+		object.ID = fmt.Sprintf("object-%d", i)
+		object.ObjectName = fmt.Sprintf("event-%d.ics", i)
+		object.UID = fmt.Sprintf("event-%d@example.com", i)
+		store.objects = append(store.objects, object)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "limit would truncate") {
+		t.Fatalf("default snapshot truncation response lacks context: %s", rec.Body.String())
 	}
 }
 

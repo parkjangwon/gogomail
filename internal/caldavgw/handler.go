@@ -21,6 +21,10 @@ type DiscoveryStore interface {
 	LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error)
 }
 
+type CalendarObjectLimiter interface {
+	ListCalendarObjectsLimit(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error)
+}
+
 type ObjectStore interface {
 	UpsertObject(ctx context.Context, req UpsertObjectRequest) (CalendarObject, error)
 	DeleteObject(ctx context.Context, req DeleteObjectRequest) (CalendarObject, error)
@@ -1014,11 +1018,15 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		}
 		return nil, calendar.SyncToken, nil
 	}
-	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	objects, err := h.listCalendarObjectsForSync(ctx, userID, resource.CalendarID, limit+1)
 	if err != nil {
 		return nil, "", err
 	}
-	if report.Limit > 0 && report.Limit < len(objects) {
+	if len(objects) > limit {
 		return nil, "", fmt.Errorf("sync-collection limit would truncate results")
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
@@ -1038,6 +1046,13 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, calendar.SyncToken, nil
+}
+
+func (h *Handler) listCalendarObjectsForSync(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
+	if limiter, ok := h.Store.(CalendarObjectLimiter); ok {
+		return limiter.ListCalendarObjectsLimit(ctx, userID, calendarID, limit)
+	}
+	return h.Store.ListCalendarObjects(ctx, userID, calendarID)
 }
 
 func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {

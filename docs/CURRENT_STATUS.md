@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV sync-token shape hardening)
+Last updated: 2026-05-06 (updated after WebDAV sync snapshot bound hardening)
 
 ## Current phase
 
@@ -45,7 +45,10 @@ requests that omit the sync state anchor entirely.
 Stale-token sync delta handling now probes one row beyond the requested
 `limit/nresults`, so exact-limit change sets can complete while genuinely
 truncating delta responses still fail closed until continuation semantics are
-implemented.
+implemented. Initial sync snapshots now use the same bounded one-extra-object
+probe through the PostgreSQL discovery repository, preventing large collections
+from being silently truncated while still returning a current collection sync
+token.
 
 Calendar product features must not grow as isolated CRUD. Before delegated
 calendars, shared ownership, attendees, resource booking, reminders, or
@@ -179,7 +182,9 @@ work. `sync-collection` parsing also distinguishes an empty initial
 the required token element. Stale-token change delta handling now probes one
 row beyond bounded `limit/nresults`, matching CalDAV so exact-limit address
 book changes are not falsely rejected while genuinely truncating deltas still
-fail closed.
+fail closed. Initial address-book sync snapshots now use a sync-specific
+bounded object list path as well, so a large address book cannot be clipped by
+the generic repository list default and then reported as fully synchronized.
 CardDAV contact-object `PUT` now rejects duplicate active vCard UIDs within the
 same address book before the SQL upsert path, while the PostgreSQL partial
 unique index remains the final concurrency guard. Repository error mapping also

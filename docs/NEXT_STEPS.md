@@ -1671,6 +1671,10 @@ Current state:
 - CalDAV stale-token `sync-collection` delta reads now fetch one extra
   change-log row behind bounded `limit/nresults`, allowing exact-limit deltas
   to succeed while still rejecting responses that would genuinely truncate.
+- CalDAV initial `sync-collection` snapshots now also fetch one extra calendar
+  object through a sync-specific repository list path, so omitted or exact
+  `limit/nresults` requests cannot silently return a partial snapshot with the
+  current collection sync token.
 - CalDAV `REPORT calendar-query` now honors HTTP `Depth: 0` by returning no
   child calendar-object matches for collection-scoped queries unless clients
   explicitly send `Depth: 1`, keeping WebDAV request scope from silently
@@ -1805,9 +1809,12 @@ Next:
   initial `DAV:sync-token` elements from missing token elements and rejects the
   latter before sync work. Stale-token delta reads fetch one extra change-log
   row behind bounded `limit/nresults`, matching the CalDAV exact-limit
-  behavior while still rejecting genuinely truncating deltas. Contact-object
-  `PUT` now rejects duplicate active vCard UIDs within the same address book
-  before the SQL upsert path, keeping
+  behavior while still rejecting genuinely truncating deltas. Initial
+  `sync-collection` snapshots use the same one-extra-object probe through a
+  sync-specific repository list path, avoiding silent partial address-book
+  snapshots when the generic list default would otherwise cap results.
+  Contact-object `PUT` now rejects duplicate active vCard UIDs within the same
+  address book before the SQL upsert path, keeping
   repository errors predictable while the PostgreSQL partial unique index
   remains the final concurrency guard. Final unique-index races are mapped back
   to stable duplicate UID/name repository errors instead of surfacing raw driver

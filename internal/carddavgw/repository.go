@@ -468,12 +468,24 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 }
 
 func (r *Repository) ListContactObjects(ctx context.Context, req ListContactObjectsRequest) ([]ContactObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
 	req, err := ValidateListContactObjectsRequest(req)
 	if err != nil {
 		return nil, err
+	}
+	return r.listContactObjects(ctx, req)
+}
+
+func (r *Repository) listContactObjectsForSync(ctx context.Context, req ListContactObjectsRequest) ([]ContactObject, error) {
+	req, err := ValidateListContactObjectsForSyncRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return r.listContactObjects(ctx, req)
+}
+
+func (r *Repository) listContactObjects(ctx context.Context, req ListContactObjectsRequest) ([]ContactObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
 	}
 	const query = `
 SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at
@@ -829,6 +841,14 @@ func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertC
 }
 
 func ValidateListContactObjectsRequest(req ListContactObjectsRequest) (ListContactObjectsRequest, error) {
+	return validateListContactObjectsRequest(req, normalizeCardDAVLimit)
+}
+
+func ValidateListContactObjectsForSyncRequest(req ListContactObjectsRequest) (ListContactObjectsRequest, error) {
+	return validateListContactObjectsRequest(req, normalizeCardDAVChangeLimit)
+}
+
+func validateListContactObjectsRequest(req ListContactObjectsRequest, normalizeLimit func(int) int) (ListContactObjectsRequest, error) {
 	userID, err := validateCardDAVID("user_id", req.UserID, true)
 	if err != nil {
 		return ListContactObjectsRequest{}, err
@@ -841,7 +861,7 @@ func ValidateListContactObjectsRequest(req ListContactObjectsRequest) (ListConta
 	if err != nil {
 		return ListContactObjectsRequest{}, err
 	}
-	return ListContactObjectsRequest{UserID: userID, AddressBookID: bookID, Status: status, Limit: normalizeCardDAVLimit(req.Limit)}, nil
+	return ListContactObjectsRequest{UserID: userID, AddressBookID: bookID, Status: status, Limit: normalizeLimit(req.Limit)}, nil
 }
 
 func ValidateGetContactObjectRequest(req GetContactObjectRequest) (GetContactObjectRequest, error) {

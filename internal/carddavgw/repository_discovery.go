@@ -51,6 +51,10 @@ func (r *Repository) ListAddressBookObjects(ctx context.Context, userID string, 
 	return r.ListContactObjects(ctx, ListContactObjectsRequest{UserID: userID, AddressBookID: addressBookID, Status: AddressBookStatusActive})
 }
 
+func (r *Repository) ListAddressBookObjectsLimit(ctx context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error) {
+	return r.listContactObjectsForSync(ctx, ListContactObjectsRequest{UserID: userID, AddressBookID: addressBookID, Status: AddressBookStatusActive, Limit: limit})
+}
+
 func (r *Repository) WalkAddressBookObjects(ctx context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("database handle is required")

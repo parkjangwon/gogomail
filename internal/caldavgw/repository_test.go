@@ -226,6 +226,17 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 	if list.Status != CalendarStatusActive || list.Limit != 1000 {
 		t.Fatalf("list request = %+v", list)
 	}
+	syncList, err := ValidateListObjectsForSyncRequest(ListObjectsRequest{
+		UserID:     " user-1 ",
+		CalendarID: " calendar-1 ",
+		Limit:      MaxWebDAVReportLimit + 1,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListObjectsForSyncRequest returned error: %v", err)
+	}
+	if syncList.Limit != MaxWebDAVReportLimit+1 {
+		t.Fatalf("sync list request = %+v", syncList)
+	}
 	get, err := ValidateGetObjectRequest(GetObjectRequest{
 		UserID:     " user-1 ",
 		CalendarID: " calendar-1 ",

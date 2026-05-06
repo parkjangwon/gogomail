@@ -71,6 +71,10 @@ func (r *Repository) ListCalendarObjects(ctx context.Context, userID string, cal
 	return r.ListObjects(ctx, ListObjectsRequest{UserID: userID, CalendarID: calendarID, Status: CalendarStatusActive})
 }
 
+func (r *Repository) ListCalendarObjectsLimit(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
+	return r.listObjectsForSync(ctx, ListObjectsRequest{UserID: userID, CalendarID: calendarID, Status: CalendarStatusActive, Limit: limit})
+}
+
 func (r *Repository) LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
 	return r.GetObject(ctx, GetObjectRequest{UserID: userID, CalendarID: calendarID, ObjectName: objectName, Status: CalendarStatusActive})
 }
