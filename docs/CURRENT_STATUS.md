@@ -160,9 +160,10 @@ S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
 namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
 unexpected namespaces before copy/move is reported successful.
 S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
-`ETag` or `LastModified` metadata and nested `Error` elements, preventing
-ambiguous provider-side copy metadata from being collapsed into a successful
-copy/move result.
+`ETag` or `LastModified` metadata and nested `Error` elements, formatting
+nested standard S3 error details as bounded one-line diagnostics with
+request-id context instead of collapsing provider-side copy failures into a
+successful copy/move result.
 S3-compatible `ListObjectsV2` response XML now applies the same namespace
 boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
 roots only before pagination, prefix filtering, cleanup, or Drive callers see

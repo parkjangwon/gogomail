@@ -370,7 +370,9 @@ duplicate objects without pulling object bytes through gogomail. Successful
 copy responses must be exact `200 OK` responses with a bounded
 `CopyObjectResult` XML body; empty success bodies, unexpected XML, and embedded
 `Error` responses inside `200 OK` are rejected so provider-side copy failures
-cannot masquerade as successful object duplication. Success metadata is also
+cannot masquerade as successful object duplication; nested standard S3 error
+details are surfaced with the same bounded one-line `Code: Message` and
+request-id diagnostics as top-level provider errors. Success metadata is also
 kept singular for the core S3 fields: duplicate top-level `ETag` or
 `LastModified` elements and nested `Error` elements under `CopyObjectResult`
 are rejected before XML unmarshalling can collapse ambiguous provider metadata.
