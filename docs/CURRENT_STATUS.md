@@ -321,7 +321,9 @@ now reject whitespace-padded quoted or literal list values such as
 `SEARCH`, `SORT`, and `THREAD` charset arguments now reject whitespace-padded
 quoted or literal control atoms such as `CHARSET " UTF-8 "`, and `THREAD`
 algorithm arguments reject padded `ORDEREDSUBJECT` values instead of trimming
-them into advertised capabilities.
+them into advertised capabilities. `SORT` criterion lists now reject leading,
+trailing, or nested parenthesized atom-list shapes such as `( DATE)`, `(DATE )`,
+and `((DATE))` before authentication or selected-mailbox checks.
 `THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported

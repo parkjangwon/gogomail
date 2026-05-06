@@ -3922,6 +3922,10 @@ Implementation order:
       whitespace-padded quoted or literal atoms such as `CHARSET " UTF-8 "`,
       and `THREAD` algorithm parsing rejects padded `ORDEREDSUBJECT` values
       instead of trimming them into advertised control atoms.
+1417. IMAP `SORT`/`UID SORT` criterion-list parsing now rejects leading,
+      trailing, or nested parenthesized atom-list shapes such as `( DATE)`,
+      `(DATE )`, and `((DATE))` before authentication or selected-mailbox
+      state checks.
 
 ## Deferred until backend contracts stabilize
 
