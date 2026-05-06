@@ -143,6 +143,8 @@ Recent release-readiness work also includes:
   framing,
   selected-state event draining before sequence-set commands including
   UID-addressed workflows,
+  quoted destination mailbox names containing spaces for COPY/MOVE backend
+  mutations,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
   literal framing coverage

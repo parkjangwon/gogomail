@@ -482,6 +482,10 @@ Current state:
 - IMAP `MOVE`/`UID MOVE` now emit UIDPLUS `COPYUID` in an untagged `OK`
   before source `EXPUNGE` responses, preserving RFC 6851-compatible ordering
   for clients that need the UID map before sequence numbers are removed.
+- IMAP `COPY`/`UID COPY` and `UID MOVE` now preserve quoted destination
+  mailbox names containing spaces through parser tokenization, mailbox lookup,
+  and backend mutation requests, covering common desktop/mobile folder names
+  such as `"Team Archive"`.
 - IMAP UID set response rendering now compacts contiguous ascending runs into
   RFC sequence-set ranges, reducing bulk `COPYUID`, ESEARCH, and SEARCHRES
   response size without reordering non-contiguous UID lists.
