@@ -89,7 +89,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   requested window before exposing a bounded reader.
 - S3-compatible `Content-Length` parsing now requires unsigned decimal digits
   for `HEAD` metadata and range-response validation, rejecting signed values
-  such as `+5`.
+  such as `+5`. Duplicate `Content-Length` headers now fail closed across
+  `HEAD`/`Stat`, full-object `GET`, and range response validation.
 - S3-compatible `HEAD`/`Stat` now rejects non-empty malformed
   `Last-Modified` metadata instead of silently exposing a zero timestamp,
   while still allowing missing timestamps and HTTP optional whitespace around

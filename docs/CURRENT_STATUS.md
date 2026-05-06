@@ -121,7 +121,10 @@ requested window, keeping the compatibility path as strict as ordinary
 S3-compatible `Content-Length` parsing now requires exact unsigned decimal
 digits at the storage boundary, rejecting signed or whitespace-padded values
 such as `+5` or ` 5` for `HEAD` metadata and range-response length validation
-instead of normalizing them as valid sizes.
+instead of normalizing them as valid sizes. Duplicate `Content-Length` headers
+are now also rejected for `HEAD`/`Stat`, full-object `GET`, and range response
+validation, keeping ambiguous provider length metadata from crossing the shared
+storage interface.
 S3-compatible `HEAD`/`Stat` now also validates the raw `Content-Length` header
 when Go has already populated `Response.ContentLength`, rejecting malformed or
 contradictory provider metadata instead of trusting the normalized struct

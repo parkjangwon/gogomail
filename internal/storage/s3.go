@@ -599,7 +599,11 @@ func parseS3ContentLength(value string) (int64, error) {
 }
 
 func s3StatContentLength(resp *http.Response) (int64, error) {
-	if value := resp.Header.Get("Content-Length"); value != "" {
+	value, err := s3ResponseContentLengthHeader(resp)
+	if err != nil {
+		return -1, fmt.Errorf("stat s3 object: %w", err)
+	}
+	if value != "" {
 		size, err := parseS3ContentLength(value)
 		if err != nil {
 			return -1, err
@@ -616,7 +620,11 @@ func s3StatContentLength(resp *http.Response) (int64, error) {
 }
 
 func s3GetObjectContentLength(resp *http.Response) (int64, bool, error) {
-	if value := resp.Header.Get("Content-Length"); value != "" {
+	value, err := s3ResponseContentLengthHeader(resp)
+	if err != nil {
+		return -1, false, fmt.Errorf("get s3 object: %w", err)
+	}
+	if value != "" {
 		size, ok := parseS3NonNegativeDecimal(value)
 		if !ok {
 			return -1, false, fmt.Errorf("get s3 object: invalid content length")
@@ -630,6 +638,17 @@ func s3GetObjectContentLength(resp *http.Response) (int64, bool, error) {
 		return resp.ContentLength, true, nil
 	}
 	return -1, false, nil
+}
+
+func s3ResponseContentLengthHeader(resp *http.Response) (string, error) {
+	values := resp.Header.Values("Content-Length")
+	if len(values) > 1 {
+		return "", fmt.Errorf("duplicate content length")
+	}
+	if len(values) == 1 {
+		return values[0], nil
+	}
+	return "", nil
 }
 
 func parseS3NonNegativeDecimal(value string) (int64, bool) {
@@ -748,7 +767,11 @@ func validateS3FullRangeCompatibilityResponse(resp *http.Response, req RangeRequ
 }
 
 func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
-	if value := resp.Header.Get("Content-Length"); value != "" {
+	value, err := s3ResponseContentLengthHeader(resp)
+	if err != nil {
+		return -1, fmt.Errorf("get range s3 object: %w", err)
+	}
+	if value != "" {
 		size, ok := parseS3NonNegativeDecimal(value)
 		if !ok {
 			return -1, fmt.Errorf("get range s3 object: invalid content length")
@@ -762,7 +785,10 @@ func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
 }
 
 func validateS3RangeContentLength(resp *http.Response, req RangeRequest) error {
-	value := resp.Header.Get("Content-Length")
+	value, err := s3ResponseContentLengthHeader(resp)
+	if err != nil {
+		return fmt.Errorf("get range s3 object: %w", err)
+	}
 	if value == "" {
 		return nil
 	}

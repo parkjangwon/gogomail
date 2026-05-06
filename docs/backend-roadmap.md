@@ -4015,6 +4015,11 @@ Implementation order:
       their implemented-method `Allow` headers, keeping native-client method
       probes aligned with the same cache and content-sniffing safety contract
       as `OPTIONS`.
+1439. S3-compatible `Content-Length` handling now rejects duplicate provider
+      headers for `HEAD`/`Stat`, full-object `GET`, `206 Partial Content`, and
+      safe `200 OK` range-compatibility validation, preventing ambiguous object
+      length metadata from being collapsed into a bounded reader or stored
+      object metadata.
 
 ## Deferred until backend contracts stabilize
 

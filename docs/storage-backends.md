@@ -334,15 +334,16 @@ malformed content type and ETag metadata is dropped while object identity and
 size remain available. `Content-Length` is treated as exact unsigned decimal
 metadata, so signed or whitespace-padded values fail closed instead of being
 normalized; if both the raw header and normalized HTTP response length are
-available, they must agree. A non-empty malformed `Last-Modified` header is
-rejected instead of being silently exposed as a zero timestamp, while missing
-timestamps and
+available, they must agree, and duplicate `Content-Length` headers are
+rejected as ambiguous provider metadata. A non-empty malformed `Last-Modified`
+header is rejected instead of being silently exposed as a zero timestamp, while
+missing timestamps and
 HTTP optional whitespace around otherwise valid timestamp values remain
 compatible.
 S3-compatible full-object `GET` validates present `Content-Length` metadata
-with the same exact unsigned decimal grammar as `Stat`; when the response
-length is known, the returned reader is bounded to that size and reports
-`io.ErrUnexpectedEOF` if the provider truncates the body.
+with the same exact unsigned decimal and duplicate-header rules as `Stat`;
+when the response length is known, the returned reader is bounded to that size
+and reports `io.ErrUnexpectedEOF` if the provider truncates the body.
 S3-compatible `GetRange` uses a signed `GET` request with a single
 `Range: bytes=start-end` header and requires a `206 Partial Content` response,
 so compatible providers cannot silently downgrade partial reads into full
@@ -353,7 +354,8 @@ provider sends an oversized partial-content body. If a provider returns a
 matching `Content-Range` but truncates the response body before the requested
 byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 When present, range-response `Content-Length` is parsed with the same exact
-unsigned decimal grammar and must match the requested window.
+unsigned decimal and duplicate-header rules and must match the requested
+window.
 Both full-object and range readers observe context cancellation after the
 request has opened, so canceled downloads, previews, and IMAP literal streams
 can stop promptly across local/NFS and S3-compatible backends.

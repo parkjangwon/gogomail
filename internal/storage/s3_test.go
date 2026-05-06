@@ -551,6 +551,37 @@ func TestS3StoreGetRejectsInvalidContentLength(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRejectsDuplicateContentLength(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("hello")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Length": []string{"5", "6"}},
+				ContentLength: 5,
+				Body:          body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.Get(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "duplicate content length") {
+		t.Fatalf("Get err = %v, want duplicate content length rejection", err)
+	}
+	if !body.closed {
+		t.Fatal("duplicate content-length response body was not closed")
+	}
+}
+
 func TestS3StoreGetReportsTruncatedContentLengthBody(t *testing.T) {
 	t.Parallel()
 
@@ -685,6 +716,33 @@ func TestS3StoreStatRequiresContentLength(t *testing.T) {
 	}
 	if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "content length") {
 		t.Fatalf("Stat err = %v, want content length rejection", err)
+	}
+}
+
+func TestS3StoreStatRejectsDuplicateContentLength(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Length": []string{"5", "6"}},
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "duplicate content length") {
+		t.Fatalf("Stat err = %v, want duplicate content length rejection", err)
 	}
 }
 
@@ -2000,6 +2058,12 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 			want:   "invalid content length",
 		},
 		{
+			name:   "duplicate content length",
+			req:    RangeRequest{Offset: 0, Length: 5},
+			header: http.Header{"Content-Length": []string{"5", "6"}},
+			want:   "duplicate content length",
+		},
+		{
 			name:   "non zero offset without content range",
 			req:    RangeRequest{Offset: 1, Length: 3},
 			header: http.Header{"Content-Length": []string{"3"}},
@@ -2043,6 +2107,39 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 				t.Fatal("unsafe HTTP 200 response body was not closed")
 			}
 		})
+	}
+}
+
+func TestS3StoreGetRangeRejectsDuplicatePartialContentLength(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("ell")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Header: http.Header{
+					"Content-Range":  []string{"bytes 1-3/5"},
+					"Content-Length": []string{"3", "4"},
+				},
+				Body: body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3}); err == nil || !strings.Contains(err.Error(), "duplicate content length") {
+		t.Fatalf("GetRange err = %v, want duplicate content length rejection", err)
+	}
+	if !body.closed {
+		t.Fatal("duplicate partial content-length response body was not closed")
 	}
 }
 
