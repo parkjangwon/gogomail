@@ -566,10 +566,10 @@ owner/resource target without scanning unrelated audit history.
   contract. Local/NFS copies stream through the same atomic temporary-file
   commit path as normal writes, while S3-compatible copies use signed
   server-side copy requests with escaped `x-amz-copy-source` values.
-- S3-compatible `Copy` now reads and validates bounded successful
-  `CopyObject` response bodies, rejecting embedded `<Error>` XML inside
-  `200 OK` responses so AWS S3/compatible copy failures do not masquerade as
-  successful Drive or lifecycle duplication.
+- S3-compatible `Copy` now requires exact `200 OK` responses with bounded
+  `CopyObjectResult` bodies, rejecting empty bodies, unexpected XML, and
+  embedded `<Error>` XML inside `200 OK` responses so AWS S3/compatible copy
+  failures do not masquerade as successful Drive or lifecycle duplication.
 - Local/NFS and S3-compatible storage now expose a shared bounded object
   `List` contract for validated prefixes, giving future Drive, lifecycle, and
   reconciliation workflows a cursor-paginated way to browse object metadata

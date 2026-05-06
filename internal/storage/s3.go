@@ -244,7 +244,7 @@ func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) 
 		return fmt.Errorf("copy s3 object: %w", err)
 	}
 	defer drainAndCloseS3Body(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK {
 		return s3StatusError("copy", resp)
 	}
 	if err := validateS3CopyResponse(resp.Body); err != nil {
@@ -1036,7 +1036,7 @@ func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 
 func validateS3CopyResponse(body io.Reader) error {
 	if body == nil {
-		return nil
+		return fmt.Errorf("copy s3 object: response body is required")
 	}
 	data, err := io.ReadAll(io.LimitReader(body, maxS3CopyResponseBytes+1))
 	if err != nil {
@@ -1046,7 +1046,7 @@ func validateS3CopyResponse(body io.Reader) error {
 		return fmt.Errorf("copy s3 object: response body is too large")
 	}
 	if strings.TrimSpace(string(data)) == "" {
-		return nil
+		return fmt.Errorf("copy s3 object: response body is required")
 	}
 	var response s3CopyResponse
 	if err := xml.Unmarshal(data, &response); err != nil {

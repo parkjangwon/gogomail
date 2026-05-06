@@ -2941,6 +2941,10 @@ Implementation order:
       require exact `200 OK` responses, rejecting unexpected partial-content or
       other non-OK 2xx statuses so partial provider responses cannot be treated
       as complete backend-neutral object reads, metadata, or list pages.
+1204. S3-compatible `Copy` now requires exact `200 OK` responses with bounded
+      `CopyObjectResult` XML bodies, rejecting empty bodies, unexpected XML, and
+      non-OK 2xx statuses so Drive and lifecycle object duplication cannot
+      accept ambiguous provider copy acknowledgements.
 
 ## Deferred until backend contracts stabilize
 
