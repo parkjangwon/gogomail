@@ -3902,6 +3902,9 @@ Implementation order:
 1410. IMAP SEARCHRES `$` reuse now requires an exact `$` atom for sequence-set
       and UID-set helpers, rejecting whitespace-padded quoted or literal
       values instead of normalizing them into saved-result references.
+1411. IMAP `STORE`/`UID STORE` mode atoms and `UNCHANGEDSINCE` markers now
+      reject whitespace-padded quoted or literal values instead of trimming
+      them into valid mutation controls.
 
 ## Deferred until backend contracts stabilize
 

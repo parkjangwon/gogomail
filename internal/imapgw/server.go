@@ -6610,7 +6610,7 @@ func imapStoreUnchangedSince(fields []string) (uint64, bool, []string, bool) {
 	if len(fields) == 0 {
 		return 0, false, fields, true
 	}
-	first := strings.ToUpper(strings.TrimSpace(fields[0]))
+	first := strings.ToUpper(fields[0])
 	if !strings.Contains(first, "UNCHANGEDSINCE") && !strings.HasPrefix(first, "(") {
 		return 0, false, fields, true
 	}
@@ -6633,7 +6633,7 @@ func imapStoreUnchangedSincePresent(fields []string) bool {
 	if len(fields) == 0 {
 		return false
 	}
-	return strings.EqualFold(strings.TrimSpace(fields[0]), "(UNCHANGEDSINCE")
+	return strings.EqualFold(fields[0], "(UNCHANGEDSINCE")
 }
 
 func imapSequenceNumber(summary MessageSummary) (uint32, bool) {
@@ -6644,7 +6644,10 @@ func imapSequenceNumber(summary MessageSummary) (uint32, bool) {
 }
 
 func imapStoreMode(value string) (StoreFlagsMode, bool, bool) {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
+	if strings.TrimSpace(value) != value {
+		return "", false, false
+	}
+	switch strings.ToUpper(value) {
 	case "FLAGS":
 		return StoreFlagsReplace, false, true
 	case "FLAGS.SILENT":

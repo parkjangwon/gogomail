@@ -531,6 +531,9 @@ Current state:
 - IMAP `STORE` and `UID STORE` reject malformed `UNCHANGEDSINCE`, store mode,
   and flag-list syntax before authentication or selected-mailbox checks,
   keeping RFC 3501/CONDSTORE mutation diagnostics ahead of state errors.
+- IMAP `STORE`/`UID STORE` mode atoms and `UNCHANGEDSINCE` markers reject
+  whitespace-padded quoted or literal values instead of trimming them into
+  valid mutation controls.
 - IMAP selected-state commands reject malformed message sequence-set and UID
   set syntax, including signed values such as `+1`/`+7`, before authentication
   or selected-mailbox checks while preserving selected-mailbox bounds checks

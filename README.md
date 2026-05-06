@@ -85,7 +85,8 @@ Recent release-readiness work also includes:
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, rejection of whitespace-padded numeric and date search criteria,
   rejection of whitespace-padded CONDSTORE modifier and MODSEQ entry-type
-  values, exact `IDLE` `DONE` continuation handling,
+  values, exact `IDLE` `DONE` continuation handling, exact STORE mode and
+  `UNCHANGEDSINCE` marker handling,
   selected-state event draining before sequence-set commands,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
