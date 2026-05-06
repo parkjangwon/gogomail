@@ -922,6 +922,7 @@ func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	t.Parallel()
 
 	body := `<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:sync-token/>
   <D:sync-level>1</D:sync-level>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </D:sync-collection>`
@@ -1029,6 +1030,7 @@ func TestHandlerReportSyncCollectionRejectsDepthOne(t *testing.T) {
 	t.Parallel()
 
 	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
   <D:sync-level>1</D:sync-level>
   <D:prop><D:getetag/></D:prop>
 </D:sync-collection>`
@@ -1042,10 +1044,27 @@ func TestHandlerReportSyncCollectionRejectsDepthOne(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionRejectsMissingSyncTokenElement(t *testing.T) {
+	t.Parallel()
+
+	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "sync-token") {
+		t.Fatalf("missing sync-token response lacks context: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportRejectsDepthInfinityAndCrossUserPath(t *testing.T) {
 	t.Parallel()
 
-	body := `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`
+	body := `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`
 	depth := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthInfinity, body)
 	if depth.Code != http.StatusForbidden {
 		t.Fatalf("Depth infinity status = %d, want %d", depth.Code, http.StatusForbidden)

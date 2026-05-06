@@ -2452,6 +2452,9 @@ Implementation order:
 1134. CardDAV `sync-collection` now enforces RFC 6578 Depth behavior by
       accepting the default or explicit `Depth: 0` request scope and rejecting
       `Depth: 1` before sync lookup or change-log work.
+1135. CardDAV `sync-collection` parsing now distinguishes an empty initial
+      `DAV:sync-token` element from a missing element and rejects requests that
+      omit the required token element before sync lookup or snapshot work.
 
 ## Deferred until backend contracts stabilize
 

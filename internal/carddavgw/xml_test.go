@@ -215,7 +215,7 @@ func TestParseReportRecognizesCardDAVAndSyncReports(t *testing.T) {
 		},
 		{
 			name: "sync collection",
-			body: `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+			body: `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 			want: ReportSyncCollection,
 		},
 	}
@@ -248,7 +248,7 @@ func TestParseReportCollectsPropertiesHrefsAndSyncToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseReport returned error: %v", err)
 	}
-	if req.SyncToken != "sync-abc" || req.SyncLevel != "1" || req.Limit != 25 {
+	if req.SyncToken != "sync-abc" || !req.HasSyncToken || req.SyncLevel != "1" || req.Limit != 25 {
 		t.Fatalf("sync metadata = %+v", req)
 	}
 	want := []XMLName{
@@ -383,10 +383,11 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"wrong root":             `<D:propfind xmlns:D="DAV:"/>`,
 		"query missing filter":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
 		"multiget missing href":  `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
-		"sync missing level":     `<D:sync-collection xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></D:sync-collection>`,
-		"sync unsupported level": `<D:sync-collection xmlns:D="DAV:"><D:sync-level>infinity</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
-		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level></D:sync-collection>`,
-		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync missing token":     `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync missing level":     `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync unsupported level": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>infinity</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level></D:sync-collection>`,
+		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"text match line break":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:text-match>A&#x0A;B</C:text-match></C:filter></C:addressbook-query>`,
 		"bad match type":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match match-type="wildcard">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad negate condition":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match negate-condition="maybe">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,

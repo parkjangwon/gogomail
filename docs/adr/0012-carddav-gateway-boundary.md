@@ -106,6 +106,8 @@ by reading durable change rows and returning the latest deletion sync token,
 instead of requiring the collection row to be active.
 `sync-collection` enforces RFC 6578 Depth behavior by accepting default or
 explicit `Depth: 0` request scope and rejecting `Depth: 1` before sync lookup or
+change-log work. Sync parsing distinguishes an empty initial `DAV:sync-token`
+element from a missing token element and rejects the latter before snapshot or
 change-log work.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
