@@ -130,6 +130,10 @@ normalized the same way before joining them with relative mailbox patterns, so
 namespace/root-style probes such as `LIST "/Projects" "2026"` match the
 root-relative `Projects/2026` mailbox rather than constructing an impossible
 leading-slash internal path.
+Failed authenticated `SELECT` or `EXAMINE` attempts now deselect the previously
+selected mailbox before returning failure, so subsequent selected-state
+commands cannot continue operating on stale mailbox state after a missing or
+failed selection attempt.
 IMAP `LIST` and `LSUB` now compile the decoded mailbox-pattern matcher once
 per command and reuse it across mailbox rows and subscribed-parent inference,
 avoiding per-mailbox regular-expression construction on large folder trees

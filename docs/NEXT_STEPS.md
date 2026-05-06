@@ -69,6 +69,9 @@ Current state:
 - IMAP mailbox mutation handling rejects `CREATE INBOX`, `DELETE INBOX`,
   `RENAME INBOX ...`, and `RENAME ... INBOX`, keeping the special INBOX
   namespace out of generic folder mutation paths.
+- IMAP authenticated `SELECT`/`EXAMINE` attempts now deselect the current
+  mailbox before attempting the new selection, so failed selection attempts
+  leave no stale selected mailbox for later selected-state commands.
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.

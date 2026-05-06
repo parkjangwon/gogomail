@@ -3561,6 +3561,10 @@ Implementation order:
       whenever `If-None-Match` is present, preserving HTTP conditional
       precedence so stale timestamp validators cannot mask changed `.ics` or
       `.vcf` bodies behind a false `304 Not Modified`.
+1328. IMAP authenticated `SELECT`/`EXAMINE` attempts now deselect the current
+      mailbox before attempting the new selection, matching RFC 3501 selection
+      lifecycle semantics so failed selections leave no stale selected mailbox
+      for later selected-state commands.
 
 ## Deferred until backend contracts stabilize
 
