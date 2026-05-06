@@ -2482,6 +2482,9 @@ Implementation order:
 1143. CardDAV address-book collections now advertise RFC 6352
       `CARDDAV:supported-collation-set` with working `i;ascii-casemap` and
       `i;unicode-casemap` text-match evaluation.
+1144. CardDAV PROPFIND selection now keeps capability properties available
+      through explicit `prop`, `include`, and `propname` discovery while
+      omitting allprop-unfriendly properties from bare `allprop` responses.
 
 ## Deferred until backend contracts stabilize
 

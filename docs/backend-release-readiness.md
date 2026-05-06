@@ -400,7 +400,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   remains a bad request. Address-book collections advertise RFC 6352
   `CARDDAV:supported-collation-set` with `i;ascii-casemap` and
   `i;unicode-casemap`, and query evaluation implements both advertised
-  collations.
+  collations. Capability properties that should not appear in a bare `allprop`
+  response remain available through explicit `prop`, `include`, and `propname`
+  discovery.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
   `version="4.0"` attributes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.

@@ -172,6 +172,7 @@ func TestSelectPropfindPropertiesSupportsPropfindModes(t *testing.T) {
 	available := []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: "Personal"}, Found: true},
 		{Name: PropGetETag, Value: PropertyValue{Text: `"abc"`}, Found: true},
+		{Name: PropSupportedCollationSet, Value: PropertyValue{Collations: SupportedTextMatchCollations()}, Found: true, OmitFromAllProp: true},
 	}
 	prop := SelectPropfindProperties(PropfindRequest{
 		Kind: PropfindProp,
@@ -185,7 +186,7 @@ func TestSelectPropfindPropertiesSupportsPropfindModes(t *testing.T) {
 	}
 
 	propname := SelectPropfindProperties(PropfindRequest{Kind: PropfindPropName}, available)
-	if len(propname) != 1 || len(propname[0].Properties) != 2 {
+	if len(propname) != 1 || len(propname[0].Properties) != 3 {
 		t.Fatalf("propname stats = %+v", propname)
 	}
 
@@ -195,6 +196,17 @@ func TestSelectPropfindPropertiesSupportsPropfindModes(t *testing.T) {
 	}, available)
 	if len(allprop) != 1 || len(allprop[0].Properties) != 2 {
 		t.Fatalf("allprop stats = %+v", allprop)
+	}
+	if containsProperty(allprop[0].Properties, PropSupportedCollationSet) {
+		t.Fatalf("allprop included supported-collation-set without include: %+v", allprop)
+	}
+
+	allpropWithInclude := SelectPropfindProperties(PropfindRequest{
+		Kind:    PropfindAllProp,
+		Include: []XMLName{PropSupportedCollationSet},
+	}, available)
+	if len(allpropWithInclude) != 1 || !containsProperty(allpropWithInclude[0].Properties, PropSupportedCollationSet) {
+		t.Fatalf("allprop include did not add supported-collation-set: %+v", allpropWithInclude)
 	}
 }
 
