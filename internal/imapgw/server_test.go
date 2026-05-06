@@ -2075,9 +2075,24 @@ func TestServerSelectCondstoreEnablesModSeqEvents(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox (CONDSTORE)\r\n")); err != nil {
 		t.Fatalf("write login/select condstore: %v", err)
 	}
-	for i := 0; i < 8; i++ {
-		if _, err := reader.ReadString('\n'); err != nil {
+	wantSelect := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [NOMODSEQ] No persistent mod-sequences\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
+		"a2 OK [READ-WRITE] SELECT completed\r\n",
+	}
+	for _, expected := range wantSelect {
+		line, err := reader.ReadString('\n')
+		if err != nil {
 			t.Fatalf("read login/select condstore response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("select condstore response = %q, want %q", line, expected)
 		}
 	}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}
@@ -2143,9 +2158,23 @@ func TestServerEnableCondstoreEnablesModSeqEvents(t *testing.T) {
 			t.Fatalf("enable response = %q, want %q", line, expected)
 		}
 	}
-	for i := 0; i < 7; i++ {
-		if _, err := reader.ReadString('\n'); err != nil {
+	wantSelect := []string{
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [NOMODSEQ] No persistent mod-sequences\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
+		"a3 OK [READ-WRITE] SELECT completed\r\n",
+	}
+	for _, expected := range wantSelect {
+		line, err := reader.ReadString('\n')
+		if err != nil {
 			t.Fatalf("read select response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("select after enable response = %q, want %q", line, expected)
 		}
 	}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}

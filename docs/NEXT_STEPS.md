@@ -839,6 +839,10 @@ Current state:
   `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
   `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from durable mailbox
   UID state.
+- `SELECT`/`EXAMINE` now emit RFC 4551-shaped `[NOMODSEQ]` when the session is
+  CONDSTORE-aware through `SELECT ... (CONDSTORE)` or prior
+  `ENABLE CONDSTORE` and the selected mailbox has no persistent mod-sequence
+  baseline.
 - `SELECT`/`EXAMINE` now emit `[UIDNOTSTICKY]` when the selected mailbox state
   reports non-sticky UIDs, keeping UIDPLUS-adjacent clients aware of mailbox
   UID persistence guarantees.

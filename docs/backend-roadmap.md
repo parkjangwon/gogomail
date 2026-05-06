@@ -3050,6 +3050,10 @@ Implementation order:
       object not proven deleted after a partial cleanup failure, including the
       failed object and trailing unattempted objects, preventing post-commit
       metadata deletion from leaving S3/local/NFS storage drift untracked.
+1232. IMAP `SELECT` and `EXAMINE` now emit RFC 4551-shaped `[NOMODSEQ]` when
+      a CONDSTORE-aware selection has no persistent mailbox mod-sequence
+      baseline, keeping advertised CONDSTORE behavior explicit for clients
+      that use `SELECT ... (CONDSTORE)` or prior `ENABLE CONDSTORE`.
 
 ## Deferred until backend contracts stabilize
 
