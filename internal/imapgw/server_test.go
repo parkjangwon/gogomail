@@ -2079,16 +2079,28 @@ func TestServerAuthenticatePlainCancelReturnsBad(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD AUTHENTICATE canceled\r\n" {
 		t.Fatalf("authenticate cancel completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
+	if _, err := client.Write([]byte("a2 AUTHENTICATE PLAIN\r\n")); err != nil {
+		t.Fatalf("write second authenticate: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ \r\n" {
+		t.Fatalf("second continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte(" *\r\n")); err != nil {
+		t.Fatalf("write space-padded authenticate cancel: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD AUTHENTICATE PLAIN response is malformed\r\n" {
+		t.Fatalf("space-padded cancel response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 CAPABILITY\r\n")); err != nil {
 		t.Fatalf("write capability: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "* CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN\r\n" {
 		t.Fatalf("post-cancel capability = %q err = %v", line, err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK CAPABILITY completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK CAPABILITY completed\r\n" {
 		t.Fatalf("post-cancel capability completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

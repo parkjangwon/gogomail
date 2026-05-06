@@ -355,6 +355,9 @@ Current state:
 - `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed PLAIN
   payloads before plaintext privacy policy checks, preserving
   syntax-before-policy diagnostics without authenticating before TLS.
+- `AUTHENTICATE PLAIN` continuation cancellation now requires an exact `*`
+  token, rejecting whitespace-padded cancellation attempts as malformed SASL
+  responses while keeping the session usable.
 - SASL PLAIN decoding rejects oversized encoded and decoded responses before
   credential splitting or backend authentication, keeping `AUTHENTICATE PLAIN`
   continuation and `SASL-IR` literal paths bounded.

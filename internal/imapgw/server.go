@@ -1406,7 +1406,7 @@ func imapCommandShouldDrainSelectedEvents(command string) bool {
 func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
 	tag := state.pendingAuthTag
 	state.pendingAuthTag = ""
-	if strings.TrimSpace(line) == "*" {
+	if line == "*" {
 		_, err := writer.WriteString(tag + " BAD AUTHENTICATE canceled\r\n")
 		return false, err
 	}

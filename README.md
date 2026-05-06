@@ -78,11 +78,12 @@ Recent release-readiness work also includes:
   support, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
   workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
-  SASL-IR syntax-before-policy diagnostics,
-  SEARCH/SORT/THREAD diagnostics, RFC-shaped numeric grammar checks for
-  sequence sets, partial windows, SEARCH size criteria, and CONDSTORE
-  zero-boundary semantics, exact `IDLE` `DONE` continuation handling,
-  selected-state event draining before sequence-set commands, non-blocking
+  exact SASL continuation cancellation, SASL-IR syntax-before-policy
+  diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped numeric grammar
+  checks for sequence sets, partial windows, SEARCH size criteria, and
+  CONDSTORE zero-boundary semantics, exact `IDLE` `DONE` continuation
+  handling, selected-state event draining before sequence-set commands,
+  non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
   literal framing coverage
 - backend-only CalDAV foundations for standards-first calendar
