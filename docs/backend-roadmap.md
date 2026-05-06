@@ -4171,6 +4171,9 @@ Implementation order:
 1479. IMAP parenthesized control lists now reject quoted or command-literal
       STORE/UID STORE flag-lists, APPEND flag-lists, and STATUS item-lists
       before authentication or mutation/status state.
+1480. IMAP SELECT and EXAMINE optional CONDSTORE select parameters now reject
+      quoted or command-literal parenthesized lists before authentication or
+      mailbox selection state.
 
 ## Deferred until backend contracts stabilize
 

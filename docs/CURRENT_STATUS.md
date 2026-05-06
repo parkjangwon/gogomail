@@ -3998,6 +3998,9 @@ The platform hardening sprint completed the following:
   quoted or command-literal `STORE`/`UID STORE` flag-lists, `APPEND`
   flag-lists, and `STATUS` item-lists are rejected instead of being dequoted
   into valid mutation or status controls.
+- IMAP `SELECT` and `EXAMINE` optional `CONDSTORE` select parameters now use
+  that same raw parenthesized-list boundary, rejecting quoted or command-literal
+  `(CONDSTORE)` values before authentication or mailbox selection state.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

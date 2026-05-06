@@ -1032,6 +1032,11 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 			_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
 			return true, false, err
 		}
+	case "SELECT", "EXAMINE":
+		if len(fields) >= 4 && strings.HasPrefix(fields[3], "(") && imapRawFieldIsStringLike(line, 3) {
+			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
+			return true, false, err
+		}
 	}
 	return false, false, nil
 }
