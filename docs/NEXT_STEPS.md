@@ -2044,6 +2044,12 @@ Next:
   attendee resolution should connect through Directory plus Contacts/CardDAV,
   and public scheduling/resource booking should wait for explicit policy and
   audit decisions.
+- Delegated CalDAV/CardDAV discovery must keep actor and owner identity
+  separate: `DAV:current-user-principal` is the authenticated actor, while
+  resource hrefs, `DAV:owner`, and storage lookup remain owner-scoped. Future
+  shared calendar/address-book, resource booking, and delegated UI/API work
+  should preserve that boundary instead of rewriting the client identity to the
+  owner.
 - Continue Contacts/CardDAV as a standards-first module: the current
   `internal/carddavgw` path/href, storage metadata, address-book/contact
   repository, bounded vCard 3.0/4.0 semantic validation, REPORT parsing,
@@ -2180,7 +2186,8 @@ Next:
   instead of a CardDAV-local sharing model: cross-user `GET`, `PUT`, `DELETE`,
   `MKCOL`, `PROPPATCH`, `REPORT`, and `PROPFIND` requests require the matching
   contacts read/write/manage role, run against the owner address-book store,
-  and expose delegated WebDAV privileges in discovery and REPORT responses.
+  keep `DAV:current-user-principal` actor-scoped, and expose delegated WebDAV
+  privileges in discovery and REPORT responses.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

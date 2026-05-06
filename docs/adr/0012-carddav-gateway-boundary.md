@@ -186,11 +186,13 @@ appropriate `contacts` read/write/manage delegation role before cross-user
 `GET`, `PUT`, `DELETE`, `MKCOL`, `PROPPATCH`, `REPORT`, or `PROPFIND`
 execution, resolves allowed requests against the owner store, and derives
 delegated `DAV:current-user-privilege-set` values for discovery and REPORT
-responses from the same WebDAV privilege mapping used by CalDAV. Missing
-principals, or resolved non-user owner/actor principals, fail closed as access
-denial before audit or delegated role checks run, while infrastructure and
-audit-path failures remain explicit server errors. This is a protocol boundary
-foundation, not a public contacts-sharing UX.
+responses from the same WebDAV privilege mapping used by CalDAV. Delegated
+`PROPFIND` keeps `DAV:current-user-principal` anchored to the authenticated
+actor while resource hrefs, `DAV:owner`, and repository access remain
+owner-scoped. Missing principals, or resolved non-user owner/actor principals,
+fail closed as access denial before audit or delegated role checks run, while
+infrastructure and audit-path failures remain explicit server errors. This is a
+protocol boundary foundation, not a public contacts-sharing UX.
 
 ## Consequences
 
