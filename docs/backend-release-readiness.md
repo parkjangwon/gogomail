@@ -841,6 +841,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP flag-list parsing for `APPEND`, `STORE`, and `UID STORE` now rejects
   unparenthesized or unbalanced lists before backend mutation, preserving
   stricter protocol syntax for client compatibility.
+- IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
+  `date-day-fixed` syntax, accepting zero-padded or space-padded days while
+  rejecting bare one-digit dates such as `"5-May-2026 ..."`.
 - IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
   `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
   mailbox did not permit them instead of dispatching unsupported mutations to
@@ -1661,9 +1664,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   unsupported. Successful append results include the appended message sequence
   number, which is used as the precise `EXISTS` event count when available.
   APPEND internaldate parsing accepts RFC 3501 space-padded one-digit date-days
-  such as `" 5-May-2026 ..."`. The service boundary rejects CR/LF-bearing or
-  oversized APPEND user and mailbox identifiers before repository lookup,
-  spooling, parsing, storage, or quota work.
+  such as `" 5-May-2026 ..."` while rejecting bare one-digit date-days such as
+  `"5-May-2026 ..."`. The service boundary rejects CR/LF-bearing or oversized
+  APPEND user and mailbox identifiers before repository lookup, spooling,
+  parsing, storage, or quota work.
 - IMAP service-backed `STORE`, `COPY`, `MOVE`, and `EXPUNGE` mutations reject
   CR/LF-bearing or oversized user and mailbox identifiers before repository
   mutation dispatch or mailbox event publication.

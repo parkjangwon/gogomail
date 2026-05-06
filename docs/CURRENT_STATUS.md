@@ -883,6 +883,9 @@ owner/resource target without scanning unrelated audit history.
   unparenthesized or unbalanced flag lists instead of silently trimming stray
   parentheses, keeping flag mutation syntax closer to RFC-shaped client
   expectations.
+- IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
+  `date-day-fixed` syntax, accepting zero-padded or space-padded days while
+  rejecting bare one-digit dates such as `"5-May-2026 ..."`.
 - IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
   `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
   mailbox did not permit them instead of dispatching unsupported mutations to
@@ -1953,8 +1956,9 @@ The platform hardening sprint completed the following:
   unsupported. Successful append results include the appended message sequence
   number, which is used as the precise `EXISTS` event count when available.
   APPEND internaldate parsing accepts RFC 3501 space-padded one-digit date-days
-  such as `" 5-May-2026 ..."`. The service boundary now rejects CR/LF-bearing
-  or oversized APPEND user and mailbox identifiers before repository lookup,
+  such as `" 5-May-2026 ..."` while rejecting bare one-digit date-days such as
+  `"5-May-2026 ..."`. The service boundary now rejects CR/LF-bearing or
+  oversized APPEND user and mailbox identifiers before repository lookup,
   spooling, parsing, storage, or quota work.
 - IMAP empty flag-lists are accepted where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
