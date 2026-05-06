@@ -16,10 +16,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Health probes are pinned to the service-root OpenAPI server and service info
   is pinned to `/api/v1`, with runtime coverage for wrong-base URLs so
   operators and generated clients do not probe undocumented routes.
-- CalDAV and CardDAV OPTIONS discovery now advertise `DAV: sync-collection`
-  only when the runtime store implements the corresponding sync change-log
-  interface, avoiding false native-client sync capability discovery on limited
-  backends.
+- CalDAV and CardDAV discovery now advertise `DAV: sync-collection` and
+  collection `supported-report-set` sync reports only when the runtime store
+  implements the corresponding sync change-log interface, avoiding false
+  native-client sync capability discovery on limited backends.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

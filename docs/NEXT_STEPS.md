@@ -31,8 +31,9 @@ Current state:
   ambiguity before admin frontend work starts.
 - Health probes are now pinned to the service-root OpenAPI server, and service
   info is pinned to `/api/v1`, with runtime regressions for wrong-base forms.
-- CalDAV and CardDAV OPTIONS discovery now advertise `sync-collection` only
-  when the runtime store implements the relevant sync change-log interface.
+- CalDAV and CardDAV discovery now advertise `sync-collection` in both
+  `OPTIONS` DAV tokens and collection `supported-report-set` only when the
+  runtime store implements the relevant sync change-log interface.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`

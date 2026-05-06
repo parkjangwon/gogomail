@@ -995,7 +995,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 				if err != nil {
 					return nil, err
 				}
-				props, err := CalendarCollectionProperties(userID, calendar)
+				props, err := CalendarCollectionProperties(userID, calendar, h.includeSyncCollection())
 				if err != nil {
 					return nil, err
 				}
@@ -1017,7 +1017,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		if err != nil {
 			return nil, err
 		}
-		props, err := CalendarCollectionProperties(userID, calendar)
+		props, err := CalendarCollectionProperties(userID, calendar, h.includeSyncCollection())
 		if err != nil {
 			return nil, err
 		}

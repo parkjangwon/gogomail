@@ -754,7 +754,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 				if err != nil {
 					return nil, err
 				}
-				props, err := AddressBookCollectionProperties(userID, book)
+				props, err := AddressBookCollectionProperties(userID, book, h.includeSyncCollection())
 				if err != nil {
 					return nil, err
 				}
@@ -776,7 +776,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		if err != nil {
 			return nil, err
 		}
-		props, err := AddressBookCollectionProperties(userID, book)
+		props, err := AddressBookCollectionProperties(userID, book, h.includeSyncCollection())
 		if err != nil {
 			return nil, err
 		}

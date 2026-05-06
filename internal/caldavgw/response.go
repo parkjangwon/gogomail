@@ -143,7 +143,7 @@ func CalendarHomeProperties(userID string) ([]PropertyResult, error) {
 	}, nil
 }
 
-func CalendarCollectionProperties(userID string, calendar Calendar) ([]PropertyResult, error) {
+func CalendarCollectionProperties(userID string, calendar Calendar, includeSyncCollection bool) ([]PropertyResult, error) {
 	if _, err := CalendarCollectionPath(userID, calendar.ID); err != nil {
 		return nil, err
 	}
@@ -169,17 +169,20 @@ func CalendarCollectionProperties(userID string, calendar Calendar) ([]PropertyR
 		{Name: PropSupportedCalendarData, Value: PropertyValue{CalendarDataTypes: []CalendarDataType{{ContentType: "text/calendar", Version: "2.0"}}}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxCalendarObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: calendar.SyncToken}, Found: true},
-		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: SupportedCalendarReports()}, Found: true},
+		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: SupportedCalendarReports(includeSyncCollection)}, Found: true},
 	}, nil
 }
 
-func SupportedCalendarReports() []XMLName {
-	return []XMLName{
+func SupportedCalendarReports(includeSyncCollection bool) []XMLName {
+	reports := []XMLName{
 		{Space: CalDAVNamespace, Local: string(ReportCalendarQuery)},
 		{Space: CalDAVNamespace, Local: string(ReportCalendarMulti)},
 		{Space: CalDAVNamespace, Local: string(ReportFreeBusyQuery)},
-		{Space: DAVNamespace, Local: string(ReportSyncCollection)},
 	}
+	if includeSyncCollection {
+		reports = append(reports, XMLName{Space: DAVNamespace, Local: string(ReportSyncCollection)})
+	}
+	return reports
 }
 
 func CalendarObjectProperties(userID string, object CalendarObject) ([]PropertyResult, error) {
