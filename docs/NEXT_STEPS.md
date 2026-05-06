@@ -840,6 +840,9 @@ Current state:
   reject top-level standard S3 `<Error>` bodies before reporting completed
   writes or cleanup, keeping compatible-provider throttling/auth/policy
   failures from crossing the shared storage contract as false success.
+  `PutObject` also validates optional success `ETag` headers when present,
+  rejecting duplicate or non-empty malformed identity metadata without
+  requiring providers to send the header.
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.

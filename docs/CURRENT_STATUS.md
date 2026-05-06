@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP UID selected-event drain hardening)
+Last updated: 2026-05-07 (updated after S3 PutObject success ETag hardening)
 
 ## Current phase
 
@@ -165,7 +165,10 @@ S3-compatible `PutObject` and `DeleteObject` successful status responses now
 apply the same top-level standard S3 `<Error>` detection before reporting
 success, so throttling, auth, or policy failures hidden inside `200 OK` or
 delete-compatible success responses cannot masquerade as durable object writes
-or cleanup progress.
+or cleanup progress. `PutObject` success responses now also reject duplicate
+or non-empty malformed `ETag` headers when providers supply optional write
+identity metadata, while still allowing compatible providers that omit the
+header entirely.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.

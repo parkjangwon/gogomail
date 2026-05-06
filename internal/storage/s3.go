@@ -134,6 +134,9 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 	if resp.StatusCode != http.StatusOK {
 		return s3StatusError("put", resp)
 	}
+	if err := validateS3OptionalSuccessETag("put", resp); err != nil {
+		return err
+	}
 	return validateS3EmptySuccessResponse("put", resp.Body)
 }
 
@@ -700,6 +703,27 @@ func s3ResponseSingleHeader(resp *http.Response, name string) (string, bool) {
 		return found, true
 	}
 	return "", true
+}
+
+func s3ResponseOptionalSingleHeader(resp *http.Response, name string) (string, bool, bool) {
+	var found string
+	count := 0
+	for key, values := range resp.Header {
+		if !strings.EqualFold(key, name) {
+			continue
+		}
+		for _, value := range values {
+			count++
+			if count > 1 {
+				return "", true, false
+			}
+			found = value
+		}
+	}
+	if count == 1 {
+		return found, true, true
+	}
+	return "", false, true
 }
 
 func parseS3NonNegativeDecimal(value string) (int64, bool) {
@@ -1335,6 +1359,20 @@ func validateS3EmptySuccessResponse(operation string, body io.Reader) error {
 			return fmt.Errorf("%s s3 object: embedded error", operation)
 		}
 		return fmt.Errorf("%s s3 object: embedded error: %s", operation, preview)
+	}
+	return nil
+}
+
+func validateS3OptionalSuccessETag(operation string, resp *http.Response) error {
+	rawETag, present, ok := s3ResponseOptionalSingleHeader(resp, "ETag")
+	if !ok {
+		return fmt.Errorf("%s s3 object: duplicate etag", operation)
+	}
+	if !present || strings.TrimSpace(rawETag) == "" {
+		return nil
+	}
+	if cleanS3ETag(rawETag) == "" {
+		return fmt.Errorf("%s s3 object: invalid etag", operation)
 	}
 	return nil
 }
