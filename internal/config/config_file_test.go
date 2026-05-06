@@ -141,6 +141,11 @@ func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
 		path        string
 		backend     string
 		endpoint    string
+		region      string
+		bucket      string
+		prefix      string
+		accessKeyID string
+		secretKey   string
 		root        string
 		compat      []string
 		pathStyle   bool
@@ -148,8 +153,8 @@ func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
 	}{
 		{path: "../../configs/storage.local.yaml", backend: "local"},
 		{path: "../../configs/storage.nfs.yaml", backend: "nfs", root: "/mnt/gogomail-storage", compat: []string{"local"}},
-		{path: "../../configs/storage.minio.yaml", backend: "minio", endpoint: "http://localhost:19000", pathStyle: true},
-		{path: "../../configs/storage.s3.yaml", backend: "s3", endpoint: "https://s3.us-east-1.amazonaws.com", environment: "production"},
+		{path: "../../configs/storage.minio.yaml", backend: "minio", endpoint: "http://localhost:19000", region: "us-east-1", bucket: "gogomail", accessKeyID: "gogomail", secretKey: "gogomail123", pathStyle: true},
+		{path: "../../configs/storage.s3.yaml", backend: "s3", endpoint: "https://s3.us-east-1.amazonaws.com", region: "us-east-1", bucket: "gogomail-prod", prefix: "mail", accessKeyID: "CHANGE_ME_ACCESS_KEY_ID", secretKey: "CHANGE_ME_SECRET_ACCESS_KEY", environment: "production"},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -163,6 +168,21 @@ func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
 			}
 			if cfg.StorageS3Endpoint != tt.endpoint {
 				t.Fatalf("StorageS3Endpoint = %q, want %q", cfg.StorageS3Endpoint, tt.endpoint)
+			}
+			if tt.region != "" && cfg.StorageS3Region != tt.region {
+				t.Fatalf("StorageS3Region = %q, want %q", cfg.StorageS3Region, tt.region)
+			}
+			if cfg.StorageS3Bucket != tt.bucket {
+				t.Fatalf("StorageS3Bucket = %q, want %q", cfg.StorageS3Bucket, tt.bucket)
+			}
+			if cfg.StorageS3Prefix != tt.prefix {
+				t.Fatalf("StorageS3Prefix = %q, want %q", cfg.StorageS3Prefix, tt.prefix)
+			}
+			if cfg.StorageS3AccessKeyID != tt.accessKeyID {
+				t.Fatalf("StorageS3AccessKeyID = %q, want %q", cfg.StorageS3AccessKeyID, tt.accessKeyID)
+			}
+			if cfg.StorageS3SecretAccessKey != tt.secretKey {
+				t.Fatalf("StorageS3SecretAccessKey = %q, want %q", cfg.StorageS3SecretAccessKey, tt.secretKey)
 			}
 			if tt.root != "" && cfg.MailstoreRoot != tt.root {
 				t.Fatalf("MailstoreRoot = %q, want %q", cfg.MailstoreRoot, tt.root)

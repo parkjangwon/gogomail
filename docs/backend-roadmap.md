@@ -3513,6 +3513,10 @@ Implementation order:
       localhost/IPv4/IPv6 endpoints, preserving AWS certificate compatibility
       and MinIO-style local behavior even when operators use the generic `s3`
       backend.
+1322. Storage profile smoke coverage now verifies MinIO and AWS S3 profile
+      region, bucket, prefix, and credential fields in addition to endpoint and
+      path-style settings, preventing config-only backend flips from silently
+      losing required object-storage settings.
 
 ## Deferred until backend contracts stabilize
 
