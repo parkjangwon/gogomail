@@ -392,6 +392,9 @@ Current state:
 - `AUTHENTICATE PLAIN` continuation cancellation now requires an exact `*`
   token, rejecting whitespace-padded cancellation attempts as malformed SASL
   responses while keeping the session usable.
+- `AUTHENTICATE PLAIN` SASL response tokens now reject leading or trailing
+  whitespace around the base64 atom, including quoted SASL-IR values such as
+  `" <base64> "`, while preserving spaces inside decoded credentials.
 - SASL PLAIN decoding rejects oversized encoded and decoded responses before
   credential splitting or backend authentication, keeping `AUTHENTICATE PLAIN`
   continuation and `SASL-IR` literal paths bounded.

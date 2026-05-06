@@ -86,8 +86,9 @@ Recent release-readiness work also includes:
   strict SEARCH/SORT/THREAD RETURN option-list framing,
   strict CONDSTORE select-param framing, CONDSTORE/MODSEQ-shaped behavior,
   syntax-before-state validation,
-  exact SASL continuation cancellation, SASL-IR syntax-before-policy
-  diagnostics, strict SEARCH/SORT/THREAD charset and thread-algorithm atoms,
+  exact SASL continuation cancellation, exact SASL PLAIN response token
+  handling, SASL-IR syntax-before-policy diagnostics, strict
+  SEARCH/SORT/THREAD charset and thread-algorithm atoms,
   strict SORT criterion-list framing, strict FETCH data-item framing,
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   numeric grammar checks, partial windows, SEARCH size criteria,

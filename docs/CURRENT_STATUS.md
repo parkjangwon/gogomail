@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP sequence-set range hardening)
+Last updated: 2026-05-07 (updated after IMAP SASL PLAIN response token hardening)
 
 ## Current phase
 
@@ -85,6 +85,10 @@ CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new
 resources when the client intended to guard an existing representation.
+IMAP `AUTHENTICATE PLAIN` now rejects whitespace-padded SASL response tokens,
+including quoted SASL-IR values such as `" <base64> "`, before privacy-policy
+or backend authentication checks. Decoded SASL PLAIN credential spaces remain
+preserved, but the base64 response atom itself must be exact.
 Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can
