@@ -1290,6 +1290,45 @@ func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
 	}
 }
 
+func TestS3StoreListUsesSigV4CanonicalQueryEncoding(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000/base+proxy",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+	req, err := store.newListRequest(context.Background(), "tenant+1/user@example.com/Inbox and Projects", 25, "token+with spaces/and=equals")
+	if err != nil {
+		t.Fatalf("newListRequest returned error: %v", err)
+	}
+	want := "continuation-token=token%2Bwith%20spaces%2Fand%3Dequals&list-type=2&max-keys=25&prefix=mail%2Ftenant%2B1%2Fuser%40example.com%2FInbox%20and%20Projects"
+	if req.URL.RawQuery != want {
+		t.Fatalf("RawQuery = %q, want %q", req.URL.RawQuery, want)
+	}
+	if strings.Contains(req.URL.RawQuery, "+") {
+		t.Fatalf("RawQuery used form-style space encoding: %q", req.URL.RawQuery)
+	}
+	if got := req.URL.Query().Get("prefix"); got != "mail/tenant+1/user@example.com/Inbox and Projects" {
+		t.Fatalf("decoded prefix = %q", got)
+	}
+	if got := req.URL.Query().Get("continuation-token"); got != "token+with spaces/and=equals" {
+		t.Fatalf("decoded continuation-token = %q", got)
+	}
+	if !strings.Contains(req.Header.Get("Authorization"), "SignedHeaders=host;x-amz-content-sha256;x-amz-date") {
+		t.Fatalf("Authorization = %q, want signed list request", req.Header.Get("Authorization"))
+	}
+}
+
 func TestS3StoreSetsContentLengthForSeekablePutBody(t *testing.T) {
 	t.Parallel()
 

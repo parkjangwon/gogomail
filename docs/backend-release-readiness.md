@@ -1112,6 +1112,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` object-size validation now runs after provider
   keys map back to the requested canonical gogomail prefix, so out-of-scope
   bucket entries are skipped before their metadata can fail a valid listing.
+- S3-compatible `ListObjectsV2` request queries now use SigV4 canonical URI
+  encoding instead of form-style query escaping, so list prefixes and opaque
+  continuation tokens with spaces, literal `+`, `/`, `=`, or `@` characters are
+  signed and sent consistently across AWS S3, MinIO, and strict compatible
+  providers.
 - Shared storage list cursors reject leading/trailing whitespace and control
   characters instead of trimming opaque provider tokens, keeping local/NFS and
   S3-compatible pagination identity exact for Drive, lifecycle, and

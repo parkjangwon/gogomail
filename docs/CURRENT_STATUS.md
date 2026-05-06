@@ -672,6 +672,10 @@ owner/resource target without scanning unrelated audit history.
 - S3-compatible `ListObjectsV2` object-size validation now runs only after a
   provider key maps back to the requested canonical gogomail prefix, so
   out-of-scope bucket noise cannot fail an otherwise valid canonical list page.
+- S3-compatible `ListObjectsV2` request queries now use SigV4 canonical URI
+  encoding instead of form-style query escaping, preserving literal spaces,
+  `+`, `/`, `=`, and `@` characters in signed list prefixes and opaque
+  continuation tokens across AWS S3, MinIO, and stricter compatible providers.
 - Shared storage list cursors now reject leading/trailing whitespace and
   control characters instead of silently trimming opaque provider tokens,
   keeping local/NFS and S3-compatible pagination identity exact across cleanup
