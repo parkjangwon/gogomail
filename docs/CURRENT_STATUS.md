@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP STATUS spaced empty-list validation)
+Last updated: 2026-05-06 (updated after IMAP IDLE framing-error handling)
 
 ## Current phase
 
@@ -27,7 +27,10 @@ extensions such as `REFERENCES` are reported at the syntax/capability boundary
 consistently for normal and UID forms. IMAP literal parsing now has regression
 coverage for suffixed literal markers, literal payloads followed by trailing
 atom data, and unused literal payloads so malformed wire input remains in the
-parser/framing layer instead of leaking into command handlers.
+parser/framing layer instead of leaking into command handlers. Oversized lines
+sent while an `IDLE` continuation is active now follow the same tagged `BAD`
+plus `BYE` framing-error path as oversized ordinary command lines, giving
+clients a deterministic close reason instead of a silent connection drop.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. Production `s3` runtime configuration now requires an explicit
