@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV delegated privilege discovery)
+Last updated: 2026-05-06 (updated after CalDAV calendar-query filter hardening)
 
 ## Current phase
 
@@ -51,6 +51,11 @@ uses `Depth: 1`, keeping query scope explicit for native client compatibility.
 CalDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers before
 request-body parsing, keeping WebDAV traversal scope deterministic across
 native clients and intermediaries.
+CalDAV `calendar-query` parsing now rejects malformed RFC 4791 component
+filters that omit the required `name` attribute or use a non-`VCALENDAR`
+top-level component, so native-client search/filter requests fail at the
+protocol grammar boundary instead of being silently widened to whole-calendar
+matches.
 CalDAV object and collection preconditions now evaluate repeated `If-Match`
 and `If-None-Match` headers as a single ETag list, so cache validation and
 write guards match HTTP field-combination semantics instead of depending on the

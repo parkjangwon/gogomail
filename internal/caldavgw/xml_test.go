@@ -524,13 +524,21 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"empty body":         ``,
-		"unknown root":       `<D:expand-property xmlns:D="DAV:"/>`,
-		"wrong namespace":    `<calendar-query/>`,
-		"nested href":        `<D:sync-collection xmlns:D="DAV:"><D:href><D:x/></D:href></D:sync-collection>`,
-		"too many hrefs":     `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">` + strings.Repeat("<D:href>/x.ics</D:href>", MaxWebDAVHrefs+1) + `</C:calendar-multiget>`,
-		"multiget no href":   `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:calendar-multiget>`,
-		"query no filter":    `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:calendar-query>`,
+		"empty body":       ``,
+		"unknown root":     `<D:expand-property xmlns:D="DAV:"/>`,
+		"wrong namespace":  `<calendar-query/>`,
+		"nested href":      `<D:sync-collection xmlns:D="DAV:"><D:href><D:x/></D:href></D:sync-collection>`,
+		"too many hrefs":   `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">` + strings.Repeat("<D:href>/x.ics</D:href>", MaxWebDAVHrefs+1) + `</C:calendar-multiget>`,
+		"multiget no href": `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:calendar-multiget>`,
+		"query no filter":  `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:calendar-query>`,
+		"query comp filter no name": `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter><C:comp-filter/></C:filter>
+</C:calendar-query>`,
+		"query top comp filter not vcalendar": `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter><C:comp-filter name="VEVENT"/></C:filter>
+</C:calendar-query>`,
 		"free busy no range": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"/>`,
 		"free busy duplicate range": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav">
   <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>

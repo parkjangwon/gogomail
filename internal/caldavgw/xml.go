@@ -971,6 +971,12 @@ func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, er
 
 func parseCompFilterElement(dec *xml.Decoder, start xml.StartElement, parentComponent string) (ReportFilter, error) {
 	component := strings.ToUpper(strings.TrimSpace(xmlAttr(start, "name")))
+	if component == "" {
+		return ReportFilter{}, fmt.Errorf("CalDAV comp-filter name is required")
+	}
+	if parentComponent == "" && component != "VCALENDAR" {
+		return ReportFilter{}, fmt.Errorf("CalDAV top-level comp-filter must be VCALENDAR")
+	}
 	var found ReportFilter
 	if parentComponent == "VCALENDAR" && component != "" {
 		if isSupportedCalendarComponent(component) {
