@@ -2819,9 +2819,13 @@ The platform hardening sprint completed the following:
   per calendar, so retention workers can expire history without destroying the
   token needed for current clients. The `dav-sync-retention-worker` now runs
   that CalDAV prune path on an interval or once-and-exit, dry-run by default
-  and guarded by explicit confirmation before destructive runs. Unknown or
-  expired tokens still fail with DAV `valid-sync-token`; deployment
-  retention-age policy and native-client expiry testing remain future work.
+  and guarded by explicit confirmation before destructive runs. Each worker
+  execution now records a `dav_sync_retention_runs` audit/read-model row with
+  cutoff, limit, dry-run/confirmation flags, status, bounded error text, and
+  CalDAV/CardDAV candidate/deleted counts, including partial failures after one
+  side has pruned successfully. Unknown or expired tokens still fail with DAV
+  `valid-sync-token`; deployment retention-age policy, Admin API inspection,
+  and native-client expiry testing remain future work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and

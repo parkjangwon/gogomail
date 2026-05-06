@@ -3156,6 +3156,12 @@ Implementation order:
       continuation tokens containing spaces, literal `+`, `/`, `=`, or `@`
       characters are signed and transmitted consistently across AWS S3, MinIO,
       and strict compatible providers.
+1248. DAV sync retention worker executions now persist
+      `dav_sync_retention_runs` audit/read-model rows with cutoff, limit,
+      dry-run/confirmation flags, completed/failed status, bounded error text,
+      and CalDAV/CardDAV candidate/deleted counts. Partial failures after one
+      DAV side prunes successfully are now traceable before Admin API
+      readiness/history endpoints make retention publicly operable.
 
 ## Deferred until backend contracts stabilize
 
