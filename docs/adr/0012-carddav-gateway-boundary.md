@@ -65,7 +65,8 @@ full snapshots or bounded change rows since a stored sync token. REPORT
 `address-data` can project returned vCards to requested property names while
 preserving structural BEGIN/VERSION/END lines, and requested address-data
 content types/versions are validated against the advertised `text/vcard` 4.0
-support before handler execution. Returned address-data elements carry explicit
+support with the RFC 6352 `CARDDAV:supported-address-data` precondition before
+handler execution. Returned address-data elements carry explicit
 `content-type="text/vcard"` and `version="4.0"` attributes. Addressbook query
 execution honors bounded `limit/nresults` values before rendering multistatus
 responses, and repository-backed execution can stream contact objects through a

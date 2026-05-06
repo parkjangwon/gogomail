@@ -738,6 +738,26 @@ func TestHandlerReportAddressBookMultigetProjectsAddressData(t *testing.T) {
 	}
 }
 
+func TestHandlerReportRejectsUnsupportedAddressDataWithPrecondition(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"/></C:filter>
+  <D:prop><C:address-data content-type="application/vcard"/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{"<D:error", "<C:supported-address-data/>", "application/vcard"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("unsupported address-data response missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestHandlerReportAddressBookMultigetRequiresDepthHeader(t *testing.T) {
 	t.Parallel()
 

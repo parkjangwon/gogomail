@@ -77,8 +77,9 @@ success responses, even for `Depth: 0` requests that otherwise return no child
 objects. REPORT `address-data` can now
 project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
-`version` values instead of returning data under an unimplemented format
-contract. Returned `address-data` elements also carry explicit `content-type`
+`version` values with the RFC 6352 `CARDDAV:supported-address-data`
+precondition instead of returning data under an unimplemented format contract.
+Returned `address-data` elements also carry explicit `content-type`
 and `version` attributes matching the advertised `text/vcard` 4.0 support.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so
 large address books can be queried with explicit result caps, and repository
