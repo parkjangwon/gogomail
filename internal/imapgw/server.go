@@ -1899,7 +1899,8 @@ func imapSearchCriterionSyntaxConsumed(criteria []string) (int, bool) {
 		if len(criteria) < 3 {
 			return 0, false
 		}
-		if _, ok := imapSearchStringArgument(criteria[1]); !ok {
+		fieldName, ok := imapSearchStringArgument(criteria[1])
+		if !ok || !imapSearchHeaderFieldNameValid(fieldName) {
 			return 0, false
 		}
 		if _, ok := imapSearchStringArgument(criteria[2]); !ok {
@@ -2542,7 +2543,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 			return nil, 0, false
 		}
 		fieldName, ok := imapSearchStringArgument(criteria[1])
-		if !ok {
+		if !ok || !imapSearchHeaderFieldNameValid(fieldName) {
 			return nil, 0, false
 		}
 		query, ok := imapSearchStringArgument(criteria[2])
@@ -5194,6 +5195,10 @@ func imapHeaderFieldNameValid(field string) bool {
 		return false
 	}
 	return true
+}
+
+func imapSearchHeaderFieldNameValid(field string) bool {
+	return imapHeaderFieldNameValid(strings.ToUpper(field))
 }
 
 func filterIMAPHeaderFields(header []byte, fields []string, exclude bool) []byte {

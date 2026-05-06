@@ -3269,6 +3269,9 @@ Implementation order:
       regression coverage for forwarded-message previews, including non-empty
       `HEADER.FIELDS`, empty `HEADER.FIELDS`, and empty `HEADER.FIELDS.NOT`
       windows on attached messages.
+1270. IMAP `SEARCH HEADER` now validates RFC-shaped header field names before
+      authentication or selected-mailbox state, rejecting empty, space-bearing,
+      or colon-suffixed field-name arguments as malformed criteria.
 
 ## Deferred until backend contracts stabilize
 
