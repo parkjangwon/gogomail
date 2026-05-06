@@ -61,6 +61,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   API server and admin-token/bearer auth alternatives, matching their runtime
   operator forensics, identity, delegated-access, and flow-control `adminAuth`
   routes.
+- Quota pressure, attachment upload cleanup, Drive upload session, Drive node,
+  Drive usage, and Drive cleanup failure OpenAPI operations now also pin the
+  Admin API server and admin-token/bearer auth alternatives, matching their
+  runtime storage/Drive `adminAuth` routes across local, NFS, MinIO, and
+  S3-compatible deployments.
 - Admin readiness bootstrap operations now pin the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI for ledger
   retention readiness, DAV sync retention readiness, and export handoff

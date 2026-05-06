@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after directory admin OpenAPI route pinning)
+Last updated: 2026-05-07 (updated after storage admin OpenAPI route pinning)
 
 ## Current phase
 
@@ -113,6 +113,11 @@ Admin API server and admin-auth alternatives in OpenAPI, keeping operational
 forensics, identity resolution, delegated access, and emergency flow-control
 calls generated under the operator boundary that backs future CalDAV,
 CardDAV, shared mailbox, and admin-console workflows.
+Quota pressure, attachment upload cleanup, Drive upload session, Drive node,
+Drive usage, and Drive object cleanup failure administration operations now
+also pin the Admin API server and admin-auth alternatives in OpenAPI, keeping
+storage portability and Drive operations generated under the operator-only
+boundary for local, NFS, MinIO, and S3-compatible deployments.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,
