@@ -175,6 +175,10 @@ Current state:
   for MIME part paths and partial counts, rejecting leading-zero forms such as
   `BODY[01]`, `BODY[1.02.TEXT]`, and `BODY.PEEK[]<12.034>` at the parser
   boundary.
+- IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT`
+  parsing now accepts visible RFC 5322-style custom field names containing
+  `_`, `+`, or `.`, while preserving fail-fast rejection for empty,
+  whitespace/control-bearing, colon-suffixed, or non-ASCII field names.
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.
