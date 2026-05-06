@@ -1016,6 +1016,10 @@ Current state:
   after `SELECT ... (CONDSTORE)` or after `STATUS HIGHESTMODSEQ` plus `SELECT`
   is regression-covered so already aware sessions do not re-emit the selected
   mailbox baseline.
+- Mailboxes selected with `NOMODSEQ` now reject `FETCH`/`UID FETCH`
+  `MODSEQ`/`CHANGEDSINCE`, `SEARCH`/`SORT`/`THREAD` `MODSEQ`, and
+  `STORE`/`UID STORE` `UNCHANGEDSINCE` before backend mutation or scan work,
+  matching RFC 7162's non-persistent mod-sequence semantics.
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
   success for passing messages, and UID/sequence `[MODIFIED ...]`

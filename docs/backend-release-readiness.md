@@ -165,6 +165,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and after `STATUS HIGHESTMODSEQ` plus `SELECT`, ensuring already
   CONDSTORE-aware sessions keep returning `ENABLED CONDSTORE` without
   re-emitting the selected mailbox baseline.
+- IMAP mailboxes selected with `NOMODSEQ` now reject `FETCH`/`UID FETCH`
+  `MODSEQ`/`CHANGEDSINCE`, `SEARCH`/`SORT`/`THREAD` `MODSEQ`, and
+  `STORE`/`UID STORE` `UNCHANGEDSINCE` before backend mutation or scan work,
+  preserving RFC 7162 behavior for stores without persistent mod-sequences.
 - Storage profile smoke tests now verify the NFS YAML profile's
   `storage_root` and explicit `local` compatibility label through both config
   loading and CLI `--config` handoff.

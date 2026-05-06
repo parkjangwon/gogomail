@@ -2360,6 +2360,67 @@ func TestServerEnableCondstoreAfterNoModSeqSelectReturnsNoModSeq(t *testing.T) {
 	}
 }
 
+func TestServerRejectsModSeqCommandsAfterNoModSeqSelect(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox (CONDSTORE)\r\na3 FETCH 1 (MODSEQ)\r\na4 UID FETCH 7 (FLAGS) (CHANGEDSINCE 1)\r\na5 SEARCH MODSEQ 1\r\na6 UID SEARCH MODSEQ 1\r\na7 SORT (ARRIVAL) UTF-8 MODSEQ 1\r\na8 UID SORT (ARRIVAL) UTF-8 MODSEQ 1\r\na9 THREAD ORDEREDSUBJECT UTF-8 MODSEQ 1\r\na10 UID THREAD ORDEREDSUBJECT UTF-8 MODSEQ 1\r\na11 UID STORE 7 (UNCHANGEDSINCE 1) +FLAGS (\\Seen)\r\na12 STORE 1 (UNCHANGEDSINCE 1) +FLAGS (\\Seen)\r\n")); err != nil {
+		t.Fatalf("write modseq commands: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [NOMODSEQ] No persistent mod-sequences\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
+		"a2 OK [READ-WRITE] SELECT completed\r\n",
+		"a3 BAD FETCH requires persistent mod-sequences\r\n",
+		"a4 BAD UID FETCH requires persistent mod-sequences\r\n",
+		"a5 BAD SEARCH requires persistent mod-sequences\r\n",
+		"a6 BAD SEARCH requires persistent mod-sequences\r\n",
+		"a7 BAD SORT requires persistent mod-sequences\r\n",
+		"a8 BAD SORT requires persistent mod-sequences\r\n",
+		"a9 BAD THREAD requires persistent mod-sequences\r\n",
+		"a10 BAD THREAD requires persistent mod-sequences\r\n",
+		"a11 BAD UID STORE requires persistent mod-sequences\r\n",
+		"a12 BAD STORE requires persistent mod-sequences\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read modseq command response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("modseq command response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a13 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerEnableCondstoreDoesNotRepeatSelectedBaseline(t *testing.T) {
 	t.Parallel()
 

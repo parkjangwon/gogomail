@@ -344,6 +344,7 @@ type imapConnState struct {
 	selectedMailbox       MailboxID
 	selectedMessages      uint32
 	selectedHighestModSeq uint64
+	selectedNoModSeq      bool
 	permanentFlags        map[string]struct{}
 	readOnly              bool
 	condstoreAware        bool
@@ -580,6 +581,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.selectedHighestModSeq = mailboxState.HighestModSeq
+		state.selectedNoModSeq = mailboxState.HighestModSeq == 0 && (condstore || state.condstoreAware)
 		state.readOnly = command == "EXAMINE"
 		if state.readOnly {
 			state.permanentFlags = nil
@@ -739,6 +741,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
 		state.selectedHighestModSeq = 0
+		state.selectedNoModSeq = false
 		state.permanentFlags = nil
 		state.readOnly = false
 		state.savedSearch = nil
@@ -1006,6 +1009,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
 		state.selectedHighestModSeq = 0
+		state.selectedNoModSeq = false
 		state.permanentFlags = nil
 		state.readOnly = false
 		state.closeSubscription()
@@ -1593,6 +1597,9 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	}
 	requestsModSeq := imapSearchRequestsModSeq(criteria)
 	if requestsModSeq {
+		if !state.selectedSupportsPersistentModSeq() {
+			return s.rejectSelectedNoModSeq(writer, tag, state, "SEARCH")
+		}
 		state.condstoreAware = true
 	}
 	results, highestModSeq, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode, requestsModSeq)
@@ -1670,6 +1677,9 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 	}
 	requestsModSeq := imapSearchRequestsModSeq(searchFields)
 	if requestsModSeq {
+		if !state.selectedSupportsPersistentModSeq() {
+			return s.rejectSelectedNoModSeq(writer, tag, state, "SORT")
+		}
 		state.condstoreAware = true
 	}
 	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
@@ -1740,6 +1750,9 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 	}
 	requestsModSeq := imapSearchRequestsModSeq(searchFields)
 	if requestsModSeq {
+		if !state.selectedSupportsPersistentModSeq() {
+			return s.rejectSelectedNoModSeq(writer, tag, state, "THREAD")
+		}
 		state.condstoreAware = true
 	}
 	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
@@ -3594,6 +3607,7 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 	state.selectedMailbox = ""
 	state.selectedMessages = 0
 	state.selectedHighestModSeq = 0
+	state.selectedNoModSeq = false
 	state.permanentFlags = nil
 	state.readOnly = false
 	state.closeSubscription()
@@ -3785,6 +3799,21 @@ func (state *imapConnState) observeHighestModSeq(modSeq uint64) {
 	state.selectedHighestModSeq = modSeq
 }
 
+func (state *imapConnState) selectedSupportsPersistentModSeq() bool {
+	return state != nil && state.selectedMailbox != "" && !state.selectedNoModSeq
+}
+
+func (s *Server) rejectSelectedNoModSeq(writer *bufio.Writer, tag string, state *imapConnState, command string) (bool, error) {
+	if state != nil && !state.condstoreAware {
+		state.condstoreAware = true
+		if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
+			return false, err
+		}
+	}
+	_, err := writer.WriteString(tag + " BAD " + command + " requires persistent mod-sequences\r\n")
+	return false, err
+}
+
 func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnState, sequenceNumbers []uint32) ([]UID, error) {
 	messages, err := s.options.Backend.ListMessages(ctx, ListMessagesRequest{
 		UserID:    state.session.UserID,
@@ -3947,6 +3976,9 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 	requestsInternalDate := imapFetchRequestsInternalDate(items)
 	requestsModSeq := requestsChangedSince || imapFetchRequestsModSeq(items)
 	if requestsModSeq {
+		if !state.selectedSupportsPersistentModSeq() {
+			return s.rejectSelectedNoModSeq(writer, tag, state, completionCommand)
+		}
 		state.condstoreAware = true
 	}
 	requestsBodyAttribute := imapFetchRequestsBodyAttribute(items)
@@ -6065,6 +6097,9 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n")
 		return false, err
 	}
+	if imapStoreUnchangedSincePresent(fields[4:]) && !state.selectedSupportsPersistentModSeq() {
+		return s.rejectSelectedNoModSeq(writer, tag, state, "UID STORE")
+	}
 	mode, silent, ok := imapStoreMode(storeFields[0])
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD UID STORE mode is unsupported\r\n")
@@ -6116,6 +6151,9 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 	if !ok || len(storeFields) < 2 {
 		_, err := writer.WriteString(tag + " BAD STORE UNCHANGEDSINCE modifier is invalid\r\n")
 		return false, err
+	}
+	if imapStoreUnchangedSincePresent(fields[3:]) && !state.selectedSupportsPersistentModSeq() {
+		return s.rejectSelectedNoModSeq(writer, tag, state, "STORE")
 	}
 	mode, silent, ok := imapStoreMode(storeFields[0])
 	if !ok {
@@ -6297,6 +6335,13 @@ func imapStoreUnchangedSince(fields []string) (uint64, []string, bool) {
 		return 0, nil, false
 	}
 	return threshold, fields[2:], true
+}
+
+func imapStoreUnchangedSincePresent(fields []string) bool {
+	if len(fields) == 0 {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(fields[0]), "(UNCHANGEDSINCE")
 }
 
 func imapSequenceNumber(summary MessageSummary) (uint32, bool) {

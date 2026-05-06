@@ -2076,6 +2076,10 @@ The platform hardening sprint completed the following:
   `ENABLE CONDSTORE` after the session is already CONDSTORE-aware now avoids
   re-emitting the selected mailbox baseline, keeping the "first enabling
   command" behavior precise while still returning `ENABLED CONDSTORE`.
+  Mailboxes selected with `NOMODSEQ` now reject `FETCH`/`UID FETCH`
+  `MODSEQ`/`CHANGEDSINCE`, `SEARCH`/`SORT`/`THREAD` `MODSEQ`, and
+  `STORE`/`UID STORE` `UNCHANGEDSINCE` before backend mutation or scan work,
+  matching RFC 7162's non-persistent mod-sequence semantics.
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
   passing updates and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]`
