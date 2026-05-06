@@ -166,3 +166,25 @@ func TestAddressBookSyncToken(t *testing.T) {
 		t.Fatal("sync token did not change for distinct inputs")
 	}
 }
+
+func TestAddressBookCollectionETag(t *testing.T) {
+	t.Parallel()
+
+	etag, err := AddressBookCollectionETag("user-1", AddressBook{ID: "book-1", SyncToken: "sync-123"})
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	if _, err := ValidateContactObjectETag(etag); err != nil {
+		t.Fatalf("collection etag is not a strong quoted hash: %v", err)
+	}
+	changed, err := AddressBookCollectionETag("user-1", AddressBook{ID: "book-1", SyncToken: "sync-456"})
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	if etag == changed {
+		t.Fatal("collection etag did not change with sync token")
+	}
+	if _, err := AddressBookCollectionETag("", AddressBook{ID: "book-1", SyncToken: "sync-123"}); err == nil {
+		t.Fatal("AddressBookCollectionETag accepted missing user")
+	}
+}

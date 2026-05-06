@@ -122,6 +122,9 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav address-book updater is not configured", http.StatusNotImplemented)
 		return
 	}
+	if !h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID) {
+		return
+	}
 	patch, err := ParseProppatch(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -518,6 +521,30 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 	default:
 		return nil, fmt.Errorf("unsupported CardDAV resource")
 	}
+}
+
+func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, addressBookID string) bool {
+	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
+	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
+	if ifMatch != "" || ifUnmodifiedSince != "" {
+		book, err := h.Store.LookupAddressBook(r.Context(), userID, addressBookID)
+		if err != nil {
+			http.Error(w, "carddav address book not found", http.StatusPreconditionFailed)
+			return false
+		}
+		if ifMatch != "" {
+			etag, err := AddressBookCollectionETag(userID, book)
+			if err != nil || !ifMatchMatches(ifMatch, etag) {
+				http.Error(w, "carddav address book collection etag mismatch", http.StatusPreconditionFailed)
+				return false
+			}
+		}
+		if objectModifiedSince(ifUnmodifiedSince, book.UpdatedAt) {
+			http.Error(w, "carddav address book modified since precondition", http.StatusPreconditionFailed)
+			return false
+		}
+	}
+	return true
 }
 
 func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {

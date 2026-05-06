@@ -103,6 +103,9 @@ for `DAV:displayname` and RFC 6352 `addressbook-description`. Updates flow
 through a small repository boundary, refresh the durable sync token, append an
 `addressbook-updated` change row, reject unsafe targets, and keep contact-object
 I/O separate from collection metadata mutation.
+Address-book collections now derive a strong collection ETag from the durable
+sync token, expose it through PROPFIND `getetag`, and enforce `If-Match` and
+`If-Unmodified-Since` on collection `PROPPATCH` before reading request bodies.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
