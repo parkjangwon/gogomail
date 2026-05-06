@@ -1620,7 +1620,9 @@ Next:
   requested property names and rejects unsupported requested address-data
   content types or versions with the RFC 6352
   `CARDDAV:supported-address-data` precondition. Unsupported text-match
-  collations now fail with `CARDDAV:supported-collation`; returned
+  collations now fail with `CARDDAV:supported-collation`; address-book
+  collections advertise `CARDDAV:supported-collation-set` with working
+  `i;ascii-casemap` and `i;unicode-casemap` matching; returned
   address-data also carries explicit `text/vcard` 4.0 attributes.
   `addressbook-multiget` requires an explicit `Depth` header before resolving
   requested hrefs, while accepting common Depth 0/1 client shapes.

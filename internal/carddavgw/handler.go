@@ -1040,8 +1040,8 @@ func vCardParamFilterApplies(params map[string][]string, filter CardDAVParamFilt
 }
 
 func textMatchApplies(value string, match CardDAVTextMatch) bool {
-	needle := strings.ToLower(match.Text)
-	haystack := strings.ToLower(value)
+	needle := normalizeTextMatchValue(match.Text, match.Collation)
+	haystack := normalizeTextMatchValue(value, match.Collation)
 	var matched bool
 	switch match.MatchType {
 	case TextMatchEquals:
@@ -1057,6 +1057,18 @@ func textMatchApplies(value string, match CardDAVTextMatch) bool {
 		return !matched
 	}
 	return matched
+}
+
+func normalizeTextMatchValue(value string, collation string) string {
+	if collation == TextMatchASCIICasemap {
+		return strings.Map(func(r rune) rune {
+			if r >= 'A' && r <= 'Z' {
+				return r + ('a' - 'A')
+			}
+			return r
+		}, value)
+	}
+	return strings.ToLower(value)
 }
 
 func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {

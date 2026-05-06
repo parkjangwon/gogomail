@@ -846,8 +846,13 @@ const (
 	TextMatchStartsWith = "starts-with"
 	TextMatchEndsWith   = "ends-with"
 
+	TextMatchASCIICasemap   = "i;ascii-casemap"
 	TextMatchUnicodeCasemap = "i;unicode-casemap"
 )
+
+func SupportedTextMatchCollations() []string {
+	return []string{TextMatchASCIICasemap, TextMatchUnicodeCasemap}
+}
 
 func parseAddressBookFilter(dec *xml.Decoder, el xml.StartElement) (AddressBookQueryFilter, error) {
 	test, err := filterTestAttribute(el, "filter")
@@ -1047,7 +1052,7 @@ func parseTextMatchElement(dec *xml.Decoder, el xml.StartElement) (CardDAVTextMa
 			if collation == "" || len(collation) > 128 {
 				return CardDAVTextMatch{}, fmt.Errorf("CardDAV text-match collation is invalid")
 			}
-			if collation != TextMatchUnicodeCasemap {
+			if !isSupportedTextMatchCollation(collation) {
 				return CardDAVTextMatch{}, UnsupportedCollationError{Value: collation}
 			}
 			match.Collation = collation
@@ -1081,6 +1086,15 @@ func parseTextMatchElement(dec *xml.Decoder, el xml.StartElement) (CardDAVTextMa
 	}
 	match.Text = text
 	return match, nil
+}
+
+func isSupportedTextMatchCollation(collation string) bool {
+	for _, supported := range SupportedTextMatchCollations() {
+		if collation == supported {
+			return true
+		}
+	}
+	return false
 }
 
 func filterNameAttribute(el xml.StartElement, element string) (string, error) {

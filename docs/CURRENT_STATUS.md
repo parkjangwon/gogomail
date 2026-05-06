@@ -83,6 +83,10 @@ BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
 precondition instead of returning data under an unimplemented format contract.
 Unsupported text-match collations now fail with the RFC 6352
 `CARDDAV:supported-collation` precondition instead of a generic parse error.
+Address-book collections advertise RFC 6352
+`CARDDAV:supported-collation-set` with `i;ascii-casemap` and
+`i;unicode-casemap`, and query evaluation implements both advertised
+collations.
 Returned `address-data` elements also carry explicit `content-type`
 and `version` attributes matching the advertised `text/vcard` 4.0 support.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so

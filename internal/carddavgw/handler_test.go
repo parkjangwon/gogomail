@@ -778,6 +778,27 @@ func TestHandlerReportRejectsUnsupportedCollationWithPrecondition(t *testing.T) 
 	}
 }
 
+func TestHandlerReportAddressBookQuerySupportsASCIICasemapCollation(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"><C:text-match collation="i;ascii-casemap" match-type="equals">contact one</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusMultiStatus, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>") {
+		t.Fatalf("ASCII casemap query did not match contact one:\n%s", text)
+	}
+	if strings.Contains(text, "contact-2.vcf") {
+		t.Fatalf("ASCII casemap query matched the wrong contact:\n%s", text)
+	}
+}
+
 func TestHandlerReportRejectsUnsupportedFilterElementWithPrecondition(t *testing.T) {
 	t.Parallel()
 
