@@ -2898,6 +2898,9 @@ The platform hardening sprint completed the following:
 - OpenAPI now documents public share-link download `HEAD`, full-body `200`,
   and byte-range `206` as non-JSON binary/header responses, with drift tests
   keeping generated Drive clients aligned with runtime streaming semantics.
+- Public share-link metadata and download OpenAPI operations now explicitly
+  opt out of global bearer auth, matching the unauthenticated runtime boundary
+  used by external recipients and generated public-share clients.
 - Drive public share endpoints now have an optional Redis-backed fixed-window
   abuse-control boundary (`GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` and
   `GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE`) that buckets anonymous traffic

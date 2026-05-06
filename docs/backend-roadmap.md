@@ -3475,6 +3475,10 @@ Implementation order:
       `EXAMINE`-selected read-only mailbox without calling backend append,
       extending read-only selected-state protection to the append path while
       preserving syntax-before-state validation.
+1313. Drive public share-link metadata and download operations now explicitly
+      opt out of global bearer auth in OpenAPI, with drift coverage for
+      resolve, `HEAD` download, and `GET` download so generated public-share
+      clients match the unauthenticated runtime boundary.
 
 ## Deferred until backend contracts stabilize
 

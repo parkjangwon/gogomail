@@ -93,6 +93,25 @@ func TestOpenAPIDraftPinsHealthAndInfoServers(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftDocumentsPublicShareLinkRoutesAsUnauthenticated(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range []string{
+		"GET /drive/share-links/{id}",
+		"HEAD /drive/share-links/{id}/download",
+		"GET /drive/share-links/{id}/download",
+	} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		if !strings.Contains(block, "security: []") {
+			t.Fatalf("OpenAPI operation %s must opt out of global bearer auth:\n%s", route, block)
+		}
+	}
+}
+
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 

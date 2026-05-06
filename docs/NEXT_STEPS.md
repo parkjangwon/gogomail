@@ -1757,6 +1757,9 @@ Current state:
   `200`, and byte-range `206` as non-JSON binary/header responses, and drift
   tests include the public share routes alongside authenticated Drive
   downloads.
+- Drive public share-link metadata and download operations now explicitly opt
+  out of global bearer auth in OpenAPI, keeping generated external-recipient
+  clients aligned with the unauthenticated runtime public-share boundary.
 - Drive public share-link abuse controls now have a configurable Redis
   fixed-window limiter for anonymous metadata/download routes. The limiter
   buckets normalized remote address plus a share-token SHA-256 digest, returns
