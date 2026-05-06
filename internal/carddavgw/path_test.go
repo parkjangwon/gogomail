@@ -42,7 +42,11 @@ func TestParseResourcePathRejectsUnsafeOrUnsupportedPaths(t *testing.T) {
 		"/carddav//principals/user-1",
 		"/carddav/principals/../user-1",
 		"/carddav/principals/user\n1",
+		"/carddav/principals/user%2F1",
+		"/carddav/addressbooks/user%5C1/personal/contact-1.vcf",
 		"/carddav/addressbooks/user-1/personal/contact-1.txt",
+		"/carddav/addressbooks/user-1/personal%2Fcontact-1.vcf",
+		"/carddav/addressbooks/user-1/personal/contact%5C1.vcf",
 		"/carddav/addressbooks/user-1/personal/folder/contact-1.vcf",
 		"/caldav/addressbooks/user-1/personal/contact-1.vcf",
 	}
@@ -79,6 +83,8 @@ func TestParseResourceHrefRejectsUnsafeAbsoluteURI(t *testing.T) {
 		"https://user@example.test/carddav/addressbooks/user-1/personal/contact-1.vcf",
 		"https://contacts.example.test/carddav/addressbooks/user-1/personal/contact-1.vcf?download=1",
 		"https://contacts.example.test/carddav/addressbooks/user-1/personal/contact-1.vcf#frag",
+		"https://contacts.example.test/carddav/addressbooks/user-1/personal%2Fcontact-1.vcf",
+		"https://contacts.example.test/carddav/addressbooks/user%5C1/personal/contact-1.vcf",
 	}
 	for _, value := range tests {
 		value := value

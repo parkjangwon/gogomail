@@ -64,6 +64,9 @@ func ParseResourcePath(raw string) (ResourcePath, error) {
 	if strings.ContainsAny(raw, "\r\n") {
 		return ResourcePath{}, fmt.Errorf("carddav path must not contain line breaks")
 	}
+	if containsEncodedPathSeparator(raw) {
+		return ResourcePath{}, fmt.Errorf("carddav path must not contain encoded path separators")
+	}
 	parsed, err := url.PathUnescape(raw)
 	if err != nil {
 		return ResourcePath{}, fmt.Errorf("decode carddav path: %w", err)
@@ -163,6 +166,11 @@ func validateVCardObjectName(name string) (string, error) {
 		return "", fmt.Errorf("carddav contact object name must end with .vcf")
 	}
 	return name, nil
+}
+
+func containsEncodedPathSeparator(value string) bool {
+	value = strings.ToLower(value)
+	return strings.Contains(value, "%2f") || strings.Contains(value, "%5c")
 }
 
 func validateSegment(field string, value string) (string, error) {

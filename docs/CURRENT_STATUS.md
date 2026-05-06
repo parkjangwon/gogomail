@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP selected-event drain hardening)
+Last updated: 2026-05-07 (updated after DAV encoded-separator path hardening)
 
 ## Current phase
 
@@ -48,6 +48,10 @@ CalDAV and CardDAV object `GET`/`HEAD` conditional handling now honors ETag
 precedence by ignoring `If-Modified-Since` whenever `If-None-Match` is present,
 so stale client validators cannot accidentally receive `304 Not Modified` for
 changed `.ics` or `.vcf` bodies.
+CalDAV and CardDAV request paths and absolute REPORT hrefs now reject encoded
+path separators such as `%2F` and `%5C` before URL decoding, preventing
+calendar/address-book/object identifiers from changing path shape at the
+segment validation boundary.
 Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can
