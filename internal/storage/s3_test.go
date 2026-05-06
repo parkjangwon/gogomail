@@ -2819,6 +2819,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "unexpected_namespace", status: http.StatusOK, body: `<CopyObjectResult xmlns="urn:not-s3"/>`, want: "unexpected response namespace"},
 		{name: "unexpected_child_namespace", status: http.StatusOK, body: `<CopyObjectResult><x:ETag xmlns:x="urn:not-s3">"a"</x:ETag></CopyObjectResult>`, want: "unexpected response namespace"},
 		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},
+		{name: "invalid_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"bad&#xA;etag"</ETag></CopyObjectResult>`, want: "invalid etag"},
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
 		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},

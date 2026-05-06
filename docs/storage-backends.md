@@ -357,10 +357,12 @@ kept singular for the core S3 fields: duplicate top-level `ETag` or
 `LastModified` elements and nested `Error` elements under `CopyObjectResult`
 are rejected before XML unmarshalling can collapse ambiguous provider metadata.
 Core `CopyObjectResult` child elements must also be namespace-free or in the
-AWS S3 XML namespace, matching the accepted root namespace boundary. Non-empty
-`LastModified` values in successful copy metadata must parse as exact
-S3/RFC-compatible timestamps; malformed or whitespace-padded values are
-rejected instead of being treated as a trustworthy copy success.
+AWS S3 XML namespace, matching the accepted root namespace boundary. `ETag`
+values in successful copy metadata use the same bounded safe single-line
+validation as `Stat` and `List`. Non-empty `LastModified` values in successful
+copy metadata must parse as exact S3/RFC-compatible timestamps; malformed or
+whitespace-padded values are rejected instead of being treated as a trustworthy
+copy success.
 S3-compatible `Move` is intentionally documented as a copy-then-delete
 operation because S3 has no native atomic object rename. Callers that need
 user-visible Drive/file moves should treat failures after copy as recoverable
