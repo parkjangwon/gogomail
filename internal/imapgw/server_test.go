@@ -9757,6 +9757,44 @@ func TestIMAPStoreUnchangedSinceRejectsPaddedModSeq(t *testing.T) {
 	}
 }
 
+func TestIMAPStoreUnchangedSinceRejectsPaddedMarker(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		fields []string
+	}{
+		{name: "leading padded marker", fields: []string{" (UNCHANGEDSINCE", "27)", "+FLAGS", "(\\Seen)"}},
+		{name: "trailing padded marker", fields: []string{"(UNCHANGEDSINCE ", "27)", "+FLAGS", "(\\Seen)"}},
+		{name: "quoted padded marker", fields: []string{" (UNCHANGEDSINCE ", "27)", "+FLAGS", "(\\Seen)"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if imapStoreUnchangedSincePresent(tc.fields) {
+				t.Fatal("imapStoreUnchangedSincePresent accepted padded marker")
+			}
+			_, _, _, ok := imapStoreUnchangedSince(tc.fields)
+			if ok {
+				t.Fatal("imapStoreUnchangedSince accepted padded marker")
+			}
+		})
+	}
+}
+
+func TestIMAPStoreModeRejectsPaddedModeAtoms(t *testing.T) {
+	t.Parallel()
+
+	if mode, silent, ok := imapStoreMode("+FLAGS.SILENT"); !ok || mode != StoreFlagsAdd || !silent {
+		t.Fatalf("imapStoreMode(+FLAGS.SILENT) = %q %v %v, want add/silent/true", mode, silent, ok)
+	}
+	for _, value := range []string{" +FLAGS", "+FLAGS ", " +FLAGS ", " FLAGS.SILENT "} {
+		if mode, silent, ok := imapStoreMode(value); ok {
+			t.Fatalf("imapStoreMode(%q) = %q %v true, want padded mode rejection", value, mode, silent)
+		}
+	}
+}
+
 func TestServerHandlesStoreSilentAfterSelect(t *testing.T) {
 	t.Parallel()
 
