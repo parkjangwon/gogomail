@@ -423,6 +423,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `sync-collection` can answer stale-token requests after collection deletion
   by returning the latest durable deletion sync token without requiring the
   collection to remain active.
+  Contact-object writes preflight duplicate active vCard UIDs within the same
+  address book before SQL upsert, keeping failures predictable while the
+  PostgreSQL partial unique index remains the final concurrency guard.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

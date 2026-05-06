@@ -55,7 +55,8 @@ address-book collections through active user/domain/company scope and records
 address-book creation changes. Contact-object repository methods can now
 upsert/list/get/delete `.vcf` resources through active address-book scope,
 using bounded vCard validation, strong ETags, optional observed-ETag guards,
-sync-token updates, and durable change rows. Public CardDAV compatibility now
+same-address-book UID uniqueness preflight before upsert, sync-token updates,
+and durable change rows. Public CardDAV compatibility now
 has bounded WebDAV `PROPFIND` parsing, an internal `OPTIONS`/`PROPFIND`
 discovery handler, bounded REPORT request parsing, and internal REPORT
 execution for `addressbook-query`, `addressbook-multiget`, and
@@ -126,6 +127,9 @@ collection delete semantics exist.
 CardDAV `sync-collection` can now answer stale-token requests after an address
 book collection has been deleted by reading the durable change log and returning
 the latest deletion sync token without requiring the collection to remain active.
+CardDAV contact-object `PUT` now rejects duplicate active vCard UIDs within the
+same address book before the SQL upsert path, while the PostgreSQL partial
+unique index remains the final concurrency guard.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

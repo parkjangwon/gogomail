@@ -99,6 +99,10 @@ per-contact object deletion on the existing object `DELETE` path.
 Stale `sync-collection` requests can still advance through a deleted collection
 by reading durable change rows and returning the latest deletion sync token,
 instead of requiring the collection row to be active.
+Contact-object writes preflight duplicate active vCard UIDs inside the same
+address book before the SQL upsert path. The PostgreSQL partial unique index
+remains the final concurrency guard, but normal handler/repository failures now
+stay predictable and developer-readable.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

@@ -413,6 +413,9 @@ func (r *Repository) UpsertContactObject(ctx context.Context, req UpsertContactO
 			return ContactObject{}, err
 		}
 	}
+	if err := ensureContactObjectUIDAvailable(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.UID); err != nil {
+		return ContactObject{}, err
+	}
 	const query = `
 INSERT INTO carddav_contact_objects (
   user_id, addressbook_id, object_name, uid, etag, size, vcard
@@ -927,6 +930,26 @@ FOR UPDATE`, userID, addressBookID).Scan(&id)
 		return fmt.Errorf("lock CardDAV address book: %w", err)
 	}
 	return nil
+}
+
+func ensureContactObjectUIDAvailable(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, objectName string, uid string) error {
+	var existingObject string
+	err := tx.QueryRowContext(ctx, `
+SELECT object_name
+FROM carddav_contact_objects
+WHERE user_id = $1::uuid
+  AND addressbook_id = $2::uuid
+  AND uid = $3
+  AND object_name <> $4
+  AND status = 'active'
+LIMIT 1`, userID, addressBookID, uid, objectName).Scan(&existingObject)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("read CardDAV contact object UID: %w", err)
+	}
+	return fmt.Errorf("CardDAV contact object UID %q already exists as %q", uid, existingObject)
 }
 
 func ensureContactObjectETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, objectName string, etag string) error {
