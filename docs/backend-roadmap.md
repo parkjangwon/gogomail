@@ -3769,6 +3769,11 @@ Implementation order:
       412, missing targets reject `If-Match`/`If-Unmodified-Since`, and
       `If-None-Match: *` remains the create-only success path for absent
       collections.
+1377. CalDAV/CardDAV collection creation now validates missing-target
+      UUID-shaped collection path IDs before conditional create evaluation,
+      preserving HTTP 400 syntax errors ahead of 412 state preconditions and
+      XML body reads while keeping existing legacy collection IDs on their
+      normal already-exists and conditional-response paths.
 
 ## Deferred until backend contracts stabilize
 

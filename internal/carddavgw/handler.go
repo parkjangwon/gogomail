@@ -199,11 +199,11 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav address book already exists", http.StatusMethodNotAllowed)
 		return
 	}
-	if !h.checkAddressBookCollectionCreatePreconditions(w, r, userID, AddressBook{}, false) {
-		return
-	}
 	if _, err := ValidateAddressBookPathID(resource.AddressBookID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !h.checkAddressBookCollectionCreatePreconditions(w, r, userID, AddressBook{}, false) {
 		return
 	}
 	req, err := ParseMKAddressBook(r.Body)

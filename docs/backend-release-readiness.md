@@ -39,6 +39,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   create preconditions before WebDAV XML body reads, returning HTTP 412 for
   existing targets with matching `If-None-Match` validators and missing
   targets guarded by `If-Match` or `If-Unmodified-Since`.
+- CalDAV/CardDAV collection creation validates malformed missing-target
+  collection path IDs before conditional create checks, keeping syntax errors
+  as HTTP 400 ahead of 412 state preconditions without changing existing
+  collection already-exists semantics.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

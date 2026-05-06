@@ -1318,6 +1318,25 @@ func TestHandlerMkcolRejectsUnsafePathIDBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcolRejectsUnsafePathIDBeforeConditionalCreate(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"/>`}
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/not-a-uuid/", body)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
 func TestHandlerReportAddressBookMultigetReturnsAddressData(t *testing.T) {
 	t.Parallel()
 
