@@ -20,8 +20,9 @@ Recent release-readiness work also includes:
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
-  namespace compatibility, SEARCH/SORT/THREAD diagnostics, IDLE recovery, and
-  literal framing coverage
+  namespace compatibility, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
+  workflows, SEARCH/SORT/THREAD diagnostics, IDLE recovery, and literal
+  framing coverage
 - backend-only CalDAV/CardDAV foundations for standards-first calendar and
   contacts interoperability, with Directory/Identity, delegation,
   Notification & Sync, search, policy, and audit boundaries treated as platform

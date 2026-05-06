@@ -1238,6 +1238,14 @@ Implementation order:
      (SAVE)` stores selected-session search results so `$` can be reused by
      subsequent sequence-set and UID-set commands without sending result sets
      back through the client.
+826a. IMAP `SORT`/`UID SORT` and `THREAD`/`UID THREAD` now accept leading
+      `RETURN (SAVE)`, save successful matched result sets for subsequent `$`
+      reuse, clear save-requested `NO` failures, and keep tagged `BAD`
+      malformed save attempts non-mutating.
+826b. IMAP direct `ESEARCH` commands now return an explicit tagged `BAD`
+      explaining that RFC 7377 `MULTISEARCH` is required, preserving the
+      distinction between RFC 4731 `SEARCH RETURN (...)` support and the
+      future multi-mailbox `ESEARCH` command surface.
 827. IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
      `LIST-STATUS` can return per-mailbox active message octet totals from
      repository aggregate metadata without per-message `RFC822.SIZE` fetches.

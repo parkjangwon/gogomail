@@ -582,6 +582,54 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 	}
 }
 
+func TestServerRejectsMultisearchCommandWithoutCapability(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	greeting, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if !strings.Contains(greeting, " ESEARCH ") {
+		t.Fatalf("greeting missing RFC 4731 ESEARCH capability: %q", greeting)
+	}
+	if strings.Contains(greeting, " MULTISEARCH ") {
+		t.Fatalf("greeting advertised unsupported RFC 7377 MULTISEARCH capability: %q", greeting)
+	}
+	if _, err := client.Write([]byte("a1 ESEARCH RETURN (COUNT) ALL\r\na2 UID ESEARCH RETURN (COUNT) ALL\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write ESEARCH commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD ESEARCH command requires MULTISEARCH capability\r\n",
+		"a2 BAD UID command not implemented\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read ESEARCH response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("ESEARCH response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	t.Parallel()
 
@@ -6647,7 +6695,7 @@ func TestServerSearchResDollarWorksInSortAndThreadCriteria(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) SUBJECT Project\r\na4 SORT (DATE) UTF-8 $\r\na5 UID SORT (DATE) UTF-8 $\r\na6 THREAD ORDEREDSUBJECT UTF-8 $\r\na7 UID THREAD ORDEREDSUBJECT UTF-8 $\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) SUBJECT Project\r\na4 SORT (DATE) UTF-8 $\r\na5 UID SORT (DATE) UTF-8 $\r\na6 THREAD ORDEREDSUBJECT UTF-8 $\r\na7 UID THREAD ORDEREDSUBJECT UTF-8 $\r\na8 SORT RETURN (SAVE) (DATE) UTF-8 SUBJECT Project\r\na9 SEARCH $\r\na10 UID THREAD RETURN (SAVE) ORDEREDSUBJECT UTF-8 SUBJECT Project\r\na11 UID SEARCH UID $\r\na12 SORT RETURN (COUNT) (DATE) UTF-8 ALL\r\na13 SEARCH $\r\n")); err != nil {
 		t.Fatalf("write searchres sort/thread commands: %v", err)
 	}
 	want := []string{
@@ -6660,6 +6708,17 @@ func TestServerSearchResDollarWorksInSortAndThreadCriteria(t *testing.T) {
 		"a6 OK THREAD completed\r\n",
 		"* THREAD (12 (13)(14))\r\n",
 		"a7 OK UID THREAD completed\r\n",
+		"* SORT 2 3 4\r\n",
+		"a8 OK SORT completed\r\n",
+		"* SEARCH 2 3 4\r\n",
+		"a9 OK SEARCH completed\r\n",
+		"* THREAD (12 (13)(14))\r\n",
+		"a10 OK UID THREAD completed\r\n",
+		"* SEARCH 12 13 14\r\n",
+		"a11 OK UID SEARCH completed\r\n",
+		"a12 BAD SORT return options are unsupported\r\n",
+		"* SEARCH 2 3 4\r\n",
+		"a13 OK SEARCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6670,7 +6729,7 @@ func TestServerSearchResDollarWorksInSortAndThreadCriteria(t *testing.T) {
 			t.Fatalf("searchres sort/thread response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a14 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
