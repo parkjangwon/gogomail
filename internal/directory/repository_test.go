@@ -467,6 +467,30 @@ func TestDirectoryDelegationCreateAuditDetail(t *testing.T) {
 	}
 }
 
+func TestDirectoryDelegationDeleteAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryDelegationDeleteAuditDetail(Delegation{
+		ID:           "delegation-1",
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+		Role:         DelegationRoleWrite,
+		Status:       "deleted",
+	})
+	if err != nil {
+		t.Fatalf("directoryDelegationDeleteAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"previous_status":"active"`) ||
+		!strings.Contains(string(detail), `"status":"deleted"`) ||
+		!strings.Contains(string(detail), `"delegation_id":"delegation-1"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestNormalizeCheckDelegationRequest(t *testing.T) {
 	t.Parallel()
 

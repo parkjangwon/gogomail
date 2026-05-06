@@ -902,6 +902,71 @@ func TestAdminCreateDirectoryDelegationHandlerRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestAdminDeleteDirectoryDelegationHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryDelegation: directory.Delegation{
+			ID:           "delegation-1",
+			CompanyID:    "company-1",
+			OwnerKind:    directory.PrincipalKindResource,
+			OwnerID:      "room-1",
+			DelegateKind: directory.PrincipalKindGroup,
+			DelegateID:   "team-1",
+			Scope:        directory.DelegationScopeCalendar,
+			Role:         directory.DelegationRoleWrite,
+			Status:       "deleted",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/directory/delegations/%20delegation-1%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Delegation directory.Delegation `json:"directory_delegation"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Delegation.ID != "delegation-1" || response.Delegation.Status != "deleted" {
+		t.Fatalf("directory_delegation = %+v", response.Delegation)
+	}
+	if service.lastDirectoryDelegationDeleteID != "delegation-1" {
+		t.Fatalf("lastDirectoryDelegationDeleteID = %q", service.lastDirectoryDelegationDeleteID)
+	}
+}
+
+func TestAdminDeleteDirectoryDelegationHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/delegations/delegation%0Abad",
+		"/admin/v1/directory/delegations/delegation-1?dry_run=true",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodDelete, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryDelegationDeleteID != "" {
+			t.Fatalf("%s dispatched delete id %q", path, service.lastDirectoryDelegationDeleteID)
+		}
+	}
+}
+
 func TestAdminCreateDirectoryAliasHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7297,6 +7362,7 @@ type fakeAdminService struct {
 	lastDirectoryAliasResolve                   directory.ResolveAliasRequest
 	lastDirectoryAliasList                      directory.ListAliasesRequest
 	lastDirectoryDelegationCreate               directory.CreateDelegationRequest
+	lastDirectoryDelegationDeleteID             string
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
@@ -7549,6 +7615,14 @@ func (f *fakeAdminService) CreateDirectoryDelegation(_ context.Context, req dire
 		return directory.Delegation{}, err
 	}
 	f.lastDirectoryDelegationCreate = req
+	return f.directoryDelegation, nil
+}
+
+func (f *fakeAdminService) DeleteDirectoryDelegation(_ context.Context, id string) (directory.Delegation, error) {
+	if _, err := directory.NormalizePrincipalID(id); err != nil {
+		return directory.Delegation{}, err
+	}
+	f.lastDirectoryDelegationDeleteID = id
 	return f.directoryDelegation, nil
 }
 

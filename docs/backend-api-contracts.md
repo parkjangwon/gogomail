@@ -808,6 +808,11 @@ Admin operational read models also keep explicit envelope keys:
   owner/delegate principals, maps duplicate active grants to a predictable
   duplicate-delegation error, and records `directory_delegation.create` in the
   same transaction as the grant insert.
+- `DELETE /admin/v1/directory/delegations/{id}` returns
+  `{"directory_delegation":{...}}` after soft-deleting an active Directory
+  delegation grant. The path id uses bounded admin identifier validation, and
+  the backend records `directory_delegation.delete` in the same transaction as
+  the grant status change.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

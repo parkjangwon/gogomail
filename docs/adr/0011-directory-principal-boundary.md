@@ -103,6 +103,8 @@ booking policy, and scheduling semantics are implemented explicitly.
   delegate principals, scope, and role, verifies active same-company
   principals, rejects self-delegation, maps duplicate active grants to a stable
   error, and commits `directory_delegation.create` with the grant insert.
+  Delegation deletion follows the same model: soft-delete the grant and commit
+  `directory_delegation.delete` in the same transaction.
 - Product modules should consume delegated access through policy adapters, not
   by branching directly on Directory rows. The initial `internal/accesspolicy`
   adapter turns effective delegation into a normalized allow/deny decision so

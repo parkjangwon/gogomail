@@ -446,6 +446,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   limit filters. Audited creation is now available through
   `POST /admin/v1/directory/delegations`, validating active same-company
   principals and committing `directory_delegation.create` with the grant insert.
+  Audited deletion is available through
+  `DELETE /admin/v1/directory/delegations/{id}`, committing
+  `directory_delegation.delete` with the soft delete.
   Directory principal search is now also available to operators through
   `GET /admin/v1/directory/principals`, with OpenAPI and backend contract
   coverage for bounded company, domain, organization, kind, query, active-only,

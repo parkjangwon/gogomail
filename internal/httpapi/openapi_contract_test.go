@@ -418,6 +418,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /directory/aliases/{id}":                             "#/components/responses/DirectoryAlias",
 		"GET /directory/delegations":                                 "#/components/responses/DirectoryDelegationList",
 		"POST /directory/delegations":                                "#/components/responses/DirectoryDelegation",
+		"DELETE /directory/delegations/{id}":                         "#/components/responses/DirectoryDelegation",
 		"GET /backpressure":                                          "#/components/responses/Backpressure",
 		"PATCH /backpressure":                                        "#/components/responses/Backpressure",
 		"GET /quota-usage":                                           "#/components/responses/QuotaUsageList",

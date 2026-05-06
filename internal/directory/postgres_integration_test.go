@@ -514,7 +514,6 @@ WHERE company_id = $1::uuid
 	if auditCount != 1 {
 		t.Fatalf("directory delegation audit rows = %d, want 1", auditCount)
 	}
-
 	_, err = repo.CreateDelegationWithAudit(ctx, CreateDelegationRequest{
 		CompanyID:    seed.companyID,
 		OwnerKind:    PrincipalKindResource,
@@ -526,6 +525,29 @@ WHERE company_id = $1::uuid
 	})
 	if !errors.Is(err, ErrDelegationAlreadyExists) {
 		t.Fatalf("duplicate CreateDelegationWithAudit error = %v, want ErrDelegationAlreadyExists", err)
+	}
+	deleted, err := repo.DeleteDelegationWithAudit(ctx, delegation.ID)
+	if err != nil {
+		t.Fatalf("DeleteDelegationWithAudit returned error: %v", err)
+	}
+	if deleted.ID != delegation.ID ||
+		deleted.Status != "deleted" ||
+		deleted.OwnerID != seed.equipmentID ||
+		deleted.DelegateID != seed.deeperID {
+		t.Fatalf("deleted delegation = %+v", deleted)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_delegation.delete'
+  AND target_type = 'directory_delegation'
+  AND target_id = $2
+  AND result = 'deleted'`, seed.companyID, delegation.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory delegation delete audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory delegation delete audit rows = %d, want 1", auditCount)
 	}
 
 	if _, err := db.ExecContext(ctx, `UPDATE directory_resources SET status = 'suspended' WHERE id = $1::uuid`, seed.equipmentID); err != nil {

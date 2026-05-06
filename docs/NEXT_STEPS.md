@@ -1777,9 +1777,13 @@ Next:
   `POST /admin/v1/directory/delegations`, backed by
   `CreateDelegationWithAudit`. It validates active same-company owner/delegate
   principals, scope, role, and self-delegation before inserting the grant and
-  `directory_delegation.create` audit row in one transaction. Next delegation
-  work should add delete/update flows with the same audit shape before CalDAV,
-  Drive, or shared inbox modules expose product-facing delegation UX.
+  `directory_delegation.create` audit row in one transaction.
+- Audited delegation deletion now exists as
+  `DELETE /admin/v1/directory/delegations/{id}`, backed by
+  `DeleteDelegationWithAudit`, so admins can revoke grants with a
+  transaction-coupled `directory_delegation.delete` audit row. Next delegation
+  work should add update/reassign flows with the same audit shape before
+  CalDAV, Drive, or shared inbox modules expose product-facing delegation UX.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
   Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and

@@ -922,6 +922,99 @@ func directoryDelegationCreateAuditDetail(delegation Delegation) (json.RawMessag
 	return detail, nil
 }
 
+func (r *Repository) DeleteDelegationWithAudit(ctx context.Context, id string) (Delegation, error) {
+	if r == nil || r.db == nil {
+		return Delegation{}, fmt.Errorf("database handle is required")
+	}
+	id, err := NormalizePrincipalID(id)
+	if err != nil {
+		return Delegation{}, fmt.Errorf("delegation id: %w", err)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Delegation{}, fmt.Errorf("begin delete directory delegation transaction: %w", err)
+	}
+	defer tx.Rollback()
+	delegation, err := r.deleteDelegationTx(ctx, tx, id)
+	if err != nil {
+		return Delegation{}, err
+	}
+	detail, err := directoryDelegationDeleteAuditDetail(delegation)
+	if err != nil {
+		return Delegation{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  delegation.CompanyID,
+		Category:   "admin",
+		Action:     "directory_delegation.delete",
+		TargetType: "directory_delegation",
+		TargetID:   delegation.ID,
+		Result:     "deleted",
+		Detail:     detail,
+	}); err != nil {
+		return Delegation{}, fmt.Errorf("record directory delegation delete audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Delegation{}, fmt.Errorf("commit delete directory delegation transaction: %w", err)
+	}
+	return delegation, nil
+}
+
+func (r *Repository) deleteDelegationTx(ctx context.Context, tx *sql.Tx, id string) (Delegation, error) {
+	const query = `
+UPDATE directory_delegations
+SET status = 'deleted',
+    updated_at = now()
+WHERE id = $1::uuid
+  AND status = 'active'
+RETURNING id::text,
+          company_id::text,
+          owner_kind,
+          owner_id::text,
+          delegate_kind,
+          delegate_id::text,
+          scope,
+          role,
+          status`
+	var delegation Delegation
+	if err := tx.QueryRowContext(ctx, query, id).Scan(
+		&delegation.ID,
+		&delegation.CompanyID,
+		&delegation.OwnerKind,
+		&delegation.OwnerID,
+		&delegation.DelegateKind,
+		&delegation.DelegateID,
+		&delegation.Scope,
+		&delegation.Role,
+		&delegation.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Delegation{}, fmt.Errorf("directory delegation not found")
+		}
+		return Delegation{}, fmt.Errorf("delete directory delegation: %w", err)
+	}
+	return delegation, nil
+}
+
+func directoryDelegationDeleteAuditDetail(delegation Delegation) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"delegation_id":   delegation.ID,
+		"company_id":      delegation.CompanyID,
+		"owner_kind":      delegation.OwnerKind,
+		"owner_id":        delegation.OwnerID,
+		"delegate_kind":   delegation.DelegateKind,
+		"delegate_id":     delegation.DelegateID,
+		"scope":           delegation.Scope,
+		"role":            delegation.Role,
+		"previous_status": "active",
+		"status":          delegation.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory delegation delete audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 func mapDirectoryDelegationInsertError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
