@@ -70,8 +70,11 @@ content types/versions are validated against the advertised `text/vcard` 4.0
 support with the RFC 6352 `CARDDAV:supported-address-data` precondition before
 handler execution. Unsupported text-match collations are likewise surfaced as
 the RFC 6352 `CARDDAV:supported-collation` precondition while malformed
-collation syntax remains a bad request. Returned address-data elements carry
-explicit `content-type="text/vcard"` and `version="4.0"` attributes. Addressbook query
+collation syntax remains a bad request. Address-book collections advertise RFC
+6352 `CARDDAV:supported-collation-set` with `i;ascii-casemap` and
+`i;unicode-casemap`, and query evaluation implements both advertised
+collations. Returned address-data elements carry explicit
+`content-type="text/vcard"` and `version="4.0"` attributes. Addressbook query
 execution honors bounded `limit/nresults` values before rendering multistatus
 responses, and repository-backed execution can stream contact objects through a
 walker boundary so filtering can stop once the response cap is satisfied.

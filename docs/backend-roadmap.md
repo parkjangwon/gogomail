@@ -2479,6 +2479,9 @@ Implementation order:
 1142. CardDAV `addressbook-query` now maps unsupported CardDAV filter child
       elements to the RFC 6352 `CARDDAV:supported-filter` precondition instead
       of a generic bad-request parse failure.
+1143. CardDAV address-book collections now advertise RFC 6352
+      `CARDDAV:supported-collation-set` with working `i;ascii-casemap` and
+      `i;unicode-casemap` text-match evaluation.
 
 ## Deferred until backend contracts stabilize
 

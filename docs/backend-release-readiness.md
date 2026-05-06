@@ -397,7 +397,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `CARDDAV:supported-address-data` precondition before handler execution.
   Unsupported text-match collations now fail with the RFC 6352
   `CARDDAV:supported-collation` precondition, while malformed collation syntax
-  remains a bad request.
+  remains a bad request. Address-book collections advertise RFC 6352
+  `CARDDAV:supported-collation-set` with `i;ascii-casemap` and
+  `i;unicode-casemap`, and query evaluation implements both advertised
+  collations.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
   `version="4.0"` attributes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.

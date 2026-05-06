@@ -256,6 +256,7 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 		"<C:addressbook-description>People</C:addressbook-description>",
 		"<D:getetag>" + strings.ReplaceAll(collectionETag, `"`, "&#34;") + "</D:getetag>",
 		"<C:supported-address-data><C:address-data content-type=\"text/vcard\" version=\"4.0\"></C:address-data></C:supported-address-data>",
+		"<C:supported-collation-set><C:supported-collation>i;ascii-casemap</C:supported-collation><C:supported-collation>i;unicode-casemap</C:supported-collation></C:supported-collation-set>",
 		"<C:max-resource-size>5242880</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",
 		"<CS:getctag>sync-123</CS:getctag>",

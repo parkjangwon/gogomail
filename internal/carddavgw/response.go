@@ -30,6 +30,7 @@ var (
 	PropAddressData            = XMLName{Space: CardDAVNamespace, Local: "address-data"}
 	PropAddressBookDescription = XMLName{Space: CardDAVNamespace, Local: "addressbook-description"}
 	PropSupportedAddressData   = XMLName{Space: CardDAVNamespace, Local: "supported-address-data"}
+	PropSupportedCollationSet  = XMLName{Space: CardDAVNamespace, Local: "supported-collation-set"}
 	PropMaxResourceSize        = XMLName{Space: CardDAVNamespace, Local: "max-resource-size"}
 	PropGetCTag                = XMLName{Space: CalendarServerNamespace, Local: "getctag"}
 )
@@ -52,6 +53,7 @@ type PropertyValue struct {
 	Privileges       []XMLName
 	Reports          []XMLName
 	AddressDataTypes []AddressDataType
+	Collations       []string
 }
 
 type PropertyResult struct {
@@ -183,6 +185,7 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: addressBookCollectionPrivileges()}, Found: true},
 		{Name: PropSupportedAddressData, Value: PropertyValue{AddressDataTypes: []AddressDataType{{ContentType: "text/vcard", Version: "4.0"}}}, Found: true},
+		{Name: PropSupportedCollationSet, Value: PropertyValue{Collations: SupportedTextMatchCollations()}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxContactObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: book.SyncToken}, Found: true},
 		{Name: PropGetCTag, Value: PropertyValue{Text: book.SyncToken}, Found: true},
@@ -460,6 +463,12 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 	case len(prop.Value.AddressDataTypes) > 0:
 		for _, dataType := range prop.Value.AddressDataTypes {
 			if err := encodeAddressDataType(enc, dataType); err != nil {
+				return err
+			}
+		}
+	case len(prop.Value.Collations) > 0:
+		for _, collation := range prop.Value.Collations {
+			if err := encodeTextElement(enc, "C:supported-collation", collation); err != nil {
 				return err
 			}
 		}

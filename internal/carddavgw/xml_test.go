@@ -294,6 +294,26 @@ func TestParseReportCollectsAddressBookQueryTextMatch(t *testing.T) {
 	}
 }
 
+func TestParseReportCollectsAddressBookQueryASCIICasemap(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <C:filter>
+    <C:prop-filter name="FN">
+      <C:text-match collation="i;ascii-casemap"> Alice </C:text-match>
+    </C:prop-filter>
+  </C:filter>
+</C:addressbook-query>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	match := req.Filter.PropFilters[0].TextMatches[0]
+	if match.Text != "Alice" || match.Collation != TextMatchASCIICasemap {
+		t.Fatalf("text-match = %+v", match)
+	}
+}
+
 func TestParseReportCollectsAddressBookQueryTextMatchAttributes(t *testing.T) {
 	t.Parallel()
 
