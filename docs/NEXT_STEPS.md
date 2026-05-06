@@ -164,6 +164,9 @@ Current state:
   namespace boundary as the root, preventing foreign-namespace `ETag`,
   `LastModified`, or embedded `Error` elements from being collapsed into a
   successful copy response.
+- S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
+  non-empty malformed or whitespace-padded timestamp values instead of
+  accepting ambiguous successful copy metadata.
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
   `ETag` or `LastModified` metadata and nested `Error` elements, preventing
   ambiguous provider-side copy metadata from being collapsed into a successful

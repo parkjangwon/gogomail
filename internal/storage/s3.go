@@ -1212,9 +1212,10 @@ type s3ListObjectContent struct {
 }
 
 type s3CopyResponse struct {
-	XMLName xml.Name
-	Code    string `xml:"Code"`
-	Message string `xml:"Message"`
+	XMLName      xml.Name
+	Code         string `xml:"Code"`
+	Message      string `xml:"Message"`
+	LastModified string `xml:"LastModified"`
 }
 
 const maxS3ListResponseBytes = 4 << 20
@@ -1366,6 +1367,9 @@ func validateS3CopyResponse(body io.Reader) error {
 	case "CopyObjectResult":
 		if !s3XMLNamespaceAllowed(response.XMLName.Space) {
 			return fmt.Errorf("copy s3 object: unexpected response namespace")
+		}
+		if _, ok := parseS3ListTime(response.LastModified); !ok {
+			return fmt.Errorf("copy s3 object: invalid last-modified")
 		}
 		return nil
 	case "Error":

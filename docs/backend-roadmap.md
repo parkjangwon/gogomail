@@ -3862,6 +3862,9 @@ Implementation order:
       so foreign-namespace pagination controls, object metadata, copy
       metadata, or embedded copy errors cannot be collapsed into canonical
       provider metadata by XML unmarshalling.
+1399. S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
+      non-empty malformed or whitespace-padded timestamp values instead of
+      accepting ambiguous successful copy metadata.
 
 ## Deferred until backend contracts stabilize
 
