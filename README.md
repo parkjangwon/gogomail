@@ -82,7 +82,8 @@ Recent release-readiness work also includes:
   strict LIST RETURN option-list framing,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
   exact SASL continuation cancellation, SASL-IR syntax-before-policy
-  diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
+  diagnostics, strict SEARCH/SORT/THREAD charset and thread-algorithm atoms,
+  SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   numeric grammar checks, partial windows, SEARCH size criteria,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, rejection of whitespace-padded numeric and date search criteria,

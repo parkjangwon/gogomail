@@ -318,6 +318,10 @@ values into valid status data items, while LIST-STATUS keeps its existing
 normalized return-option path regression-covered. `LIST RETURN` option lists
 now reject whitespace-padded quoted or literal list values such as
 `RETURN " (CHILDREN) "` instead of trimming them into valid return controls.
+`SEARCH`, `SORT`, and `THREAD` charset arguments now reject whitespace-padded
+quoted or literal control atoms such as `CHARSET " UTF-8 "`, and `THREAD`
+algorithm arguments reject padded `ORDEREDSUBJECT` values instead of trimming
+them into advertised capabilities.
 `THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported
@@ -1649,11 +1653,13 @@ owner/resource target without scanning unrelated audit history.
   RFC 3501 `nz-number` grammar. Partial fetch tokens also reject trailing
   characters after the closing `>`.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject malformed
-  atoms that still contain quote characters after command parsing, preventing
-  broken values such as `UTF-8"` from being silently normalized.
+  atoms that still contain quote characters or outer whitespace after command
+  parsing, preventing broken values such as `UTF-8"` or `" UTF-8 "` from being
+  silently normalized.
 - IMAP `THREAD` algorithm arguments now reject malformed atoms that still
-  contain quote characters after command parsing, preventing broken values such
-  as `ORDEREDSUBJECT"` from being silently normalized.
+  contain quote characters or outer whitespace after command parsing,
+  preventing broken values such as `ORDEREDSUBJECT"` or `" ORDEREDSUBJECT "`
+  from being silently normalized.
 - IMAP `SEARCH`/`UID SEARCH` text, body, and header string arguments now reject
   malformed atoms that still contain quote characters after command parsing,
   preventing broken values such as `SUBJECT IMAP"` from being normalized.
