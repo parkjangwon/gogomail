@@ -225,9 +225,12 @@ byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 Both full-object and range readers observe context cancellation after the
 request has opened, so canceled downloads, previews, and IMAP literal streams
 can stop promptly across local/NFS and S3-compatible backends.
-Successful S3-compatible full-object `GET` readers also drain a small bounded
-remainder on close, improving HTTP connection reuse for preview/cancel paths
-without allowing unbounded cleanup reads.
+Full-object S3-compatible `GET`, `HEAD`/`Stat`, and `ListObjectsV2` calls
+require exact `200 OK` responses; unexpected partial-content or other non-OK
+2xx statuses are rejected instead of being treated as whole-object metadata or
+body success. Successful S3-compatible full-object `GET` readers also drain a
+small bounded remainder on close, improving HTTP connection reuse for
+preview/cancel paths without allowing unbounded cleanup reads.
 When a range reader is consumed successfully and closed, gogomail drains a
 small bounded response remainder so normal oversized partial responses can
 still reuse HTTP connections without exposing extra bytes to callers. The same
@@ -245,12 +248,12 @@ operation because S3 has no native atomic object rename. Callers that need
 user-visible Drive/file moves should treat failures after copy as recoverable
 duplicate-object cleanup work instead of assuming a single atomic transaction.
 S3-compatible `List` uses signed `ListObjectsV2` requests with validated
-prefixes, bounded `max-keys`, and opaque continuation tokens. Returned keys are
-normalized back to gogomail object paths under the configured storage prefix,
-so callers do not see deployment-specific bucket prefixes. Returned ETags use
-the same bounded metadata cleanup as `Stat`. Provider responses that return
-more matching objects than requested are rejected, keeping local/NFS and
-S3-compatible pagination semantics aligned.
+prefixes, bounded `max-keys`, opaque continuation tokens, and an exact `200 OK`
+status requirement. Returned keys are normalized back to gogomail object paths
+under the configured storage prefix, so callers do not see deployment-specific
+bucket prefixes. Returned ETags use the same bounded metadata cleanup as
+`Stat`. Provider responses that return more matching objects than requested are
+rejected, keeping local/NFS and S3-compatible pagination semantics aligned.
 Prefix cleanup over S3-compatible storage intentionally remains page-based:
 callers list a bounded page, delete each canonical object key through signed
 `DELETE` requests, and continue from the returned cursor. This keeps cleanup

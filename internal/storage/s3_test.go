@@ -379,6 +379,35 @@ func TestS3StoreGetDrainsSmallRemainderOnClose(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRejectsUnexpectedPartialContent(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("hel")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Body:       body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.Get(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "status 206") {
+		t.Fatalf("Get err = %v, want unexpected partial-content rejection", err)
+	}
+	if !body.closed {
+		t.Fatal("partial get response body was not closed")
+	}
+}
+
 func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	t.Parallel()
 
@@ -437,6 +466,60 @@ func TestS3StoreStatDropsUnsafeMetadata(t *testing.T) {
 	}
 	if info.ContentType != "" || info.ETag != "" {
 		t.Fatalf("unsafe metadata was not dropped: %+v", info)
+	}
+}
+
+func TestS3StoreStatAndListRequireOKStatus(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		call func(*S3Store) error
+	}{
+		{
+			name: "stat",
+			call: func(store *S3Store) error {
+				_, err := store.Stat(context.Background(), "messages/msg-1.eml")
+				return err
+			},
+		},
+		{
+			name: "list",
+			call: func(store *S3Store) error {
+				_, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
+				return err
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusPartialContent,
+						Body:       body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if err := tc.call(store); err == nil || !strings.Contains(err.Error(), "status 206") {
+				t.Fatalf("%s err = %v, want unexpected partial-content rejection", tc.name, err)
+			}
+			if !body.closed {
+				t.Fatal("unexpected-status response body was not closed")
+			}
+		})
 	}
 }
 

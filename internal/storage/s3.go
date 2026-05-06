@@ -130,7 +130,7 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 	if err != nil {
 		return nil, fmt.Errorf("get s3 object: %w", err)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK {
 		err := s3StatusError("get", resp)
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
@@ -176,7 +176,7 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: %w", err)
 	}
 	defer drainAndCloseS3Body(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK {
 		return ObjectInfo{}, s3StatusError("stat", resp)
 	}
 	size := resp.ContentLength
@@ -299,7 +299,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		return ObjectListPage{}, fmt.Errorf("list s3 objects: %w", err)
 	}
 	defer drainAndCloseS3Body(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK {
 		return ObjectListPage{}, s3StatusError("list", resp)
 	}
 	result, err := decodeS3ListObjects(resp.Body)
