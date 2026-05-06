@@ -2770,9 +2770,10 @@ The platform hardening sprint completed the following:
   remain future path-alias work.
 - CalDAV now handles `DELETE` on authenticated calendar collection paths,
   soft-deleting the collection and active child objects in one repository
-  transaction while rejecting calendar-home or cross-user deletes. Durable
-  tombstone/change-log support is still needed before incremental sync can
-  report collection/object deletions to stale-token clients.
+  transaction while rejecting calendar-home or cross-user deletes. Those
+  deletes now append durable sync-change rows so stale-token clients can see
+  object tombstones and final collection-deleted sync tokens; long-history
+  retention and continuation semantics remain future compatibility work.
 - CalDAV now has a durable calendar sync-change table for RFC 6578-style
   `sync-collection` deltas. Calendar create/upsert/delete paths record sync
   markers in the same transaction as object mutations, migrated calendars get a
