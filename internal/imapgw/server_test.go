@@ -10138,6 +10138,33 @@ func TestParseIMAPSequenceSetAcceptsClientScaleStarRanges(t *testing.T) {
 	}
 }
 
+func TestIMAPSearchResDollarRequiresExactAtom(t *testing.T) {
+	t.Parallel()
+
+	state := &imapConnState{
+		savedSearch: []imapSearchSavedMessage{{uid: 7, sequenceNumber: 1}},
+	}
+
+	if got, ok := parseIMAPUIDSetForState("$", state); !ok || len(got) != 1 || got[0] != 7 {
+		t.Fatalf("parseIMAPUIDSetForState($) = %v, %v; want saved UID", got, ok)
+	}
+	if got, ok := parseIMAPSequenceSetForState("$", 3, state); !ok || len(got) != 1 || got[0] != 1 {
+		t.Fatalf("parseIMAPSequenceSetForState($) = %v, %v; want saved sequence", got, ok)
+	}
+
+	for _, value := range []string{" $", "$ ", " $ "} {
+		if got, ok := parseIMAPUIDSetForState(value, state); ok {
+			t.Fatalf("parseIMAPUIDSetForState(%q) = %v true, want padded $ rejection", value, got)
+		}
+		if got, ok := parseIMAPSequenceSetForState(value, 3, state); ok {
+			t.Fatalf("parseIMAPSequenceSetForState(%q) = %v true, want padded $ rejection", value, got)
+		}
+		if _, _, ok := imapParseSearchPredicate([]string{"UID", value}, 3, 7, state); ok {
+			t.Fatalf("imapParseSearchPredicate(UID %q) accepted padded $", value)
+		}
+	}
+}
+
 func TestParseIMAPSearchSize(t *testing.T) {
 	t.Parallel()
 

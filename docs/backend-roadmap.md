@@ -3899,6 +3899,9 @@ Implementation order:
 1409. IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry-type parsing now rejects
       whitespace-padded `ALL`, `PRIV`, or `SHARED` atoms instead of trimming
       them into valid RFC 7162 entry-type controls.
+1410. IMAP SEARCHRES `$` reuse now requires an exact `$` atom for sequence-set
+      and UID-set helpers, rejecting whitespace-padded quoted or literal
+      values instead of normalizing them into saved-result references.
 
 ## Deferred until backend contracts stabilize
 

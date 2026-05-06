@@ -2695,7 +2695,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 			return nil, 0, false
 		}
 		var ranges []imapUIDRange
-		if strings.TrimSpace(criteria[1]) == "$" {
+		if criteria[1] == "$" {
 			uids := imapSavedSearchUIDs(state)
 			ranges = make([]imapUIDRange, 0, len(uids))
 			for _, uid := range uids {
@@ -4560,7 +4560,7 @@ func parseIMAPUIDSet(value string) ([]UID, bool) {
 }
 
 func parseIMAPUIDSetForState(value string, state *imapConnState) ([]UID, bool) {
-	if strings.TrimSpace(value) != "$" {
+	if value != "$" {
 		return parseIMAPUIDSet(value)
 	}
 	uids := imapSavedSearchUIDs(state)
@@ -4573,7 +4573,7 @@ type imapUIDRange struct {
 }
 
 func (s *Server) uidsForUIDSet(ctx context.Context, state *imapConnState, value string) ([]UID, bool, error) {
-	if strings.TrimSpace(value) == "$" {
+	if value == "$" {
 		uids := imapSavedSearchUIDs(state)
 		return uids, true, nil
 	}
@@ -4763,7 +4763,7 @@ func parseIMAPSequenceSet(value string, maxSequence uint32) ([]uint32, bool) {
 }
 
 func parseIMAPSequenceSetForState(value string, maxSequence uint32, state *imapConnState) ([]uint32, bool) {
-	if strings.TrimSpace(value) != "$" {
+	if value != "$" {
 		return parseIMAPSequenceSet(value, maxSequence)
 	}
 	sequenceNumbers := imapSavedSearchSequenceNumbers(state, maxSequence)
