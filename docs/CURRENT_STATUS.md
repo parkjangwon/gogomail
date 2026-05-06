@@ -932,6 +932,10 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `STORE` and `UID STORE` now validate malformed `UNCHANGEDSINCE`, store
   mode, and flag-list syntax before authentication or selected-mailbox checks,
   keeping RFC 3501/CONDSTORE mutation grammar distinct from state failures.
+- IMAP selected-state commands now validate malformed message sequence-set and
+  UID set syntax, including signed values such as `+1`/`+7`, before
+  authentication or selected-mailbox checks while leaving selected-mailbox
+  bounds validation at execution time.
 - IMAP command tokenization now rejects embedded quote characters inside
   unquoted atoms while preserving escaped quotes inside proper quoted strings,
   keeping RFC 3501 atom and quoted-string handling separate.
