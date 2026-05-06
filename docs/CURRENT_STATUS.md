@@ -629,8 +629,10 @@ owner/resource target without scanning unrelated audit history.
 - Local/NFS and S3-compatible storage now expose a shared object `Move`
   contract for Drive-ready rename/relocation workflows. Local/NFS uses
   filesystem rename semantics, while S3-compatible storage performs signed
-  server-side copy followed by source delete and documents the non-atomic
-  duplicate-cleanup implication.
+  server-side copy followed by source delete. S3-compatible post-copy source
+  delete failures now return a structured cleanup error carrying source and
+  destination paths, so Drive/lifecycle callers can distinguish duplicate-object
+  cleanup from pre-copy move failure.
 - Shared storage now provides a bounded `DeletePrefix` helper that composes
   validated prefix `List` pages with idempotent object deletes, giving future
   Drive folder deletion, attachment lifecycle, and reconciliation jobs a

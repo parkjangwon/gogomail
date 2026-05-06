@@ -44,6 +44,20 @@ type S3Store struct {
 	now             func() time.Time
 }
 
+type S3MoveCleanupError struct {
+	SourcePath string
+	DestPath   string
+	Err        error
+}
+
+func (e S3MoveCleanupError) Error() string {
+	return fmt.Sprintf("move s3 object copied %q to %q but failed to delete source: %v", e.SourcePath, e.DestPath, e.Err)
+}
+
+func (e S3MoveCleanupError) Unwrap() error {
+	return e.Err
+}
+
 const (
 	maxS3AccessKeyIDBytes     = 4096
 	maxS3SecretAccessKeyBytes = 4096
@@ -275,7 +289,7 @@ func (s *S3Store) Move(ctx context.Context, sourcePath string, destPath string) 
 		return err
 	}
 	if err := s.Delete(ctx, sourceObjectPath); err != nil {
-		return fmt.Errorf("delete source storage object after move: %w", err)
+		return S3MoveCleanupError{SourcePath: sourceObjectPath, DestPath: destObjectPath, Err: err}
 	}
 	return nil
 }
