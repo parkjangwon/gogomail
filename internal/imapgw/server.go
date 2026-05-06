@@ -3560,10 +3560,23 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
+	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] APPEND mailbox does not exist\r\n")
+			return false, writeErr
+		}
+		_, writeErr := writer.WriteString(tag + " NO APPEND failed\r\n")
+		return false, writeErr
+	}
+	if state.readOnly && mailbox.ID == state.selectedMailbox {
+		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
+		return false, err
+	}
 	body := literals[len(literals)-1]
 	result, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
 		UserID:       state.session.UserID,
-		MailboxID:    MailboxID(mailboxName),
+		MailboxID:    mailbox.ID,
 		Flags:        flags,
 		InternalDate: internalDate,
 		Size:         int64(len(body)),

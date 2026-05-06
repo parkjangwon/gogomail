@@ -44,10 +44,12 @@ Current state:
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.
 - IMAP read-only selected-state mutation handling now validates malformed
-  `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE` requests before
-  returning read-only `NO` failures for syntactically valid mutations,
-  including invalid UID/sequence sets, STORE modes/flags, and destination
-  mailbox names.
+  `APPEND`, `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE`
+  requests before returning read-only `NO` failures for syntactically valid
+  mutations, including invalid UID/sequence sets, STORE modes/flags, APPEND
+  options, and destination mailbox names. `APPEND` now canonicalizes the
+  destination mailbox before the read-only check, so appends to the currently
+  `EXAMINE`-selected mailbox do not reach backend mutation dispatch.
 - IMAP mailbox mutation handling rejects `CREATE INBOX`, `DELETE INBOX`,
   `RENAME INBOX ...`, and `RENAME ... INBOX`, keeping the special INBOX
   namespace out of generic folder mutation paths.

@@ -63,6 +63,11 @@ parser/framing layer instead of leaking into command handlers. Oversized lines
 sent while an `IDLE` continuation is active now follow the same tagged `BAD`
 plus `BYE` framing-error path as oversized ordinary command lines, giving
 clients a deterministic close reason instead of a silent connection drop. IMAP
+`APPEND` now resolves destination mailbox names to canonical mailbox IDs before
+mutation and rejects appends to the currently `EXAMINE`-selected read-only
+mailbox without calling the backend append path, while preserving
+syntax-before-state diagnostics for malformed appends and `[TRYCREATE]` for
+missing destinations. IMAP
 `FETCH` and `UID FETCH` now also treat RFC-valid empty `HEADER.FIELDS ()` and
 `HEADER.FIELDS.NOT ()` lists as real header-section requests, returning the
 blank header terminator for include-empty requests and the full header block

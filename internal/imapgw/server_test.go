@@ -3731,6 +3731,60 @@ func TestServerAppendSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) 
 	}
 }
 
+func TestServerAppendToExaminedMailboxIsReadOnly(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendBackend{
+		result: AppendMessageResult{
+			Summary:     MessageSummary{ID: "message-44", MailboxID: "inbox", UID: 44},
+			UIDValidity: 99,
+		},
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
+		t.Fatalf("write login/examine: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read examine response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 APPEND INBOX {5+}\r\nhello\r\n")); err != nil {
+		t.Fatalf("write append literal+ command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 NO mailbox is read-only\r\n" {
+		t.Fatalf("append read-only response = %q err = %v", line, err)
+	}
+	if backendImpl.body != "" || backendImpl.request.UserID != "" || backendImpl.request.MailboxID != "" {
+		t.Fatalf("append backend was called despite read-only mailbox: request=%+v body=%q", backendImpl.request, backendImpl.body)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerAppendAcceptsLiteralPlusWithoutContinuation(t *testing.T) {
 	t.Parallel()
 
@@ -5494,7 +5548,7 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}
-	if backendImpl.selected != "台北" || backendImpl.statusLookup != "台北" || backendImpl.appended != "台北" || backendImpl.appendBody != "hello" {
+	if backendImpl.selected != "台北" || backendImpl.statusLookup != "台北" || backendImpl.appended != "taipei" || backendImpl.appendBody != "hello" {
 		t.Fatalf("decoded select/status/append = %q/%q/%q body %q", backendImpl.selected, backendImpl.statusLookup, backendImpl.appended, backendImpl.appendBody)
 	}
 	if backendImpl.copyDest != "nihon" || backendImpl.moveDest != "nihon" {
