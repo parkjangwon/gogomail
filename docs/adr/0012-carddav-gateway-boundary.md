@@ -71,9 +71,10 @@ PROPFIND responses expose conservative RFC 3744 current-user privilege
 discovery: resources advertise `DAV:read`, and contact objects additionally
 advertise `DAV:write-content` because their object write paths are implemented.
 Address-book collections advertise `DAV:write-properties` now that collection
-`PROPPATCH` semantics exist. ACL, bind, unbind, and broader collection write
-privileges are intentionally not advertised until the gateway implements those
-exact WebDAV semantics.
+`PROPPATCH` semantics exist. Address-book homes advertise `DAV:bind` after
+extended `MKCOL` support. ACL, unbind, and broader collection write privileges
+are intentionally not advertised until the gateway implements those exact
+WebDAV semantics.
 Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable collection sync token used for
 WebDAV `sync-token`, keeping legacy client change detection tied to the

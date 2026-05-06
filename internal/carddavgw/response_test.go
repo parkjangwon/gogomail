@@ -216,8 +216,8 @@ func TestAddressBookHomePropertiesUsePrincipalAsCurrentUser(t *testing.T) {
 	if !strings.Contains(text, "<D:current-user-principal><D:href>/carddav/principals/user-1/</D:href></D:current-user-principal>") {
 		t.Fatalf("current-user-principal should point to principal href:\n%s", text)
 	}
-	if !strings.Contains(text, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
-		t.Fatalf("current-user-privilege-set should expose read privilege:\n%s", text)
+	if !strings.Contains(text, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:bind></D:bind></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("current-user-privilege-set should expose read and bind privileges:\n%s", text)
 	}
 }
 

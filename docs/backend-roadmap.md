@@ -2387,8 +2387,10 @@ Implementation order:
       advertise `DAV:write-properties` now that collection `PROPPATCH`
       semantics exist; contact objects additionally advertise
       `DAV:write-content` because object `PUT`/`DELETE` semantics exist today.
-      ACL, bind, unbind, and broader collection write privileges remain
-      unadvertised until their exact WebDAV semantics exist.
+      Address-book homes advertise `DAV:bind` because extended `MKCOL` can
+      create child address-book collections there. ACL, unbind, and broader
+      collection write privileges remain unadvertised until their exact WebDAV
+      semantics exist.
 1120. CardDAV address-book collection PROPFIND now exposes the
       CalendarServer-compatible `getctag` extension from the same durable
       collection sync token used for WebDAV `sync-token`, improving native
@@ -2416,6 +2418,9 @@ Implementation order:
       `DAV:displayname`, and `CARDDAV:addressbook-description`, then creates
       the collection through the repository with durable sync/change state and
       returns `201 Created` with `Location`.
+1126. CardDAV current-user privilege discovery now advertises `DAV:bind` on
+      address-book homes after extended `MKCOL` support, while keeping
+      `DAV:unbind` unadvertised until collection deletion semantics exist.
 
 ## Deferred until backend contracts stabilize
 
