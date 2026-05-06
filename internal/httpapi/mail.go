@@ -1711,7 +1711,7 @@ func parseQueryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
 	}
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return 0, true
+		return maildb.MessageListDefaultLimit, true
 	}
 	if len(raw) > maxHTTPControlBytes {
 		writeError(w, http.StatusBadRequest, "limit is too long")
