@@ -365,12 +365,24 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, componen
 }
 
 func (r *Repository) ListObjects(ctx context.Context, req ListObjectsRequest) ([]CalendarObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
 	req, err := ValidateListObjectsRequest(req)
 	if err != nil {
 		return nil, err
+	}
+	return r.listObjects(ctx, req)
+}
+
+func (r *Repository) listObjectsForSync(ctx context.Context, req ListObjectsRequest) ([]CalendarObject, error) {
+	req, err := ValidateListObjectsForSyncRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return r.listObjects(ctx, req)
+}
+
+func (r *Repository) listObjects(ctx context.Context, req ListObjectsRequest) ([]CalendarObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
 	}
 	const query = `
 SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at
@@ -814,6 +826,14 @@ func ValidateUpsertObjectRequest(req UpsertObjectRequest) (UpsertObjectRequest, 
 }
 
 func ValidateListObjectsRequest(req ListObjectsRequest) (ListObjectsRequest, error) {
+	return validateListObjectsRequest(req, normalizeCalDAVLimit)
+}
+
+func ValidateListObjectsForSyncRequest(req ListObjectsRequest) (ListObjectsRequest, error) {
+	return validateListObjectsRequest(req, normalizeCalDAVChangeLimit)
+}
+
+func validateListObjectsRequest(req ListObjectsRequest, normalizeLimit func(int) int) (ListObjectsRequest, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
 		return ListObjectsRequest{}, err
@@ -826,7 +846,7 @@ func ValidateListObjectsRequest(req ListObjectsRequest) (ListObjectsRequest, err
 	if err != nil {
 		return ListObjectsRequest{}, err
 	}
-	return ListObjectsRequest{UserID: userID, CalendarID: calendarID, Status: status, Limit: normalizeCalDAVLimit(req.Limit)}, nil
+	return ListObjectsRequest{UserID: userID, CalendarID: calendarID, Status: status, Limit: normalizeLimit(req.Limit)}, nil
 }
 
 func ValidateGetObjectRequest(req GetObjectRequest) (GetObjectRequest, error) {

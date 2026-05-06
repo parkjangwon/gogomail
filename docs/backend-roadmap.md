@@ -2677,6 +2677,10 @@ Implementation order:
       bounded one-extra-row probe as CalDAV, allowing exact-limit address-book
       change sets to complete while still rejecting genuinely truncating
       responses until continuation support exists.
+1186. CalDAV and CardDAV initial `sync-collection` snapshots now use
+      sync-specific one-extra-object repository list paths, so omitted-limit
+      snapshots cannot be silently clipped by generic list defaults while still
+      returning current collection sync tokens.
 
 ## Deferred until backend contracts stabilize
 

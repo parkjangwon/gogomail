@@ -376,6 +376,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV stale-token `sync-collection` delta handling now probes one change-log
   row beyond bounded `limit/nresults`, so exact-limit responses are not falsely
   rejected while truly truncating deltas still fail closed.
+- CalDAV initial `sync-collection` snapshots now use a sync-specific
+  one-extra-object repository list path, preventing omitted-limit snapshots
+  from being clipped by generic list defaults while still returning the current
+  collection sync token.
 - CalDAV `REPORT calendar-query` now keeps child calendar-object scans behind
   explicit `Depth: 1`; default/explicit `Depth: 0` collection queries return no
   child object matches, preserving WebDAV request-scope semantics for native
@@ -528,7 +532,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   initial `DAV:sync-token` elements from missing token elements and rejects the
   latter before sync lookup or snapshot work. Stale-token delta reads probe one
   change-log row beyond bounded `limit/nresults`, so exact-limit responses are
-  not falsely rejected while truly truncating deltas still fail closed.
+  not falsely rejected while truly truncating deltas still fail closed. Initial
+  snapshots use the same one-extra-object repository probe, preventing large
+  address books from being reported fully synchronized after a generic list cap.
   Contact-object writes preflight duplicate active vCard UIDs within the same
   address book before SQL upsert, keeping failures predictable while the
   PostgreSQL partial unique index remains the final concurrency guard.

@@ -20,6 +20,10 @@ type DiscoveryStore interface {
 	LookupContactObject(ctx context.Context, userID string, addressBookID string, objectName string) (ContactObject, error)
 }
 
+type AddressBookObjectLimiter interface {
+	ListAddressBookObjectsLimit(ctx context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error)
+}
+
 type AddressBookCreator interface {
 	CreateAddressBookAtPath(ctx context.Context, req CreateAddressBookAtPathRequest) (AddressBook, error)
 }
@@ -1106,11 +1110,15 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		}
 		return nil, book.SyncToken, nil
 	}
-	objects, err := h.Store.ListAddressBookObjects(ctx, userID, resource.AddressBookID)
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	objects, err := h.listAddressBookObjectsForSync(ctx, userID, resource.AddressBookID, limit+1)
 	if err != nil {
 		return nil, "", err
 	}
-	if report.Limit > 0 && report.Limit < len(objects) {
+	if len(objects) > limit {
 		return nil, "", fmt.Errorf("sync-collection limit would truncate results")
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
@@ -1134,6 +1142,13 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, book.SyncToken, nil
+}
+
+func (h *Handler) listAddressBookObjectsForSync(ctx context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error) {
+	if limiter, ok := h.Store.(AddressBookObjectLimiter); ok {
+		return limiter.ListAddressBookObjectsLimit(ctx, userID, addressBookID, limit)
+	}
+	return h.Store.ListAddressBookObjects(ctx, userID, addressBookID)
 }
 
 func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {

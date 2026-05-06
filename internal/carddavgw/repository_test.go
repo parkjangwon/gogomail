@@ -345,6 +345,17 @@ func TestValidateContactObjectReadAndDeleteRequests(t *testing.T) {
 	if list.UserID != "user-1" || list.AddressBookID != "book-1" || list.Status != AddressBookStatusActive || list.Limit != 1000 {
 		t.Fatalf("list request = %+v", list)
 	}
+	syncList, err := ValidateListContactObjectsForSyncRequest(ListContactObjectsRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		Limit:         MaxWebDAVReportLimit + 1,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListContactObjectsForSyncRequest returned error: %v", err)
+	}
+	if syncList.Limit != MaxWebDAVReportLimit+1 {
+		t.Fatalf("sync list request = %+v", syncList)
+	}
 	get, err := ValidateGetContactObjectRequest(GetContactObjectRequest{
 		UserID:        " user-1 ",
 		AddressBookID: " book-1 ",
