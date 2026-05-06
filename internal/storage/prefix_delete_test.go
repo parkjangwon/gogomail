@@ -96,6 +96,29 @@ func TestDeletePrefixReportsDeleteFailureWithProgress(t *testing.T) {
 	}
 }
 
+func TestDeletePrefixRejectsTruncatedListWithoutCursor(t *testing.T) {
+	t.Parallel()
+
+	store := &deleteFailingStore{
+		page: ObjectListPage{
+			Objects: []ObjectInfo{
+				{Path: "drive/user-1/a.txt"},
+			},
+			HasMore: true,
+		},
+	}
+	result, err := DeletePrefix(context.Background(), store, DeletePrefixOptions{Prefix: "drive/user-1"})
+	if err == nil || !strings.Contains(err.Error(), "truncated without a continuation cursor") {
+		t.Fatalf("DeletePrefix err = %v, want missing cursor rejection", err)
+	}
+	if !result.HasMore || result.NextCursor != "" || result.Deleted != 0 {
+		t.Fatalf("result = %+v, want truncated result without deletes", result)
+	}
+	if len(store.deleted) != 0 {
+		t.Fatalf("deleted paths = %+v, want no deletes before unsafe truncated-page handoff", store.deleted)
+	}
+}
+
 func TestDeletePrefixReportsUnsafeListedObjectWithProgress(t *testing.T) {
 	t.Parallel()
 

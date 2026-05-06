@@ -64,6 +64,10 @@ Current state:
   activate support booleans. OpenAPI now also marks active labels as non-empty
   and unique, and storage operations as unique, with runtime coverage for the
   default advertised operation list.
+- Shared storage `DeletePrefix` now fails closed when a truncated `List` page
+  omits its continuation cursor, before deleting any listed object, and S3
+  coverage verifies that continuation tokens are carried into the next
+  cleanup page.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.

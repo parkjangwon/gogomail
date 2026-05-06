@@ -672,6 +672,91 @@ func TestS3StoreListRejectsTruncatedPageWithoutCursor(t *testing.T) {
 	}
 }
 
+func TestS3StoreDeletePrefixUsesContinuationCursor(t *testing.T) {
+	t.Parallel()
+
+	var requests []string
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.Method+" "+req.URL.EscapedPath()+"?"+req.URL.RawQuery)
+			switch {
+			case req.Method == http.MethodGet && req.URL.Query().Get("continuation-token") == "":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>true</IsTruncated>
+  <NextContinuationToken>cursor-2</NextContinuationToken>
+  <Contents><Key>mail/drive/user-1/a.txt</Key><Size>1</Size></Contents>
+</ListBucketResult>`)),
+					Request: req,
+				}, nil
+			case req.Method == http.MethodGet && req.URL.Query().Get("continuation-token") == "cursor-2":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/drive/user-1/b.txt</Key><Size>1</Size></Contents>
+</ListBucketResult>`)),
+					Request: req,
+				}, nil
+			case req.Method == http.MethodDelete:
+				return &http.Response{
+					StatusCode: http.StatusNoContent,
+					Body:       io.NopCloser(strings.NewReader("")),
+					Request:    req,
+				}, nil
+			default:
+				return &http.Response{
+					StatusCode: http.StatusBadRequest,
+					Body:       io.NopCloser(strings.NewReader("unexpected request")),
+					Request:    req,
+				}, nil
+			}
+		})},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	first, err := DeletePrefix(context.Background(), store, DeletePrefixOptions{Prefix: "drive/user-1", Limit: 1})
+	if err != nil {
+		t.Fatalf("DeletePrefix first page returned error: %v", err)
+	}
+	if first.Deleted != 1 || !first.HasMore || first.NextCursor != "cursor-2" {
+		t.Fatalf("first result = %+v, want deleted first page and cursor", first)
+	}
+	second, err := DeletePrefix(context.Background(), store, DeletePrefixOptions{Prefix: "drive/user-1", Limit: 1, Cursor: first.NextCursor})
+	if err != nil {
+		t.Fatalf("DeletePrefix second page returned error: %v", err)
+	}
+	if second.Deleted != 1 || second.HasMore || second.NextCursor != "" {
+		t.Fatalf("second result = %+v, want final delete", second)
+	}
+
+	if len(requests) != 4 {
+		t.Fatalf("requests = %+v, want two list and two delete requests", requests)
+	}
+	if !strings.Contains(requests[0], "list-type=2") || strings.Contains(requests[0], "continuation-token=") {
+		t.Fatalf("first list request = %q, want no continuation-token", requests[0])
+	}
+	if requests[1] != "DELETE /gogomail/mail/drive/user-1/a.txt?" {
+		t.Fatalf("first delete request = %q", requests[1])
+	}
+	if !strings.Contains(requests[2], "continuation-token=cursor-2") {
+		t.Fatalf("second list request = %q, want continuation cursor", requests[2])
+	}
+	if requests[3] != "DELETE /gogomail/mail/drive/user-1/b.txt?" {
+		t.Fatalf("second delete request = %q", requests[3])
+	}
+}
+
 func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 	t.Parallel()
 

@@ -3589,6 +3589,9 @@ Implementation order:
 1335. Public Drive shared-file downloads now reject malformed or unsatisfiable
       byte ranges with HTTP 416 and `Content-Range: bytes */<size>` before
       object opens, while OpenAPI pins the shared-download range-error header.
+1336. Shared storage `DeletePrefix` now rejects truncated list pages that omit
+      a continuation cursor before deleting listed objects, and S3-compatible
+      tests verify cursor handoff across bounded cleanup pages.
 
 ## Deferred until backend contracts stabilize
 

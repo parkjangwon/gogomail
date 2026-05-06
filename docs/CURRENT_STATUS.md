@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after shared Drive range contract hardening)
+Last updated: 2026-05-07 (updated after DeletePrefix cursor contract hardening)
 
 ## Current phase
 
@@ -983,6 +983,10 @@ owner/resource target without scanning unrelated audit history.
   cursor-driven cleanup path without backend-specific recursive delete logic.
   Unsafe object paths returned by a listing source now surface as a structured
   partial-progress error instead of blending with ordinary delete failures.
+  Truncated list pages must also carry a continuation cursor before
+  `DeletePrefix` deletes any listed object, keeping local/NFS and
+  S3-compatible cleanup orchestration fail-closed if a backend violates the
+  shared pagination contract.
 - Drive backend groundwork now has ADR 0009, a `drive_nodes` PostgreSQL
   metadata table, and an internal node-name/type/status validation package.
   Drive object bytes remain behind the shared storage interface while metadata,

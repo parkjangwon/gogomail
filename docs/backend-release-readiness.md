@@ -92,7 +92,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Shared storage also exposes bounded prefix cleanup through `DeletePrefix`,
   allowing future Drive folder deletion and lifecycle workers to delete one
   cursor page at a time instead of depending on provider-specific recursive
-  delete behavior.
+  delete behavior. Truncated list pages must include a continuation cursor
+  before `DeletePrefix` deletes any listed object, keeping cleanup orchestration
+  fail-closed if a backend violates the shared pagination contract.
 - Drive backend groundwork is started without frontend implementation: ADR
   0009 defines the metadata/storage/quota boundary, `drive_nodes` persists
   user-scoped file/folder metadata and lifecycle state, and `internal/drive`

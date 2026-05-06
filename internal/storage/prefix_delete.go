@@ -61,6 +61,9 @@ func DeletePrefix(ctx context.Context, store Store, opts DeletePrefixOptions) (D
 		NextCursor: page.NextCursor,
 		HasMore:    page.HasMore,
 	}
+	if page.HasMore && page.NextCursor == "" {
+		return result, fmt.Errorf("storage prefix listing is truncated without a continuation cursor")
+	}
 	for _, object := range page.Objects {
 		objectPath, err := ValidateObjectPath(object.Path)
 		if err != nil {
