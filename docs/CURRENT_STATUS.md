@@ -2527,7 +2527,9 @@ The platform hardening sprint completed the following:
 - CalDAV calendar collection `PROPFIND` now exposes WebDAV
   `supported-report-set` for the REPORT handlers that actually exist today:
   CalDAV `calendar-query`, `calendar-multiget`, `free-busy-query`, and WebDAV
-  `sync-collection`. This keeps native-client capability discovery aligned
+  `sync-collection`. Collection `Depth: 1` object metadata discovery is bounded
+  with the shared one-extra-row truncation probe and now rejects partial
+  listings explicitly. This keeps native-client capability discovery aligned
   with implemented semantics instead of advertising future scheduling or
   recurrence features prematurely.
 - CalDAV `REPORT calendar-query` now honors simple top-level component filters

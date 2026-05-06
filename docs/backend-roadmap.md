@@ -2765,6 +2765,10 @@ Implementation order:
       honoring explicit or default `limit/nresults` caps before deriving
       VFREEBUSY periods. This prevents large-calendar availability queries from
       silently producing partial busy windows.
+1194. CalDAV calendar collection `PROPFIND Depth: 1` child-object discovery now
+      uses the bounded object limiter with the default one-extra-row truncation
+      probe, returning an explicit request error instead of a partial WebDAV
+      multistatus when a collection is too large to enumerate safely.
 
 ## Deferred until backend contracts stabilize
 

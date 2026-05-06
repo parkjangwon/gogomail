@@ -1635,7 +1635,10 @@ Current state:
 - CalDAV collection discovery now returns WebDAV `supported-report-set` for
   implemented REPORT handlers only: `calendar-query`, `calendar-multiget`,
   `free-busy-query`, and `sync-collection`. Scheduling and other future reports
-  remain unadvertised until their semantics exist.
+  remain unadvertised until their semantics exist. Calendar collection
+  `PROPFIND Depth: 1` child object discovery now uses the shared bounded
+  one-extra-row probe and rejects truncating listings instead of silently
+  returning partial metadata.
 - CalDAV `calendar-query` now honors simple top-level component filters such as
   `VEVENT` and `VTODO` using stored `component_type` metadata, avoiding
   unrelated object types and avoiding a full iCalendar reparse before component

@@ -299,7 +299,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   sync-token refresh, and durable `collection-updated` sync markers.
 - CalDAV collection `PROPFIND` now returns WebDAV `supported-report-set` for
   only the implemented REPORT handlers: `calendar-query`, `calendar-multiget`,
-  `free-busy-query`, and `sync-collection`.
+  `free-busy-query`, and `sync-collection`. `Depth: 1` child object metadata
+  discovery is bounded with the same one-extra-row truncation probe as REPORT
+  collection scans, preventing silent partial listings.
 - CalDAV `REPORT calendar-query` now applies simple top-level component
   filters through stored `component_type` metadata before time-range matching,
   keeping common client component queries more accurate and cheaper.

@@ -85,6 +85,18 @@ func (e InvalidSyncTokenError) Error() string {
 	return "CalDAV sync-token is no longer valid"
 }
 
+type TruncatedResultsError struct {
+	Operation string
+}
+
+func (e TruncatedResultsError) Error() string {
+	operation := strings.TrimSpace(e.Operation)
+	if operation == "" {
+		operation = "CalDAV request"
+	}
+	return operation + " would truncate results"
+}
+
 func NewHandler(store DiscoveryStore, resolveUser UserResolver) *Handler {
 	return &Handler{Store: store, ResolveUser: resolveUser}
 }
@@ -785,6 +797,11 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	}
 	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind, decision.Privileges)
 	if err != nil {
+		var truncated TruncatedResultsError
+		if errors.As(err, &truncated) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -892,9 +909,12 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		props = withCurrentUserPrivileges(props, ResourceCalendarCollection, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(href, propfind, props)}
 		if depth == DepthOne {
-			objects, err := h.Store.ListCalendarObjects(ctx, userID, calendar.ID)
+			objects, err := h.listCalendarObjectsBounded(ctx, userID, calendar.ID, MaxWebDAVReportLimit+1)
 			if err != nil {
 				return nil, err
+			}
+			if len(objects) > MaxWebDAVReportLimit {
+				return nil, TruncatedResultsError{Operation: "calendar collection PROPFIND"}
 			}
 			for _, object := range objects {
 				href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
@@ -1081,7 +1101,7 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 		return nil, err
 	}
 	if len(objects) > limit {
-		return nil, fmt.Errorf("calendar-query limit would truncate results")
+		return nil, TruncatedResultsError{Operation: "calendar-query limit"}
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
@@ -1146,7 +1166,7 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 		return nil, err
 	}
 	if len(objects) > limit {
-		return nil, fmt.Errorf("free-busy-query limit would truncate results")
+		return nil, TruncatedResultsError{Operation: "free-busy-query limit"}
 	}
 	var periods []BusyPeriod
 	for _, object := range objects {
@@ -1185,7 +1205,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		return nil, "", err
 	}
 	if len(objects) > limit {
-		return nil, "", fmt.Errorf("sync-collection limit would truncate results")
+		return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
