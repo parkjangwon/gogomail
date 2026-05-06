@@ -2696,6 +2696,9 @@ The platform hardening sprint completed the following:
   calendar before SQL upsert, while PostgreSQL unique-index races for active
   object names or UIDs are mapped back into predictable repository errors
   instead of exposing raw driver details.
+- CalDAV `DELETE` now shares the same default authenticated user resolver path
+  as `GET`, `PUT`, `PROPFIND`, and `REPORT`, keeping manually assembled
+  handlers fail-closed/predictable instead of risking a nil resolver panic.
 - CalDAV object validation now uses `github.com/emersion/go-ical` for RFC 5545
   iCalendar decoding, requiring one `VCALENDAR` with exactly one `VERSION:2.0`,
   exactly one non-empty `PRODID`, exactly one supported top-level calendar

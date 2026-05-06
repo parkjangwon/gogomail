@@ -381,7 +381,11 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
 		return
 	}
-	userID, err := h.ResolveUser(r)
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
 	if err != nil {
 		http.Error(w, "caldav user is not authenticated", http.StatusUnauthorized)
 		return

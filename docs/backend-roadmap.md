@@ -3198,6 +3198,10 @@ Implementation order:
       local-vs-S3-compatible class, path-style addressing, and sanitized S3
       endpoint/bucket/prefix/region fields without exposing credentials or
       local filesystem roots.
+1255. CalDAV `DELETE` now shares the default authenticated user resolver
+      fallback used by object reads/writes and WebDAV discovery/report methods,
+      preventing manually assembled handlers from panicking on a nil resolver
+      while preserving fail-closed unauthorized responses.
 
 ## Deferred until backend contracts stabilize
 

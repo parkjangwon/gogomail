@@ -250,7 +250,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   404 propstats. Scheduling handlers remain incomplete.
 - CalDAV now handles calendar object `GET`, `HEAD`, `PUT`, and `DELETE` with
   strong ETag headers, bounded iCalendar validation, and conditional request
-  preconditions. Broader native-client compatibility tests remain incomplete.
+  preconditions. `DELETE` shares the same default authenticated user resolver
+  fallback as the other object/discovery/report handlers, avoiding nil resolver
+  panics in manually assembled gateways. Broader native-client compatibility
+  tests remain incomplete.
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, including requested `calendar-data` bodies and VEVENT
   time-range filtering through the RFC 5545 parser. Calendar-query object
