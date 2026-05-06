@@ -258,12 +258,16 @@ func TestValidateUpdateAddressBookRequest(t *testing.T) {
 		AddressBookID: " book-1 ",
 		Name:          &name,
 		Description:   &description,
+		ObservedETag:  ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateUpdateAddressBookRequest returned error: %v", err)
 	}
 	if req.UserID != "user-1" || req.AddressBookID != "book-1" {
 		t.Fatalf("request = %+v", req)
+	}
+	if req.ObservedETag != `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"` {
+		t.Fatalf("observed etag = %q", req.ObservedETag)
 	}
 	if req.Name == nil || *req.Name != "Team" || req.Description == nil || *req.Description != "Launch contacts" {
 		t.Fatalf("properties = %+v", req)
@@ -371,11 +375,12 @@ func TestValidateDeleteAddressBookRequest(t *testing.T) {
 	req, err := ValidateDeleteAddressBookRequest(DeleteAddressBookRequest{
 		UserID:        " user-1 ",
 		AddressBookID: " book-1 ",
+		ObservedETag:  ` "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateDeleteAddressBookRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.AddressBookID != "book-1" {
+	if req.UserID != "user-1" || req.AddressBookID != "book-1" || req.ObservedETag != `"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"` {
 		t.Fatalf("request = %+v", req)
 	}
 	if _, err := ValidateDeleteAddressBookRequest(DeleteAddressBookRequest{UserID: "user-1"}); err == nil {

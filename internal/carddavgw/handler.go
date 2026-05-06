@@ -240,7 +240,8 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav address-book updater is not configured", http.StatusNotImplemented)
 		return
 	}
-	if !h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID) {
+	observedETag, ok := h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID)
+	if !ok {
 		return
 	}
 	patch, err := ParseProppatch(r.Body)
@@ -254,8 +255,13 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		AddressBookID: resource.AddressBookID,
 		Name:          patch.Name,
 		Description:   patch.Description,
+		ObservedETag:  observedETag,
 	})
 	if err != nil {
+		if observedETag != "" && (strings.Contains(err.Error(), "etag mismatch") || strings.Contains(err.Error(), "not found")) {
+			http.Error(w, "carddav address book collection precondition failed", http.StatusPreconditionFailed)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -533,10 +539,15 @@ func (h *Handler) deleteAddressBookCollection(w http.ResponseWriter, r *http.Req
 		http.Error(w, "carddav address-book deleter is not configured", http.StatusNotImplemented)
 		return
 	}
-	if !h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID) {
+	observedETag, ok := h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID)
+	if !ok {
 		return
 	}
-	if _, err := store.DeleteAddressBook(r.Context(), DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: resource.AddressBookID}); err != nil {
+	if _, err := store.DeleteAddressBook(r.Context(), DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: resource.AddressBookID, ObservedETag: observedETag}); err != nil {
+		if observedETag != "" && (strings.Contains(err.Error(), "etag mismatch") || strings.Contains(err.Error(), "not found")) {
+			http.Error(w, "carddav address book collection precondition failed", http.StatusPreconditionFailed)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -870,44 +881,45 @@ func withCurrentUserPrincipal(props []PropertyResult, actorUserID string) ([]Pro
 	return next, nil
 }
 
-func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, addressBookID string) bool {
+func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, addressBookID string) (string, bool) {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return false
+		return "", false
 	}
 	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
 		book, err := h.Store.LookupAddressBook(r.Context(), userID, addressBookID)
 		if err != nil {
 			if ifMatch != "" || ifUnmodifiedSince != "" {
 				http.Error(w, "carddav address book not found", http.StatusPreconditionFailed)
-				return false
+				return "", false
 			}
-			return true
+			return "", true
+		}
+		etag, err := AddressBookCollectionETag(userID, book)
+		if err != nil {
+			http.Error(w, "carddav address book collection etag unavailable", http.StatusPreconditionFailed)
+			return "", false
 		}
 		if ifMatch != "" || ifNoneMatch != "" {
-			etag, err := AddressBookCollectionETag(userID, book)
-			if err != nil {
-				http.Error(w, "carddav address book collection etag unavailable", http.StatusPreconditionFailed)
-				return false
-			}
 			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
 				http.Error(w, "carddav address book collection if-none-match precondition failed", http.StatusPreconditionFailed)
-				return false
+				return "", false
 			}
 			if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
 				http.Error(w, "carddav address book collection etag mismatch", http.StatusPreconditionFailed)
-				return false
+				return "", false
 			}
 		}
 		if objectModifiedSince(ifUnmodifiedSince, book.UpdatedAt) {
 			http.Error(w, "carddav address book modified since precondition", http.StatusPreconditionFailed)
-			return false
+			return "", false
 		}
+		return etag, true
 	}
-	return true
+	return "", true
 }
 
 func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, bool) {

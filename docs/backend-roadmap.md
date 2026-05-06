@@ -3757,6 +3757,12 @@ Implementation order:
       `If-None-Match` regression coverage for matching ETags and `*`, proving
       metadata mutations fail with HTTP 412 before WebDAV XML bodies are read
       when native clients send a matching collection validator.
+1375. CalDAV and CardDAV collection `DELETE`/`PROPPATCH` now pass observed
+      collection ETags into repository mutation guards after conditional
+      preflight, including successful `If-Match: *`, so stale
+      calendar/address-book collection races are rechecked inside the storage
+      transaction before recursive delete or metadata update state is
+      committed.
 
 ## Deferred until backend contracts stabilize
 

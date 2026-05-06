@@ -83,6 +83,7 @@ type DeleteAddressBookRequest struct {
 	UserID        string
 	ActorUserID   string
 	AddressBookID string
+	ObservedETag  string
 }
 
 type UpdateAddressBookRequest struct {
@@ -91,6 +92,7 @@ type UpdateAddressBookRequest struct {
 	AddressBookID string
 	Name          *string
 	Description   *string
+	ObservedETag  string
 }
 
 type ListAddressBookChangesSinceRequest struct {
@@ -315,6 +317,11 @@ func (r *Repository) UpdateAddressBookProperties(ctx context.Context, req Update
 	if err := lockActiveAddressBook(ctx, tx, req.UserID, req.AddressBookID); err != nil {
 		return AddressBook{}, err
 	}
+	if req.ObservedETag != "" {
+		if err := ensureAddressBookCollectionETag(ctx, tx, req.UserID, req.AddressBookID, req.ObservedETag); err != nil {
+			return AddressBook{}, err
+		}
+	}
 	nameValue, nameSet := optionalStringArg(req.Name)
 	descriptionValue, descriptionSet := optionalStringArg(req.Description)
 	const query = `
@@ -376,6 +383,11 @@ func (r *Repository) DeleteAddressBook(ctx context.Context, req DeleteAddressBoo
 		return AddressBook{}, fmt.Errorf("begin CardDAV address book delete: %w", err)
 	}
 	defer tx.Rollback()
+	if req.ObservedETag != "" {
+		if err := ensureAddressBookCollectionETag(ctx, tx, req.UserID, req.AddressBookID, req.ObservedETag); err != nil {
+			return AddressBook{}, err
+		}
+	}
 	const query = `
 UPDATE carddav_addressbooks
 SET status = 'deleted', deleted_at = now(), updated_at = now()
@@ -862,6 +874,10 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 	if err != nil {
 		return UpdateAddressBookRequest{}, "", "", err
 	}
+	observedETag, err := validateOptionalContactETag(req.ObservedETag)
+	if err != nil {
+		return UpdateAddressBookRequest{}, "", "", err
+	}
 	if req.Name == nil && req.Description == nil {
 		return UpdateAddressBookRequest{}, "", "", fmt.Errorf("at least one address book property is required")
 	}
@@ -887,7 +903,7 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 		description = &value
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, "addressbook-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, Name: name, Description: description}, normalizedName, syncToken, nil
+	return UpdateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, Name: name, Description: description, ObservedETag: observedETag}, normalizedName, syncToken, nil
 }
 
 func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddressBookRequest, error) {
@@ -903,7 +919,11 @@ func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddre
 	if err != nil {
 		return DeleteAddressBookRequest{}, err
 	}
-	return DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID}, nil
+	observedETag, err := validateOptionalContactETag(req.ObservedETag)
+	if err != nil {
+		return DeleteAddressBookRequest{}, err
+	}
+	return DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, ObservedETag: observedETag}, nil
 }
 
 func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertContactObjectRequest, string, string, error) {
@@ -1202,6 +1222,39 @@ FOR UPDATE`, userID, addressBookID, objectName).Scan(&current)
 	}
 	if current != etag {
 		return fmt.Errorf("CardDAV contact object etag mismatch")
+	}
+	return nil
+}
+
+func ensureAddressBookCollectionETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, etag string) error {
+	var book AddressBook
+	err := tx.QueryRowContext(ctx, `
+SELECT id::text, user_id::text, name, description, sync_token, created_at, updated_at
+FROM carddav_addressbooks
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'
+FOR UPDATE`, userID, addressBookID).Scan(
+		&book.ID,
+		&book.UserID,
+		&book.Name,
+		&book.Description,
+		&book.SyncToken,
+		&book.CreatedAt,
+		&book.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("CardDAV address book not found")
+		}
+		return fmt.Errorf("read CardDAV address book collection etag: %w", err)
+	}
+	current, err := AddressBookCollectionETag(userID, book)
+	if err != nil {
+		return fmt.Errorf("build CardDAV address book collection etag: %w", err)
+	}
+	if current != etag {
+		return fmt.Errorf("CardDAV address book collection etag mismatch")
 	}
 	return nil
 }

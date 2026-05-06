@@ -2227,6 +2227,28 @@ func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastCalendarUpdate.ObservedETag != etag {
+		t.Fatalf("observed collection etag = %q, want %q", store.lastCalendarUpdate.ObservedETag, etag)
+	}
+}
+
 func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
 	t.Parallel()
 
@@ -2474,6 +2496,10 @@ func TestHandlerDeleteCalendarCollectionAcceptsIfMatchStar(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
 	req.Header.Set("If-Match", "*")
@@ -2485,6 +2511,9 @@ func TestHandlerDeleteCalendarCollectionAcceptsIfMatchStar(t *testing.T) {
 	}
 	if len(store.calendars) != 0 {
 		t.Fatalf("calendars after delete = %+v", store.calendars)
+	}
+	if store.lastCalendarDelete.ObservedETag != etag {
+		t.Fatalf("observed collection etag = %q, want %q", store.lastCalendarDelete.ObservedETag, etag)
 	}
 }
 
@@ -2682,12 +2711,14 @@ func fixedUser(userID string) UserResolver {
 }
 
 type fakeDiscoveryStore struct {
-	principal  Principal
-	calendars  []Calendar
-	objects    []CalendarObject
-	changes    []CalendarChange
-	lastUpsert UpsertObjectRequest
-	lastDelete DeleteObjectRequest
+	principal          Principal
+	calendars          []Calendar
+	objects            []CalendarObject
+	changes            []CalendarChange
+	lastUpsert         UpsertObjectRequest
+	lastDelete         DeleteObjectRequest
+	lastCalendarUpdate UpdateCalendarRequest
+	lastCalendarDelete DeleteCalendarRequest
 }
 
 type noSyncCalendarDiscoveryStore struct {
@@ -2907,8 +2938,18 @@ func (s *fakeDiscoveryStore) UpdateCalendarProperties(_ context.Context, req Upd
 	if err != nil {
 		return Calendar{}, err
 	}
+	s.lastCalendarUpdate = validated
 	for i, calendar := range s.calendars {
 		if calendar.UserID == validated.UserID && calendar.ID == validated.CalendarID {
+			if validated.ObservedETag != "" {
+				etag, err := CalendarCollectionETag(validated.UserID, calendar)
+				if err != nil {
+					return Calendar{}, err
+				}
+				if etag != validated.ObservedETag {
+					return Calendar{}, errFakeNotFound
+				}
+			}
 			if validated.Name != nil {
 				calendar.Name = *validated.Name
 			}
@@ -2951,8 +2992,18 @@ func (s *fakeDiscoveryStore) DeleteCalendar(_ context.Context, req DeleteCalenda
 	if err != nil {
 		return Calendar{}, err
 	}
+	s.lastCalendarDelete = validated
 	for i, calendar := range s.calendars {
 		if calendar.UserID == validated.UserID && calendar.ID == validated.CalendarID {
+			if validated.ObservedETag != "" {
+				etag, err := CalendarCollectionETag(validated.UserID, calendar)
+				if err != nil {
+					return Calendar{}, err
+				}
+				if etag != validated.ObservedETag {
+					return Calendar{}, errFakeNotFound
+				}
+			}
 			s.calendars = append(s.calendars[:i], s.calendars[i+1:]...)
 			objects := s.objects[:0]
 			for _, object := range s.objects {

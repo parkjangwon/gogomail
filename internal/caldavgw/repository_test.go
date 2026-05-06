@@ -221,17 +221,21 @@ func TestValidateUpdateCalendarRequest(t *testing.T) {
 	color := " #aabbcc "
 	description := " Launch dates "
 	req, normalizedName, syncToken, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
-		UserID:      " user-1 ",
-		CalendarID:  " calendar-1 ",
-		Name:        &name,
-		Color:       &color,
-		Description: &description,
+		UserID:       " user-1 ",
+		CalendarID:   " calendar-1 ",
+		Name:         &name,
+		Color:        &color,
+		Description:  &description,
+		ObservedETag: ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateUpdateCalendarRequest returned error: %v", err)
 	}
 	if req.UserID != "user-1" || req.CalendarID != "calendar-1" {
 		t.Fatalf("request ids = %+v", req)
+	}
+	if req.ObservedETag != `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"` {
+		t.Fatalf("observed etag = %q", req.ObservedETag)
 	}
 	if req.Name == nil || *req.Name != "Product" || normalizedName != "product" {
 		t.Fatalf("name = %v normalized = %q", req.Name, normalizedName)
@@ -385,13 +389,14 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 		t.Fatalf("delete request = %+v token = %q", deleted, syncToken)
 	}
 	deleteCalendar, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{
-		UserID:     " user-1 ",
-		CalendarID: " calendar-1 ",
+		UserID:       " user-1 ",
+		CalendarID:   " calendar-1 ",
+		ObservedETag: ` "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateDeleteCalendarRequest returned error: %v", err)
 	}
-	if deleteCalendar.UserID != "user-1" || deleteCalendar.CalendarID != "calendar-1" {
+	if deleteCalendar.UserID != "user-1" || deleteCalendar.CalendarID != "calendar-1" || deleteCalendar.ObservedETag != `"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"` {
 		t.Fatalf("delete calendar request = %+v", deleteCalendar)
 	}
 	if _, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{UserID: "user-1"}); err == nil {
