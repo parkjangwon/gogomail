@@ -79,6 +79,7 @@ Recent release-readiness work also includes:
   workflows, exact `$` atom handling, selected-mailbox lifecycle cleanup for
   saved SEARCHRES state,
   strict STATUS item-list framing with LIST-STATUS compatibility coverage,
+  strict LIST selection option-list framing,
   strict LIST RETURN option-list framing,
   strict SEARCH/SORT/THREAD RETURN option-list framing,
   strict CONDSTORE select-param framing, CONDSTORE/MODSEQ-shaped behavior,

@@ -3933,6 +3933,10 @@ Implementation order:
       option-list parsing now rejects whitespace-padded quoted or literal list
       values such as `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of
       trimming them into valid ESEARCH/SEARCHRES controls.
+1420. IMAP RFC 5258 `LIST-EXTENDED` selection option-list parsing now consumes
+      the full parenthesized option list and rejects whitespace-padded quoted
+      or literal list values such as `" (SPECIAL-USE) "` instead of trimming
+      them into valid selection controls.
 
 ## Deferred until backend contracts stabilize
 

@@ -313,6 +313,10 @@ Current state:
   lists even when no `STATUS` return option is present, keeping `CHILDREN`,
   `SPECIAL-USE`, and `SUBSCRIBED` return controls on the same parser boundary
   as LIST-STATUS.
+- IMAP RFC 5258 `LIST-EXTENDED` selection option lists now consume the full
+  parenthesized option list and reject whitespace-padded quoted or literal list
+  values such as `" (SPECIAL-USE) "` instead of trimming them into valid
+  selection controls.
 - IMAP `LIST RETURN` option lists now reject whitespace-padded quoted or
   literal list values such as `RETURN " (CHILDREN) "` instead of trimming them
   into valid parenthesized return controls.

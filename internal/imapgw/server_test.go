@@ -5515,7 +5515,7 @@ func TestServerListSupportsSpecialUseSelectionAndReturn(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST (SPECIAL-USE) \"\" *\r\na3 LIST \"\" * RETURN (SPECIAL-USE)\r\na4 LIST (REMOTE) \"\" *\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST (SPECIAL-USE) \"\" *\r\na3 LIST \"\" * RETURN (SPECIAL-USE)\r\na4 LIST (REMOTE) \"\" *\r\na5 LIST \" (SPECIAL-USE) \" \"\" *\r\na6 LIST (SPECIAL-USE ) \"\" *\r\n")); err != nil {
 		t.Fatalf("write login/list special-use extended: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
@@ -5532,6 +5532,8 @@ func TestServerListSupportsSpecialUseSelectionAndReturn(t *testing.T) {
 		"* LIST (\\HasNoChildren \\Trash) \"/\" \"Trash\"\r\n",
 		"a3 OK LIST completed\r\n",
 		"a4 BAD LIST requires reference and mailbox pattern atoms\r\n",
+		"a5 BAD LIST requires reference and mailbox pattern atoms\r\n",
+		"a6 BAD LIST requires reference and mailbox pattern atoms\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5542,7 +5544,7 @@ func TestServerListSupportsSpecialUseSelectionAndReturn(t *testing.T) {
 			t.Fatalf("extended special-use list response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

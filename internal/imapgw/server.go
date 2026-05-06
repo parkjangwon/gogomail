@@ -6880,8 +6880,15 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 	}
 	options := imapListOptions{}
 	if len(fields) > 0 && strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
-		tokens := imapFetchNormalizedTokens([]string{fields[0]})
-		if len(tokens) == 0 {
+		if !strings.HasPrefix(fields[0], "(") {
+			return imapListOptions{}, "", false
+		}
+		optionFields, rest, ok := imapConsumeParenthesizedFields(fields)
+		if !ok {
+			return imapListOptions{}, "", false
+		}
+		tokens, ok := imapSearchReturnOptionTokens(optionFields)
+		if !ok || len(tokens) == 0 {
 			return imapListOptions{}, "", false
 		}
 		for _, token := range tokens {
@@ -6894,7 +6901,7 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 				return imapListOptions{}, "", false
 			}
 		}
-		fields = fields[1:]
+		fields = rest
 	}
 	if len(fields) < 2 {
 		return imapListOptions{}, "", false
