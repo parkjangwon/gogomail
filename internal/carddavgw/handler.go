@@ -388,7 +388,11 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if existed && objectModifiedSince(ifUnmodifiedSince, existing.UpdatedAt) {
+	if ifUnmodifiedSince != "" && !existed {
+		http.Error(w, "carddav contact object not found", http.StatusPreconditionFailed)
+		return
+	}
+	if objectModifiedSince(ifUnmodifiedSince, existing.UpdatedAt) {
 		http.Error(w, "carddav contact object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}

@@ -1908,6 +1908,32 @@ func TestHandlerPutRejectsFailedIfUnmodifiedSince(t *testing.T) {
 	}
 }
 
+func TestHandlerPutRejectsIfUnmodifiedSinceForMissingObjectBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	body := &readTrackingReader{data: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"}
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", body)
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if store.lastUpsert.ObjectName != "" {
+		t.Fatalf("unexpected upsert for missing-object precondition: %+v", store.lastUpsert)
+	}
+	if _, err := store.LookupCalendarObject(t.Context(), "user-1", "work", "event-2.ics"); err == nil {
+		t.Fatal("missing object was created despite failed If-Unmodified-Since precondition")
+	}
+}
+
 func TestHandlerPutRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
 	t.Parallel()
 
