@@ -22,6 +22,7 @@ type Mailbox struct {
 	SystemType    string
 	UIDValidity   uint32
 	UIDNext       UID
+	UIDNotSticky  bool
 	HighestModSeq uint64
 	Messages      uint32
 	Recent        uint32

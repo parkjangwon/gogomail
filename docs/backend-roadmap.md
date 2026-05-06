@@ -3360,6 +3360,10 @@ Implementation order:
       ascending runs into RFC sequence-set ranges, reducing bulk UIDPLUS,
       ESEARCH, and SEARCHRES response size while preserving non-contiguous
       response order.
+1290. IMAP destination mailbox metadata now exposes `UIDNotSticky`, and
+      `COPY`/`UID COPY`/`MOVE`/`UID MOVE` suppress UIDPLUS `COPYUID` response
+      codes for non-sticky destination UID stores, matching RFC 4315 semantics
+      instead of emitting meaningless UID mappings.
 
 ## Deferred until backend contracts stabilize
 
