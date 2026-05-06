@@ -267,6 +267,34 @@ func TestDriveServiceForConfigTreatsS3AndMinIOAsCompatibleLabels(t *testing.T) {
 	}
 }
 
+func TestStorageStoresForConfigAddsExplicitCompatLabels(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	stores := storageStoresForConfig(config.Config{
+		StorageBackend:             "s3",
+		StorageBackendCompatLabels: []string{" local ", "MINIO", "local"},
+	}, store)
+	for _, label := range []string{"s3", "minio", "local"} {
+		if stores[label] != store {
+			t.Fatalf("stores[%q] = %T, want configured store", label, stores[label])
+		}
+	}
+	if stores["swift"] != nil {
+		t.Fatal("unexpected unsupported storage compatibility label")
+	}
+}
+
+func TestStorageStoresForConfigDoesNotBridgeLocalWithoutCompatLabel(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	stores := storageStoresForConfig(config.Config{StorageBackend: "s3"}, store)
+	if stores["local"] != nil {
+		t.Fatal("s3 backend should not serve local-labelled rows without explicit compatibility label")
+	}
+}
+
 func TestS3OptionsForConfigPinsMinIOPathStyle(t *testing.T) {
 	t.Parallel()
 

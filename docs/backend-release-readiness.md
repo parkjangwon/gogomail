@@ -985,6 +985,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `s3` and `minio` labels, keeping existing Drive/upload rows reachable across
   MinIO-to-AWS S3-style backend flips when object keys and bucket contents have
   been migrated.
+  `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` now provides an explicit,
+  fail-closed Drive migration bridge for other legacy storage labels, such as
+  serving historical `local`/NFS-labelled rows through the configured S3 store
+  only after operators have copied object bytes and opted into the label map.
   S3 request paths preserve literal `+` characters as `%2B` so object identity
   and SigV4 canonical paths do not drift for plus-bearing mail object keys or
   plus-bearing endpoint base paths.

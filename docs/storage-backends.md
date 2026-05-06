@@ -130,6 +130,31 @@ MinIO to AWS S3-style configuration, or back, without breaking existing rows
 solely because their stored backend label differs. Operators still need to
 migrate or replicate the actual bucket contents and preserve object keys.
 
+## Staged backend label migrations
+
+Rows for Drive files and upload sessions intentionally remember the
+`storage_backend` label that was active when the object was written. By
+default, gogomail serves only the currently configured backend label, plus the
+built-in `s3`/`minio` aliases for S3-compatible stores. Other historical labels
+remain fail-closed so a configuration typo does not silently route reads or
+cleanup to the wrong storage system.
+
+During a planned migration, copy or replicate object bytes first, preserve the
+same object keys, then opt into legacy label compatibility explicitly:
+
+```sh
+GOGOMAIL_STORAGE_BACKEND=s3
+GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS=local
+```
+
+This example lets Drive operations resolve historical `local`/NFS-labelled
+rows through the configured S3-compatible store after operators have migrated
+the underlying bytes. The same setting can be used in rollback windows, for
+example to serve `s3`-labelled rows from a local/NFS store after object keys
+have been copied back. Keep the compatibility window short, verify reads,
+downloads, deletes, and cleanup retries, then backfill row labels or remove the
+compatibility setting once the cutover is complete.
+
 ## AWS S3 or compatible object storage
 
 Use the `s3` backend for AWS S3 or S3-compatible services that accept SigV4.

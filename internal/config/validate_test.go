@@ -105,6 +105,28 @@ func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsStorageBackendCompatLabels(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = "http://localhost:9000"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	cfg.StorageBackendCompatLabels = []string{" local ", "MINIO"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsUnknownStorageBackendCompatLabel(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackendCompatLabels = []string{"swift"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want unknown storage backend compatibility label rejection")
+	}
+}
+
 func TestValidateRejectsUnsafeLocalStorageRoot(t *testing.T) {
 	for _, root := range []string{"", "   ", "var/mailstore\nbad"} {
 		root := root

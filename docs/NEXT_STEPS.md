@@ -267,6 +267,10 @@ Current state:
   both `s3` and `minio` labels, so rows created under local MinIO can still be
   served after an AWS S3-style backend flip and vice versa when object keys and
   bucket contents have been migrated.
+- Drive runtime wiring can also opt into explicit legacy storage labels through
+  `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS`, giving operators a controlled
+  migration bridge for local/NFS-to-S3-compatible Drive cutovers after object
+  bytes are replicated while leaving unmapped legacy labels fail-closed.
 - App-level storage option construction now has direct coverage for MinIO
   path-style pinning, ordinary S3 virtual-hosted defaults, and the explicit
   `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` override.

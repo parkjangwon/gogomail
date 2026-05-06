@@ -44,6 +44,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DATABASE_URL", "")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "")
+	t.Setenv("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS", "")
 	t.Setenv("GOGOMAIL_STORAGE_S3_ENDPOINT", "")
 	t.Setenv("GOGOMAIL_STORAGE_S3_REGION", "")
 	t.Setenv("GOGOMAIL_STORAGE_S3_BUCKET", "")
@@ -235,6 +236,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.StorageBackend != "local" {
 		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)
+	}
+	if len(cfg.StorageBackendCompatLabels) != 0 {
+		t.Fatalf("StorageBackendCompatLabels = %#v, want empty", cfg.StorageBackendCompatLabels)
 	}
 	if cfg.StorageS3Region != "us-east-1" || cfg.StorageS3Bucket != "" || cfg.StorageS3ForcePathStyle {
 		t.Fatalf("S3 storage defaults = region:%q bucket:%q force_path:%v", cfg.StorageS3Region, cfg.StorageS3Bucket, cfg.StorageS3ForcePathStyle)
