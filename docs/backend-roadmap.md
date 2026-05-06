@@ -3615,6 +3615,11 @@ Implementation order:
       `/admin/v1` and admin-token/bearer auth alternatives, matching their
       runtime admin-authenticated organization identity, domain policy, DNS,
       quota, and user lifecycle routes.
+1344. Outbox event, audit log, Directory principal/alias/delegation/group
+      membership, and SMTP backpressure OpenAPI operations now pin `/admin/v1`
+      and admin-token/bearer auth alternatives, matching their runtime
+      admin-authenticated forensics, identity, delegated-access, and
+      flow-control routes.
 
 ## Deferred until backend contracts stabilize
 

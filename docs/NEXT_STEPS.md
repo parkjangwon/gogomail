@@ -97,6 +97,10 @@ Current state:
 - Tenant, domain, and user administration OpenAPI operations now also pin
   `/admin/v1` and admin-token/bearer auth alternatives, matching their runtime
   organization identity, domain policy, DNS, quota, and user lifecycle boundary.
+- Outbox event, audit log, Directory principal/alias/delegation/group
+  membership, and SMTP backpressure OpenAPI operations now also pin
+  `/admin/v1` and admin-token/bearer auth alternatives, matching their runtime
+  operator forensics, identity, delegated-access, and flow-control boundary.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to
