@@ -3827,6 +3827,10 @@ Implementation order:
 1390. S3-compatible `CopyObject` success XML now accepts namespace-free or AWS
       S3 namespace `CopyObjectResult` roots only, rejecting same-local-name XML
       from unexpected namespaces before copy/move is reported successful.
+1391. S3-compatible `ListObjectsV2` response XML now accepts namespace-free or
+      AWS S3 namespace `ListBucketResult` roots only, rejecting
+      same-local-name XML from unexpected namespaces before pagination, prefix
+      filtering, cleanup, or Drive callers see listed object metadata.
 
 ## Deferred until backend contracts stabilize
 

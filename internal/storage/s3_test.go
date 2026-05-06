@@ -900,6 +900,55 @@ func TestS3StoreDeletePrefixSkipsSiblingKeysAfterCanonicalMapping(t *testing.T) 
 func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 	t.Parallel()
 
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "unexpected_root",
+			body: `<Result/>`,
+			want: "expected element type <ListBucketResult>",
+		},
+		{
+			name: "unexpected_namespace",
+			body: `<ListBucketResult xmlns="urn:not-s3"><IsTruncated>false</IsTruncated></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestS3StoreListAcceptsAWSNamespace(t *testing.T) {
+	t.Parallel()
+
 	store, err := NewS3Store(S3Options{
 		Endpoint:        "http://localhost:9000",
 		Region:          "us-east-1",
@@ -910,7 +959,10 @@ func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 		HTTPClient: &http.Client{Transport: staticRoundTripper{
 			resp: &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`<Result/>`)),
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
 			},
 		}},
 	})
@@ -918,9 +970,12 @@ func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 		t.Fatalf("NewS3Store returned error: %v", err)
 	}
 
-	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
-	if err == nil || !strings.Contains(err.Error(), "expected element type <ListBucketResult>") {
-		t.Fatalf("List err = %v, want unexpected XML root rejection", err)
+	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-1.eml" {
+		t.Fatalf("List page = %+v, want namespaced S3 object", page)
 	}
 }
 

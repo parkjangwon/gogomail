@@ -1209,6 +1209,9 @@ func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 	if err := xml.Unmarshal(data, &result); err != nil {
 		return s3ListObjectsResult{}, fmt.Errorf("decode s3 list response: %w", err)
 	}
+	if !s3XMLNamespaceAllowed(result.XMLName.Space) {
+		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: unexpected response namespace")
+	}
 	return result, nil
 }
 

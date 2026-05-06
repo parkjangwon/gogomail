@@ -84,6 +84,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
   namespace `CopyObjectResult` roots only, rejecting unexpected namespaces
   before copy/move is reported successful.
+- S3-compatible `ListObjectsV2` response XML now accepts namespace-free or AWS
+  S3 namespace `ListBucketResult` roots only, rejecting unexpected namespaces
+  before list metadata reaches pagination, cleanup, or Drive callers.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
