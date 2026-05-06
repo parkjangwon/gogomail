@@ -2416,6 +2416,12 @@ paths:
     get:
       operationId: listAdminAPIUsageLedger
       summary: Admin immutable API usage ledger events
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: tenant_id
@@ -2449,6 +2455,12 @@ paths:
     get:
       operationId: exportAdminAPIUsageLedger
       summary: Export immutable API usage ledger events as NDJSON
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: tenant_id
@@ -2482,6 +2494,12 @@ paths:
     get:
       operationId: getAdminAPIUsageLedgerStats
       summary: Admin immutable API usage ledger export statistics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: tenant_id
           in: query

@@ -76,6 +76,9 @@ Current state:
 - Admin readiness bootstrap operations now also pin the Admin API server and
   admin-auth alternatives in OpenAPI for API usage ledger retention readiness,
   DAV sync retention readiness, and API usage export handoff readiness.
+- API usage ledger list/export/stats OpenAPI operations now also pin
+  `/admin/v1` and explicit admin-token/bearer auth alternatives, matching the
+  runtime `adminAuth` route boundary for generated operator clients.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to

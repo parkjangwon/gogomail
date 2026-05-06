@@ -34,6 +34,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API usage export capability discovery now pins the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI, with matching
   runtime auth coverage for generated operator clients.
+- API usage ledger list/export/stats OpenAPI operations now pin the Admin API
+  server and `X-Admin-Token`/bearer-token security alternatives, matching
+  their runtime `adminAuth` routes under `/admin/v1`.
 - Admin readiness bootstrap operations now pin the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI for ledger
   retention readiness, DAV sync retention readiness, and export handoff
