@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP THREAD algorithm validation)
+Last updated: 2026-05-06 (updated after IMAP literal-placement regression coverage)
 
 ## Current phase
 
@@ -23,7 +23,11 @@ of treating `()` as a generic unsupported item, keeping RFC-shaped client
 diagnostics predictable without changing valid status item handling. `THREAD`
 now also rejects unsupported algorithms before authentication or selected
 mailbox checks, so unsupported extensions such as `REFERENCES` are reported at
-the syntax/capability boundary consistently for normal and UID forms.
+the syntax/capability boundary consistently for normal and UID forms. IMAP
+literal parsing now has regression coverage for suffixed literal markers,
+literal payloads followed by trailing atom data, and unused literal payloads so
+malformed wire input remains in the parser/framing layer instead of leaking
+into command handlers.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as

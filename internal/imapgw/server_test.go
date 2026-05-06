@@ -333,6 +333,47 @@ func TestServerRejectsControlCharactersInAtoms(t *testing.T) {
 	}
 }
 
+func TestServerRejectsMalformedLiteralPlacement(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com {6+}oops\r\na2 APPEND inbox {3+}\r\nabc)BAD\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write malformed literal placement: %v", err)
+	}
+	want := []string{
+		"a1 BAD malformed command\r\n",
+		"a2 BAD malformed command\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read malformed literal placement response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("malformed literal placement response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsMalformedQuotedCommandArguments(t *testing.T) {
 	t.Parallel()
 
@@ -8060,6 +8101,15 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFields("a1 LOGIN user@example.com {6+}"); err == nil {
 		t.Fatal("parseIMAPFields accepted non-synchronizing literal")
+	}
+	if _, err := parseIMAPFieldsWithLiteral("a1 LOGIN user@example.com {6}oops", []string{"secret"}); err == nil {
+		t.Fatal("parseIMAPFieldsWithLiteral accepted suffixed literal marker")
+	}
+	if _, err := parseIMAPFieldsWithLiteral("a1 STORE 1 (FLAGS {3})extra", []string{"foo"}); err == nil {
+		t.Fatal("parseIMAPFieldsWithLiteral accepted literal marker with trailing atom data")
+	}
+	if _, err := parseIMAPFieldsWithLiteral("a1 NOOP", []string{"unused"}); err == nil {
+		t.Fatal("parseIMAPFieldsWithLiteral accepted unused literal data")
 	}
 	literal := "secret value"
 	fields, err := parseIMAPFieldsWithLiteral("a1 LOGIN user@example.com {12}", []string{literal})
