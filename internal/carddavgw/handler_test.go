@@ -972,6 +972,27 @@ func TestHandlerReportAddressBookQueryDepthZeroReturnsCollectionScope(t *testing
 	}
 }
 
+func TestHandlerReportAddressBookQueryAcceptsDepthInfinity(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"><C:text-match>Contact One</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthInfinity, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>") {
+		t.Fatalf("Depth: infinity query REPORT missing matching contact:\n%s", text)
+	}
+	if strings.Contains(text, "contact-2.vcf") {
+		t.Fatalf("Depth: infinity query REPORT included non-matching contact:\n%s", text)
+	}
+}
+
 func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	t.Parallel()
 

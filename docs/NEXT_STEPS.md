@@ -1626,7 +1626,8 @@ Next:
   that hot path. Address-data projection failures are explicit errors rather
   than silent full-body fallbacks. RFC 6352 `addressbook-query` now requires an
   explicit `Depth` header; `Depth: 1` scans address-object children and
-  `Depth: 0` remains collection-scoped without returning child objects.
+  `Depth: infinity` is accepted with the same flat address-book scan semantics,
+  while `Depth: 0` remains collection-scoped without returning child objects.
   PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
   `DAV:bind`/`DAV:unbind` only on address-book homes where extended `MKCOL`
