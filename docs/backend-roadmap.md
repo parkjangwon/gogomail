@@ -3857,6 +3857,11 @@ Implementation order:
       `Last-Modified` headers instead of silently returning zero timestamps,
       while preserving HTTP optional-whitespace compatibility around otherwise
       valid timestamp values.
+1398. S3-compatible `ListObjectsV2` and `CopyObjectResult` XML validation now
+      applies the namespace boundary to core child elements as well as roots,
+      so foreign-namespace pagination controls, object metadata, copy
+      metadata, or embedded copy errors cannot be collapsed into canonical
+      provider metadata by XML unmarshalling.
 
 ## Deferred until backend contracts stabilize
 

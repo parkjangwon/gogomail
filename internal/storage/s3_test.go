@@ -1093,6 +1093,21 @@ func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 			body: `<ListBucketResult xmlns="urn:not-s3"><IsTruncated>false</IsTruncated></ListBucketResult>`,
 			want: "unexpected response namespace",
 		},
+		{
+			name: "unexpected_control_namespace",
+			body: `<ListBucketResult><x:IsTruncated xmlns:x="urn:not-s3">false</x:IsTruncated></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
+		{
+			name: "unexpected_contents_namespace",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><x:Contents xmlns:x="urn:not-s3"><Key>messages/msg-1.eml</Key><Size>5</Size></x:Contents></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
+		{
+			name: "unexpected_object_metadata_namespace",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><x:Key xmlns:x="urn:not-s3">messages/msg-1.eml</x:Key><Size>5</Size></Contents></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -2801,6 +2816,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "empty_ok", status: http.StatusOK, body: "", want: "response body is required"},
 		{name: "unexpected_xml", status: http.StatusOK, body: `<Result/>`, want: `unexpected response "Result"`},
 		{name: "unexpected_namespace", status: http.StatusOK, body: `<CopyObjectResult xmlns="urn:not-s3"/>`, want: "unexpected response namespace"},
+		{name: "unexpected_child_namespace", status: http.StatusOK, body: `<CopyObjectResult><x:ETag xmlns:x="urn:not-s3">"a"</x:ETag></CopyObjectResult>`, want: "unexpected response namespace"},
 		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
 		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code></Error></CopyObjectResult>`, want: "embedded error"},
