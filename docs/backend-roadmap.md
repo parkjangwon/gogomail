@@ -3074,6 +3074,10 @@ Implementation order:
       partial-progress error when a backend listing yields a non-canonical
       object path, separating corrupt listing data from ordinary provider
       delete failures for lifecycle and reconciliation workers.
+1237. IMAP `STATUS` now rejects empty parenthesized status data-item lists with
+      an explicit tagged `BAD STATUS requires status data items`, keeping
+      malformed `STATUS inbox ()` requests separate from unsupported or
+      duplicate item validation.
 
 ## Deferred until backend contracts stabilize
 

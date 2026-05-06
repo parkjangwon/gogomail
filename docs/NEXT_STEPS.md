@@ -41,6 +41,9 @@ Current state:
   valid unauthenticated UID commands still return `NO authentication required`.
   Bare `UID` commands return `BAD UID requires subcommand` instead of looking
   like an unsupported implemented command family.
+- IMAP `STATUS` now rejects an empty parenthesized status data-item list as
+  `BAD STATUS requires status data items`, keeping malformed `STATUS inbox ()`
+  requests distinct from unsupported or duplicate status items.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
