@@ -1895,10 +1895,11 @@ Current state:
   migration index. Next, wire an operator/worker path with an explicit
   retention-age policy before treating token expiry as production-ready.
 - CalDAV sync-change writes now also enqueue transactional `dav.event`
-  outbox rows with `calendar.changed` payloads. Next Notification & Sync work
-  should consume those domain events for reminder, device, mobile delta, and
-  search/index fan-out instead of coupling push delivery into the CalDAV
-  protocol gateway.
+  outbox rows with `calendar.changed` payloads. Those payloads now preserve
+  owner user, actor user, and delegated-vs-direct context for delegated
+  writes/deletes, so future Notification & Sync, audit, reminder, device,
+  mobile delta, and search/index consumers can reason about who changed whose
+  calendar without coupling push delivery into the CalDAV protocol gateway.
 - `event-worker` now registers DAV change audit handlers. Operators can run a
   dedicated worker instance with `GOGOMAIL_EVENT_STREAM=dav.event` to validate
   `calendar.changed`/`contacts.changed` payloads and persist audit rows while

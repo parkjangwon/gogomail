@@ -3277,6 +3277,12 @@ Implementation order:
       `If-Unmodified-Since` headers before storage work, keeping date-based
       conditional requests deterministic across native clients and
       intermediaries.
+1272. CalDAV mutating repository requests now carry optional actor user IDs
+      alongside owner user IDs, and `calendar.changed` v1 `dav.event` payloads
+      plus DAV audit logs preserve `owner_user_id`, `actor_user_id`, and
+      `delegated` context so delegated writes/deletes remain auditable and
+      usable by future Notification & Sync, reminder, search, and mobile delta
+      consumers.
 
 ## Deferred until backend contracts stabilize
 

@@ -128,15 +128,16 @@ object writes, object deletes, or collection precondition checks, avoiding
 ambiguous timestamp guards that used to depend on the first header value.
 CalDAV mutating repository paths now enqueue a transactional `dav.event`
 outbox row whenever they append a durable calendar sync-change row. The v1
-`calendar.changed` payload carries the DAV kind, action, user, collection,
-object name, ETag, sync token, and changed timestamp, giving future
-Notification & Sync, search indexing, reminders, and mobile delta fan-out a
-clean event-stream boundary without making CalDAV call push/vendor adapters
-directly.
+`calendar.changed` payload carries the DAV kind, action, owner user, actor
+user, delegation flag, collection, object name, ETag, sync token, and changed
+timestamp, giving future Notification & Sync, search indexing, reminders, and
+mobile delta fan-out a clean event-stream boundary without making CalDAV call
+push/vendor adapters directly.
 The generic event worker now has `calendar.changed` and `contacts.changed`
 audit handlers, so a worker instance pointed at `GOGOMAIL_EVENT_STREAM=dav.event`
-can validate those payloads and write durable DAV audit rows without coupling
-reminder, push, or indexing decisions into the protocol gateway.
+can validate those payloads and write durable DAV audit rows with actor/owner
+context without coupling reminder, push, or indexing decisions into the
+protocol gateway.
 CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
 element while preserving empty-token initial sync semantics, avoiding ambiguous
 requests that omit the sync state anchor entirely.

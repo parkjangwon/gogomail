@@ -22,6 +22,7 @@ func NewRepository(db *sql.DB) *Repository {
 
 type CreateCalendarRequest struct {
 	UserID      string
+	ActorUserID string
 	Name        string
 	Color       string
 	Description string
@@ -29,6 +30,7 @@ type CreateCalendarRequest struct {
 
 type CreateCalendarAtPathRequest struct {
 	UserID      string
+	ActorUserID string
 	CalendarID  string
 	Name        string
 	Color       string
@@ -49,6 +51,7 @@ type GetCalendarRequest struct {
 
 type UpsertObjectRequest struct {
 	UserID       string
+	ActorUserID  string
 	CalendarID   string
 	ObjectName   string
 	UID          string
@@ -72,18 +75,21 @@ type GetObjectRequest struct {
 }
 
 type DeleteObjectRequest struct {
-	UserID     string
-	CalendarID string
-	ObjectName string
+	UserID      string
+	ActorUserID string
+	CalendarID  string
+	ObjectName  string
 }
 
 type DeleteCalendarRequest struct {
-	UserID     string
-	CalendarID string
+	UserID      string
+	ActorUserID string
+	CalendarID  string
 }
 
 type UpdateCalendarRequest struct {
 	UserID      string
+	ActorUserID string
 	CalendarID  string
 	Name        *string
 	Color       *string
@@ -169,7 +175,7 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 		}
 		return Calendar{}, fmt.Errorf("create CalDAV calendar: %w", err)
 	}
-	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
+	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, req.ActorUserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
 		return Calendar{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -233,7 +239,7 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 		}
 		return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
 	}
-	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
+	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, req.ActorUserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
 		return Calendar{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -379,7 +385,7 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, componen
 	if err := updateCalendarSyncToken(ctx, tx, req.UserID, req.CalendarID, syncToken); err != nil {
 		return CalendarObject{}, err
 	}
-	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "object-upserted", req.ObjectName, etag); err != nil {
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.ActorUserID, req.CalendarID, syncToken, "object-upserted", req.ObjectName, etag); err != nil {
 		return CalendarObject{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -523,7 +529,7 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, componen
 	if err := updateCalendarSyncToken(ctx, tx, req.UserID, req.CalendarID, syncToken); err != nil {
 		return CalendarObject{}, err
 	}
-	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "object-deleted", req.ObjectName, object.ETag); err != nil {
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.ActorUserID, req.CalendarID, syncToken, "object-deleted", req.ObjectName, object.ETag); err != nil {
 		return CalendarObject{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -578,7 +584,7 @@ WHERE user_id = $1::uuid
 		return Calendar{}, fmt.Errorf("delete CalDAV calendar objects: %w", err)
 	}
 	syncToken := CalendarSyncToken(req.UserID, req.CalendarID, "collection-delete", time.Now().UTC().Format(time.RFC3339Nano))
-	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "collection-deleted", "", ""); err != nil {
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.ActorUserID, req.CalendarID, syncToken, "collection-deleted", "", ""); err != nil {
 		return Calendar{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -650,7 +656,7 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 		}
 		return Calendar{}, fmt.Errorf("update CalDAV calendar properties: %w", err)
 	}
-	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.CalendarID, syncToken, "collection-updated", "", ""); err != nil {
+	if err := insertCalendarSyncChange(ctx, tx, req.UserID, req.ActorUserID, req.CalendarID, syncToken, "collection-updated", "", ""); err != nil {
 		return Calendar{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -790,6 +796,10 @@ func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarReq
 	if err != nil {
 		return CreateCalendarRequest{}, "", "", err
 	}
+	actorUserID, err := validateCalDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return CreateCalendarRequest{}, "", "", err
+	}
 	name, err := ValidateCalendarName(req.Name)
 	if err != nil {
 		return CreateCalendarRequest{}, "", "", err
@@ -807,7 +817,7 @@ func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarReq
 		return CreateCalendarRequest{}, "", "", err
 	}
 	syncToken := CalendarSyncToken(userID, normalizedName, time.Now().UTC().Format(time.RFC3339Nano))
-	return CreateCalendarRequest{UserID: userID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
+	return CreateCalendarRequest{UserID: userID, ActorUserID: actorUserID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
 }
 
 func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, error) {
@@ -825,6 +835,7 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 	}
 	create, normalizedName, syncToken, err := ValidateCreateCalendarRequest(CreateCalendarRequest{
 		UserID:      userID,
+		ActorUserID: req.ActorUserID,
 		Name:        name,
 		Color:       req.Color,
 		Description: req.Description,
@@ -834,6 +845,7 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 	}
 	return CreateCalendarAtPathRequest{
 		UserID:      create.UserID,
+		ActorUserID: create.ActorUserID,
 		CalendarID:  calendarID,
 		Name:        create.Name,
 		Color:       create.Color,
@@ -875,6 +887,10 @@ func ValidateUpsertObjectRequest(req UpsertObjectRequest) (UpsertObjectRequest, 
 	if err != nil {
 		return UpsertObjectRequest{}, "", "", err
 	}
+	actorUserID, err := validateCalDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return UpsertObjectRequest{}, "", "", err
+	}
 	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
 	if err != nil {
 		return UpsertObjectRequest{}, "", "", err
@@ -913,7 +929,7 @@ func ValidateUpsertObjectRequest(req UpsertObjectRequest) (UpsertObjectRequest, 
 		return UpsertObjectRequest{}, "", "", err
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, objectName, etag, time.Now().UTC().Format(time.RFC3339Nano))
-	return UpsertObjectRequest{UserID: userID, CalendarID: calendarID, ObjectName: objectName, UID: uid, Component: component, ICS: req.ICS, ObservedETag: observedETag}, etag, syncToken, nil
+	return UpsertObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, ObjectName: objectName, UID: uid, Component: component, ICS: req.ICS, ObservedETag: observedETag}, etag, syncToken, nil
 }
 
 func ValidateListObjectsRequest(req ListObjectsRequest) (ListObjectsRequest, error) {
@@ -965,6 +981,10 @@ func ValidateDeleteObjectRequest(req DeleteObjectRequest) (DeleteObjectRequest, 
 	if err != nil {
 		return DeleteObjectRequest{}, "", err
 	}
+	actorUserID, err := validateCalDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return DeleteObjectRequest{}, "", err
+	}
 	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
 	if err != nil {
 		return DeleteObjectRequest{}, "", err
@@ -974,7 +994,7 @@ func ValidateDeleteObjectRequest(req DeleteObjectRequest) (DeleteObjectRequest, 
 		return DeleteObjectRequest{}, "", err
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, objectName, "delete", time.Now().UTC().Format(time.RFC3339Nano))
-	return DeleteObjectRequest{UserID: userID, CalendarID: calendarID, ObjectName: objectName}, syncToken, nil
+	return DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, ObjectName: objectName}, syncToken, nil
 }
 
 func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarRequest, error) {
@@ -982,15 +1002,23 @@ func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarReq
 	if err != nil {
 		return DeleteCalendarRequest{}, err
 	}
+	actorUserID, err := validateCalDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return DeleteCalendarRequest{}, err
+	}
 	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
 	if err != nil {
 		return DeleteCalendarRequest{}, err
 	}
-	return DeleteCalendarRequest{UserID: userID, CalendarID: calendarID}, nil
+	return DeleteCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID}, nil
 }
 
 func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarRequest, string, string, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return UpdateCalendarRequest{}, "", "", err
+	}
+	actorUserID, err := validateCalDAVActorUserID(req.ActorUserID, userID)
 	if err != nil {
 		return UpdateCalendarRequest{}, "", "", err
 	}
@@ -1031,7 +1059,7 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 		description = &value
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, "collection-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateCalendarRequest{UserID: userID, CalendarID: calendarID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
+	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
 }
 
 func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSinceRequest, error) {
@@ -1183,7 +1211,7 @@ const (
 	davChangePartitionFallback = "unknown"
 )
 
-func insertCalendarSyncChange(ctx context.Context, execer syncChangeExecer, userID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
+func insertCalendarSyncChange(ctx context.Context, execer syncChangeExecer, userID string, actorUserID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
 	_, err := execer.ExecContext(ctx, `
 INSERT INTO caldav_calendar_sync_changes (
   user_id, calendar_id, sync_token, action, object_name, etag
@@ -1191,19 +1219,27 @@ INSERT INTO caldav_calendar_sync_changes (
 	if err != nil {
 		return fmt.Errorf("insert CalDAV sync change: %w", err)
 	}
-	if err := insertCalendarChangeOutbox(ctx, execer, userID, calendarID, syncToken, action, objectName, etag); err != nil {
+	if err := insertCalendarChangeOutbox(ctx, execer, userID, actorUserID, calendarID, syncToken, action, objectName, etag); err != nil {
 		return err
 	}
 	return nil
 }
 
-func insertCalendarChangeOutbox(ctx context.Context, execer syncChangeExecer, userID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
+func insertCalendarChangeOutbox(ctx context.Context, execer syncChangeExecer, userID string, actorUserID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
+	ownerUserID := strings.TrimSpace(userID)
+	actorUserID = strings.TrimSpace(actorUserID)
+	if actorUserID == "" {
+		actorUserID = ownerUserID
+	}
 	payload, err := json.Marshal(map[string]any{
 		"event":          calendarChangedEvent,
 		"schema_version": davChangeSchemaVersion,
 		"dav_kind":       davChangeKindCalDAV,
 		"action":         action,
-		"user_id":        userID,
+		"user_id":        ownerUserID,
+		"owner_user_id":  ownerUserID,
+		"actor_user_id":  actorUserID,
+		"delegated":      actorUserID != "" && actorUserID != ownerUserID,
 		"collection_id":  calendarID,
 		"object_name":    objectName,
 		"etag":           etag,
@@ -1213,7 +1249,7 @@ func insertCalendarChangeOutbox(ctx context.Context, execer syncChangeExecer, us
 	if err != nil {
 		return fmt.Errorf("marshal CalDAV change event: %w", err)
 	}
-	partitionKey := strings.TrimSpace(userID)
+	partitionKey := ownerUserID
 	if partitionKey == "" {
 		partitionKey = davChangePartitionFallback
 	}
@@ -1257,6 +1293,14 @@ func validateOptionalETag(value string) (string, error) {
 		return "", nil
 	}
 	return ValidateStrongETag(value)
+}
+
+func validateCalDAVActorUserID(actorUserID string, ownerUserID string) (string, error) {
+	actorUserID = strings.TrimSpace(actorUserID)
+	if actorUserID == "" {
+		return ownerUserID, nil
+	}
+	return validateCalDAVID("actor_user_id", actorUserID, true)
 }
 
 func optionalStringArg(value *string) (string, bool) {

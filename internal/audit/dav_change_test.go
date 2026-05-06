@@ -18,6 +18,9 @@ func TestDAVChangeAuditLogCalendarChanged(t *testing.T) {
 		"dav_kind":"caldav",
 		"action":"object-upserted",
 		"user_id":"11111111-1111-4111-8111-111111111111",
+		"owner_user_id":"11111111-1111-4111-8111-111111111111",
+		"actor_user_id":"44444444-4444-4444-8444-444444444444",
+		"delegated":true,
 		"collection_id":"22222222-2222-4222-8222-222222222222",
 		"object_name":"event-1.ics",
 		"etag":"\"etag-1\"",
@@ -30,7 +33,7 @@ func TestDAVChangeAuditLogCalendarChanged(t *testing.T) {
 	if log.Category != "dav" || log.Action != DAVChangeEventCalendar || log.TargetType != "calendar" || log.Result != "success" {
 		t.Fatalf("log routing fields = %+v", log)
 	}
-	if log.UserID != "11111111-1111-4111-8111-111111111111" || log.TargetID != "22222222-2222-4222-8222-222222222222" {
+	if log.UserID != "11111111-1111-4111-8111-111111111111" || log.ActorID != "44444444-4444-4444-8444-444444444444" || log.TargetID != "22222222-2222-4222-8222-222222222222" {
 		t.Fatalf("log ids = %+v", log)
 	}
 	var detail map[string]any
@@ -39,6 +42,9 @@ func TestDAVChangeAuditLogCalendarChanged(t *testing.T) {
 	}
 	if detail["dav_kind"] != "caldav" || detail["action"] != "object-upserted" || detail["object_name"] != "event-1.ics" || detail["sync_token"] != "sync-1" {
 		t.Fatalf("detail = %+v", detail)
+	}
+	if detail["owner_user_id"] != "11111111-1111-4111-8111-111111111111" || detail["actor_user_id"] != "44444444-4444-4444-8444-444444444444" || detail["delegated"] != true {
+		t.Fatalf("delegated detail = %+v", detail)
 	}
 }
 

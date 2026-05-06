@@ -128,7 +128,7 @@ func TestInsertCalendarSyncChangeQueuesDomainEvent(t *testing.T) {
 	t.Parallel()
 
 	execer := &captureCalDAVSyncChangeExecer{}
-	err := insertCalendarSyncChange(context.Background(), execer, "user-1", "calendar-1", "sync-1", "object-upserted", "event-1.ics", `"etag-1"`)
+	err := insertCalendarSyncChange(context.Background(), execer, "user-1", "delegate-1", "calendar-1", "sync-1", "object-upserted", "event-1.ics", `"etag-1"`)
 	if err != nil {
 		t.Fatalf("insertCalendarSyncChange returned error: %v", err)
 	}
@@ -157,6 +157,8 @@ func TestInsertCalendarSyncChangeQueuesDomainEvent(t *testing.T) {
 		"dav_kind":       davChangeKindCalDAV,
 		"action":         "object-upserted",
 		"user_id":        "user-1",
+		"owner_user_id":  "user-1",
+		"actor_user_id":  "delegate-1",
 		"collection_id":  "calendar-1",
 		"object_name":    "event-1.ics",
 		"etag":           `"etag-1"`,
@@ -165,6 +167,9 @@ func TestInsertCalendarSyncChangeQueuesDomainEvent(t *testing.T) {
 		if got := payload[key]; got != want {
 			t.Fatalf("payload[%s] = %v, want %q; payload=%v", key, got, want, payload)
 		}
+	}
+	if got := payload["delegated"]; got != true {
+		t.Fatalf("payload delegated = %v, want true; payload=%v", got, payload)
 	}
 	if payload["changed_at"] == "" {
 		t.Fatalf("payload changed_at missing: %v", payload)
@@ -176,7 +181,7 @@ func TestInsertCalendarSyncChangeFailsWhenOutboxInsertFails(t *testing.T) {
 
 	wantErr := errors.New("outbox failed")
 	execer := &captureCalDAVSyncChangeExecer{failCall: 2, err: wantErr}
-	err := insertCalendarSyncChange(context.Background(), execer, "user-1", "calendar-1", "sync-1", "object-deleted", "event-1.ics", `"etag-1"`)
+	err := insertCalendarSyncChange(context.Background(), execer, "user-1", "user-1", "calendar-1", "sync-1", "object-deleted", "event-1.ics", `"etag-1"`)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("insertCalendarSyncChange error = %v, want wrapped outbox failure", err)
 	}
@@ -278,6 +283,7 @@ func TestValidateUpsertObjectRequest(t *testing.T) {
 	}
 	req, gotETag, syncToken, err := ValidateUpsertObjectRequest(UpsertObjectRequest{
 		UserID:       " user-1 ",
+		ActorUserID:  " delegate-1 ",
 		CalendarID:   " calendar-1 ",
 		ObjectName:   " event-1.ics ",
 		UID:          " event-1@example.com ",
@@ -288,7 +294,7 @@ func TestValidateUpsertObjectRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateUpsertObjectRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.CalendarID != "calendar-1" || req.ObjectName != "event-1.ics" {
+	if req.UserID != "user-1" || req.ActorUserID != "delegate-1" || req.CalendarID != "calendar-1" || req.ObjectName != "event-1.ics" {
 		t.Fatalf("request ids = %+v", req)
 	}
 	if req.UID != "event-1@example.com" || req.Component != ComponentVEVENT {
@@ -366,14 +372,15 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 		t.Fatalf("get request = %+v", get)
 	}
 	deleted, syncToken, err := ValidateDeleteObjectRequest(DeleteObjectRequest{
-		UserID:     " user-1 ",
-		CalendarID: " calendar-1 ",
-		ObjectName: " event.ics ",
+		UserID:      " user-1 ",
+		ActorUserID: " delegate-1 ",
+		CalendarID:  " calendar-1 ",
+		ObjectName:  " event.ics ",
 	})
 	if err != nil {
 		t.Fatalf("ValidateDeleteObjectRequest returned error: %v", err)
 	}
-	if deleted.ObjectName != "event.ics" || !strings.HasPrefix(syncToken, "sync-") {
+	if deleted.ActorUserID != "delegate-1" || deleted.ObjectName != "event.ics" || !strings.HasPrefix(syncToken, "sync-") {
 		t.Fatalf("delete request = %+v token = %q", deleted, syncToken)
 	}
 	deleteCalendar, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{

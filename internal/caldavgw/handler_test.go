@@ -1627,6 +1627,26 @@ func TestHandlerPutCalendarObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
 	}
 }
 
+func TestHandlerPutCalendarObjectPreservesDelegatedActor(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleWrite: true}}
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastUpsert.UserID != "user-1" || store.lastUpsert.ActorUserID != "delegate-1" {
+		t.Fatalf("delegated upsert request = %+v", store.lastUpsert)
+	}
+}
+
 func TestCurrentUserPrivilegesForResourceScopesDelegatedManage(t *testing.T) {
 	t.Parallel()
 
@@ -2231,6 +2251,24 @@ func TestHandlerDeleteRejectsFailedIfUnmodifiedSince(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteCalendarObjectPreservesDelegatedActor(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleWrite: true}}
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastDelete.UserID != "user-1" || store.lastDelete.ActorUserID != "delegate-1" {
+		t.Fatalf("delegated delete request = %+v", store.lastDelete)
+	}
+}
+
 func TestHandlerDeleteCalendarObjectRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
 	t.Parallel()
 
@@ -2300,10 +2338,12 @@ func fixedUser(userID string) UserResolver {
 }
 
 type fakeDiscoveryStore struct {
-	principal Principal
-	calendars []Calendar
-	objects   []CalendarObject
-	changes   []CalendarChange
+	principal  Principal
+	calendars  []Calendar
+	objects    []CalendarObject
+	changes    []CalendarChange
+	lastUpsert UpsertObjectRequest
+	lastDelete DeleteObjectRequest
 }
 
 type fakeCalendarAccessAuthorizer struct {
@@ -2437,6 +2477,7 @@ func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectReq
 	if err != nil {
 		return CalendarObject{}, err
 	}
+	s.lastUpsert = validated
 	now := time.Now()
 	object := CalendarObject{
 		ID:         "object-" + validated.ObjectName,
@@ -2523,6 +2564,7 @@ func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectReq
 	if err != nil {
 		return CalendarObject{}, err
 	}
+	s.lastDelete = validated
 	for i, object := range s.objects {
 		if object.UserID == validated.UserID && object.CalendarID == validated.CalendarID && object.ObjectName == validated.ObjectName {
 			s.objects = append(s.objects[:i], s.objects[i+1:]...)
