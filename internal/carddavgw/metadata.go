@@ -309,9 +309,9 @@ func parseVCardContentLineParts(line string) (vCardContentLine, error) {
 	if line == "" {
 		return vCardContentLine{}, fmt.Errorf("content line is empty")
 	}
-	separator := strings.IndexByte(line, ':')
-	if separator <= 0 {
-		return vCardContentLine{}, fmt.Errorf("content line missing value separator")
+	separator, err := findVCardValueSeparator(line)
+	if err != nil {
+		return vCardContentLine{}, err
 	}
 	rawName := line[:separator]
 	value := line[separator+1:]
@@ -346,6 +346,27 @@ func parseVCardContentLineParts(line string) (vCardContentLine, error) {
 		params[key] = append(params[key], values...)
 	}
 	return vCardContentLine{Name: namePart, Params: params, Value: value}, nil
+}
+
+func findVCardValueSeparator(line string) (int, error) {
+	quoted := false
+	for i, r := range line {
+		switch r {
+		case '"':
+			quoted = !quoted
+		case ':':
+			if !quoted {
+				if i <= 0 {
+					return 0, fmt.Errorf("content line missing property name")
+				}
+				return i, nil
+			}
+		}
+	}
+	if quoted {
+		return 0, fmt.Errorf("content line parameter quote is unterminated")
+	}
+	return 0, fmt.Errorf("content line missing value separator")
 }
 
 func normalizeVCardName(value string, label string) (string, error) {

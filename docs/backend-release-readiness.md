@@ -533,7 +533,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   recording creation changes transactionally. vCard validation now performs
   bounded vCard 4.0 and common vCard 3.0 checks for BEGIN/END structure,
   VERSION, UID, FN, folded lines, line/body caps, and nested VCARD rejection.
-  Contact-object repository
+  Content-line parsing preserves quoted parameter values containing colons
+  before the unquoted value separator. Contact-object repository
   methods can upsert/list/get/delete `.vcf` resources with active address-book
   scope, UID alignment, strong ETags, optional observed-ETag guards, sync-token
   refreshes, and durable change rows. REPORT parsing recognizes bounded
