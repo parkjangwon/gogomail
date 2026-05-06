@@ -3310,6 +3310,9 @@ Implementation order:
       `[BADCHARSET (US-ASCII UTF-8)]` diagnostics for unsupported charset
       probes before authentication or selected-mailbox state checks, keeping
       charset fallback behavior consistent during client capability probing.
+1279. IMAP `STATUS` and advertised `LIST-STATUS` now report duplicated status
+      data items with explicit duplicate diagnostics instead of folding them
+      into unsupported-item failures, including before authentication checks.
 
 ## Deferred until backend contracts stabilize
 

@@ -59,7 +59,10 @@ mailbox state, so unsupported criteria do not masquerade as valid stateful
 searches. Unsupported `SEARCH`, `SORT`, and `THREAD` charset probes now return
 their RFC-shaped `[BADCHARSET (US-ASCII UTF-8)]` diagnostics before
 authentication or selected-mailbox checks, keeping client charset fallback
-behavior deterministic even during capability probing.
+behavior deterministic even during capability probing. IMAP `STATUS` and
+advertised `LIST-STATUS` now distinguish duplicated status data items from
+unknown/unsupported items, including before authentication state checks, so
+client diagnostics remain precise at the status-item grammar boundary.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
