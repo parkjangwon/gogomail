@@ -1651,6 +1651,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command and IDLE line reads enforce the command-line byte cap while
   reading from the socket, keeping malformed clients from accumulating
   oversized lines in memory before syntax rejection.
+- IMAP IDLE unexpected-command recovery is regression-covered: non-`DONE`
+  input during continuation mode returns the pending IDLE tag as `BAD`, exits
+  idle state, and leaves the connection ready for the next legal command.
 - IMAP oversized command literals now return a tagged `BAD` response when the
   command tag can be recovered, then emit `BYE` and close the session cleanly
   instead of leaking an internal server error through the connection boundary.

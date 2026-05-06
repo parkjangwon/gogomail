@@ -68,6 +68,9 @@ Current state:
 - IMAP literal parsing regression coverage now locks malformed literal-marker
   placement, trailing atom data after literal payloads, and unused literal
   payloads to parser-level `BAD` responses before command handlers run.
+- IMAP IDLE recovery now has regression coverage for unexpected command input:
+  non-`DONE` lines such as `NOOP` or `DONE NOW` return a tagged `BAD` for the
+  pending IDLE command, leave idle state, and keep the session usable.
 - Selected-state no-argument commands validate extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors.

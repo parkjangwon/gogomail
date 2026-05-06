@@ -3862,6 +3862,78 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	}
 }
 
+func TestServerRejectsUnexpectedCommandDuringIdleAndContinuesSession(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 IDLE\r\n")); err != nil {
+		t.Fatalf("write idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("idle continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("NOOP\r\n")); err != nil {
+		t.Fatalf("write unexpected idle noop: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 BAD IDLE terminated by unexpected command\r\n" {
+		t.Fatalf("unexpected idle command response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop after idle bad: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK NOOP completed\r\n" {
+		t.Fatalf("noop after idle bad = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 IDLE\r\n")); err != nil {
+		t.Fatalf("write second idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("second idle continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("DONE NOW\r\n")); err != nil {
+		t.Fatalf("write malformed done: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a5 BAD IDLE terminated by unexpected command\r\n" {
+		t.Fatalf("malformed done response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop after malformed done: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a6 OK NOOP completed\r\n" {
+		t.Fatalf("noop after malformed done = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerReportsOversizedIdleLineBeforeClosing(t *testing.T) {
 	t.Parallel()
 

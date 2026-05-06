@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP MIME-part empty HEADER.FIELDS compatibility hardening)
+Last updated: 2026-05-06 (updated after IMAP IDLE unexpected-command recovery coverage)
 
 ## Current phase
 
@@ -39,7 +39,10 @@ for exclude-empty requests instead of silently falling through as unsupported
 literal handling. The same empty header-field-list semantics now apply to
 `message/rfc822` MIME-part sections such as `BODY[1.HEADER.FIELDS ()]` and
 `BODY[2.HEADER.FIELDS.NOT ()]`, keeping nested forwarded-message preview
-fetches consistent with top-level header fetch behavior.
+fetches consistent with top-level header fetch behavior. IMAP IDLE recovery
+semantics are also regression-covered: any line other than standalone `DONE`
+while idling returns a tagged `BAD` for the pending IDLE command, exits idle
+state, and leaves the authenticated session usable for the next legal command.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

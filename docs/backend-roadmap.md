@@ -3239,6 +3239,10 @@ Implementation order:
       such as `BODY[1.HEADER.FIELDS ()]` and
       `BODY[2.HEADER.FIELDS.NOT ()]` now return RFC-shaped literals instead of
       being skipped by the MIME-part header-field parser.
+1263. IMAP IDLE unexpected-command recovery is now regression-covered. A
+      non-`DONE` line during IDLE continuation mode returns the pending IDLE
+      tag as `BAD`, exits idle state, and keeps the authenticated session
+      usable for the next legal command.
 
 ## Deferred until backend contracts stabilize
 
