@@ -872,20 +872,32 @@ func withCurrentUserPrincipal(props []PropertyResult, actorUserID string) ([]Pro
 
 func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, addressBookID string) bool {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return false
 	}
-	if ifMatch != "" || ifUnmodifiedSince != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
 		book, err := h.Store.LookupAddressBook(r.Context(), userID, addressBookID)
 		if err != nil {
-			http.Error(w, "carddav address book not found", http.StatusPreconditionFailed)
-			return false
+			if ifMatch != "" || ifUnmodifiedSince != "" {
+				http.Error(w, "carddav address book not found", http.StatusPreconditionFailed)
+				return false
+			}
+			return true
 		}
-		if ifMatch != "" {
+		if ifMatch != "" || ifNoneMatch != "" {
 			etag, err := AddressBookCollectionETag(userID, book)
-			if err != nil || !ifMatchMatches(ifMatch, etag) {
+			if err != nil {
+				http.Error(w, "carddav address book collection etag unavailable", http.StatusPreconditionFailed)
+				return false
+			}
+			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
+				http.Error(w, "carddav address book collection if-none-match precondition failed", http.StatusPreconditionFailed)
+				return false
+			}
+			if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
 				http.Error(w, "carddav address book collection etag mismatch", http.StatusPreconditionFailed)
 				return false
 			}

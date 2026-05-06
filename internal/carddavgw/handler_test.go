@@ -814,6 +814,52 @@ func TestHandlerDeleteAddressBookCollectionRejectsMismatchedIfMatch(t *testing.T
 	}
 }
 
+func TestHandlerDeleteAddressBookCollectionRejectsMatchingIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
+	req.Header.Set("If-None-Match", etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.books) != 1 {
+		t.Fatalf("address books after rejected delete = %+v", store.books)
+	}
+	if len(store.objects) != 2 {
+		t.Fatalf("objects after rejected delete = %+v", store.objects)
+	}
+}
+
+func TestHandlerDeleteAddressBookCollectionRejectsIfNoneMatchStar(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.books) != 1 {
+		t.Fatalf("address books after rejected delete = %+v", store.books)
+	}
+	if len(store.objects) != 2 {
+		t.Fatalf("objects after rejected delete = %+v", store.objects)
+	}
+}
+
 func TestHandlerDeleteAddressBookCollectionAcceptsMatchingIfMatch(t *testing.T) {
 	t.Parallel()
 
