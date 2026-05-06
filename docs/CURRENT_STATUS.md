@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP quoted COPY/MOVE mailbox coverage)
+Last updated: 2026-05-07 (updated after IMAP SEARCH-family RETURN control hardening)
 
 ## Current phase
 
@@ -420,9 +420,13 @@ select-param lists such as `" (CONDSTORE) "` instead of trimming them into
 valid RFC 4551 select parameters. `SEARCH RETURN (...)` and `SORT`/`THREAD`
 `RETURN (SAVE)` option lists now reject whitespace-padded quoted or literal
 values such as `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming
-them into valid ESEARCH/SEARCHRES controls. `FETCH` and `UID FETCH` data items
-now reject whitespace-padded quoted or literal values such as `" (FLAGS) "` or
-`" FLAGS "` instead of trimming them into valid fetch attributes.
+them into valid ESEARCH/SEARCHRES controls. Exact quoted or command-literal
+`RETURN` introducers and exact quoted/literal return option-lists such as
+`"RETURN"` or `RETURN "(COUNT)"` are rejected on the same raw atom/list
+boundary for `SEARCH`, `UID SEARCH`, `SORT`, `UID SORT`, `THREAD`, and
+`UID THREAD`. `FETCH` and `UID FETCH` data items now reject whitespace-padded
+quoted or literal values such as `" (FLAGS) "` or `" FLAGS "` instead of
+trimming them into valid fetch attributes.
 `THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported

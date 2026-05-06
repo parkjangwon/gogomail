@@ -1022,6 +1022,12 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 		if len(fields) >= 3 && strings.EqualFold(fields[2], "STORE") {
 			return imapRejectStringStoreFlagListArgument(writer, tag, line, fields, 4, "UID STORE")
 		}
+		if len(fields) >= 3 {
+			switch strings.ToUpper(fields[2]) {
+			case "SEARCH", "SORT", "THREAD":
+				return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 3, strings.ToUpper(fields[2]))
+			}
+		}
 	case "APPEND":
 		if len(fields) >= 5 && strings.HasPrefix(fields[3], "(") && imapRawFieldIsStringLike(line, 3) {
 			_, err := writer.WriteString(tag + " BAD APPEND options are unsupported\r\n")
@@ -1032,6 +1038,12 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 			_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
 			return true, false, err
 		}
+	case "SEARCH":
+		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "SEARCH")
+	case "SORT":
+		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "SORT")
+	case "THREAD":
+		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "THREAD")
 	case "LIST":
 		if len(fields) >= 3 && strings.HasPrefix(fields[2], "(") && imapRawFieldIsStringLike(line, 2) {
 			_, err := writer.WriteString(tag + " BAD LIST requires reference and mailbox pattern atoms\r\n")
@@ -1054,6 +1066,21 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
 			return true, false, err
 		}
+	}
+	return false, false, nil
+}
+
+func imapRejectStringSearchReturnControlArgument(writer *bufio.Writer, tag string, line string, fields []string, returnRawIndex int, commandName string) (bool, bool, error) {
+	if len(fields) <= returnRawIndex || !strings.EqualFold(fields[returnRawIndex], "RETURN") {
+		return false, false, nil
+	}
+	if imapRawFieldIsStringLike(line, returnRawIndex) {
+		_, err := writer.WriteString(tag + " BAD " + commandName + " requires return options atom\r\n")
+		return true, false, err
+	}
+	if len(fields) > returnRawIndex+1 && strings.HasPrefix(fields[returnRawIndex+1], "(") && imapRawFieldIsStringLike(line, returnRawIndex+1) {
+		_, err := writer.WriteString(tag + " BAD " + commandName + " requires parenthesized return options\r\n")
+		return true, false, err
 	}
 	return false, false, nil
 }

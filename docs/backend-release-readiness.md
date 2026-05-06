@@ -498,6 +498,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP SEARCHRES `$` reuse is accepted as a bare `SEARCH` sequence-set
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
   after `SEARCH RETURN (SAVE)`, plus `SORT`/`THREAD` criteria coverage.
+- IMAP SEARCH-family `RETURN` controls now reject quoted or command-literal
+  introducers and exact quoted/literal option-lists before state checks,
+  keeping ESEARCH/SEARCHRES atom/list framing strict for generated clients and
+  native IMAP probes.
 - IMAP `CLOSE` clears saved SEARCHRES `$` state during selected-mailbox
   teardown, keeping saved results bound to the active selection lifecycle.
 - IMAP `DELETE` of the currently selected mailbox clears saved SEARCHRES `$`

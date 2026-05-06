@@ -370,6 +370,10 @@ Current state:
   now reject whitespace-padded quoted or literal list values such as
   `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming them into
   valid ESEARCH/SEARCHRES controls.
+- IMAP `SEARCH`, `UID SEARCH`, `SORT`, `UID SORT`, `THREAD`, and `UID THREAD`
+  `RETURN` introducers and exact return option-lists now reject quoted or
+  command-literal controls such as `"RETURN"` or `RETURN "(COUNT)"`, preserving
+  RFC atom/list boundaries before authentication or selected-mailbox state.
 - IMAP `FETCH` and `UID FETCH` data items now reject whitespace-padded quoted
   or literal values such as `" (FLAGS) "` or `" FLAGS "` instead of trimming
   them into valid fetch attributes.

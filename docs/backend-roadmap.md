@@ -4177,6 +4177,10 @@ Implementation order:
 1481. IMAP LIST selection option-lists, RETURN introducers, and RETURN
       option-lists now reject quoted or command-literal controls while
       preserving RFC mailbox pattern-list operands.
+1482. IMAP SEARCH, UID SEARCH, SORT, UID SORT, THREAD, and UID THREAD RETURN
+      introducers and return option-lists now reject quoted or command-literal
+      controls before state checks, preserving RFC atom/list boundaries for
+      ESEARCH and SEARCHRES.
 
 ## Deferred until backend contracts stabilize
 
