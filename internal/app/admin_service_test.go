@@ -889,6 +889,63 @@ func TestAdminServiceDAVSyncRetentionReadinessMarksTruncatedPreview(t *testing.T
 	}
 }
 
+func TestAdminServiceRunDAVSyncRetentionRecordsDryRun(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	audit := &fakeAdminDAVSyncRetention{}
+	calRunner := &fakeCalDAVSyncRetentionRunner{result: caldavgw.CalendarSyncChangePruneResult{CandidateCount: 7}}
+	cardRunner := &fakeCardDAVSyncRetentionRunner{result: carddavgw.AddressBookChangePruneResult{CandidateCount: 11}}
+	service := adminService{
+		davSyncRetention:     audit,
+		calDAVSyncRetention:  calRunner,
+		cardDAVSyncRetention: cardRunner,
+	}
+	run, err := service.RunDAVSyncRetention(t.Context(), davsyncretention.RunRequest{
+		Cutoff: cutoff,
+		Limit:  500,
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("RunDAVSyncRetention returned error: %v", err)
+	}
+	if run.Status != davsyncretention.RunStatusCompleted || !run.DryRun || run.CalDAVCandidates != 7 || run.CardDAVCandidates != 11 {
+		t.Fatalf("run = %+v", run)
+	}
+	if !calRunner.lastRequest.DryRun || !cardRunner.lastRequest.DryRun || !audit.lastRecord.DryRun {
+		t.Fatalf("requests/record = %+v / %+v / %+v", calRunner.lastRequest, cardRunner.lastRequest, audit.lastRecord)
+	}
+}
+
+func TestAdminServiceRunDAVSyncRetentionBlocksTruncatedDestructiveRun(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	audit := &fakeAdminDAVSyncRetention{}
+	calRunner := &fakeCalDAVSyncRetentionRunner{result: caldavgw.CalendarSyncChangePruneResult{CandidateCount: 500}}
+	cardRunner := &fakeCardDAVSyncRetentionRunner{result: carddavgw.AddressBookChangePruneResult{CandidateCount: 1}}
+	service := adminService{
+		davSyncRetention:     audit,
+		calDAVSyncRetention:  calRunner,
+		cardDAVSyncRetention: cardRunner,
+	}
+	run, err := service.RunDAVSyncRetention(t.Context(), davsyncretention.RunRequest{
+		Cutoff:       cutoff,
+		Limit:        500,
+		DryRun:       false,
+		ConfirmReady: true,
+	})
+	if err == nil {
+		t.Fatal("RunDAVSyncRetention error = nil, want truncated readiness rejection")
+	}
+	if run.Status != davsyncretention.RunStatusFailed || run.CalDAVCandidates != 500 || run.CardDAVCandidates != 1 {
+		t.Fatalf("run = %+v", run)
+	}
+	if !calRunner.lastRequest.DryRun || !cardRunner.lastRequest.DryRun || audit.lastRecord.Status != davsyncretention.RunStatusFailed {
+		t.Fatalf("requests/record = %+v / %+v / %+v", calRunner.lastRequest, cardRunner.lastRequest, audit.lastRecord)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -980,10 +1037,20 @@ type fakeAdminDrive struct {
 }
 
 type fakeAdminDAVSyncRetention struct {
-	runs     []davsyncretention.RunRecord
-	run      davsyncretention.RunRecord
-	lastList davsyncretention.RunListRequest
-	lastID   string
+	runs       []davsyncretention.RunRecord
+	run        davsyncretention.RunRecord
+	lastRecord davsyncretention.RunRecord
+	lastList   davsyncretention.RunListRequest
+	lastID     string
+}
+
+func (f *fakeAdminDAVSyncRetention) RecordRun(_ context.Context, record davsyncretention.RunRecord) (davsyncretention.RunRecord, error) {
+	f.lastRecord = record
+	if record.ID == "" {
+		record.ID = "dav-sync-retention-run-1"
+	}
+	f.run = record
+	return record, nil
 }
 
 func (f *fakeAdminDAVSyncRetention) ListRuns(_ context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error) {

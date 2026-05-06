@@ -3182,6 +3182,12 @@ Implementation order:
       unknown query controls, caps the per-backend probe limit at 10000, and
       returns aggregate plus backend-specific candidate counts with
       truncation/readiness flags before any destructive policy is made public.
+1253. Admin API can now execute DAV sync retention runs at
+      `POST /admin/v1/dav-sync/retention-runs`. Dry-run calls persist bounded
+      candidate-count audit rows, while destructive calls require explicit
+      `confirm_ready`, reuse the readiness preview, fail closed when the probe
+      is truncated, and record completed or failed CalDAV/CardDAV prune counts
+      in the same retention run read model exposed to operators.
 
 ## Deferred until backend contracts stabilize
 

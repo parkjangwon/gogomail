@@ -147,6 +147,7 @@ type AdminService interface {
 	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
 	ListAPIUsageLedgerRetentionRuns(ctx context.Context, req maildb.APIUsageLedgerRetentionRunListRequest) ([]maildb.APIUsageLedgerRetentionRunView, error)
 	GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (maildb.APIUsageLedgerRetentionRunView, error)
+	RunDAVSyncRetention(ctx context.Context, req davsyncretention.RunRequest) (davsyncretention.RunRecord, error)
 	ListDAVSyncRetentionRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
 	GetDAVSyncRetentionRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
 	GetDAVSyncRetentionReadiness(ctx context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error)
@@ -351,6 +352,13 @@ type adminAPIUsageLedgerRetentionRunRequest struct {
 	Cutoff       string `json:"cutoff"`
 	TenantID     string `json:"tenant_id,omitempty"`
 	PrincipalID  string `json:"principal_id,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmReady bool   `json:"confirm_ready,omitempty"`
+}
+
+type adminDAVSyncRetentionRunRequest struct {
+	Cutoff       string `json:"cutoff"`
 	Limit        int    `json:"limit,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	ConfirmReady bool   `json:"confirm_ready,omitempty"`
@@ -2015,6 +2023,29 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_readiness": readiness})
 	}))
 
+	mux.HandleFunc("POST /admin/v1/dav-sync/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		defer r.Body.Close()
+
+		var body adminDAVSyncRetentionRunRequest
+		if err := decodeJSONBody(r, &body); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		req, ok := parseDAVSyncRetentionRunRequest(w, body)
+		if !ok {
+			return
+		}
+		run, err := service.RunDAVSyncRetention(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_run": run})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownDAVSyncRetentionRunListQuery(w, r) {
 			return
@@ -3640,6 +3671,30 @@ func parseDAVSyncRetentionRunListRequest(w http.ResponseWriter, r *http.Request,
 		CreatedFrom: createdFrom,
 		CreatedTo:   createdTo,
 	}, true
+}
+
+func parseDAVSyncRetentionRunRequest(w http.ResponseWriter, req adminDAVSyncRetentionRunRequest) (davsyncretention.RunRequest, bool) {
+	cutoffRaw := strings.TrimSpace(req.Cutoff)
+	if cutoffRaw == "" {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return davsyncretention.RunRequest{}, false
+	}
+	cutoff, err := time.Parse(time.RFC3339, cutoffRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cutoff must be RFC3339 timestamp")
+		return davsyncretention.RunRequest{}, false
+	}
+	normalized, err := davsyncretention.NormalizeRunRequest(davsyncretention.RunRequest{
+		Cutoff:       cutoff,
+		Limit:        req.Limit,
+		DryRun:       req.DryRun,
+		ConfirmReady: req.ConfirmReady,
+	}, time.Now)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return davsyncretention.RunRequest{}, false
+	}
+	return normalized, true
 }
 
 func parseDAVSyncRetentionReadinessRequest(w http.ResponseWriter, r *http.Request) (davsyncretention.ReadinessRequest, bool) {

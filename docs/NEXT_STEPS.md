@@ -2140,10 +2140,12 @@ Next:
   also exposes `/admin/v1/dav-sync/retention-readiness` as a non-destructive
   dry-run preview over CalDAV/CardDAV sync-change candidates with non-future
   cutoff validation, bounded per-backend probe limits, truncation signaling,
-  and a `destructive_guarded` flag. Next, choose a production retention-age
-  policy and decide whether destructive DAV retention should remain
-  worker-only or gain an explicitly confirmed Admin API run boundary before
-  treating DAV token expiry as client-ready.
+  and a `destructive_guarded` flag. Admin API now has an explicitly confirmed
+  run boundary at `/admin/v1/dav-sync/retention-runs`: dry-run calls persist
+  preview audit rows, and destructive calls require `confirm_ready=true` plus a
+  non-truncated readiness preview before CalDAV/CardDAV prune calls are made.
+  Next, choose a production retention-age policy and run native-client expiry
+  compatibility tests before treating DAV token expiry as client-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
   within the same calendar before the SQL upsert path, keeping repository
   errors predictable while the PostgreSQL partial unique index remains the

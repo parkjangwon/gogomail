@@ -3167,6 +3167,87 @@ func TestAdminDAVSyncRetentionReadinessRejectsUnsafeRequests(t *testing.T) {
 	}
 }
 
+func TestAdminRunDAVSyncRetentionHandler(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	service := &fakeAdminService{
+		davSyncRetentionRun: davsyncretention.RunRecord{
+			ID:                "dav-sync-retention-run-1",
+			Cutoff:            cutoff,
+			Limit:             500,
+			DryRun:            true,
+			ConfirmReady:      false,
+			Status:            davsyncretention.RunStatusCompleted,
+			CalDAVCandidates:  7,
+			CardDAVCandidates: 11,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/dav-sync/retention-runs", strings.NewReader(`{
+		"cutoff":"`+cutoff.Format(time.RFC3339)+`",
+		"limit":500,
+		"dry_run":true
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Run davsyncretention.RunRecord `json:"dav_sync_retention_run"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Run.ID != "dav-sync-retention-run-1" || !body.Run.DryRun || body.Run.CalDAVCandidates != 7 {
+		t.Fatalf("run = %+v", body.Run)
+	}
+	if !service.lastDAVSyncRetentionRun.DryRun || service.lastDAVSyncRetentionRun.Limit != 500 || service.lastDAVSyncRetentionRun.Cutoff.IsZero() {
+		t.Fatalf("lastDAVSyncRetentionRun = %+v", service.lastDAVSyncRetentionRun)
+	}
+}
+
+func TestAdminRunDAVSyncRetentionRejectsUnsafeRequests(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+	past := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	for _, tc := range []struct {
+		name string
+		path string
+		body string
+	}{
+		{name: "unknown query", path: "/admin/v1/dav-sync/retention-runs?dry_run=true", body: `{"cutoff":"` + past + `","dry_run":true}`},
+		{name: "missing cutoff", path: "/admin/v1/dav-sync/retention-runs", body: `{"dry_run":true}`},
+		{name: "bad cutoff", path: "/admin/v1/dav-sync/retention-runs", body: `{"cutoff":"not-a-time","dry_run":true}`},
+		{name: "future cutoff", path: "/admin/v1/dav-sync/retention-runs", body: `{"cutoff":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `","dry_run":true}`},
+		{name: "negative limit", path: "/admin/v1/dav-sync/retention-runs", body: `{"cutoff":"` + past + `","limit":-1,"dry_run":true}`},
+		{name: "too large limit", path: "/admin/v1/dav-sync/retention-runs", body: `{"cutoff":"` + past + `","limit":10001,"dry_run":true}`},
+		{name: "destructive without confirm", path: "/admin/v1/dav-sync/retention-runs", body: `{"cutoff":"` + past + `","dry_run":false}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if !service.lastDAVSyncRetentionRun.Cutoff.IsZero() {
+				t.Fatalf("run dispatched: %+v", service.lastDAVSyncRetentionRun)
+			}
+		})
+	}
+}
+
 func TestAdminListDAVSyncRetentionRunsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -3767,6 +3848,14 @@ func TestAdminAPIUsageRoutesRejectUnknownQueryParameters(t *testing.T) {
 			path:   "/admin/v1/api-usage/ledger/retention-runs?dry_run=true",
 			dispatched: func(service *fakeAdminService) bool {
 				return !service.lastAPIUsageLedgerRetentionRun.Cutoff.IsZero()
+			},
+		},
+		{
+			name:   "dav sync retention run create",
+			method: http.MethodPost,
+			path:   "/admin/v1/dav-sync/retention-runs?dry_run=true",
+			dispatched: func(service *fakeAdminService) bool {
+				return !service.lastDAVSyncRetentionRun.Cutoff.IsZero()
 			},
 		},
 		{
@@ -8139,6 +8228,7 @@ type fakeAdminService struct {
 	lastAPIUsageLedgerRetentionRun              maildb.APIUsageLedgerRetentionRunRequest
 	lastAPIUsageLedgerRetentionRunList          maildb.APIUsageLedgerRetentionRunListRequest
 	lastAPIUsageLedgerRetentionRunID            string
+	lastDAVSyncRetentionRun                     davsyncretention.RunRequest
 	lastDAVSyncRetentionRunList                 davsyncretention.RunListRequest
 	lastDAVSyncRetentionRunID                   string
 	lastDAVSyncRetentionReadiness               davsyncretention.ReadinessRequest
@@ -8623,6 +8713,11 @@ func (f *fakeAdminService) ListDAVSyncRetentionRuns(_ context.Context, req davsy
 
 func (f *fakeAdminService) GetDAVSyncRetentionRun(_ context.Context, id string) (davsyncretention.RunRecord, error) {
 	f.lastDAVSyncRetentionRunID = id
+	return f.davSyncRetentionRun, nil
+}
+
+func (f *fakeAdminService) RunDAVSyncRetention(_ context.Context, req davsyncretention.RunRequest) (davsyncretention.RunRecord, error) {
+	f.lastDAVSyncRetentionRun = req
 	return f.davSyncRetentionRun, nil
 }
 

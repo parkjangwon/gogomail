@@ -147,9 +147,10 @@ token needed by a current client. Public readiness still needs Admin
 readiness preview results to be paired with deployment-specific retention age
 policy and native-client compatibility testing around expired tokens. The
 current Admin readiness endpoint is intentionally read-only and dry-run backed:
-it can preview CalDAV/CardDAV candidate counts and truncation, but destructive
-retention remains worker-owned unless a separately confirmed Admin API run
-boundary is designed.
+it can preview CalDAV/CardDAV candidate counts and truncation. The Admin run
+endpoint can now perform dry-run or explicitly confirmed destructive retention
+using the same repository boundary, while destructive calls reuse readiness and
+fail closed on truncated previews.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
 remains the final concurrency guard, but normal handler/repository failures now
