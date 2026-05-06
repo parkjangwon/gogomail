@@ -94,6 +94,37 @@ func TestPostgresCheckEffectiveDelegationExpandsGroupDelegates(t *testing.T) {
 		t.Fatal("write group delegation satisfied manage requirement")
 	}
 
+	for _, tc := range []struct {
+		name string
+		kind string
+		id   string
+	}{
+		{name: "organization", kind: PrincipalKindOrganization, id: seed.orgID},
+		{name: "group", kind: PrincipalKindGroup, id: seed.deeperID},
+		{name: "resource", kind: PrincipalKindResource, id: seed.equipmentID},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := repo.CheckEffectiveDelegation(ctx, CheckDelegationRequest{
+				CompanyID:    seed.companyID,
+				OwnerKind:    PrincipalKindResource,
+				OwnerID:      seed.roomID,
+				DelegateKind: tc.kind,
+				DelegateID:   tc.id,
+				Scope:        DelegationScopeCalendar,
+				RequiredRole: DelegationRoleRead,
+				ActiveOnly:   true,
+				MaxDepth:     2,
+			})
+			if err != nil {
+				t.Fatalf("CheckEffectiveDelegation returned error: %v", err)
+			}
+			if !got {
+				t.Fatalf("%s delegate did not satisfy effective group delegation", tc.kind)
+			}
+		})
+	}
+
 	got, err = repo.CheckEffectiveDelegation(ctx, CheckDelegationRequest{
 		CompanyID:    seed.companyID,
 		OwnerKind:    PrincipalKindResource,
@@ -135,14 +166,16 @@ func TestPostgresCheckEffectiveDelegationExpandsGroupDelegates(t *testing.T) {
 }
 
 type directoryDelegationSeed struct {
-	companyID string
-	domainID  string
-	aliceID   string
-	bobID     string
-	teamID    string
-	nestedID  string
-	deeperID  string
-	roomID    string
+	companyID   string
+	domainID    string
+	aliceID     string
+	bobID       string
+	orgID       string
+	teamID      string
+	nestedID    string
+	deeperID    string
+	roomID      string
+	equipmentID string
 }
 
 func seedDirectoryDelegationGraph(t *testing.T, db *sql.DB) directoryDelegationSeed {
@@ -161,6 +194,9 @@ WITH company AS (
 ), bob AS (
   INSERT INTO users (domain_id, username, display_name)
   SELECT id, 'bob', 'Bob' FROM domain RETURNING id
+), org AS (
+  INSERT INTO organizations (domain_id, name, code)
+  SELECT id, 'Research', 'research' FROM domain RETURNING id
 ), team AS (
   INSERT INTO directory_groups (company_id, domain_id, name, slug)
   SELECT company_id, id, 'Team Calendar', 'team-calendar' FROM domain RETURNING id
@@ -173,6 +209,9 @@ WITH company AS (
 ), room AS (
   INSERT INTO directory_resources (company_id, domain_id, resource_type, name, slug)
   SELECT company_id, id, 'room', 'Room One', 'room-one' FROM domain RETURNING id
+), equipment AS (
+  INSERT INTO directory_resources (company_id, domain_id, resource_type, name, slug)
+  SELECT company_id, id, 'equipment', 'Projector One', 'projector-one' FROM domain RETURNING id
 ), direct_delegation AS (
   INSERT INTO directory_delegations (company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role)
   SELECT domain.company_id, 'resource', room.id, 'user', alice.id, 'calendar', 'read'
@@ -190,25 +229,35 @@ WITH company AS (
 ), deeper_membership AS (
   INSERT INTO directory_group_memberships (group_id, member_kind, member_id)
   SELECT deeper.id, 'user', bob.id FROM deeper, bob
+), org_membership AS (
+  INSERT INTO directory_group_memberships (group_id, member_kind, member_id)
+  SELECT deeper.id, 'organization', org.id FROM deeper, org
+), resource_membership AS (
+  INSERT INTO directory_group_memberships (group_id, member_kind, member_id)
+  SELECT deeper.id, 'resource', equipment.id FROM deeper, equipment
 )
 SELECT
   domain.company_id::text,
   domain.id::text,
   alice.id::text,
   bob.id::text,
+  org.id::text,
   team.id::text,
   nested.id::text,
   deeper.id::text,
-  room.id::text
-FROM domain, alice, bob, team, nested, deeper, room`).Scan(
+  room.id::text,
+  equipment.id::text
+FROM domain, alice, bob, org, team, nested, deeper, room, equipment`).Scan(
 		&seed.companyID,
 		&seed.domainID,
 		&seed.aliceID,
 		&seed.bobID,
+		&seed.orgID,
 		&seed.teamID,
 		&seed.nestedID,
 		&seed.deeperID,
 		&seed.roomID,
+		&seed.equipmentID,
 	); err != nil {
 		t.Fatalf("seed directory delegation graph: %v", err)
 	}
