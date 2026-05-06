@@ -1209,7 +1209,7 @@ func imapAuthCredentialsValid(username string, password string) bool {
 
 func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
 	if len(fields) < 3 {
-		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		_, err := writer.WriteString(tag + " BAD UID requires subcommand\r\n")
 		return false, err
 	}
 	if !imapAtomValid(fields[2]) {

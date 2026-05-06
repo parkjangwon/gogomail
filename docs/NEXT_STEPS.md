@@ -36,6 +36,8 @@ Current state:
 - `UID` dispatch validates missing, malformed, unknown, or state-independent
   malformed subcommands before authentication or selected-mailbox state, while
   valid unauthenticated UID commands still return `NO authentication required`.
+  Bare `UID` commands return `BAD UID requires subcommand` instead of looking
+  like an unsupported implemented command family.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.

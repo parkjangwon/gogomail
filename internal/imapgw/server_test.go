@@ -411,7 +411,7 @@ func TestServerValidatesUIDSubcommandBeforeSelectedState(t *testing.T) {
 	}
 	want := []string{
 		"a1 OK LOGIN completed\r\n",
-		"a2 BAD UID command not implemented\r\n",
+		"a2 BAD UID requires subcommand\r\n",
 		"a3 BAD malformed command\r\n",
 		"a4 BAD UID command not implemented\r\n",
 		"a5 BAD UID FETCH requires UID set and data items\r\n",
@@ -459,7 +459,7 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 		t.Fatalf("write uid auth commands: %v", err)
 	}
 	want := []string{
-		"a1 BAD UID command not implemented\r\n",
+		"a1 BAD UID requires subcommand\r\n",
 		"a2 BAD malformed command\r\n",
 		"a3 BAD UID command not implemented\r\n",
 		"a4 BAD UID FETCH requires UID set and data items\r\n",
