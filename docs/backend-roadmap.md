@@ -3989,6 +3989,10 @@ Implementation order:
       through a streaming best-effort decoder, so bounded or truncated
       provider error bodies still surface parsed `Code`/`Message` context
       instead of falling back to raw XML snippets.
+1433. S3-compatible standard `<Error>` diagnostics now cap each parsed XML
+      error field before formatting, preventing oversized provider messages
+      from creating large diagnostic strings while preserving useful
+      `Code`/`Message`/request/host context.
 
 ## Deferred until backend contracts stabilize
 

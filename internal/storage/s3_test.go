@@ -3380,6 +3380,18 @@ func TestS3StoreFormatsTruncatedXMLStatusErrorPreview(t *testing.T) {
 	}
 }
 
+func TestS3StoreBoundsXMLStatusErrorPreviewFields(t *testing.T) {
+	t.Parallel()
+
+	preview := s3XMLErrorPreview([]byte(`<Error><Code>SlowDown</Code><Message>` + strings.Repeat("retry ", 4096) + `</Message></Error>`))
+	if preview == "" || !strings.Contains(preview, "SlowDown") {
+		t.Fatalf("preview = %q, want parsed S3 XML error", preview)
+	}
+	if len(preview) > maxS3ErrorPreviewFieldBytes+len("SlowDown: ")+64 {
+		t.Fatalf("preview length = %d, want bounded field preview", len(preview))
+	}
+}
+
 func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	endpoint := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_ENDPOINT"))
 	bucket := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_BUCKET"))
