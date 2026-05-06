@@ -3086,11 +3086,13 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 	}
 	want := []string{
 		"* OK [HIGHESTMODSEQ 19] MOVE source mod-sequence\r\n",
+		"* OK [COPYUID 2 7 9] MOVE copied UIDs\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a3 OK [COPYUID 2 7 9] MOVE completed\r\n",
+		"a3 OK MOVE completed\r\n",
 		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
+		"* OK [COPYUID 2 7 9] UID MOVE copied UIDs\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a4 OK [COPYUID 2 7 9] UID MOVE completed\r\n",
+		"a4 OK UID MOVE completed\r\n",
 		"a5 BAD APPEND requires mailbox and literal\r\n",
 	}
 	for _, expected := range want {
@@ -3147,8 +3149,9 @@ func TestServerAllowsMoveToSelectedMailbox(t *testing.T) {
 	want := []string{
 		"* 3 EXISTS\r\n",
 		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
+		"* OK [COPYUID 1 7 9] UID MOVE copied UIDs\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a3 OK [COPYUID 1 7 9] UID MOVE completed\r\n",
+		"a3 OK UID MOVE completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5146,8 +5149,9 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 	want := []string{
 		"a5 OK [COPYUID 20 7 50] COPY completed\r\n",
 		"* OK [HIGHESTMODSEQ 30] UID MOVE source mod-sequence\r\n",
+		"* OK [COPYUID 20 7 51] UID MOVE copied UIDs\r\n",
 		"* 1 EXPUNGE\r\n",
-		"a6 OK [COPYUID 20 7 51] UID MOVE completed\r\n",
+		"a6 OK UID MOVE completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6260,6 +6264,68 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 		}
 	}
 	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerSearchResDollarWorksInSortAndThreadCriteria(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: threadBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) SUBJECT Project\r\na4 SORT (DATE) UTF-8 $\r\na5 UID SORT (DATE) UTF-8 $\r\na6 THREAD ORDEREDSUBJECT UTF-8 $\r\na7 UID THREAD ORDEREDSUBJECT UTF-8 $\r\n")); err != nil {
+		t.Fatalf("write searchres sort/thread commands: %v", err)
+	}
+	want := []string{
+		"a3 OK SEARCH completed\r\n",
+		"* SORT 2 3 4\r\n",
+		"a4 OK SORT completed\r\n",
+		"* SORT 12 13 14\r\n",
+		"a5 OK UID SORT completed\r\n",
+		"* THREAD (2 (3)(4))\r\n",
+		"a6 OK THREAD completed\r\n",
+		"* THREAD (12 (13)(14))\r\n",
+		"a7 OK UID THREAD completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read searchres sort/thread response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("searchres sort/thread response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -10228,6 +10294,13 @@ type threadBackend struct {
 
 func (threadBackend) GetMailbox(_ context.Context, _ UserID, _ MailboxID) (Mailbox, error) {
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 15, Messages: 4, Unseen: 4}, nil
+}
+
+func (threadBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 15, Messages: 4},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted},
+	}, nil
 }
 
 func (threadBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {

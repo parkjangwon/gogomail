@@ -3381,6 +3381,15 @@ Implementation order:
       bare sequence-set atom, so RFC 5182-style `SEARCH $` and
       `UID SEARCH $ ...` probes work after `SEARCH RETURN (SAVE)` instead of
       being rejected before execution.
+1295. IMAP `MOVE` and `UID MOVE` now emit UIDPLUS `COPYUID` as an untagged
+      `OK` before source `EXPUNGE` responses and leave the tagged completion
+      as a plain success response. This follows RFC 6851's UIDPLUS ordering
+      guidance so clients can process source-to-destination UID mappings before
+      source sequence numbers are removed.
+1296. IMAP SEARCHRES `$` reuse is now regression-covered through `SORT`,
+      `UID SORT`, `THREAD`, and `UID THREAD`, ensuring the saved-result
+      sequence-set extension flows through the full search-oriented command
+      family, not just `SEARCH` and `FETCH`.
 
 ## Deferred until backend contracts stabilize
 
