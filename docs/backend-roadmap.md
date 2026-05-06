@@ -3086,6 +3086,10 @@ Implementation order:
       marker placement, trailing atom data after literal payloads, and unused
       literal payloads to parser-level `BAD` responses before command handlers
       can consume corrupted arguments.
+1240. Production `s3` storage configuration now requires an explicit
+      `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, keeping
+      release configs auditable about the object-store target while preserving
+      development/test endpoint derivation from region.
 
 ## Deferred until backend contracts stabilize
 

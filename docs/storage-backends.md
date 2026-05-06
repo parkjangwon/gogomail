@@ -173,6 +173,7 @@ validation, before adapter construction.
 
 ```sh
 GOGOMAIL_STORAGE_BACKEND=s3
+GOGOMAIL_STORAGE_S3_ENDPOINT=https://s3.us-east-1.amazonaws.com
 GOGOMAIL_STORAGE_S3_REGION=us-east-1
 GOGOMAIL_STORAGE_S3_BUCKET=gogomail-prod
 GOGOMAIL_STORAGE_S3_PREFIX=mail
@@ -188,11 +189,17 @@ also enforce the same size bounds as startup config validation: access key IDs
 and secret access keys are capped at 4096 bytes, and session tokens are capped
 at 8192 bytes.
 
-Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services. Endpoints
-must be plain HTTP(S) origins with an optional canonical base path; userinfo,
-query strings, fragments, duplicate separators, dot segments, and encoded path
-separators such as `%2F` or `%5C` are rejected so SigV4 signing and object
-addressing stay unambiguous. Set
+Production `s3` deployments must set `GOGOMAIL_STORAGE_S3_ENDPOINT`
+explicitly, even when using AWS S3, so release configs clearly show which
+object-storage endpoint will receive mail, Drive, attachment, and export
+objects. Development and test configs may omit it; the adapter derives the
+standard AWS regional endpoint from `GOGOMAIL_STORAGE_S3_REGION`.
+
+Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services as well.
+Endpoints must be plain HTTP(S) origins with an optional canonical base path;
+userinfo, query strings, fragments, duplicate separators, dot segments, and
+encoded path separators such as `%2F` or `%5C` are rejected so SigV4 signing
+and object addressing stay unambiguous. Set
 `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` when the provider or local network
 does not support virtual-hosted bucket names. HTTPS endpoints automatically use
 path-style requests for bucket names that contain periods, matching AWS's
