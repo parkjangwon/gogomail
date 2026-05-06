@@ -3172,6 +3172,10 @@ Implementation order:
       `GET /admin/v1/dav-sync/retention-runs/{id}` with explicit JSON
       envelopes, bounded status/created-at filters, unknown-query rejection,
       OpenAPI coverage, and console capability advertising.
+1251. Optional PostgreSQL integration coverage now applies the release
+      migrations and round-trips DAV sync retention completed/failed run rows,
+      sanitized failure text, bounded detail reads, and status/time-window list
+      filters.
 
 ## Deferred until backend contracts stabilize
 
