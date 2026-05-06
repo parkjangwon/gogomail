@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 copy metadata cardinality hardening)
+Last updated: 2026-05-07 (updated after IMAP malformed literal size hardening)
 
 ## Current phase
 
@@ -192,6 +192,11 @@ IMAP partial fetch offsets now also follow RFC 3501 `number` grammar by
 accepting `0` or non-zero-leading digit atoms only; malformed windows such as
 `BODY.PEEK[]<00.34>` or `<012.34>` are rejected before command execution
 instead of being normalized to offset `0` or `12`.
+IMAP command literal size framing now follows the same RFC 3501 `number`
+grammar, preserving valid `{0}` literals while rejecting leading-zero forms
+such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such as
+`{+1}`, `{-1}`, and `{1++}`, with a tagged `BAD` framing response before
+reading literal bytes.
 IMAP UID and message sequence-set numbers now also enforce RFC `nz-number`
 spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` or
 `UID FETCH 1:02 FLAGS` before sequence expansion instead of normalizing them

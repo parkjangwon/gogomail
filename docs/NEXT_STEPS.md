@@ -562,6 +562,11 @@ Current state:
 - IMAP partial fetch offsets now reject leading-zero RFC `number` atoms such
   as `BODY.PEEK[]<00.34>` or `<012.34>` instead of normalizing them to valid
   offsets, while preserving the valid zero-offset form `<0.count>`.
+- IMAP command literal size framing now follows RFC 3501 `number` grammar,
+  preserving valid `{0}` literals while rejecting leading-zero forms such as
+  `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such as
+  `{+1}`, `{-1}`, and `{1++}`, with a tagged `BAD` framing response before
+  reading literal bytes.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
   values such as `UTF-8"` from being silently normalized. Unsupported charsets

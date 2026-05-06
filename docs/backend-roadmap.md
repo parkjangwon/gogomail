@@ -3848,6 +3848,11 @@ Implementation order:
       top-level `ETag` or `LastModified` metadata and nested `Error` elements
       before provider-side copy metadata can be collapsed into a successful
       copy/move result.
+1396. IMAP command literal size framing now enforces RFC 3501 `number`
+      spelling, preserving valid `{0}` literals while rejecting leading-zero
+      forms such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed
+      forms such as `{+1}`, `{-1}`, and `{1++}`, with a tagged `BAD` framing
+      response before reading literal bytes.
 
 ## Deferred until backend contracts stabilize
 
