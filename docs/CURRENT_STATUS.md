@@ -3752,6 +3752,9 @@ The platform hardening sprint completed the following:
 - IMAP `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed
   PLAIN payloads before plaintext privacy policy checks, preserving
   syntax-before-policy diagnostics without authenticating before TLS.
+- IMAP `AUTHENTICATE PLAIN` continuation cancellation now requires an exact
+  `*` token, rejecting whitespace-padded cancellation attempts as malformed
+  SASL responses while keeping the session usable.
 
 Next focus areas:
 

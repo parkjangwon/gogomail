@@ -56,6 +56,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed
   PLAIN payloads before plaintext privacy policy checks, preserving
   syntax-before-policy diagnostics without authenticating before TLS.
+- IMAP `AUTHENTICATE PLAIN` continuation cancellation now requires an exact
+  `*` token, rejecting whitespace-padded cancellation attempts as malformed
+  SASL responses while keeping the session usable.
 - IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
   spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
   `UID FETCH 1:02 FLAGS` before expansion.

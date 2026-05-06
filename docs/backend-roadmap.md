@@ -3876,6 +3876,9 @@ Implementation order:
       malformed PLAIN payloads before plaintext privacy policy checks,
       preserving syntax-before-policy diagnostics without authenticating before
       TLS.
+1403. IMAP `AUTHENTICATE PLAIN` continuation cancellation now requires an
+      exact `*` token, rejecting whitespace-padded cancellation attempts as
+      malformed SASL responses while keeping the session usable.
 
 ## Deferred until backend contracts stabilize
 
