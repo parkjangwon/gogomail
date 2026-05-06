@@ -2429,16 +2429,18 @@ func imapSortCriteria(fields []string) ([]imapSortCriterion, bool) {
 	criteria := make([]imapSortCriterion, 0, len(tokens))
 	for i := 0; i < len(tokens); i++ {
 		reverse := false
-		if tokens[i] == "REVERSE" {
+		token := strings.ToUpper(tokens[i])
+		if token == "REVERSE" {
 			reverse = true
 			i++
 			if i >= len(tokens) {
 				return nil, false
 			}
+			token = strings.ToUpper(tokens[i])
 		}
-		switch tokens[i] {
+		switch token {
 		case "ARRIVAL", "CC", "DATE", "FROM", "SIZE", "SUBJECT", "TO":
-			criteria = append(criteria, imapSortCriterion{key: tokens[i], reverse: reverse})
+			criteria = append(criteria, imapSortCriterion{key: token, reverse: reverse})
 		default:
 			return nil, false
 		}

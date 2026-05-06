@@ -354,7 +354,10 @@ Current state:
 - IMAP `SORT` and `UID SORT` criterion lists now use the same strict
   parenthesized atom-list shape as other IMAP control lists, rejecting leading,
   trailing, or nested list shapes such as `( DATE)`, `(DATE )`, and `((DATE))`
-  before authentication or selected-mailbox state checks.
+  before authentication or selected-mailbox state checks. Standard sort
+  criterion atoms and `REVERSE` are interpreted case-insensitively, so client
+  probes such as `SORT (reverse subject) UTF-8 ALL` remain compatible without
+  relaxing the list grammar.
 - IMAP `SEARCH RETURN (...)` and `SORT`/`THREAD` `RETURN (SAVE)` option lists
   now reject whitespace-padded quoted or literal list values such as
   `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming them into
@@ -1427,8 +1430,8 @@ Current state:
   fetching every message's `RFC822.SIZE`.
 - `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT` reuse the
   selected-mailbox search evaluator, require `US-ASCII` or `UTF-8` charset
-  arguments, and return sorted sequence numbers or UIDs for the standard sort
-  keys clients use for mailbox list ordering.
+  arguments, and return sorted sequence numbers or UIDs for the standard
+  case-insensitive sort keys clients use for mailbox list ordering.
 - `CAPABILITY` now advertises RFC 5256 `THREAD=ORDEREDSUBJECT`; `THREAD
   ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` return ordered-subject thread
   trees from the selected-mailbox search result while keeping `REFERENCES`

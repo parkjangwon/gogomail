@@ -1928,7 +1928,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `CAPABILITY` now advertises RFC 5256 `SORT`; `SORT` and `UID SORT`
   apply selected-mailbox search criteria with mandatory `US-ASCII`/`UTF-8`
   charset handling and return sequence-number or UID sort responses for the
-  standard arrival, sent-date, address, subject, and size sort keys.
+  standard arrival, sent-date, address, subject, and size sort keys. Sort
+  criterion atoms and `REVERSE` are interpreted case-insensitively while the
+  strict parenthesized atom-list grammar remains enforced.
 - Service-backed IMAP message summaries now hydrate stored `To`, `Cc`, and
   `Bcc` address JSON into RFC-shaped ENVELOPE address lists, so real
   repository-backed `FETCH ENVELOPE`, address search, and address sort paths
