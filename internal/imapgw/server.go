@@ -2369,7 +2369,14 @@ func imapThreadAlgorithmIsSupported(algorithm string) bool {
 }
 
 func imapSortCriteria(fields []string) ([]imapSortCriterion, bool) {
-	tokens := imapFetchNormalizedTokens(fields)
+	inner, ok := imapStatusItemListInner(fields)
+	if !ok {
+		return nil, false
+	}
+	tokens, ok := imapParenthesizedAtomListTokens(inner)
+	if !ok {
+		return nil, false
+	}
 	criteria := make([]imapSortCriterion, 0, len(tokens))
 	for i := 0; i < len(tokens); i++ {
 		reverse := false

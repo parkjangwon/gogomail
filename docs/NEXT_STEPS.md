@@ -320,6 +320,10 @@ Current state:
   whitespace-padded quoted or literal atoms such as `CHARSET " UTF-8 "` instead
   of trimming them into supported charsets, and `THREAD` algorithm arguments
   now reject padded `ORDEREDSUBJECT` values on the same control-atom boundary.
+- IMAP `SORT` and `UID SORT` criterion lists now use the same strict
+  parenthesized atom-list shape as other IMAP control lists, rejecting leading,
+  trailing, or nested list shapes such as `( DATE)`, `(DATE )`, and `((DATE))`
+  before authentication or selected-mailbox state checks.
 - IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
   partial full-message fetches, preserve the `RFC822<offset>` response atom,
   and mark messages seen like ordinary `RFC822` fetches.
