@@ -2295,8 +2295,8 @@ Current state:
   method list for `Allow`, keeping future-only method names such as `MOVE`
   hidden until their WebDAV behavior is actually implemented. `OPTIONS`
   discovery now also emits `Cache-Control: no-store` and
-  `X-Content-Type-Options: nosniff`, matching CardDAV's discovery safety
-  headers for native-client capability probing.
+  `X-Content-Type-Options: nosniff`, and 405 method-probe responses carry the
+  same safety headers for native-client capability probing.
 - CalDAV `PROPFIND /caldav/principals/` now resolves the advertised principal
   collection path, returning collection metadata at `Depth: 0` and the
   authenticated principal as a `Depth: 1` child without exposing other users.
@@ -2693,8 +2693,8 @@ Next:
   requested hrefs, while accepting common Depth 0/1 client shapes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
   CardDAV `OPTIONS` and unsupported-method responses share one implemented
-  method list for `Allow`, keeping native contact clients from seeing methods
-  before handler semantics exist.
+  method list plus no-store/nosniff safety headers, keeping native contact
+  clients from seeing or caching methods before handler semantics exist.
   Repository-backed query execution can stream contact objects and stop once
   the response cap is satisfied, avoiding whole-address-book materialization on
   that hot path. Address-data projection failures are explicit errors rather

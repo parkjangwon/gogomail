@@ -4010,6 +4010,11 @@ Implementation order:
       `X-Content-Type-Options: nosniff`, matching CardDAV discovery behavior so
       native clients, proxies, and browser-like tooling do not retain stale DAV
       capability headers or infer content types from empty discovery responses.
+1438. CalDAV and CardDAV unsupported-method discovery responses now also return
+      `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` alongside
+      their implemented-method `Allow` headers, keeping native-client method
+      probes aligned with the same cache and content-sniffing safety contract
+      as `OPTIONS`.
 
 ## Deferred until backend contracts stabilize
 
