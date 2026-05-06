@@ -94,7 +94,7 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 				}
 				w.Header().Set("Content-Range", "bytes 1-3/5")
 				w.WriteHeader(http.StatusPartialContent)
-				_, _ = w.Write([]byte("ell-overrun"))
+				_, _ = w.Write([]byte("ell"))
 				return
 			}
 			_, _ = w.Write([]byte("hello"))
@@ -1277,6 +1277,54 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 			}
 			if !body.closed {
 				t.Fatal("unsafe HTTP 200 response body was not closed")
+			}
+		})
+	}
+}
+
+func TestS3StoreGetRangeRejectsMismatchedPartialContentLength(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		contentLength string
+		want          string
+	}{
+		{name: "mismatch", contentLength: "4", want: "content-length mismatch"},
+		{name: "invalid", contentLength: "not-a-size", want: "invalid content length"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("ell")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusPartialContent,
+						Header: http.Header{
+							"Content-Range":  []string{"bytes 1-3/5"},
+							"Content-Length": []string{tc.contentLength},
+						},
+						Body: body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if _, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3}); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("GetRange err = %v, want %q", err, tc.want)
+			}
+			if !body.closed {
+				t.Fatal("unsafe partial range response body was not closed")
 			}
 		})
 	}

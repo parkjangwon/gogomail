@@ -174,6 +174,10 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 			drainAndCloseS3Body(resp.Body)
 			return nil, err
 		}
+		if err := validateS3PartialRangeContentLength(resp, validated); err != nil {
+			drainAndCloseS3Body(resp.Body)
+			return nil, err
+		}
 	case http.StatusOK:
 		if err := validateS3FullRangeCompatibilityResponse(resp, validated); err != nil {
 			drainAndCloseS3Body(resp.Body)
@@ -654,6 +658,21 @@ func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
 		return resp.ContentLength, nil
 	}
 	return -1, fmt.Errorf("get range s3 object: content length is required")
+}
+
+func validateS3PartialRangeContentLength(resp *http.Response, req RangeRequest) error {
+	value := strings.TrimSpace(resp.Header.Get("Content-Length"))
+	if value == "" {
+		return nil
+	}
+	size, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || size < 0 {
+		return fmt.Errorf("get range s3 object: invalid content length")
+	}
+	if size != req.Length {
+		return fmt.Errorf("get range s3 object: content-length mismatch")
+	}
+	return nil
 }
 
 type exactReadCloser struct {

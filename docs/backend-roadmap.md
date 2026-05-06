@@ -3792,6 +3792,11 @@ Implementation order:
       `STORE (UNCHANGEDSINCE 0)` is carried through the gateway, service, and
       repository as a real conditional guard that returns `MODIFIED` instead
       of mutating flags unconditionally.
+1382. S3-compatible `206 Partial Content` range responses now validate present
+      `Content-Length` headers against the requested byte-window length,
+      rejecting invalid or mismatched values after draining the body so
+      provider metadata contradictions cannot masquerade as valid bounded
+      range readers.
 
 ## Deferred until backend contracts stabilize
 
