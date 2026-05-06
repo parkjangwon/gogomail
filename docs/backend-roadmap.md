@@ -2542,6 +2542,11 @@ Implementation order:
       unknown capability handling: malformed capability atoms are rejected, but
       syntactically valid unsupported names are ignored and can return an empty
       `ENABLED` response.
+1159. Storage portability now has a reusable backend-neutral contract test and
+      documented migration smoke matrix covering canonical special-character
+      keys plus `Put`, `Get`, `GetRange`, `Stat`, `List`, `Copy`, `Move`,
+      idempotent `Delete`, and bounded `DeletePrefix` across local/NFS and
+      optional S3-compatible integration backends.
 
 ## Deferred until backend contracts stabilize
 

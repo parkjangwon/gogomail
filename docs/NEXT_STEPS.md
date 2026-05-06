@@ -83,6 +83,10 @@ Current state:
 - `ENABLE` preserves RFC 5161-compatible unknown capability handling:
   unsupported but syntactically valid capability names are ignored and can
   produce an empty `ENABLED` response when no requested capability is enabled.
+- Storage backend portability now has a shared contract test that exercises
+  special but canonical object keys and the full object lifecycle across local
+  storage and optional S3-compatible integration coverage; use it as the smoke
+  matrix before local/NFS, MinIO, or AWS S3 backend flips.
 - `LIST`/`LSUB` CHILDREN attributes infer immediate parents from nested
   `FullPath` values when backend rows do not carry `ParentID`, preserving
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
