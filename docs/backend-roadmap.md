@@ -2032,6 +2032,14 @@ Implementation order:
       from `.ics` bodies while rejecting missing/duplicate UIDs, multiple
       supported top-level calendar components, and excessive
       component/property counts before storage.
+1041a. CalDAV calendar-object writes now preflight duplicate active iCalendar
+      UIDs within the same calendar before SQL upsert, returning predictable
+      repository/handler errors while the PostgreSQL partial unique index stays
+      as the final concurrency guard.
+1041b. CalDAV calendar-object upsert now maps PostgreSQL unique-index races for
+      active object names or iCalendar UIDs into stable repository errors, so
+      concurrent writes keep developer-readable CalDAV failure semantics
+      instead of exposing raw driver details.
 1042. CalDAV WebDAV response groundwork now has a reusable `multistatus`
       builder with per-property `propstat` statuses plus principal,
       calendar-home, calendar-collection, and calendar-object discovery

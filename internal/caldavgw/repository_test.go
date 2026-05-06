@@ -3,6 +3,8 @@ package caldavgw
 import (
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestValidateCreateCalendarRequest(t *testing.T) {
@@ -90,6 +92,30 @@ func TestValidateCreateCalendarAtPathRequestRejectsNonUUIDPathIDs(t *testing.T) 
 				t.Fatal("ValidateCreateCalendarAtPathRequest error = nil, want rejection")
 			}
 		})
+	}
+}
+
+func TestMapCalendarObjectUpsertErrorMapsUniqueUIDViolation(t *testing.T) {
+	t.Parallel()
+
+	err := mapCalendarObjectUpsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_caldav_calendar_objects_active_uid",
+	})
+	if err == nil || !strings.Contains(err.Error(), "UID already exists") {
+		t.Fatalf("mapped error = %v, want duplicate UID context", err)
+	}
+}
+
+func TestMapCalendarObjectUpsertErrorMapsUniqueNameViolation(t *testing.T) {
+	t.Parallel()
+
+	err := mapCalendarObjectUpsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_caldav_calendar_objects_active_name",
+	})
+	if err == nil || !strings.Contains(err.Error(), "object already exists") {
+		t.Fatalf("mapped error = %v, want duplicate object context", err)
 	}
 }
 

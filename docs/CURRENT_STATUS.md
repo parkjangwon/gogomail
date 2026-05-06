@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after WebDAV sync snapshot bound hardening)
+Last updated: 2026-05-06 (updated after CalDAV UID conflict hardening)
 
 ## Current phase
 
@@ -2365,6 +2365,10 @@ The platform hardening sprint completed the following:
   and calendar-object upsert/list/get/soft-delete. Object writes validate `.ics`
   resource names, UID/component metadata, strong ETags, optional observed ETags,
   object-size limits, and bump calendar sync tokens in the same transaction.
+  Object writes also preflight duplicate active iCalendar UIDs within the same
+  calendar before SQL upsert, while PostgreSQL unique-index races for active
+  object names or UIDs are mapped back into predictable repository errors
+  instead of exposing raw driver details.
 - CalDAV object validation now uses `github.com/emersion/go-ical` for RFC 5545
   iCalendar decoding, requiring one `VCALENDAR` with exactly one supported
   top-level calendar component, exactly one bounded UID, and explicit

@@ -1830,6 +1830,11 @@ Next:
   `sync-collection` snapshots use the same one-extra-object probe through a
   sync-specific repository list path, avoiding silent partial address-book
   snapshots when the generic list default would otherwise cap results.
+  CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
+  within the same calendar before the SQL upsert path, keeping repository
+  errors predictable while the PostgreSQL partial unique index remains the
+  final concurrency guard. Final unique-index races are mapped back to stable
+  duplicate UID/name repository errors instead of surfacing raw driver messages.
   Contact-object `PUT` now rejects duplicate active vCard UIDs within the same
   address book before the SQL upsert path, keeping
   repository errors predictable while the PostgreSQL partial unique index
