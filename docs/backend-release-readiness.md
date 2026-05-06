@@ -124,6 +124,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `LIST`/`LSUB` prepares mailbox-pattern matchers once per command and
   reuses them across row scans, keeping folder hierarchy discovery more
   allocation-aware under large mailbox trees.
+- IMAP `CAPABILITY` now advertises RFC 5258 `LIST-EXTENDED` alongside RFC 5819
+  `LIST-STATUS`, aligning capability discovery with the implemented extended
+  `LIST` selection and return option grammar so compliant clients can use
+  those options without relying on undocumented behavior.
 - IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
   summary mappings from the backend copy result, with sparse UID COPY/MOVE
   regression coverage and PostgreSQL coverage for ignored missing UID members.

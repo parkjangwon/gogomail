@@ -3403,6 +3403,11 @@ Implementation order:
       before tagged completion, matching RFC 7162 first-enabling-command
       semantics. Selected-session highest-mod-sequence state is retained from
       SELECT and refreshed by known APPEND/COPY/MOVE/STORE/event mutations.
+1300. IMAP `CAPABILITY` now advertises RFC 5258 `LIST-EXTENDED` alongside
+      RFC 5819 `LIST-STATUS`, matching the gateway's existing extended `LIST`
+      selection/return option implementation and preventing standards-aware
+      clients from treating `RETURN (STATUS ...)`, `RETURN (CHILDREN)`, or
+      `SPECIAL-USE` list options as unadvertised behavior.
 
 ## Deferred until backend contracts stabilize
 

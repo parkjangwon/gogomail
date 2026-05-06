@@ -67,11 +67,14 @@ client diagnostics remain precise at the status-item grammar boundary. IMAP
 `(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication with a
 dedicated tagged `BAD`, keeping subscribed-mailbox discovery on the RFC 3501
 reference/pattern command shape while leaving extended `LIST` behavior
-separate. IMAP `LIST` and `LSUB` now also treat mailbox patterns beginning
-with the hierarchy delimiter as root-absolute patterns before matching the
-server's root-relative mailbox names, so probes such as `LIST "Archive"
-"/INBOX"` still discover `INBOX` instead of being matched against an impossible
-leading-slash mailbox name.
+separate. IMAP `CAPABILITY` now advertises RFC 5258 `LIST-EXTENDED` alongside
+`SPECIAL-USE` and RFC 5819 `LIST-STATUS`, matching the already implemented
+extended `LIST` selection/return option semantics so standards-aware clients
+can legally use those options. IMAP `LIST` and `LSUB` now also treat mailbox
+patterns beginning with the hierarchy delimiter as root-absolute patterns
+before matching the server's root-relative mailbox names, so probes such as
+`LIST "Archive" "/INBOX"` still discover `INBOX` instead of being matched
+against an impossible leading-slash mailbox name.
 IMAP `LIST` reference names that begin with the hierarchy delimiter are now
 normalized the same way before joining them with relative mailbox patterns, so
 namespace/root-style probes such as `LIST "/Projects" "2026"` match the
@@ -1979,7 +1982,8 @@ The platform hardening sprint completed the following:
   storage metadata, and extended
   `LIST (SPECIAL-USE)`, `RETURN (SPECIAL-USE)`, and no-op
   `RETURN (CHILDREN)` forms are accepted.
-- IMAP `CAPABILITY` advertises RFC 5819 `LIST-STATUS`; extended
+- IMAP `CAPABILITY` advertises RFC 5258 `LIST-EXTENDED` and RFC 5819
+  `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata after each
   matching selectable mailbox, can be combined with `RETURN (CHILDREN)`, and
   rejects malformed `RETURN (STATUS MESSAGES)` style status item lists before
