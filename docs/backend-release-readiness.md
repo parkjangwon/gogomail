@@ -855,6 +855,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP RFC 2971 `ID` parameter-list parsing rejects unsupported quoted escapes
   and adjacent quoted tokens without whitespace, while preserving valid escaped
   quoted-special characters inside ID strings.
+- IMAP RFC 2971 `ID` parameter-list parsing now accepts bounded synchronizing
+  and non-synchronizing string literals inside the parenthesized field/value
+  list, while missing or unused literal payloads remain syntax errors.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
   instead of silently treating them as valid sizes.

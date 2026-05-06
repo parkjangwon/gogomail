@@ -400,7 +400,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
 		return false, err
 	case "ID":
-		if !imapIDArgumentsValid(imapCommandArgumentString(trimmedLine)) {
+		if !imapIDArgumentsValidWithLiterals(imapCommandArgumentString(trimmedLine), literals) {
 			_, err := writer.WriteString(tag + " BAD ID requires NIL or parameter list\r\n")
 			return false, err
 		}
@@ -6414,6 +6414,14 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 			literalIndex++
 			continue
 		}
+		if strings.HasSuffix(field, ")") && imapLooksLikeLiteral(strings.TrimSuffix(field, ")")) {
+			if literalIndex >= len(literals) {
+				return nil, fmt.Errorf("imap literal is not available")
+			}
+			fields = append(fields, literals[literalIndex]+")")
+			literalIndex++
+			continue
+		}
 		if imapLooksLikeLiteralPrefix(field) {
 			return nil, fmt.Errorf("imap literal syntax is unsupported")
 		}
@@ -6484,14 +6492,18 @@ func imapAtomValid(tag string) bool {
 }
 
 func imapIDArgumentsValid(argument string) bool {
+	return imapIDArgumentsValidWithLiterals(argument, nil)
+}
+
+func imapIDArgumentsValidWithLiterals(argument string, literals []string) bool {
 	argument = strings.TrimSpace(argument)
 	if strings.EqualFold(argument, "NIL") {
-		return true
+		return len(literals) == 0
 	}
 	if len(argument) < 2 || argument[0] != '(' || argument[len(argument)-1] != ')' {
 		return false
 	}
-	tokens, ok := imapIDListTokens(argument[1 : len(argument)-1])
+	tokens, ok := imapIDListTokens(argument[1:len(argument)-1], literals)
 	if !ok || len(tokens)%2 != 0 || len(tokens)/2 > 30 {
 		return false
 	}
@@ -6511,8 +6523,9 @@ func imapIDArgumentsValid(argument string) bool {
 	return true
 }
 
-func imapIDListTokens(value string) ([]string, bool) {
+func imapIDListTokens(value string, literals []string) ([]string, bool) {
 	tokens := make([]string, 0, 8)
+	literalIndex := 0
 	for i := 0; i < len(value); {
 		for i < len(value) && (value[i] == ' ' || value[i] == '\t') {
 			i++
@@ -6540,10 +6553,21 @@ func imapIDListTokens(value string) ([]string, bool) {
 			i++
 		}
 		token := value[start:i]
+		if imapLooksLikeLiteral(token) {
+			if literalIndex >= len(literals) {
+				return nil, false
+			}
+			tokens = append(tokens, literals[literalIndex])
+			literalIndex++
+			continue
+		}
 		if !imapAtomValid(token) {
 			return nil, false
 		}
 		tokens = append(tokens, token)
+	}
+	if literalIndex != len(literals) {
+		return nil, false
 	}
 	return tokens, true
 }
