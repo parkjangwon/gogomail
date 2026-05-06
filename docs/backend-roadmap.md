@@ -3817,6 +3817,9 @@ Implementation order:
 1387. S3-compatible `ListObjectsV2` object-size parsing now also requires
       unsigned decimal digits, rejecting signed `<Size>` values such as `+5`
       before list metadata reaches cleanup, Drive, or reconciliation callers.
+1388. S3-compatible `ListObjectsV2` object entries now reject missing or blank
+      `<Key>` elements instead of silently skipping malformed provider entries
+      before prefix mapping and cleanup scans.
 
 ## Deferred until backend contracts stabilize
 

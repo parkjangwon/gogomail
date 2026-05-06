@@ -349,6 +349,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		HasMore:    result.IsTruncated,
 	}
 	for _, item := range result.Contents {
+		if strings.TrimSpace(item.Key) == "" {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: object key is required")
+		}
 		objectPath, ok := s.objectPathFromKey(item.Key)
 		if !ok {
 			continue
