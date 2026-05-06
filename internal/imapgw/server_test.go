@@ -9875,14 +9875,14 @@ func TestParseIMAPPartialBody(t *testing.T) {
 	if _, ok := imapFetchPartialBody([]string{"BODY[]"}); ok {
 		t.Fatal("imapFetchPartialBody accepted full body fetch")
 	}
-	for _, item := range []string{"BODY.PEEK[]<+12.34>", "BODY.PEEK[]<12.+34>", "BODY.PEEK[]<12.0>", "BODY.PEEK[]<12.34>BAD"} {
+	for _, item := range []string{"BODY.PEEK[]<+12.34>", "BODY.PEEK[]<12.+34>", "BODY.PEEK[]<12.0>", "BODY.PEEK[]<12.034>", "BODY.PEEK[]<12.34>BAD"} {
 		if _, ok := imapFetchPartialBody([]string{item}); ok {
 			t.Fatalf("imapFetchPartialBody accepted invalid partial %q", item)
 		}
 	}
-	for _, value := range []string{"+1", "1.+2"} {
+	for _, value := range []string{"+1", "1.+2", "01", "1.02"} {
 		if got, ok := parseIMAPMIMEPartPath(value); ok {
-			t.Fatalf("parseIMAPMIMEPartPath(%q) = %v true, want signed path rejection", value, got)
+			t.Fatalf("parseIMAPMIMEPartPath(%q) = %v true, want invalid path rejection", value, got)
 		}
 	}
 }
@@ -9897,6 +9897,9 @@ func TestIMAPFetchDataItemsSyntaxRejectsUnsupportedItems(t *testing.T) {
 		{name: "unknown atom", items: []string{"BOGUS"}},
 		{name: "unknown list item", items: []string{"(FLAGS", "BOGUS)"}},
 		{name: "unknown section", items: []string{"BODY[BOGUS]"}},
+		{name: "leading zero body part", items: []string{"BODY[01]"}},
+		{name: "leading zero nested body part", items: []string{"BODY[1.02.TEXT]"}},
+		{name: "leading zero partial count", items: []string{"BODY.PEEK[]<12.034>"}},
 		{name: "invalid partial suffix", items: []string{"BODY[HEADER.FIELDS", "(Subject)]BAD"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
