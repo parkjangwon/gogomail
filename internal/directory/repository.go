@@ -11,6 +11,8 @@ type Repository struct {
 	db *sql.DB
 }
 
+var ErrPrincipalNotFound = errors.New("directory principal not found")
+
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
@@ -210,6 +212,12 @@ func (r *Repository) CheckEffectiveDelegation(ctx context.Context, req CheckDele
 	if err != nil {
 		return false, err
 	}
+	if req.ActiveOnly {
+		ok, err := r.checkDelegationPrincipalsActive(ctx, req)
+		if err != nil || !ok {
+			return false, err
+		}
+	}
 	const query = `
 WITH RECURSIVE delegated_groups(root_group_id, group_id, depth, path, role) AS (
   SELECT d.delegate_id,
@@ -301,6 +309,38 @@ SELECT role FROM candidate_roles`
 	return false, nil
 }
 
+func (r *Repository) checkDelegationPrincipalsActive(ctx context.Context, req CheckDelegationRequest) (bool, error) {
+	owner, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.OwnerID,
+		Kind:       req.OwnerKind,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		if errors.Is(err, ErrPrincipalNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("resolve active delegation owner: %w", err)
+	}
+	if owner.CompanyID != req.CompanyID {
+		return false, nil
+	}
+	delegate, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.DelegateID,
+		Kind:       req.DelegateKind,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		if errors.Is(err, ErrPrincipalNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("resolve active delegation delegate: %w", err)
+	}
+	if delegate.CompanyID != req.CompanyID {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
 	const query = `
 SELECT u.id::text,
@@ -334,7 +374,7 @@ WHERE u.id = $1::uuid
 		&principal.Status,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Principal{}, fmt.Errorf("directory principal not found")
+			return Principal{}, ErrPrincipalNotFound
 		}
 		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
 	}
@@ -367,7 +407,7 @@ WHERE o.id = $1::uuid
 		&principal.Status,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Principal{}, fmt.Errorf("directory principal not found")
+			return Principal{}, ErrPrincipalNotFound
 		}
 		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
 	}
@@ -400,7 +440,7 @@ WHERE g.id = $1::uuid
 		&principal.Status,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Principal{}, fmt.Errorf("directory principal not found")
+			return Principal{}, ErrPrincipalNotFound
 		}
 		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
 	}
@@ -435,7 +475,7 @@ WHERE rsrc.id = $1::uuid
 		&principal.ResourceType,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Principal{}, fmt.Errorf("directory principal not found")
+			return Principal{}, ErrPrincipalNotFound
 		}
 		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
 	}
