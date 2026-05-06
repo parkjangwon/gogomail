@@ -1226,7 +1226,7 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 
 	events := &fakeIMAPEventPublisher{}
 	repo := &fakeRepository{
-		imapCopySummaries: []imapgw.MessageSummary{{ID: "msg-copy-1", MailboxID: "archive", UID: 20}},
+		imapCopySummaries: []imapgw.CopyMessageResult{{SourceUID: 12, Destination: imapgw.MessageSummary{ID: "msg-copy-1", MailboxID: "archive", UID: 20}}},
 	}
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
@@ -1239,7 +1239,7 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CopyIMAPMessages returned error: %v", err)
 	}
-	if len(got) != 1 || got[0].UID != 20 {
+	if len(got) != 1 || got[0].SourceUID != 12 || got[0].Destination.UID != 20 {
 		t.Fatalf("summaries = %#v, want repository result", got)
 	}
 	if repo.lastIMAPCopyUserID != "user-1" || repo.lastIMAPCopySourceMailboxID != "inbox" || repo.lastIMAPCopyDestMailboxID != "archive" {
@@ -2275,7 +2275,7 @@ type fakeRepository struct {
 	imapAppendTarget               maildb.IMAPAppendTarget
 	imapAppendResult               imapgw.AppendMessageResult
 	imapAppendStoredErr            error
-	imapCopySummaries              []imapgw.MessageSummary
+	imapCopySummaries              []imapgw.CopyMessageResult
 	imapMoveResults                []imapgw.MoveMessageResult
 	imapExpungeSummaries           []imapgw.MessageSummary
 	imapUIDs                       []maildb.IMAPMessageUID
@@ -2610,7 +2610,7 @@ func (f *fakeRepository) AppendStoredIMAPMessage(_ context.Context, req maildb.A
 	return f.imapAppendResult, nil
 }
 
-func (f *fakeRepository) CopyIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+func (f *fakeRepository) CopyIMAPMessages(_ context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.CopyMessageResult, error) {
 	f.lastIMAPCopyUserID = userID
 	f.lastIMAPCopySourceMailboxID = sourceMailboxID
 	f.lastIMAPCopyDestMailboxID = destMailboxID

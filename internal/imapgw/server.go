@@ -3608,7 +3608,7 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	summaries, err := s.options.Backend.CopyMessages(context.Background(), CopyMessagesRequest{
+	results, err := s.options.Backend.CopyMessages(context.Background(), CopyMessagesRequest{
 		UserID:          state.session.UserID,
 		SourceMailboxID: state.selectedMailbox,
 		DestMailboxID:   destMailbox.ID,
@@ -3622,13 +3622,14 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
+	summaries := imapCopyDestinationSummaries(results)
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
 		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, summaries)
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
 	}
-	if copyUID := imapCopyUIDResponse(destMailbox.UIDValidity, uids, summaries); copyUID != "" {
+	if copyUID := imapCopyUIDResponse(destMailbox.UIDValidity, results); copyUID != "" {
 		_, err = writer.WriteString(tag + " OK [" + copyUID + "] " + completionCommand + " completed\r\n")
 		return false, err
 	}
@@ -3789,16 +3790,18 @@ func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnStat
 	return uids, nil
 }
 
-func imapCopyUIDResponse(uidValidity uint32, sourceUIDs []UID, summaries []MessageSummary) string {
-	if uidValidity == 0 || len(sourceUIDs) == 0 || len(sourceUIDs) != len(summaries) {
+func imapCopyUIDResponse(uidValidity uint32, results []CopyMessageResult) string {
+	if uidValidity == 0 || len(results) == 0 {
 		return ""
 	}
-	destUIDs := make([]UID, 0, len(summaries))
-	for _, summary := range summaries {
-		if summary.UID == 0 {
+	sourceUIDs := make([]UID, 0, len(results))
+	destUIDs := make([]UID, 0, len(results))
+	for _, result := range results {
+		if result.SourceUID == 0 || result.Destination.UID == 0 {
 			return ""
 		}
-		destUIDs = append(destUIDs, summary.UID)
+		sourceUIDs = append(sourceUIDs, result.SourceUID)
+		destUIDs = append(destUIDs, result.Destination.UID)
 	}
 	return fmt.Sprintf("COPYUID %d %s %s", uidValidity, imapUIDSetResponse(sourceUIDs), imapUIDSetResponse(destUIDs))
 }
@@ -3826,6 +3829,14 @@ func imapMoveSourceSummaries(results []MoveMessageResult) []MessageSummary {
 }
 
 func imapMoveDestinationSummaries(results []MoveMessageResult) []MessageSummary {
+	summaries := make([]MessageSummary, 0, len(results))
+	for _, result := range results {
+		summaries = append(summaries, result.Destination)
+	}
+	return summaries
+}
+
+func imapCopyDestinationSummaries(results []CopyMessageResult) []MessageSummary {
 	summaries := make([]MessageSummary, 0, len(results))
 	for _, result := range results {
 		summaries = append(summaries, result.Destination)

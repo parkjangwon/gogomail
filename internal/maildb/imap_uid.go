@@ -467,7 +467,7 @@ FOR UPDATE`
 	return summaries, nil
 }
 
-func (r *Repository) CopyIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {
+func (r *Repository) CopyIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.CopyMessageResult, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -611,6 +611,7 @@ source AS (
     m.compose_intent,
     m.source_message_id,
     m.draft_text_body,
+    i.uid AS source_uid,
     row_number() OVER (ORDER BY input.ordinality) AS rn
   FROM input
   JOIN imap_message_uid i
@@ -750,6 +751,7 @@ SELECT
   COALESCE((source.flags->>'draft')::boolean, false) AS draft,
   COALESCE((source.flags->>'imap_deleted')::boolean, false) AS deleted,
   'active' AS status,
+  source.source_uid,
   inserted_uids.uid,
   inserted_uids.modseq,
   (SELECT COUNT(*) FROM inserted_attachments) AS attachment_copy_count
@@ -763,10 +765,11 @@ ORDER BY source.rn`
 	}
 	defer rows.Close()
 
-	summaries := make([]imapgw.MessageSummary, 0, len(uids))
+	results := make([]imapgw.CopyMessageResult, 0, len(uids))
 	for rows.Next() {
 		var row imapMessageRow
 		var messageUID IMAPMessageUID
+		var sourceUID imapgw.UID
 		var attachmentCopyCount int64
 		if err := rows.Scan(
 			&row.ID,
@@ -787,6 +790,7 @@ ORDER BY source.rn`
 			&row.Draft,
 			&row.Deleted,
 			&row.Status,
+			&sourceUID,
 			&messageUID.UID,
 			&messageUID.ModSeq,
 			&attachmentCopyCount,
@@ -802,7 +806,7 @@ ORDER BY source.rn`
 			return nil, err
 		}
 		summary.SequenceNumber = sequenceNumber
-		summaries = append(summaries, summary)
+		results = append(results, imapgw.CopyMessageResult{SourceUID: sourceUID, Destination: summary})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate copied imap messages: %w", err)
@@ -810,7 +814,7 @@ ORDER BY source.rn`
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit imap copy transaction: %w", err)
 	}
-	return summaries, nil
+	return results, nil
 }
 
 func (r *Repository) ExpungeIMAPMessages(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MessageSummary, error) {

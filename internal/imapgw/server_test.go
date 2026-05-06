@@ -3081,7 +3081,7 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 MOVE 1 Archive\r\na4 UID MOVE 7 Archive\r\na5 APPEND inbox NIL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 MOVE 1 Archive\r\na4 UID MOVE 7,999 Archive\r\na5 APPEND inbox NIL\r\n")); err != nil {
 		t.Fatalf("write unsupported mutation commands: %v", err)
 	}
 	want := []string{
@@ -3524,12 +3524,13 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 COPY 1:2 Archive\r\na4 UID COPY 7 Archive\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 COPY 1:2 Archive\r\na4 UID COPY 7 Archive\r\na5 UID COPY 7,999 Archive\r\n")); err != nil {
 		t.Fatalf("write copy commands: %v", err)
 	}
 	want := []string{
 		"a3 OK [COPYUID 2 7,8 9,10] COPY completed\r\n",
 		"a4 OK [COPYUID 2 7 11] UID COPY completed\r\n",
+		"a5 OK [COPYUID 2 7 12] UID COPY completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -3540,8 +3541,8 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 			t.Fatalf("copy response = %q, want %q", line, expected)
 		}
 	}
-	if len(backendImpl.requests) != 2 {
-		t.Fatalf("copy request count = %d, want 2", len(backendImpl.requests))
+	if len(backendImpl.requests) != 3 {
+		t.Fatalf("copy request count = %d, want 3", len(backendImpl.requests))
 	}
 	if got, want := backendImpl.requests[0].UIDs, []UID{7, 8}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("sequence COPY UIDs = %v, want %v", got, want)
@@ -3549,12 +3550,15 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 	if got, want := backendImpl.requests[1].UIDs, []UID{7}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("UID COPY UIDs = %v, want %v", got, want)
 	}
+	if got, want := backendImpl.requests[2].UIDs, []UID{7}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("sparse UID COPY UIDs = %v, want %v", got, want)
+	}
 	for _, req := range backendImpl.requests {
 		if req.SourceMailboxID != "inbox" || req.DestMailboxID != "archive" || req.UserID != "user-1" {
 			t.Fatalf("copy request = %+v, want user-1 inbox -> archive", req)
 		}
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -9943,9 +9947,9 @@ func (b *operationalMailboxNameBackend) AppendMessage(_ context.Context, req App
 	}, nil
 }
 
-func (b *operationalMailboxNameBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
+func (b *operationalMailboxNameBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]CopyMessageResult, error) {
 	b.copyDest = req.DestMailboxID
-	return []MessageSummary{{ID: "copy-50", MailboxID: req.DestMailboxID, UID: 50}}, nil
+	return []CopyMessageResult{{SourceUID: req.UIDs[0], Destination: MessageSummary{ID: "copy-50", MailboxID: req.DestMailboxID, UID: 50}}}, nil
 }
 
 func (b *operationalMailboxNameBackend) MoveMessages(_ context.Context, req MoveMessagesRequest) ([]MoveMessageResult, error) {
@@ -10510,8 +10514,8 @@ func (uidNotStickyBackend) SelectMailbox(context.Context, SelectMailboxRequest) 
 	}, nil
 }
 
-func (fakeBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-copy-1", MailboxID: "inbox", UID: 9}}, nil
+func (fakeBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]CopyMessageResult, error) {
+	return []CopyMessageResult{{SourceUID: 7, Destination: MessageSummary{ID: "message-copy-1", MailboxID: "inbox", UID: 9}}}, nil
 }
 
 type copyBackend struct {
@@ -10529,29 +10533,32 @@ func (b *copyBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxI
 	}
 }
 
-func (b *copyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
+func (b *copyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]CopyMessageResult, error) {
 	b.requests = append(b.requests, req)
 	if b.nextUID == 0 {
 		b.nextUID = 9
 	}
-	summaries := make([]MessageSummary, 0, len(req.UIDs))
-	for range req.UIDs {
-		summaries = append(summaries, MessageSummary{ID: MessageID(fmt.Sprintf("message-copy-%d", b.nextUID)), MailboxID: req.DestMailboxID, UID: b.nextUID})
+	results := make([]CopyMessageResult, 0, len(req.UIDs))
+	for _, sourceUID := range req.UIDs {
+		results = append(results, CopyMessageResult{SourceUID: sourceUID, Destination: MessageSummary{ID: MessageID(fmt.Sprintf("message-copy-%d", b.nextUID)), MailboxID: req.DestMailboxID, UID: b.nextUID}})
 		b.nextUID++
 	}
-	return summaries, nil
+	return results, nil
 }
 
 type selectedCopyBackend struct {
 	fakeBackend
 }
 
-func (selectedCopyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{
-		ID:             "message-copy-11",
-		MailboxID:      req.DestMailboxID,
-		UID:            11,
-		SequenceNumber: 5,
+func (selectedCopyBackend) CopyMessages(_ context.Context, req CopyMessagesRequest) ([]CopyMessageResult, error) {
+	return []CopyMessageResult{{
+		SourceUID: req.UIDs[0],
+		Destination: MessageSummary{
+			ID:             "message-copy-11",
+			MailboxID:      req.DestMailboxID,
+			UID:            11,
+			SequenceNumber: 5,
+		},
 	}}, nil
 }
 
