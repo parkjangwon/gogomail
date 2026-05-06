@@ -22,12 +22,14 @@ func NewRepository(db *sql.DB) *Repository {
 
 type CreateAddressBookRequest struct {
 	UserID      string
+	ActorUserID string
 	Name        string
 	Description string
 }
 
 type CreateAddressBookAtPathRequest struct {
 	UserID        string
+	ActorUserID   string
 	AddressBookID string
 	Name          string
 	Description   string
@@ -47,6 +49,7 @@ type GetAddressBookRequest struct {
 
 type UpsertContactObjectRequest struct {
 	UserID        string
+	ActorUserID   string
 	AddressBookID string
 	ObjectName    string
 	UID           string
@@ -70,6 +73,7 @@ type GetContactObjectRequest struct {
 
 type DeleteContactObjectRequest struct {
 	UserID        string
+	ActorUserID   string
 	AddressBookID string
 	ObjectName    string
 	ObservedETag  string
@@ -77,11 +81,13 @@ type DeleteContactObjectRequest struct {
 
 type DeleteAddressBookRequest struct {
 	UserID        string
+	ActorUserID   string
 	AddressBookID string
 }
 
 type UpdateAddressBookRequest struct {
 	UserID        string
+	ActorUserID   string
 	AddressBookID string
 	Name          *string
 	Description   *string
@@ -164,7 +170,7 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 		}
 		return AddressBook{}, fmt.Errorf("create CardDAV address book: %w", err)
 	}
-	if err := insertAddressBookChange(ctx, tx, book.UserID, book.ID, book.SyncToken, "addressbook-created", "", ""); err != nil {
+	if err := insertAddressBookChange(ctx, tx, book.UserID, req.ActorUserID, book.ID, book.SyncToken, "addressbook-created", "", ""); err != nil {
 		return AddressBook{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -226,7 +232,7 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 		}
 		return AddressBook{}, fmt.Errorf("create CardDAV address book at path: %w", err)
 	}
-	if err := insertAddressBookChange(ctx, tx, book.UserID, book.ID, book.SyncToken, "addressbook-created", "", ""); err != nil {
+	if err := insertAddressBookChange(ctx, tx, book.UserID, req.ActorUserID, book.ID, book.SyncToken, "addressbook-created", "", ""); err != nil {
 		return AddressBook{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -348,7 +354,7 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 		}
 		return AddressBook{}, fmt.Errorf("update CardDAV address book properties: %w", err)
 	}
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.AddressBookID, syncToken, "addressbook-updated", "", ""); err != nil {
+	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "addressbook-updated", "", ""); err != nil {
 		return AddressBook{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -402,7 +408,7 @@ WHERE user_id = $1::uuid
 		return AddressBook{}, fmt.Errorf("delete CardDAV contact objects: %w", err)
 	}
 	syncToken := AddressBookSyncToken(req.UserID, req.AddressBookID, "addressbook-delete", time.Now().UTC().Format(time.RFC3339Nano))
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.AddressBookID, syncToken, "addressbook-deleted", "", ""); err != nil {
+	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "addressbook-deleted", "", ""); err != nil {
 		return AddressBook{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -477,7 +483,7 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 	if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
 		return ContactObject{}, err
 	}
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.AddressBookID, syncToken, "contact-upserted", req.ObjectName, etag); err != nil {
+	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-upserted", req.ObjectName, etag); err != nil {
 		return ContactObject{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -624,7 +630,7 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 	if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
 		return ContactObject{}, err
 	}
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.AddressBookID, syncToken, "contact-deleted", req.ObjectName, object.ETag); err != nil {
+	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-deleted", req.ObjectName, object.ETag); err != nil {
 		return ContactObject{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -764,6 +770,10 @@ func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddre
 	if err != nil {
 		return CreateAddressBookRequest{}, "", "", err
 	}
+	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return CreateAddressBookRequest{}, "", "", err
+	}
 	name, err := ValidateAddressBookName(req.Name)
 	if err != nil {
 		return CreateAddressBookRequest{}, "", "", err
@@ -777,7 +787,7 @@ func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddre
 		return CreateAddressBookRequest{}, "", "", err
 	}
 	syncToken := AddressBookSyncToken(userID, normalizedName, time.Now().UTC().Format(time.RFC3339Nano))
-	return CreateAddressBookRequest{UserID: userID, Name: name, Description: description}, normalizedName, syncToken, nil
+	return CreateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, Name: name, Description: description}, normalizedName, syncToken, nil
 }
 
 func ValidateCreateAddressBookAtPathRequest(req CreateAddressBookAtPathRequest) (CreateAddressBookAtPathRequest, string, string, error) {
@@ -795,6 +805,7 @@ func ValidateCreateAddressBookAtPathRequest(req CreateAddressBookAtPathRequest) 
 	}
 	create, normalizedName, syncToken, err := ValidateCreateAddressBookRequest(CreateAddressBookRequest{
 		UserID:      userID,
+		ActorUserID: req.ActorUserID,
 		Name:        name,
 		Description: req.Description,
 	})
@@ -803,6 +814,7 @@ func ValidateCreateAddressBookAtPathRequest(req CreateAddressBookAtPathRequest) 
 	}
 	return CreateAddressBookAtPathRequest{
 		UserID:        create.UserID,
+		ActorUserID:   create.ActorUserID,
 		AddressBookID: bookID,
 		Name:          create.Name,
 		Description:   create.Description,
@@ -842,6 +854,10 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 	if err != nil {
 		return UpdateAddressBookRequest{}, "", "", err
 	}
+	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return UpdateAddressBookRequest{}, "", "", err
+	}
 	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
 	if err != nil {
 		return UpdateAddressBookRequest{}, "", "", err
@@ -871,7 +887,7 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 		description = &value
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, "addressbook-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateAddressBookRequest{UserID: userID, AddressBookID: bookID, Name: name, Description: description}, normalizedName, syncToken, nil
+	return UpdateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, Name: name, Description: description}, normalizedName, syncToken, nil
 }
 
 func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddressBookRequest, error) {
@@ -879,15 +895,23 @@ func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddre
 	if err != nil {
 		return DeleteAddressBookRequest{}, err
 	}
+	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return DeleteAddressBookRequest{}, err
+	}
 	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
 	if err != nil {
 		return DeleteAddressBookRequest{}, err
 	}
-	return DeleteAddressBookRequest{UserID: userID, AddressBookID: bookID}, nil
+	return DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID}, nil
 }
 
 func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertContactObjectRequest, string, string, error) {
 	userID, err := validateCardDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return UpsertContactObjectRequest{}, "", "", err
+	}
+	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
 	if err != nil {
 		return UpsertContactObjectRequest{}, "", "", err
 	}
@@ -923,7 +947,7 @@ func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertC
 		return UpsertContactObjectRequest{}, "", "", err
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, objectName, etag, time.Now().UTC().Format(time.RFC3339Nano))
-	return UpsertContactObjectRequest{UserID: userID, AddressBookID: bookID, ObjectName: objectName, UID: uid, VCard: req.VCard, ObservedETag: observedETag}, etag, syncToken, nil
+	return UpsertContactObjectRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, ObjectName: objectName, UID: uid, VCard: req.VCard, ObservedETag: observedETag}, etag, syncToken, nil
 }
 
 func ValidateListContactObjectsRequest(req ListContactObjectsRequest) (ListContactObjectsRequest, error) {
@@ -975,6 +999,10 @@ func ValidateDeleteContactObjectRequest(req DeleteContactObjectRequest) (DeleteC
 	if err != nil {
 		return DeleteContactObjectRequest{}, "", err
 	}
+	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
+	if err != nil {
+		return DeleteContactObjectRequest{}, "", err
+	}
 	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
 	if err != nil {
 		return DeleteContactObjectRequest{}, "", err
@@ -988,7 +1016,7 @@ func ValidateDeleteContactObjectRequest(req DeleteContactObjectRequest) (DeleteC
 		return DeleteContactObjectRequest{}, "", err
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, objectName, "contact-delete", time.Now().UTC().Format(time.RFC3339Nano))
-	return DeleteContactObjectRequest{UserID: userID, AddressBookID: bookID, ObjectName: objectName, ObservedETag: observedETag}, syncToken, nil
+	return DeleteContactObjectRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, ObjectName: objectName, ObservedETag: observedETag}, syncToken, nil
 }
 
 func ValidateListAddressBookChangesSinceRequest(req ListAddressBookChangesSinceRequest) (ListAddressBookChangesSinceRequest, error) {
@@ -1047,7 +1075,7 @@ const (
 	davChangePartitionFallback = "unknown"
 )
 
-func insertAddressBookChange(ctx context.Context, execer addressBookChangeExecer, userID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
+func insertAddressBookChange(ctx context.Context, execer addressBookChangeExecer, userID string, actorUserID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
 	_, err := execer.ExecContext(ctx, `
 INSERT INTO carddav_addressbook_changes (
   user_id, addressbook_id, sync_token, action, object_name, etag
@@ -1055,19 +1083,27 @@ INSERT INTO carddav_addressbook_changes (
 	if err != nil {
 		return fmt.Errorf("insert CardDAV address book change: %w", err)
 	}
-	if err := insertAddressBookChangeOutbox(ctx, execer, userID, addressBookID, syncToken, action, objectName, etag); err != nil {
+	if err := insertAddressBookChangeOutbox(ctx, execer, userID, actorUserID, addressBookID, syncToken, action, objectName, etag); err != nil {
 		return err
 	}
 	return nil
 }
 
-func insertAddressBookChangeOutbox(ctx context.Context, execer addressBookChangeExecer, userID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
+func insertAddressBookChangeOutbox(ctx context.Context, execer addressBookChangeExecer, userID string, actorUserID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
+	ownerUserID := strings.TrimSpace(userID)
+	actorUserID = strings.TrimSpace(actorUserID)
+	if actorUserID == "" {
+		actorUserID = ownerUserID
+	}
 	payload, err := json.Marshal(map[string]any{
 		"event":          contactsChangedEvent,
 		"schema_version": davChangeSchemaVersion,
 		"dav_kind":       davChangeKindCardDAV,
 		"action":         action,
-		"user_id":        userID,
+		"user_id":        ownerUserID,
+		"owner_user_id":  ownerUserID,
+		"actor_user_id":  actorUserID,
+		"delegated":      actorUserID != "" && actorUserID != ownerUserID,
 		"collection_id":  addressBookID,
 		"object_name":    objectName,
 		"etag":           etag,
@@ -1077,7 +1113,7 @@ func insertAddressBookChangeOutbox(ctx context.Context, execer addressBookChange
 	if err != nil {
 		return fmt.Errorf("marshal CardDAV change event: %w", err)
 	}
-	partitionKey := strings.TrimSpace(userID)
+	partitionKey := ownerUserID
 	if partitionKey == "" {
 		partitionKey = davChangePartitionFallback
 	}
@@ -1245,6 +1281,14 @@ func validateCardDAVID(field string, value string, required bool) (string, error
 		return "", fmt.Errorf("%s must not contain line breaks", field)
 	}
 	return value, nil
+}
+
+func validateCardDAVActorUserID(actorUserID string, ownerUserID string) (string, error) {
+	actorUserID = strings.TrimSpace(actorUserID)
+	if actorUserID == "" {
+		return ownerUserID, nil
+	}
+	return validateCardDAVID("actor_user_id", actorUserID, true)
 }
 
 func normalizeCardDAVLimit(limit int) int {

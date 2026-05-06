@@ -120,7 +120,7 @@ func TestInsertAddressBookChangeQueuesDomainEvent(t *testing.T) {
 	t.Parallel()
 
 	execer := &captureCardDAVChangeExecer{}
-	err := insertAddressBookChange(context.Background(), execer, "user-1", "book-1", "sync-1", "contact-upserted", "contact-1.vcf", `"etag-1"`)
+	err := insertAddressBookChange(context.Background(), execer, "user-1", "user-1", "book-1", "sync-1", "contact-upserted", "contact-1.vcf", `"etag-1"`)
 	if err != nil {
 		t.Fatalf("insertAddressBookChange returned error: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestInsertAddressBookChangeFailsWhenOutboxInsertFails(t *testing.T) {
 
 	wantErr := errors.New("outbox failed")
 	execer := &captureCardDAVChangeExecer{failCall: 2, err: wantErr}
-	err := insertAddressBookChange(context.Background(), execer, "user-1", "book-1", "sync-1", "contact-deleted", "contact-1.vcf", `"etag-1"`)
+	err := insertAddressBookChange(context.Background(), execer, "user-1", "user-1", "book-1", "sync-1", "contact-deleted", "contact-1.vcf", `"etag-1"`)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("insertAddressBookChange error = %v, want wrapped outbox failure", err)
 	}
@@ -396,6 +396,7 @@ func TestValidateUpsertContactObjectRequest(t *testing.T) {
 	}
 	req, gotETag, syncToken, err := ValidateUpsertContactObjectRequest(UpsertContactObjectRequest{
 		UserID:        " user-1 ",
+		ActorUserID:   " delegate-1 ",
 		AddressBookID: " book-1 ",
 		ObjectName:    " contact-1.vcf ",
 		UID:           " contact-1 ",
@@ -405,7 +406,7 @@ func TestValidateUpsertContactObjectRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateUpsertContactObjectRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.AddressBookID != "book-1" || req.ObjectName != "contact-1.vcf" {
+	if req.UserID != "user-1" || req.ActorUserID != "delegate-1" || req.AddressBookID != "book-1" || req.ObjectName != "contact-1.vcf" {
 		t.Fatalf("request ids = %+v", req)
 	}
 	if req.UID != "contact-1" || req.ObservedETag != etag {
@@ -500,6 +501,7 @@ func TestValidateContactObjectReadAndDeleteRequests(t *testing.T) {
 	}
 	del, syncToken, err := ValidateDeleteContactObjectRequest(DeleteContactObjectRequest{
 		UserID:        " user-1 ",
+		ActorUserID:   " delegate-1 ",
 		AddressBookID: " book-1 ",
 		ObjectName:    " contact-1.vcf ",
 		ObservedETag:  ` "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" `,
@@ -508,11 +510,61 @@ func TestValidateContactObjectReadAndDeleteRequests(t *testing.T) {
 		t.Fatalf("ValidateDeleteContactObjectRequest returned error: %v", err)
 	}
 	if del.UserID != "user-1" ||
+		del.ActorUserID != "delegate-1" ||
 		del.AddressBookID != "book-1" ||
 		del.ObjectName != "contact-1.vcf" ||
 		del.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` ||
 		!strings.HasPrefix(syncToken, "sync-") {
 		t.Fatalf("delete request = %+v sync = %q", del, syncToken)
+	}
+}
+
+func TestInsertAddressBookChangePreservesDelegatedActorPayload(t *testing.T) {
+	t.Parallel()
+
+	execer := &captureCardDAVChangeExecer{}
+	err := insertAddressBookChange(context.Background(), execer, "user-1", "delegate-1", "book-1", "sync-1", "contact-upserted", "contact-1.vcf", `"etag-1"`)
+	if err != nil {
+		t.Fatalf("insertAddressBookChange returned error: %v", err)
+	}
+	if len(execer.calls) != 2 {
+		t.Fatalf("exec calls = %d, want change row and outbox row", len(execer.calls))
+	}
+	if !strings.Contains(execer.calls[0].query, "INSERT INTO carddav_addressbook_changes") {
+		t.Fatalf("first query = %s, want CardDAV change insert", execer.calls[0].query)
+	}
+	if !strings.Contains(execer.calls[1].query, "INSERT INTO outbox") {
+		t.Fatalf("second query = %s, want outbox insert", execer.calls[1].query)
+	}
+	if got := execer.calls[1].args[1]; got != "user-1" {
+		t.Fatalf("partition key = %v, want user-1", got)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(execer.calls[1].args[2].(string)), &payload); err != nil {
+		t.Fatalf("decode outbox payload: %v", err)
+	}
+	for key, want := range map[string]string{
+		"event":          contactsChangedEvent,
+		"schema_version": davChangeSchemaVersion,
+		"dav_kind":       davChangeKindCardDAV,
+		"action":         "contact-upserted",
+		"user_id":        "user-1",
+		"owner_user_id":  "user-1",
+		"actor_user_id":  "delegate-1",
+		"collection_id":  "book-1",
+		"object_name":    "contact-1.vcf",
+		"etag":           `"etag-1"`,
+		"sync_token":     "sync-1",
+	} {
+		if got := payload[key]; got != want {
+			t.Fatalf("payload[%s] = %v, want %q; payload=%v", key, got, want, payload)
+		}
+	}
+	if got := payload["delegated"]; got != true {
+		t.Fatalf("payload delegated = %v, want true; payload=%v", got, payload)
+	}
+	if payload["changed_at"] == "" {
+		t.Fatalf("payload changed_at missing: %v", payload)
 	}
 }
 

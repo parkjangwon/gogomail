@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP absolute LIST/LSUB pattern handling)
+Last updated: 2026-05-06 (updated after CardDAV delegated change actor context)
 
 ## Current phase
 
@@ -364,9 +364,14 @@ sync tokens fail with DAV `valid-sync-token`; deployment retention-age policy
 and native-client expiry testing remain future work.
 CardDAV mutating repository paths now mirror the same transactional outbox
 boundary: each durable address-book sync-change row also queues a `dav.event`
-row with a v1 `contacts.changed` payload. Contacts/CardDAV remains the
-user-owned address-book source of truth, while Notification & Sync can consume
-domain events asynchronously rather than reaching into CardDAV mutation code.
+row with a v1 `contacts.changed` payload. Those payloads now preserve owner
+user, actor user, and delegated-vs-direct context for contact-object and
+address-book mutations, matching the CalDAV event boundary so future Contacts,
+Notification & Sync, search, mobile delta, and audit consumers can distinguish
+who changed whose address book without coupling product logic into CardDAV.
+Contacts/CardDAV remains the user-owned address-book source of truth, while
+Notification & Sync can consume domain events asynchronously rather than
+reaching into CardDAV mutation code.
 Initial address-book sync snapshots now use a sync-specific
 bounded object list path as well, so a large address book cannot be clipped by
 the generic repository list default and then reported as fully synchronized.

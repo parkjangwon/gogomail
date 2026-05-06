@@ -2243,9 +2243,11 @@ Next:
   preview audit rows, and destructive calls require `confirm_ready=true` plus a
   non-truncated readiness preview before CalDAV/CardDAV prune calls are made.
   CardDAV address-book change writes now also enqueue transactional
-  `dav.event` outbox rows with `contacts.changed` payloads. Future Contacts,
-  autocomplete, mobile sync, and notification workers should consume that event
-  boundary rather than querying CardDAV change tables from product code.
+  `dav.event` outbox rows with `contacts.changed` payloads, and those payloads
+  preserve owner user, actor user, and delegated-vs-direct context for
+  address-book and contact-object mutations. Future Contacts, autocomplete,
+  mobile sync, and notification workers should consume that event boundary
+  rather than querying CardDAV change tables from product code.
   Next, choose a production retention-age policy and run native-client expiry
   compatibility tests before treating DAV token expiry as client-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
