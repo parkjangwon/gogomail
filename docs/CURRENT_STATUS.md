@@ -3979,6 +3979,10 @@ The platform hardening sprint completed the following:
   so quoted flag-keyword strings such as `KEYWORD "custom"` or
   `UNKEYWORD "custom"` are rejected instead of being dequoted into valid flag
   keywords.
+- IMAP `STORE` and `UID STORE` mutation controls now require raw atom tokens
+  for flag update modes and preserve the structured `UNCHANGEDSINCE` modifier
+  boundary, rejecting quoted or command-literal `+FLAGS`/`FLAGS.SILENT` style
+  controls before authentication or selected-mailbox state.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

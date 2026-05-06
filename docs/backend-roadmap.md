@@ -4156,6 +4156,9 @@ Implementation order:
 1474. IMAP KEYWORD and UNKEYWORD search operands now reject quoted
       flag-keyword values, preserving RFC atom semantics for flag names before
       authentication or selected-mailbox state.
+1475. IMAP STORE and UID STORE mutation controls now reject quoted or
+      command-literal flag update mode tokens and quoted UNCHANGEDSINCE
+      markers before authentication or selected-mailbox mutation state.
 
 ## Deferred until backend contracts stabilize
 

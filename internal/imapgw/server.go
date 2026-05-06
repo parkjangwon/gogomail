@@ -445,6 +445,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	if handled, done, err := imapRejectNonAtomSequenceSetArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}
+	if handled, done, err := imapRejectNonAtomStoreControlArgument(writer, tag, trimmedLine, fields, command); handled {
+		return done, err
+	}
 	if imapCommandShouldDrainSelectedEvents(command) {
 		if err := s.drainMailboxEvents(writer, state); err != nil {
 			return false, err
@@ -967,6 +970,38 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 				return true, false, err
 			}
 		}
+	}
+	return false, false, nil
+}
+
+func imapRejectNonAtomStoreControlArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
+	commandName := ""
+	storeStart := -1
+	switch command {
+	case "STORE":
+		commandName = "STORE"
+		storeStart = 3
+	case "UID":
+		if len(fields) >= 3 && strings.EqualFold(fields[2], "STORE") {
+			commandName = "UID STORE"
+			storeStart = 4
+		}
+	}
+	if storeStart < 0 || len(fields) <= storeStart {
+		return false, false, nil
+	}
+	modeRawIndex := storeStart
+	if imapStoreUnchangedSincePresent(fields[storeStart:]) {
+		kind, ok := imapRawFieldKind(line, storeStart)
+		if !ok || kind == imapRawFieldQuoted || kind == imapRawFieldLiteral {
+			_, err := writer.WriteString(tag + " BAD " + commandName + " UNCHANGEDSINCE modifier is invalid\r\n")
+			return true, false, err
+		}
+		modeRawIndex++
+	}
+	if !imapRawFieldIsAtom(line, modeRawIndex) {
+		_, err := writer.WriteString(tag + " BAD " + commandName + " mode is unsupported\r\n")
+		return true, false, err
 	}
 	return false, false, nil
 }

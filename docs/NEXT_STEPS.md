@@ -707,6 +707,10 @@ Current state:
   flag-keyword values such as `KEYWORD "custom"`, preserving RFC atom
   semantics for flag names while text/body/header search operands remain
   string-capable.
+- IMAP `STORE` and `UID STORE` mode controls now reject quoted or
+  command-literal flag update mode tokens such as `"+FLAGS"` or literal
+  `+FLAGS`, and quoted `UNCHANGEDSINCE` markers are rejected before mutation
+  state checks.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.

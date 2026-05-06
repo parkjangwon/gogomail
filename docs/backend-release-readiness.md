@@ -104,6 +104,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `KEYWORD` and `UNKEYWORD` search operands now reject quoted
   flag-keyword values such as `KEYWORD "custom"`, keeping flag names on the
   RFC atom boundary.
+- IMAP `STORE` and `UID STORE` mutation controls now reject quoted or
+  command-literal flag update mode tokens and quoted `UNCHANGEDSINCE` markers
+  before authentication or selected-mailbox mutation state.
 - IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
   inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`
