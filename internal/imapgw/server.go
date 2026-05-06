@@ -1532,6 +1532,9 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
+	if err := s.drainMailboxEvents(writer, state); err != nil {
+		return false, err
+	}
 	switch subcommand {
 	case "FETCH":
 		return s.handleUIDFetch(writer, tag, fields, state)

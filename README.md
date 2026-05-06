@@ -137,7 +137,8 @@ Recent release-readiness work also includes:
   strict KEYWORD/UNKEYWORD atom validation,
   case-insensitive standard SORT criteria while preserving strict criterion-list
   framing,
-  selected-state event draining before sequence-set commands,
+  selected-state event draining before sequence-set commands including
+  UID-addressed workflows,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
   literal framing coverage

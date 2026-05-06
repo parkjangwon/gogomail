@@ -4085,6 +4085,10 @@ Implementation order:
       and `REVERSE` case-insensitively, so clients can send forms such as
       `SORT (reverse subject) UTF-8 ALL` while the strict parenthesized
       atom-list shape remains enforced.
+1457. IMAP `UID` selected-state subcommands now drain queued mailbox events
+      before execution, aligning UID-addressed workflows such as
+      `UID FETCH *` with the existing pre-command `EXISTS`/`EXPUNGE`/`FLAGS`
+      drain used by non-UID selected-state commands.
 
 ## Deferred until backend contracts stabilize
 
