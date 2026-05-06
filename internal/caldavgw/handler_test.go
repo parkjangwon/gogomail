@@ -153,8 +153,11 @@ func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
-	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
-	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:getetag/><D:owner/></D:prop></D:propfind>`))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{
+		allowedRoles: map[string]bool{CalendarAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:getetag/><D:owner/><D:current-user-privilege-set/></D:prop></D:propfind>`))
 	req.Header.Set("Depth", "0")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -168,6 +171,14 @@ func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/</D:href>") || !strings.Contains(body, "<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>") {
 		t.Fatalf("delegated propfind did not use owner resource:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("delegated propfind missing read-only privileges:\n%s", body)
+	}
+	for _, denied := range []string{"<D:bind>", "<D:unbind>", "<D:write-properties>", "<D:write-content>"} {
+		if strings.Contains(body, denied) {
+			t.Fatalf("delegated read propfind advertised %s:\n%s", denied, body)
+		}
 	}
 }
 
@@ -1336,6 +1347,27 @@ func TestHandlerPutCalendarObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
 	}
 }
 
+func TestCurrentUserPrivilegesForResourceScopesDelegatedManage(t *testing.T) {
+	t.Parallel()
+
+	got := currentUserPrivilegesForResource(ResourceCalendarObject, []XMLName{
+		PrivilegeRead,
+		PrivilegeBind,
+		PrivilegeUnbind,
+		PrivilegeWriteContent,
+		PrivilegeWriteProps,
+	})
+	want := []XMLName{PrivilegeRead, PrivilegeWriteContent}
+	if len(got) != len(want) {
+		t.Fatalf("privileges = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("privileges = %+v, want %+v", got, want)
+		}
+	}
+}
+
 func TestHandlerPutRejectsIfMatchStarForMissingObject(t *testing.T) {
 	t.Parallel()
 
@@ -1923,6 +1955,7 @@ type fakeDiscoveryStore struct {
 
 type fakeCalendarAccessAuthorizer struct {
 	allowedRoles map[string]bool
+	privileges   []XMLName
 	last         AccessRequest
 	err          error
 }
@@ -1932,7 +1965,7 @@ func (a *fakeCalendarAccessAuthorizer) AuthorizeCalendarAccess(_ context.Context
 	if a.err != nil {
 		return AccessDecision{}, a.err
 	}
-	return AccessDecision{Allowed: a.allowedRoles[req.RequiredRole]}, nil
+	return AccessDecision{Allowed: a.allowedRoles[req.RequiredRole], Privileges: append([]XMLName(nil), a.privileges...)}, nil
 }
 
 type readTrackingReader struct {

@@ -62,7 +62,8 @@ type AccessRequest struct {
 }
 
 type AccessDecision struct {
-	Allowed bool
+	Allowed    bool
+	Privileges []XMLName
 }
 
 type AccessAuthorizer interface {
@@ -142,7 +143,7 @@ func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveResourceRequest(w, r, CalendarAccessRoleWrite)
+	userID, resource, _, ok := h.resolveResourceRequest(w, r, CalendarAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -215,7 +216,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "MKCALENDAR requires a calendar collection path", http.StatusConflict)
 		return
 	}
-	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleManage)
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleManage)
 	if !ok {
 		return
 	}
@@ -377,7 +378,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resource.Kind == ResourceCalendarCollection {
-		ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleManage)
+		ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleManage)
 		if !ok {
 			return
 		}
@@ -389,7 +390,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DELETE requires a calendar collection or object path", http.StatusForbidden)
 		return
 	}
-	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleWrite)
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -466,7 +467,7 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 }
 
 func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
-	userID, resource, ok := h.resolveResourceRequest(w, r, requiredRole)
+	userID, resource, _, ok := h.resolveResourceRequest(w, r, requiredRole)
 	if !ok {
 		return "", ResourcePath{}, false
 	}
@@ -477,10 +478,10 @@ func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, r
 	return userID, resource, true
 }
 
-func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
+func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, AccessDecision, bool) {
 	if h.Store == nil {
 		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, AccessDecision{}, false
 	}
 	resolve := h.ResolveUser
 	if resolve == nil {
@@ -489,31 +490,31 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request,
 	userID, err := resolve(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, AccessDecision{}, false
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, AccessDecision{}, false
 	}
-	ownerID, ok := h.authorizeResource(w, r, userID, resource, requiredRole)
+	ownerID, decision, ok := h.authorizeResource(w, r, userID, resource, requiredRole)
 	if !ok {
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, AccessDecision{}, false
 	}
-	return ownerID, resource, true
+	return ownerID, resource, decision, true
 }
 
-func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, actorID string, resource ResourcePath, requiredRole string) (string, bool) {
+func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, actorID string, resource ResourcePath, requiredRole string) (string, AccessDecision, bool) {
 	ownerID := strings.TrimSpace(resource.UserID)
 	if ownerID == "" {
-		return actorID, true
+		return actorID, AccessDecision{Allowed: true}, true
 	}
 	if ownerID == actorID {
-		return ownerID, true
+		return ownerID, AccessDecision{Allowed: true}, true
 	}
 	if h.AccessAuthorizer == nil {
 		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
-		return "", false
+		return "", AccessDecision{}, false
 	}
 	decision, err := h.AccessAuthorizer.AuthorizeCalendarAccess(r.Context(), AccessRequest{
 		ActorUserID:  actorID,
@@ -523,13 +524,13 @@ func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, acto
 	})
 	if err != nil {
 		http.Error(w, "caldav access policy unavailable", http.StatusInternalServerError)
-		return "", false
+		return "", AccessDecision{}, false
 	}
 	if !decision.Allowed {
 		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
-		return "", false
+		return "", AccessDecision{}, false
 	}
-	return ownerID, true
+	return ownerID, decision, true
 }
 
 func writeCalendarObjectHeaders(w http.ResponseWriter, object CalendarObject) {
@@ -666,7 +667,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -763,7 +764,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
+	ownerID, decision, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -782,7 +783,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind)
+	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind, decision.Privileges)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -821,7 +822,7 @@ func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, us
 	_, _ = w.Write(body)
 }
 
-func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	switch resource.Kind {
 	case ResourceRoot:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
@@ -854,6 +855,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarHome, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(home, propfind, props)}
 		if depth == DepthOne {
 			calendars, err := h.Store.ListCalendarCollections(ctx, userID)
@@ -869,6 +871,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 				if err != nil {
 					return nil, err
 				}
+				props = withCurrentUserPrivileges(props, ResourceCalendarCollection, currentUserPrivileges)
 				responses = append(responses, responseForProperties(href, propfind, props))
 			}
 		}
@@ -886,6 +889,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarCollection, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(href, propfind, props)}
 		if depth == DepthOne {
 			objects, err := h.Store.ListCalendarObjects(ctx, userID, calendar.ID)
@@ -901,6 +905,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 				if err != nil {
 					return nil, err
 				}
+				props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 				responses = append(responses, responseForProperties(href, propfind, props))
 			}
 		}
@@ -921,9 +926,61 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		return []MultiStatusResponse{responseForProperties(href, propfind, props)}, nil
 	default:
 		return nil, fmt.Errorf("unsupported CalDAV resource")
+	}
+}
+
+func withCurrentUserPrivileges(props []PropertyResult, kind ResourceKind, privileges []XMLName) []PropertyResult {
+	if len(privileges) == 0 {
+		return props
+	}
+	privileges = currentUserPrivilegesForResource(kind, privileges)
+	if len(privileges) == 0 {
+		return props
+	}
+	next := append([]PropertyResult(nil), props...)
+	for i := range next {
+		if next[i].Name == PropCurrentUserPrivileges {
+			next[i].Value.Privileges = append([]XMLName(nil), privileges...)
+			next[i].Found = true
+			return next
+		}
+	}
+	return next
+}
+
+func currentUserPrivilegesForResource(kind ResourceKind, privileges []XMLName) []XMLName {
+	role := CalendarAccessRoleRead
+	for _, privilege := range privileges {
+		if privilege == PrivilegeBind || privilege == PrivilegeUnbind {
+			role = CalendarAccessRoleManage
+			break
+		}
+		if privilege == PrivilegeWriteContent || privilege == PrivilegeWriteProps {
+			role = CalendarAccessRoleWrite
+		}
+	}
+	switch kind {
+	case ResourceCalendarHome:
+		if role == CalendarAccessRoleManage {
+			return calendarHomePrivileges()
+		}
+		return readOnlyPrivileges()
+	case ResourceCalendarCollection:
+		if role == CalendarAccessRoleWrite || role == CalendarAccessRoleManage {
+			return calendarCollectionPrivileges()
+		}
+		return readOnlyPrivileges()
+	case ResourceCalendarObject:
+		if role == CalendarAccessRoleWrite || role == CalendarAccessRoleManage {
+			return writableObjectPrivileges()
+		}
+		return readOnlyPrivileges()
+	default:
+		return readOnlyPrivileges()
 	}
 }
 
