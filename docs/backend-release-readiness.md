@@ -9,6 +9,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   clients can discover backend contract version, available/planned modules,
   supported flags/actions, and compose/search/attachment/push limits without
   hard-coded frontend constants.
+- Admin console capability discovery is pinned to the `/admin/v1` OpenAPI
+  server at the operation level, with runtime coverage that the public
+  `/api/v1` base does not serve `/console/capabilities`, avoiding generated
+  admin-client base-path ambiguity.
 - Webmail capability discovery now advertises only the message-search filters
   implemented by `GET /api/v1/search` (`q`, `folder_id`, `from`, `subject`,
   and `has_attachment`), keeping generated clients from calling unsupported

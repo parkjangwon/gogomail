@@ -25,6 +25,10 @@ Current state:
 - Webmail capability discovery now limits advertised message-search filters to
   the runtime-supported `q`, `folder_id`, `from`, `subject`, and
   `has_attachment` query keys, with OpenAPI and regression coverage aligned.
+- Admin console capability discovery now has an operation-level OpenAPI
+  `/admin/v1` server pin plus a runtime regression proving the public
+  `/api/v1` base does not serve it, preventing generated-client base-path
+  ambiguity before admin frontend work starts.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.

@@ -52,6 +52,9 @@ paths:
     get:
       operationId: getAdminConsoleCapabilities
       summary: Discover admin console capabilities and limits
+      servers:
+        - url: /admin/v1
+          description: Admin API
       responses:
         "200":
           $ref: "#/components/responses/AdminConsoleCapabilities"

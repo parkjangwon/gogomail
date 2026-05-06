@@ -101,6 +101,22 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	}
 }
 
+func TestAdminConsoleCapabilitiesHandlerIsAdminBaseOnly(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/console/capabilities", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminConsoleCapabilitiesHandlerUsesConfiguredStorageCapabilities(t *testing.T) {
 	t.Parallel()
 

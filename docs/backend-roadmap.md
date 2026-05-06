@@ -3441,6 +3441,10 @@ Implementation order:
       `has_attachment`) and locks the OpenAPI enum plus regression coverage to
       that list, preventing generated clients from sending unsupported
       `since`, `before`, `read`, or `starred` search parameters.
+1305. Admin console capability discovery now pins `GET /console/capabilities`
+      to the `/admin/v1` OpenAPI server at the operation level and has runtime
+      coverage that `/api/v1/console/capabilities` is not registered, avoiding
+      generated-client base-path ambiguity before admin frontend integration.
 
 ## Deferred until backend contracts stabilize
 
