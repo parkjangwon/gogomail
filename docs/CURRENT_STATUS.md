@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP unsupported SEARCH-key validation)
+Last updated: 2026-05-06 (updated after CardDAV date conditional validation)
 
 ## Current phase
 
@@ -267,7 +267,11 @@ from reaching REPORT, sync, or discovery execution.
 CardDAV object and address-book collection preconditions now evaluate repeated
 `If-Match` and `If-None-Match` headers as a single ETag list, preserving HTTP
 conditional request semantics for cache validation, object writes, deletes, and
-collection metadata mutations.
+collection metadata mutations. Date-based CardDAV conditionals now reject
+repeated `If-Modified-Since` or `If-Unmodified-Since` headers before contact
+object reads, contact object writes, contact object deletes, or collection
+precondition checks, avoiding ambiguous timestamp guards and matching the
+CalDAV HTTP conditional boundary.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,

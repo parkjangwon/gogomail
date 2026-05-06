@@ -296,7 +296,12 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav contact object etag mismatch", http.StatusPreconditionFailed)
 		return
 	}
-	if objectModifiedSince(r.Header.Get("If-Unmodified-Since"), object.UpdatedAt) {
+	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
 		http.Error(w, "carddav contact object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}
@@ -305,7 +310,12 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	if objectNotModifiedSince(r.Header.Get("If-Modified-Since"), object.UpdatedAt) {
+	ifModifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Modified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if objectNotModifiedSince(ifModifiedSince, object.UpdatedAt) {
 		writeContactObjectNotModifiedHeaders(w, object)
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -359,7 +369,12 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	} else if observedETag != "" {
 		observedETag = existing.ETag
 	}
-	if existed && objectModifiedSince(r.Header.Get("If-Unmodified-Since"), existing.UpdatedAt) {
+	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if existed && objectModifiedSince(ifUnmodifiedSince, existing.UpdatedAt) {
 		http.Error(w, "carddav contact object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}
@@ -441,7 +456,11 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
-	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
+	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	observedETag := ""
 	if ifMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupContactObject(r.Context(), userID, resource.AddressBookID, resource.ObjectName)
@@ -824,7 +843,11 @@ func withCurrentUserPrincipal(props []PropertyResult, actorUserID string) ([]Pro
 
 func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, addressBookID string) bool {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
-	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
+	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
 	if ifMatch != "" || ifUnmodifiedSince != "" {
 		book, err := h.Store.LookupAddressBook(r.Context(), userID, addressBookID)
 		if err != nil {
@@ -1537,6 +1560,21 @@ func writeContactObjectNotModifiedHeaders(w http.ResponseWriter, object ContactO
 
 func conditionalHeaderValue(header http.Header, name string) string {
 	return strings.TrimSpace(strings.Join(header.Values(name), ","))
+}
+
+func conditionalDateHeaderValue(header http.Header, name string) (string, error) {
+	values := header.Values(name)
+	if len(values) > 1 {
+		return "", fmt.Errorf("%s header must not be repeated", name)
+	}
+	if len(values) == 0 {
+		return "", nil
+	}
+	value := strings.TrimSpace(values[0])
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("%s header must not contain line breaks", name)
+	}
+	return value, nil
 }
 
 func ifNoneMatchMatches(header string, etag string) bool {

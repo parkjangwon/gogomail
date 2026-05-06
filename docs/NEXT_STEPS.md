@@ -2166,7 +2166,10 @@ Next:
   CardDAV object and collection preconditions evaluate repeated `If-Match` and
   `If-None-Match` headers as a single ETag list, preserving conditional request
   semantics for contact writes, deletes, cache validation, and collection
-  metadata mutations.
+  metadata mutations. Date-based CardDAV conditionals now reject repeated
+  `If-Modified-Since` or `If-Unmodified-Since` headers before object reads,
+  object writes, object deletes, and collection precondition checks, matching
+  the CalDAV fail-closed boundary for ambiguous timestamp guards.
   PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
   `DAV:bind`/`DAV:unbind` only on address-book homes where extended `MKCOL`

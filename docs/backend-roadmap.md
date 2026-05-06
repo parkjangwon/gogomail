@@ -3296,6 +3296,11 @@ Implementation order:
       search-key atoms such as vendor-specific `X-GM-RAW` probes before
       authentication or selected-mailbox state across `SEARCH`, `UID SEARCH`,
       `SORT`, and `THREAD` embedded criteria.
+1276. CardDAV contact-object reads, writes, deletes, and address-book
+      collection precondition checks now reject repeated `If-Modified-Since`
+      or `If-Unmodified-Since` headers before storage/body work, matching the
+      CalDAV date-conditional fail-closed boundary and avoiding ambiguous
+      timestamp guards through clients or intermediaries.
 
 ## Deferred until backend contracts stabilize
 

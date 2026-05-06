@@ -371,6 +371,30 @@ func TestHandlerGetContactObjectHonorsCachePreconditions(t *testing.T) {
 	}
 }
 
+func TestHandlerGetContactObjectRejectsRepeatedDateConditionals(t *testing.T) {
+	t.Parallel()
+
+	for _, header := range []string{"If-Modified-Since", "If-Unmodified-Since"} {
+		header := header
+		t.Run(header, func(t *testing.T) {
+			t.Parallel()
+
+			rec := runCardDAVObjectRequest(t, MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", "", http.Header{
+				header: []string{
+					"Wed, 06 May 2026 04:05:06 GMT",
+					"Wed, 06 May 2026 04:05:07 GMT",
+				},
+			})
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), header+" header must not be repeated") {
+				t.Fatalf("response did not explain repeated %s rejection: %s", header, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T) {
 	t.Parallel()
 
@@ -482,6 +506,22 @@ func TestHandlerPutContactObjectRejectsRepeatedContentType(t *testing.T) {
 	}
 }
 
+func TestHandlerPutContactObjectRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"
+	rec := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body, http.Header{
+		"Content-Type":        []string{"text/vcard"},
+		"If-Unmodified-Since": []string{"Wed, 06 May 2026 04:05:06 GMT", "Wed, 06 May 2026 04:05:07 GMT"},
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerPutContactObjectRejectsDuplicateUID(t *testing.T) {
 	t.Parallel()
 
@@ -527,6 +567,20 @@ func TestHandlerDeleteContactObjectHonorsIfMatch(t *testing.T) {
 	})
 	if ok.Code != http.StatusNoContent {
 		t.Fatalf("delete status = %d, body = %s", ok.Code, ok.Body.String())
+	}
+}
+
+func TestHandlerDeleteContactObjectRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	rec := runCardDAVObjectRequest(t, MethodDelete, "/carddav/addressbooks/user-1/personal/contact-1.vcf", "", http.Header{
+		"If-Unmodified-Since": []string{"Wed, 06 May 2026 04:05:06 GMT", "Wed, 06 May 2026 04:05:07 GMT"},
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
 	}
 }
 
@@ -715,6 +769,29 @@ func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	}
 	if book.Name != "Personal" {
 		t.Fatalf("address book name = %q, want Personal", book.Name)
+	}
+}
+
+func TestHandlerProppatchRejectsRepeatedIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:06 GMT")
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:07 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
 	}
 }
 
