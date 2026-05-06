@@ -6655,7 +6655,7 @@ func TestServerHandlesRequestedStatusItemsOnly(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (UIDNEXT RECENT)\r\na3 STATUS inbox (BADITEM)\r\na4 STATUS inbox MESSAGES\r\na5 STATUS inbox (UIDNEXT UIDNEXT)\r\na6 STATUS inbox ()\r\na7 STATUS inbox ( )\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (UIDNEXT RECENT)\r\na3 STATUS inbox (BADITEM)\r\na4 STATUS inbox MESSAGES\r\na5 STATUS inbox (UIDNEXT UIDNEXT)\r\na6 STATUS inbox ()\r\na7 STATUS inbox ( )\r\na8 STATUS inbox \"( UIDNEXT)\"\r\na9 STATUS inbox \"(UIDNEXT  RECENT)\"\r\n")); err != nil {
 		t.Fatalf("write login/status: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
@@ -6682,7 +6682,13 @@ func TestServerHandlesRequestedStatusItemsOnly(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a7 BAD STATUS requires status data items\r\n" {
 		t.Fatalf("spaced empty status item list line = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a8 BAD STATUS item is unsupported\r\n" {
+		t.Fatalf("padded status item list line = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a9 BAD STATUS item is unsupported\r\n" {
+		t.Fatalf("collapsed status item list line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

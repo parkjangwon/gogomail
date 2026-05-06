@@ -311,8 +311,12 @@ IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,
 including spaced forms such as `( )`, with explicit tagged `BAD` diagnostics
 instead of treating them as generic arity failures, keeping RFC-shaped client
-diagnostics predictable without changing valid status item handling. `THREAD`
-now also rejects unsupported
+diagnostics predictable without changing valid status item handling. `STATUS`
+status item lists now also reject malformed inner whitespace such as
+`( UIDNEXT)` or `(UIDNEXT  RECENT)` instead of collapsing quoted/literal list
+values into valid status data items, while LIST-STATUS keeps its existing
+normalized return-option path regression-covered. `THREAD` now also rejects
+unsupported
 algorithms before authentication or selected mailbox checks, so unsupported
 extensions such as `REFERENCES` are reported at the syntax/capability boundary
 consistently for normal and UID forms. IMAP literal parsing now has regression
