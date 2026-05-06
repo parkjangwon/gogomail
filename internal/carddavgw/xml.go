@@ -120,6 +120,14 @@ func (e UnsupportedCollationError) Error() string {
 	return fmt.Sprintf("unsupported CardDAV text-match collation %q", e.Value)
 }
 
+type UnsupportedFilterElementError struct {
+	Name XMLName
+}
+
+func (e UnsupportedFilterElementError) Error() string {
+	return fmt.Sprintf("unsupported CardDAV filter element {%s}%s", e.Name.Space, e.Name.Local)
+}
+
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
 	body, err := readBoundedXMLBody(r)
 	if err != nil {
@@ -875,7 +883,9 @@ func parseAddressBookFilterChildren(dec *xml.Decoder, filterName xml.Name, depth
 					return AddressBookQueryFilter{}, fmt.Errorf("too many CardDAV prop-filter elements")
 				}
 			case tok.Name.Space == CardDAVNamespace:
-				return AddressBookQueryFilter{}, fmt.Errorf("unsupported CardDAV filter element {%s}%s", tok.Name.Space, tok.Name.Local)
+				return AddressBookQueryFilter{}, UnsupportedFilterElementError{
+					Name: XMLName{Space: tok.Name.Space, Local: tok.Name.Local},
+				}
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return AddressBookQueryFilter{}, err

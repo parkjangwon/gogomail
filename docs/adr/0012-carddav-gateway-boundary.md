@@ -60,7 +60,9 @@ multiple top-level `prop-filter` predicates plus per-property text/parameter
 predicates with RFC 6352 `test=anyof|allof` semantics. Unsupported vCard
 property or parameter filters fail with the RFC 6352 `CARDDAV:supported-filter`
 precondition instead of a misleading empty success response, including
-`Depth: 0` requests that otherwise return no child objects. Sync execution can return
+`Depth: 0` requests that otherwise return no child objects. Unsupported CardDAV
+filter child elements use the same `CARDDAV:supported-filter` precondition.
+Sync execution can return
 full snapshots or bounded change rows since a stored sync token. REPORT
 `address-data` can project returned vCards to requested property names while
 preserving structural BEGIN/VERSION/END lines, and requested address-data
