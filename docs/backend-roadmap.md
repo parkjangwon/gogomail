@@ -4006,6 +4006,10 @@ Implementation order:
       `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, preventing malformed section
       prefixes from being accepted merely because they contain header-subset
       marker text.
+1437. CalDAV `OPTIONS` discovery now returns `Cache-Control: no-store` and
+      `X-Content-Type-Options: nosniff`, matching CardDAV discovery behavior so
+      native clients, proxies, and browser-like tooling do not retain stale DAV
+      capability headers or infer content types from empty discovery responses.
 
 ## Deferred until backend contracts stabilize
 

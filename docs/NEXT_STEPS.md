@@ -2293,7 +2293,10 @@ Current state:
   clients do not mistake the service root for an authenticated user principal.
 - CalDAV `OPTIONS` and unsupported-method responses now use one implemented
   method list for `Allow`, keeping future-only method names such as `MOVE`
-  hidden until their WebDAV behavior is actually implemented.
+  hidden until their WebDAV behavior is actually implemented. `OPTIONS`
+  discovery now also emits `Cache-Control: no-store` and
+  `X-Content-Type-Options: nosniff`, matching CardDAV's discovery safety
+  headers for native-client capability probing.
 - CalDAV `PROPFIND /caldav/principals/` now resolves the advertised principal
   collection path, returning collection metadata at `Depth: 0` and the
   authenticated principal as a `Depth: 1` child without exposing other users.

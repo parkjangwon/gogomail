@@ -603,9 +603,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   handlers are advertised.
 - CalDAV has an internal `OPTIONS`/`PROPFIND` discovery handler boundary with
   DAV capability headers, safe depth rejection for `Depth: infinity`,
-  authenticated user/path scoping, and multistatus rendering over a pluggable
-  discovery store. The public listener still remains gated until auth/TLS and
-  repository wiring are reviewed.
+  authenticated user/path scoping, no-store/nosniff discovery headers, and
+  multistatus rendering over a pluggable discovery store. The public listener
+  still remains gated until auth/TLS and repository wiring are reviewed.
 - The PostgreSQL CalDAV repository now implements that discovery store boundary
   for active principal lookup and calendar/object list/get reads, leaving
   runtime listener activation gated on auth/TLS review and compatibility tests.

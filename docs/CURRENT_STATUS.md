@@ -3408,7 +3408,10 @@ The platform hardening sprint completed the following:
   `calendar-home-set` stay on the principal resource.
 - CalDAV `OPTIONS` and 405 responses now share an explicit implemented-method
   list so `Allow` stays tied to real gateway handlers. Future-only methods such
-  as `MOVE` remain unadvertised until their WebDAV semantics exist.
+  as `MOVE` remain unadvertised until their WebDAV semantics exist. `OPTIONS`
+  discovery also returns `Cache-Control: no-store` and
+  `X-Content-Type-Options: nosniff`, matching the CardDAV discovery surface so
+  native clients and intermediaries do not retain stale capability headers.
 - CalDAV calendar-home discovery now keeps WebDAV `current-user-principal` and
   `owner` anchored to the canonical principal URL instead of the calendar-home
   collection, keeping principal discovery semantics aligned with delegated and

@@ -917,6 +917,8 @@ func (h *Handler) serveOptions(w http.ResponseWriter) {
 	w.Header().Set("Allow", calDAVAllowHeader())
 	w.Header().Set("DAV", strings.Join(AdvertisedDAVTokens(h.IncludeScheduling, h.includeSyncCollection()), ", "))
 	w.Header().Set("MS-Author-Via", "DAV")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusNoContent)
 }
 
