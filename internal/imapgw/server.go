@@ -4551,7 +4551,7 @@ func parseIMAPUIDSet(value string) ([]UID, bool) {
 	uids := make([]UID, 0, 1)
 	for _, rawPart := range strings.Split(value, ",") {
 		part := strings.TrimSpace(rawPart)
-		if part == "" || strings.Contains(part, "*") {
+		if part == "" || part != rawPart || strings.Contains(part, "*") {
 			return nil, false
 		}
 		startText, endText, hasRange := strings.Cut(part, ":")
@@ -4637,7 +4637,7 @@ func parseIMAPUIDSetRanges(value string, maxUID UID) ([]imapUIDRange, bool) {
 	ranges := make([]imapUIDRange, 0, 1)
 	for _, rawPart := range strings.Split(value, ",") {
 		part := strings.TrimSpace(rawPart)
-		if part == "" {
+		if part == "" || part != rawPart {
 			return nil, false
 		}
 		startText, endText, hasRange := strings.Cut(part, ":")
@@ -4661,7 +4661,6 @@ func parseIMAPUIDSetRanges(value string, maxUID UID) ([]imapUIDRange, bool) {
 }
 
 func parseIMAPUIDSetRangeNumber(value string, maxUID UID) (UID, bool) {
-	value = strings.TrimSpace(value)
 	if value == "*" {
 		return maxUID, true
 	}
@@ -4721,7 +4720,6 @@ func imapSavedSearchUIDs(state *imapConnState) []UID {
 }
 
 func parseIMAPUIDSetNumber(value string) (UID, bool) {
-	value = strings.TrimSpace(value)
 	if !imapNZNumberAtomDigitsOnly(value) {
 		return 0, false
 	}
@@ -4824,7 +4822,7 @@ func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([
 	values := make([]UID, 0, 1)
 	for _, rawPart := range strings.Split(value, ",") {
 		part := strings.TrimSpace(rawPart)
-		if part == "" {
+		if part == "" || part != rawPart {
 			return nil, false
 		}
 		startText, endText, hasRange := strings.Cut(part, ":")
@@ -4860,7 +4858,6 @@ func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([
 }
 
 func parseIMAPSetNumber(value string, maxValue uint32, allowStar bool) (UID, bool) {
-	value = strings.TrimSpace(value)
 	if value == "*" {
 		if allowStar && maxValue > 0 {
 			return UID(maxValue), true

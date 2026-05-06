@@ -3948,6 +3948,11 @@ Implementation order:
       values for `HEAD` metadata, `206 Partial Content` range validation, and
       safe `200 OK` full-range compatibility checks, keeping provider numeric
       metadata on the same exact unsigned decimal grammar as object sizes.
+1424. IMAP UID and message sequence-set range parsing now rejects
+      whitespace-bearing quoted or literal components such as `"1: 2"`,
+      `"1 :2"`, or `"1, 2"` before authentication, selected-mailbox state,
+      or set expansion, keeping RFC 3501 sequence-set grammar exact across
+      command validation and execution helpers.
 
 ## Deferred until backend contracts stabilize
 

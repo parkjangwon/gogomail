@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP malformed literal size hardening)
+Last updated: 2026-05-07 (updated after IMAP sequence-set range hardening)
 
 ## Current phase
 
@@ -205,6 +205,10 @@ IMAP UID and message sequence-set numbers now also enforce RFC `nz-number`
 spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` or
 `UID FETCH 1:02 FLAGS` before sequence expansion instead of normalizing them
 to `1` or `2`.
+IMAP UID and message sequence-set range parsing now also rejects
+whitespace-bearing quoted or literal range components such as `"1: 2"`,
+`"1 :2"`, or `"1, 2"` before authentication, selected-mailbox checks, or set
+expansion instead of trimming them into valid sequence sets.
 IMAP `SEARCH` and `UID SEARCH` `LARGER`/`SMALLER` size criteria now use the
 same RFC 3501 `number` grammar boundary, preserving valid zero-size searches
 while rejecting leading-zero values such as `SEARCH LARGER 020` before command
