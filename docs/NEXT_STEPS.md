@@ -2133,9 +2133,11 @@ Next:
   default and guarded by explicit confirmation before destructive runs. Worker
   executions now persist `dav_sync_retention_runs` rows with cutoff, bounded
   counts, dry-run/confirmation flags, status, and sanitized failure text, so
-  partial CalDAV/CardDAV retention failures are auditable. Next, expose Admin
-  API readiness/history reads and choose a production retention-age policy
-  before treating DAV token expiry as client-ready.
+  partial CalDAV/CardDAV retention failures are auditable. The retention
+  repository can list bounded run history by status/created-at window and fetch
+  one run by bounded ID, giving the Admin API a clean read boundary. Next,
+  expose Admin API readiness/history reads and choose a production
+  retention-age policy before treating DAV token expiry as client-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
   within the same calendar before the SQL upsert path, keeping repository
   errors predictable while the PostgreSQL partial unique index remains the

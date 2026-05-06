@@ -139,10 +139,12 @@ a prune-order database index. The `dav-sync-retention-worker` runs that path
 with CalDAV retention on an interval or once-and-exit, dry-run by default and
 guarded by explicit confirmation before destructive runs. Worker executions
 persist `dav_sync_retention_runs` rows with bounded counts, status, and
-sanitized failure text, including partial CalDAV/CardDAV failures. This keeps
-Contacts retention policy out of the HTTP handler and prevents cleanup work
-from deleting the token needed by a current client. Public readiness still
-needs Admin retention-readiness/history APIs, deployment-specific retention age
+sanitized failure text, including partial CalDAV/CardDAV failures. The
+retention repository exposes bounded history reads for the future Admin API
+instead of making controllers query worker tables directly. This keeps Contacts
+retention policy out of the HTTP handler and prevents cleanup work from
+deleting the token needed by a current client. Public readiness still needs
+Admin retention-readiness/history APIs, deployment-specific retention age
 policy, and native-client compatibility testing around expired tokens.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
