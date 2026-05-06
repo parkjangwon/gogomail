@@ -489,6 +489,7 @@ const (
 type ReportRequest struct {
 	Kind         ReportKind
 	Properties   []XMLName
+	CalendarData CalendarDataRequest
 	Hrefs        []string
 	SyncToken    string
 	HasSyncToken bool
@@ -498,6 +499,14 @@ type ReportRequest struct {
 	TimeRanges   int
 	HasFilter    bool
 	Component    string
+}
+
+type CalendarDataRequest struct {
+	Requested           bool
+	HasProjection       bool
+	CalendarProperties  map[string]bool
+	Component           string
+	ComponentProperties map[string]bool
 }
 
 type TimeRange struct {
@@ -543,11 +552,14 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 		case xml.StartElement:
 			switch {
 			case sameXMLName(tok.Name, DAVNamespace, "prop"):
-				properties, err := parsePropElement(dec, tok.Name)
+				properties, calendarData, err := parseReportPropElement(dec, tok.Name)
 				if err != nil {
 					return ReportRequest{}, err
 				}
 				req.Properties = append(req.Properties, properties...)
+				if calendarData.Requested {
+					req.CalendarData = calendarData
+				}
 				if len(req.Properties) > MaxWebDAVProperties {
 					return ReportRequest{}, fmt.Errorf("too many WebDAV properties")
 				}
@@ -696,6 +708,166 @@ func classifyReportRoot(name xml.Name) (ReportRequest, error) {
 	default:
 		return ReportRequest{}, fmt.Errorf("unsupported REPORT root {%s}%s", name.Space, name.Local)
 	}
+}
+
+func parseReportPropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, CalendarDataRequest, error) {
+	var properties []XMLName
+	var calendarData CalendarDataRequest
+	depth := 1
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return nil, CalendarDataRequest{}, fmt.Errorf("unterminated prop element")
+		}
+		if err != nil {
+			return nil, CalendarDataRequest{}, fmt.Errorf("decode prop element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth > MaxWebDAVXMLDepth {
+				return nil, CalendarDataRequest{}, fmt.Errorf("WebDAV XML exceeds maximum depth")
+			}
+			if len(properties) >= MaxWebDAVProperties {
+				return nil, CalendarDataRequest{}, fmt.Errorf("too many WebDAV properties")
+			}
+			name := xmlName(tok.Name)
+			properties = append(properties, name)
+			if name == PropCalendarData {
+				parsed, err := parseCalendarDataElement(dec, tok.Name)
+				if err != nil {
+					return nil, CalendarDataRequest{}, err
+				}
+				calendarData = parsed
+			} else if err := skipElement(dec, tok.Name); err != nil {
+				return nil, CalendarDataRequest{}, err
+			}
+			depth--
+		case xml.EndElement:
+			if sameName(tok.Name, propName) {
+				return properties, calendarData, nil
+			}
+		}
+	}
+}
+
+func parseCalendarDataElement(dec *xml.Decoder, start xml.Name) (CalendarDataRequest, error) {
+	req := CalendarDataRequest{Requested: true}
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return CalendarDataRequest{}, fmt.Errorf("unterminated calendar-data element")
+		}
+		if err != nil {
+			return CalendarDataRequest{}, fmt.Errorf("decode calendar-data element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			req.HasProjection = true
+			switch {
+			case sameXMLName(tok.Name, CalDAVNamespace, "comp"):
+				parsed, err := parseCalendarDataComp(dec, tok, "")
+				if err != nil {
+					return CalendarDataRequest{}, err
+				}
+				req = mergeCalendarDataRequest(req, parsed)
+			case sameXMLName(tok.Name, CalDAVNamespace, "prop"):
+				name := strings.ToUpper(strings.TrimSpace(xmlAttr(tok, "name")))
+				if name != "" {
+					if req.CalendarProperties == nil {
+						req.CalendarProperties = make(map[string]bool)
+					}
+					req.CalendarProperties[name] = true
+				}
+				if err := skipElement(dec, tok.Name); err != nil {
+					return CalendarDataRequest{}, err
+				}
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return CalendarDataRequest{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, start) {
+				return req, nil
+			}
+		}
+	}
+}
+
+func parseCalendarDataComp(dec *xml.Decoder, start xml.StartElement, parent string) (CalendarDataRequest, error) {
+	component := strings.ToUpper(strings.TrimSpace(xmlAttr(start, "name")))
+	req := CalendarDataRequest{Requested: true, HasProjection: true}
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return CalendarDataRequest{}, fmt.Errorf("unterminated calendar-data comp element")
+		}
+		if err != nil {
+			return CalendarDataRequest{}, fmt.Errorf("decode calendar-data comp element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, CalDAVNamespace, "prop"):
+				name := strings.ToUpper(strings.TrimSpace(xmlAttr(tok, "name")))
+				if name != "" {
+					if component == "VCALENDAR" || parent == "" {
+						if req.CalendarProperties == nil {
+							req.CalendarProperties = make(map[string]bool)
+						}
+						req.CalendarProperties[name] = true
+					} else {
+						if req.ComponentProperties == nil {
+							req.ComponentProperties = make(map[string]bool)
+						}
+						req.ComponentProperties[name] = true
+					}
+				}
+				if err := skipElement(dec, tok.Name); err != nil {
+					return CalendarDataRequest{}, err
+				}
+			case sameXMLName(tok.Name, CalDAVNamespace, "comp"):
+				nested, err := parseCalendarDataComp(dec, tok, component)
+				if err != nil {
+					return CalendarDataRequest{}, err
+				}
+				req = mergeCalendarDataRequest(req, nested)
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return CalendarDataRequest{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, start.Name) {
+				if parent == "VCALENDAR" && component != "" {
+					req.Component = component
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
+func mergeCalendarDataRequest(left CalendarDataRequest, right CalendarDataRequest) CalendarDataRequest {
+	left.Requested = left.Requested || right.Requested
+	left.HasProjection = left.HasProjection || right.HasProjection
+	if right.Component != "" {
+		left.Component = right.Component
+	}
+	for name := range right.CalendarProperties {
+		if left.CalendarProperties == nil {
+			left.CalendarProperties = make(map[string]bool)
+		}
+		left.CalendarProperties[name] = true
+	}
+	for name := range right.ComponentProperties {
+		if left.ComponentProperties == nil {
+			left.ComponentProperties = make(map[string]bool)
+		}
+		left.ComponentProperties[name] = true
+	}
+	return left
 }
 
 func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {

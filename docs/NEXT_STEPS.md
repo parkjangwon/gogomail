@@ -1542,10 +1542,14 @@ Current state:
 - CalDAV REPORT parsing now validates `calendar-query`, `calendar-multiget`,
   `free-busy-query`, and `sync-collection` shapes more strictly, including
   nested time-range extraction, required href/filter/range/level fields, and
-  bounded sync limits.
+  bounded sync limits. It also preserves nested RFC 4791 `calendar-data`
+  projection requests for `VCALENDAR` and child component property selection.
 - CalDAV now handles `REPORT calendar-multiget` for authenticated calendar
   collections, returning requested ETags and `calendar-data` through WebDAV
-  multistatus responses.
+  multistatus responses. `calendar-multiget`, `calendar-query`, and
+  `sync-collection` now project returned iCalendar bodies to requested
+  `calendar-data` properties while retaining required RFC 5545 structure
+  fields so encoded objects stay valid for clients.
 - CalDAV now handles authenticated calendar object `GET`, `HEAD`, `PUT`, and
   `DELETE` with strong ETag headers, bounded iCalendar writes, and
   `If-Match`/`If-None-Match` precondition handling.

@@ -99,6 +99,53 @@ func TestValidateUpsertObjectRequestRejectsMetadataMismatch(t *testing.T) {
 	}
 }
 
+func TestProjectCalendarDataSelectsRequestedProperties(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSUMMARY:Planning\r\nLOCATION:Room A\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	projected, err := ProjectCalendarData(body, CalendarDataRequest{
+		Requested:     true,
+		HasProjection: true,
+		CalendarProperties: map[string]bool{
+			"VERSION": true,
+			"PRODID":  true,
+		},
+		Component: ComponentVEVENT,
+		ComponentProperties: map[string]bool{
+			"UID":     true,
+			"DTSTART": true,
+			"SUMMARY": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ProjectCalendarData returned error: %v", err)
+	}
+	text := string(projected)
+	for _, want := range []string{
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//gogomail//CalDAV Test//EN",
+		"BEGIN:VEVENT",
+		"UID:event-1@example.com",
+		"DTSTART:20260506T010000Z",
+		"SUMMARY:Planning",
+		"END:VEVENT",
+		"END:VCALENDAR",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("projected calendar-data missing %q:\n%s", want, text)
+		}
+	}
+	for _, forbidden := range []string{"DTEND:", "LOCATION:"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("projected calendar-data included %q:\n%s", forbidden, text)
+		}
+	}
+	if _, err := ParseICalendarObject(projected); err != nil {
+		t.Fatalf("projected calendar-data is not a valid supported object: %v\n%s", err, text)
+	}
+}
+
 func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	t.Parallel()
 

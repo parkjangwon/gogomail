@@ -117,6 +117,14 @@ use it after discovery to hydrate event resources by href. Missing hrefs remain
 inside the multistatus response as 404 propstats instead of failing the whole
 REPORT request.
 
+`calendar-data` is part of the protocol response contract, not a generic raw
+body toggle. REPORT parsing preserves nested RFC 4791 `calendar-data`
+projection requests for `VCALENDAR` and child component properties, and REPORT
+responses apply that projection through the RFC 5545 iCalendar parser/encoder.
+Projection may retain required structural properties such as `VERSION`,
+`PRODID`, `UID`, or `DTSTAMP` when present so returned objects remain valid
+iCalendar payloads for native clients.
+
 Calendar object reads and mutations are handled directly by the CalDAV gateway
 rather than Mail API routes. `PUT` reuses the iCalendar validation and strong
 ETag repository boundary, while `If-Match` and `If-None-Match` checks keep

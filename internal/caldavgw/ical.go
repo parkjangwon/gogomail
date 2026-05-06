@@ -62,6 +62,73 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 	return found[0], nil
 }
 
+func ProjectCalendarData(body []byte, req CalendarDataRequest) ([]byte, error) {
+	if !req.Requested || !req.HasProjection {
+		return append([]byte(nil), body...), nil
+	}
+	cal, err := ical.NewDecoder(bytes.NewReader(body)).Decode()
+	if err != nil {
+		return nil, fmt.Errorf("decode iCalendar object: %w", err)
+	}
+	if cal == nil || cal.Component == nil || strings.ToUpper(cal.Name) != ical.CompCalendar {
+		return nil, fmt.Errorf("iCalendar body must contain one VCALENDAR root")
+	}
+	projected := &ical.Calendar{Component: ical.NewComponent(ical.CompCalendar)}
+	projected.Props = projectICalendarProps(cal.Props, req.CalendarProperties, "VCALENDAR")
+	for _, child := range cal.Children {
+		component := strings.ToUpper(strings.TrimSpace(child.Name))
+		if req.Component != "" && !strings.EqualFold(component, req.Component) {
+			continue
+		}
+		projected.Children = append(projected.Children, &ical.Component{
+			Name:     child.Name,
+			Props:    projectICalendarProps(child.Props, req.ComponentProperties, component),
+			Children: projectICalendarChildren(child.Children),
+		})
+	}
+	var buf bytes.Buffer
+	if err := ical.NewEncoder(&buf).Encode(projected); err != nil {
+		return nil, fmt.Errorf("encode projected iCalendar object: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func projectICalendarProps(props ical.Props, selected map[string]bool, component string) ical.Props {
+	projected := make(ical.Props)
+	required := requiredProjectionProperties(component)
+	for name, values := range props {
+		upperName := strings.ToUpper(name)
+		if len(selected) > 0 && !selected[upperName] && !required[upperName] {
+			continue
+		}
+		projected[name] = append([]ical.Prop(nil), values...)
+	}
+	return projected
+}
+
+func requiredProjectionProperties(component string) map[string]bool {
+	switch strings.ToUpper(strings.TrimSpace(component)) {
+	case "VCALENDAR":
+		return map[string]bool{"VERSION": true, "PRODID": true}
+	case ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY:
+		return map[string]bool{"UID": true, "DTSTAMP": true}
+	default:
+		return nil
+	}
+}
+
+func projectICalendarChildren(children []*ical.Component) []*ical.Component {
+	projected := make([]*ical.Component, 0, len(children))
+	for _, child := range children {
+		projected = append(projected, &ical.Component{
+			Name:     child.Name,
+			Props:    projectICalendarProps(child.Props, nil, child.Name),
+			Children: projectICalendarChildren(child.Children),
+		})
+	}
+	return projected
+}
+
 func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, error) {
 	if timeRange == nil {
 		return true, nil
