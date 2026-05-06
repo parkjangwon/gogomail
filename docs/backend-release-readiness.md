@@ -346,6 +346,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `GetRange` now also bounded-drains unread range bytes on early
   close, improving connection reuse for canceled preview/download paths without
   unbounded cleanup reads.
+- S3-compatible full-object `GET` readers now also bounded-drain a small
+  remainder on close, improving HTTP connection reuse for preview/cancel
+  download paths without unbounded cleanup reads.
 - Local/NFS and S3-compatible `Get`/`GetRange` readers now observe context
   cancellation after opening the stream, and local/NFS `GetRange` reports
   `io.ErrUnexpectedEOF` for short requested windows so storage backend flips do

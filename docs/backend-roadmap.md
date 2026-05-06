@@ -2699,6 +2699,10 @@ Implementation order:
       from list pages, and rejects direct directory deletes so mounted
       filesystems preserve backend-neutral object-store semantics instead of
       following host-specific links or treating folders as objects.
+1191. S3-compatible full-object `GET` readers now bounded-drain a small
+      response remainder on close, matching the existing range-reader cleanup
+      shape so preview/cancel download paths can reuse HTTP connections without
+      unbounded cleanup reads.
 
 ## Deferred until backend contracts stabilize
 

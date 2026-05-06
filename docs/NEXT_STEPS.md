@@ -239,10 +239,10 @@ Current state:
 - S3-compatible storage requests reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
-- S3-compatible `PUT`, failed `GET`, and `DELETE` responses drain a small
-  bounded response-body window before close, improving HTTP connection reuse
-  for normal S3/MinIO responses without allowing oversized bodies to stall
-  cleanup.
+- S3-compatible `PUT`, failed `GET`, successful `GET` close, and `DELETE`
+  responses drain a small bounded response-body window before close, improving
+  HTTP connection reuse for normal S3/MinIO responses without allowing
+  oversized bodies to stall cleanup.
 - S3-compatible missing-object reads now wrap `os.ErrNotExist` for `GET`,
   ranged `GET`, and `HEAD`/`Stat` `404 Not Found` responses, keeping
   backend-neutral missing-object checks consistent with local/NFS storage while

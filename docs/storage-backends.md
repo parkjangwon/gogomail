@@ -198,6 +198,9 @@ byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 Both full-object and range readers observe context cancellation after the
 request has opened, so canceled downloads, previews, and IMAP literal streams
 can stop promptly across local/NFS and S3-compatible backends.
+Successful S3-compatible full-object `GET` readers also drain a small bounded
+remainder on close, improving HTTP connection reuse for preview/cancel paths
+without allowing unbounded cleanup reads.
 When a range reader is consumed successfully and closed, gogomail drains a
 small bounded response remainder so normal oversized partial responses can
 still reuse HTTP connections without exposing extra bytes to callers. The same
@@ -226,11 +229,11 @@ callers list a bounded page, delete each canonical object key through signed
 `DELETE` requests, and continue from the returned cursor. This keeps cleanup
 portable across AWS S3, MinIO, and stricter compatible stores without relying
 on provider-specific recursive delete behavior.
-S3 `PUT`, failed `GET`, and `DELETE` responses drain a small bounded body
-window before close so normal S3/MinIO responses can reuse HTTP connections
-without letting oversized responses stall cleanup. Local/NFS and S3 readiness
-probes read only the expected probe body size plus one byte before comparing
-the response.
+S3 `PUT`, failed `GET`, successful `GET` close, and `DELETE` responses drain a
+small bounded body window before close so normal S3/MinIO responses can reuse
+HTTP connections without letting oversized responses stall cleanup. Local/NFS
+and S3 readiness probes read only the expected probe body size plus one byte
+before comparing the response.
 
 ## Integration verification
 
