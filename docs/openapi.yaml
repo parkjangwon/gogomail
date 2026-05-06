@@ -1492,6 +1492,12 @@ paths:
     get:
       operationId: getAdminQueueStats
       summary: Admin queue stats
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       responses:
         "200":
           $ref: "#/components/responses/QueueStats"
@@ -1501,6 +1507,12 @@ paths:
     post:
       operationId: backfillAdminIMAPMailboxUIDs
       summary: Admin assign missing IMAP mailbox UIDs in a bounded batch
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
         - name: user_id
@@ -3692,6 +3704,12 @@ paths:
     get:
       operationId: getAdminDeliveryRouteCounters
       summary: Admin delivery route runtime counters
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       responses:
         "200":
           $ref: "#/components/responses/DeliveryRouteCounters"

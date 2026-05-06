@@ -392,6 +392,10 @@ operation-level Admin API base/auth contract for export proof material:
 `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}`,
 and
 `GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification`.
+Core operator diagnostics and repair routes also carry operation-level Admin
+API base/auth metadata:
+`GET /admin/v1/queue`, `GET /admin/v1/delivery-routes/counters`, and
+`POST /admin/v1/imap/mailboxes/{id}/uid-backfill`.
 
 ## Pagination
 

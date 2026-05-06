@@ -51,6 +51,9 @@ func TestOpenAPIDraftPinsAdminBootstrapOperationsToAdminBase(t *testing.T) {
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for _, route := range []string{
 		"GET /console/capabilities",
+		"GET /delivery-routes/counters",
+		"GET /queue",
+		"POST /imap/mailboxes/{id}/uid-backfill",
 		"GET /api-usage/daily",
 		"GET /api-usage/monthly",
 		"GET /api-usage/ledger",
