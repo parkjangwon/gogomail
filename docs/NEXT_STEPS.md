@@ -451,6 +451,9 @@ Current state:
   probes aligned with the server's root-relative mailbox store. The decoded
   pattern matcher is prepared once per `LIST`/`LSUB` command and reused across
   mailbox rows, keeping large folder-tree discovery allocation-aware.
+- IMAP RFC 5258 `LIST-EXTENDED` now accepts parenthesized mailbox pattern
+  lists such as `LIST "" ("INBOX" "Sent")`, applies `RETURN` options to the
+  union of matching folders, and de-duplicates overlapping pattern results.
 - IMAP UIDPLUS `COPYUID` generation now uses an explicit copy-result mapping
   from source UID to destination message summary across the gateway, service,
   and PostgreSQL repository boundary, so sparse UID requests and concurrent

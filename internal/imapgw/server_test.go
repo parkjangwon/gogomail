@@ -5739,6 +5739,94 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 	}
 }
 
+func TestServerListSupportsExtendedPatternListsWithStatus(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: listStatusBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" (\"INBOX\" \"Sent\") RETURN (STATUS (MESSAGES))\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write list pattern-list: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"* STATUS \"INBOX\" (MESSAGES 17)\r\n",
+		"* LIST (\\HasNoChildren \\Sent) \"/\" \"Sent\"\r\n",
+		"* STATUS \"Sent\" (MESSAGES 5)\r\n",
+		"a2 OK LIST completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read list pattern-list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("list pattern-list response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerListSupportsSubscribedExtendedPatternLists(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: subscriptionBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST (SUBSCRIBED) \"\" (\"INBOX\" \"Retired\") RETURN (SUBSCRIBED)\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write subscribed list pattern-list: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* LIST (\\HasNoChildren \\Subscribed) \"/\" \"INBOX\"\r\n",
+		"* LIST (\\Noselect \\Subscribed) \"/\" \"Retired\"\r\n",
+		"a2 OK LIST completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read subscribed list pattern-list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("subscribed list pattern-list response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerFiltersListByPattern(t *testing.T) {
 	t.Parallel()
 
@@ -6347,7 +6435,7 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LIST \"\"\r\na2 LIST \"\" &Jjo!\r\na3 LSUB \"\"\r\na4 CREATE &Jjo!\r\na5 DELETE &Jjo!\r\na6 RENAME Archive\r\na7 RENAME Archive &Jjo!\r\na8 SUBSCRIBE\r\na9 SUBSCRIBE &Jjo!\r\na10 CREATE Projects\r\na11 LIST \"\" INBOX\"\r\na12 LSUB \"\" INBOX\"\r\na13 LSUB (SPECIAL-USE) \"\" *\r\na14 LSUB \"\" * RETURN (STATUS (MESSAGES))\r\na15 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LIST \"\"\r\na2 LIST \"\" &Jjo!\r\na3 LSUB \"\"\r\na4 CREATE &Jjo!\r\na5 DELETE &Jjo!\r\na6 RENAME Archive\r\na7 RENAME Archive &Jjo!\r\na8 SUBSCRIBE\r\na9 SUBSCRIBE &Jjo!\r\na10 CREATE Projects\r\na11 LIST \"\" INBOX\"\r\na12 LSUB \"\" INBOX\"\r\na13 LSUB (SPECIAL-USE) \"\" *\r\na14 LSUB \"\" * RETURN (STATUS (MESSAGES))\r\na15 LIST \"\" ()\r\na16 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write mailbox commands: %v", err)
 	}
 	want := []string{
@@ -6365,8 +6453,9 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 		"a12 BAD malformed command\r\n",
 		"a13 BAD LSUB does not support LIST extension options\r\n",
 		"a14 BAD LSUB does not support LIST extension options\r\n",
+		"a15 BAD LIST mailbox pattern is not valid modified UTF-7\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a15 OK LOGOUT completed\r\n",
+		"a16 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

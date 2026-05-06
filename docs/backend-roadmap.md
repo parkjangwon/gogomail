@@ -4049,6 +4049,9 @@ Implementation order:
 1447. S3-compatible range `GET` now rejects duplicate `Content-Range` headers
       for both `206 Partial Content` and safe `200 OK` compatibility paths, so
       byte-window identity is never selected by HTTP header collapse.
+1448. IMAP RFC 5258 `LIST-EXTENDED` now accepts parenthesized mailbox pattern
+      lists, applies `RETURN` options such as `STATUS` and `SUBSCRIBED` to the
+      union of matching folders, and de-duplicates overlapping pattern results.
 
 ## Deferred until backend contracts stabilize
 

@@ -473,7 +473,10 @@ failed selection attempt.
 IMAP `LIST` and `LSUB` now compile the decoded mailbox-pattern matcher once
 per command and reuse it across mailbox rows and subscribed-parent inference,
 avoiding per-mailbox regular-expression construction on large folder trees
-without changing wildcard semantics.
+without changing wildcard semantics. RFC 5258 `LIST-EXTENDED` now also
+accepts parenthesized mailbox pattern lists, applies `RETURN` options such as
+`STATUS` and `SUBSCRIBED` to the union of matching folders, and de-duplicates
+overlapping pattern results before writing responses.
 IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
 mapping through the gateway, service, and PostgreSQL repository boundary, and
 `MOVE`/`UID MOVE` now build UIDPLUS `COPYUID` source sets from the returned
