@@ -154,6 +154,10 @@ Current state:
   set syntax, including signed values such as `+1`/`+7`, before authentication
   or selected-mailbox checks while preserving selected-mailbox bounds checks
   for execution time.
+- IMAP `SEARCH` and `UID SEARCH` reject malformed search sequence-set and
+  `UID` search-key set syntax before authentication or selected-mailbox checks,
+  so signed values such as `SEARCH +1` and `UID SEARCH UID +7` fail as grammar
+  errors rather than state errors.
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.
