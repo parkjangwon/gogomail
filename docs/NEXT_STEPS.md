@@ -1633,7 +1633,11 @@ Next:
   `addressbook-updated` change row. Collection ETags are derived from the
   durable sync token, exposed through PROPFIND `getetag`, and used with
   `If-Match`/`If-Unmodified-Since` to reject stale `PROPPATCH` requests before
-  body reads.
+  body reads. RFC 6352-style extended `MKCOL` now creates authenticated
+  address-book collections at UUID request-URI paths after validating
+  `DAV:resourcetype`, `DAV:displayname`, and `addressbook-description`, while
+  rejecting existing collections, cross-user paths, missing homes, and unsafe
+  path ids before body reads where possible.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

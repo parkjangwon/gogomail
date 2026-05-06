@@ -146,6 +146,30 @@ func (s *fakeCardDAVDiscoveryStore) UpdateAddressBookProperties(_ context.Contex
 	return AddressBook{}, errFakeCardDAVNotFound
 }
 
+func (s *fakeCardDAVDiscoveryStore) CreateAddressBookAtPath(_ context.Context, req CreateAddressBookAtPathRequest) (AddressBook, error) {
+	validated, _, syncToken, err := ValidateCreateAddressBookAtPathRequest(req)
+	if err != nil {
+		return AddressBook{}, err
+	}
+	for _, book := range s.books {
+		if book.UserID == validated.UserID && book.ID == validated.AddressBookID {
+			return AddressBook{}, errors.New("address book exists")
+		}
+	}
+	now := time.Date(2026, 5, 6, 9, 10, 11, 0, time.UTC)
+	book := AddressBook{
+		ID:          validated.AddressBookID,
+		UserID:      validated.UserID,
+		Name:        validated.Name,
+		Description: validated.Description,
+		SyncToken:   syncToken,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	s.books = append(s.books, book)
+	return book, nil
+}
+
 func (s fakeCardDAVDiscoveryStore) UpsertContactObject(_ context.Context, req UpsertContactObjectRequest) (ContactObject, error) {
 	req, etag, _, err := ValidateUpsertContactObjectRequest(req)
 	if err != nil {
@@ -184,7 +208,7 @@ func TestHandlerOptionsAdvertisesCardDAVDiscovery(t *testing.T) {
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
 	}
-	for _, want := range []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete} {
+	for _, want := range []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete, MethodMkcol} {
 		if !strings.Contains(rec.Header().Get("Allow"), want) {
 			t.Fatalf("Allow = %q, missing %q", rec.Header().Get("Allow"), want)
 		}
@@ -461,6 +485,71 @@ func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
 				t.Fatalf("status = %d, want %d, body = %s", rec.Code, tc.want, rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestHandlerMkcolCreatesAddressBookAtRequestURI(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>
+      <D:displayname>Team Contacts</D:displayname>
+      <C:addressbook-description>People for launch work</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:mkcol>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/carddav/addressbooks/user-1/"+bookID+"/" {
+		t.Fatalf("Location = %q", got)
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", bookID)
+	if err != nil {
+		t.Fatalf("created address book lookup failed: %v", err)
+	}
+	if book.Name != "Team Contacts" || book.Description != "People for launch work" {
+		t.Fatalf("address book = %+v", book)
+	}
+}
+
+func TestHandlerMkcolRejectsExistingAddressBook(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"/>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerMkcolRejectsUnsafePathIDBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"/>`}
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/not-a-uuid/", body)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
 	}
 }
 

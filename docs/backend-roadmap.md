@@ -2409,6 +2409,13 @@ Implementation order:
       collection metadata writes: address-book collections advertise
       `DAV:write-properties` only after `PROPPATCH` support exists, while
       broader collection, ACL, bind, and unbind privileges remain unadvertised.
+1125. CardDAV now handles RFC 6352-style extended `MKCOL` for authenticated
+      address-book collection creation at UUID request-URI paths. The handler
+      validates the requested path, home/principal scope, non-existence, and
+      bounded WebDAV creation XML for `DAV:resourcetype`,
+      `DAV:displayname`, and `CARDDAV:addressbook-description`, then creates
+      the collection through the repository with durable sync/change state and
+      returns `201 Created` with `Location`.
 
 ## Deferred until backend contracts stabilize
 

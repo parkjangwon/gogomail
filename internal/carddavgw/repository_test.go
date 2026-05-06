@@ -32,6 +32,47 @@ func TestValidateCreateAddressBookRequest(t *testing.T) {
 	}
 }
 
+func TestValidateCreateAddressBookAtPathRequest(t *testing.T) {
+	t.Parallel()
+
+	req, normalizedName, syncToken, err := ValidateCreateAddressBookAtPathRequest(CreateAddressBookAtPathRequest{
+		UserID:        " user-1 ",
+		AddressBookID: "11111111-1111-4111-8111-111111111111",
+		Name:          " Team ",
+		Description:   " Launch contacts ",
+	})
+	if err != nil {
+		t.Fatalf("ValidateCreateAddressBookAtPathRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.AddressBookID != "11111111-1111-4111-8111-111111111111" || req.Name != "Team" {
+		t.Fatalf("request = %+v", req)
+	}
+	if normalizedName != "team" {
+		t.Fatalf("normalized name = %q", normalizedName)
+	}
+	if !strings.HasPrefix(syncToken, "sync-") {
+		t.Fatalf("sync token = %q", syncToken)
+	}
+}
+
+func TestValidateCreateAddressBookAtPathRequestRejectsNonUUIDPathIDs(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{"team", "11111111-1111-4111-8111-11111111111z", "11111111111141118111111111111111"} {
+		id := id
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, _, err := ValidateCreateAddressBookAtPathRequest(CreateAddressBookAtPathRequest{
+				UserID:        "user-1",
+				AddressBookID: id,
+			}); err == nil {
+				t.Fatal("ValidateCreateAddressBookAtPathRequest error = nil, want rejection")
+			}
+		})
+	}
+}
+
 func TestValidateCreateAddressBookRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
