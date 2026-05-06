@@ -1544,6 +1544,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now accept one-digit date-day atoms
   such as `SINCE 5-May-2026` while preserving the malformed quote rejection,
   improving compatibility with clients that do not zero-pad day values.
+- IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
+  strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
+  date atoms.
 - IMAP `SEARCH` and `UID SEARCH` now reject `CHARSET` prefixes that omit the
   required following search-key before authentication or selected-mailbox
   checks, preserving RFC 3501 search grammar on the hot command boundary.
@@ -3758,6 +3761,9 @@ The platform hardening sprint completed the following:
 - IMAP `AUTHENTICATE PLAIN` continuation cancellation now requires an exact
   `*` token, rejecting whitespace-padded cancellation attempts as malformed
   SASL responses while keeping the session usable.
+- IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
+  strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
+  date atoms.
 
 Next focus areas:
 

@@ -3029,7 +3029,9 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 	if strings.Contains(value, `"`) {
 		return time.Time{}, false
 	}
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value {
+		return time.Time{}, false
+	}
 	for _, layout := range []string{"02-Jan-2006", "2-Jan-2006"} {
 		day, err := time.Parse(layout, value)
 		if err == nil {
