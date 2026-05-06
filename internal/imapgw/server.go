@@ -451,6 +451,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	if handled, done, err := imapRejectNonAtomStoreControlArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}
+	if handled, done, err := imapRejectStringParenthesizedControlListArgument(writer, tag, trimmedLine, fields, command); handled {
+		return done, err
+	}
 	if handled, done, err := imapRejectNonAtomFetchDataItemArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}
@@ -1009,6 +1012,49 @@ func imapRejectNonAtomEnableCapabilityArgument(writer *bufio.Writer, tag string,
 		}
 	}
 	return false, false, nil
+}
+
+func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
+	switch command {
+	case "STORE":
+		return imapRejectStringStoreFlagListArgument(writer, tag, line, fields, 3, "STORE")
+	case "UID":
+		if len(fields) >= 3 && strings.EqualFold(fields[2], "STORE") {
+			return imapRejectStringStoreFlagListArgument(writer, tag, line, fields, 4, "UID STORE")
+		}
+	case "APPEND":
+		if len(fields) >= 5 && strings.HasPrefix(fields[3], "(") && imapRawFieldIsStringLike(line, 3) {
+			_, err := writer.WriteString(tag + " BAD APPEND options are unsupported\r\n")
+			return true, false, err
+		}
+	case "STATUS":
+		if len(fields) >= 4 && strings.HasPrefix(fields[3], "(") && imapRawFieldIsStringLike(line, 3) {
+			_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
+			return true, false, err
+		}
+	}
+	return false, false, nil
+}
+
+func imapRejectStringStoreFlagListArgument(writer *bufio.Writer, tag string, line string, fields []string, storeStart int, commandName string) (bool, bool, error) {
+	if len(fields) <= storeStart {
+		return false, false, nil
+	}
+	modeRawIndex := storeStart
+	if imapStoreUnchangedSincePresent(fields[storeStart:]) {
+		modeRawIndex++
+	}
+	flagRawIndex := modeRawIndex + 1
+	if imapRawFieldIsStringLike(line, flagRawIndex) {
+		_, err := writer.WriteString(tag + " BAD " + commandName + " flags are unsupported\r\n")
+		return true, false, err
+	}
+	return false, false, nil
+}
+
+func imapRawFieldIsStringLike(line string, fieldIndex int) bool {
+	kind, ok := imapRawFieldKind(line, fieldIndex)
+	return ok && (kind == imapRawFieldQuoted || kind == imapRawFieldLiteral)
 }
 
 func imapRejectNonAtomFetchDataItemArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {

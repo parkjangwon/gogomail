@@ -721,6 +721,11 @@ Current state:
 - IMAP `AUTHENTICATE` mechanism names and SASL-IR initial responses now
   reject quoted values such as `"PLAIN"` or quoted base64, keeping mechanism
   selection and initial-response parsing atom-only before privacy checks.
+- IMAP parenthesized mutation/status controls now reject quoted or
+  command-literal lists such as `STORE 1 +FLAGS "(\\Seen)"`,
+  `APPEND inbox "(\\Seen)" {..}`, and `STATUS inbox "(MESSAGES)"`, while
+  preserving quoted mailbox names, APPEND message literals, APPEND
+  internaldate, LOGIN credentials, ID strings, and SEARCH text/header strings.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.

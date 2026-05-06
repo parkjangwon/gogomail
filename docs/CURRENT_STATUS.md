@@ -3994,6 +3994,10 @@ The platform hardening sprint completed the following:
   require raw atom tokens, so quoted `PLAIN` mechanisms and quoted base64
   initial responses are rejected before unsupported-mechanism, privacy, or
   backend authentication policy checks.
+- IMAP parenthesized control lists now preserve their raw list boundary:
+  quoted or command-literal `STORE`/`UID STORE` flag-lists, `APPEND`
+  flag-lists, and `STATUS` item-lists are rejected instead of being dequoted
+  into valid mutation or status controls.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
