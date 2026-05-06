@@ -1613,7 +1613,8 @@ Next:
   composition for top-level filters and prop-filters. Unsupported vCard
   property or parameter filters now fail with the RFC 6352
   `CARDDAV:supported-filter` precondition instead of misleading empty success
-  responses. REPORT `address-data` can also project returned vCards to
+  responses, including `Depth: 0` requests that otherwise return no child
+  objects. REPORT `address-data` can also project returned vCards to
   requested property names and rejects unsupported requested address-data
   content types or versions; returned
   address-data also carries explicit `text/vcard` 4.0 attributes.

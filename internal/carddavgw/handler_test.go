@@ -859,6 +859,23 @@ func TestHandlerReportAddressBookQueryRejectsUnsupportedFilter(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookQueryRejectsUnsupportedFilterAtDepthZero(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="X-GOGOMAIL-PRIVATE"/></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "<C:supported-filter/>") {
+		t.Fatalf("Depth: 0 unsupported filter response missing precondition:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportAddressBookQueryRejectsUnsupportedParamFilter(t *testing.T) {
 	t.Parallel()
 
