@@ -453,6 +453,11 @@ Current state:
   `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, letting operators smoke-test
   private CA or local self-signed MinIO/S3 endpoints through the same injected
   HTTP client path used by runtime S3 TLS configuration.
+- Runtime startup now accepts `--config=<path>` for a flat YAML overlay on top
+  of existing defaults/env values. The parser rejects unsupported keys and
+  typed-value mismatches, and `configs/config.example.yaml` includes the
+  storage backend/S3 knobs needed to switch local/NFS/MinIO/AWS S3 profiles by
+  editing config rather than code.
 
 Next:
 

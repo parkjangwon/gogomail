@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 TLS integration-test wiring)
+Last updated: 2026-05-06 (updated after YAML config-file storage overlay)
 
 ## Current phase
 
@@ -65,7 +65,10 @@ the storage adapter or default AWS behavior. Optional S3-compatible integration
 coverage can now use matching test-only TLS variables
 (`GOGOMAIL_TEST_S3_CA_CERT_FILE` and
 `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`) so pre-release smoke tests can verify
-the same private-object-store trust shape.
+the same private-object-store trust shape. Runtime startup also accepts
+`--config=<path>` for a flat YAML overlay on top of the existing env/default
+configuration, so operators can flip local/NFS/MinIO/AWS S3 storage profiles
+through a reviewed config file while keeping the same startup validation.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as

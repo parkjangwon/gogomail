@@ -43,6 +43,17 @@ search_index_max_body_bytes: 1048576
 database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable
 redis_addr: localhost:16379
 storage_backend: local
+storage_backend_compat_labels: []
+storage_s3_endpoint: ""
+storage_s3_region: us-east-1
+storage_s3_bucket: ""
+storage_s3_prefix: ""
+storage_s3_access_key_id: ""
+storage_s3_secret_access_key: ""
+storage_s3_session_token: ""
+storage_s3_force_path_style: false
+storage_s3_ca_cert_file: ""
+storage_s3_insecure_skip_verify: false
 migration_dir: migrations
 mailstore_root: var/mailstore
 local_recipients:

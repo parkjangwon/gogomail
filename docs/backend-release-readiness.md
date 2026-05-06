@@ -98,6 +98,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `GOGOMAIL_TEST_S3_CA_CERT_FILE` and
   `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, so release smoke tests can exercise
   the same private-object-store TLS trust path before backend flips.
+- The `gogomail` binary accepts `--config=<path>` for a validated flat YAML
+  overlay, and the example config documents storage backend/S3 fields so local,
+  NFS, MinIO, and AWS S3 profiles can be switched by config file.
 - IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and
   session mutation, including malformed capability atoms.
 - Drive upload-session storage now has a dedicated migration and validation
