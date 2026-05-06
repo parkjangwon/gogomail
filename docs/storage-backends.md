@@ -202,9 +202,11 @@ literal plus signs in canonical request paths.
 For file-backed or otherwise seekable upload bodies, gogomail sets a precise
 `Content-Length` without buffering the object in memory, improving PUT
 compatibility while preserving streaming-first storage paths.
-Deletes are idempotent for missing objects, including `404 Not Found` responses
-from compatible providers, so lifecycle cleanup behaves consistently across
-AWS S3, MinIO-style endpoints, and local/NFS storage.
+Deletes accept only completed compatible-provider success responses (`200 OK`
+or `204 No Content`) plus idempotent `404 Not Found` for already-missing
+objects. Accepted/deferred or otherwise ambiguous non-OK 2xx delete responses
+are rejected, so lifecycle cleanup behaves consistently across AWS S3,
+MinIO-style endpoints, and local/NFS storage.
 Missing-object reads also preserve the local/NFS error contract: `Get`,
 `GetRange`, and `Stat` wrap `os.ErrNotExist` for compatible-provider
 `404 Not Found` responses while retaining sanitized S3 status context.

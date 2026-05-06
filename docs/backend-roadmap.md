@@ -2949,6 +2949,10 @@ Implementation order:
       rejecting accepted/deferred or otherwise non-OK 2xx statuses so mail,
       Drive, and lifecycle writes cannot treat ambiguous provider
       acknowledgements as durable object commits.
+1206. S3-compatible `DeleteObject` now accepts only completed `200 OK` or
+      `204 No Content` success responses plus idempotent `404 Not Found`,
+      rejecting accepted/deferred or otherwise ambiguous non-OK 2xx statuses so
+      cleanup workers cannot mark uncertain object deletes as complete.
 
 ## Deferred until backend contracts stabilize
 

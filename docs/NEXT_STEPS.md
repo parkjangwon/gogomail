@@ -330,9 +330,10 @@ Current state:
 - S3-compatible uploads set a deterministic `Content-Length` for seekable PUT
   bodies without buffering the object in memory, improving compatibility for
   file-backed mail and attachment writes while keeping hot paths streaming-first.
-- S3-compatible deletes treat `404 Not Found` as already-cleaned success,
-  keeping lifecycle cleanup idempotent across AWS S3, MinIO-style endpoints,
-  and local/NFS storage.
+- S3-compatible deletes accept completed `200 OK`/`204 No Content` responses
+  plus idempotent `404 Not Found`, while rejecting accepted/deferred or other
+  ambiguous non-OK 2xx statuses so cleanup workers do not mark uncertain
+  deletes as complete.
 - Local/NFS and S3-compatible storage expose a shared object `Move` contract
   for future Drive/file relocation workflows. Local/NFS uses efficient
   filesystem rename semantics; S3-compatible storage uses signed server-side

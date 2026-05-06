@@ -212,7 +212,7 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	if resp.StatusCode == http.StatusNotFound {
 		return nil
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return s3StatusError("delete", resp)
 	}
 	return nil

@@ -1043,8 +1043,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` pages reject provider responses that return
   more matching objects than the requested bounded page size, keeping S3,
   MinIO, and local/NFS pagination under the same storage contract.
-- Local/NFS-style storage deletes are idempotent for missing objects, aligning
-  lifecycle cleanup behavior with S3-compatible object deletion.
+- Local/NFS-style storage deletes are idempotent for missing objects.
+  S3-compatible deletes accept completed `200 OK`/`204 No Content` responses
+  plus idempotent `404 Not Found`, while rejecting accepted/deferred or other
+  ambiguous non-OK 2xx statuses before cleanup workers mark object deletion as
+  complete.
 - S3-compatible storage requests reject canceled contexts before object-key
   validation, SigV4 signing, or HTTP dispatch, keeping cancellation behavior
   aligned with local/NFS storage and reducing wasted request work.
