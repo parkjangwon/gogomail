@@ -1935,6 +1935,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Verify Drive cleanup-failure recording rejects object paths outside the owning user's `drive/users/{user_id}/...` prefix.
 - Verify Drive clients treat HTTP 507 `insufficient_storage` from finalize/copy paths as quota pressure, distinct from validation failures.
 - Verify Drive clients only pass storage paths returned by the authenticated user's staged/upload-session endpoints; finalize rejects object keys outside that user's `drive/users/{user_id}/...` prefix.
+- Verify native CalDAV client discovery treats `/caldav/` as a service-root
+  collection anchor and follows `current-user-principal` before requesting
+  principal-only properties such as `calendar-home-set`.
 
 ## Intentionally out of scope for this release slice
 

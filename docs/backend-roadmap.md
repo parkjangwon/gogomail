@@ -2522,6 +2522,11 @@ Implementation order:
       token for stale-token clients after a calendar collection has been
       deleted, using the durable `collection-deleted` change row instead of
       requiring the live calendar row to still exist.
+1154. CalDAV service-root `PROPFIND` now exposes `/caldav/` as a read-only
+      collection discovery anchor instead of reusing authenticated principal
+      properties, keeping `calendar-home-set` and other principal-only
+      semantics on the principal resource while still advertising
+      `current-user-principal` and `principal-collection-set`.
 
 ## Deferred until backend contracts stabilize
 

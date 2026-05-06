@@ -2251,9 +2251,12 @@ The platform hardening sprint completed the following:
 - CalDAV now has an internal `OPTIONS`/`PROPFIND` discovery handler boundary
   over a pluggable discovery store. It advertises DAV capabilities, rejects
   unsafe infinite-depth discovery, enforces authenticated user/path scope, and
-  can render the advertised principal collection, the authenticated principal,
-  calendar-home, calendar-collection, and calendar-object multistatus responses
-  before the public listener is enabled.
+  can render the service root, advertised principal collection, authenticated
+  principal, calendar-home, calendar-collection, and calendar-object
+  multistatus responses before the public listener is enabled. The service root
+  is intentionally modeled as a read-only collection discovery anchor rather
+  than as the user principal, so principal-only properties such as
+  `calendar-home-set` stay on the principal resource.
 - CalDAV calendar-home discovery now keeps WebDAV `current-user-principal` and
   `owner` anchored to the canonical principal URL instead of the calendar-home
   collection, keeping principal discovery semantics aligned with delegated and

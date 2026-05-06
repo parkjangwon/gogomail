@@ -55,7 +55,7 @@ func TestHandlerPropfindServiceRootDiscovery(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-	req := httptest.NewRequest(MethodPropfind, "/caldav/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><D:principal-collection-set/><C:calendar-home-set/></D:prop></D:propfind>`))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><D:principal-collection-set/><D:resourcetype/><C:calendar-home-set/></D:prop></D:propfind>`))
 	req.Header.Set("Depth", "0")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -68,11 +68,19 @@ func TestHandlerPropfindServiceRootDiscovery(t *testing.T) {
 		"<D:href>/caldav/</D:href>",
 		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
 		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
-		"<C:calendar-home-set><D:href>/caldav/calendars/user-1/</D:href></C:calendar-home-set>",
+		"<D:resourcetype><D:collection></D:collection></D:resourcetype>",
+		"<D:status>HTTP/1.1 404 Not Found</D:status>",
+		"<C:calendar-home-set></C:calendar-home-set>",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("root discovery missing %q:\n%s", want, body)
 		}
+	}
+	if strings.Contains(body, "<D:principal></D:principal>") {
+		t.Fatalf("service root was advertised as a principal resource:\n%s", body)
+	}
+	if strings.Contains(body, "<C:calendar-home-set><D:href>") {
+		t.Fatalf("service root should not expose principal-only calendar-home-set:\n%s", body)
 	}
 }
 
