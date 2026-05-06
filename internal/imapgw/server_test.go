@@ -2923,6 +2923,32 @@ func TestServerSelectFailsBeforeSelectedStateWhenSubscriptionFails(t *testing.T)
 	}
 }
 
+func TestServerSelectWriteFailureCancelsNewSubscription(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &selectSubscribeCancelBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	writer := bufio.NewWriterSize(failingWriter{}, 1)
+	state := &imapConnState{session: &Session{UserID: "user-1"}}
+
+	done, err := server.handleLineWithLiteral(writer, "a1 SELECT inbox", nil, state)
+	if err == nil {
+		t.Fatal("handleLineWithLiteral error = nil, want write failure")
+	}
+	if done {
+		t.Fatal("handleLineWithLiteral done = true, want false")
+	}
+	if !backendImpl.canceled {
+		t.Fatal("new SELECT subscription was not canceled after write failure")
+	}
+	if state.cancelEvents != nil || state.events != nil || state.selectedMailbox != "" {
+		t.Fatalf("state after failed SELECT = mailbox %q events %#v cancel nil %t", state.selectedMailbox, state.events, state.cancelEvents == nil)
+	}
+}
+
 func TestServerExamineFailureUsesExamineCommandName(t *testing.T) {
 	t.Parallel()
 
@@ -11497,6 +11523,26 @@ type failingSubscribeBackend struct {
 
 func (failingSubscribeBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
 	return nil, nil, errors.New("subscription unavailable")
+}
+
+type selectSubscribeCancelBackend struct {
+	fakeBackend
+	canceled bool
+}
+
+func (b *selectSubscribeCancelBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
+	events := make(chan MailboxEvent)
+	cancel := func() {
+		b.canceled = true
+		close(events)
+	}
+	return events, cancel, nil
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
 }
 
 type missingMailboxBackend struct {

@@ -193,6 +193,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `ENABLE CONDSTORE` after a selected mailbox with no persistent
   mod-sequences now records selected `NOMODSEQ` state before later
   MODSEQ-dependent command validation.
+- IMAP `SELECT`/`EXAMINE` cancel newly opened mailbox event subscriptions when
+  response writing fails before the subscription reaches connection state,
+  preventing listener leaks during broken-client handshakes.
 - IMAP CONDSTORE awareness from `STATUS HIGHESTMODSEQ` is covered across a
   following `SELECT` and `UID STORE`, verifying MODSEQ echo behavior after
   mailbox selection.

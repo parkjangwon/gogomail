@@ -173,6 +173,10 @@ behavior already used by `DELETE`, `APPEND`, `COPY`, and `MOVE`.
 mod-sequences now records the selected `NOMODSEQ` state as well as emitting the
 untagged `[NOMODSEQ]` response, so later MODSEQ-dependent commands are rejected
 instead of reaching fetch/search/store execution.
+`SELECT`/`EXAMINE` subscription setup is now guarded against mid-response write
+failures: a newly opened mailbox event subscription is canceled unless it has
+been installed into connection state, preventing leaked event listeners on
+broken clients.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

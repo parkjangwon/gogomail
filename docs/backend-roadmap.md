@@ -3501,6 +3501,10 @@ Implementation order:
       the untagged `[NOMODSEQ]` response, keeping later MODSEQ-dependent
       `FETCH`, search, sort/thread, and store commands behind the RFC 7162
       persistent-mod-sequence guard.
+1319. IMAP `SELECT`/`EXAMINE` subscription setup now cancels a newly opened
+      mailbox event subscription if response writing fails before the
+      subscription is installed into connection state, avoiding leaked event
+      listeners on broken-client or network-failure paths.
 
 ## Deferred until backend contracts stabilize
 
