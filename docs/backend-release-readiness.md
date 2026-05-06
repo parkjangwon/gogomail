@@ -250,9 +250,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   semantics are added.
 - CalDAV now handles RFC 4791-shaped `REPORT free-busy-query` for authenticated
   calendar collections, returning `200 OK` `text/calendar` `VFREEBUSY` bodies
-  for `Depth: 1` child VEVENT busy periods. It clips to the requested UTC
-  range, omits transparent/cancelled events, maps tentative events to
-  `BUSY-TENTATIVE`, ingests stored VFREEBUSY `FREEBUSY` period lists,
+  for `Depth: 1` child VEVENT busy periods while bounding child object scans
+  with `limit/nresults` and one-extra-row truncation detection. It clips to the
+  requested UTC range, omits transparent/cancelled events, maps tentative
+  events to `BUSY-TENTATIVE`, ingests stored VFREEBUSY `FREEBUSY` period lists,
   coalesces same-type overlaps, and rejects duplicate free-busy time ranges.
   Recurrence expansion, scheduling, and broader device/client compatibility
   tests remain incomplete.

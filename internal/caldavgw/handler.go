@@ -809,7 +809,7 @@ func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "free-busy-query requires a time-range", http.StatusBadRequest)
 		return
 	}
-	body, err := h.freeBusyCalendar(r.Context(), userID, resource, *report.TimeRange, depth == DepthOne)
+	body, err := h.freeBusyCalendar(r.Context(), userID, resource, *report.TimeRange, depth == DepthOne, report.Limit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -1130,16 +1130,23 @@ func calendarObjectMatchesComponent(object CalendarObject, component string) boo
 	return strings.EqualFold(object.Component, component)
 }
 
-func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource ResourcePath, timeRange TimeRange, includeChildren bool) ([]byte, error) {
+func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource ResourcePath, timeRange TimeRange, includeChildren bool, requestedLimit int) ([]byte, error) {
 	if _, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID); err != nil {
 		return nil, err
 	}
 	if !includeChildren {
 		return BuildFreeBusyCalendar(userID, resource.CalendarID, timeRange, nil)
 	}
-	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	limit := requestedLimit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1)
 	if err != nil {
 		return nil, err
+	}
+	if len(objects) > limit {
+		return nil, fmt.Errorf("free-busy-query limit would truncate results")
 	}
 	var periods []BusyPeriod
 	for _, object := range objects {

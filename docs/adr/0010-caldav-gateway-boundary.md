@@ -159,8 +159,10 @@ clients about synchronization completeness.
 and native clients do not need product-specific calendar APIs. The first
 implementation derives busy periods from child VEVENT resources at `Depth: 1`,
 clips periods to the requested UTC range, skips `TRANSPARENT` and `CANCELLED`
-events, maps `TENTATIVE` to `BUSY-TENTATIVE`, and coalesces same-type overlaps.
-Recurrence expansion and stored VFREEBUSY source-object ingestion remain future
+events, maps `TENTATIVE` to `BUSY-TENTATIVE`, ingests stored VFREEBUSY source
+objects, and coalesces same-type overlaps. Child object reads are bounded with
+the same requested/default `limit/nresults` plus one-extra-row truncation probe
+used by other CalDAV collection scans. Recurrence expansion remains future
 compatibility work.
 
 `MKCALENDAR` creation is handled by the gateway instead of a product calendar

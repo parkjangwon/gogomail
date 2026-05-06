@@ -1064,6 +1064,34 @@ func TestHandlerReportFreeBusyQueryDepthZeroReturnsEmptyVFreeBusy(t *testing.T) 
 	}
 }
 
+func TestHandlerReportFreeBusyQueryRejectsTruncatingLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	second := store.objects[0]
+	second.ID = "object-2"
+	second.ObjectName = "event-2.ics"
+	second.UID = "event-2@example.com"
+	second.ETag = `"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`
+	store.objects = append(store.objects, second)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+</C:free-busy-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "free-busy-query limit would truncate results") {
+		t.Fatalf("truncating free-busy response lacks context: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportFreeBusyQueryRejectsObjectTarget(t *testing.T) {
 	t.Parallel()
 
