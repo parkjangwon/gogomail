@@ -283,6 +283,84 @@ func TestDriveSharedDownloadHandlerSupportsByteRange(t *testing.T) {
 	}
 }
 
+func TestDriveSharedDownloadHandlerRejectsUnsatisfiableByteRange(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("u", 40)
+	service := &fakeDriveService{metadata: drive.FileMetadata{
+		ShareLink: drive.ShareLink{ID: "link-1", NodeID: "node-1", Permission: drive.ShareLinkPermissionDownload},
+		Node:      drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, Status: drive.NodeStatusActive},
+		Object:    storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+	}}
+	auditor := &fakeDrivePublicShareAudit{}
+	mux := http.NewServeMux()
+	RegisterDriveRoutesWithOptions(mux, service, nil, DriveRouteOptions{PublicShareAudit: auditor})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token+"/download", nil)
+	req.Header.Set("Range", "bytes=9-10")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestedRangeNotSatisfiable {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Range"); got != "bytes */7" {
+		t.Fatalf("Content-Range = %q", got)
+	}
+	if service.statSharedReq.Token != token {
+		t.Fatalf("stat shared request = %+v, want token", service.statSharedReq)
+	}
+	if service.openSharedRangeReq.Token != "" || service.openSharedReq.Token != "" {
+		t.Fatalf("shared open should not run for unsatisfiable range: range=%+v full=%+v", service.openSharedRangeReq, service.openSharedReq)
+	}
+	if len(auditor.events) != 1 || auditor.events[0].Result != "invalid_range" || auditor.events[0].Status != http.StatusRequestedRangeNotSatisfiable || auditor.events[0].Range != "bytes=9-10" {
+		t.Fatalf("audit events = %+v, want invalid_range 416 with range", auditor.events)
+	}
+}
+
+func TestDriveSharedDownloadHandlerRejectsMalformedByteRange(t *testing.T) {
+	t.Parallel()
+
+	for _, rangeHeader := range []string{
+		"items=0-1",
+		"bytes=1-2,3-4",
+		"bytes=+1-2",
+		"bytes=7-6",
+	} {
+		rangeHeader := rangeHeader
+		t.Run(rangeHeader, func(t *testing.T) {
+			t.Parallel()
+
+			token := strings.Repeat("m", 40)
+			service := &fakeDriveService{metadata: drive.FileMetadata{
+				ShareLink: drive.ShareLink{ID: "link-1", NodeID: "node-1", Permission: drive.ShareLinkPermissionDownload},
+				Node:      drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, Status: drive.NodeStatusActive},
+				Object:    storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+			}}
+			mux := http.NewServeMux()
+			RegisterDriveRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token+"/download", nil)
+			req.Header.Set("Range", rangeHeader)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusRequestedRangeNotSatisfiable {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("Content-Range"); got != "bytes */7" {
+				t.Fatalf("Content-Range = %q", got)
+			}
+			if service.statSharedReq.Token != token {
+				t.Fatalf("stat shared request = %+v, want token", service.statSharedReq)
+			}
+			if service.openSharedRangeReq.Token != "" || service.openSharedReq.Token != "" {
+				t.Fatalf("shared open should not run for malformed range %q: range=%+v full=%+v", rangeHeader, service.openSharedRangeReq, service.openSharedReq)
+			}
+		})
+	}
+}
+
 func TestDriveSharedDownloadHeadHandlerReturnsPortableHeaders(t *testing.T) {
 	t.Parallel()
 
