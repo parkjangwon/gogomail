@@ -105,6 +105,15 @@ func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsNFSStorageBackend(t *testing.T) {
+	cfg := Load()
+	cfg.StorageBackend = " nfs "
+	cfg.MailstoreRoot = t.TempDir()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateAcceptsStorageBackendCompatLabels(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "s3"
@@ -113,7 +122,7 @@ func TestValidateAcceptsStorageBackendCompatLabels(t *testing.T) {
 	cfg.StorageS3Bucket = "gogomail"
 	cfg.StorageS3AccessKeyID = "access"
 	cfg.StorageS3SecretAccessKey = "secret"
-	cfg.StorageBackendCompatLabels = []string{" local ", "MINIO"}
+	cfg.StorageBackendCompatLabels = []string{" local ", "NFS", "MINIO"}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}

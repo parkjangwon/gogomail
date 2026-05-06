@@ -5474,7 +5474,7 @@ components:
         storage_backend:
           type: string
           maxLength: 64
-          description: Storage backend for the staged object, such as local, minio, or s3.
+          description: Storage backend for the staged object, such as local, nfs, minio, or s3.
         storage_path:
           type: string
           maxLength: 1024
@@ -6226,7 +6226,7 @@ components:
           type: string
         configured_backend:
           type: string
-          enum: [local, s3, minio]
+          enum: [local, nfs, s3, minio]
         backend_class:
           type: string
           enum: [local, s3_compatible]
@@ -6234,7 +6234,7 @@ components:
           type: array
           items:
             type: string
-            enum: [local, s3, minio]
+            enum: [local, nfs, s3, minio]
         operations:
           type: array
           items:

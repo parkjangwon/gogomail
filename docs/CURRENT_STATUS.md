@@ -34,7 +34,11 @@ plus `BYE` framing-error path as oversized ordinary command lines, giving
 clients a deterministic close reason instead of a silent connection drop.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
-deployments. Production `s3` runtime configuration now requires an explicit
+deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
+the local filesystem adapter and registers bidirectional `local`/`nfs`
+compatibility labels for Drive rows, so operators can make NFS-backed mounts
+visible in config without changing object-key semantics. Production `s3`
+runtime configuration now requires an explicit
 `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, so release
 configs show the object-storage target directly while development/test configs
 can still use region-based endpoint derivation.

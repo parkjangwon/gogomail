@@ -306,7 +306,7 @@ available mail/admin/Drive modules, common list and
 cleanup/retention limits, tenant/domain/user control availability, operational
 triage surfaces, API usage/export support, IMAP UID backfill support, and
 admin auth/no-store behavior. It also includes a `storage` capability profile
-with the normalized configured backend (`local`, `s3`, or `minio`), active
+with the normalized configured backend (`local`, `nfs`, `s3`, or `minio`), active
 backend labels including explicit compatibility labels, backend class,
 supported object primitives, S3-compatible path-style status, sanitized
 endpoint origin/bucket/prefix/region when applicable, readiness-probe support,
@@ -433,8 +433,9 @@ backend to remove the object. Mail API maps quota exhaustion to HTTP 507
 mailbox-full responses.
 Object storage is API-contract neutral: local filesystem/NFS-style storage and
 S3-compatible storage expose the same stored object keys to Mail and Admin APIs.
-Deployments can switch to `GOGOMAIL_STORAGE_BACKEND=s3` for AWS S3-compatible
-storage or `GOGOMAIL_STORAGE_BACKEND=minio` for path-style local MinIO, using
+Deployments can switch to `GOGOMAIL_STORAGE_BACKEND=nfs` for an explicitly
+NFS-backed local mount, `GOGOMAIL_STORAGE_BACKEND=s3` for AWS S3-compatible
+storage, or `GOGOMAIL_STORAGE_BACKEND=minio` for path-style local MinIO, using
 endpoint, region, bucket, prefix, credential, and session-token settings without
 changing HTTP response envelopes. The shared storage contract also supports
 bodyless object `Stat` across local/NFS and S3-compatible backends so future

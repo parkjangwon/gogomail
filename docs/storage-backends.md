@@ -84,6 +84,19 @@ GOGOMAIL_STORAGE_BACKEND=local
 GOGOMAIL_STORAGE_ROOT=./data/storage
 ```
 
+Operators who want configuration to state that the local filesystem root is an
+NFS-backed mount can use the explicit alias:
+
+```sh
+GOGOMAIL_STORAGE_BACKEND=nfs
+GOGOMAIL_STORAGE_ROOT=/mnt/gogomail-storage
+```
+
+`nfs` uses the same local filesystem adapter and object-key contract as
+`local`. Runtime storage wiring registers `local` and `nfs` as bidirectional
+compatibility labels when either backend is active, so rows recorded under one
+label can still be served after a config-only local/NFS alias flip.
+
 Use local storage for development, single-node installs, or deployments where
 the mount itself provides durability and availability.
 `GOGOMAIL_STORAGE_ROOT` is the storage-focused alias for
