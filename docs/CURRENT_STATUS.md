@@ -197,7 +197,9 @@ members while preserving active-only owner/delegate principal checks, group
 filtering, role hierarchy, depth caps, and cycle guards. The first
 `internal/accesspolicy` adapter wraps effective delegation as an explicit
 allow/deny decision boundary so CalDAV, CardDAV, Drive, mailbox sharing, and
-admin APIs do not need to branch directly on Directory rows.
+admin APIs do not need to branch directly on Directory rows. It also provides
+an RFC 4918-shaped WebDAV privilege mapper for delegated read/write/manage
+decisions before those privileges are exposed by protocol modules.
 
 ## Completed or materially advanced
 
@@ -2536,7 +2538,10 @@ The platform hardening sprint completed the following:
   that normalizes principal/scope/role inputs, forces active principal checks,
   and returns explicit allow/deny decisions. It is deliberately product-neutral
   so future protocol modules can integrate Directory access through policy and
-  audit adapters instead of embedding row-level sharing logic.
+  audit adapters instead of embedding row-level sharing logic. It also maps
+  allowed delegation decisions to WebDAV privilege names (`read`,
+  `write-content`, `write-properties`, `bind`, and `unbind`) so CalDAV/CardDAV
+  privilege exposure can reuse one audited role mapping.
 - CardDAV groundwork has started with ADR 0012 and `internal/carddavgw`, which
   owns RFC/WebDAV/CardDAV standards names, DAV capability tokens, canonical
   principal/address-book/contact-object paths, `.vcf` resource validation, and

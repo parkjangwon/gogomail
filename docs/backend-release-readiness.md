@@ -392,7 +392,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows
-  directly.
+  directly. Its initial WebDAV privilege mapper covers delegated
+  read/write/manage decisions without making those delegated privileges public
+  yet.
 - CardDAV is pre-public and backend-only. ADR 0012 and `internal/carddavgw`
   currently cover standards constants, DAV tokens, canonical principal,
   address-book home, address-book collection, and `.vcf` object path/href

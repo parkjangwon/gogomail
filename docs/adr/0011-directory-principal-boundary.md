@@ -62,7 +62,8 @@ booking policy, and scheduling semantics are implemented explicitly.
   by branching directly on Directory rows. The initial `internal/accesspolicy`
   adapter turns effective delegation into a normalized allow/deny decision so
   protocol-specific WebDAV privilege mapping and audit logging can be attached
-  at product boundaries.
+  at product boundaries. Its WebDAV privilege mapper is intentionally shared so
+  CalDAV and CardDAV do not grow incompatible role-to-privilege tables.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.

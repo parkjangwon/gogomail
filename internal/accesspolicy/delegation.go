@@ -13,6 +13,14 @@ const (
 	DecisionReasonDelegationDenied  = "delegation_denied"
 )
 
+const (
+	WebDAVPrivilegeRead            = "read"
+	WebDAVPrivilegeBind            = "bind"
+	WebDAVPrivilegeUnbind          = "unbind"
+	WebDAVPrivilegeWriteContent    = "write-content"
+	WebDAVPrivilegeWriteProperties = "write-properties"
+)
+
 type PrincipalRef struct {
 	Kind string
 	ID   string
@@ -78,4 +86,30 @@ func (e DelegationEvaluator) CheckDelegatedAccess(ctx context.Context, req Deleg
 
 func Principal(kind string, id string) PrincipalRef {
 	return PrincipalRef{Kind: strings.TrimSpace(kind), ID: strings.TrimSpace(id)}
+}
+
+func WebDAVPrivilegesForDecision(decision Decision) []string {
+	if !decision.Allowed {
+		return nil
+	}
+	switch decision.RequiredRole {
+	case directory.DelegationRoleRead:
+		return []string{WebDAVPrivilegeRead}
+	case directory.DelegationRoleWrite:
+		return []string{
+			WebDAVPrivilegeRead,
+			WebDAVPrivilegeWriteContent,
+			WebDAVPrivilegeWriteProperties,
+		}
+	case directory.DelegationRoleManage:
+		return []string{
+			WebDAVPrivilegeRead,
+			WebDAVPrivilegeBind,
+			WebDAVPrivilegeUnbind,
+			WebDAVPrivilegeWriteContent,
+			WebDAVPrivilegeWriteProperties,
+		}
+	default:
+		return nil
+	}
 }
