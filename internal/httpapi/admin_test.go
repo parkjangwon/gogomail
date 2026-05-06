@@ -898,6 +898,70 @@ func TestAdminCreateDirectoryAliasHandlerRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestAdminDeleteDirectoryAliasHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryAlias: directory.Alias{
+			ID:         "alias-1",
+			CompanyID:  "company-1",
+			DomainID:   "domain-1",
+			Address:    "ops@example.com",
+			AddressACE: "ops@example.com",
+			TargetKind: directory.PrincipalKindGroup,
+			TargetID:   "group-1",
+			Status:     "deleted",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/directory/aliases/%20alias-1%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Alias directory.Alias `json:"directory_alias"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Alias.ID != "alias-1" || response.Alias.Status != "deleted" {
+		t.Fatalf("directory_alias = %+v", response.Alias)
+	}
+	if service.lastDirectoryAliasDeleteID != "alias-1" {
+		t.Fatalf("lastDirectoryAliasDeleteID = %q", service.lastDirectoryAliasDeleteID)
+	}
+}
+
+func TestAdminDeleteDirectoryAliasHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/aliases/alias%0Abad",
+		"/admin/v1/directory/aliases/alias-1?dry_run=true",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodDelete, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryAliasDeleteID != "" {
+			t.Fatalf("%s dispatched delete id %q", path, service.lastDirectoryAliasDeleteID)
+		}
+	}
+}
+
 func TestAdminAuditLogIntegrityHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7143,6 +7207,7 @@ type fakeAdminService struct {
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
 	lastDirectoryPrincipalSearch                directory.SearchPrincipalsRequest
 	lastDirectoryAliasCreate                    directory.CreateAliasRequest
+	lastDirectoryAliasDeleteID                  string
 	lastDirectoryAliasResolve                   directory.ResolveAliasRequest
 	lastDirectoryAliasList                      directory.ListAliasesRequest
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
@@ -7365,6 +7430,14 @@ func (f *fakeAdminService) CreateDirectoryAlias(_ context.Context, req directory
 		return directory.Alias{}, err
 	}
 	f.lastDirectoryAliasCreate = req
+	return f.directoryAlias, nil
+}
+
+func (f *fakeAdminService) DeleteDirectoryAlias(_ context.Context, id string) (directory.Alias, error) {
+	if _, err := directory.NormalizePrincipalID(id); err != nil {
+		return directory.Alias{}, err
+	}
+	f.lastDirectoryAliasDeleteID = id
 	return f.directoryAlias, nil
 }
 

@@ -71,7 +71,9 @@ booking policy, and scheduling semantics are implemented explicitly.
   errors instead of leaking database-driver details. Admin-facing alias
   creation must use the audited variant so the alias row and
   `directory_alias.create` audit row commit atomically; product modules still
-  should not grow separate alias mutation semantics.
+  should not grow separate alias mutation semantics. Alias deletion follows the
+  same model: soft-delete the Directory-owned row and commit
+  `directory_alias.delete` in the same transaction.
 - Direct group-membership checks are now shared and auditable before recursive
   membership expansion or policy decisions are introduced.
 - Effective membership expansion is bounded by depth and guarded against cycles

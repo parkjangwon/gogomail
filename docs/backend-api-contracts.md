@@ -787,6 +787,11 @@ Admin operational read models also keep explicit envelope keys:
   an active same-company target principal, maps active-address uniqueness races
   to a predictable duplicate-alias error, and records `directory_alias.create`
   in the same transaction as the alias insert.
+- `DELETE /admin/v1/directory/aliases/{id}` returns
+  `{"directory_alias":{...}}` after soft-deleting an active Directory alias.
+  The path id uses the same bounded admin identifier validation, and the
+  backend records `directory_alias.delete` in the same transaction as the alias
+  status change.
 - `GET /admin/v1/directory/delegations` returns
   `{"directory_delegations":[...]}` for admin diagnostics over Directory-owned
   delegation relationships. It supports bounded `limit`, required `company_id`,

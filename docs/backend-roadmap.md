@@ -2742,6 +2742,11 @@ Implementation order:
        boundary so the alias insert and `directory_alias.create` audit row
        commit together; shared-inbox UX and non-admin product flows remain
        future work.
+1175i. The admin backend API now exposes audited Directory alias deletion at
+       `DELETE /admin/v1/directory/aliases/{id}`, soft-deleting active aliases
+       and committing the `directory_alias.delete` audit row in the same
+       transaction so operators can safely reclaim alias addresses without
+       product-local mutation semantics.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

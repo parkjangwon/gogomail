@@ -300,6 +300,10 @@ Admin alias creation is now exposed through
 `POST /admin/v1/directory/aliases`, returning `{"directory_alias":{...}}` after
 the audited Directory mutation boundary succeeds. This is still a platform
 admin operation, not a public shared-inbox UX.
+Admin alias deletion is exposed through
+`DELETE /admin/v1/directory/aliases/{id}`, soft-deleting an active alias through
+the same transaction-audited Directory boundary and recording
+`directory_alias.delete`.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.

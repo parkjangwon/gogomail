@@ -415,6 +415,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /directory/aliases/resolve":                             "#/components/responses/DirectoryAlias",
 		"GET /directory/aliases":                                     "#/components/responses/DirectoryAliasList",
 		"POST /directory/aliases":                                    "#/components/responses/DirectoryAlias",
+		"DELETE /directory/aliases/{id}":                             "#/components/responses/DirectoryAlias",
 		"GET /directory/delegations":                                 "#/components/responses/DirectoryDelegationList",
 		"GET /backpressure":                                          "#/components/responses/Backpressure",
 		"PATCH /backpressure":                                        "#/components/responses/Backpressure",

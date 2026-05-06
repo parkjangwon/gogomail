@@ -347,6 +347,28 @@ func TestAdminServiceCreateDirectoryAliasUsesAuditedDirectoryBoundary(t *testing
 	}
 }
 
+func TestAdminServiceDeleteDirectoryAliasUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		alias: directory.Alias{ID: "alias-1", Status: "deleted"},
+	}
+	service := adminService{directory: directoryStore}
+	alias, err := service.DeleteDirectoryAlias(t.Context(), " alias-1 ")
+	if err != nil {
+		t.Fatalf("DeleteDirectoryAlias returned error: %v", err)
+	}
+	if alias.ID != "alias-1" || alias.Status != "deleted" {
+		t.Fatalf("alias = %+v", alias)
+	}
+	if directoryStore.lastAliasDeleteID != " alias-1 " {
+		t.Fatalf("lastAliasDeleteID = %q", directoryStore.lastAliasDeleteID)
+	}
+	if directoryStore.deleteAliasWithAuditCalls != 1 {
+		t.Fatalf("deleteAliasWithAuditCalls = %d, want 1", directoryStore.deleteAliasWithAuditCalls)
+	}
+}
+
 func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -636,9 +658,11 @@ type fakeAdminDirectory struct {
 	lastReq                   directory.ListDelegationsRequest
 	lastAliasReq              directory.ResolveAliasRequest
 	lastAliasCreateReq        directory.CreateAliasRequest
+	lastAliasDeleteID         string
 	lastAliasListReq          directory.ListAliasesRequest
 	lastSearchReq             directory.SearchPrincipalsRequest
 	createAliasWithAuditCalls int
+	deleteAliasWithAuditCalls int
 }
 
 func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
@@ -664,6 +688,12 @@ func (f *fakeAdminDirectory) ListAliases(_ context.Context, req directory.ListAl
 func (f *fakeAdminDirectory) CreateAliasWithAudit(_ context.Context, req directory.CreateAliasRequest) (directory.Alias, error) {
 	f.createAliasWithAuditCalls++
 	f.lastAliasCreateReq = req
+	return f.alias, nil
+}
+
+func (f *fakeAdminDirectory) DeleteAliasWithAudit(_ context.Context, id string) (directory.Alias, error) {
+	f.deleteAliasWithAuditCalls++
+	f.lastAliasDeleteID = id
 	return f.alias, nil
 }
 

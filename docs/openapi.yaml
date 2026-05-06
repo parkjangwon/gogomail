@@ -1641,6 +1641,22 @@ paths:
           $ref: "#/components/responses/DirectoryAlias"
         default:
           $ref: "#/components/responses/Error"
+  /directory/aliases/{id}:
+    delete:
+      operationId: deleteAdminDirectoryAlias
+      summary: Delete an audited Directory alias
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryAlias"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/delegations:
     get:
       operationId: listAdminDirectoryDelegations
