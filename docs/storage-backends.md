@@ -252,6 +252,10 @@ S3-compatible `Move` is intentionally documented as a copy-then-delete
 operation because S3 has no native atomic object rename. Callers that need
 user-visible Drive/file moves should treat failures after copy as recoverable
 duplicate-object cleanup work instead of assuming a single atomic transaction.
+When copy succeeds but source deletion fails, the adapter returns a structured
+cleanup error that includes the source and destination object paths so callers
+can retry deletion or schedule reconciliation without losing the successfully
+copied destination identity.
 S3-compatible `List` uses signed `ListObjectsV2` requests with validated
 prefixes, bounded `max-keys`, opaque continuation tokens, and an exact `200 OK`
 status requirement. Successful list responses must decode as bounded

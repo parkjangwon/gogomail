@@ -3066,6 +3066,10 @@ Implementation order:
       object responses, not only PROPFIND, and treats missing Directory
       principals as fail-closed authorization denial instead of a distinct
       server-error path.
+1235. S3-compatible storage `Move` now returns a structured cleanup error when
+      server-side copy succeeds but source deletion fails, carrying source and
+      destination paths so callers can distinguish recoverable duplicate-object
+      cleanup from pre-copy move failures across AWS S3 and compatible stores.
 
 ## Deferred until backend contracts stabilize
 

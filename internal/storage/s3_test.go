@@ -311,6 +311,75 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 }
 
+func TestS3StoreMoveReportsCopiedObjectWhenSourceDeleteFails(t *testing.T) {
+	t.Parallel()
+
+	var requests []string
+	deleteBody := &trackingReadCloser{reader: strings.NewReader("delete denied")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.Method+" "+req.URL.EscapedPath())
+			switch {
+			case req.Method == http.MethodPut && req.Header.Get("x-amz-copy-source") == "/gogomail/mail/messages/source.eml":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(`<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>`)),
+					Request:    req,
+				}, nil
+			case req.Method == http.MethodDelete:
+				return &http.Response{
+					StatusCode: http.StatusForbidden,
+					Body:       deleteBody,
+					Request:    req,
+				}, nil
+			default:
+				return &http.Response{
+					StatusCode: http.StatusBadRequest,
+					Body:       io.NopCloser(strings.NewReader("unexpected request")),
+					Request:    req,
+				}, nil
+			}
+		})},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	err = store.Move(context.Background(), "messages/source.eml", "messages/dest.eml")
+	var cleanupErr S3MoveCleanupError
+	if !errors.As(err, &cleanupErr) {
+		t.Fatalf("Move err = %v, want S3MoveCleanupError", err)
+	}
+	if cleanupErr.SourcePath != "messages/source.eml" || cleanupErr.DestPath != "messages/dest.eml" {
+		t.Fatalf("cleanup error = %+v", cleanupErr)
+	}
+	if !strings.Contains(err.Error(), "copied") || !strings.Contains(err.Error(), "failed to delete source") || !strings.Contains(err.Error(), "messages/source.eml") || !strings.Contains(err.Error(), "messages/dest.eml") {
+		t.Fatalf("cleanup error message = %q", err)
+	}
+	if !deleteBody.closed {
+		t.Fatal("failed delete response body was not closed")
+	}
+	wantRequests := []string{
+		"PUT /gogomail/mail/messages/dest.eml",
+		"DELETE /gogomail/mail/messages/source.eml",
+	}
+	if len(requests) != len(wantRequests) {
+		t.Fatalf("requests = %+v, want %+v", requests, wantRequests)
+	}
+	for i := range wantRequests {
+		if requests[i] != wantRequests[i] {
+			t.Fatalf("request[%d] = %q, want %q", i, requests[i], wantRequests[i])
+		}
+	}
+}
+
 func TestS3StoreReadersHonorCanceledContext(t *testing.T) {
 	t.Parallel()
 
@@ -1134,6 +1203,12 @@ func (rt staticRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	resp := *rt.resp
 	resp.Request = req
 	return &resp, nil
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {

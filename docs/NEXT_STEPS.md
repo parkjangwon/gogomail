@@ -376,8 +376,9 @@ Current state:
 - Local/NFS and S3-compatible storage expose a shared object `Move` contract
   for future Drive/file relocation workflows. Local/NFS uses efficient
   filesystem rename semantics; S3-compatible storage uses signed server-side
-  copy followed by source delete, so callers should treat post-copy failures as
-  duplicate-cleanup work instead of relying on atomic rename semantics.
+  copy followed by source delete. Post-copy source delete failures now return a
+  structured cleanup error with source and destination paths, so callers can
+  safely distinguish recoverable duplicate cleanup from pre-copy move failure.
 - S3-compatible `Copy` now requires exact `200 OK` responses with bounded
   `CopyObjectResult` bodies and rejects empty bodies, unexpected XML, and
   embedded `<Error>` XML inside `200 OK` responses, keeping AWS S3/compatible
