@@ -88,6 +88,9 @@ Current state:
 - API usage export artifact list/create/detail/write/download/verification
   OpenAPI operations now also pin `/admin/v1` and admin-token/bearer auth
   alternatives, matching their sensitive runtime `adminAuth` route boundary.
+- API usage export manifest digest/signature OpenAPI operations now also pin
+  `/admin/v1` and admin-token/bearer auth alternatives, matching their
+  operator-only audit/export proof route boundary.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to
