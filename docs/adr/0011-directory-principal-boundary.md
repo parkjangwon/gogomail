@@ -32,6 +32,10 @@ CalDAV discovery must use this shared resolver for active principal lookup
 instead of owning a private user/domain/company query. CalDAV remains
 responsible for DAV/CalDAV paths, hrefs, XML properties, ETags, sync tokens, and
 standards-shaped method semantics.
+The current CalDAV discovery gateway may convert only Directory user principals
+into CalDAV principals. Organization, group, and resource principals stay in the
+Directory/Identity layer until delegated calendars, shared ownership, resource
+booking policy, and scheduling semantics are implemented explicitly.
 
 ## Consequences
 

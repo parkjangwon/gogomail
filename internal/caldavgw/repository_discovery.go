@@ -25,6 +25,17 @@ func (r *Repository) LookupPrincipal(ctx context.Context, userID string) (Princi
 	if err != nil {
 		return Principal{}, fmt.Errorf("lookup CalDAV principal: %w", err)
 	}
+	principal, err := calDAVPrincipalFromDirectory(resolved)
+	if err != nil {
+		return Principal{}, err
+	}
+	return principal, nil
+}
+
+func calDAVPrincipalFromDirectory(resolved directory.Principal) (Principal, error) {
+	if resolved.Kind != directory.PrincipalKindUser {
+		return Principal{}, fmt.Errorf("caldav principal kind %q is not supported", resolved.Kind)
+	}
 	principal := Principal{UserID: resolved.ID, DisplayName: resolved.DisplayName}
 	principalPath, err := PrincipalPath(principal.UserID)
 	if err != nil {

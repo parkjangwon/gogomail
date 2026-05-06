@@ -1518,6 +1518,10 @@ Current state:
 - CalDAV `PROPFIND /caldav/principals/` now resolves the advertised principal
   collection path, returning collection metadata at `Depth: 0` and the
   authenticated principal as a `Depth: 1` child without exposing other users.
+- CalDAV discovery converts shared Directory principals into CalDAV principals
+  only when the Directory kind is `user`; organization, group, and resource
+  principals stay gated behind future delegation/resource-booking semantics
+  instead of being modeled as personal calendar homes.
 - CalDAV calendar-home `PROPFIND` now reports WebDAV `current-user-principal`
   and `owner` as the canonical principal URL, preserving a clean boundary for
   future delegated/shared calendar access instead of treating the home
