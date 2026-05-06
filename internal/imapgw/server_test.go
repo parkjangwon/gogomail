@@ -7894,7 +7894,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SORT (SUBJECT) UTF-8 ALL\r\na4 SORT (REVERSE DATE) UTF-8 ALL\r\na5 UID SORT (SIZE) US-ASCII ALL\r\na6 SORT (SUBJECT) UTF-8 SUBJECT Archive\r\na7 SORT (ARRIVAL) ISO-8859-1 ALL\r\na8 SORT (BOGUS) UTF-8 ALL\r\na9 SORT (SUBJECT) UTF-8\" ALL\r\na10 SORT (SUBJECT) UTF-8 +1\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SORT (SUBJECT) UTF-8 ALL\r\na4 SORT (REVERSE DATE) UTF-8 ALL\r\na5 UID SORT (SIZE) US-ASCII ALL\r\na6 SORT (SUBJECT) UTF-8 SUBJECT Archive\r\na7 SORT (ARRIVAL) ISO-8859-1 ALL\r\na8 SORT (BOGUS) UTF-8 ALL\r\na9 SORT (SUBJECT) UTF-8\" ALL\r\na10 SORT (SUBJECT) UTF-8 +1\r\na11 SORT (reverse subject) UTF-8 ALL\r\n")); err != nil {
 		t.Fatalf("write sort: %v", err)
 	}
 	want := []string{
@@ -7910,6 +7910,8 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 		"a8 BAD SORT arguments are unsupported\r\n",
 		"a9 BAD malformed command\r\n",
 		"a10 BAD SORT criteria are unsupported\r\n",
+		"* SORT 1 2\r\n",
+		"a11 OK SORT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -7920,7 +7922,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 			t.Fatalf("sort response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a11 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a12 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

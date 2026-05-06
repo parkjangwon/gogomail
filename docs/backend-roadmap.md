@@ -4081,6 +4081,10 @@ Implementation order:
       the common IMAP atom validator for RFC `flag-keyword` arguments,
       rejecting system flags such as `\Seen` and response-special atoms such
       as `bad]flag` before search evaluation.
+1456. IMAP `SORT`/`UID SORT` criterion parsing now treats standard sort keys
+      and `REVERSE` case-insensitively, so clients can send forms such as
+      `SORT (reverse subject) UTF-8 ALL` while the strict parenthesized
+      atom-list shape remains enforced.
 
 ## Deferred until backend contracts stabilize
 

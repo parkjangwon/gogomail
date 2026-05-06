@@ -2506,7 +2506,9 @@ The platform hardening sprint completed the following:
   the existing selected-mailbox search criteria, require `US-ASCII` or `UTF-8`
   charset arguments, and return sequence-number or UID `SORT` responses over
   RFC 5256 sort keys including base-subject, sent-date, arrival-date, address,
-  and size ordering.
+  and size ordering. Sort criterion atoms and `REVERSE` are interpreted
+  case-insensitively while the strict parenthesized atom-list grammar remains
+  enforced.
 - IMAP `CAPABILITY` advertises RFC 5256 `THREAD=ORDEREDSUBJECT`; `THREAD
   ORDEREDSUBJECT` and `UID THREAD ORDEREDSUBJECT` reuse the selected-mailbox
   search evaluator, enforce mandatory `US-ASCII`/`UTF-8` charset handling, and
