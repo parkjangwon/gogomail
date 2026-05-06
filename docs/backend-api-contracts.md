@@ -834,6 +834,13 @@ Admin operational read models also keep explicit envelope keys:
   Directory group membership. The path id uses bounded admin identifier
   validation, and the backend records `directory_group_membership.delete` in
   the same transaction as the membership status change.
+- `PATCH /admin/v1/directory/group-memberships/{id}/role` accepts
+  `{role}` with `role=member|manager|owner` and returns
+  `{"directory_group_membership":{...}}` after updating an active Directory
+  group membership role. The path id and JSON body are bounded before service
+  dispatch, and the backend records
+  `directory_group_membership.role_update` in the same transaction as the role
+  change.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

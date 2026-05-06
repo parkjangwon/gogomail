@@ -136,6 +136,11 @@ type CreateGroupMembershipRequest struct {
 	Role       string `json:"role"`
 }
 
+type UpdateGroupMembershipRoleRequest struct {
+	ID   string `json:"-"`
+	Role string `json:"role"`
+}
+
 type ListGroupMembershipsRequest struct {
 	CompanyID  string
 	GroupID    string
@@ -676,6 +681,20 @@ func NormalizeListGroupMembershipsRequest(req ListGroupMembershipsRequest) (List
 	if req.Limit > MaxGroupMembershipListLimit {
 		return ListGroupMembershipsRequest{}, fmt.Errorf("group membership list limit is too large")
 	}
+	return req, nil
+}
+
+func NormalizeUpdateGroupMembershipRoleRequest(req UpdateGroupMembershipRoleRequest) (UpdateGroupMembershipRoleRequest, error) {
+	id, err := NormalizePrincipalID(req.ID)
+	if err != nil {
+		return UpdateGroupMembershipRoleRequest{}, fmt.Errorf("membership id: %w", err)
+	}
+	role, err := NormalizeGroupMembershipRole(req.Role)
+	if err != nil {
+		return UpdateGroupMembershipRoleRequest{}, err
+	}
+	req.ID = id
+	req.Role = role
 	return req, nil
 }
 

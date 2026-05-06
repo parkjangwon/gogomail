@@ -375,6 +375,32 @@ func TestAdminServiceDeleteDirectoryGroupMembershipUsesAuditedDirectoryBoundary(
 	}
 }
 
+func TestAdminServiceUpdateDirectoryGroupMembershipRoleUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		membership: directory.GroupMembership{ID: "membership-1", Role: directory.GroupMembershipRoleOwner, Status: "active"},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.UpdateGroupMembershipRoleRequest{
+		ID:   " membership-1 ",
+		Role: directory.GroupMembershipRoleOwner,
+	}
+	membership, err := service.UpdateDirectoryGroupMembershipRole(t.Context(), req)
+	if err != nil {
+		t.Fatalf("UpdateDirectoryGroupMembershipRole returned error: %v", err)
+	}
+	if membership.ID != "membership-1" || membership.Role != directory.GroupMembershipRoleOwner {
+		t.Fatalf("membership = %+v", membership)
+	}
+	if directoryStore.lastMembershipRoleUpdateReq != req {
+		t.Fatalf("lastMembershipRoleUpdateReq = %+v, want %+v", directoryStore.lastMembershipRoleUpdateReq, req)
+	}
+	if directoryStore.updateMembershipRoleWithAuditCalls != 1 {
+		t.Fatalf("updateMembershipRoleWithAuditCalls = %d, want 1", directoryStore.updateMembershipRoleWithAuditCalls)
+	}
+}
+
 func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -782,30 +808,32 @@ type fakeAdminDrive struct {
 }
 
 type fakeAdminDirectory struct {
-	delegations                    []directory.Delegation
-	delegation                     directory.Delegation
-	memberships                    []directory.GroupMembership
-	membership                     directory.GroupMembership
-	alias                          directory.Alias
-	aliases                        []directory.Alias
-	principals                     []directory.Principal
-	lastReq                        directory.ListDelegationsRequest
-	lastDelegationCreateReq        directory.CreateDelegationRequest
-	lastDelegationDeleteID         string
-	lastMembershipCreateReq        directory.CreateGroupMembershipRequest
-	lastMembershipListReq          directory.ListGroupMembershipsRequest
-	lastMembershipDeleteID         string
-	lastAliasReq                   directory.ResolveAliasRequest
-	lastAliasCreateReq             directory.CreateAliasRequest
-	lastAliasDeleteID              string
-	lastAliasListReq               directory.ListAliasesRequest
-	lastSearchReq                  directory.SearchPrincipalsRequest
-	createAliasWithAuditCalls      int
-	createDelegationWithAuditCalls int
-	createMembershipWithAuditCalls int
-	deleteDelegationWithAuditCalls int
-	deleteMembershipWithAuditCalls int
-	deleteAliasWithAuditCalls      int
+	delegations                        []directory.Delegation
+	delegation                         directory.Delegation
+	memberships                        []directory.GroupMembership
+	membership                         directory.GroupMembership
+	alias                              directory.Alias
+	aliases                            []directory.Alias
+	principals                         []directory.Principal
+	lastReq                            directory.ListDelegationsRequest
+	lastDelegationCreateReq            directory.CreateDelegationRequest
+	lastDelegationDeleteID             string
+	lastMembershipCreateReq            directory.CreateGroupMembershipRequest
+	lastMembershipListReq              directory.ListGroupMembershipsRequest
+	lastMembershipDeleteID             string
+	lastMembershipRoleUpdateReq        directory.UpdateGroupMembershipRoleRequest
+	lastAliasReq                       directory.ResolveAliasRequest
+	lastAliasCreateReq                 directory.CreateAliasRequest
+	lastAliasDeleteID                  string
+	lastAliasListReq                   directory.ListAliasesRequest
+	lastSearchReq                      directory.SearchPrincipalsRequest
+	createAliasWithAuditCalls          int
+	createDelegationWithAuditCalls     int
+	createMembershipWithAuditCalls     int
+	deleteDelegationWithAuditCalls     int
+	deleteMembershipWithAuditCalls     int
+	deleteAliasWithAuditCalls          int
+	updateMembershipRoleWithAuditCalls int
 }
 
 func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
@@ -839,6 +867,12 @@ func (f *fakeAdminDirectory) DeleteDelegationWithAudit(_ context.Context, id str
 func (f *fakeAdminDirectory) DeleteGroupMembershipWithAudit(_ context.Context, id string) (directory.GroupMembership, error) {
 	f.deleteMembershipWithAuditCalls++
 	f.lastMembershipDeleteID = id
+	return f.membership, nil
+}
+
+func (f *fakeAdminDirectory) UpdateGroupMembershipRoleWithAudit(_ context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error) {
+	f.updateMembershipRoleWithAuditCalls++
+	f.lastMembershipRoleUpdateReq = req
 	return f.membership, nil
 }
 

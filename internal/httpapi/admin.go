@@ -116,6 +116,7 @@ type AdminService interface {
 	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 	ListDirectoryAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
+	UpdateDirectoryGroupMembershipRole(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetDriveNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
@@ -1145,6 +1146,30 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		membership, err := service.DeleteDirectoryGroupMembership(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_group_membership": membership})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/directory/group-memberships/{id}/role", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		var req directory.UpdateGroupMembershipRoleRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = id
+		membership, err := service.UpdateDirectoryGroupMembershipRole(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

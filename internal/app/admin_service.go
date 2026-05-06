@@ -51,6 +51,7 @@ type adminService struct {
 		ListGroupMemberships(ctx context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error)
 		ResolveAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 		SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
+		UpdateGroupMembershipRoleWithAudit(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error)
 	}
 	drive interface {
 		ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
@@ -351,6 +352,13 @@ func (s adminService) DeleteDirectoryGroupMembership(ctx context.Context, id str
 		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
 	}
 	return s.directory.DeleteGroupMembershipWithAudit(ctx, id)
+}
+
+func (s adminService) UpdateDirectoryGroupMembershipRole(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error) {
+	if s.directory == nil {
+		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.UpdateGroupMembershipRoleWithAudit(ctx, req)
 }
 
 func (s adminService) SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {

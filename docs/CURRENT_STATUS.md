@@ -310,6 +310,10 @@ Audited group membership deletion is exposed through
 membership and recording `directory_group_membership.delete` in the same
 transaction. This gives group-backed delegation and future shared inbox/resource
 access one auditable revoke path instead of product-local membership mutation.
+Audited group membership role updates are exposed through
+`PATCH /admin/v1/directory/group-memberships/{id}/role`, recording
+`directory_group_membership.role_update` with the role change in the same
+transaction.
 Admin APIs also expose bounded Directory principal search through
 `GET /admin/v1/directory/principals`, returning
 `{"directory_principals":[...]}` for company-scoped user, organization, group,

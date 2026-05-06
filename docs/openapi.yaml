@@ -1806,6 +1806,24 @@ paths:
           $ref: "#/components/responses/DirectoryGroupMembership"
         default:
           $ref: "#/components/responses/Error"
+  /directory/group-memberships/{id}/role:
+    patch:
+      operationId: updateAdminDirectoryGroupMembershipRole
+      summary: Update an audited Directory group membership role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryGroupMembershipRoleUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryGroupMembership"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -4536,6 +4554,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryGroupMembershipCreateRequest"
+    DirectoryGroupMembershipRoleUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryGroupMembershipRoleUpdateRequest"
     StatusUpdate:
       required: true
       content:
@@ -6570,6 +6594,13 @@ components:
           type: string
           enum: [member, manager, owner]
           default: member
+    DirectoryGroupMembershipRoleUpdateRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [member, manager, owner]
     DirectoryGroupMembershipEnvelope:
       type: object
       required: [directory_group_membership]

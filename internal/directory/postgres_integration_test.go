@@ -652,6 +652,36 @@ WHERE company_id = $1::uuid
 		t.Fatalf("duplicate CreateGroupMembershipWithAudit error = %v, want ErrGroupMembershipAlreadyExists", err)
 	}
 
+	updated, err := repo.UpdateGroupMembershipRoleWithAudit(ctx, UpdateGroupMembershipRoleRequest{
+		ID:   membership.ID,
+		Role: GroupMembershipRoleOwner,
+	})
+	if err != nil {
+		t.Fatalf("UpdateGroupMembershipRoleWithAudit returned error: %v", err)
+	}
+	if updated.ID != membership.ID ||
+		updated.GroupID != seed.teamID ||
+		updated.CompanyID != seed.companyID ||
+		updated.MemberKind != PrincipalKindUser ||
+		updated.MemberID != seed.aliceID ||
+		updated.Role != GroupMembershipRoleOwner ||
+		updated.Status != "active" {
+		t.Fatalf("updated membership = %+v", updated)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_group_membership.role_update'
+  AND target_type = 'directory_group_membership'
+  AND target_id = $2
+  AND result = 'updated'`, seed.companyID, membership.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory group membership role update audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory group membership role update audit rows = %d, want 1", auditCount)
+	}
+
 	deleted, err := repo.DeleteGroupMembershipWithAudit(ctx, membership.ID)
 	if err != nil {
 		t.Fatalf("DeleteGroupMembershipWithAudit returned error: %v", err)
@@ -661,7 +691,7 @@ WHERE company_id = $1::uuid
 		deleted.CompanyID != seed.companyID ||
 		deleted.MemberKind != PrincipalKindUser ||
 		deleted.MemberID != seed.aliceID ||
-		deleted.Role != GroupMembershipRoleManager ||
+		deleted.Role != GroupMembershipRoleOwner ||
 		deleted.Status != "deleted" {
 		t.Fatalf("deleted membership = %+v", deleted)
 	}
