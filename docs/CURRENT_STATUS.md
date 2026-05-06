@@ -266,7 +266,10 @@ filters that omit the required `name` attribute, use a non-`VCALENDAR`
 top-level component, omit the top-level component filter, or send multiple
 top-level component filters, so native-client search/filter requests fail at
 the protocol grammar boundary instead of being silently widened to
-whole-calendar matches.
+whole-calendar matches. The parser now also rejects `time-range` elements
+placed directly under `filter` and duplicate `time-range` elements within the
+same component filter, avoiding ambiguous range semantics instead of accepting
+the last matching XML element.
 CalDAV object and collection preconditions now evaluate repeated `If-Match`
 and `If-None-Match` headers as a single ETag list, so cache validation and
 write guards match HTTP field-combination semantics instead of depending on the

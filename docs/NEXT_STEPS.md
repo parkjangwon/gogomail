@@ -2064,7 +2064,9 @@ Current state:
   component filter grammar by requiring `comp-filter name` and a top-level
   `VCALENDAR` filter, and by rejecting missing or repeated top-level component
   filters, preventing malformed native-client queries from being treated as
-  broad whole-calendar searches.
+  broad whole-calendar searches. It also rejects `time-range` elements placed
+  directly under `filter` and duplicate `time-range` elements inside the same
+  component filter, keeping range matching semantics explicit.
 - CalDAV `calendar-query` and `free-busy-query` now evaluate bounded VEVENT
   recurrence sets through the RFC 5545 parser, including `RRULE`, `EXDATE`,
   and `RDATE` support from the shared iCalendar library. Dense or unbounded
