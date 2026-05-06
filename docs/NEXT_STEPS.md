@@ -636,6 +636,10 @@ Current state:
 - IMAP UID and message sequence-set syntax now rejects whitespace-padded
   quoted or literal set strings such as `SEARCH " 1 "` or
   `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
+- IMAP UID and message sequence-set range components now also reject embedded
+  whitespace in quoted or literal set strings such as `"1: 2"`, `"1 :2"`, or
+  `"1, 2"` instead of trimming range endpoints or comma-separated members
+  during validation or expansion.
 - IMAP UID and message sequence-set expansion accepts common client-scale
   ranges such as `1:1000` and `1:*` while still enforcing an explicit expansion
   cap, reducing false `BAD` responses during mailbox synchronization.

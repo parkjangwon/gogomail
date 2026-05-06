@@ -703,7 +703,7 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID STORE 7 +FLAGS \\Seen)\r\na7 UID FETCH +7 (FLAGS)\r\na8 UID STORE +7 +FLAGS (\\Seen)\r\na9 UID EXPUNGE +7\r\na10 UID COPY +7 Archive\r\na11 UID MOVE +7 Archive\r\na12 UID EXPUNGE\r\na13 UID COPY 7 &Jjo!\r\na14 UID MOVE 7 &Jjo!\r\na15 UID FETCH 7 (FLAGS)\r\na16 UID FETCH 7 ((FLAGS))\r\na17 UID SEARCH\r\na18 UID SEARCH RETURN (COUNT)\r\na19 UID SEARCH CHARSET UTF-8\r\na20 UID SORT (DATE) UTF-8\r\na21 UID SORT DATE UTF-8 ALL\r\na22 UID THREAD ORDEREDSUBJECT UTF-8\r\na23 UID THREAD REFERENCES UTF-8 ALL\r\na24 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na25 UID SEARCH ALL\r\na26 UID ESEARCH RETURN (COUNT) ALL\r\na27 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID STORE 7 +FLAGS \\Seen)\r\na7 UID FETCH +7 (FLAGS)\r\na8 UID STORE +7 +FLAGS (\\Seen)\r\na9 UID EXPUNGE +7\r\na10 UID COPY +7 Archive\r\na11 UID MOVE +7 Archive\r\na12 UID EXPUNGE\r\na13 UID COPY 7 &Jjo!\r\na14 UID MOVE 7 &Jjo!\r\na15 UID FETCH \"7: 8\" (FLAGS)\r\na16 UID FETCH 7 (FLAGS)\r\na17 UID FETCH 7 ((FLAGS))\r\na18 UID SEARCH\r\na19 UID SEARCH RETURN (COUNT)\r\na20 UID SEARCH CHARSET UTF-8\r\na21 UID SORT (DATE) UTF-8\r\na22 UID SORT DATE UTF-8 ALL\r\na23 UID THREAD ORDEREDSUBJECT UTF-8\r\na24 UID THREAD REFERENCES UTF-8 ALL\r\na25 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na26 UID SEARCH ALL\r\na27 UID ESEARCH RETURN (COUNT) ALL\r\na28 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write uid auth commands: %v", err)
 	}
 	want := []string{
@@ -721,20 +721,21 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 		"a12 BAD UID EXPUNGE requires UID set\r\n",
 		"a13 BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n",
 		"a14 BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n",
-		"a15 NO authentication required\r\n",
-		"a16 BAD FETCH data item list is invalid\r\n",
-		"a17 BAD SEARCH requires criteria\r\n",
+		"a15 BAD UID FETCH requires a positive UID set\r\n",
+		"a16 NO authentication required\r\n",
+		"a17 BAD FETCH data item list is invalid\r\n",
 		"a18 BAD SEARCH requires criteria\r\n",
 		"a19 BAD SEARCH requires criteria\r\n",
-		"a20 BAD SORT requires sort criteria, charset, and search criteria\r\n",
-		"a21 BAD SORT arguments are unsupported\r\n",
-		"a22 BAD THREAD requires algorithm, charset, and search criteria\r\n",
-		"a23 BAD THREAD algorithm is unsupported\r\n",
-		"a24 NO authentication required\r\n",
+		"a20 BAD SEARCH requires criteria\r\n",
+		"a21 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a22 BAD SORT arguments are unsupported\r\n",
+		"a23 BAD THREAD requires algorithm, charset, and search criteria\r\n",
+		"a24 BAD THREAD algorithm is unsupported\r\n",
 		"a25 NO authentication required\r\n",
-		"a26 BAD ESEARCH command requires MULTISEARCH capability\r\n",
+		"a26 NO authentication required\r\n",
+		"a27 BAD ESEARCH command requires MULTISEARCH capability\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a27 OK LOGOUT completed\r\n",
+		"a28 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -816,7 +817,7 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 STORE 1 +FLAGS \\Seen)\r\na5 FETCH +1 (FLAGS)\r\na6 STORE +1 +FLAGS (\\Seen)\r\na7 COPY +1 Archive\r\na8 MOVE +1 Archive\r\na9 COPY 1\r\na10 COPY 1 &Jjo!\r\na11 MOVE 1\r\na12 SEARCH\r\na13 SEARCH RETURN (COUNT COUNT) ALL\r\na14 SEARCH CHARSET UTF-8\r\na15 SORT\r\na16 SORT (DATE) UTF-8\r\na17 THREAD\r\na18 THREAD REFERENCES UTF-8 ALL\r\na19 FETCH 1 ((FLAGS))\r\na20 FETCH 1 (FLAGS)\r\na21 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 STORE 1 +FLAGS \\Seen)\r\na5 FETCH +1 (FLAGS)\r\na6 STORE +1 +FLAGS (\\Seen)\r\na7 COPY +1 Archive\r\na8 MOVE +1 Archive\r\na9 COPY 1\r\na10 COPY 1 &Jjo!\r\na11 MOVE 1\r\na12 FETCH \"1: 2\" (FLAGS)\r\na13 SEARCH\r\na14 SEARCH RETURN (COUNT COUNT) ALL\r\na15 SEARCH CHARSET UTF-8\r\na16 SORT\r\na17 SORT (DATE) UTF-8\r\na18 THREAD\r\na19 THREAD REFERENCES UTF-8 ALL\r\na20 FETCH 1 ((FLAGS))\r\na21 FETCH 1 (FLAGS)\r\na22 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write selected-state commands: %v", err)
 	}
 	want := []string{
@@ -831,17 +832,18 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 		"a9 BAD COPY requires sequence set and destination mailbox\r\n",
 		"a10 BAD COPY destination mailbox name is not valid modified UTF-7\r\n",
 		"a11 BAD MOVE requires sequence set and destination mailbox\r\n",
-		"a12 BAD SEARCH requires criteria\r\n",
-		"a13 BAD SEARCH return options are unsupported\r\n",
-		"a14 BAD SEARCH requires criteria\r\n",
-		"a15 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a12 BAD FETCH requires a valid message sequence set\r\n",
+		"a13 BAD SEARCH requires criteria\r\n",
+		"a14 BAD SEARCH return options are unsupported\r\n",
+		"a15 BAD SEARCH requires criteria\r\n",
 		"a16 BAD SORT requires sort criteria, charset, and search criteria\r\n",
-		"a17 BAD THREAD requires algorithm, charset, and search criteria\r\n",
-		"a18 BAD THREAD algorithm is unsupported\r\n",
-		"a19 BAD FETCH data item list is invalid\r\n",
-		"a20 NO mailbox must be selected\r\n",
+		"a17 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a18 BAD THREAD requires algorithm, charset, and search criteria\r\n",
+		"a19 BAD THREAD algorithm is unsupported\r\n",
+		"a20 BAD FETCH data item list is invalid\r\n",
+		"a21 NO mailbox must be selected\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a21 OK LOGOUT completed\r\n",
+		"a22 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -10292,7 +10294,7 @@ func TestParseIMAPUIDSet(t *testing.T) {
 		}
 	}
 
-	for _, value := range []string{"", "0", "7:*", "7:", "7:bad"} {
+	for _, value := range []string{"", "0", "7:*", "7:", "7:bad", "7: 8", "7 :8", "7, 8"} {
 		if got, ok := parseIMAPUIDSet(value); ok {
 			t.Fatalf("parseIMAPUIDSet(%q) = %v true, want rejection", value, got)
 		}
@@ -10351,9 +10353,9 @@ func TestParseIMAPSequenceSet(t *testing.T) {
 			t.Fatalf("parseIMAPSequenceSet(%q, 0) = %v true, want rejection", value, got)
 		}
 	}
-	for _, value := range []string{"01", "1:02"} {
+	for _, value := range []string{"01", "1:02", "1: 2", "1 :2", "1, 2"} {
 		if got, ok := parseIMAPSequenceSet(value, 3); ok {
-			t.Fatalf("parseIMAPSequenceSet(%q, 3) = %v true, want leading-zero rejection", value, got)
+			t.Fatalf("parseIMAPSequenceSet(%q, 3) = %v true, want malformed set rejection", value, got)
 		}
 	}
 }
