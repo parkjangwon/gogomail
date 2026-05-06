@@ -4101,6 +4101,10 @@ Implementation order:
       empty apart from whitespace unless they are rejected as standard S3
       embedded errors, preventing arbitrary provider success text or XML from
       crossing the shared storage contract as durable write/delete success.
+1461. CardDAV future WebDAV `COPY` and `MOVE` method constants are now
+      regression-covered as unadvertised in `OPTIONS` and 405 `Allow` headers
+      until the handler implements full address-book object relocation and
+      duplication semantics.
 
 ## Deferred until backend contracts stabilize
 

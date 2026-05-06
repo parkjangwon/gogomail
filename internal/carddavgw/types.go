@@ -19,6 +19,8 @@ const (
 	MethodHead      = "HEAD"
 	MethodPut       = "PUT"
 	MethodDelete    = "DELETE"
+	MethodCopy      = "COPY"
+	MethodMove      = "MOVE"
 )
 
 const (

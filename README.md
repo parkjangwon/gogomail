@@ -21,9 +21,9 @@ ready to back them.
 
 The SMTP engine is materially advanced, and current work is broadening into
 tenant/domain operations, Admin API, Mail API contracts, delivery routing,
-DNS/DKIM onboarding, quota/policy enforcement, OpenAPI drift prevention, DAV
-interoperability, and storage portability across local, NFS, MinIO, and
-AWS/S3-compatible deployments.
+DNS/DKIM onboarding, quota/policy enforcement, OpenAPI drift prevention, IMAP
+client-compatibility hardening, DAV interoperability, and storage portability
+across local, NFS, MinIO, and AWS/S3-compatible deployments.
 
 ## Backend capability tiers
 
@@ -161,8 +161,11 @@ Recent release-readiness work also includes:
   change-log support, WebDAV conditional mutation guards that recheck observed
   strong ETags even for `If-Match: *`, reject missing-resource
   `If-Unmodified-Since` writes, and honor matching `If-None-Match` validators
-  before object or collection deletion, with native-client compatibility gates
-  kept separate from future UI work
+  before object or collection deletion. `OPTIONS` and unsupported-method
+  `Allow` responses advertise only implemented handlers; future WebDAV
+  `COPY`/`MOVE` names are constants for later work but remain unadvertised
+  until address-book relocation and duplication semantics exist. Native-client
+  compatibility gates stay separate from future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract for metadata, upload/finalize, rename/move, delete, range download,
   public share-link metadata/download with exact bearer-token path semantics,
@@ -319,6 +322,9 @@ ambiguous mixed credentials at the shared auth boundary.
 contacts interoperability. They are real protocol modules, but they should
 remain release-gated until native-client behavior, principal resolution,
 delegation, sync, policy, audit, and storage semantics are proven together.
+Do not advertise DAV methods such as `COPY` or `MOVE` before their full
+WebDAV/CardDAV object semantics are implemented and covered by compatibility
+tests.
 
 `push-notification-worker` stays disabled until
 `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` or
