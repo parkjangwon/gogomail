@@ -232,6 +232,16 @@ Until these boundaries exist, shared calendars, delegated access, resource
 booking, attendee auto-complete, and reminder delivery remain release gates
 rather than isolated CalDAV CRUD features.
 
+The first delegated-access integration keeps that boundary explicit. CalDAV
+handlers distinguish authenticated actor user IDs from resource owner user IDs
+and call a pluggable access authorizer for cross-user calendar paths before
+using owner-scoped storage. Runtime `caldav` mode wires the authorizer through
+Directory active principal resolution, `accesspolicy.DelegatedAccessAuthorizer`,
+and the shared audit repository. This is not a product-specific sharing table
+inside CalDAV; it is the protocol gateway consuming the platform delegation and
+audit model. Public shared-calendar behavior still requires privilege discovery,
+write/manage semantics, scheduling/resource policy, and compatibility tests.
+
 ## Consequences
 
 - Future webmail calendar APIs can share calendar storage while CalDAV handles

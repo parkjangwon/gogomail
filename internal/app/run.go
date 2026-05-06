@@ -19,6 +19,7 @@ import (
 	gosmtp "github.com/emersion/go-smtp"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/gogomail/gogomail/internal/accesspolicy"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
 	"github.com/gogomail/gogomail/internal/audit"
@@ -30,6 +31,7 @@ import (
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dkim"
 	"github.com/gogomail/gogomail/internal/drive"
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
@@ -321,8 +323,16 @@ func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 	calendarRepository := caldavgw.NewRepository(db)
 	accountRepository := maildb.NewRepository(db)
+	directoryRepository := directory.NewRepository(db)
 	resolver := caldavgw.NewBasicAuthResolver(accountRepository, cfg.CalDAVAllowInsecureAuth)
 	handler := caldavgw.NewHandler(calendarRepository, resolver.Resolve)
+	handler.AccessAuthorizer = caldavgw.DelegatedAccessPolicy{
+		Directory: directoryRepository,
+		Authorizer: accesspolicy.DelegatedAccessAuthorizer{
+			Checker:         directoryRepository,
+			AuditRepository: audit.NewPostgresRepository(db),
+		},
+	}
 	server := newCalDAVHTTPServer(cfg, handler)
 
 	errCh := make(chan error, 1)

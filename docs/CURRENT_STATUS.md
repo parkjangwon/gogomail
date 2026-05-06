@@ -64,6 +64,16 @@ one is available. This is intentionally a principal identity/scheduling
 foundation, not public scheduling support: organizer/attendee workflows,
 resource booking, and shared calendar access remain gated on Directory policy,
 Contacts/CardDAV linkage, and audit semantics.
+CalDAV now has its first explicit delegated-access integration point: handler
+authorization can distinguish authenticated actor and resource owner user IDs,
+resolve read requests against the owner calendar store, and call a pluggable
+access authorizer instead of hard-coding every cross-user path as forbidden.
+Runtime `caldav` mode wires that authorizer through Directory active principal
+resolution, `accesspolicy.DelegatedAccessAuthorizer`, and the shared audit
+repository for read/write/manage role checks. This is still a foundation, not
+full public shared-calendar support: WebDAV privilege discovery, delegated
+write/manage UX, resource booking, and broad native-client sharing tests remain
+release gates.
 
 Contacts/CardDAV work has started as a standards-first backend boundary, not a
 generic contacts CRUD API. The initial `internal/carddavgw` package defines
@@ -209,9 +219,11 @@ Directory/Identity now also has an initial delegation table and repository
 check boundary keyed by company, owner principal, delegate principal, product
 scope (`calendar`, `contacts`, `drive`, or `mailbox`), and hierarchical role
 (`read`, `write`, `manage`). This is intentionally not wired into public
-CalDAV sharing yet; it gives future shared calendars, resource calendars,
-shared inboxes, Drive shares, and Contacts delegation one auditable principal
-relationship model instead of each module inventing a separate one. Effective
+shared-calendar UX yet; CalDAV runtime authorization can now consume it through
+the accesspolicy authorizer for cross-user calendar access checks while future
+resource calendars, shared inboxes, Drive shares, and Contacts delegation keep
+one auditable principal relationship model instead of each module inventing a
+separate one. Effective
 delegation can now expand group delegates through bounded nested membership, so
 a group-granted delegation can satisfy user, organization, group, or resource
 members while preserving active-only owner/delegate principal checks, group

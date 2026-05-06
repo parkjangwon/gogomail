@@ -48,9 +48,31 @@ type SyncChangeStore interface {
 
 type UserResolver func(*http.Request) (string, error)
 
+const (
+	CalendarAccessRoleRead   = "read"
+	CalendarAccessRoleWrite  = "write"
+	CalendarAccessRoleManage = "manage"
+)
+
+type AccessRequest struct {
+	ActorUserID  string
+	OwnerUserID  string
+	Resource     ResourcePath
+	RequiredRole string
+}
+
+type AccessDecision struct {
+	Allowed bool
+}
+
+type AccessAuthorizer interface {
+	AuthorizeCalendarAccess(ctx context.Context, req AccessRequest) (AccessDecision, error)
+}
+
 type Handler struct {
 	Store             DiscoveryStore
 	ResolveUser       UserResolver
+	AccessAuthorizer  AccessAuthorizer
 	IncludeScheduling bool
 }
 
@@ -120,7 +142,7 @@ func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveResourceRequest(w, r)
+	userID, resource, ok := h.resolveResourceRequest(w, r, CalendarAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -193,10 +215,11 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "MKCALENDAR requires a calendar collection path", http.StatusConflict)
 		return
 	}
-	if resource.UserID != userID {
-		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleManage)
+	if !ok {
 		return
 	}
+	userID = ownerID
 	if _, err := h.Store.LookupPrincipal(r.Context(), userID); err != nil {
 		http.Error(w, "caldav calendar home not found", http.StatusConflict)
 		return
@@ -237,7 +260,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r)
+	userID, resource, ok := h.resolveObjectRequest(w, r, CalendarAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -272,7 +295,7 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r)
+	userID, resource, ok := h.resolveObjectRequest(w, r, CalendarAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -339,11 +362,26 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveResourceRequest(w, r)
-	if !ok {
+	if h.Store == nil {
+		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
+		return
+	}
+	userID, err := h.ResolveUser(r)
+	if err != nil {
+		http.Error(w, "caldav user is not authenticated", http.StatusUnauthorized)
+		return
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	if resource.Kind == ResourceCalendarCollection {
+		ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleManage)
+		if !ok {
+			return
+		}
+		userID = ownerID
 		h.deleteCalendarCollection(w, r, userID, resource)
 		return
 	}
@@ -351,6 +389,11 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DELETE requires a calendar collection or object path", http.StatusForbidden)
 		return
 	}
+	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleWrite)
+	if !ok {
+		return
+	}
+	userID = ownerID
 	store, ok := h.Store.(ObjectStore)
 	if !ok {
 		http.Error(w, "caldav object store is not configured", http.StatusNotImplemented)
@@ -422,8 +465,8 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 	return true
 }
 
-func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
-	userID, resource, ok := h.resolveResourceRequest(w, r)
+func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
+	userID, resource, ok := h.resolveResourceRequest(w, r, requiredRole)
 	if !ok {
 		return "", ResourcePath{}, false
 	}
@@ -434,7 +477,7 @@ func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (
 	return userID, resource, true
 }
 
-func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
+func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
 	if h.Store == nil {
 		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
 		return "", ResourcePath{}, false
@@ -453,11 +496,40 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return "", ResourcePath{}, false
 	}
-	if resource.UserID != userID {
-		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+	ownerID, ok := h.authorizeResource(w, r, userID, resource, requiredRole)
+	if !ok {
 		return "", ResourcePath{}, false
 	}
-	return userID, resource, true
+	return ownerID, resource, true
+}
+
+func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, actorID string, resource ResourcePath, requiredRole string) (string, bool) {
+	ownerID := strings.TrimSpace(resource.UserID)
+	if ownerID == "" {
+		return actorID, true
+	}
+	if ownerID == actorID {
+		return ownerID, true
+	}
+	if h.AccessAuthorizer == nil {
+		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+		return "", false
+	}
+	decision, err := h.AccessAuthorizer.AuthorizeCalendarAccess(r.Context(), AccessRequest{
+		ActorUserID:  actorID,
+		OwnerUserID:  ownerID,
+		Resource:     resource,
+		RequiredRole: requiredRole,
+	})
+	if err != nil {
+		http.Error(w, "caldav access policy unavailable", http.StatusInternalServerError)
+		return "", false
+	}
+	if !decision.Allowed {
+		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+		return "", false
+	}
+	return ownerID, true
 }
 
 func writeCalendarObjectHeaders(w http.ResponseWriter, object CalendarObject) {
@@ -594,10 +666,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if resource.UserID != "" && resource.UserID != userID {
-		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
+	if !ok {
 		return
 	}
+	userID = ownerID
 	depth, err := ParseDepth(r.Header.Get("Depth"), DepthZero)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -690,10 +763,11 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if resource.UserID != "" && resource.UserID != userID {
-		http.Error(w, "caldav resource is not accessible", http.StatusForbidden)
+	ownerID, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
+	if !ok {
 		return
 	}
+	userID = ownerID
 	depth, err := ParseDepth(r.Header.Get("Depth"), DepthInfinity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

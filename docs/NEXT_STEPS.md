@@ -1729,9 +1729,13 @@ Next:
   retention, admin controls, and traceable calendar access.
 - Directory/Identity now has the first company-scoped delegation table and
   repository check boundary for owner/delegate principals, product scopes, and
-  `read`/`write`/`manage` role hierarchy. Next CalDAV work should connect it
-  only through explicit policy decisions and WebDAV privilege semantics, not by
-  ad-hoc calendar-specific sharing columns.
+  `read`/`write`/`manage` role hierarchy. CalDAV runtime authorization now has
+  a first integration through explicit Directory/accesspolicy decisions and
+  shared audit insertion, allowing cross-user calendar paths to be resolved
+  against the owner store only when the delegated role check allows it. Next
+  CalDAV sharing work should derive WebDAV `current-user-privilege-set` from
+  the same decision path and add native-client compatibility coverage before
+  public shared calendars are advertised.
 - Effective delegation now has a bounded group-expansion read boundary. Next
   product-module integration should still remain deliberate: CalDAV/CardDAV,
   Drive, mailbox sharing, and admin APIs should consume it through explicit

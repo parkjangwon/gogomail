@@ -2090,6 +2090,15 @@ Implementation order:
        elements with the RFC 4791 `CALDAV:supported-filter` precondition
        instead of silently skipping unimplemented predicates and returning a
        misleadingly broad success response.
+1051b. CalDAV handler authorization now separates authenticated actor user ID
+       from resource owner user ID and can resolve delegated read/write/manage
+       checks through a pluggable access authorizer before owner-scoped store
+       reads or mutations run.
+1051c. `gogomail --mode=caldav` now wires that access authorizer through
+       Directory active principal resolution, `DelegatedAccessAuthorizer`, and
+       the shared audit repository, giving CalDAV cross-user access checks the
+       same auditable delegation boundary planned for CardDAV, Drive, mailbox
+       sharing, and resource calendars.
 1052. CalDAV now implements a conservative RFC 6578 `REPORT sync-collection`
       handler for authenticated calendar collections: initial empty-token sync
       returns active objects plus a top-level collection sync token, current

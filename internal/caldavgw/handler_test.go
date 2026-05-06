@@ -149,6 +149,28 @@ func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:getetag/><D:owner/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCalendarAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != CalendarAccessRoleRead {
+		t.Fatalf("access request = %+v", got)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/</D:href>") || !strings.Contains(body, "<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>") {
+		t.Fatalf("delegated propfind did not use owner resource:\n%s", body)
+	}
+}
+
 func TestHandlerPropfindPrincipalCollectionDepthOne(t *testing.T) {
 	t.Parallel()
 
@@ -279,6 +301,30 @@ func TestHandlerReportCalendarMultiget(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("calendar-multiget missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestHandlerReportCalendarMultigetAllowsDelegatedRead(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCalendarAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != CalendarAccessRoleRead {
+		t.Fatalf("access request = %+v", got)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") || !strings.Contains(body, "UID:event-1@example.com") {
+		t.Fatalf("delegated calendar-multiget missing owner object:\n%s", body)
 	}
 }
 
@@ -1070,6 +1116,26 @@ func TestHandlerGetAndHeadCalendarObject(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectAllowsDelegatedRead(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
+	req := httptest.NewRequest(MethodGet, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCalendarAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != CalendarAccessRoleRead {
+		t.Fatalf("access request = %+v", got)
+	}
+	if !strings.Contains(rec.Body.String(), "UID:event-1@example.com") {
+		t.Fatalf("delegated GET missing owner object:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerGetCalendarObjectHonorsIfNoneMatch(t *testing.T) {
 	t.Parallel()
 
@@ -1248,6 +1314,25 @@ func TestHandlerPutCalendarObjectRejectsUnsupportedContentType(t *testing.T) {
 
 	if rec.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d, want 415, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerPutCalendarObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
+	t.Parallel()
+
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCalendarAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != CalendarAccessRoleWrite {
+		t.Fatalf("access request = %+v", got)
 	}
 }
 
@@ -1611,6 +1696,26 @@ func TestHandlerDeleteCalendarCollectionDeletesObjects(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteCalendarCollectionAllowsDelegatedManage(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleManage: true}}
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCalendarAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != CalendarAccessRoleManage {
+		t.Fatalf("access request = %+v", got)
+	}
+	if len(store.calendars) != 0 {
+		t.Fatalf("calendars after delete = %+v", store.calendars)
+	}
+}
+
 func TestHandlerDeleteCalendarCollectionHonorsIfUnmodifiedSince(t *testing.T) {
 	t.Parallel()
 
@@ -1814,6 +1919,20 @@ type fakeDiscoveryStore struct {
 	calendars []Calendar
 	objects   []CalendarObject
 	changes   []CalendarChange
+}
+
+type fakeCalendarAccessAuthorizer struct {
+	allowedRoles map[string]bool
+	last         AccessRequest
+	err          error
+}
+
+func (a *fakeCalendarAccessAuthorizer) AuthorizeCalendarAccess(_ context.Context, req AccessRequest) (AccessDecision, error) {
+	a.last = req
+	if a.err != nil {
+		return AccessDecision{}, a.err
+	}
+	return AccessDecision{Allowed: a.allowedRoles[req.RequiredRole]}, nil
 }
 
 type readTrackingReader struct {
